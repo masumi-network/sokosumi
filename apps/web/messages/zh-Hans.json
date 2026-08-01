@@ -26,6 +26,22 @@
       "description": "由于某个第三方服务提供商的技术问题，我们目前在任务执行方面遇到了一些问题。请放心，稍后将恢复正常。",
       "confirm": "确定"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "搜索全部表情",
+      "frequentlyUsed": "常用表情",
+      "noResults": "未找到表情",
+      "categories": {
+        "smileysEmotion": "表情与情感",
+        "peopleBody": "人物与身体",
+        "animalsNature": "动物与自然",
+        "foodDrink": "食物与饮料",
+        "travelPlaces": "旅行与地点",
+        "activities": "活动",
+        "objects": "物品",
+        "symbols": "符号",
+        "flags": "旗帜"
+      }
+    },
     "ShareButton": {
       "linkCopied": "链接已复制到剪贴板",
       "copyError": "复制链接失败"
@@ -762,6 +778,12 @@
       "placeholder": "选择组织",
       "search": "搜索组织…",
       "empty": "未找到组织。"
+    },
+    "ImageViewer": {
+      "title": "图片",
+      "viewImage": "查看图片 {fileName}",
+      "download": "下载图片",
+      "close": "关闭"
     }
   },
   "Join": {
@@ -4007,6 +4029,23 @@
         "clientSecretPlaceholder": "输入您的 OAuth 客户端密钥",
         "clientSecretHelp": "机密客户端需要客户端密钥。公开客户端请留空。"
       },
+      "ProfileImage": {
+        "title": "头像",
+        "description": "上传或移除用于你账户的头像。",
+        "imageDescription": "上传不超过 {maxSize} 的图片。移除后将回退到 Gravatar。",
+        "imageUpload": "上传",
+        "imageReplace": "替换",
+        "imageRemove": "移除图片",
+        "imagePreviewAlt": "头像预览",
+        "imageUploadSuccess": "头像已更新",
+        "imageUploadError": "上传头像失败",
+        "imageSaveError": "保存头像失败",
+        "imageRemoveSuccess": "头像已移除",
+        "imageRemoveError": "移除头像失败",
+        "fileTooLarge": "文件过大",
+        "fileTypeNotAccepted": "不支持的文件类型",
+        "maxFilesExceeded": "一次只能上传一张图片"
+      },
       "BrandProfile": {
         "title": "品牌资料",
         "description": "设置用于创建个人 DESIGN.md 的品牌信息。",
@@ -4603,8 +4642,10 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "添加收件人后开始",
-        "oneToOneOnlyError": "私信目前仅为一对一。请选择一位成员或一位同事。",
-        "searchPlaceholderReplace": "更换收件人"
+        "searchPlaceholderReplace": "更换收件人",
+        "groupDirectHumansOnly": "群组私信仅限真人成员。",
+        "groupDirectNoCoworkersError": "群组私信不能包含同事。",
+        "coworkerDirectOneToOneOnly": "与同事的私信仅支持一对一。"
       },
       "Toolbar": {
         "mention": "Mention coworker",
@@ -4664,6 +4705,21 @@
         "linkPlaceholder": "https://",
         "cancel": "取消",
         "save": "保存"
+      },
+      "Quote": {
+        "action": "引用",
+        "dismiss": "移除引用",
+        "previewLabel": "正在引用 {author}",
+        "jump": "跳转到 {author} 的消息",
+        "showMore": "更多",
+        "showLess": "收起"
+      },
+      "MentionAll": {
+        "label": "所有人"
+      },
+      "MentionSections": {
+        "people": "成员",
+        "coworkers": "协作伙伴"
       }
     }
   },
@@ -4885,6 +4941,9 @@
         "completed": "{coworkerName} 已完成 {taskName}",
         "failed": "{coworkerName} 未能完成 {taskName}",
         "canceled": "{taskName} 已取消"
+      },
+      "Chat": {
+        "mentioned": "{authorName}在{roomName}中提到了你"
       }
     }
   },

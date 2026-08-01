@@ -20,10 +20,16 @@ import {
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
+import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
+import {
+  type ComposeDraft,
+  clearComposeDraft,
+  composeDraftKey,
+} from "@/app/chat/utils/compose-draft-storage";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
   mergeMessagesWithStreamOverlay,
@@ -59,6 +65,7 @@ import {
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
   appendMessage,
+  buildRoomAllMentionRecord,
   buildRoomComposerMessageContent,
   getRoomDisplayName,
   getRoomParticipantPreviews,
@@ -66,8 +73,12 @@ import {
   isMessageContinuation,
   isRoomComposerEmpty,
   messageDayKey,
+  type PendingRoomQuote,
+  pendingQuoteFromMessage,
   presenceLabel,
+  ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
   shouldUseCoworkerRoomStream,
@@ -176,6 +187,9 @@ export function RoomsClient({
     RoomComposerAttachment[]
   >([]);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
+  const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
+    null,
+  );
   const [messagesState, setMessagesState] =
     useState<ChatRoomMessage[]>(messages);
   const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
@@ -194,6 +208,82 @@ export function RoomsClient({
     RoomComposerAttachment[]
   >([]);
   const [threadMentionedIds, setThreadMentionedIds] = useState<string[]>([]);
+  const [pendingThreadQuote, setPendingThreadQuote] =
+    useState<PendingRoomQuote | null>(null);
+  const composeSurfaceEpoch = `${selectedRoomId}:${isNewDirectMessage}:${isCreateChannelRequested}`;
+  const [syncedComposeSurfaceEpoch, setSyncedComposeSurfaceEpoch] =
+    useState(composeSurfaceEpoch);
+  if (composeSurfaceEpoch !== syncedComposeSurfaceEpoch) {
+    setSyncedComposeSurfaceEpoch(composeSurfaceEpoch);
+    setMentionedIds([]);
+    setPendingQuote(null);
+    setThreadParentMessage(null);
+    setThreadMessages([]);
+    setThreadComposerValue("");
+    setThreadComposerAttachments([]);
+    setThreadMentionedIds([]);
+    setPendingThreadQuote(null);
+  }
+
+  const channelComposeDraftKey =
+    selectedRoomId != null && !isNewDirectMessage && !isCreateChannelRequested
+      ? composeDraftKey.room(selectedRoomId)
+      : null;
+  const threadComposeDraftKey =
+    selectedRoomId != null && threadParentMessage != null
+      ? composeDraftKey.thread(selectedRoomId, threadParentMessage.id)
+      : null;
+  const channelComposeDraft = useMemo<ComposeDraft>(
+    () => ({
+      text: composerValue,
+      attachments: composerAttachments.map((attachment) => ({
+        url: attachment.url,
+        fileName: attachment.fileName,
+        ...(attachment.mediaType ? { mediaType: attachment.mediaType } : {}),
+      })),
+    }),
+    [composerValue, composerAttachments],
+  );
+  const threadComposeDraft = useMemo<ComposeDraft>(
+    () => ({
+      text: threadComposerValue,
+      attachments: threadComposerAttachments.map((attachment) => ({
+        url: attachment.url,
+        fileName: attachment.fileName,
+        ...(attachment.mediaType ? { mediaType: attachment.mediaType } : {}),
+      })),
+    }),
+    [threadComposerValue, threadComposerAttachments],
+  );
+  const { clearDraft: clearChannelComposeDraft } = usePersistComposeDraft({
+    key: channelComposeDraftKey,
+    draft: channelComposeDraft,
+    onHydrate: (draft) => {
+      setComposerValue(draft.text);
+      setComposerAttachments(
+        draft.attachments.map((attachment) => ({
+          url: attachment.url,
+          fileName: attachment.fileName,
+          mediaType: attachment.mediaType ?? null,
+        })),
+      );
+    },
+  });
+  const { clearDraft: clearThreadComposeDraft } = usePersistComposeDraft({
+    key: threadComposeDraftKey,
+    draft: threadComposeDraft,
+    onHydrate: (draft) => {
+      setThreadComposerValue(draft.text);
+      setThreadComposerAttachments(
+        draft.attachments.map((attachment) => ({
+          url: attachment.url,
+          fileName: attachment.fileName,
+          mediaType: attachment.mediaType ?? null,
+        })),
+      );
+    },
+  });
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
   const readMarkerRef = useRef<string | null>(null);
@@ -494,8 +584,19 @@ export function RoomsClient({
         ] as const;
       },
     );
-    return Object.fromEntries([...humanEntries, ...coworkerEntries]);
-  }, [currentUserId, selectedRoom]);
+    const entries = [...humanEntries, ...coworkerEntries];
+    if (
+      selectedRoom &&
+      shouldIncludeRoomAllMention(selectedRoom, currentUserId)
+    ) {
+      // Pin @all first so the picker surfaces it above long member lists.
+      entries.unshift([
+        ROOM_MENTION_ALL_ID,
+        buildRoomAllMentionRecord(t("MentionAll.label")),
+      ] as const);
+    }
+    return Object.fromEntries(entries);
+  }, [currentUserId, selectedRoom, t]);
 
   function partitionMentionIds(selectedKeys: string[]): {
     mentionedCoworkerIds: string[];
@@ -531,17 +632,6 @@ export function RoomsClient({
         : current,
     );
   }, [messages, messagesNextCursor, selectedRoomId]);
-
-  useEffect(() => {
-    setComposerValue("");
-    setComposerAttachments([]);
-    setMentionedIds([]);
-    setThreadParentMessage(null);
-    setThreadMessages([]);
-    setThreadComposerValue("");
-    setThreadComposerAttachments([]);
-    setThreadMentionedIds([]);
-  }, [selectedRoomId, isNewDirectMessage, isCreateChannelRequested]);
 
   // Scroll on room switch or when the newest message changes — not when
   // an older page is prepended (length grows, last id stays the same).
@@ -927,6 +1017,14 @@ export function RoomsClient({
     });
   }
 
+  function handleQuoteMessage(message: ChatRoomMessage) {
+    setPendingQuote(pendingQuoteFromMessage(message));
+  }
+
+  function handleQuoteThreadMessage(message: ChatRoomMessage) {
+    setPendingThreadQuote(pendingQuoteFromMessage(message));
+  }
+
   function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedRoom) return;
@@ -938,16 +1036,25 @@ export function RoomsClient({
     );
     if (!content) return;
 
+    const quotePayload = pendingQuote
+      ? { messageId: pendingQuote.messageId }
+      : undefined;
+
+    // Coworker stream rooms keep SSE even with a pending quote (Core persists
+    // the quote snapshot on the user message). Classic POST stays for non-stream.
     if (shouldUseCoworkerRoomStream(selectedRoom)) {
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
-      sendStreamMessage(content);
+      setPendingQuote(null);
+      clearChannelComposeDraft();
+      sendStreamMessage(content, { quote: quotePayload });
       return;
     }
 
     const { mentionedCoworkerIds, mentionedUserIds } =
       partitionMentionIds(mentionedIds);
+    const sentChannelDraftKey = composeDraftKey.room(roomId);
     startSendingTransition(async () => {
       const result = await sendRoomMessageAction(
         roomId,
@@ -955,19 +1062,23 @@ export function RoomsClient({
         mentionedCoworkerIds,
         {
           mentionedUserIds,
+          quote: quotePayload,
         },
       );
       if (!result.ok) {
         toast.error(result.message);
         return;
       }
+      clearComposeDraft(sentChannelDraftKey);
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
+      clearChannelComposeDraft();
       setMessagesState((current) => appendMessage(current, result.data));
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
+      setPendingQuote(null);
     });
   }
 
@@ -983,16 +1094,23 @@ export function RoomsClient({
     );
     if (!content) return;
 
+    const quotePayload = pendingThreadQuote
+      ? { messageId: pendingThreadQuote.messageId }
+      : undefined;
+
     if (shouldUseCoworkerRoomStream(selectedRoom)) {
       setThreadComposerValue("");
       setThreadComposerAttachments([]);
       setThreadMentionedIds([]);
-      sendStreamMessage(content, { parentMessageId });
+      setPendingThreadQuote(null);
+      clearThreadComposeDraft();
+      sendStreamMessage(content, { parentMessageId, quote: quotePayload });
       return;
     }
 
     const { mentionedCoworkerIds, mentionedUserIds } =
       partitionMentionIds(threadMentionedIds);
+    const sentThreadDraftKey = composeDraftKey.thread(roomId, parentMessageId);
     startSendingThreadReplyTransition(async () => {
       const result = await sendRoomMessageAction(
         roomId,
@@ -1001,21 +1119,25 @@ export function RoomsClient({
         {
           mentionedUserIds,
           parentMessageId,
+          quote: quotePayload,
         },
       );
       if (!result.ok) {
         toast.error(result.message);
         return;
       }
+      clearComposeDraft(sentThreadDraftKey);
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
 
+      clearThreadComposeDraft();
       setThreadMessages((current) => [...current, result.data]);
       updateParentThreadPreview(parentMessageId, result.data);
       setThreadComposerValue("");
       setThreadComposerAttachments([]);
       setThreadMentionedIds([]);
+      setPendingThreadQuote(null);
     });
   }
 
@@ -1145,6 +1267,7 @@ export function RoomsClient({
                               ? loadThreadMessages
                               : undefined
                           }
+                          onQuote={handleQuoteMessage}
                           // Stream overlays never show thread chrome.
                           showThreadButton={shouldShowChatRoomThreadButton({
                             room: selectedRoom,
@@ -1190,6 +1313,8 @@ export function RoomsClient({
                   selectedRoom,
                 )}
                 allowAttachments={!isCoworkerStreamRoom}
+                pendingQuote={pendingQuote}
+                onClearPendingQuote={() => setPendingQuote(null)}
                 onChromeResize={() => {
                   bottomRef.current?.scrollIntoView({ block: "end" });
                 }}
@@ -1245,8 +1370,12 @@ export function RoomsClient({
               setThreadParentMessage(null);
               setThreadMessages([]);
               setThreadOlderNextCursor(null);
+              setPendingThreadQuote(null);
             }}
             onToggleReaction={handleToggleReaction}
+            onQuote={handleQuoteThreadMessage}
+            pendingQuote={pendingThreadQuote}
+            onClearPendingQuote={() => setPendingThreadQuote(null)}
             showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
             allowAttachments={!isCoworkerStreamRoom}
             roomId={selectedRoom.id}

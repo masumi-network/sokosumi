@@ -21,6 +21,7 @@ function baseMessage(
     threadReplyCount: 0,
     threadLastReplyAt: null,
     metadata: null,
+    quote: null,
     ...overrides,
   };
 }

@@ -1,3 +1,8 @@
+import { buildQuoteSnippet } from "@sokosumi/utils";
+import type {
+  MentionSuggestionGroup,
+  NormalizedMention,
+} from "@/components/ui/mention-textarea-utils";
 import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
@@ -24,13 +29,86 @@ export interface RoomParticipantPreview {
   kind: "human" | "coworker";
 }
 
-/** Shared mention-picker payload for humans and coworkers in room composers. */
+/** Catalog / chip key for room-wide @all. Not a user UUID. */
+export const ROOM_MENTION_ALL_ID = "all" as const;
+
+/** Slug half of the persist token `@all:all`. */
+export const ROOM_MENTION_ALL_SLUG = "all" as const;
+
+/** Persist form written by the wysiwyg serializer (`@key:slug`). */
+export const ROOM_MENTION_ALL_TOKEN = "@all:all" as const;
+
+export function isRoomMentionAllId(id: string): boolean {
+  return id === ROOM_MENTION_ALL_ID;
+}
+
+/** Shared mention-picker payload for humans, coworkers, and synthetic @all. */
 export interface RoomMentionParticipant {
-  kind: "human" | "coworker";
+  kind: "human" | "coworker" | "all";
   id: string;
   name: string;
   slug: string;
   image: string | null;
+}
+
+/**
+ * Synthetic catalog row for the @all picker entry.
+ * `label` is the localized display/search value (e.g. "Everyone"); key/slug stay `all`.
+ */
+export function buildRoomAllMentionRecord(label: string): {
+  value: string;
+  slug: string;
+  data: RoomMentionParticipant;
+} {
+  return {
+    value: label,
+    slug: ROOM_MENTION_ALL_SLUG,
+    data: {
+      kind: "all",
+      id: ROOM_MENTION_ALL_ID,
+      name: label,
+      slug: ROOM_MENTION_ALL_SLUG,
+      image: null,
+    },
+  };
+}
+
+/**
+ * Partition filtered room mention suggestions into People (humans + @all)
+ * and Coworkers. Omits empty sections. Preserves within-section filter order.
+ */
+export function partitionRoomMentionSuggestions(
+  filtered: NormalizedMention<RoomMentionParticipant>[],
+  labels: { peopleLabel: string; coworkersLabel: string },
+): MentionSuggestionGroup<RoomMentionParticipant>[] {
+  const people: NormalizedMention<RoomMentionParticipant>[] = [];
+  const coworkers: NormalizedMention<RoomMentionParticipant>[] = [];
+
+  for (const mention of filtered) {
+    if (mention.data?.kind === "coworker") {
+      coworkers.push(mention);
+    } else {
+      // human | all | missing kind → People (safe fallback for humans-shaped rows)
+      people.push(mention);
+    }
+  }
+
+  const groups: MentionSuggestionGroup<RoomMentionParticipant>[] = [];
+  if (people.length > 0) {
+    groups.push({
+      id: "people",
+      label: labels.peopleLabel,
+      items: people,
+    });
+  }
+  if (coworkers.length > 0) {
+    groups.push({
+      id: "coworkers",
+      label: labels.coworkersLabel,
+      items: coworkers,
+    });
+  }
+  return groups;
 }
 
 export function appendComposerBlock(value: string, block: string): string {
@@ -109,6 +187,38 @@ export function toggleId(
 
 /** Slack-like gap before a same-sender burst starts a new full header. */
 export const MESSAGE_GROUP_GAP_MS = 5 * 60 * 1000;
+
+/** Pending composer quote (author + snippet snapshot for the dismissible chip). */
+export interface PendingRoomQuote {
+  messageId: string;
+  authorName: string;
+  snippet: string;
+}
+
+export function pendingQuoteFromMessage(
+  message: ChatRoomMessage,
+): PendingRoomQuote {
+  return {
+    messageId: message.id,
+    authorName: messageSender(message).name,
+    snippet: buildQuoteSnippet(message.content),
+  };
+}
+
+/** Soft-fail scroll to a room message article when it is still in the DOM. */
+export function scrollToRoomMessageElement(messageId: string): boolean {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  const target = document.querySelector<HTMLElement>(
+    `[data-message-id="${CSS.escape(messageId)}"]`,
+  );
+  if (!target) {
+    return false;
+  }
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  return true;
+}
 
 export function messageSender(message: ChatRoomMessage) {
   if (message.sender.type === "user") {
@@ -278,11 +388,33 @@ export function shouldShowChatRoomThreadButton(options: {
 }
 
 /** Direct rooms: @ only when the roster has more than two people (incl. you). */
-export function shouldShowRoomMentionShortcut(room: ChatRoom): boolean {
+export function shouldShowRoomMentionShortcut(room: {
+  kind: string;
+  userMembers: readonly unknown[];
+  coworkerMembers: readonly unknown[];
+}): boolean {
   if (room.kind !== "direct") {
     return true;
   }
   return room.userMembers.length + room.coworkerMembers.length > 2;
+}
+
+/**
+ * Offer @all when mentions already work and at least one other human can be
+ * notified (room humans excluding the author).
+ */
+export function shouldIncludeRoomAllMention(
+  room: {
+    kind: string;
+    userMembers: ReadonlyArray<{ id: string }>;
+    coworkerMembers: readonly unknown[];
+  },
+  currentUserId: string,
+): boolean {
+  if (!shouldShowRoomMentionShortcut(room)) {
+    return false;
+  }
+  return room.userMembers.some((member) => member.id !== currentUserId);
 }
 
 export function formatDirectParticipantNames(
@@ -376,18 +508,22 @@ export function formatRoomMarkdownMentions({
 
   let formatted = "";
   let lastIndex = 0;
-  matches.forEach((match) => {
+  for (const match of matches) {
     if (match.start > lastIndex) {
       formatted += content.slice(lastIndex, match.start);
     }
-    const coworker =
-      coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
-    const user =
-      usersById?.get(match.id) ?? usersBySlug?.get(match.slug) ?? undefined;
-    const displayName = coworker?.name ?? user?.name ?? match.id;
-    formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
+    const displayName = isRoomMentionAllId(match.id)
+      ? ROOM_MENTION_ALL_ID
+      : ((coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug))
+          ?.name ??
+        (usersById?.get(match.id) ?? usersBySlug?.get(match.slug))?.name);
+    if (displayName) {
+      formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
+    } else {
+      formatted += content.slice(match.start, match.end);
+    }
     lastIndex = match.end;
-  });
+  }
   if (lastIndex < content.length) {
     formatted += content.slice(lastIndex);
   }

@@ -1,32 +1,12 @@
 "use client";
 
-import { ArrowUp, Loader2, SmilePlus } from "lucide-react";
-import { type FormEvent, type ReactNode, type Ref, useState } from "react";
+import { ArrowUp, Loader2 } from "lucide-react";
+import { type FormEvent, type ReactNode, type Ref } from "react";
 
+import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-
-/** Shared emoji set for room composers and message reaction pickers. */
-export const ROOM_COMPOSER_EMOJIS = [
-  "👍",
-  "❤️",
-  "😂",
-  "🎉",
-  "🙏",
-  "🔥",
-  "✅",
-  "👀",
-  "💯",
-  "🚀",
-  "🙂",
-  "😅",
-] as const;
 
 export const ROOM_COMPOSER_TEXTAREA_CLASSNAME =
   "max-h-40 min-h-20 resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm";
@@ -160,39 +140,13 @@ export function RoomComposerEmojiPicker({
   title,
   ariaLabel,
 }: RoomComposerEmojiPickerProps) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-          title={title}
-          aria-label={ariaLabel}
-        >
-          <SmilePlus className="size-4" aria-hidden />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-2">
-        <div className="grid grid-cols-6 gap-1">
-          {ROOM_COMPOSER_EMOJIS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              className="hover:bg-muted focus-visible:ring-ring flex size-10 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2 sm:size-8"
-              onClick={() => {
-                onPick(emoji);
-                setOpen(false);
-              }}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
+    <EmojiPicker
+      onPick={onPick}
+      title={title}
+      ariaLabel={ariaLabel}
+      align="start"
+      triggerClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+    />
   );
 }

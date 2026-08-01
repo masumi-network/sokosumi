@@ -1,6 +1,13 @@
 "use client";
 
-import { ALargeSmall, AtSign, Loader2, Paperclip } from "lucide-react";
+import {
+  ALargeSmall,
+  AtSign,
+  Loader2,
+  Paperclip,
+  Users,
+  X,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type Dispatch,
@@ -28,12 +35,17 @@ import {
   RoomMessageComposer,
   type RoomMessageComposerAttachment,
 } from "@/components/chat/room-message-composer";
+import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomUserParticipant,
+} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
@@ -43,7 +55,12 @@ import {
 } from "@/lib/utils/composer-active-formats";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
-import type { RoomMentionParticipant } from "./room-helpers";
+import {
+  formatRoomMarkdownMentions,
+  type PendingRoomQuote,
+  partitionRoomMentionSuggestions,
+  type RoomMentionParticipant,
+} from "./room-helpers";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
@@ -59,18 +76,27 @@ function RoomMentionSuggestion({
 }: {
   mention: NormalizedMention<RoomMentionParticipant>;
 }) {
+  const t = useTranslations("App.Channels");
   const isCoworker = mention.data?.kind === "coworker";
+  const isAll = mention.data?.kind === "all";
+  const displayName = isAll ? t("MentionAll.label") : mention.value;
   return (
     <>
-      <Avatar className="size-6">
-        <AvatarImage src={mention.data?.image ?? undefined} alt="" />
-        <AvatarFallback className="text-[10px]">
-          {getInitials(mention.value)}
-        </AvatarFallback>
-      </Avatar>
+      {isAll ? (
+        <div className="bg-muted flex size-6 items-center justify-center rounded-full">
+          <Users className="text-muted-foreground size-3.5" aria-hidden />
+        </div>
+      ) : (
+        <Avatar className="size-6">
+          <AvatarImage src={mention.data?.image ?? undefined} alt="" />
+          <AvatarFallback className="text-[10px]">
+            {getInitials(mention.value)}
+          </AvatarFallback>
+        </Avatar>
+      )}
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate font-medium">{mention.value}</span>
+          <span className="truncate font-medium">{displayName}</span>
           {isCoworker ? <AiCoworkerIcon /> : null}
         </div>
         <div className="text-muted-foreground truncate text-xs">
@@ -78,6 +104,99 @@ function RoomMentionSuggestion({
         </div>
       </div>
     </>
+  );
+}
+
+type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
+
+function mentionLookupMapsFromCatalog(
+  mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>,
+): {
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById: Map<string, UserMentionLookup>;
+  usersBySlug: Map<string, UserMentionLookup>;
+} {
+  const coworkersById = new Map<string, ChatRoomCoworkerParticipant>();
+  const coworkersBySlug = new Map<string, ChatRoomCoworkerParticipant>();
+  const usersById = new Map<string, UserMentionLookup>();
+  const usersBySlug = new Map<string, UserMentionLookup>();
+
+  for (const entry of Object.values(mentions)) {
+    const data = entry.data;
+    if (!data) {
+      continue;
+    }
+    if (data.kind === "coworker") {
+      const coworker: ChatRoomCoworkerParticipant = {
+        id: data.id,
+        name: data.name,
+        slug: data.slug,
+        caption: null,
+        image: data.image,
+        presence: "offline",
+      };
+      coworkersById.set(data.id, coworker);
+      coworkersBySlug.set(data.slug, coworker);
+      continue;
+    }
+    if (data.kind === "human") {
+      const user: UserMentionLookup = { id: data.id, name: data.name };
+      usersById.set(data.id, user);
+      usersBySlug.set(data.slug, user);
+    }
+  }
+
+  return { coworkersById, coworkersBySlug, usersById, usersBySlug };
+}
+
+function PendingQuotePreview({
+  quote,
+  onDismiss,
+  mentions,
+}: {
+  quote: PendingRoomQuote;
+  onDismiss: () => void;
+  mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
+}) {
+  const t = useTranslations("App.Channels.Quote");
+  const { coworkersById, coworkersBySlug, usersById, usersBySlug } =
+    mentionLookupMapsFromCatalog(mentions);
+
+  return (
+    <div
+      className="border-border bg-muted/30 flex items-start gap-2 border-b px-3 py-2"
+      role="status"
+      aria-label={t("previewLabel", { author: quote.authorName })}
+    >
+      <div className="border-primary/60 min-w-0 flex-1 border-l-2 pl-2.5">
+        <div className="text-foreground truncate text-xs font-semibold">
+          {quote.authorName}
+        </div>
+        <div className="text-muted-foreground line-clamp-4 text-xs leading-5">
+          <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+            {formatRoomMarkdownMentions({
+              content: quote.snippet,
+              coworkersById,
+              coworkersBySlug,
+              usersById,
+              usersBySlug,
+            })}
+          </Markdown>
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-7 shrink-0 rounded-full"
+        title={t("dismiss")}
+        aria-label={t("dismiss")}
+        onClick={onDismiss}
+      >
+        <X className="size-3.5" aria-hidden />
+      </Button>
+    </div>
   );
 }
 
@@ -96,6 +215,8 @@ export function RoomComposer({
   sendDisabled,
   showMentionShortcut = true,
   allowAttachments = true,
+  pendingQuote = null,
+  onClearPendingQuote,
   onChromeResize,
 }: {
   ref?: Ref<RoomComposerHandle>;
@@ -115,6 +236,9 @@ export function RoomComposer({
   showMentionShortcut?: boolean;
   /** False when the send path cannot persist uploads (e.g. coworker stream). */
   allowAttachments?: boolean;
+  /** Slack-like dismissible quote chip above the editor. */
+  pendingQuote?: PendingRoomQuote | null;
+  onClearPendingQuote?: () => void;
   /**
    * Fired when composer chrome height changes (e.g. format strip toggles)
    * so the parent can keep the latest message visible above the composer.
@@ -131,8 +255,8 @@ export function RoomComposer({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
-  /** Slack Aa toggle: formatting strip above the editor. */
-  const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
+  /** Slack Aa toggle: formatting strip above the editor. Starts open by default. */
+  const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
   const [activeFormats, setActiveFormats] = useState<ComposerActiveFormats>(
     EMPTY_COMPOSER_ACTIVE_FORMATS,
   );
@@ -143,7 +267,7 @@ export function RoomComposer({
     ? onSelectedKeysChange
     : undefined;
 
-  // After paint so the format strip has height before the parent scrolls.
+  // After paint so the format strip / quote chip have height before scroll.
   useEffect(() => {
     const notify = onChromeResizeRef.current;
     if (!notify) return;
@@ -151,7 +275,7 @@ export function RoomComposer({
       notify();
     });
     return () => cancelAnimationFrame(frame);
-  }, [formatToolbarOpen]);
+  }, [formatToolbarOpen, pendingQuote?.messageId]);
 
   useEffect(() => {
     if (!formatToolbarOpen) {
@@ -295,13 +419,22 @@ export function RoomComposer({
         sendDisabled={isUploadingFiles || sendDisabled}
         sendAriaLabel={t("send")}
         aboveEditor={
-          formatToolbarOpen ? (
-            <ComposerFormatToolbar
-              onFormat={handleFormat}
-              onLink={openLinkDialog}
-              activeFormats={activeFormats}
-            />
-          ) : null
+          <>
+            {pendingQuote && onClearPendingQuote ? (
+              <PendingQuotePreview
+                quote={pendingQuote}
+                onDismiss={onClearPendingQuote}
+                mentions={composerMentions}
+              />
+            ) : null}
+            {formatToolbarOpen ? (
+              <ComposerFormatToolbar
+                onFormat={handleFormat}
+                onLink={openLinkDialog}
+                activeFormats={activeFormats}
+              />
+            ) : null}
+          </>
         }
         toolbarStart={
           <>
@@ -392,6 +525,12 @@ export function RoomComposer({
             formatToolbarOpen ? handleActiveFormatsChange : undefined
           }
           className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
+          groupMentions={(filtered) =>
+            partitionRoomMentionSuggestions(filtered, {
+              peopleLabel: t("MentionSections.people"),
+              coworkersLabel: t("MentionSections.coworkers"),
+            })
+          }
           renderMentionItem={(mention) => (
             <RoomMentionSuggestion mention={mention} />
           )}

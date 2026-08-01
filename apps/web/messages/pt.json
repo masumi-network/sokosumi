@@ -26,6 +26,22 @@
       "description": "Estamos a enfrentar problemas na execução de jobs devido a dificuldades técnicas com um dos nossos fornecedores terceiros. Não se preocupe, tudo voltará ao normal em breve.",
       "confirm": "OK"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "Pesquisar todos os emojis",
+      "frequentlyUsed": "Usados com frequência",
+      "noResults": "Nenhum emoji encontrado",
+      "categories": {
+        "smileysEmotion": "Smileys e emoções",
+        "peopleBody": "Pessoas e corpo",
+        "animalsNature": "Animais e natureza",
+        "foodDrink": "Comida e bebida",
+        "travelPlaces": "Viagens e locais",
+        "activities": "Atividades",
+        "objects": "Objetos",
+        "symbols": "Símbolos",
+        "flags": "Bandeiras"
+      }
+    },
     "ShareButton": {
       "linkCopied": "Link copiado para a área de transferência",
       "copyError": "Falha ao copiar o link"
@@ -762,6 +778,12 @@
       "placeholder": "Selecione uma organização",
       "search": "Pesquisar organizações…",
       "empty": "Nenhuma organização encontrada."
+    },
+    "ImageViewer": {
+      "title": "Imagem",
+      "viewImage": "Ver imagem {fileName}",
+      "download": "Descarregar imagem",
+      "close": "Fechar"
     }
   },
   "Join": {
@@ -4007,6 +4029,23 @@
         "clientSecretPlaceholder": "Introduza o seu OAuth Client Secret",
         "clientSecretHelp": "O seu client secret é obrigatório para clientes confidenciais. Para clientes públicos, deixe este campo em branco."
       },
+      "ProfileImage": {
+        "title": "Imagem de perfil",
+        "description": "Carrega ou remove o avatar usado na tua conta.",
+        "imageDescription": "Carrega uma imagem até {maxSize}. Remove-a para voltar ao Gravatar.",
+        "imageUpload": "Carregar",
+        "imageReplace": "Substituir",
+        "imageRemove": "Remover imagem",
+        "imagePreviewAlt": "Pré-visualização da imagem de perfil",
+        "imageUploadSuccess": "Imagem de perfil atualizada",
+        "imageUploadError": "Falha ao carregar a imagem de perfil",
+        "imageSaveError": "Falha ao guardar a imagem de perfil",
+        "imageRemoveSuccess": "Imagem de perfil removida",
+        "imageRemoveError": "Falha ao remover a imagem de perfil",
+        "fileTooLarge": "O ficheiro é demasiado grande",
+        "fileTypeNotAccepted": "Tipo de ficheiro não aceite",
+        "maxFilesExceeded": "Carrega apenas uma imagem de cada vez"
+      },
       "BrandProfile": {
         "title": "Perfil da marca",
         "description": "Defina os dados da marca usados para criar o seu DESIGN.md pessoal.",
@@ -4603,8 +4642,10 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Adiciona um destinatário para começar",
-        "oneToOneOnlyError": "As mensagens diretas são 1:1. Escolhe um membro ou um coworker.",
-        "searchPlaceholderReplace": "Substituir destinatário"
+        "searchPlaceholderReplace": "Substituir destinatário",
+        "groupDirectHumansOnly": "As mensagens diretas de grupo são só entre pessoas.",
+        "groupDirectNoCoworkersError": "As mensagens diretas de grupo não podem incluir coworkers.",
+        "coworkerDirectOneToOneOnly": "As mensagens diretas com coworkers são 1:1."
       },
       "Toolbar": {
         "mention": "Mention coworker",
@@ -4664,6 +4705,21 @@
         "linkPlaceholder": "https://",
         "cancel": "Cancelar",
         "save": "Guardar"
+      },
+      "Quote": {
+        "action": "Citar",
+        "dismiss": "Remover citação",
+        "previewLabel": "A citar {author}",
+        "jump": "Ir para a mensagem de {author}",
+        "showMore": "Mais",
+        "showLess": "Menos"
+      },
+      "MentionAll": {
+        "label": "Todos"
+      },
+      "MentionSections": {
+        "people": "Pessoas",
+        "coworkers": "Coworkers"
       }
     }
   },
@@ -4885,6 +4941,9 @@
         "completed": "{coworkerName} concluiu {taskName}",
         "failed": "{coworkerName} não conseguiu concluir {taskName}",
         "canceled": "{taskName} foi cancelado"
+      },
+      "Chat": {
+        "mentioned": "{authorName} mencionou-te em {roomName}"
       }
     }
   },

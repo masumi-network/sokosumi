@@ -12,14 +12,20 @@ import {
 import { createPortal } from "react-dom";
 
 import {
+  type ComposerSuggestion,
+  resolveComposerSuggestion,
+} from "@/components/chat/composer-suggestions";
+import {
   createMentionSpan,
   deslugifyMentionSlug,
   findPositionForOffset,
+  getActiveEmojiTrigger,
   getActiveTrigger,
   getCaretRect,
   getPopupPositionFromRect,
   MENTION_CLASSNAME,
   type MentionRecordEntry,
+  type MentionSuggestionGroup,
   type NormalizedMention,
   serializeEditor,
   setCaretAfterNode,
@@ -44,8 +50,21 @@ import {
   resolveComposerEnterAction,
   tryApplyComposerInputRuleAtCaret,
 } from "@/lib/utils/composer-wysiwyg-input-rules";
+import {
+  type EmojiShortcodeMatch,
+  matchExactEmojiShortcodeClosed,
+} from "@/lib/utils/emoji-shortcodes";
 import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
+
+type SuggestionUiState =
+  | { open: false }
+  | {
+      open: true;
+      suggestion: ComposerSuggestion;
+      position: TriggerPosition;
+      activeIndex: number;
+    };
 
 export interface ComposerWysiwygEditorHandle {
   focus: () => void;
@@ -72,6 +91,10 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
     mention: NormalizedMention<TData>,
     isActive: boolean,
   ) => ReactNode;
+  /** When set, mention popup renders section headers; keyboard uses flat items only. */
+  groupMentions?: (
+    filtered: NormalizedMention<TData>[],
+  ) => MentionSuggestionGroup<TData>[];
 }
 
 const EDITOR_PROSE_CLASSNAME = cn(
@@ -129,6 +152,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   onActiveFormatsChange,
   onSelectedKeysChange,
   renderMentionItem,
+  groupMentions,
 }: ComposerWysiwygEditorProps<TData>) {
   const editorRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -138,11 +162,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const manualMentionOpenRef = useRef(false);
   const onActiveFormatsChangeRef = useRef(onActiveFormatsChange);
   onActiveFormatsChangeRef.current = onActiveFormatsChange;
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState<string | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [triggerPosition, setTriggerPosition] =
-    useState<TriggerPosition | null>(null);
+  const [suggestionUi, setSuggestionUi] = useState<SuggestionUiState>({
+    open: false,
+  });
 
   const normalizedMentions = useMemo(() => {
     const entries = Object.entries(mentions);
@@ -204,13 +226,49 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [keyToValue, slugToValue],
   );
 
+  const mentionQuery =
+    suggestionUi.open && suggestionUi.suggestion.kind === "mention"
+      ? suggestionUi.suggestion.query
+      : null;
+
   const filteredMentions = useMemo(() => {
-    if (query === null || query === "") return normalizedMentions;
-    const normalizedQuery = query.toLowerCase();
-    return normalizedMentions.filter((mention) =>
-      mention.value.toLowerCase().includes(normalizedQuery),
+    if (mentionQuery === null) return [];
+    if (mentionQuery === "") return normalizedMentions;
+    const normalizedQuery = mentionQuery.toLowerCase();
+    return normalizedMentions.filter(
+      (mention) =>
+        mention.value.toLowerCase().includes(normalizedQuery) ||
+        mention.slug.toLowerCase().includes(normalizedQuery),
     );
-  }, [normalizedMentions, query]);
+  }, [mentionQuery, normalizedMentions]);
+
+  const mentionGroups = useMemo(() => {
+    if (!groupMentions || mentionQuery === null) return null;
+    return groupMentions(filteredMentions);
+  }, [filteredMentions, groupMentions, mentionQuery]);
+
+  const selectableMentions = useMemo(() => {
+    if (mentionGroups) {
+      return mentionGroups.flatMap((group) => group.items);
+    }
+    return filteredMentions;
+  }, [filteredMentions, mentionGroups]);
+
+  const emojiMatches =
+    suggestionUi.open && suggestionUi.suggestion.kind === "emoji"
+      ? suggestionUi.suggestion.matches
+      : [];
+
+  const activeIndex = suggestionUi.open ? suggestionUi.activeIndex : 0;
+  const triggerPosition = suggestionUi.open ? suggestionUi.position : null;
+  const suggestionKind = suggestionUi.open
+    ? suggestionUi.suggestion.kind
+    : null;
+  const isOpen = suggestionUi.open;
+  const visibleSuggestionCount =
+    suggestionKind === "emoji"
+      ? emojiMatches.length
+      : selectableMentions.length;
 
   const selectedKeys = useMemo(() => {
     const parsed = parseMentions(value);
@@ -247,28 +305,35 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
   const openSuggestions = useCallback(
     ({
-      nextQuery,
+      suggestion,
       nextTriggerPosition,
       nextActiveIndex = 0,
     }: {
-      nextQuery: string;
-      nextTriggerPosition: TriggerPosition | null;
+      suggestion: ComposerSuggestion;
+      nextTriggerPosition: TriggerPosition;
       nextActiveIndex?: number;
     }) => {
-      setQuery(nextQuery);
-      setIsOpen(true);
-      setActiveIndex(nextActiveIndex);
-      setTriggerPosition(nextTriggerPosition);
+      setSuggestionUi({
+        open: true,
+        suggestion,
+        position: nextTriggerPosition,
+        activeIndex: nextActiveIndex,
+      });
     },
     [],
   );
 
   const closeSuggestions = useCallback(() => {
-    setIsOpen(false);
-    setQuery(null);
-    setActiveIndex(0);
-    setTriggerPosition(null);
+    setSuggestionUi({ open: false });
     manualMentionOpenRef.current = false;
+  }, []);
+
+  const getSuggestionPopupPosition = useCallback((editor: HTMLElement) => {
+    const caretRect = getCaretRect(editor);
+    const fallbackRect = editor.getBoundingClientRect();
+    return caretRect
+      ? getPopupPositionFromRect(caretRect)
+      : getPopupPositionFromRect(fallbackRect);
   }, []);
 
   const syncFromEditor = useCallback(() => {
@@ -311,35 +376,52 @@ export function ComposerWysiwygEditor<TData = unknown>({
     const { text, caret } = syncFromEditor();
     publishActiveFormats();
 
+    const exactEmoji = matchExactEmojiShortcodeClosed(text, caret);
+    if (exactEmoji) {
+      const startPos = findPositionForOffset(
+        editorRef.current,
+        exactEmoji.triggerStart,
+      );
+      const endPos = findPositionForOffset(editorRef.current, exactEmoji.end);
+      const range = document.createRange();
+      range.setStart(startPos.node, startPos.offset);
+      range.setEnd(endPos.node, endPos.offset);
+      range.deleteContents();
+
+      const nextChar = text[exactEmoji.end];
+      const insert = shouldAppendTrailingSpace(nextChar)
+        ? `${exactEmoji.emoji} `
+        : exactEmoji.emoji;
+      const textNode = document.createTextNode(insert);
+      range.insertNode(textNode);
+      setCaretAfterNode(editorRef.current, textNode);
+      isInternalChange.current = true;
+      syncFromEditor();
+      closeSuggestions();
+      return;
+    }
+
     if (manualMentionOpenRef.current && normalizedMentions.length > 0) {
-      const caretRect = getCaretRect(editorRef.current);
-      const fallbackRect = editorRef.current.getBoundingClientRect();
-      const position = caretRect
-        ? getPopupPositionFromRect(caretRect)
-        : getPopupPositionFromRect(fallbackRect);
       openSuggestions({
-        nextQuery: "",
-        nextTriggerPosition: position,
+        suggestion: {
+          kind: "mention",
+          query: "",
+          triggerStart: caret,
+        },
+        nextTriggerPosition: getSuggestionPopupPosition(editorRef.current),
         nextActiveIndex: 0,
       });
       return;
     }
 
-    if (normalizedMentions.length === 0) {
-      closeSuggestions();
-      return;
-    }
+    const suggestion = resolveComposerSuggestion(text, caret, {
+      mentionsAvailable: normalizedMentions.length > 0,
+    });
 
-    const trigger = getActiveTrigger(text, caret);
-    if (trigger) {
-      const caretRect = getCaretRect(editorRef.current);
-      const fallbackRect = editorRef.current.getBoundingClientRect();
-      const position = caretRect
-        ? getPopupPositionFromRect(caretRect)
-        : getPopupPositionFromRect(fallbackRect);
+    if (suggestion) {
       openSuggestions({
-        nextQuery: trigger.query,
-        nextTriggerPosition: position,
+        suggestion,
+        nextTriggerPosition: getSuggestionPopupPosition(editorRef.current),
         nextActiveIndex: 0,
       });
       return;
@@ -348,6 +430,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     closeSuggestions();
   }, [
     closeSuggestions,
+    getSuggestionPopupPosition,
     normalizedMentions.length,
     openSuggestions,
     publishActiveFormats,
@@ -416,6 +499,42 @@ export function ComposerWysiwygEditor<TData = unknown>({
       editorRef.current.focus();
     },
     [closeSuggestions, resolveMentionDisplay, syncFromEditor],
+  );
+
+  const insertEmojiShortcode = useCallback(
+    (match: EmojiShortcodeMatch) => {
+      if (!editorRef.current) return;
+
+      const { text, caret } = serializeEditor(editorRef.current);
+      const trigger = getActiveEmojiTrigger(text, caret);
+      if (!trigger) {
+        closeSuggestions();
+        return;
+      }
+
+      const startPos = findPositionForOffset(
+        editorRef.current,
+        trigger.triggerStart,
+      );
+      const endPos = findPositionForOffset(editorRef.current, caret);
+      const range = document.createRange();
+      range.setStart(startPos.node, startPos.offset);
+      range.setEnd(endPos.node, endPos.offset);
+      range.deleteContents();
+
+      const nextChar = text[caret];
+      const insert = shouldAppendTrailingSpace(nextChar)
+        ? `${match.emoji} `
+        : match.emoji;
+      const textNode = document.createTextNode(insert);
+      range.insertNode(textNode);
+      setCaretAfterNode(editorRef.current, textNode);
+      isInternalChange.current = true;
+      syncFromEditor();
+      closeSuggestions();
+      editorRef.current.focus();
+    },
+    [closeSuggestions, syncFromEditor],
   );
 
   const execCommand = useCallback(
@@ -559,69 +678,114 @@ export function ComposerWysiwygEditor<TData = unknown>({
     if (!editor) return;
     editor.focus();
     manualMentionOpenRef.current = true;
-    const caretRect = getCaretRect(editor);
-    const fallbackRect = editor.getBoundingClientRect();
-    const position = caretRect
-      ? getPopupPositionFromRect(caretRect)
-      : getPopupPositionFromRect(fallbackRect);
     openSuggestions({
-      nextQuery: "",
-      nextTriggerPosition: position,
+      suggestion: {
+        kind: "mention",
+        query: "",
+        triggerStart: serializeEditor(editor).caret,
+      },
+      nextTriggerPosition: getSuggestionPopupPosition(editor),
       nextActiveIndex: 0,
     });
-  }, [openSuggestions]);
+  }, [getSuggestionPopupPosition, openSuggestions]);
 
-  const getCurrentTriggerAtCaret = useCallback(() => {
+  const getLiveSuggestionAtCaret = useCallback(() => {
     if (!editorRef.current) return null;
-    const { text, caret } = serializeEditor(editorRef.current);
-    return getActiveTrigger(text, caret);
-  }, []);
-
-  const syncMentionSuggestionsWithCaret = useCallback(() => {
-    publishActiveFormats();
-    if (!isOpen) return;
-    if (manualMentionOpenRef.current) return;
-    const trigger = getCurrentTriggerAtCaret();
-    if (!trigger) {
-      closeSuggestions();
+    if (manualMentionOpenRef.current && normalizedMentions.length > 0) {
+      return {
+        kind: "mention" as const,
+        query: "",
+        triggerStart: 0,
+      };
     }
+    const { text, caret } = serializeEditor(editorRef.current);
+    return resolveComposerSuggestion(text, caret, {
+      mentionsAvailable: normalizedMentions.length > 0,
+    });
+  }, [normalizedMentions.length]);
+
+  const syncSuggestionsWithCaret = useCallback(() => {
+    publishActiveFormats();
+    if (!suggestionUi.open || !editorRef.current) return;
+    if (manualMentionOpenRef.current) return;
+
+    const live = getLiveSuggestionAtCaret();
+    if (!live || live.kind !== suggestionKind) {
+      closeSuggestions();
+      return;
+    }
+
+    const listLength =
+      live.kind === "emoji"
+        ? live.matches.length
+        : live.query === ""
+          ? normalizedMentions.length
+          : normalizedMentions.filter((mention) => {
+              const q = live.query.toLowerCase();
+              return (
+                mention.value.toLowerCase().includes(q) ||
+                mention.slug.toLowerCase().includes(q)
+              );
+            }).length;
+
+    if (listLength === 0) {
+      closeSuggestions();
+      return;
+    }
+
+    openSuggestions({
+      suggestion: live,
+      nextTriggerPosition: getSuggestionPopupPosition(editorRef.current),
+      nextActiveIndex: Math.min(suggestionUi.activeIndex, listLength - 1),
+    });
   }, [
     closeSuggestions,
-    getCurrentTriggerAtCaret,
-    isOpen,
+    getLiveSuggestionAtCaret,
+    getSuggestionPopupPosition,
+    normalizedMentions,
+    openSuggestions,
     publishActiveFormats,
+    suggestionKind,
+    suggestionUi,
   ]);
+
+  const setActiveSuggestionIndex = useCallback(
+    (updater: (prev: number) => number) => {
+      setSuggestionUi((prev) => {
+        if (!prev.open) return prev;
+        return { ...prev, activeIndex: updater(prev.activeIndex) };
+      });
+    },
+    [],
+  );
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const key = event.key.toLowerCase();
       const hasModifier = event.metaKey || event.ctrlKey || event.altKey;
-      const currentTrigger = getCurrentTriggerAtCaret();
-      const isMentionDropdownVisible = isOpen && filteredMentions.length > 0;
-      const isCaretOnMentionTrigger =
-        Boolean(currentTrigger) || manualMentionOpenRef.current;
-      const isMentionKeyboardActive =
-        isMentionDropdownVisible && isCaretOnMentionTrigger;
+      const isDropdownVisible = isOpen && visibleSuggestionCount > 0;
 
-      if (isMentionKeyboardActive && !hasModifier) {
-        if (key === "escape") {
-          event.preventDefault();
-          closeSuggestions();
-          return;
-        }
+      // Escape always dismisses while the popup is open, even if caret left the
+      // trigger (selectionchange may lag behind the key event).
+      if (isOpen && !hasModifier && key === "escape") {
+        event.preventDefault();
+        closeSuggestions();
+        return;
+      }
 
+      if (isDropdownVisible && !hasModifier) {
         if (key === "arrowdown") {
           event.preventDefault();
-          setActiveIndex((prev) =>
-            prev + 1 < filteredMentions.length ? prev + 1 : 0,
+          setActiveSuggestionIndex((prev) =>
+            prev + 1 < visibleSuggestionCount ? prev + 1 : 0,
           );
           return;
         }
 
         if (key === "arrowup") {
           event.preventDefault();
-          setActiveIndex((prev) =>
-            prev - 1 >= 0 ? prev - 1 : filteredMentions.length - 1,
+          setActiveSuggestionIndex((prev) =>
+            prev - 1 >= 0 ? prev - 1 : visibleSuggestionCount - 1,
           );
           return;
         }
@@ -629,9 +793,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
         if (key === "enter" || key === "tab") {
           if (event.nativeEvent.isComposing) return;
           event.preventDefault();
-          const mention = filteredMentions[activeIndex];
-          if (mention) {
-            insertMention(mention);
+          if (suggestionKind === "emoji") {
+            const match = emojiMatches[activeIndex];
+            if (match) insertEmojiShortcode(match);
+          } else {
+            const mention = selectableMentions[activeIndex];
+            if (mention) insertMention(mention);
           }
           return;
         }
@@ -671,7 +838,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
           shiftKey: event.shiftKey,
           metaKey: event.metaKey,
           ctrlKey: event.ctrlKey,
-          isMentionKeyboardActive,
+          isSuggestionKeyboardActive: isDropdownVisible,
         });
 
         if (action === "ignore") return;
@@ -694,13 +861,17 @@ export function ComposerWysiwygEditor<TData = unknown>({
       activeIndex,
       applyFormat,
       closeSuggestions,
-      filteredMentions,
-      getCurrentTriggerAtCaret,
+      emojiMatches,
       handleInput,
+      insertEmojiShortcode,
       insertMention,
       isOpen,
       onLinkShortcut,
       onSubmitShortcut,
+      selectableMentions,
+      setActiveSuggestionIndex,
+      suggestionKind,
+      visibleSuggestionCount,
     ],
   );
 
@@ -804,8 +975,8 @@ export function ComposerWysiwygEditor<TData = unknown>({
         suppressContentEditableWarning
         onInput={handleInput}
         onKeyDown={handleKeyDown}
-        onKeyUp={syncMentionSuggestionsWithCaret}
-        onMouseUp={syncMentionSuggestionsWithCaret}
+        onKeyUp={syncSuggestionsWithCaret}
+        onMouseUp={syncSuggestionsWithCaret}
         onBlur={handleBlur}
         data-placeholder={placeholder}
         role="textbox"
@@ -820,52 +991,148 @@ export function ComposerWysiwygEditor<TData = unknown>({
       />
       {typeof window !== "undefined" &&
         isOpen &&
-        filteredMentions.length > 0 &&
+        visibleSuggestionCount > 0 &&
         createPortal(
           <div
             ref={listRef}
             role="listbox"
             style={
               triggerPosition
-                ? { top: triggerPosition.top, left: triggerPosition.left }
+                ? {
+                    top: triggerPosition.top,
+                    left: triggerPosition.left,
+                    maxHeight: triggerPosition.maxHeight,
+                    // `transform` (not Tailwind translate): fixed portals need it.
+                    ...(triggerPosition.side === "top"
+                      ? { transform: "translateY(-100%)" }
+                      : {}),
+                  }
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(
-              "bg-popover text-popover-foreground fixed z-50 max-h-60 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
-              !triggerPosition && "mt-1",
+              "bg-popover text-popover-foreground fixed z-50 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
+              !triggerPosition && "mt-1 max-h-60",
             )}
           >
-            {filteredMentions.map((mention, index) => (
-              <div
-                key={mention.key}
-                data-index={index}
-                role="option"
-                aria-selected={index === activeIndex}
-                className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
-                  index === activeIndex && "bg-accent text-accent-foreground",
-                )}
-                onMouseDown={() => {
-                  isSelectingRef.current = true;
-                }}
-                onClick={() => {
-                  insertMention(mention);
-                  isSelectingRef.current = false;
-                }}
-                onMouseEnter={() => setActiveIndex(index)}
-              >
-                {renderMentionItem ? (
-                  renderMentionItem(mention, index === activeIndex)
-                ) : (
-                  <>
-                    <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
-                      {mention.value.charAt(0).toUpperCase()}
+            {suggestionKind === "emoji"
+              ? emojiMatches.map((match, index) => (
+                  <div
+                    key={match.name}
+                    data-index={index}
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+                      index === activeIndex &&
+                        "bg-accent text-accent-foreground",
+                    )}
+                    onMouseDown={() => {
+                      isSelectingRef.current = true;
+                    }}
+                    onClick={() => {
+                      insertEmojiShortcode(match);
+                      isSelectingRef.current = false;
+                    }}
+                    onMouseEnter={() => setActiveSuggestionIndex(() => index)}
+                  >
+                    <span
+                      className="size-6 shrink-0 text-center text-base leading-6"
+                      aria-hidden
+                    >
+                      {match.emoji}
+                    </span>
+                    <span className="truncate">:{match.name}:</span>
+                  </div>
+                ))
+              : mentionGroups
+                ? (() => {
+                    let optionIndex = 0;
+                    return mentionGroups.map((group) => (
+                      <div key={group.id}>
+                        <div
+                          role="presentation"
+                          className="text-muted-foreground px-2 py-1.5 text-xs font-medium"
+                        >
+                          {group.label}
+                        </div>
+                        {group.items.map((mention) => {
+                          const index = optionIndex;
+                          optionIndex += 1;
+                          return (
+                            <div
+                              key={mention.key}
+                              data-index={index}
+                              role="option"
+                              aria-selected={index === activeIndex}
+                              className={cn(
+                                "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+                                index === activeIndex &&
+                                  "bg-accent text-accent-foreground",
+                              )}
+                              onMouseDown={() => {
+                                isSelectingRef.current = true;
+                              }}
+                              onClick={() => {
+                                insertMention(mention);
+                                isSelectingRef.current = false;
+                              }}
+                              onMouseEnter={() =>
+                                setActiveSuggestionIndex(() => index)
+                              }
+                            >
+                              {renderMentionItem ? (
+                                renderMentionItem(
+                                  mention,
+                                  index === activeIndex,
+                                )
+                              ) : (
+                                <>
+                                  <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+                                    {mention.value.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="truncate">
+                                    {mention.value}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ));
+                  })()
+                : selectableMentions.map((mention, index) => (
+                    <div
+                      key={mention.key}
+                      data-index={index}
+                      role="option"
+                      aria-selected={index === activeIndex}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+                        index === activeIndex &&
+                          "bg-accent text-accent-foreground",
+                      )}
+                      onMouseDown={() => {
+                        isSelectingRef.current = true;
+                      }}
+                      onClick={() => {
+                        insertMention(mention);
+                        isSelectingRef.current = false;
+                      }}
+                      onMouseEnter={() => setActiveSuggestionIndex(() => index)}
+                    >
+                      {renderMentionItem ? (
+                        renderMentionItem(mention, index === activeIndex)
+                      ) : (
+                        <>
+                          <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+                            {mention.value.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="truncate">{mention.value}</span>
+                        </>
+                      )}
                     </div>
-                    <span className="truncate">{mention.value}</span>
-                  </>
-                )}
-              </div>
-            ))}
+                  ))}
           </div>,
           document.body,
         )}

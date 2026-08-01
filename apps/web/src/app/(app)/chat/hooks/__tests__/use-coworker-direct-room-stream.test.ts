@@ -4,6 +4,7 @@ import { mergeMessagesWithStreamOverlay } from "@/app/chat/utils/merge-room-mess
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
+  buildCoworkerStreamSendMessageOptions,
   createResumePendingCoworkerShell,
   RESUME_PENDING_STREAM_MESSAGE_ID,
   readStoredStreamParentMessageId,
@@ -42,8 +43,58 @@ function persistedUser(content: string): ChatRoomMessage {
     threadReplyCount: 0,
     threadLastReplyAt: null,
     metadata: null,
+    quote: null,
   };
 }
+
+describe("buildCoworkerStreamSendMessageOptions", () => {
+  it("returns undefined when neither parent nor quote is set", () => {
+    expect(buildCoworkerStreamSendMessageOptions()).toBeUndefined();
+    expect(buildCoworkerStreamSendMessageOptions({})).toBeUndefined();
+    expect(
+      buildCoworkerStreamSendMessageOptions({ parentMessageId: "  " }),
+    ).toBeUndefined();
+  });
+
+  it("puts parentMessageId on the AI SDK body when set", () => {
+    expect(
+      buildCoworkerStreamSendMessageOptions({
+        parentMessageId: "parent-1",
+      }),
+    ).toEqual({ body: { parentMessageId: "parent-1" } });
+  });
+
+  it("puts quote on the AI SDK body when provided", () => {
+    expect(
+      buildCoworkerStreamSendMessageOptions({
+        quote: { messageId: "quote-1" },
+      }),
+    ).toEqual({ body: { quote: { messageId: "quote-1" } } });
+  });
+
+  it("combines parentMessageId and quote in the same body", () => {
+    expect(
+      buildCoworkerStreamSendMessageOptions({
+        parentMessageId: "parent-1",
+        quote: { messageId: "quote-1" },
+      }),
+    ).toEqual({
+      body: {
+        parentMessageId: "parent-1",
+        quote: { messageId: "quote-1" },
+      },
+    });
+  });
+
+  it("trims ids and omits blank quote messageId", () => {
+    expect(
+      buildCoworkerStreamSendMessageOptions({
+        parentMessageId: "  parent-1  ",
+        quote: { messageId: "  " },
+      }),
+    ).toEqual({ body: { parentMessageId: "parent-1" } });
+  });
+});
 
 describe("shouldShowResumePendingCoworkerShell", () => {
   it("shows shell only while status is streaming with empty messages", () => {

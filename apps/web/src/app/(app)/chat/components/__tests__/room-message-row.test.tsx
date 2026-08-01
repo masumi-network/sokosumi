@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -15,6 +16,15 @@ vi.mock("next-intl", () => ({
     }
     if (key === "Reactions.andMore" && values) {
       return `and ${values.count} more`;
+    }
+    if (key === "jump" && values) {
+      return `Jump to message from ${values.author}`;
+    }
+    if (key === "showMore") {
+      return "More";
+    }
+    if (key === "showLess") {
+      return "Less";
     }
     return key;
   },
@@ -50,6 +60,7 @@ function userMessage(
     threadReplyCount: 0,
     threadLastReplyAt: null,
     metadata: null,
+    quote: null,
     sender: {
       type: "user",
       user: {
@@ -67,9 +78,11 @@ function userMessage(
 function renderRow({
   message = userMessage(),
   isContinuation = false,
+  onQuote,
 }: {
   message?: ChatRoomMessage;
   isContinuation?: boolean;
+  onQuote?: (message: ChatRoomMessage) => void;
 } = {}) {
   render(
     <ChatMessageRow
@@ -77,6 +90,7 @@ function renderRow({
       coworkersById={new Map()}
       coworkersBySlug={new Map()}
       onToggleReaction={vi.fn()}
+      onQuote={onQuote}
       isContinuation={isContinuation}
     />,
   );
@@ -161,5 +175,215 @@ describe("ChatMessageRow", () => {
     expect(article).toHaveClass("mt-3");
     expect(article).toHaveClass("pb-0.5");
     expect(article).not.toHaveClass("py-2.5");
+  });
+
+  it("exposes message id for quote jump targets", () => {
+    renderRow();
+
+    const article = screen.getByRole("article");
+    expect(article).toHaveAttribute("id", "message-message-1");
+    expect(article).toHaveAttribute("data-message-id", "message-1");
+  });
+
+  it("shows Quote action and calls onQuote", async () => {
+    const user = userEvent.setup();
+    const onQuote = vi.fn();
+    renderRow({ onQuote });
+
+    await user.click(screen.getByRole("button", { name: "Quote.action" }));
+    expect(onQuote).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "message-1" }),
+    );
+  });
+
+  it("renders quote snapshot from DTO and soft-fails jump when target missing", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "missing-original",
+          authorName: "Bob",
+          snippet: "Earlier thought",
+        },
+      }),
+    });
+
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+    expect(screen.getByText("Earlier thought")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Jump to message from Bob" }),
+    );
+    expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+
+  it("styles @all mention tokens in quote snippets", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-1",
+          authorName: "Bob",
+          snippet: "please add @all:all tagging",
+        },
+      }),
+    });
+
+    const quoteButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    // Markdown mock renders children as text, so the mention HTML string is visible.
+    const formatted = quoteButton.textContent ?? "";
+    expect(formatted).toContain("text-primary");
+    expect(formatted).toContain(">@all</span>");
+    expect(formatted).not.toContain("@all:all");
+  });
+
+  it("preserves newlines in multi-line quote snippets", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-2",
+          authorName: "Bob",
+          snippet: "line one\nline two",
+        },
+      }),
+    });
+
+    const quoteButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    expect(quoteButton.textContent).toContain("line one\nline two");
+  });
+
+  it("clamps long quotes and expands with More/Less when content overflows", async () => {
+    const user = userEvent.setup();
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    const clientDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 120;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return 40;
+      },
+    });
+
+    try {
+      const fullSnippet =
+        "Two more things about the chat here:\nCan you please make chat drafts persistent during tab-switches. Writing a long message and losing it because I quickly wanted to check sth. in another chat is painful :) and please add @all:all tagging functionality please.";
+
+      renderRow({
+        message: userMessage({
+          content: "Reply body",
+          quote: {
+            messageId: "original-3",
+            authorName: "Phil",
+            snippet: fullSnippet,
+          },
+        }),
+      });
+
+      const jumpButton = screen.getByRole("button", {
+        name: "Jump to message from Phil",
+      });
+      expect(jumpButton.querySelector(".line-clamp-4")).not.toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "More" }));
+      expect(jumpButton.querySelector(".line-clamp-4")).toBeNull();
+      expect(screen.getByRole("button", { name: "Less" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Less" }));
+      expect(jumpButton.querySelector(".line-clamp-4")).not.toBeNull();
+      expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
+    } finally {
+      if (scrollDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollDescriptor,
+        );
+      }
+      if (clientDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientHeight",
+          clientDescriptor,
+        );
+      }
+    }
+  });
+
+  it("hides More when the clamped quote does not overflow", () => {
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    const clientDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 20;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return 20;
+      },
+    });
+
+    try {
+      renderRow({
+        message: userMessage({
+          content: "Reply body",
+          quote: {
+            messageId: "original-short",
+            authorName: "Phil",
+            snippet: "short quote",
+          },
+        }),
+      });
+
+      expect(
+        screen.queryByRole("button", { name: "More" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Jump to message from Phil" }),
+      ).toBeInTheDocument();
+    } finally {
+      if (scrollDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollDescriptor,
+        );
+      }
+      if (clientDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientHeight",
+          clientDescriptor,
+        );
+      }
+    }
   });
 });

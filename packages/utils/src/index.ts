@@ -37,6 +37,7 @@ export {
   isOwnedCoworkerChatRoomFileUrl,
   isOwnedUserChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
+export { buildQuoteSnippet } from "./chat-room-quote-snippet.js";
 export {
   CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
   CHAT_UI_NON_REASONING_PART_TYPES,
@@ -249,6 +250,12 @@ export {
   buildUserUploadPrefix,
   sanitizeUserUploadFilename,
 } from "./user-upload-path.js";
+export {
+  buildVendorLogoContentHashPathname,
+  buildVendorLogoPathname,
+  buildVendorLogoPrefix,
+  isOwnedVendorLogoUrl,
+} from "./vendor-logo-path.js";
 export {
   buildWebhookFailureContext,
   DEFAULT_WEBHOOK_TIMEOUT_MS,

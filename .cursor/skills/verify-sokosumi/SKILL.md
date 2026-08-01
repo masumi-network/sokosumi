@@ -23,9 +23,11 @@ Preconditions before launch:
 - Node **24.x** on `PATH` (`node -v`)
 - `pnpm install` already done
 - Workspace packages built at least once (`pnpm packages:build`) — Core imports compiled `@sokosumi/utils` / `@sokosumi/database` exports
-- `apps/web/.env` and `apps/core/.env` present (copy from `.env.example` if missing; replace placeholders with non-empty dummies that pass Zod — see AGENTS.md cloud notes). `POSTMARK_FROM_EMAIL` must be a valid email; `HERMES_ORCH_BASE_URL` a valid URL; Ably keys any non-empty string
+- `apps/web/.env` and `apps/core/.env` present (copy from `.env.example` if missing). **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see AGENTS.md cloud notes): `POSTMARK_FROM_EMAIL` = valid email; `HERMES_ORCH_BASE_URL` = valid URL; Ably keys any non-empty string; Blob/Postmark/OAuth secrets any non-empty dummy
 - `APP_SIGNING_SECRET` (web) equals `BETTER_AUTH_SECRET` (core)
+- **`BETTER_AUTH_COOKIE_DOMAIN` must be unset / commented out for localhost.** Core `.env.example` sets `BETTER_AUTH_COOKIE_DOMAIN="sokosumi.com"` for production-shaped deploys — if that value is copied into local `.env`, session cookies are scoped to `.sokosumi.com` and **email/password login appears to succeed but the browser never keeps a session on `localhost`**. `doctor` fails when this trap is present
 - Database reachable (Neon agent branch, or local Postgres). Prefer `with-db.mjs` when an agent branch is provisioned. Run `node scripts/cloud-agent-db/provision.mjs` when `NEON_API_KEY` + `NEON_PROJECT_ID` are set and `.cursor/cloud-agent-db.env` is missing
+- `agent-browser` on `PATH` (global `npm i -g agent-browser` then `agent-browser install` for Chromium). Not a workspace dependency
 
 ### Cursor agent session (required pattern)
 
@@ -76,6 +78,8 @@ Optional Core-only smoke:
 
 Harness: **agent-browser** (see `.agents/skills/agent-browser/SKILL.md` and `apps/web/AGENTS.md` Browser Automation). No Playwright/Cypress in this repo.
 
+Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply**. Prefer agent-browser; computer-use is more likely to mis-click OAuth/passkey chrome at the top of `/signin`.
+
 Session reuse:
 
 ```bash
@@ -84,7 +88,9 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 
 Stable auth selectors: `[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`, `[data-testid="auth-submit"]`.
 
-**Login rule:** fill fields, then **press Enter** — do not rely on clicking submit. react-hook-form can race a programmatic click.
+**Login rule:** fill email/password fields only, then **press Enter** — do not click submit, Google, Microsoft, Passkey, or Magic Link. react-hook-form can race a programmatic click; social/passkey controls sit **above** the password form and steal automation focus.
+
+If UI login leaves you on `/signin` or bounces back after a “success” (classic `BETTER_AUTH_COOKIE_DOMAIN` trap, or passkey/OAuth interference), fix env first, then use the Core cookie bootstrap in [sign-in.md](./features/sign-in.md). API bootstrap alone is not UI proof — reopen a protected page in the browser after injecting cookies.
 
 Credentials (pick one):
 
@@ -95,7 +101,7 @@ Credentials (pick one):
 | Local signup | unique `*@sokosumi.test` via `/signup` | choose once | Empty/local DB without fixtures |
 | Coworker vault | `agent-browser auth save sokosumi …` | machine-local | Personal accounts — never commit |
 
-OAuth and magic-link do **not** work with placeholder credentials. Skip those paths.
+OAuth, magic-link, and passkey do **not** work with placeholder credentials. Skip those paths.
 
 API drive (secondary): `curl` against Core with session cookies from the browser when needed; public smoke is OpenAPI JSON only.
 
@@ -145,7 +151,10 @@ Default ports **3000** (web) and **8787** (core) are shared. Second concurrent v
 ## Gotchas (always)
 
 - Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.cursor/cloud-agent-db.env` exists
-- Empty local catalog: `/agents` or `GET /v1/agents` may fail until `credit_cost` rows exist
+- **`BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com` (or any production domain) on localhost** → cookies never stick; disable it before blaming the form
+- Copying `.env.example` without replacing `<…>` placeholders → Core/Web fail Zod at boot (“missing env”)
+- Empty local catalog: `/agents` soft-empty (“No agents available”) or Core 500 until `credit_cost` rows exist
 - Ably placeholders break realtime chat UI
 - Fixtures exist only on agent Neon branches, not production/`main`
 - Node **24.x** required
+- `/signin` shows Google / Microsoft / Passkey / Magic Link **above** the password form — automation must target `[data-testid="auth-field-*"]` only

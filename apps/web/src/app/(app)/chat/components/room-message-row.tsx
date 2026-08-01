@@ -5,20 +5,15 @@ import {
   isFileLikeUrl,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
-import { CheckCircle2, Loader2, MessageCircle, SmilePlus } from "lucide-react";
+import { CheckCircle2, Loader2, MessageCircle, Quote } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
-import { ROOM_COMPOSER_EMOJIS } from "@/components/chat/room-message-composer";
+import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -27,6 +22,7 @@ import {
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomMessageQuote,
   ChatRoomMessageReaction,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
@@ -37,9 +33,11 @@ import {
   formatMessageTime,
   formatRoomMarkdownMentions,
   messageSender,
+  scrollToRoomMessageElement,
 } from "./room-helpers";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
+type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
 
 function formatWhoReactedLabel(
   reaction: ChatRoomMessageReaction,
@@ -56,6 +54,94 @@ function formatWhoReactedLabel(
   }
 
   return t("Reactions.whoReacted", { names, more });
+}
+
+function MessageQuoteBlock({
+  quote,
+  coworkersById,
+  coworkersBySlug,
+  usersById,
+  usersBySlug,
+}: {
+  quote: RoomMessageQuoteSnapshot;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
+}) {
+  const t = useTranslations("App.Channels.Quote");
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const snippetRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    setExpanded(false);
+  }, [quote.messageId, quote.snippet]);
+
+  useLayoutEffect(() => {
+    const node = snippetRef.current;
+    if (!node || expanded) {
+      return;
+    }
+
+    function measureOverflow() {
+      const el = snippetRef.current;
+      if (!el) {
+        return;
+      }
+      setOverflows(el.scrollHeight > el.clientHeight + 1);
+    }
+
+    measureOverflow();
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [expanded, quote.snippet]);
+
+  return (
+    <div className="border-border bg-muted/40 mb-1.5 w-full rounded-md border-l-2 border-l-primary/60 px-2.5 py-1.5">
+      <button
+        type="button"
+        className="hover:bg-muted/70 focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
+        aria-label={t("jump", { author: quote.authorName })}
+        onClick={() => {
+          scrollToRoomMessageElement(quote.messageId);
+        }}
+      >
+        <div className="text-foreground truncate text-xs font-semibold">
+          {quote.authorName}
+        </div>
+        <div
+          ref={snippetRef}
+          className={cn(
+            "text-muted-foreground text-xs leading-5",
+            expanded ? null : "line-clamp-4",
+          )}
+        >
+          <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+            {formatRoomMarkdownMentions({
+              content: quote.snippet,
+              coworkersById,
+              coworkersBySlug,
+              usersById,
+              usersBySlug,
+            })}
+          </Markdown>
+        </div>
+      </button>
+      {expanded || overflows ? (
+        <button
+          type="button"
+          className="text-primary hover:text-primary/80 mt-0.5 text-xs font-medium outline-none focus-visible:underline"
+          onClick={() => {
+            setExpanded((current) => !current);
+          }}
+        >
+          {expanded ? t("showLess") : t("showMore")}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function ChannelMarkdownSegment({
@@ -162,69 +248,45 @@ function ChannelMessageText({
   return <>{nodes}</>;
 }
 
-function MessageEmojiPicker({
-  onSelect,
-  label,
-}: {
-  onSelect: (emoji: string) => void;
-  label: string;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-9 rounded-full sm:size-7"
-          title={label}
-          aria-label={label}
-        >
-          <SmilePlus className="size-4" aria-hidden />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-auto p-2">
-        <div className="grid grid-cols-6 gap-1">
-          {ROOM_COMPOSER_EMOJIS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              className="hover:bg-muted focus-visible:ring-ring flex size-8 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2"
-              onClick={() => {
-                onSelect(emoji);
-                setOpen(false);
-              }}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 function MessageActions({
   message,
   onToggleReaction,
   onOpenThread,
+  onQuote,
   showThreadButton,
+  showQuoteButton,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
+  onQuote?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
+  showQuoteButton: boolean;
 }) {
   const t = useTranslations("App.Channels");
 
   return (
     <div className="border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
-      <MessageEmojiPicker
-        label={t("Reactions.add")}
-        onSelect={(emoji) => onToggleReaction(message, emoji)}
+      <EmojiPicker
+        title={t("Reactions.add")}
+        ariaLabel={t("Reactions.add")}
+        align="end"
+        triggerClassName="size-9 rounded-full sm:size-7"
+        onPick={(emoji) => onToggleReaction(message, emoji)}
       />
+      {showQuoteButton && onQuote ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={t("Quote.action")}
+          aria-label={t("Quote.action")}
+          onClick={() => onQuote(message)}
+        >
+          <Quote className="size-4" aria-hidden />
+        </Button>
+      ) : null}
       {showThreadButton && onOpenThread ? (
         <Button
           type="button"
@@ -340,7 +402,9 @@ export function ChatMessageRow({
   usersBySlug,
   onToggleReaction,
   onOpenThread,
+  onQuote,
   showThreadButton = true,
+  showQuoteButton = true,
   isContinuation = false,
 }: {
   message: ChatRoomMessage;
@@ -350,7 +414,9 @@ export function ChatMessageRow({
   usersBySlug?: Map<string, UserMentionLookup>;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
+  onQuote?: (message: ChatRoomMessage) => void;
   showThreadButton?: boolean;
+  showQuoteButton?: boolean;
   /** Slack-style continuation: omit avatar / name / primary timestamp. */
   isContinuation?: boolean;
 }) {
@@ -363,9 +429,13 @@ export function ChatMessageRow({
     message.content.trim().length === 0;
   const formattedTime = formatMessageTime(message.createdAt);
   const createdAtIso = new Date(message.createdAt).toISOString();
+  const canQuote = showQuoteButton && Boolean(onQuote) && !isStreamOverlay;
+  const quote = message.quote;
 
   return (
     <article
+      id={`message-${message.id}`}
+      data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
         "group relative -mx-2 flex gap-3.5 rounded-md pr-20 pl-2 transition-colors hover:bg-muted/45",
@@ -413,6 +483,15 @@ export function ChatMessageRow({
           </div>
         )}
         <div className="text-foreground wrap-break-word text-sm leading-6">
+          {quote ? (
+            <MessageQuoteBlock
+              quote={quote}
+              coworkersById={coworkersById}
+              coworkersBySlug={coworkersBySlug}
+              usersById={usersById}
+              usersBySlug={usersBySlug}
+            />
+          ) : null}
           {isThinking ? (
             <span
               className="reasoning-text-shine text-sm leading-5"
@@ -444,7 +523,9 @@ export function ChatMessageRow({
           message={message}
           onToggleReaction={onToggleReaction}
           onOpenThread={onOpenThread}
+          onQuote={onQuote}
           showThreadButton={showThreadButton}
+          showQuoteButton={canQuote}
         />
       ) : null}
     </article>
