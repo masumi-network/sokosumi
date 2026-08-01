@@ -12,6 +12,9 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
+  type RefObject,
+  useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -480,6 +483,131 @@ function MessageActions({
   );
 }
 
+const SHEET_SWIPE_DISMISS_PX = 80;
+const SHEET_SWIPE_DRAG_START_PX = 8;
+
+function isSheetSwipeInteractiveTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      "button, a, input, textarea, [role='button'], [data-slot='popover-content']",
+    ),
+  );
+}
+
+function useBottomSheetSwipeDismiss(
+  open: boolean,
+  onDismiss: () => void,
+): {
+  contentRef: RefObject<HTMLDivElement | null>;
+  swipeHandlers: {
+    onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
+    onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
+    onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
+    onPointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  };
+} {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number | null;
+    startY: number;
+    dragging: boolean;
+    dismissing: boolean;
+  }>({
+    pointerId: null,
+    startY: 0,
+    dragging: false,
+    dismissing: false,
+  });
+
+  const resetTransform = useCallback(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    el.style.transform = "";
+    el.style.transition = "";
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      dragRef.current = {
+        pointerId: null,
+        startY: 0,
+        dragging: false,
+        dismissing: false,
+      };
+      resetTransform();
+    }
+  }, [open, resetTransform]);
+
+  function finishPointer(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (drag.pointerId !== event.pointerId || drag.dismissing) return;
+
+    const dy = Math.max(0, event.clientY - drag.startY);
+    drag.pointerId = null;
+    const el = contentRef.current;
+    if (!el) return;
+
+    if (drag.dragging && dy >= SHEET_SWIPE_DISMISS_PX) {
+      drag.dismissing = true;
+      el.style.transition = "transform 180ms ease-out";
+      el.style.transform = "translateY(100%)";
+      window.setTimeout(() => {
+        onDismiss();
+        resetTransform();
+        drag.dismissing = false;
+        drag.dragging = false;
+      }, 180);
+      return;
+    }
+
+    el.style.transition = "transform 200ms ease-out";
+    el.style.transform = "translateY(0)";
+    window.setTimeout(() => {
+      if (!drag.dismissing) resetTransform();
+    }, 200);
+    drag.dragging = false;
+  }
+
+  return {
+    contentRef,
+    swipeHandlers: {
+      onPointerDown(event) {
+        if (event.button !== 0) return;
+        if (dragRef.current.dismissing) return;
+        const fromHandle = Boolean(
+          event.target instanceof Element &&
+            event.target.closest("[data-sheet-swipe-handle]"),
+        );
+        if (!fromHandle && isSheetSwipeInteractiveTarget(event.target)) return;
+
+        dragRef.current = {
+          pointerId: event.pointerId,
+          startY: event.clientY,
+          dragging: false,
+          dismissing: false,
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      },
+      onPointerMove(event) {
+        const drag = dragRef.current;
+        if (drag.pointerId !== event.pointerId || drag.dismissing) return;
+
+        const dy = Math.max(0, event.clientY - drag.startY);
+        if (dy > SHEET_SWIPE_DRAG_START_PX) drag.dragging = true;
+        if (!drag.dragging) return;
+
+        const el = contentRef.current;
+        if (!el) return;
+        el.style.transition = "none";
+        el.style.transform = `translateY(${dy}px)`;
+      },
+      onPointerUp: finishPointer,
+      onPointerCancel: finishPointer,
+    },
+  };
+}
+
 function TouchMessageActionsSheet({
   open,
   onOpenChange,
@@ -500,6 +628,9 @@ function TouchMessageActionsSheet({
   showQuoteButton: boolean;
 }) {
   const t = useTranslations("App.Channels");
+  const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
+    onOpenChange(false);
+  });
 
   function runAndClose(action: () => void) {
     action();
@@ -509,15 +640,22 @@ function TouchMessageActionsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
+        ref={contentRef}
         side="bottom"
         showCloseButton={false}
-        className="gap-0 rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="gap-0 rounded-t-2xl touch-none pb-[max(1rem,env(safe-area-inset-bottom))]"
+        {...swipeHandlers}
       >
-        <SheetHeader className="items-center gap-2 pt-3 pb-2">
+        <SheetHeader className="items-center gap-2 pt-1 pb-2">
           <div
-            className="bg-muted h-1 w-10 shrink-0 rounded-full"
-            aria-hidden
-          />
+            data-sheet-swipe-handle
+            className="flex w-full cursor-grab justify-center py-3 active:cursor-grabbing"
+          >
+            <div
+              className="bg-muted-foreground/40 h-1.5 w-12 shrink-0 rounded-full"
+              aria-hidden
+            />
+          </div>
           <SheetTitle>{t("Actions.more")}</SheetTitle>
           <SheetDescription className="sr-only">
             {t("Actions.more")}
