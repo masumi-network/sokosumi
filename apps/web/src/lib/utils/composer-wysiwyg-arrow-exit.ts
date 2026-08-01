@@ -1,9 +1,12 @@
 /**
  * Exit an inline format mark when the caret is at its boundary and the user
  * presses ArrowLeft (start) or ArrowRight (end) — like Slack/word processors.
+ *
+ * Blink/WebKit often keep "sticky" typing styles (queryCommandState) after the
+ * caret leaves a mark; we clear those when DOM no longer backs them.
  */
 
-const INLINE_FORMAT_TAGS = new Set([
+const MARK_TAGS = new Set([
   "STRONG",
   "B",
   "EM",
@@ -16,6 +19,46 @@ const INLINE_FORMAT_TAGS = new Set([
   "A",
 ]);
 
+const STICKY_COMMANDS = [
+  "bold",
+  "italic",
+  "underline",
+  "strikeThrough",
+] as const;
+
+type StickyCommand = (typeof STICKY_COMMANDS)[number];
+
+function queryCommandActive(command: string): boolean {
+  try {
+    return document.queryCommandState(command);
+  } catch {
+    return false;
+  }
+}
+
+function spanCarriesFormat(element: HTMLElement): boolean {
+  if (element.tagName !== "SPAN") return false;
+  const style = element.getAttribute("style");
+  if (!style) return false;
+  const normalized = style.toLowerCase();
+  return (
+    /font-weight\s*:\s*(bold|[5-9]00)/.test(normalized) ||
+    /font-style\s*:\s*italic/.test(normalized) ||
+    /text-decoration(?:-line)?\s*:[^;]*underline/.test(normalized) ||
+    /text-decoration(?:-line)?\s*:[^;]*(line-through|strikethrough)/.test(
+      normalized,
+    )
+  );
+}
+
+function isInlineFormatElement(element: HTMLElement): boolean {
+  if (MARK_TAGS.has(element.tagName)) {
+    if (element.tagName === "CODE" && element.closest("pre")) return false;
+    return true;
+  }
+  return spanCarriesFormat(element);
+}
+
 function deepestInlineFormat(
   node: Node | null,
   editor: HTMLElement,
@@ -24,23 +67,158 @@ function deepestInlineFormat(
     node instanceof HTMLElement ? node : (node?.parentElement ?? null);
 
   while (current && current !== editor) {
-    if (INLINE_FORMAT_TAGS.has(current.tagName)) {
-      if (current.tagName === "CODE" && current.closest("pre")) {
-        current = current.parentElement;
-        continue;
-      }
-      return current;
-    }
+    if (isInlineFormatElement(current)) return current;
     current = current.parentElement;
   }
 
   return null;
 }
 
+function hasDomBold(node: Node | null, editor: HTMLElement): boolean {
+  let current: HTMLElement | null =
+    node instanceof HTMLElement ? node : (node?.parentElement ?? null);
+  while (current && current !== editor) {
+    if (
+      current.tagName === "STRONG" ||
+      current.tagName === "B" ||
+      (current.tagName === "SPAN" &&
+        /font-weight\s*:\s*(bold|[5-9]00)/i.test(
+          current.getAttribute("style") ?? "",
+        ))
+    ) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
+
+function hasDomItalic(node: Node | null, editor: HTMLElement): boolean {
+  let current: HTMLElement | null =
+    node instanceof HTMLElement ? node : (node?.parentElement ?? null);
+  while (current && current !== editor) {
+    if (
+      current.tagName === "EM" ||
+      current.tagName === "I" ||
+      (current.tagName === "SPAN" &&
+        /font-style\s*:\s*italic/i.test(current.getAttribute("style") ?? ""))
+    ) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
+
+function hasDomUnderline(node: Node | null, editor: HTMLElement): boolean {
+  let current: HTMLElement | null =
+    node instanceof HTMLElement ? node : (node?.parentElement ?? null);
+  while (current && current !== editor) {
+    if (
+      current.tagName === "U" ||
+      (current.tagName === "SPAN" &&
+        /text-decoration(?:-line)?\s*:[^;]*underline/i.test(
+          current.getAttribute("style") ?? "",
+        ))
+    ) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
+
+function hasDomStrike(node: Node | null, editor: HTMLElement): boolean {
+  let current: HTMLElement | null =
+    node instanceof HTMLElement ? node : (node?.parentElement ?? null);
+  while (current && current !== editor) {
+    if (
+      current.tagName === "S" ||
+      current.tagName === "STRIKE" ||
+      current.tagName === "DEL" ||
+      (current.tagName === "SPAN" &&
+        /text-decoration(?:-line)?\s*:[^;]*(line-through|strikethrough)/i.test(
+          current.getAttribute("style") ?? "",
+        ))
+    ) {
+      return true;
+    }
+    current = current.parentElement;
+  }
+  return false;
+}
+
+function stickyCommandHasDom(
+  command: StickyCommand,
+  node: Node | null,
+  editor: HTMLElement,
+): boolean {
+  switch (command) {
+    case "bold":
+      return hasDomBold(node, editor);
+    case "italic":
+      return hasDomItalic(node, editor);
+    case "underline":
+      return hasDomUnderline(node, editor);
+    case "strikeThrough":
+      return hasDomStrike(node, editor);
+    default: {
+      const _exhaustive: never = command;
+      return _exhaustive;
+    }
+  }
+}
+
 /**
- * Text offset of the collapsed caret within `element`, or null if the caret
- * is not inside that element.
+ * Turn off sticky typing styles that are no longer backed by a DOM ancestor.
  */
+export function clearStickyFormatsWithoutDom(editor: HTMLElement): boolean {
+  const selection = window.getSelection();
+  const node = selection?.anchorNode ?? null;
+  let cleared = false;
+
+  for (const command of STICKY_COMMANDS) {
+    if (!queryCommandActive(command)) continue;
+    if (stickyCommandHasDom(command, node, editor)) continue;
+    try {
+      document.execCommand(command);
+      cleared = true;
+    } catch {
+      // ignore unsupported commands in test envs
+    }
+  }
+
+  return cleared;
+}
+
+function visibleRangeText(range: Range): string {
+  return range.toString().replace(/\u200b/g, "");
+}
+
+/**
+ * True when no visible text remains after the caret inside `mark`.
+ * Uses Range so trailing `<br>` (Chrome contentEditable) does not block exit.
+ */
+function isCaretAtEndOfMark(mark: HTMLElement, range: Range): boolean {
+  try {
+    const after = range.cloneRange();
+    after.setEnd(mark, mark.childNodes.length);
+    return visibleRangeText(after).length === 0;
+  } catch {
+    return false;
+  }
+}
+
+function isCaretAtStartOfMark(mark: HTMLElement, range: Range): boolean {
+  try {
+    const before = range.cloneRange();
+    before.setStart(mark, 0);
+    return visibleRangeText(before).length === 0;
+  } catch {
+    return false;
+  }
+}
+
 function caretTextOffsetInElement(
   element: HTMLElement,
   container: Node,
@@ -59,46 +237,45 @@ function caretTextOffsetInElement(
     return null;
   }
 
-  if (!(container instanceof Node) || !element.contains(container)) {
-    if (container !== element) return null;
-  }
+  if (container !== element && !element.contains(container)) return null;
 
-  // Caret is expressed as a child-index offset on an element node.
   let total = 0;
   const children = container.childNodes;
   for (let index = 0; index < offset && index < children.length; index += 1) {
     const child = children[index];
     if (!child) continue;
-    if (element === container || element.contains(child)) {
-      total += child.textContent?.length ?? 0;
-    }
+    total += child.textContent?.length ?? 0;
   }
-
-  if (container === element || element.contains(container)) {
-    return total;
-  }
-
-  return null;
-}
-
-function placeCaretBefore(node: Node): void {
-  const selection = window.getSelection();
-  if (!selection) return;
-  const range = document.createRange();
-  range.setStartBefore(node);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
+  return total;
 }
 
 function placeCaretAfter(node: Node): void {
   const selection = window.getSelection();
   if (!selection) return;
-  const range = document.createRange();
-  range.setStartAfter(node);
-  range.collapse(true);
+
+  // Landing pad so sticky typing styles don't keep applying at the boundary.
+  const pad = document.createTextNode("\u200b");
+  node.parentNode?.insertBefore(pad, node.nextSibling);
+
+  const nextRange = document.createRange();
+  nextRange.setStart(pad, 1);
+  nextRange.collapse(true);
   selection.removeAllRanges();
-  selection.addRange(range);
+  selection.addRange(nextRange);
+}
+
+function placeCaretBeforeWithPad(node: Node): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+
+  const pad = document.createTextNode("\u200b");
+  node.parentNode?.insertBefore(pad, node);
+
+  const nextRange = document.createRange();
+  nextRange.setStart(pad, 0);
+  nextRange.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(nextRange);
 }
 
 function isVisuallyEmptyMark(element: HTMLElement): boolean {
@@ -106,10 +283,15 @@ function isVisuallyEmptyMark(element: HTMLElement): boolean {
   return text.length === 0;
 }
 
+function hasAnyStickyFormat(): boolean {
+  return STICKY_COMMANDS.some((command) => queryCommandActive(command));
+}
+
 /**
  * If the collapsed caret sits at the start/end of an inline mark and the
- * matching arrow is pressed, move the caret just outside that mark and return
- * true (caller should preventDefault + refresh toolbar state).
+ * matching arrow is pressed, move the caret just outside that mark and clear
+ * sticky typing styles. Also clears sticky styles at the editor edges when
+ * the caret is already outside a mark but queryCommandState is still on.
  */
 export function tryExitComposerInlineFormatOnArrow(
   editor: HTMLElement,
@@ -128,28 +310,77 @@ export function tryExitComposerInlineFormatOnArrow(
       : (anchor as Element);
   if (!anchorElement || !editor.contains(anchorElement)) return false;
 
+  const range = selection.getRangeAt(0);
   const mark = deepestInlineFormat(selection.anchorNode, editor);
-  if (!mark) return false;
 
-  const textOffset = caretTextOffsetInElement(
-    mark,
+  if (mark) {
+    if (direction === "right" && isCaretAtEndOfMark(mark, range)) {
+      placeCaretAfter(mark);
+      if (isVisuallyEmptyMark(mark)) mark.remove();
+      clearStickyFormatsWithoutDom(editor);
+      return true;
+    }
+
+    if (direction === "left" && isCaretAtStartOfMark(mark, range)) {
+      placeCaretBeforeWithPad(mark);
+      if (isVisuallyEmptyMark(mark)) mark.remove();
+      clearStickyFormatsWithoutDom(editor);
+      return true;
+    }
+
+    return false;
+  }
+
+  // Caret already outside a mark, but sticky typing style may still be on
+  // (common after ArrowRight at end of a bold run in Chromium).
+  if (!hasAnyStickyFormat()) return false;
+
+  const offset = caretTextOffsetInElement(
+    editor,
     selection.anchorNode,
     selection.anchorOffset,
   );
-  if (textOffset === null) return false;
+  if (offset === null) return false;
+  const editorLength = (editor.textContent ?? "").replace(/\u200b/g, "").length;
+  const visibleOffset = Math.min(
+    offset,
+    // rough: treat zwsp as invisible for edge checks via range when possible
+    offset,
+  );
 
-  const textLength = mark.textContent?.length ?? 0;
-
-  if (direction === "right" && textOffset >= textLength) {
-    placeCaretAfter(mark);
-    if (isVisuallyEmptyMark(mark)) mark.remove();
-    return true;
+  if (direction === "right") {
+    try {
+      const after = range.cloneRange();
+      after.setEnd(editor, editor.childNodes.length);
+      if (visibleRangeText(after).length === 0) {
+        return clearStickyFormatsWithoutDom(editor);
+      }
+    } catch {
+      if (visibleOffset >= editorLength) {
+        return clearStickyFormatsWithoutDom(editor);
+      }
+    }
   }
 
-  if (direction === "left" && textOffset <= 0) {
-    placeCaretBefore(mark);
-    if (isVisuallyEmptyMark(mark)) mark.remove();
-    return true;
+  if (direction === "left") {
+    try {
+      const before = range.cloneRange();
+      before.setStart(editor, 0);
+      if (visibleRangeText(before).length === 0) {
+        return clearStickyFormatsWithoutDom(editor);
+      }
+    } catch {
+      if (visibleOffset <= 0) {
+        return clearStickyFormatsWithoutDom(editor);
+      }
+    }
+  }
+
+  if (
+    selection.anchorNode.nodeType === Node.TEXT_NODE &&
+    selection.anchorNode.textContent === "\u200b"
+  ) {
+    return clearStickyFormatsWithoutDom(editor);
   }
 
   return false;

@@ -677,6 +677,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         );
         if (exited) {
           event.preventDefault();
+          handleInput();
           publishActiveFormats();
           return;
         }
