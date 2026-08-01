@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const ROOM_COMPOSER_TEXTAREA_CLASSNAME =
-  "max-h-40 min-h-20 resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm";
+  "max-h-40 min-h-12 md:min-h-20 resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-2 md:py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm";
 
 export const ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME =
   "size-9 rounded-full sm:size-8";
@@ -76,7 +76,7 @@ export function RoomMessageComposer({
       className={cn(
         "shrink-0",
         withOuterPadding &&
-          "px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+          "px-5 pt-2 md:pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))]",
         className,
       )}
       onSubmit={onSubmit}
@@ -101,7 +101,7 @@ export function RoomMessageComposer({
           {aboveEditor}
           {children}
           {belowEditor}
-          <div className="flex items-center justify-between gap-2 px-3 pb-3">
+          <div className="flex items-center justify-between gap-2 px-3 pb-2 md:pb-3">
             <div className="text-muted-foreground flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
               {toolbarStart}
             </div>
