@@ -4553,6 +4553,7 @@
     },
     "Channels": {
       "Actions": {
+        "more": "Actions du message",
         "sectionTitle": "Gérer le canal",
         "leave": "Quitter le canal",
         "archive": "Archiver le canal",

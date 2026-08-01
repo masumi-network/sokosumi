@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { NotificationKind } from "@sokosumi/database";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -65,12 +66,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
+      await tx.notification.updateMany({
+        where: {
+          userId: userContext.userId,
+          kind: NotificationKind.CHAT,
+          referenceId: room.id,
+          isRead: false,
+        },
+        data: {
+          isRead: true,
+          readAt,
+        },
+      });
+
       return room;
     });
 
     return ok(
       c,
-      chatRoomSchema.parse(mapChatRoom(room, userContext.userId, 0)),
+      chatRoomSchema.parse(
+        mapChatRoom(room, userContext.userId, {
+          unreadCount: 0,
+          unreadMentionCount: 0,
+        }),
+      ),
     );
   });
 }

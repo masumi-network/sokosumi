@@ -68,6 +68,11 @@ export const chatRoomSchema = z
         "Messages sent by others after the current user's read marker.",
       example: 2,
     }),
+    unreadMentionCount: z.number().int().min(0).openapi({
+      description:
+        "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
+      example: 1,
+    }),
     userMembers: z.array(chatRoomUserParticipantSchema),
     coworkerMembers: z.array(chatRoomCoworkerParticipantSchema),
   })

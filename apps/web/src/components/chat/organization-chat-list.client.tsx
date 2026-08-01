@@ -38,11 +38,13 @@ import {
 import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
 import {
   listOrganizationArchivedChatRoomsAction,
   listOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
+import { resolveRoomAttention } from "./room-attention";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
@@ -178,7 +180,7 @@ function DirectAvatarStack({
   );
 }
 
-function UnreadBadge({ count }: { count: number }) {
+function MentionBadge({ count }: { count: number }) {
   if (count <= 0) {
     return null;
   }
@@ -187,7 +189,7 @@ function UnreadBadge({ count }: { count: number }) {
 
   return (
     <span
-      aria-label={`${label} unread`}
+      aria-label={`${label} mentions`}
       className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
     >
       {label}
@@ -318,7 +320,11 @@ export function OrganizationChatList({
       setRoomRows((current) =>
         current.map((room) =>
           room.id === detail.roomId
-            ? (detail.room ?? { ...room, unreadCount: 0 })
+            ? (detail.room ?? {
+                ...room,
+                unreadCount: 0,
+                unreadMentionCount: 0,
+              })
             : room,
         ),
       );
@@ -416,18 +422,9 @@ export function OrganizationChatList({
       }
     }
 
-    // Channels: A–Z. DMs: most recent activity first (`updatedAt` bumps on send).
-    namedChannels.sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
-    );
-    directMessages.sort((a, b) => {
-      const byActivity =
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-      if (byActivity !== 0) {
-        return byActivity;
-      }
-      return a.id.localeCompare(b.id);
-    });
+    // Active channels and DMs: most recent activity first (`updatedAt` bumps on send).
+    namedChannels.sort(compareChatRoomsByRecentActivity);
+    directMessages.sort(compareChatRoomsByRecentActivity);
 
     return { directMessages, namedChannels };
   }, [roomRows]);
@@ -456,7 +453,11 @@ export function OrganizationChatList({
             <SidebarMenu className="gap-0">
               {namedChannels.map((room) => {
                 const isActive = activeRoomId === room.id;
-                const unreadCount = isActive ? 0 : room.unreadCount;
+                const { bold, badgeCount } = resolveRoomAttention({
+                  unreadCount: room.unreadCount,
+                  unreadMentionCount: room.unreadMentionCount,
+                  isActive,
+                });
 
                 return (
                   <SidebarMenuItem key={room.id}>
@@ -468,8 +469,15 @@ export function OrganizationChatList({
                           href={`/chat/rooms/${room.id}`}
                         >
                           <Hash className="size-4 shrink-0" aria-hidden />
-                          <span className="flex-1 truncate">{room.name}</span>
-                          <UnreadBadge count={unreadCount} />
+                          <span
+                            className={cn(
+                              "flex-1 truncate",
+                              bold && "font-semibold text-foreground",
+                            )}
+                          >
+                            {room.name}
+                          </span>
+                          <MentionBadge count={badgeCount} />
                         </Link>
                       </SheetClose>
                     </SidebarMenuButton>
@@ -557,7 +565,11 @@ export function OrganizationChatList({
               {directMessages.map((room) => {
                 const isActive = activeRoomId === room.id;
                 const label = getDirectRoomDisplayName(room, currentUserId);
-                const unreadCount = isActive ? 0 : room.unreadCount;
+                const { bold, badgeCount } = resolveRoomAttention({
+                  unreadCount: room.unreadCount,
+                  unreadMentionCount: room.unreadMentionCount,
+                  isActive,
+                });
                 return (
                   <SidebarMenuItem key={room.id}>
                     <SidebarMenuButton asChild isActive={isActive}>
@@ -571,10 +583,15 @@ export function OrganizationChatList({
                             room={room}
                             currentUserId={currentUserId}
                           />
-                          <span className="min-w-0 flex-1 truncate">
+                          <span
+                            className={cn(
+                              "min-w-0 flex-1 truncate",
+                              bold && "font-semibold text-foreground",
+                            )}
+                          >
                             {label}
                           </span>
-                          <UnreadBadge count={unreadCount} />
+                          <MentionBadge count={badgeCount} />
                         </Link>
                       </SheetClose>
                     </SidebarMenuButton>

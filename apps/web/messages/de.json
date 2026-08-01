@@ -4553,6 +4553,7 @@
     },
     "Channels": {
       "Actions": {
+        "more": "Nachrichtenaktionen",
         "sectionTitle": "Kanal verwalten",
         "leave": "Kanal verlassen",
         "archive": "Kanal archivieren",

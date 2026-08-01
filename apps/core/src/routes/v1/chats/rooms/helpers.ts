@@ -1,4 +1,4 @@
-import { MemberRole, type Prisma } from "@sokosumi/database";
+import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
 import {
   buildQuoteSnippet,
   CHAT_PRESENCE_AFK_WINDOW_MS,
@@ -159,6 +159,36 @@ export async function getChatRoomUnreadCounts(
   return new Map(rows.map((row) => [row.roomId, Number(row.unreadCount)]));
 }
 
+/**
+ * Per-room count of unread CHAT notifications for the user.
+ * `referenceId` is the room id (see emitChatMentionNotifications).
+ */
+export async function getChatRoomUnreadMentionCounts(
+  roomIds: readonly string[],
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, number>> {
+  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
+  if (uniqueRoomIds.length === 0) {
+    return new Map();
+  }
+
+  const groups = await tx.notification.groupBy({
+    by: ["referenceId"],
+    where: {
+      userId,
+      kind: NotificationKind.CHAT,
+      isRead: false,
+      referenceId: { in: uniqueRoomIds },
+    },
+    _count: { _all: true },
+  });
+
+  return new Map(
+    groups.map((group) => [group.referenceId, group._count._all] as const),
+  );
+}
+
 /** Latest message time per room — used to order the sidebar by real activity. */
 export async function getChatRoomLastMessageAts(
   roomIds: readonly string[],
@@ -184,13 +214,20 @@ export async function getChatRoomLastMessageAts(
   );
 }
 
+export interface MapChatRoomAttentionOptions {
+  unreadCount?: number;
+  unreadMentionCount?: number;
+  /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
+  lastActivityAt?: Date | null;
+}
+
 export function mapChatRoom(
   room: ChatRoomWithMembers,
   currentUserId?: string,
-  unreadCount = 0,
-  /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
-  lastActivityAt?: Date | null,
+  attention: MapChatRoomAttentionOptions = {},
 ) {
+  const { unreadCount = 0, unreadMentionCount = 0, lastActivityAt } = attention;
+
   return {
     id: room.id,
     organizationId: room.organizationId,
@@ -203,6 +240,7 @@ export function mapChatRoom(
     createdAt: room.createdAt,
     updatedAt: lastActivityAt ?? room.updatedAt,
     unreadCount,
+    unreadMentionCount,
     userMembers: room.userMembers.map(({ user }) => ({
       id: user.id,
       name: user.name,

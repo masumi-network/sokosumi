@@ -50,6 +50,9 @@ const {
       chatRoomMention: {
         findMany: vi.fn().mockResolvedValue([]),
       },
+      notification: {
+        groupBy: vi.fn().mockResolvedValue([]),
+      },
     },
   };
 });

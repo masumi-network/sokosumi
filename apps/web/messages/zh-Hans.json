@@ -4553,6 +4553,7 @@
     },
     "Channels": {
       "Actions": {
+        "more": "消息操作",
         "sectionTitle": "管理频道",
         "leave": "退出频道",
         "archive": "归档频道",

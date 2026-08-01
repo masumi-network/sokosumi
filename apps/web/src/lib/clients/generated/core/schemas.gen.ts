@@ -4257,6 +4257,12 @@ export const ChatRoomSchema = {
             description: 'Messages sent by others after the current user\'s read marker.',
             example: 2
         },
+        unreadMentionCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.',
+            example: 1
+        },
         userMembers: {
             type: 'array',
             items: {
@@ -4282,6 +4288,7 @@ export const ChatRoomSchema = {
         'createdAt',
         'updatedAt',
         'unreadCount',
+        'unreadMentionCount',
         'userMembers',
         'coworkerMembers'
     ]

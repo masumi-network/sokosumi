@@ -7,13 +7,30 @@ import {
 } from "@sokosumi/utils";
 import { CheckCircle2, Loader2, MessageCircle, Quote } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import {
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
@@ -248,6 +265,148 @@ function ChannelMessageText({
   return <>{nodes}</>;
 }
 
+const QUICK_MESSAGE_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀"] as const;
+const LONG_PRESS_DELAY_MS = 450;
+const LONG_PRESS_MOVE_TOLERANCE_PX = 12;
+
+function devicePrefersHover(): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
+  return window.matchMedia("(hover: hover)").matches;
+}
+
+function useLongPress(onLongPress: () => void): {
+  onPointerDown: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerMove: (event: ReactPointerEvent<HTMLElement>) => void;
+  onPointerUp: () => void;
+  onPointerCancel: () => void;
+  onContextMenu: (event: ReactMouseEvent<HTMLElement>) => void;
+} {
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startRef = useRef<{ x: number; y: number } | null>(null);
+
+  function clearTimer() {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    startRef.current = null;
+  }
+
+  return {
+    onPointerDown(event) {
+      if (event.button !== 0) {
+        return;
+      }
+      if (devicePrefersHover()) {
+        return;
+      }
+      clearTimer();
+      startRef.current = { x: event.clientX, y: event.clientY };
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        startRef.current = null;
+        onLongPress();
+      }, LONG_PRESS_DELAY_MS);
+    },
+    onPointerMove(event) {
+      if (!startRef.current || timerRef.current === null) {
+        return;
+      }
+      const deltaX = event.clientX - startRef.current.x;
+      const deltaY = event.clientY - startRef.current.y;
+      if (
+        deltaX * deltaX + deltaY * deltaY >
+        LONG_PRESS_MOVE_TOLERANCE_PX * LONG_PRESS_MOVE_TOLERANCE_PX
+      ) {
+        clearTimer();
+      }
+    },
+    onPointerUp() {
+      clearTimer();
+    },
+    onPointerCancel() {
+      clearTimer();
+    },
+    onContextMenu(event) {
+      if (!devicePrefersHover()) {
+        event.preventDefault();
+      }
+    },
+  };
+}
+
+function MessageActionControls({
+  message,
+  onToggleReaction,
+  onOpenThread,
+  onQuote,
+  showThreadButton,
+  showQuoteButton,
+  onAfterAction,
+}: {
+  message: ChatRoomMessage;
+  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onOpenThread?: (message: ChatRoomMessage) => void;
+  onQuote?: (message: ChatRoomMessage) => void;
+  showThreadButton: boolean;
+  showQuoteButton: boolean;
+  onAfterAction?: () => void;
+}) {
+  const t = useTranslations("App.Channels");
+
+  return (
+    <>
+      <EmojiPicker
+        title={t("Reactions.add")}
+        ariaLabel={t("Reactions.add")}
+        align="end"
+        triggerClassName="size-9 rounded-full sm:size-7"
+        onPick={(emoji) => {
+          onToggleReaction(message, emoji);
+          onAfterAction?.();
+        }}
+      />
+      {showQuoteButton && onQuote ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={t("Quote.action")}
+          aria-label={t("Quote.action")}
+          onClick={() => {
+            onQuote(message);
+            onAfterAction?.();
+          }}
+        >
+          <Quote className="size-4" aria-hidden />
+        </Button>
+      ) : null}
+      {showThreadButton && onOpenThread ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={t("Thread.open")}
+          aria-label={t("Thread.open")}
+          onClick={() => {
+            onOpenThread(message);
+            onAfterAction?.();
+          }}
+        >
+          <MessageCircle className="size-4" aria-hidden />
+        </Button>
+      ) : null}
+    </>
+  );
+}
+
+const messageActionsPillClassName =
+  "border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+
 function MessageActions({
   message,
   onToggleReaction,
@@ -263,44 +422,268 @@ function MessageActions({
   showThreadButton: boolean;
   showQuoteButton: boolean;
 }) {
+  return (
+    <div
+      data-message-actions="hover"
+      className={cn(
+        messageActionsPillClassName,
+        "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+      )}
+    >
+      <MessageActionControls
+        message={message}
+        onToggleReaction={onToggleReaction}
+        onOpenThread={onOpenThread}
+        onQuote={onQuote}
+        showThreadButton={showThreadButton}
+        showQuoteButton={showQuoteButton}
+      />
+    </div>
+  );
+}
+
+const SHEET_SWIPE_DISMISS_PX = 80;
+const SHEET_SWIPE_DRAG_START_PX = 8;
+
+function isSheetSwipeInteractiveTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      "button, a, input, textarea, [role='button'], [data-slot='popover-content']",
+    ),
+  );
+}
+
+function useBottomSheetSwipeDismiss(
+  open: boolean,
+  onDismiss: () => void,
+): {
+  contentRef: RefObject<HTMLDivElement | null>;
+  swipeHandlers: {
+    onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
+    onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
+    onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
+    onPointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  };
+} {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number | null;
+    startY: number;
+    dragging: boolean;
+    dismissing: boolean;
+  }>({
+    pointerId: null,
+    startY: 0,
+    dragging: false,
+    dismissing: false,
+  });
+
+  const resetTransform = useCallback(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    el.style.transform = "";
+    el.style.transition = "";
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      dragRef.current = {
+        pointerId: null,
+        startY: 0,
+        dragging: false,
+        dismissing: false,
+      };
+      resetTransform();
+    }
+  }, [open, resetTransform]);
+
+  function finishPointer(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (drag.pointerId !== event.pointerId || drag.dismissing) return;
+
+    const dy = Math.max(0, event.clientY - drag.startY);
+    drag.pointerId = null;
+    const el = contentRef.current;
+    if (!el) return;
+
+    if (drag.dragging && dy >= SHEET_SWIPE_DISMISS_PX) {
+      drag.dismissing = true;
+      el.style.transition = "transform 180ms ease-out";
+      el.style.transform = "translateY(100%)";
+      window.setTimeout(() => {
+        onDismiss();
+        resetTransform();
+        drag.dismissing = false;
+        drag.dragging = false;
+      }, 180);
+      return;
+    }
+
+    el.style.transition = "transform 200ms ease-out";
+    el.style.transform = "translateY(0)";
+    window.setTimeout(() => {
+      if (!drag.dismissing) resetTransform();
+    }, 200);
+    drag.dragging = false;
+  }
+
+  return {
+    contentRef,
+    swipeHandlers: {
+      onPointerDown(event) {
+        if (event.button !== 0) return;
+        if (dragRef.current.dismissing) return;
+        const fromHandle = Boolean(
+          event.target instanceof Element &&
+            event.target.closest("[data-sheet-swipe-handle]"),
+        );
+        if (!fromHandle && isSheetSwipeInteractiveTarget(event.target)) return;
+
+        dragRef.current = {
+          pointerId: event.pointerId,
+          startY: event.clientY,
+          dragging: false,
+          dismissing: false,
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      },
+      onPointerMove(event) {
+        const drag = dragRef.current;
+        if (drag.pointerId !== event.pointerId || drag.dismissing) return;
+
+        const dy = Math.max(0, event.clientY - drag.startY);
+        if (dy > SHEET_SWIPE_DRAG_START_PX) drag.dragging = true;
+        if (!drag.dragging) return;
+
+        const el = contentRef.current;
+        if (!el) return;
+        el.style.transition = "none";
+        el.style.transform = `translateY(${dy}px)`;
+      },
+      onPointerUp: finishPointer,
+      onPointerCancel: finishPointer,
+    },
+  };
+}
+
+function TouchMessageActionsSheet({
+  open,
+  onOpenChange,
+  message,
+  onToggleReaction,
+  onOpenThread,
+  onQuote,
+  showThreadButton,
+  showQuoteButton,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  message: ChatRoomMessage;
+  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onOpenThread?: (message: ChatRoomMessage) => void;
+  onQuote?: (message: ChatRoomMessage) => void;
+  showThreadButton: boolean;
+  showQuoteButton: boolean;
+}) {
   const t = useTranslations("App.Channels");
+  const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
+    onOpenChange(false);
+  });
+
+  function runAndClose(action: () => void) {
+    action();
+    onOpenChange(false);
+  }
 
   return (
-    <div className="border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
-      <EmojiPicker
-        title={t("Reactions.add")}
-        ariaLabel={t("Reactions.add")}
-        align="end"
-        triggerClassName="size-9 rounded-full sm:size-7"
-        onPick={(emoji) => onToggleReaction(message, emoji)}
-      />
-      {showQuoteButton && onQuote ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-9 rounded-full sm:size-7"
-          title={t("Quote.action")}
-          aria-label={t("Quote.action")}
-          onClick={() => onQuote(message)}
-        >
-          <Quote className="size-4" aria-hidden />
-        </Button>
-      ) : null}
-      {showThreadButton && onOpenThread ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-9 rounded-full sm:size-7"
-          title={t("Thread.open")}
-          aria-label={t("Thread.open")}
-          onClick={() => onOpenThread(message)}
-        >
-          <MessageCircle className="size-4" aria-hidden />
-        </Button>
-      ) : null}
-    </div>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        ref={contentRef}
+        side="bottom"
+        showCloseButton={false}
+        className="gap-0 rounded-t-2xl touch-none pb-[max(1rem,env(safe-area-inset-bottom))]"
+        {...swipeHandlers}
+      >
+        <SheetHeader className="items-center gap-2 pt-1 pb-2">
+          <div
+            data-sheet-swipe-handle
+            className="flex w-full cursor-grab justify-center py-3 active:cursor-grabbing"
+          >
+            <div
+              className="bg-muted-foreground/40 h-1.5 w-12 shrink-0 rounded-full"
+              aria-hidden
+            />
+          </div>
+          <SheetTitle>{t("Actions.more")}</SheetTitle>
+          <SheetDescription className="sr-only">
+            {t("Actions.more")}
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex flex-wrap items-center justify-center gap-2 px-4 pb-4">
+          {QUICK_MESSAGE_REACTIONS.map((emoji) => (
+            <Button
+              key={emoji}
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-11 rounded-full text-xl"
+              aria-label={t("Reactions.toggle", { emoji })}
+              onClick={() => {
+                runAndClose(() => {
+                  onToggleReaction(message, emoji);
+                });
+              }}
+            >
+              <span aria-hidden>{emoji}</span>
+            </Button>
+          ))}
+          <EmojiPicker
+            title={t("Reactions.add")}
+            ariaLabel={t("Reactions.add")}
+            align="center"
+            triggerClassName="size-11 rounded-full"
+            onPick={(emoji) => {
+              runAndClose(() => {
+                onToggleReaction(message, emoji);
+              });
+            }}
+          />
+        </div>
+        <div className="border-border flex flex-col gap-1 border-t px-2 py-2">
+          {showQuoteButton && onQuote ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(() => {
+                  onQuote(message);
+                });
+              }}
+            >
+              <Quote className="size-4 shrink-0" aria-hidden />
+              {t("Quote.action")}
+            </Button>
+          ) : null}
+          {showThreadButton && onOpenThread ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(() => {
+                  onOpenThread(message);
+                });
+              }}
+            >
+              <MessageCircle className="size-4 shrink-0" aria-hidden />
+              {t("Thread.open")}
+            </Button>
+          ) : null}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -421,6 +804,7 @@ export function ChatMessageRow({
   isContinuation?: boolean;
 }) {
   const tChat = useTranslations("App.Chat.Chat");
+  const tChannels = useTranslations("App.Channels");
   const sender = messageSender(message);
   const isStreamOverlay = message.id.startsWith("stream:");
   const isThinking =
@@ -431,6 +815,10 @@ export function ChatMessageRow({
   const createdAtIso = new Date(message.createdAt).toISOString();
   const canQuote = showQuoteButton && Boolean(onQuote) && !isStreamOverlay;
   const quote = message.quote;
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const longPress = useLongPress(() => {
+    setSheetOpen(true);
+  });
 
   return (
     <article
@@ -438,9 +826,10 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex gap-3.5 rounded-md pr-20 pl-2 transition-colors hover:bg-muted/45",
+        "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
         isContinuation ? "min-h-0 py-0.5" : "mt-3 min-h-0 pt-1 pb-0.5",
       )}
+      {...(isThinking ? {} : longPress)}
     >
       {isContinuation ? (
         <div className="flex w-8 shrink-0 justify-center pt-0.5">
@@ -519,14 +908,35 @@ export function ChatMessageRow({
         />
       </div>
       {!isThinking ? (
-        <MessageActions
-          message={message}
-          onToggleReaction={onToggleReaction}
-          onOpenThread={onOpenThread}
-          onQuote={onQuote}
-          showThreadButton={showThreadButton}
-          showQuoteButton={canQuote}
-        />
+        <>
+          <MessageActions
+            message={message}
+            onToggleReaction={onToggleReaction}
+            onOpenThread={onOpenThread}
+            onQuote={onQuote}
+            showThreadButton={showThreadButton}
+            showQuoteButton={canQuote}
+          />
+          <button
+            type="button"
+            className="sr-only"
+            onClick={() => {
+              setSheetOpen(true);
+            }}
+          >
+            {tChannels("Actions.more")}
+          </button>
+          <TouchMessageActionsSheet
+            open={sheetOpen}
+            onOpenChange={setSheetOpen}
+            message={message}
+            onToggleReaction={onToggleReaction}
+            onOpenThread={onOpenThread}
+            onQuote={onQuote}
+            showThreadButton={showThreadButton}
+            showQuoteButton={canQuote}
+          />
+        </>
       ) : null}
     </article>
   );
