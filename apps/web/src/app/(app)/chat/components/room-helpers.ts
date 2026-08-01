@@ -1,4 +1,7 @@
-import { buildQuoteSnippet } from "@sokosumi/utils";
+import {
+  buildRoomQuoteSnippetParts,
+  type ChatRoomQuoteAttachment,
+} from "@sokosumi/utils";
 import type {
   MentionSuggestionGroup,
   NormalizedMention,
@@ -193,15 +196,18 @@ export interface PendingRoomQuote {
   messageId: string;
   authorName: string;
   snippet: string;
+  attachment: ChatRoomQuoteAttachment | null;
 }
 
 export function pendingQuoteFromMessage(
   message: ChatRoomMessage,
 ): PendingRoomQuote {
+  const { snippet, attachment } = buildRoomQuoteSnippetParts(message.content);
   return {
     messageId: message.id,
     authorName: messageSender(message).name,
-    snippet: buildQuoteSnippet(message.content),
+    snippet,
+    attachment,
   };
 }
 

@@ -211,6 +211,14 @@ export const chatRoomMessageReactionSchema = z
   })
   .openapi("ChatRoomMessageReaction");
 
+export const chatRoomMessageQuoteAttachmentSchema = z
+  .object({
+    fileName: z.string().openapi({ example: "launch.png" }),
+    url: z.string().openapi({ example: "https://blob.example/launch.png" }),
+    mediaKind: z.enum(["image", "file"]).openapi({ example: "image" }),
+  })
+  .openapi("ChatRoomMessageQuoteAttachment");
+
 /** Snapshot of a quoted room message, stored under metadata.quote and promoted on the DTO. */
 export const chatRoomMessageQuoteSchema = z
   .object({
@@ -221,6 +229,7 @@ export const chatRoomMessageQuoteSchema = z
     snippet: z.string().openapi({
       example: "Can you summarize this launch risk?",
     }),
+    attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
   })
   .openapi("ChatRoomMessageQuote");
 
@@ -275,6 +284,11 @@ export const createChatRoomMessageRequestSchema = z
         description:
           "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.",
       }),
+    clientMessageId: z.string().trim().min(1).max(128).optional().openapi({
+      description:
+        "Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).",
+      example: "019fbee7-676b-771f-ab7a-998f25f1f16b",
+    }),
   })
   .openapi("CreateChatRoomMessageRequest");
 

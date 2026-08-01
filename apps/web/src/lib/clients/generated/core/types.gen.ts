@@ -1374,6 +1374,13 @@ export type ChatRoomMessageQuote = {
     messageId: string;
     authorName: string;
     snippet: string;
+    attachment?: ChatRoomMessageQuoteAttachment;
+} | null;
+
+export type ChatRoomMessageQuoteAttachment = {
+    fileName: string;
+    url: string;
+    mediaKind: 'image' | 'file';
 } | null;
 
 export type CreateChatRoomMessageRequest = {
@@ -1393,6 +1400,10 @@ export type CreateChatRoomMessageRequest = {
     quote?: {
         messageId: string;
     };
+    /**
+     * Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).
+     */
+    clientMessageId?: string;
 };
 
 export type ReactToChatRoomMessageRequest = {
@@ -10166,6 +10177,20 @@ export type PostChatsRoomsByIdMessagesErrors = {
      * Room not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

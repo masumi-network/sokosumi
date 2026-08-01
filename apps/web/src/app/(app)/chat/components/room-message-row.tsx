@@ -2,6 +2,7 @@
 
 import {
   findMarkdownLinks,
+  getExtensionFromUrl,
   isFileLikeUrl,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
@@ -24,6 +25,7 @@ import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FileTypeIcon } from "@/components/ui/file-icon";
 import {
   Sheet,
   SheetContent,
@@ -40,6 +42,7 @@ import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
   ChatRoomMessageQuote,
+  ChatRoomMessageQuoteAttachment,
   ChatRoomMessageReaction,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
@@ -55,6 +58,37 @@ import {
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
+type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
+
+function MessageQuoteAttachmentChip({
+  attachment,
+}: {
+  attachment: RoomQuoteAttachment;
+}) {
+  const extension =
+    getExtensionFromUrl(attachment.fileName) ||
+    getExtensionFromUrl(attachment.url) ||
+    "file";
+
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="bg-accent/30 hover:bg-accent/50 text-muted-foreground focus-visible:ring-ring mt-1 inline-flex max-w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-xs outline-none transition focus-visible:ring-2"
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+    >
+      <span className="size-3.5 shrink-0" aria-hidden>
+        <FileTypeIcon extension={extension} />
+      </span>
+      <span className="text-foreground truncate font-medium">
+        {attachment.fileName}
+      </span>
+    </a>
+  );
+}
 
 function formatWhoReactedLabel(
   reaction: ChatRoomMessageReaction,
@@ -115,6 +149,8 @@ function MessageQuoteBlock({
     return () => observer.disconnect();
   }, [expanded, quote.snippet]);
 
+  const attachment = quote.attachment ?? null;
+
   return (
     <div className="border-border bg-muted/40 mb-1.5 w-full rounded-md border-l-2 border-l-primary/60 px-2.5 py-1.5">
       <button
@@ -128,24 +164,29 @@ function MessageQuoteBlock({
         <div className="text-foreground truncate text-xs font-semibold">
           {quote.authorName}
         </div>
-        <div
-          ref={snippetRef}
-          className={cn(
-            "text-muted-foreground text-xs leading-5",
-            expanded ? null : "line-clamp-4",
-          )}
-        >
-          <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
-            {formatRoomMarkdownMentions({
-              content: quote.snippet,
-              coworkersById,
-              coworkersBySlug,
-              usersById,
-              usersBySlug,
-            })}
-          </Markdown>
-        </div>
+        {quote.snippet.trim() ? (
+          <div
+            ref={snippetRef}
+            className={cn(
+              "text-muted-foreground text-xs leading-5",
+              expanded ? null : "line-clamp-4",
+            )}
+          >
+            <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+              {formatRoomMarkdownMentions({
+                content: quote.snippet,
+                coworkersById,
+                coworkersBySlug,
+                usersById,
+                usersBySlug,
+              })}
+            </Markdown>
+          </div>
+        ) : null}
       </button>
+      {attachment ? (
+        <MessageQuoteAttachmentChip attachment={attachment} />
+      ) : null}
       {expanded || overflows ? (
         <button
           type="button"
