@@ -46,7 +46,7 @@ describe("formatRoomMarkdownMentions", () => {
     expect(formatted).toContain('class="text-primary font-medium"');
   });
 
-  it("falls back to the raw id when the member is unknown", () => {
+  it("leaves unknown mention tokens unstyled", () => {
     const formatted = formatRoomMarkdownMentions({
       content: "@missing:ghost hey",
       coworkersById: new Map(),
@@ -55,7 +55,38 @@ describe("formatRoomMarkdownMentions", () => {
       usersBySlug: new Map(),
     });
 
-    expect(formatted).toContain("@missing");
+    expect(formatted).toBe("@missing:ghost hey");
+    expect(formatted).not.toContain("text-primary");
+  });
+
+  it("does not highlight bare @words or email local-parts", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: "ping @nobody and alice@example.com",
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+    });
+
+    expect(formatted).toBe("ping @nobody and alice@example.com");
+    expect(formatted).not.toContain("text-primary");
+  });
+
+  it("highlights only resolved mentions when mixed with bare @words", () => {
+    const content = `@${coworker.id}:${coworker.slug} and @nobody please`;
+    const formatted = formatRoomMarkdownMentions({
+      content,
+      coworkersById: new Map([[coworker.id, coworker]]),
+      coworkersBySlug: new Map([[coworker.slug, coworker]]),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+    });
+
+    expect(formatted).toContain(
+      '<span class="text-primary font-medium">@Elena</span>',
+    );
+    expect(formatted).toContain("and @nobody please");
+    expect(formatted.match(/text-primary/g)).toHaveLength(1);
   });
 
   it("renders @all:all as an @all chip without member lookup", () => {

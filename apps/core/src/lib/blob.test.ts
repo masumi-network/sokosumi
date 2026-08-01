@@ -3,9 +3,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createOrganizationLogoUploadSession,
   createUserFileUploadSession,
+  createVendorLogoUploadSession,
   deleteCoworkerImageIfOwned,
   deleteOrganizationLogoIfOwned,
   deleteTaskFileIfOwned,
+  deleteVendorLogoIfOwned,
   listUserUploads,
   uploadCoworkerImage,
   uploadGeneratedChatImage,
@@ -587,6 +589,108 @@ describe("deleteOrganizationLogoIfOwned", () => {
 
     await expect(
       deleteOrganizationLogoIfOwned(url, "org_123"),
+    ).resolves.toBeUndefined();
+    expect(captureExceptionMock).toHaveBeenCalled();
+  });
+});
+
+describe("createVendorLogoUploadSession", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("creates a public logo grant under vendors/{vendorId}/logos/", async () => {
+    issueSignedTokenMock.mockResolvedValue({
+      delegationToken: "delegation",
+      clientSigningToken: "signing",
+      validUntil: Date.now() + 60_000,
+    });
+    presignUrlMock.mockResolvedValue({
+      presignedUrl: "https://blob.example/upload?sig=logo",
+    });
+
+    const result = await createVendorLogoUploadSession(
+      "vendor_123",
+      {
+        filename: " Ops Logo (1).png ",
+        contentType: "image/png",
+        size: 12_000,
+        maxSizeBytes: 2_097_152,
+      },
+      "token_123",
+    );
+
+    expect(issueSignedTokenMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        token: "token_123",
+        pathname: "vendors/vendor_123/logos/Ops_Logo_1.png",
+        operations: ["put"],
+        allowedContentTypes: [
+          "image/png",
+          "image/jpeg",
+          "image/webp",
+          "image/gif",
+          "image/svg+xml",
+        ],
+        maximumSizeInBytes: 12_000,
+      }),
+    );
+    expect(result).toEqual({
+      uploadUrl: "https://blob.example/upload?sig=logo",
+      access: "public",
+      method: "PUT",
+      headers: { "Content-Type": "image/png" },
+      pathname: "vendors/vendor_123/logos/Ops_Logo_1.png",
+      addRandomSuffix: true,
+      maxSizeBytes: 2_097_152,
+      expiresAt: expect.any(String),
+    });
+  });
+});
+
+describe("deleteVendorLogoIfOwned", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("deletes owned vendor logo URLs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    delMock.mockResolvedValue(undefined);
+
+    const url =
+      "https://abc.public.blob.vercel-storage.com/vendors/vendor_123/logos/logo-xyz.png";
+
+    await deleteVendorLogoIfOwned(url, "vendor_123");
+
+    expect(delMock).toHaveBeenCalledWith(url, { token: "rw_token" });
+  });
+
+  it("ignores foreign, legacy flat, and invalid URLs", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+
+    await deleteVendorLogoIfOwned("https://example.com/evil.png", "vendor_123");
+    await deleteVendorLogoIfOwned(
+      "https://abc.public.blob.vercel-storage.com/vendor-logos/abcdef",
+      "vendor_123",
+    );
+    await deleteVendorLogoIfOwned(
+      "https://abc.public.blob.vercel-storage.com/vendors/other/logos/logo.png",
+      "vendor_123",
+    );
+    await deleteVendorLogoIfOwned(null, "vendor_123");
+
+    expect(delMock).not.toHaveBeenCalled();
+  });
+
+  it("captures delete failures without throwing", async () => {
+    getEnvMock.mockReturnValue({ BLOB_READ_WRITE_TOKEN: "rw_token" });
+    delMock.mockRejectedValue(new Error("blob delete failed"));
+
+    const url =
+      "https://abc.public.blob.vercel-storage.com/vendors/vendor_123/logos/logo-xyz.png";
+
+    await expect(
+      deleteVendorLogoIfOwned(url, "vendor_123"),
     ).resolves.toBeUndefined();
     expect(captureExceptionMock).toHaveBeenCalled();
   });

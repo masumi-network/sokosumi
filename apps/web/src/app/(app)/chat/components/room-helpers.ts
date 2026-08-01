@@ -474,9 +474,12 @@ export function formatRoomMarkdownMentions({
       ? ROOM_MENTION_ALL_ID
       : ((coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug))
           ?.name ??
-        (usersById?.get(match.id) ?? usersBySlug?.get(match.slug))?.name ??
-        match.id);
-    formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
+        (usersById?.get(match.id) ?? usersBySlug?.get(match.slug))?.name);
+    if (displayName) {
+      formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
+    } else {
+      formatted += content.slice(match.start, match.end);
+    }
     lastIndex = match.end;
   }
   if (lastIndex < content.length) {

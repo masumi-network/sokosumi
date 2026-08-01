@@ -66,6 +66,8 @@ import type {
   PostTasksByIdLinksData,
   PostTasksData,
   PostUsersByIdFilesData,
+  PostVendorsByIdFilesCleanupData,
+  PostVendorsByIdFilesData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutTaskScheduleRequest,
@@ -254,6 +256,8 @@ import {
   postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
   postUsersByIdVendorGrantsByGrantIdDeny as corePostUsersByIdVendorGrantsByGrantIdDeny,
   postUsersByIdVendorGrantsByGrantIdRevoke as corePostUsersByIdVendorGrantsByGrantIdRevoke,
+  postVendorsByIdFiles as corePostVendorsByIdFiles,
+  postVendorsByIdFilesCleanup as corePostVendorsByIdFilesCleanup,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -3206,6 +3210,40 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function createVendorLogoUploadSession(
+    vendorId: string,
+    body: NonNullable<PostVendorsByIdFilesData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostVendorsByIdFiles({
+          client,
+          path: { id: vendorId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create vendor logo upload session",
+    );
+  }
+
+  async function cleanupVendorLogo(
+    vendorId: string,
+    body: NonNullable<PostVendorsByIdFilesCleanupData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostVendorsByIdFilesCleanup({
+          client,
+          path: { id: vendorId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to cleanup vendor logo",
+    );
+  }
+
   async function createTaskFileUploadSession(
     taskId: string,
     body: NonNullable<PostTasksByIdFilesData["body"]>,
@@ -3547,8 +3585,10 @@ export function createCoreClient(getClient: GetClient) {
     createAgentJob,
     createChatRoomFileUploadSession,
     cleanupOrganizationLogo,
+    cleanupVendorLogo,
     createMyFileUploadSession,
     createOrganizationLogoUploadSession,
+    createVendorLogoUploadSession,
     createTask,
     createTaskFileUploadSession,
     createTaskLink,
