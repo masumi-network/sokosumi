@@ -7,7 +7,7 @@ const DEFAULT_HEADING_TEXT = "Heading";
  * code block). When these follow bare text — Chrome contentEditable's first
  * line pattern — prepend `\n` so the first break is not glued away.
  *
- * Keep in sync with `processNode` cases in `markdown-editor.tsx` that append
+ * Keep in sync with `processNode` cases in `composer-markdown-dom.ts` that append
  * `\n` (`div`/`p`/`blockquote`/headings/lists/`pre`/fenced `code`).
  */
 export function isBlockMarkdownElement(

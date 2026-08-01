@@ -4609,15 +4609,26 @@
         "attach": "Attach file",
         "dropToAttach": "拖放文件以附加",
         "emoji": "Emoji",
-        "format": "Formatting",
-        "bold": "Bold",
+        "format": "格式",
+        "bold": "粗体",
+        "italic": "斜体",
+        "underline": "下划线",
+        "strikethrough": "删除线",
+        "code": "代码",
+        "codeBlock": "代码块",
+        "quote": "引用",
+        "bulletList": "项目符号列表",
+        "numberedList": "编号列表",
+        "link": "链接",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "正在上传 {fileName}",
         "uploadingFiles": "正在上传 {count} 个文件",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
-        "attachmentFallback": "file"
+        "attachmentFallback": "file",
+        "showFormatting": "显示格式",
+        "hideFormatting": "隐藏格式"
       },
       "Reactions": {
         "add": "Add reaction",
@@ -4642,7 +4653,16 @@
       "loadOlder": "加载更早的消息",
       "loadingOlder": "正在加载更早的消息…",
       "roomUnavailable": "此聊天不可用，或你已没有访问权限。",
-      "archivedChannels": "已归档"
+      "archivedChannels": "已归档",
+      "AddLink": {
+        "title": "添加链接",
+        "text": "文本",
+        "textPlaceholder": "显示文本",
+        "link": "链接",
+        "linkPlaceholder": "https://",
+        "cancel": "取消",
+        "save": "保存"
+      }
     }
   },
   "Share": {

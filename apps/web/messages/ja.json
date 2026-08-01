@@ -4609,15 +4609,26 @@
         "attach": "Attach file",
         "dropToAttach": "ファイルをドロップして添付",
         "emoji": "Emoji",
-        "format": "Formatting",
-        "bold": "Bold",
+        "format": "書式設定",
+        "bold": "太字",
+        "italic": "斜体",
+        "underline": "下線",
+        "strikethrough": "取り消し線",
+        "code": "コード",
+        "codeBlock": "コードブロック",
+        "quote": "引用",
+        "bulletList": "箇条書き",
+        "numberedList": "番号付きリスト",
+        "link": "リンク",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "{fileName} をアップロード中",
         "uploadingFiles": "{count} 件のファイルをアップロード中",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
-        "attachmentFallback": "file"
+        "attachmentFallback": "file",
+        "showFormatting": "書式設定を表示",
+        "hideFormatting": "書式設定を非表示"
       },
       "Reactions": {
         "add": "Add reaction",
@@ -4642,7 +4653,16 @@
       "loadOlder": "以前のメッセージを読み込む",
       "loadingOlder": "以前のメッセージを読み込み中…",
       "roomUnavailable": "このチャットは利用できないか、アクセス権がありません。",
-      "archivedChannels": "アーカイブ"
+      "archivedChannels": "アーカイブ",
+      "AddLink": {
+        "title": "リンクを追加",
+        "text": "テキスト",
+        "textPlaceholder": "表示テキスト",
+        "link": "リンク",
+        "linkPlaceholder": "https://",
+        "cancel": "キャンセル",
+        "save": "保存"
+      }
     }
   },
   "Share": {

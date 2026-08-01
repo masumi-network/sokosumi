@@ -467,7 +467,7 @@ describe("MarkdownEditor", () => {
     });
 
     const savedMarkdown = onChange.mock.calls.at(-1)?.[0] as string;
-    expect(savedMarkdown).toBe("text\nquote\n");
+    expect(savedMarkdown).toBe("text\n> quote\n");
     expect(savedMarkdown).not.toContain("textquote");
   });
 });
