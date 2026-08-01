@@ -4611,19 +4611,32 @@
         "attach": "Attach file",
         "dropToAttach": "Suelta archivos para adjuntar",
         "emoji": "Emoji",
-        "format": "Formatting",
-        "bold": "Bold",
+        "format": "Formato",
+        "bold": "Negrita",
+        "italic": "Cursiva",
+        "underline": "Subrayar",
+        "strikethrough": "Tachado",
+        "code": "Código",
+        "codeBlock": "Bloque de código",
+        "quote": "Cita",
+        "bulletList": "Lista con viñetas",
+        "numberedList": "Lista numerada",
+        "link": "Enlace",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "Subiendo {fileName}",
         "uploadingFiles": "Subiendo {count} archivos",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
-        "attachmentFallback": "file"
+        "attachmentFallback": "file",
+        "showFormatting": "Mostrar formato",
+        "hideFormatting": "Ocultar formato"
       },
       "Reactions": {
         "add": "Add reaction",
-        "toggle": "React with {emoji}"
+        "toggle": "React with {emoji}",
+        "whoReacted": "{names}{more, plural, =0 {} other { y # más}}",
+        "andMore": "y {count} más"
       },
       "Presence": {
         "online": "Online",
@@ -4642,7 +4655,16 @@
       "loadOlder": "Cargar mensajes anteriores",
       "loadingOlder": "Cargando mensajes anteriores…",
       "roomUnavailable": "Este chat no está disponible o ya no tienes acceso.",
-      "archivedChannels": "Archivados"
+      "archivedChannels": "Archivados",
+      "AddLink": {
+        "title": "Añadir enlace",
+        "text": "Texto",
+        "textPlaceholder": "Texto visible",
+        "link": "Enlace",
+        "linkPlaceholder": "https://",
+        "cancel": "Cancelar",
+        "save": "Guardar"
+      }
     }
   },
   "Share": {

@@ -4611,19 +4611,32 @@
         "attach": "Attach file",
         "dropToAttach": "Dateien zum Anhängen ablegen",
         "emoji": "Emoji",
-        "format": "Formatting",
-        "bold": "Bold",
+        "format": "Formatierung",
+        "bold": "Fett",
+        "italic": "Kursiv",
+        "underline": "Unterstreichen",
+        "strikethrough": "Durchgestrichen",
+        "code": "Code",
+        "codeBlock": "Codeblock",
+        "quote": "Zitat",
+        "bulletList": "Aufzählungsliste",
+        "numberedList": "Nummerierte Liste",
+        "link": "Link",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "Hochladen von {fileName}",
         "uploadingFiles": "Hochladen von {count} Dateien",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
-        "attachmentFallback": "file"
+        "attachmentFallback": "file",
+        "showFormatting": "Formatierung anzeigen",
+        "hideFormatting": "Formatierung ausblenden"
       },
       "Reactions": {
         "add": "Add reaction",
-        "toggle": "React with {emoji}"
+        "toggle": "React with {emoji}",
+        "whoReacted": "{names}{more, plural, =0 {} other { und # weitere}}",
+        "andMore": "und {count} weitere"
       },
       "Presence": {
         "online": "Online",
@@ -4642,7 +4655,16 @@
       "loadOlder": "Ältere Nachrichten laden",
       "loadingOlder": "Ältere Nachrichten werden geladen…",
       "roomUnavailable": "Dieser Chat ist nicht verfügbar oder du hast keinen Zugriff mehr.",
-      "archivedChannels": "Archiviert"
+      "archivedChannels": "Archiviert",
+      "AddLink": {
+        "title": "Link hinzufügen",
+        "text": "Text",
+        "textPlaceholder": "Anzeigetext",
+        "link": "Link",
+        "linkPlaceholder": "https://",
+        "cancel": "Abbrechen",
+        "save": "Speichern"
+      }
     }
   },
   "Share": {

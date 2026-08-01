@@ -4732,17 +4732,30 @@
         "emoji": "Emoji",
         "format": "Formatting",
         "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline",
+        "strikethrough": "Strikethrough",
+        "code": "Code",
+        "codeBlock": "Code block",
+        "quote": "Quote",
+        "bulletList": "Bulleted list",
+        "numberedList": "Numbered list",
+        "link": "Link",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
-        "attachmentFallback": "file"
+        "attachmentFallback": "file",
+        "showFormatting": "Show formatting",
+        "hideFormatting": "Hide formatting"
       },
       "Reactions": {
         "add": "Add reaction",
-        "toggle": "React with {emoji}"
+        "toggle": "React with {emoji}",
+        "whoReacted": "{names}{more, plural, =0 {} other {, and # more}}",
+        "andMore": "and {count} more"
       },
       "Presence": {
         "online": "Online",
@@ -4761,7 +4774,16 @@
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…",
       "roomUnavailable": "This chat is unavailable or you no longer have access.",
-      "archivedChannels": "Archived"
+      "archivedChannels": "Archived",
+      "AddLink": {
+        "title": "Add link",
+        "text": "Text",
+        "textPlaceholder": "Display text",
+        "link": "Link",
+        "linkPlaceholder": "https://",
+        "cancel": "Cancel",
+        "save": "Save"
+      }
     }
   },
   "Share": {

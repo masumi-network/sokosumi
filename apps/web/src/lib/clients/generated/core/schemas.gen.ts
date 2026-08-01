@@ -4952,12 +4952,45 @@ export const ChatRoomMessageReactionSchema = {
         reactedByCurrentUser: {
             type: 'boolean',
             example: true
+        },
+        reactors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageReactor'
+            },
+            maxItems: 20,
+            description: 'First reactors by createdAt ascending (capped). count may exceed reactors.length.',
+            example: [
+                {
+                    id: 'user_123',
+                    name: 'Jane Doe'
+                }
+            ]
         }
     },
     required: [
         'emoji',
         'count',
-        'reactedByCurrentUser'
+        'reactedByCurrentUser',
+        'reactors'
+    ]
+} as const;
+
+export const ChatRoomMessageReactorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        }
+    },
+    required: [
+        'id',
+        'name'
     ]
 } as const;
 
@@ -9109,6 +9142,148 @@ export const UpdateOrganizationSubscriptionSeatsSchema = {
     },
     required: [
         'seats'
+    ]
+} as const;
+
+export const OrganizationLogoCleanupResultSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
+export const OrganizationLogoCleanupRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://abc.public.blob.vercel-storage.com/organizations/org_123/logos/logo.png',
+            description: 'Public blob URL of a prior organization logo to delete if owned'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
+export const OrganizationLogoUploadSessionSchema = {
+    type: 'object',
+    properties: {
+        uploadUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/users/user_123/report.pdf?vercel-blob-delegation=…',
+            description: 'Presigned Blob PUT URL (time-scoped, path-scoped)'
+        },
+        pathname: {
+            type: 'string',
+            example: 'users/user_123/report.pdf',
+            description: 'Server-generated upload pathname (before random suffix)'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public',
+            description: 'Blob access level for the upload'
+        },
+        method: {
+            type: 'string',
+            enum: [
+                'PUT'
+            ],
+            example: 'PUT',
+            description: 'HTTP method for the client upload request'
+        },
+        headers: {
+            type: 'object',
+            properties: {
+                'Content-Type': {
+                    type: 'string',
+                    example: 'application/pdf'
+                }
+            },
+            required: [
+                'Content-Type'
+            ],
+            description: 'Headers the client must send on the PUT'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-07-30T12:15:00.000Z',
+            description: 'When the presigned upload URL expires (ISO-8601)'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 104857600,
+            description: 'Maximum supported file size for this upload policy'
+        },
+        addRandomSuffix: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether Blob appends a random suffix to the final pathname'
+        }
+    },
+    required: [
+        'uploadUrl',
+        'pathname',
+        'access',
+        'method',
+        'headers',
+        'expiresAt',
+        'maxSizeBytes',
+        'addRandomSuffix'
+    ]
+} as const;
+
+export const CreateOrganizationLogoUploadRequestSchema = {
+    type: 'object',
+    properties: {
+        filename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            example: 'logo.png',
+            description: 'Original file name supplied by the client'
+        },
+        contentType: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'image/png',
+            description: 'Declared logo MIME type from the client'
+        },
+        size: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            maximum: 2097152,
+            example: 48000,
+            description: 'File size in bytes'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            maximum: 2097152,
+            example: 2097152,
+            description: 'Optional per-upload size ceiling in bytes. Must not exceed the organization logo maximum.'
+        }
+    },
+    required: [
+        'filename',
+        'contentType',
+        'size'
     ]
 } as const;
 

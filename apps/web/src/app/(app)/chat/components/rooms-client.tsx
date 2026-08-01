@@ -1190,6 +1190,9 @@ export function RoomsClient({
                   selectedRoom,
                 )}
                 allowAttachments={!isCoworkerStreamRoom}
+                onChromeResize={() => {
+                  bottomRef.current?.scrollIntoView({ block: "end" });
+                }}
               />
             </RoomFileDropZone>
           ) : (

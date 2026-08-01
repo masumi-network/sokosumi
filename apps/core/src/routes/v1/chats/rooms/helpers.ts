@@ -6,6 +6,7 @@ import {
 
 import { badRequest, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import { MAX_LISTED_CHAT_REACTION_REACTORS } from "@/schemas/chat-room.schema";
 
 export const chatRoomUserSelect = {
   id: true,
@@ -63,6 +64,7 @@ export const chatRoomMessageInclude = {
     select: {
       emoji: true,
       userId: true,
+      user: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "asc" },
   },
@@ -252,16 +254,27 @@ export function mapChatRoomMessage(
 
   const reactionCounts = new Map<
     string,
-    { count: number; reactedByCurrentUser: boolean }
+    {
+      count: number;
+      reactedByCurrentUser: boolean;
+      reactors: Array<{ id: string; name: string }>;
+    }
   >();
   for (const reaction of message.reactions) {
     const current = reactionCounts.get(reaction.emoji) ?? {
       count: 0,
       reactedByCurrentUser: false,
+      reactors: [],
     };
     current.count += 1;
     current.reactedByCurrentUser =
       current.reactedByCurrentUser || reaction.userId === currentUserId;
+    if (current.reactors.length < MAX_LISTED_CHAT_REACTION_REACTORS) {
+      current.reactors.push({
+        id: reaction.user.id,
+        name: reaction.user.name,
+      });
+    }
     reactionCounts.set(reaction.emoji, current);
   }
 
@@ -283,6 +296,7 @@ export function mapChatRoomMessage(
         emoji,
         count: reaction.count,
         reactedByCurrentUser: reaction.reactedByCurrentUser,
+        reactors: reaction.reactors,
       }),
     ),
     threadReplyCount: message._count.replies,

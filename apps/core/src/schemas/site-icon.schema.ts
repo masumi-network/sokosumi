@@ -10,6 +10,17 @@ export const siteIconQuerySchema = z.object({
       description: "Website URL to scrape a high-quality icon from.",
       example: "https://example.com",
     }),
+  organizationId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .openapi({
+      param: { name: "organizationId", in: "query" },
+      description:
+        "Organization that will own the scraped logo blob under organizations/{id}/logos/.",
+      example: "org_123",
+    }),
 });
 
 export const siteIconResponseSchema = z

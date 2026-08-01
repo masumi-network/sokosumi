@@ -80,6 +80,7 @@ export function ThreadPanel({
 }) {
   const t = useTranslations("App.Channels");
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
+  const threadBottomRef = useRef<HTMLDivElement | null>(null);
 
   return (
     // Below lg the thread takes over the whole pane: side-by-side would leave
@@ -158,7 +159,7 @@ export function ThreadPanel({
                   </div>
                 ) : null}
                 {replies.length > 0 ? (
-                  <div className="space-y-1">
+                  <div className="flex flex-col">
                     {replies.map((reply, index) => (
                       <ChatMessageRow
                         key={reply.id}
@@ -181,6 +182,7 @@ export function ThreadPanel({
                     {t("Thread.empty")}
                   </p>
                 )}
+                <div ref={threadBottomRef} />
               </>
             )}
           </div>
@@ -200,6 +202,9 @@ export function ThreadPanel({
           sendDisabled={isRoomComposerEmpty(replyValue, replyAttachments)}
           showMentionShortcut={showMentionShortcut}
           allowAttachments={allowAttachments}
+          onChromeResize={() => {
+            threadBottomRef.current?.scrollIntoView({ block: "end" });
+          }}
         />
       </RoomFileDropZone>
     </aside>

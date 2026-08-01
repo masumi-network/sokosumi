@@ -12,10 +12,12 @@ import {
 
 const resolveSiteIconSchema = z.object({
   url: z.url(),
+  organizationId: z.string().trim().min(1),
 });
 
 interface ResolveOrganizationSiteIconParameters extends AuthenticatedRequest {
   url: string;
+  organizationId: string;
 }
 
 /**
@@ -23,13 +25,14 @@ interface ResolveOrganizationSiteIconParameters extends AuthenticatedRequest {
  * uploaded blob URL (or null when no usable icon was found). The favicon fetch
  * happens server-side in Core behind an SSRF guard; a failure to find an icon
  * is a soft `null`, not an error — the wizard simply falls back to a generated
- * avatar.
+ * avatar. Requires organizationId so the scraped logo is stored under the org
+ * prefix.
  */
 export const resolveOrganizationSiteIcon = withSession<
   ResolveOrganizationSiteIconParameters,
   Result<{ url: string | null }, ActionError>
->(async ({ url }) => {
-  const parsed = resolveSiteIconSchema.safeParse({ url });
+>(async ({ url, organizationId }) => {
+  const parsed = resolveSiteIconSchema.safeParse({ url, organizationId });
   if (!parsed.success) {
     return Err({
       code: CommonErrorCode.BAD_INPUT,
@@ -38,7 +41,10 @@ export const resolveOrganizationSiteIcon = withSession<
   }
 
   try {
-    const { data } = await coreClient.resolveSiteIcon(parsed.data.url);
+    const { data } = await coreClient.resolveSiteIcon(
+      parsed.data.url,
+      parsed.data.organizationId,
+    );
     return Ok({ url: data.url });
   } catch (error) {
     if (error instanceof CoreApiRequestError && error.status === 400) {
