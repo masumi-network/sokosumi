@@ -4,6 +4,8 @@ import mountGetOrganizationBillingPlan from "./[id]/billing-plan/get.js";
 import mountGetOrganizationDesignMd from "./[id]/design-md/get.js";
 import mountPutOrganizationDesignMd from "./[id]/design-md/put.js";
 import mountGetOrganizationEnterpriseContractSummary from "./[id]/enterprise-contract-summary/get.js";
+import mountCleanupOrganizationFiles from "./[id]/files/cleanup/post.js";
+import mountPostOrganizationFiles from "./[id]/files/post.js";
 import mountGetOrganization from "./[id]/get.js";
 import mountGetOrganizationInvitations from "./[id]/invitations/get.js";
 import mountRevokeOrganizationInviteLink from "./[id]/invite-links/[token]/delete.js";
@@ -52,5 +54,8 @@ mountGetOrganizationSubscription(app);
 mountPutOrganizationSubscriptionSeats(app);
 mountGetOrganizationDesignMd(app);
 mountPutOrganizationDesignMd(app);
+// Static `/{id}/files/cleanup` before `/{id}/files` is fine; both are exact paths.
+mountCleanupOrganizationFiles(app);
+mountPostOrganizationFiles(app);
 
 export default app;
