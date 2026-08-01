@@ -38,6 +38,7 @@ import {
   markdownToHtml,
 } from "@/lib/utils/composer-markdown-dom";
 import type { ComposerFormatCommand } from "@/lib/utils/composer-markdown-wrap";
+import { toggleComposerInlineCode } from "@/lib/utils/composer-wysiwyg-code-format";
 import {
   resolveComposerEnterAction,
   tryApplyComposerInputRuleAtCaret,
@@ -516,21 +517,18 @@ export function ComposerWysiwygEditor<TData = unknown>({
           execCommand("strikeThrough");
           return;
         case "code": {
-          const text = window.getSelection()?.toString() ?? "";
-          const escapedText = (text || "code")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-          if (text.includes("\n")) {
-            insertHtml(`<pre><code>${escapedText}</code></pre>`);
-            return;
-          }
-          insertHtml(`<code>${escapedText}</code>`);
+          if (!editorRef.current) return;
+          editorRef.current.focus();
+          toggleComposerInlineCode(editorRef.current);
+          handleInput();
+          requestAnimationFrame(() => {
+            publishActiveFormats();
+          });
           return;
         }
         case "codeBlock": {
           const text = window.getSelection()?.toString() ?? "";
-          const escapedText = (text || "")
+          const escapedText = text
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;");
@@ -552,7 +550,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         }
       }
     },
-    [execCommand, insertHtml],
+    [execCommand, handleInput, insertHtml, publishActiveFormats],
   );
 
   const openMentions = useCallback(() => {

@@ -313,7 +313,7 @@ export function htmlToMarkdown(element: HTMLElement): string {
 
   const processNode = (node: Node): string => {
     if (node.nodeType === Node.TEXT_NODE) {
-      return node.textContent || "";
+      return (node.textContent || "").replace(/\u200b/g, "");
     }
 
     if (node.nodeType === Node.ELEMENT_NODE) {
