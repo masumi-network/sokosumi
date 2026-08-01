@@ -4690,6 +4690,9 @@
         "dismiss": "Zitat entfernen",
         "previewLabel": "Zitiere {author}",
         "jump": "Zur Nachricht von {author} springen"
+      },
+      "MentionAll": {
+        "label": "Alle"
       }
     }
   },

@@ -4690,6 +4690,9 @@
         "dismiss": "Retirer la citation",
         "previewLabel": "Citation de {author}",
         "jump": "Aller au message de {author}"
+      },
+      "MentionAll": {
+        "label": "Tout le monde"
       }
     }
   },
