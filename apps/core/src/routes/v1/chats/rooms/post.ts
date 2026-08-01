@@ -43,7 +43,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/",
     description:
-      'Create a chat room. `kind: "channel"` requires an active organization. `kind: "direct"` creates or returns a 1:1 room scoped to the active organization when one is set. Coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.',
+      'Create a chat room. `kind: "channel"` requires an active organization. `kind: "direct"` creates or returns a direct room (1:1 or multi-human group) scoped to the active organization when one is set. Coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.',
     tags: ["Chat Rooms"],
     request: {
       body: {
@@ -82,7 +82,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const direct = await createOrGetDirectRoom({
         // Both kinds respect activeOrganization when present.
         // Coworker 1:1 may be personal (null) with no active org.
-        // Human 1:1 always requires an active org.
+        // Human directs (1:1 or group) always require an active org.
         organizationId: userContext.organizationId,
         currentUserId: userContext.userId,
         memberUserIds: body.memberUserIds ?? [],
@@ -153,13 +153,73 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 }
 
 /**
+ * Valid direct create targets: human-direct (≥1 humans, no coworkers) or
+ * coworker-1to1 (exactly one coworker, no humans). Mix / multi-coworker /
+ * empty are invalid.
+ */
+type DirectCreateShape =
+  | {
+      kind: "human-direct";
+      memberUserIds: string[];
+      coworkerIds: [];
+    }
+  | {
+      kind: "coworker-1to1";
+      memberUserIds: [];
+      coworkerIds: [string];
+    };
+
+function parseDirectCreateShape(params: {
+  currentUserId: string;
+  memberUserIds: readonly string[];
+  coworkerIds: readonly string[];
+}): DirectCreateShape {
+  const memberUserIds = normalizeUniqueStrings(params.memberUserIds);
+  const coworkerIds = normalizeUniqueStrings(params.coworkerIds);
+
+  if (memberUserIds.includes(params.currentUserId)) {
+    throw badRequest("Choose another organization member");
+  }
+
+  if (memberUserIds.length === 0 && coworkerIds.length === 0) {
+    throw badRequest("Choose a direct message target");
+  }
+
+  if (memberUserIds.length > 0 && coworkerIds.length > 0) {
+    throw badRequest("Group direct messages cannot include coworkers.");
+  }
+
+  if (coworkerIds.length > 1) {
+    throw badRequest("Direct messages support one coworker only.");
+  }
+
+  if (memberUserIds.length >= 1 && coworkerIds.length === 0) {
+    return {
+      kind: "human-direct",
+      memberUserIds,
+      coworkerIds: [],
+    };
+  }
+
+  if (memberUserIds.length === 0 && coworkerIds.length === 1) {
+    return {
+      kind: "coworker-1to1",
+      memberUserIds: [],
+      coworkerIds: [coworkerIds[0]],
+    };
+  }
+
+  throw badRequest("Choose a direct message target");
+}
+
+/**
  * Direct rooms are addressed by their participant set, so creation is
  * create-or-get: two clients opening the same conversation must land on one
  * room instead of racing into duplicates.
  *
  * Rooms inherit `organizationId` from the active organization when set.
  * Coworker 1:1 may still be personal (`organizationId` null) with no active
- * org. Human 1:1 always requires an active organization.
+ * org. Human directs (1:1 or group) always require an active organization.
  */
 async function createOrGetDirectRoom(params: {
   organizationId: string | null;
@@ -168,35 +228,17 @@ async function createOrGetDirectRoom(params: {
   coworkerIds: readonly string[];
 }): Promise<{ room: ChatRoom; created: boolean }> {
   const { currentUserId } = params;
-  const requestedMemberUserIds = normalizeUniqueStrings(params.memberUserIds);
-  const requestedCoworkerIds = normalizeUniqueStrings(params.coworkerIds);
-
-  if (requestedMemberUserIds.includes(currentUserId)) {
-    throw badRequest("Choose another organization member");
-  }
-
-  if (
-    requestedMemberUserIds.length === 0 &&
-    requestedCoworkerIds.length === 0
-  ) {
-    throw badRequest("Choose a direct message target");
-  }
-
-  // Direct rooms are 1:1 for now (one other human XOR one coworker).
-  // Group directs (multi-human / human+coworker) are a follow-up.
-  const isOneToOneHuman =
-    requestedMemberUserIds.length === 1 && requestedCoworkerIds.length === 0;
-  const isOneToOneCoworker =
-    requestedMemberUserIds.length === 0 && requestedCoworkerIds.length === 1;
-  if (!isOneToOneHuman && !isOneToOneCoworker) {
-    throw badRequest(
-      "Direct messages are 1:1. Pick one member or one coworker.",
-    );
-  }
+  const shape = parseDirectCreateShape({
+    currentUserId,
+    memberUserIds: params.memberUserIds,
+    coworkerIds: params.coworkerIds,
+  });
+  const requestedMemberUserIds = shape.memberUserIds;
+  const requestedCoworkerIds = shape.coworkerIds;
 
   const roomOrganizationId = params.organizationId;
 
-  if (isOneToOneHuman && !roomOrganizationId) {
+  if (shape.kind === "human-direct" && !roomOrganizationId) {
     throw badRequest("Switch to an organization to message a teammate.");
   }
 
