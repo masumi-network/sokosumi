@@ -96,7 +96,7 @@ describe("uploadDesignMdContent", () => {
   });
 
   it("throws when blob token is missing", async () => {
-    getEnvMock.mockReturnValueOnce({});
+    getEnvMock.mockReturnValueOnce({ BLOB_READ_WRITE_TOKEN: "" });
 
     await expect(
       uploadDesignMdContent({
