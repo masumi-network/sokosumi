@@ -17,6 +17,10 @@ import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/tas
 import { ComposerAddLinkDialog } from "@/components/chat/composer-add-link-dialog";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
 import {
+  ComposerWysiwygEditor,
+  type ComposerWysiwygEditorHandle,
+} from "@/components/chat/composer-wysiwyg-editor";
+import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
   RoomComposerEmojiPicker,
@@ -27,15 +31,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   type MentionRecordEntry,
-  MentionTextarea,
-  type MentionTextareaHandle,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
-import {
-  buildMarkdownLink,
-  type ComposerFormatCommand,
-} from "@/lib/utils/composer-markdown-wrap";
+import type { ComposerFormatCommand } from "@/lib/utils/composer-markdown-wrap";
+import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import type { RoomMentionParticipant } from "./room-helpers";
@@ -113,17 +113,13 @@ export function RoomComposer({
   const t = useTranslations("App.Channels");
   const tToolbar = useTranslations("App.Channels.Toolbar");
   const formRef = useRef<HTMLFormElement | null>(null);
-  const textareaRef = useRef<MentionTextareaHandle | null>(null);
+  const editorRef = useRef<ComposerWysiwygEditorHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isUploadingFilesRef = useRef(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
-  const [linkSelection, setLinkSelection] = useState<{
-    start: number;
-    end: number;
-  } | null>(null);
   const composerMentions = showMentionShortcut ? mentions : {};
   const handleSelectedKeysChange = showMentionShortcut
     ? onSelectedKeysChange
@@ -199,13 +195,11 @@ export function RoomComposer({
     onAttachmentsChange((current) =>
       current.filter((item) => item.url !== attachment.url),
     );
-    textareaRef.current?.focus();
+    editorRef.current?.focus();
   }
 
   function openLinkDialog() {
-    const range = textareaRef.current?.getSelectionRange();
-    const selected = range != null ? value.slice(range.start, range.end) : "";
-    setLinkSelection(range ?? { start: value.length, end: value.length });
+    const selected = editorRef.current?.getSelectedPlainText() ?? "";
     setLinkInitialText(selected);
     setLinkInitialUrl(
       /^https?:\/\//i.test(selected.trim()) ? selected.trim() : "",
@@ -214,20 +208,13 @@ export function RoomComposer({
   }
 
   function handleFormat(command: ComposerFormatCommand) {
-    textareaRef.current?.applyMarkdownWrap(command);
+    editorRef.current?.applyFormat(command);
   }
 
   function handleLinkSave(text: string, url: string) {
-    const range = linkSelection ?? {
-      start: value.length,
-      end: value.length,
-    };
-    const link = buildMarkdownLink(text, url);
-    if (!link) return;
-
-    textareaRef.current?.replaceRange(range.start, range.end, link);
-    setLinkSelection(null);
-    textareaRef.current?.focus();
+    if (!normalizeUrl(url)) return;
+    editorRef.current?.insertLink(text, url);
+    editorRef.current?.focus();
   }
 
   return (
@@ -263,7 +250,7 @@ export function RoomComposer({
                 className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
                 title={t("Toolbar.mention")}
                 aria-label={t("Toolbar.mention")}
-                onClick={() => textareaRef.current?.openMentions()}
+                onClick={() => editorRef.current?.openMentions()}
               >
                 <AtSign className="size-4" aria-hidden />
               </Button>
@@ -301,29 +288,24 @@ export function RoomComposer({
             <RoomComposerEmojiPicker
               title={t("Toolbar.emoji")}
               ariaLabel={t("Toolbar.emoji")}
-              onPick={(emoji) => textareaRef.current?.insertText(emoji)}
+              onPick={(emoji) => editorRef.current?.insertText(emoji)}
             />
           </>
         }
       >
-        <MentionTextarea
-          ref={textareaRef}
+        <ComposerWysiwygEditor
+          ref={editorRef}
           value={value}
           onChange={onValueChange}
           onSelectedKeysChange={handleSelectedKeysChange}
           mentions={composerMentions}
           placeholder={placeholder}
-          suggestionsAnchor="editor"
-          submitOnEnter
-          // On a phone Enter is the only newline key, and the send button is
-          // always visible — so Enter composes rather than sends.
-          allowEnterToSubmitOnMobile={false}
           onSubmitShortcut={() => formRef.current?.requestSubmit()}
           onLinkShortcut={openLinkDialog}
-          // Capped so a long draft scrolls inside the composer instead of
-          // growing it until the toolbar and send button leave the screen.
           className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
-          renderItem={(mention) => <RoomMentionSuggestion mention={mention} />}
+          renderMentionItem={(mention) => (
+            <RoomMentionSuggestion mention={mention} />
+          )}
         />
       </RoomMessageComposer>
       <ComposerAddLinkDialog

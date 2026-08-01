@@ -1,0 +1,383 @@
+import {
+  escapeMarkdownLinkUrl,
+  replaceMarkdownLinks,
+  unescapeMarkdownLinkUrl,
+} from "@sokosumi/utils";
+
+import {
+  createMentionSpan,
+  getMentionToken,
+  isMentionSpan,
+  MENTION_CLASSNAME,
+  UNKNOWN_MENTION_CLASSNAME,
+} from "@/components/ui/mention-textarea-utils";
+import {
+  getBacktickFence,
+  isBlockMarkdownElement,
+  normalizeUrl,
+} from "@/lib/utils/markdown-editor-utils";
+import { parseMentions } from "@/lib/utils/mention-parser";
+
+const PERSISTED_INTERNAL_MENTION_REGEX = /@@MENTION_?(\d+)@@/g;
+
+export interface MentionDisplayResolution {
+  displayName: string;
+  isKnown: boolean;
+}
+
+export type ResolveMentionDisplay = (
+  mentionKey: string,
+  mentionSlug: string,
+) => MentionDisplayResolution;
+
+function normalizePersistedInternalMentions(text: string): string {
+  return text.replace(
+    PERSISTED_INTERNAL_MENTION_REGEX,
+    (_match, mentionIndex: string) =>
+      `@unknown-mention-${mentionIndex}:unknown-mention-${mentionIndex}`,
+  );
+}
+
+function defaultResolveMentionDisplay(
+  _mentionKey: string,
+  mentionSlug: string,
+): MentionDisplayResolution {
+  return {
+    displayName: mentionSlug,
+    isKnown: false,
+  };
+}
+
+/**
+ * Markdown → HTML for contentEditable composers.
+ * Supports bold/italic/strike/code/underline (`<u>`), links, lists,
+ * headings, fenced code, blockquotes (`> `), and @mentions.
+ */
+export function markdownToHtml(
+  text: string,
+  resolveMentionDisplay: ResolveMentionDisplay = defaultResolveMentionDisplay,
+): string {
+  if (!text) return "";
+
+  const underlineTokens: Array<{ token: string; html: string }> = [];
+  const withUnderlineTokens = normalizePersistedInternalMentions(text).replace(
+    /<u>([\s\S]*?)<\/u>/gi,
+    (_match, inner: string) => {
+      const token = `@@UNDERLINETOKEN${underlineTokens.length}@@`;
+      const escapedInner = inner
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      underlineTokens.push({
+        token,
+        html: `<u>${escapedInner}</u>`,
+      });
+      return token;
+    },
+  );
+
+  const escaped = withUnderlineTokens
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const codeBlocks: Array<{ token: string; html: string }> = [];
+  const withCodeBlockTokens = escaped.replace(
+    /(^|\n)(`{3,})([^\n]*)\n([\s\S]*?)\n\2(?=\n|$)/g,
+    (
+      _match,
+      leadingNewline: string,
+      fence: string,
+      info: string,
+      code: string,
+    ) => {
+      const token = `@@CODEBLOCKTOKEN${codeBlocks.length}@@`;
+      const language = info.trim();
+      const html = `<pre><code${
+        language ? ` data-language="${language}"` : ""
+      }>${code}</code></pre>`;
+      codeBlocks.push({ token, html });
+      return `${leadingNewline}${token}`;
+    },
+  );
+
+  const linkTokens: Array<{ token: string; html: string }> = [];
+  const withLinkTokens = replaceMarkdownLinks(
+    withCodeBlockTokens,
+    ({ match, text: label, rawUrl }) => {
+      const normalizedUrl = normalizeUrl(unescapeMarkdownLinkUrl(rawUrl));
+      if (!normalizedUrl) {
+        return match;
+      }
+
+      const token = `@@LINKTOKEN${linkTokens.length}@@`;
+      linkTokens.push({
+        token,
+        html: `<a href="${normalizedUrl}">${label}</a>`,
+      });
+      return token;
+    },
+  );
+
+  const mentionTokens: Array<{ token: string; html: string }> = [];
+  let withMentionTokens = withLinkTokens;
+  const parsedMentions = parseMentions(withLinkTokens);
+  if (parsedMentions.length > 0) {
+    let lastIndex = 0;
+    let rebuilt = "";
+
+    for (const mention of parsedMentions) {
+      if (mention.start > lastIndex) {
+        rebuilt += withLinkTokens.slice(lastIndex, mention.start);
+      }
+
+      const rawMentionToken = withLinkTokens.slice(mention.start, mention.end);
+      if (rawMentionToken.startsWith("@@")) {
+        rebuilt += rawMentionToken;
+        lastIndex = mention.end;
+        continue;
+      }
+
+      const token = `@@MENTIONTOKEN${mentionTokens.length}@@`;
+      const { displayName, isKnown } = resolveMentionDisplay(
+        mention.id,
+        mention.slug,
+      );
+      const mentionSpan = createMentionSpan(
+        mention.id,
+        mention.slug,
+        displayName,
+        isKnown,
+        {
+          mentionClassName: MENTION_CLASSNAME,
+          unknownMentionClassName: UNKNOWN_MENTION_CLASSNAME,
+        },
+      );
+      mentionTokens.push({
+        token,
+        html: mentionSpan.outerHTML,
+      });
+      rebuilt += token;
+      lastIndex = mention.end;
+    }
+
+    if (lastIndex < withLinkTokens.length) {
+      rebuilt += withLinkTokens.slice(lastIndex);
+    }
+
+    withMentionTokens = rebuilt;
+  }
+
+  const html = withMentionTokens
+    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+    .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+    .replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/~~(.+?)~~/g, "<s>$1</s>")
+    .replace(/_(.+?)_/g, "<em>$1</em>")
+    .replace(/`(.+?)`/g, "<code>$1</code>")
+    .replace(/^[-*] (.+)$/gm, "<ul><li>$1</li></ul>")
+    .replace(/^(\d+)\. (.+)$/gm, "<ol><li>$2</li></ol>")
+    .replace(/\n/g, "<br>");
+
+  const withRestoredMentions = mentionTokens.reduce((result, mention) => {
+    return result.replace(mention.token, () => mention.html);
+  }, html);
+
+  const withRestoredLinks = linkTokens.reduce((result, link) => {
+    return result.replace(link.token, () => link.html);
+  }, withRestoredMentions);
+
+  const withRestoredCode = codeBlocks.reduce((result, block) => {
+    return result.replace(block.token, () => block.html);
+  }, withRestoredLinks);
+
+  return underlineTokens.reduce((result, underline) => {
+    return result.replace(underline.token, () => underline.html);
+  }, withRestoredCode);
+}
+
+function getCodeContent(codeContainer: HTMLElement): string {
+  const text = codeContainer.innerText ?? codeContainer.textContent ?? "";
+  return text.replace(/\r/g, "");
+}
+
+function getCodeLanguage(codeElement: HTMLElement): string {
+  const dataLanguage = codeElement.dataset.language?.trim() ?? "";
+  if (dataLanguage) return dataLanguage;
+
+  const classLanguage =
+    codeElement.className
+      .split(/\s+/)
+      .find((className) => className.startsWith("language-"))
+      ?.replace("language-", "")
+      .trim() ?? "";
+
+  return classLanguage;
+}
+
+function serializeFencedCode(
+  codeContent: string,
+  language: string | undefined,
+): string {
+  const fence = getBacktickFence(codeContent);
+  const infoString = language?.trim();
+  const fenceHeader = infoString ? `${fence}${infoString}` : fence;
+  return `${fenceHeader}\n${codeContent}\n${fence}\n`;
+}
+
+function appendChildMarkdown(
+  acc: string,
+  child: Node,
+  childMarkdown: string,
+): string {
+  if (!childMarkdown) return acc;
+  if (child.nodeType !== Node.ELEMENT_NODE) {
+    return acc + childMarkdown;
+  }
+
+  const childElement = child as HTMLElement;
+  const childTag = childElement.tagName.toLowerCase();
+  const shouldSeparateAsBlock = isBlockMarkdownElement(childTag, childMarkdown);
+
+  if (shouldSeparateAsBlock && acc.length > 0 && !acc.endsWith("\n")) {
+    return `${acc}\n${childMarkdown}`;
+  }
+
+  return acc + childMarkdown;
+}
+
+function serializeBlockquote(content: string): string {
+  const normalized = content.replace(/\r/g, "").replace(/\n$/, "");
+  if (!normalized) return "> \n";
+  return `${normalized
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n")}\n`;
+}
+
+/** HTML (contentEditable root) → markdown string for persistence. */
+export function htmlToMarkdown(element: HTMLElement): string {
+  let result = "";
+
+  const processNode = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent || "";
+    }
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as HTMLElement;
+      const tag = element.tagName.toLowerCase();
+
+      if (isMentionSpan(element)) {
+        return getMentionToken(
+          element.dataset.mentionKey ?? "",
+          element.dataset.mentionSlug ?? "",
+        );
+      }
+
+      // Fresh binding: isMentionSpan false-branch over-narrows HTMLElement.
+      const htmlElement = element as HTMLElement;
+
+      if (tag === "pre") {
+        const codeElement = htmlElement.querySelector("code");
+        const content = getCodeContent(codeElement ?? htmlElement);
+        const language = codeElement ? getCodeLanguage(codeElement) : undefined;
+        return serializeFencedCode(content, language);
+      }
+
+      let content = "";
+      htmlElement.childNodes.forEach((child: Node) => {
+        const childMarkdown = processNode(child);
+        content = appendChildMarkdown(content, child, childMarkdown);
+      });
+
+      switch (tag) {
+        case "strong":
+        case "b":
+          return `**${content}**`;
+        case "em":
+        case "i":
+          return `_${content}_`;
+        case "u":
+          return `<u>${content}</u>`;
+        case "s":
+        case "strike":
+        case "del":
+          return `~~${content}~~`;
+        case "code": {
+          if (content.includes("\n")) {
+            return serializeFencedCode(content, getCodeLanguage(htmlElement));
+          }
+          return `\`${content}\``;
+        }
+        case "a":
+          return `[${content}](${escapeMarkdownLinkUrl(
+            htmlElement.getAttribute("href") || "",
+          )})`;
+        case "h1":
+          return `# ${content}\n`;
+        case "h2":
+          return `## ${content}\n`;
+        case "h3":
+          return `### ${content}\n`;
+        case "li":
+          return `- ${content}\n`;
+        case "ul": {
+          const items = Array.from(htmlElement.children).filter(
+            (child) => child.tagName.toLowerCase() === "li",
+          );
+          return items
+            .map((child) => {
+              let itemContent = "";
+              child.childNodes.forEach((grandchild: Node) => {
+                itemContent += processNode(grandchild);
+              });
+              return `- ${itemContent.trim()}`;
+            })
+            .join("\n")
+            .concat("\n");
+        }
+        case "ol": {
+          const items = Array.from(htmlElement.children).filter(
+            (child) => child.tagName.toLowerCase() === "li",
+          );
+          return items
+            .map((child, index) => {
+              let itemContent = "";
+              child.childNodes.forEach((grandchild: Node) => {
+                itemContent += processNode(grandchild);
+              });
+              return `${index + 1}. ${itemContent.trim()}`;
+            })
+            .join("\n")
+            .concat("\n");
+        }
+        case "blockquote":
+          return serializeBlockquote(content);
+        case "br":
+          return "\n";
+        case "div":
+        case "p":
+          return content.endsWith("\n") ? content : `${content}\n`;
+        default:
+          return content;
+      }
+    }
+
+    return "";
+  };
+
+  element.childNodes.forEach((node) => {
+    const nodeMarkdown = processNode(node);
+    result = appendChildMarkdown(result, node, nodeMarkdown);
+  });
+
+  const normalized = result.replace(/\r/g, "");
+  if (normalized.trim().length === 0) {
+    return "";
+  }
+
+  return normalized;
+}
