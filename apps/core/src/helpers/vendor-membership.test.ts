@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import {
@@ -9,6 +9,7 @@ import {
   requireAssignableVendorMembership,
   requireCoworkerBelongsToVendor,
   requireVendorAdminMembership,
+  requireVendorAdminOrPlatformAdmin,
   resolveUserIdFromIdentity,
   resolveUserIdFromUserIdOrEmail,
 } from "./vendor-membership";
@@ -105,6 +106,64 @@ describe("requireVendorAdminMembership", () => {
 
     await expect(
       requireVendorAdminMembership("user_123", TEST_VENDOR_ID),
+    ).rejects.toMatchObject({
+      status: 403,
+      message: "Vendor admin access required",
+    });
+  });
+});
+
+describe("requireVendorAdminOrPlatformAdmin", () => {
+  const userAuth: AuthenticationContext = {
+    actor: "user",
+    userId: "user_123",
+    organizationId: null,
+    role: "user",
+  };
+
+  const platformAdminAuth: AuthenticationContext = {
+    actor: "user",
+    userId: "admin_123",
+    organizationId: null,
+    role: "admin",
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vendorFindUniqueMock.mockResolvedValue({ id: TEST_VENDOR_ID });
+  });
+
+  it("allows platform admin without vendor membership", async () => {
+    await expect(
+      requireVendorAdminOrPlatformAdmin(platformAdminAuth, TEST_VENDOR_ID),
+    ).resolves.toMatchObject({ userId: "admin_123" });
+    expect(vendorMemberFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("allows vendor admin membership", async () => {
+    vendorMemberFindFirstMock.mockResolvedValue({ id: "vm_1" });
+
+    await expect(
+      requireVendorAdminOrPlatformAdmin(userAuth, TEST_VENDOR_ID),
+    ).resolves.toMatchObject({ userId: "user_123" });
+  });
+
+  it("throws 404 when vendor is missing for platform admin", async () => {
+    vendorFindUniqueMock.mockResolvedValue(null);
+
+    await expect(
+      requireVendorAdminOrPlatformAdmin(platformAdminAuth, TEST_VENDOR_ID),
+    ).rejects.toMatchObject({
+      status: 404,
+      message: "Vendor not found",
+    });
+  });
+
+  it("throws 403 when user is neither platform nor vendor admin", async () => {
+    vendorMemberFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      requireVendorAdminOrPlatformAdmin(userAuth, TEST_VENDOR_ID),
     ).rejects.toMatchObject({
       status: 403,
       message: "Vendor admin access required",
