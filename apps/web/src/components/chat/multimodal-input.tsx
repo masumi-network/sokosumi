@@ -18,6 +18,11 @@ import {
   useRef,
   useState,
 } from "react";
+import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
+import {
+  type ComposeDraft,
+  composeDraftKey,
+} from "@/app/chat/utils/compose-draft-storage";
 import {
   filterCoworkersForComposeKind,
   findDefaultCoworker,
@@ -286,52 +291,33 @@ function PureMultimodalInput({
     }
   }, []);
 
-  // Simple localStorage hook replacement
-  const getLocalStorageValue = useCallback(
-    (key: string, defaultValue: string) => {
-      if (typeof window === "undefined") return defaultValue;
-      try {
-        const item = window.localStorage.getItem(key);
-        return item ? JSON.parse(item) : defaultValue;
-      } catch {
-        return defaultValue;
-      }
-    },
-    [],
+  const composeDraft = useMemo<ComposeDraft>(
+    () => ({
+      text: input,
+      attachments: chatFileParts.map((part) => ({
+        url: part.url,
+        fileName: part.filename ?? "file",
+        ...(part.mediaType ? { mediaType: part.mediaType } : {}),
+      })),
+    }),
+    [input, chatFileParts],
   );
-
-  const setLocalStorageValue = useCallback((key: string, value: string) => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      // Ignore localStorage errors
-    }
-  }, []);
-
-  const [localStorageInput] = useState(() =>
-    getLocalStorageValue("chat-input", ""),
-  );
-
-  useEffect(() => {
-    if (textareaRef.current) {
-      const domValue = textareaRef.current.value;
-      // Prefer DOM value over localStorage to handle hydration
-      const finalValue = domValue || localStorageInput || "";
-      setInput(finalValue);
+  const { clearDraft } = usePersistComposeDraft({
+    key: composeDraftKey.welcome(),
+    draft: composeDraft,
+    onHydrate: (draft) => {
+      setInput(draft.text);
+      setChatFileParts(
+        draft.attachments.map((attachment) => ({
+          type: "file" as const,
+          url: attachment.url,
+          filename: attachment.fileName,
+          mediaType: attachment.mediaType ?? "application/octet-stream",
+        })),
+      );
       adjustHeight();
-      return;
-    }
-    if (localStorageInput) {
-      setInput((prev) => (prev ? prev : localStorageInput));
-    }
-    // Only run once after hydration
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    setLocalStorageValue("chat-input", input);
-  }, [input, setLocalStorageValue]);
+    },
+  });
 
   const handleInput = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(event.target.value);
@@ -471,7 +457,7 @@ function PureMultimodalInput({
       );
     }
 
-    setLocalStorageValue("chat-input", "");
+    clearDraft();
     resetHeight();
     setInput("");
     setChatFileParts([]);
@@ -483,13 +469,13 @@ function PureMultimodalInput({
   }, [
     blurOnSendOnMobile,
     chatFileParts,
+    clearDraft,
     effectiveImageGenerationEnabled,
     input,
     onSendMessage,
     resetHeight,
     selectedCoworker,
     setInput,
-    setLocalStorageValue,
     sendMessage,
     width,
   ]);
