@@ -678,7 +678,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
         if (exited) {
           event.preventDefault();
           handleInput();
-          publishActiveFormats();
+          requestAnimationFrame(() => {
+            publishActiveFormats();
+          });
           return;
         }
       }
@@ -756,6 +758,39 @@ export function ComposerWysiwygEditor<TData = unknown>({
     );
     activeItem?.scrollIntoView({ block: "nearest" });
   }, [activeIndex, isOpen]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    // Capture-phase listener: contentEditable arrow keys are more reliable
+    // here than React's delegated onKeyDown alone.
+    function onNativeKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || event.isComposing) return;
+      if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+
+      const exited = tryExitComposerInlineFormatOnArrow(
+        editor,
+        event.key === "ArrowLeft" ? "left" : "right",
+      );
+      if (!exited) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      handleInput();
+      requestAnimationFrame(() => {
+        publishActiveFormats();
+      });
+    }
+
+    editor.addEventListener("keydown", onNativeKeyDown, true);
+    return () => {
+      editor.removeEventListener("keydown", onNativeKeyDown, true);
+    };
+  }, [handleInput, publishActiveFormats]);
 
   useEffect(() => {
     return () => {

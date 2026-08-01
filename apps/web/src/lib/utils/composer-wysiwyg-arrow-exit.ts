@@ -253,12 +253,17 @@ function placeCaretAfter(node: Node): void {
   const selection = window.getSelection();
   if (!selection) return;
 
-  // Landing pad so sticky typing styles don't keep applying at the boundary.
-  const pad = document.createTextNode("\u200b");
+  // Explicit plain span so the next keystrokes do not inherit sticky marks.
+  const pad = document.createElement("span");
+  pad.dataset.composerExit = "1";
+  pad.style.fontWeight = "normal";
+  pad.style.fontStyle = "normal";
+  pad.style.textDecoration = "none";
+  pad.appendChild(document.createTextNode("\u200b"));
   node.parentNode?.insertBefore(pad, node.nextSibling);
 
   const nextRange = document.createRange();
-  nextRange.setStart(pad, 1);
+  nextRange.setStart(pad.firstChild!, 1);
   nextRange.collapse(true);
   selection.removeAllRanges();
   selection.addRange(nextRange);
@@ -268,11 +273,16 @@ function placeCaretBeforeWithPad(node: Node): void {
   const selection = window.getSelection();
   if (!selection) return;
 
-  const pad = document.createTextNode("\u200b");
+  const pad = document.createElement("span");
+  pad.dataset.composerExit = "1";
+  pad.style.fontWeight = "normal";
+  pad.style.fontStyle = "normal";
+  pad.style.textDecoration = "none";
+  pad.appendChild(document.createTextNode("\u200b"));
   node.parentNode?.insertBefore(pad, node);
 
   const nextRange = document.createRange();
-  nextRange.setStart(pad, 0);
+  nextRange.setStart(pad.firstChild!, 0);
   nextRange.collapse(true);
   selection.removeAllRanges();
   selection.addRange(nextRange);
@@ -376,9 +386,16 @@ export function tryExitComposerInlineFormatOnArrow(
     }
   }
 
+  // Sticky format while caret sits on an exit pad next to a former mark.
+  if (
+    selection.anchorNode instanceof HTMLElement &&
+    selection.anchorNode.dataset.composerExit === "1"
+  ) {
+    return clearStickyFormatsWithoutDom(editor);
+  }
   if (
     selection.anchorNode.nodeType === Node.TEXT_NODE &&
-    selection.anchorNode.textContent === "\u200b"
+    selection.anchorNode.parentElement?.dataset.composerExit === "1"
   ) {
     return clearStickyFormatsWithoutDom(editor);
   }

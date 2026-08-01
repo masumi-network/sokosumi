@@ -107,7 +107,11 @@ describe("tryExitComposerInlineFormatOnArrow", () => {
     placeCaretInText(editor, text!, 2);
 
     expect(tryExitComposerInlineFormatOnArrow(editor, "right")).toBe(true);
-    expect(selectionInsideTag("SPAN")).toBe(false);
+    expect(
+      editor
+        .querySelector('span[style*="font-weight"]')
+        ?.contains(window.getSelection()?.anchorNode ?? null),
+    ).toBe(false);
 
     editor.remove();
   });
