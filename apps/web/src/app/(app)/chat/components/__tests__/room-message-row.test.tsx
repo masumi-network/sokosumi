@@ -210,6 +210,27 @@ describe("ChatMessageRow", () => {
     ).toBeInTheDocument();
   });
 
+  it("closes touch message actions on outside pointerdown", async () => {
+    const user = userEvent.setup();
+    renderRow({ onQuote: vi.fn() });
+
+    await user.click(
+      touchActions().getByRole("button", { name: "Actions.more" }),
+    );
+    expect(
+      touchActions().getByRole("button", { name: "Quote.action" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("article"));
+
+    expect(
+      touchActions().queryByRole("button", { name: "Quote.action" }),
+    ).not.toBeInTheDocument();
+    expect(
+      touchActions().getByRole("button", { name: "Actions.more" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows Quote action and calls onQuote", async () => {
     const user = userEvent.setup();
     const onQuote = vi.fn();

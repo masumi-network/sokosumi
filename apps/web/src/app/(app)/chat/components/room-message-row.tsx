@@ -347,6 +347,7 @@ function MessageActions({
 }) {
   const t = useTranslations("App.Channels");
   const [open, setOpen] = useState(false);
+  const touchRootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) {
@@ -359,9 +360,29 @@ function MessageActions({
       }
     }
 
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (touchRootRef.current?.contains(target)) {
+        return;
+      }
+      // EmojiPicker Popover portals outside the touch root.
+      if (
+        target instanceof Element &&
+        target.closest('[data-slot="popover-content"]')
+      ) {
+        return;
+      }
+      setOpen(false);
+    }
+
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
     };
   }, [open]);
 
@@ -386,6 +407,7 @@ function MessageActions({
         <MessageActionControls {...controlProps} />
       </div>
       <div
+        ref={touchRootRef}
         data-message-actions="touch"
         className="absolute top-1.5 right-2 flex [@media(hover:hover)]:hidden"
       >
