@@ -51,6 +51,7 @@ interface PendingBlobStub {
   sourceUrl: string;
   status: BlobStatus;
   createdAt: Date;
+  event: { jobId: string } | null;
 }
 
 interface ImportPendingResultBlobsOptions {
@@ -77,6 +78,7 @@ function createPendingBlob(index: number): PendingBlobStub {
     sourceUrl: `https://example.com/blob-${index}.txt`,
     status: BlobStatus.PENDING,
     createdAt: new Date(`2026-02-25T10:00:0${index}.000Z`),
+    event: { jobId: "job-1" },
   };
 }
 
@@ -181,6 +183,69 @@ describe("sourceImportSyncService.importPendingResultBlobs", () => {
 
     const processedCount = await runPromise;
     expect(processedCount).toBe(6);
+  });
+
+  it("stores imported blobs under jobs/{jobId}/ pathname", async () => {
+    const sourceImportSyncService = await getSourceImportSyncService();
+    const pendingBlob = createPendingBlob(1);
+
+    blobFindManyMock.mockResolvedValue([pendingBlob]);
+    blobFindUniqueMock.mockResolvedValue(pendingBlob);
+
+    global.fetch = vi.fn(async () => {
+      return new Response("hello", {
+        status: 200,
+        headers: {
+          "content-type": "text/plain",
+        },
+      });
+    }) as unknown as typeof fetch;
+
+    await sourceImportSyncService.importPendingResultBlobs(
+      createImportOptions(),
+    );
+
+    expect(blobPutMock).toHaveBeenCalledOnce();
+    const [pathname] = blobPutMock.mock.calls[0] ?? [];
+    expect(pathname).toMatch(/^jobs\/job-1\//);
+    expect(pathname).not.toMatch(/^blobs\//);
+    expect(blobUpdateMock).toHaveBeenCalledWith({
+      where: { id: pendingBlob.id },
+      data: expect.objectContaining({
+        status: BlobStatus.READY,
+        fileUrl: expect.stringContaining("jobs/job-1/"),
+      }),
+    });
+  });
+
+  it("marks blob FAILED when jobId is missing and skips put", async () => {
+    const sourceImportSyncService = await getSourceImportSyncService();
+    const pendingBlob: PendingBlobStub = {
+      ...createPendingBlob(1),
+      event: null,
+    };
+
+    blobFindManyMock.mockResolvedValue([pendingBlob]);
+    blobFindUniqueMock.mockResolvedValue(pendingBlob);
+
+    global.fetch = vi.fn(async () => {
+      return new Response("hello", {
+        status: 200,
+        headers: {
+          "content-type": "text/plain",
+        },
+      });
+    }) as unknown as typeof fetch;
+
+    await sourceImportSyncService.importPendingResultBlobs(
+      createImportOptions(),
+    );
+
+    expect(blobPutMock).not.toHaveBeenCalled();
+    expect(blobUpdateMock).toHaveBeenCalledWith({
+      where: { id: pendingBlob.id },
+      data: { status: BlobStatus.FAILED },
+    });
   });
 
   it("stops processing when cancellation is reached and keeps timed-out blobs pending", async () => {
