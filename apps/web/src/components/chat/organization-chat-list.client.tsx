@@ -179,7 +179,7 @@ function DirectAvatarStack({
   );
 }
 
-function UnreadBadge({ count }: { count: number }) {
+function MentionBadge({ count }: { count: number }) {
   if (count <= 0) {
     return null;
   }
@@ -188,7 +188,7 @@ function UnreadBadge({ count }: { count: number }) {
 
   return (
     <span
-      aria-label={`${label} unread`}
+      aria-label={`${label} mentions`}
       className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
     >
       {label}
@@ -485,7 +485,7 @@ export function OrganizationChatList({
                           >
                             {room.name}
                           </span>
-                          <UnreadBadge count={badgeCount} />
+                          <MentionBadge count={badgeCount} />
                         </Link>
                       </SheetClose>
                     </SidebarMenuButton>
@@ -599,7 +599,7 @@ export function OrganizationChatList({
                           >
                             {label}
                           </span>
-                          <UnreadBadge count={badgeCount} />
+                          <MentionBadge count={badgeCount} />
                         </Link>
                       </SheetClose>
                     </SidebarMenuButton>
