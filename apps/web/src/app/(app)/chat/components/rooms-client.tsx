@@ -59,6 +59,7 @@ import {
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
   appendMessage,
+  buildRoomAllMentionRecord,
   buildRoomComposerMessageContent,
   getRoomDisplayName,
   getRoomParticipantPreviews,
@@ -69,7 +70,9 @@ import {
   type PendingRoomQuote,
   pendingQuoteFromMessage,
   presenceLabel,
+  ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
   shouldUseCoworkerRoomStream,
@@ -501,8 +504,19 @@ export function RoomsClient({
         ] as const;
       },
     );
-    return Object.fromEntries([...humanEntries, ...coworkerEntries]);
-  }, [currentUserId, selectedRoom]);
+    const entries = [...humanEntries, ...coworkerEntries];
+    if (
+      selectedRoom &&
+      shouldIncludeRoomAllMention(selectedRoom, currentUserId)
+    ) {
+      // Pin @all first so the picker surfaces it above long member lists.
+      entries.unshift([
+        ROOM_MENTION_ALL_ID,
+        buildRoomAllMentionRecord(t("MentionAll.label")),
+      ] as const);
+    }
+    return Object.fromEntries(entries);
+  }, [currentUserId, selectedRoom, t]);
 
   function partitionMentionIds(selectedKeys: string[]): {
     mentionedCoworkerIds: string[];

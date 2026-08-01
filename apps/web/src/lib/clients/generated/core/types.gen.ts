@@ -3655,6 +3655,73 @@ export type AssignCoworkerRequest = {
     email?: string;
 };
 
+export type VendorLogoCleanupResult = {
+    ok: true;
+};
+
+export type VendorLogoCleanupRequest = {
+    /**
+     * Public blob URL of a prior vendor logo to delete if owned
+     */
+    url: string;
+};
+
+export type VendorLogoUploadSession = {
+    /**
+     * Presigned Blob PUT URL (time-scoped, path-scoped)
+     */
+    uploadUrl: string;
+    /**
+     * Server-generated upload pathname (before random suffix)
+     */
+    pathname: string;
+    /**
+     * Blob access level for the upload
+     */
+    access: 'public';
+    /**
+     * HTTP method for the client upload request
+     */
+    method: 'PUT';
+    /**
+     * Headers the client must send on the PUT
+     */
+    headers: {
+        'Content-Type': string;
+    };
+    /**
+     * When the presigned upload URL expires (ISO-8601)
+     */
+    expiresAt: Date;
+    /**
+     * Maximum supported file size for this upload policy
+     */
+    maxSizeBytes: number;
+    /**
+     * Whether Blob appends a random suffix to the final pathname
+     */
+    addRandomSuffix: boolean;
+};
+
+export type CreateVendorLogoUploadRequest = {
+    /**
+     * Original file name supplied by the client
+     */
+    filename: string;
+    /**
+     * Declared logo MIME type from the client
+     */
+    contentType: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+    /**
+     * Optional per-upload size ceiling in bytes. Must not exceed the organization logo maximum.
+     */
+    maxSizeBytes?: number;
+};
+
 export type EffectiveDesignMd = {
     /**
      * The effective DESIGN.md, or null when none
@@ -27887,6 +27954,254 @@ export type UnassignCoworkerDeveloperResponses = {
 };
 
 export type UnassignCoworkerDeveloperResponse = UnassignCoworkerDeveloperResponses[keyof UnassignCoworkerDeveloperResponses];
+
+export type PostVendorsByIdFilesCleanupData = {
+    body: VendorLogoCleanupRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/files/cleanup';
+};
+
+export type PostVendorsByIdFilesCleanupErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be a vendor admin or platform admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostVendorsByIdFilesCleanupError = PostVendorsByIdFilesCleanupErrors[keyof PostVendorsByIdFilesCleanupErrors];
+
+export type PostVendorsByIdFilesCleanupResponses = {
+    /**
+     * Cleanup attempted (owned logos deleted; others ignored)
+     */
+    200: {
+        data: VendorLogoCleanupResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostVendorsByIdFilesCleanupResponse = PostVendorsByIdFilesCleanupResponses[keyof PostVendorsByIdFilesCleanupResponses];
+
+export type PostVendorsByIdFilesData = {
+    body: CreateVendorLogoUploadRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/files';
+};
+
+export type PostVendorsByIdFilesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be a vendor admin or platform admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostVendorsByIdFilesError = PostVendorsByIdFilesErrors[keyof PostVendorsByIdFilesErrors];
+
+export type PostVendorsByIdFilesResponses = {
+    /**
+     * Vendor logo upload session created successfully
+     */
+    201: {
+        data: VendorLogoUploadSession;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostVendorsByIdFilesResponse = PostVendorsByIdFilesResponses[keyof PostVendorsByIdFilesResponses];
 
 export type PostWebhooksTasksFilesUploadedData = {
     body?: never;

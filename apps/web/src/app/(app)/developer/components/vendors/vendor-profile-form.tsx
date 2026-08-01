@@ -30,9 +30,10 @@ import {
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
 import {
-  getUserFileUploadErrorMessage,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
+  cleanupVendorLogoBestEffort,
+  getVendorLogoUploadErrorMessage,
+  uploadVendorLogoDirect,
+} from "@/lib/utils/vendor-logo-upload.client";
 
 const vendorProfileSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -48,7 +49,7 @@ type VendorProfileFormValues = z.infer<typeof vendorProfileSchema>;
 interface VendorProfileFormProps {
   vendor: VendorMembership;
   isSaving: boolean;
-  onSave: (values: VendorProfileFormValues) => void;
+  onSave: (values: VendorProfileFormValues) => Promise<boolean>;
 }
 
 export function VendorProfileForm({
@@ -59,6 +60,10 @@ export function VendorProfileForm({
   const t = useTranslations("App.Developer.Vendors.profile");
   const tLogo = useTranslations("App.Developer.Vendors.profile.logos");
   const submitInFlightRef = useRef(false);
+  const logosAtOpenRef = useRef({
+    light: vendor.logos.light,
+    dark: vendor.logos.dark,
+  });
   const [pendingLightLogoFiles, setPendingLightLogoFiles] = useState<File[]>(
     [],
   );
@@ -113,7 +118,7 @@ export function VendorProfileForm({
       setUploading(true);
       try {
         const uploadedFile = await raceWithTimeout(
-          uploadUserFileDirect(logoFile, {
+          uploadVendorLogoDirect(vendor.id, logoFile, {
             allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
             maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
           }),
@@ -126,24 +131,39 @@ export function VendorProfileForm({
         toast.error(
           error instanceof ClientTimeoutError
             ? logoLabels.uploadError
-            : getUserFileUploadErrorMessage(error, logoLabels.uploadError),
+            : getVendorLogoUploadErrorMessage(error, logoLabels.uploadError),
         );
       } finally {
         setPendingFiles([]);
         setUploading(false);
       }
     },
-    [form, logoLabels.uploadError],
+    [form, logoLabels.uploadError, vendor.id],
   );
 
-  const handleSubmit = form.handleSubmit((values) => {
+  const handleSubmit = form.handleSubmit(async (values) => {
     if (submitInFlightRef.current) {
       return;
     }
 
     submitInFlightRef.current = true;
     try {
-      onSave(values);
+      const saved = await onSave(values);
+      if (!saved) {
+        return;
+      }
+
+      const previous = logosAtOpenRef.current;
+      if (previous.light && previous.light !== values.logos.light) {
+        void cleanupVendorLogoBestEffort(vendor.id, previous.light);
+      }
+      if (previous.dark && previous.dark !== values.logos.dark) {
+        void cleanupVendorLogoBestEffort(vendor.id, previous.dark);
+      }
+      logosAtOpenRef.current = {
+        light: values.logos.light,
+        dark: values.logos.dark,
+      };
     } finally {
       submitInFlightRef.current = false;
     }

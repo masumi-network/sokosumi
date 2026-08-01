@@ -2,6 +2,12 @@ import type { Prisma } from "@sokosumi/database";
 
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import {
+  type AuthenticationContext,
+  hasAdminRole,
+  requireUserAuthContext,
+  type UserAuthenticationContext,
+} from "@/middleware/auth";
 
 export interface VendorUserIdentity {
   userId?: string;
@@ -65,6 +71,31 @@ export async function requireVendorAdminMembership(
   if (!membership) {
     throw forbidden("Vendor admin access required");
   }
+}
+
+/**
+ * Vendor logo mint/cleanup gate: platform admin OR vendor admin membership.
+ * Platform admins still get 404 when the vendor is missing.
+ */
+export async function requireVendorAdminOrPlatformAdmin(
+  authContext: AuthenticationContext,
+  vendorId: string,
+): Promise<UserAuthenticationContext> {
+  const userAuthContext = requireUserAuthContext(authContext);
+
+  if (hasAdminRole(userAuthContext.role)) {
+    const vendor = await prisma.vendor.findUnique({
+      where: { id: vendorId },
+      select: { id: true },
+    });
+    if (!vendor) {
+      throw notFound("Vendor not found");
+    }
+    return userAuthContext;
+  }
+
+  await requireVendorAdminMembership(userAuthContext.userId, vendorId);
+  return userAuthContext;
 }
 
 /**

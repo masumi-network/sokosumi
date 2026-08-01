@@ -7,6 +7,7 @@ import {
   buildDirectRoomKey,
   buildDirectRoomName,
   canManageChatRoomLifecycle,
+  contentIncludesRoomAllMention,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
   resolveMentionedCoworkerIds,
@@ -76,6 +77,96 @@ describe("resolveMentionedUserIds", () => {
         excludeUserId: "user_self",
       }),
     ).toEqual(["user_alice", "user_bob"]);
+  });
+
+  it("expands @all:all to all room users except the author", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "@all:all can someone take a look?",
+        roomUsers,
+        excludeUserId: "user_self",
+      }).toSorted(),
+    ).toEqual(["user_alice", "user_bob"].toSorted());
+  });
+
+  it("expands bare @all to all room users except the author", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "@all please sync",
+        roomUsers,
+        excludeUserId: "user_self",
+      }).toSorted(),
+    ).toEqual(["user_alice", "user_bob"].toSorted());
+  });
+
+  it("does not expand @allison as a room-all mention", () => {
+    const mentioned = resolveMentionedUserIds({
+      content: "@allison can you check?",
+      roomUsers: [...roomUsers, { id: "user_allison", name: "Allison Lee" }],
+      excludeUserId: "user_self",
+    });
+    expect(mentioned).not.toContain("user_alice");
+    expect(mentioned).not.toContain("user_bob");
+  });
+
+  it("does not expand case variants like @ALL", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "@ALL please sync",
+        roomUsers,
+        excludeUserId: "user_self",
+      }),
+    ).toEqual([]);
+  });
+
+  it("merges @all expansion with explicit user ids", () => {
+    expect(
+      resolveMentionedUserIds({
+        content: "@all:all and also hello",
+        explicitUserIds: ["user_alice"],
+        roomUsers,
+        excludeUserId: "user_self",
+      }).toSorted(),
+    ).toEqual(["user_alice", "user_bob"].toSorted());
+  });
+
+  it("excludes the author from @all expansion", () => {
+    const mentioned = resolveMentionedUserIds({
+      content: "@all:all",
+      roomUsers,
+      excludeUserId: "user_self",
+    });
+    expect(mentioned).not.toContain("user_self");
+    expect(mentioned.toSorted()).toEqual(["user_alice", "user_bob"].toSorted());
+  });
+
+  it("only returns human room user ids for @all (never coworker ids)", () => {
+    const mentioned = resolveMentionedUserIds({
+      content: "@all:all",
+      explicitUserIds: ["coworker_elena", "all"],
+      roomUsers,
+      excludeUserId: "user_self",
+    });
+    expect(mentioned.toSorted()).toEqual(["user_alice", "user_bob"].toSorted());
+    expect(mentioned).not.toContain("coworker_elena");
+    expect(mentioned).not.toContain("all");
+  });
+});
+
+describe("contentIncludesRoomAllMention", () => {
+  it("detects persist and bare tokens with word boundaries", () => {
+    expect(contentIncludesRoomAllMention("@all:all hey")).toBe(true);
+    expect(contentIncludesRoomAllMention("ping @all")).toBe(true);
+    expect(contentIncludesRoomAllMention("@allison")).toBe(false);
+    expect(contentIncludesRoomAllMention("@all:other")).toBe(false);
+    expect(contentIncludesRoomAllMention("@ALL")).toBe(false);
+  });
+
+  it("detects tokens wrapped in common markdown markers", () => {
+    expect(contentIncludesRoomAllMention("**@all:all** please")).toBe(true);
+    expect(contentIncludesRoomAllMention("`@all:all`")).toBe(true);
+    expect(contentIncludesRoomAllMention("_@all_")).toBe(true);
+    expect(contentIncludesRoomAllMention("> @all:all")).toBe(true);
   });
 });
 

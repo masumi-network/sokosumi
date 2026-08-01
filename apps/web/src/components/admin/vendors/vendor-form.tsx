@@ -36,9 +36,10 @@ import {
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
 import {
-  getUserFileUploadErrorMessage,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
+  cleanupVendorLogoBestEffort,
+  getVendorLogoUploadErrorMessage,
+  uploadVendorLogoDirect,
+} from "@/lib/utils/vendor-logo-upload.client";
 
 const createVendorSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -80,11 +81,37 @@ function emptyLogos(): VendorFormValues["logos"] {
   return { light: null, dark: null };
 }
 
+function isBlobPreviewUrl(url: string | null | undefined): boolean {
+  return Boolean(url?.startsWith("blob:"));
+}
+
+function logosForCreateApi(
+  logos: VendorFormValues["logos"],
+  pendingLight: File | undefined,
+  pendingDark: File | undefined,
+): VendorFormValues["logos"] {
+  return {
+    light:
+      pendingLight || isBlobPreviewUrl(logos.light)
+        ? null
+        : (logos.light ?? null),
+    dark:
+      pendingDark || isBlobPreviewUrl(logos.dark) ? null : (logos.dark ?? null),
+  };
+}
+
 export function VendorForm(props: VendorFormProps) {
   const t = useTranslations("App.Admin.Vendors.Form");
   const tLogo = useTranslations("App.Admin.Vendors.Form.logos");
   const router = useRouter();
   const submitInFlightRef = useRef(false);
+  const lightLogoObjectUrlRef = useRef<string | null>(null);
+  const darkLogoObjectUrlRef = useRef<string | null>(null);
+  const logosAtOpenRef = useRef(
+    props.mode === "edit"
+      ? { light: props.vendor.logos.light, dark: props.vendor.logos.dark }
+      : emptyLogos(),
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [baseline, setBaseline] = useState<Vendor | null>(
     props.mode === "edit" ? props.vendor : null,
@@ -137,6 +164,14 @@ export function VendorForm(props: VendorFormProps) {
     uploadError: tLogo("uploadError"),
   };
 
+  const revokeLogoObjectUrl = useCallback((side: "light" | "dark") => {
+    const ref = side === "light" ? lightLogoObjectUrlRef : darkLogoObjectUrlRef;
+    if (ref.current) {
+      URL.revokeObjectURL(ref.current);
+      ref.current = null;
+    }
+  }, []);
+
   const uploadLogo = useCallback(
     async (
       files: File[],
@@ -149,10 +184,23 @@ export function VendorForm(props: VendorFormProps) {
         return;
       }
 
+      // Create flow: hold File until vendor exists — never mint under user prefix.
+      if (props.mode === "create") {
+        revokeLogoObjectUrl(side);
+        const previewUrl = URL.createObjectURL(logoFile);
+        if (side === "light") {
+          lightLogoObjectUrlRef.current = previewUrl;
+        } else {
+          darkLogoObjectUrlRef.current = previewUrl;
+        }
+        form.setValue(`logos.${side}`, previewUrl, { shouldDirty: true });
+        return;
+      }
+
       setUploading(true);
       try {
         const uploadedFile = await raceWithTimeout(
-          uploadUserFileDirect(logoFile, {
+          uploadVendorLogoDirect(props.vendor.id, logoFile, {
             allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
             maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
           }),
@@ -165,14 +213,27 @@ export function VendorForm(props: VendorFormProps) {
         toast.error(
           error instanceof ClientTimeoutError
             ? logoLabels.uploadError
-            : getUserFileUploadErrorMessage(error, logoLabels.uploadError),
+            : getVendorLogoUploadErrorMessage(error, logoLabels.uploadError),
         );
       } finally {
         setPendingFiles([]);
         setUploading(false);
       }
     },
-    [form, logoLabels.uploadError],
+    [form, logoLabels.uploadError, props, revokeLogoObjectUrl],
+  );
+
+  const handleRemoveLogo = useCallback(
+    (side: "light" | "dark") => {
+      revokeLogoObjectUrl(side);
+      form.setValue(`logos.${side}`, null, { shouldDirty: true });
+      if (side === "light") {
+        setPendingLightLogoFiles([]);
+      } else {
+        setPendingDarkLogoFiles([]);
+      }
+    },
+    [form, revokeLogoObjectUrl],
   );
 
   const handleSubmit = form.handleSubmit(async (values) => {
@@ -184,11 +245,19 @@ export function VendorForm(props: VendorFormProps) {
     setIsSaving(true);
     try {
       if (props.mode === "create") {
+        const pendingLight = pendingLightLogoFiles[0];
+        const pendingDark = pendingDarkLogoFiles[0];
+        const logosForCreate = logosForCreateApi(
+          values.logos,
+          pendingLight,
+          pendingDark,
+        );
+
         const result = await createAdminVendorAction({
           input: {
             name: values.name,
             slug: values.slug,
-            logos: values.logos,
+            logos: logosForCreate,
           },
         });
 
@@ -201,8 +270,62 @@ export function VendorForm(props: VendorFormProps) {
           return;
         }
 
+        const vendorId = result.data.id;
+        let lightUrl = logosForCreate.light;
+        let darkUrl = logosForCreate.dark;
+
+        try {
+          if (pendingLight) {
+            const uploaded = await raceWithTimeout(
+              uploadVendorLogoDirect(vendorId, pendingLight, {
+                allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
+                maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+              }),
+              ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
+            );
+            lightUrl = uploaded.publicUrl;
+            revokeLogoObjectUrl("light");
+          }
+          if (pendingDark) {
+            const uploaded = await raceWithTimeout(
+              uploadVendorLogoDirect(vendorId, pendingDark, {
+                allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
+                maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+              }),
+              ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
+            );
+            darkUrl = uploaded.publicUrl;
+            revokeLogoObjectUrl("dark");
+          }
+
+          if (
+            (lightUrl !== logosForCreate.light ||
+              darkUrl !== logosForCreate.dark) &&
+            (lightUrl || darkUrl)
+          ) {
+            await patchAdminVendorAction({
+              input: {
+                vendorId,
+                name: values.name,
+                logos: { light: lightUrl, dark: darkUrl },
+                current: {
+                  name: result.data.name,
+                  logos: result.data.logos,
+                },
+              },
+            });
+          }
+        } catch (error) {
+          toast.error(
+            error instanceof ClientTimeoutError
+              ? logoLabels.uploadError
+              : getVendorLogoUploadErrorMessage(error, logoLabels.uploadError),
+          );
+          // Vendor was created; still navigate below.
+        }
+
         toast.success(t("createSuccess"));
-        router.push(`/admin/vendors/${result.data.id}`);
+        router.push(`/admin/vendors/${vendorId}`);
         router.refresh();
         return;
       }
@@ -212,6 +335,7 @@ export function VendorForm(props: VendorFormProps) {
         return;
       }
 
+      const previous = logosAtOpenRef.current;
       const result = await patchAdminVendorAction({
         input: {
           vendorId: baseline.id,
@@ -234,6 +358,17 @@ export function VendorForm(props: VendorFormProps) {
         );
         return;
       }
+
+      if (previous.light && previous.light !== values.logos.light) {
+        void cleanupVendorLogoBestEffort(baseline.id, previous.light);
+      }
+      if (previous.dark && previous.dark !== values.logos.dark) {
+        void cleanupVendorLogoBestEffort(baseline.id, previous.dark);
+      }
+      logosAtOpenRef.current = {
+        light: result.data.logos.light,
+        dark: result.data.logos.dark,
+      };
 
       setBaseline(result.data);
       form.reset({
@@ -317,9 +452,7 @@ export function VendorForm(props: VendorFormProps) {
                   setPendingLightLogoFiles,
                 )
               }
-              onRemove={() =>
-                form.setValue("logos.light", null, { shouldDirty: true })
-              }
+              onRemove={() => handleRemoveLogo("light")}
               pendingLogoFiles={pendingLightLogoFiles}
             />
           </FormItem>
@@ -340,9 +473,7 @@ export function VendorForm(props: VendorFormProps) {
                   setPendingDarkLogoFiles,
                 )
               }
-              onRemove={() =>
-                form.setValue("logos.dark", null, { shouldDirty: true })
-              }
+              onRemove={() => handleRemoveLogo("dark")}
               pendingLogoFiles={pendingDarkLogoFiles}
             />
           </FormItem>
