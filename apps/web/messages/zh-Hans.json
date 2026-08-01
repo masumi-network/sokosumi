@@ -26,6 +26,22 @@
       "description": "由于某个第三方服务提供商的技术问题，我们目前在任务执行方面遇到了一些问题。请放心，稍后将恢复正常。",
       "confirm": "确定"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "搜索全部表情",
+      "frequentlyUsed": "常用表情",
+      "noResults": "未找到表情",
+      "categories": {
+        "smileysEmotion": "表情与情感",
+        "peopleBody": "人物与身体",
+        "animalsNature": "动物与自然",
+        "foodDrink": "食物与饮料",
+        "travelPlaces": "旅行与地点",
+        "activities": "活动",
+        "objects": "物品",
+        "symbols": "符号",
+        "flags": "旗帜"
+      }
+    },
     "ShareButton": {
       "linkCopied": "链接已复制到剪贴板",
       "copyError": "复制链接失败"
@@ -4624,8 +4640,10 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "添加收件人后开始",
-        "oneToOneOnlyError": "私信目前仅为一对一。请选择一位成员或一位同事。",
-        "searchPlaceholderReplace": "更换收件人"
+        "searchPlaceholderReplace": "更换收件人",
+        "groupDirectHumansOnly": "群组私信仅限真人成员。",
+        "groupDirectNoCoworkersError": "群组私信不能包含同事。",
+        "coworkerDirectOneToOneOnly": "与同事的私信仅支持一对一。"
       },
       "Toolbar": {
         "mention": "Mention coworker",
@@ -4691,6 +4709,9 @@
         "dismiss": "移除引用",
         "previewLabel": "正在引用 {author}",
         "jump": "跳转到 {author} 的消息"
+      },
+      "MentionAll": {
+        "label": "所有人"
       }
     }
   },

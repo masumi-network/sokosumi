@@ -513,6 +513,65 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(response.status).toBe(201);
       expect(emitChatMentionNotificationsMock).not.toHaveBeenCalled();
     });
+
+    it("expands @all:all from content to notify other humans without ChatRoomMention rows", async () => {
+      const BOB_ID = "user_bob";
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          userMembers: [
+            {
+              userId: USER_ID,
+              user: { name: "Patrick" },
+            },
+            {
+              userId: ALICE_ID,
+              user: { name: "Alice" },
+            },
+            {
+              userId: BOB_ID,
+              user: { name: "Bob" },
+            },
+          ],
+        }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderUserId: USER_ID }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "**@all:all** please look",
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            mentionsAsSource: { create: [] },
+          }),
+        }),
+      );
+      expect(dispatchMock).not.toHaveBeenCalled();
+      expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        roomName: "general",
+        organizationId: "org_1",
+        messageId: MESSAGE_ID,
+        authorUserId: USER_ID,
+        authorName: "Patrick",
+        mentionedUserIds: expect.arrayContaining([ALICE_ID, BOB_ID]),
+      });
+      const emitArgs = emitChatMentionNotificationsMock.mock.calls[0]?.[0] as {
+        mentionedUserIds: string[];
+      };
+      expect(emitArgs.mentionedUserIds).toHaveLength(2);
+      expect(emitArgs.mentionedUserIds).not.toContain(USER_ID);
+      expect(emitArgs.mentionedUserIds).not.toContain(COWORKER_ID);
+    });
   });
 
   describe("quote", () => {

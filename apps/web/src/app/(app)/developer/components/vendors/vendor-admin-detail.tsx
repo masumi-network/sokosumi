@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { patchVendorProfileAction } from "@/lib/actions/vendors/vendor-admin.action";
@@ -16,17 +16,18 @@ interface VendorAdminDetailProps {
 export function VendorAdminDetail({ vendor }: VendorAdminDetailProps) {
   const t = useTranslations("App.Developer.Vendors");
   const [currentVendor, setCurrentVendor] = useState(vendor);
-  const [isSavingProfile, startSaveProfile] = useTransition();
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const handleProfileSave = useCallback(
-    (values: {
+    async (values: {
       name: string;
       logos: {
         light: string | null;
         dark: string | null;
       };
     }) => {
-      startSaveProfile(async () => {
+      setIsSavingProfile(true);
+      try {
         const result = await patchVendorProfileAction({
           input: {
             vendorId: currentVendor.id,
@@ -41,7 +42,7 @@ export function VendorAdminDetail({ vendor }: VendorAdminDetailProps) {
 
         if (!result.ok) {
           toast.error(result.error.message);
-          return;
+          return false;
         }
 
         toast.success(t("profile.saveSuccess"));
@@ -51,9 +52,12 @@ export function VendorAdminDetail({ vendor }: VendorAdminDetailProps) {
           logos: result.data.logos,
           updatedAt: result.data.updatedAt,
         }));
-      });
+        return true;
+      } finally {
+        setIsSavingProfile(false);
+      }
     },
-    [currentVendor, startSaveProfile, t],
+    [currentVendor, t],
   );
 
   return (

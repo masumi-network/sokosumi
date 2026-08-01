@@ -5,26 +5,15 @@ import {
   isFileLikeUrl,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
-import {
-  CheckCircle2,
-  Loader2,
-  MessageCircle,
-  Quote,
-  SmilePlus,
-} from "lucide-react";
+import { CheckCircle2, Loader2, MessageCircle, Quote } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useState } from "react";
-import { ROOM_COMPOSER_EMOJIS } from "@/components/chat/room-message-composer";
+import { type ReactNode } from "react";
+import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -193,50 +182,6 @@ function ChannelMessageText({
   return <>{nodes}</>;
 }
 
-function MessageEmojiPicker({
-  onSelect,
-  label,
-}: {
-  onSelect: (emoji: string) => void;
-  label: string;
-}) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-9 rounded-full sm:size-7"
-          title={label}
-          aria-label={label}
-        >
-          <SmilePlus className="size-4" aria-hidden />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-auto p-2">
-        <div className="grid grid-cols-6 gap-1">
-          {ROOM_COMPOSER_EMOJIS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              className="hover:bg-muted focus-visible:ring-ring flex size-8 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2"
-              onClick={() => {
-                onSelect(emoji);
-                setOpen(false);
-              }}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
 function MessageActions({
   message,
   onToggleReaction,
@@ -256,9 +201,12 @@ function MessageActions({
 
   return (
     <div className="border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
-      <MessageEmojiPicker
-        label={t("Reactions.add")}
-        onSelect={(emoji) => onToggleReaction(message, emoji)}
+      <EmojiPicker
+        title={t("Reactions.add")}
+        ariaLabel={t("Reactions.add")}
+        align="end"
+        triggerClassName="size-9 rounded-full sm:size-7"
+        onPick={(emoji) => onToggleReaction(message, emoji)}
       />
       {showQuoteButton && onQuote ? (
         <Button

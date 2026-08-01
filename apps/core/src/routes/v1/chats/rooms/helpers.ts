@@ -853,11 +853,43 @@ export function resolveMentionedCoworkerIds(params: {
   return [...mentionedIds].filter((coworkerId) => allowedIds.has(coworkerId));
 }
 
+/** Catalog / content sentinel for room-wide @all. Not a user UUID. */
+export const ROOM_MENTION_ALL_ID = "all" as const;
+
+/**
+ * Unwrap common inline markdown around @all tokens so composer bold/italic/code
+ * (`**@all:all**`, `_@all_`, `` `@all:all` ``) still notify. Case-sensitive.
+ */
+function unwrapRoomAllMentionMarkdown(content: string): string {
+  return content
+    .replace(/\*\*(@all:all|@all)\*\*/g, " $1 ")
+    .replace(/__(@all:all|@all)__/g, " $1 ")
+    .replace(/~~(@all:all|@all)~~/g, " $1 ")
+    .replace(/`(@all:all|@all)`/g, " $1 ")
+    .replace(/_(@all:all|@all)_/g, " $1 ");
+}
+
+/**
+ * True when content includes a room-all mention: persist token `@all:all` or
+ * bare `@all` at a word boundary. Must not match `@allison` or `@all:other`.
+ */
+export function contentIncludesRoomAllMention(content: string): boolean {
+  const normalized = unwrapRoomAllMentionMarkdown(content);
+  if (/(?:^|\s)@all:all(?=$|[\s.,!?;:])/.test(normalized)) {
+    return true;
+  }
+  // Bare form must not treat `@all:other` as a match (colon form handled above).
+  return /(?:^|\s)@all(?=$|[\s.,!?;])/.test(normalized);
+}
+
 /**
  * Resolve human @mentions for a room message. Candidates must already be room
  * members. The author is always excluded. Unlike coworkers, these IDs do not
  * create ChatRoomMention rows or trigger AI dispatch — they address humans via
  * content tokens; callers emit in-app notifications after the message commits.
+ *
+ * When content includes `@all` / `@all:all`, every room human except the author
+ * is included. Explicit id `"all"` is ignored (not a room user).
  */
 export function resolveMentionedUserIds(params: {
   content: string;
@@ -870,15 +902,21 @@ export function resolveMentionedUserIds(params: {
     params.roomUsers.map((user) => user.id).filter((id) => id !== excluded),
   );
   const mentionedIds = new Set(
-    normalizeUniqueStrings(params.explicitUserIds ?? []).filter((id) =>
-      roomUserIds.has(id),
+    normalizeUniqueStrings(params.explicitUserIds ?? []).filter(
+      (id) => id !== ROOM_MENTION_ALL_ID && roomUserIds.has(id),
     ),
   );
+
+  if (contentIncludesRoomAllMention(params.content)) {
+    for (const userId of roomUserIds) {
+      mentionedIds.add(userId);
+    }
+  }
 
   const idTokenRegex = /@([^\s:]+):([^\s]+)/g;
   for (const match of params.content.matchAll(idTokenRegex)) {
     const id = match[1];
-    if (id && roomUserIds.has(id)) {
+    if (id && id !== ROOM_MENTION_ALL_ID && roomUserIds.has(id)) {
       mentionedIds.add(id);
     }
   }
@@ -889,6 +927,10 @@ export function resolveMentionedUserIds(params: {
     }
     const aliases = new Set([slugifyRoomName(user.name)]);
     for (const alias of aliases) {
+      // Reserved `@all` is owned by contentIncludesRoomAllMention, not name alias.
+      if (alias === ROOM_MENTION_ALL_ID) {
+        continue;
+      }
       const aliasRegex = new RegExp(
         `(^|\\s)@${escapeRegExp(alias)}(?=$|[\\s.,!?;:])`,
         "i",

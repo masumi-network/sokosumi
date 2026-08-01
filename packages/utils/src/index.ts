@@ -250,6 +250,12 @@ export {
   sanitizeUserUploadFilename,
 } from "./user-upload-path.js";
 export {
+  buildVendorLogoContentHashPathname,
+  buildVendorLogoPathname,
+  buildVendorLogoPrefix,
+  isOwnedVendorLogoUrl,
+} from "./vendor-logo-path.js";
+export {
   buildWebhookFailureContext,
   DEFAULT_WEBHOOK_TIMEOUT_MS,
   MAX_REPORTED_WEBHOOK_BODY_LENGTH,

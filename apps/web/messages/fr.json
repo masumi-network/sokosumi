@@ -26,6 +26,22 @@
       "description": "Nous rencontrons actuellement des problèmes d’exécution des jobs en raison de difficultés techniques chez l’un de nos fournisseurs tiers. Ne vous inquiétez pas, tout reviendra à la normale sous peu.",
       "confirm": "OK"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "Rechercher tous les emojis",
+      "frequentlyUsed": "Utilisés fréquemment",
+      "noResults": "Aucun emoji trouvé",
+      "categories": {
+        "smileysEmotion": "Smileys et émotions",
+        "peopleBody": "Personnes et corps",
+        "animalsNature": "Animaux et nature",
+        "foodDrink": "Nourriture et boissons",
+        "travelPlaces": "Voyages et lieux",
+        "activities": "Activités",
+        "objects": "Objets",
+        "symbols": "Symboles",
+        "flags": "Drapeaux"
+      }
+    },
     "ShareButton": {
       "linkCopied": "Lien copié dans le presse-papiers",
       "copyError": "Échec de la copie du lien"
@@ -4624,8 +4640,10 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Ajoutez un destinataire pour commencer",
-        "oneToOneOnlyError": "Les messages directs sont en 1:1. Choisissez un membre ou un coworker.",
-        "searchPlaceholderReplace": "Remplacer le destinataire"
+        "searchPlaceholderReplace": "Remplacer le destinataire",
+        "groupDirectHumansOnly": "Les messages directs de groupe sont réservés aux humains.",
+        "groupDirectNoCoworkersError": "Les messages directs de groupe ne peuvent pas inclure de coworkers.",
+        "coworkerDirectOneToOneOnly": "Les messages directs avec un coworker sont en 1:1."
       },
       "Toolbar": {
         "mention": "Mention coworker",
@@ -4691,6 +4709,9 @@
         "dismiss": "Retirer la citation",
         "previewLabel": "Citation de {author}",
         "jump": "Aller au message de {author}"
+      },
+      "MentionAll": {
+        "label": "Tout le monde"
       }
     }
   },
