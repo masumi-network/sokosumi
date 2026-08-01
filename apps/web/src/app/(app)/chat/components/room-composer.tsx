@@ -131,8 +131,8 @@ export function RoomComposer({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
-  /** Slack Aa toggle: formatting strip above the editor. */
-  const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
+  /** Slack Aa toggle: formatting strip above the editor. Starts open by default. */
+  const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
   const [activeFormats, setActiveFormats] = useState<ComposerActiveFormats>(
     EMPTY_COMPOSER_ACTIVE_FORMATS,
   );
