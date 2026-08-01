@@ -4076,8 +4076,7 @@
       },
       "ProfileImage": {
         "title": "Profile image",
-        "description": "Your personal avatar shown in the header, sidebar, and tasks.",
-        "imageLabel": "Profile image",
+        "description": "Upload or remove the avatar used for your account.",
         "imageDescription": "Upload an image up to {maxSize}. Remove it to fall back to Gravatar.",
         "imageUpload": "Upload",
         "imageReplace": "Replace",

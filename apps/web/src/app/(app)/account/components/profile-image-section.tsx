@@ -130,7 +130,6 @@ export function ProfileImageSection({ userImage }: ProfileImageSectionProps) {
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
-        <p className="text-sm font-medium">{t("imageLabel")}</p>
         <OrganizationLogoUploadField
           disabled={isBusy}
           fallbackIcon={<User className="size-8" />}

@@ -4013,8 +4013,7 @@
       },
       "ProfileImage": {
         "title": "头像",
-        "description": "显示在页眉、侧边栏和任务中的个人头像。",
-        "imageLabel": "头像",
+        "description": "上传或移除用于你账户的头像。",
         "imageDescription": "上传不超过 {maxSize} 的图片。移除后将回退到 Gravatar。",
         "imageUpload": "上传",
         "imageReplace": "替换",

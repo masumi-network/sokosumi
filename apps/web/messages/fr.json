@@ -4013,8 +4013,7 @@
       },
       "ProfileImage": {
         "title": "Photo de profil",
-        "description": "Votre avatar personnel affiché dans l'en-tête, la barre latérale et les tâches.",
-        "imageLabel": "Photo de profil",
+        "description": "Téléversez ou supprimez l'avatar utilisé pour votre compte.",
         "imageDescription": "Téléversez une image jusqu'à {maxSize}. Supprimez-la pour revenir à Gravatar.",
         "imageUpload": "Téléverser",
         "imageReplace": "Remplacer",

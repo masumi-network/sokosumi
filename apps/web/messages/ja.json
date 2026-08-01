@@ -4013,8 +4013,7 @@
       },
       "ProfileImage": {
         "title": "プロフィール画像",
-        "description": "ヘッダー、サイドバー、タスクに表示される個人アバターです。",
-        "imageLabel": "プロフィール画像",
+        "description": "アカウントで使うアバターをアップロードまたは削除します。",
         "imageDescription": "{maxSize} までの画像をアップロードできます。削除すると Gravatar に戻ります。",
         "imageUpload": "アップロード",
         "imageReplace": "差し替え",

@@ -3982,8 +3982,7 @@
       },
       "ProfileImage": {
         "title": "Profilbild",
-        "description": "Dein persönlicher Avatar in Header, Sidebar und Aufgaben.",
-        "imageLabel": "Profilbild",
+        "description": "Lade den Avatar für dein Konto hoch oder entferne ihn.",
         "imageDescription": "Lade ein Bild bis {maxSize} hoch. Entferne es, um auf Gravatar zurückzufallen.",
         "imageUpload": "Hochladen",
         "imageReplace": "Ersetzen",

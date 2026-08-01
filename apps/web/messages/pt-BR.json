@@ -4013,8 +4013,7 @@
       },
       "ProfileImage": {
         "title": "Imagem de perfil",
-        "description": "Seu avatar pessoal no cabeçalho, barra lateral e tarefas.",
-        "imageLabel": "Imagem de perfil",
+        "description": "Envie ou remova o avatar usado na sua conta.",
         "imageDescription": "Envie uma imagem de até {maxSize}. Remova-a para voltar ao Gravatar.",
         "imageUpload": "Enviar",
         "imageReplace": "Substituir",
