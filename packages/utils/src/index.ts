@@ -114,6 +114,10 @@ export {
   sanitizeOrganizationLogoForApi,
 } from "./ipfs-url.js";
 export {
+  buildJobBlobPathname,
+  buildJobBlobPrefix,
+} from "./job-blob-path.js";
+export {
   type AppLocale,
   DEFAULT_LOCALE,
   getEmailLocale,

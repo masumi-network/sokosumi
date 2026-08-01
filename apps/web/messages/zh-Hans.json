@@ -4575,7 +4575,7 @@
         "restoreSuccess": "已恢复 {name}。"
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "聊天",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
