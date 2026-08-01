@@ -114,7 +114,7 @@ function MessageQuoteBlock({
         <div
           ref={snippetRef}
           className={cn(
-            "text-muted-foreground text-xs leading-5 whitespace-pre-line",
+            "text-muted-foreground text-xs leading-5",
             expanded ? null : "line-clamp-4",
           )}
         >
