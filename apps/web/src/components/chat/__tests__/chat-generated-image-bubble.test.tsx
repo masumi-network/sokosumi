@@ -1,9 +1,24 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { stubPendingImageLoad } from "@/test/stub-pending-image-load";
 
 import { ChatGeneratedImageBubble } from "../chat-generated-image-bubble";
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
+    if (key === "viewImage") {
+      return `View image ${values?.fileName ?? ""}`;
+    }
+    if (key === "title") {
+      return "Image";
+    }
+    if (key === "download") {
+      return "Download image";
+    }
+    return key;
+  },
+}));
 
 describe("ChatGeneratedImageBubble", () => {
   stubPendingImageLoad();
@@ -90,5 +105,29 @@ describe("ChatGeneratedImageBubble", () => {
     });
 
     expect(link).toHaveAttribute("download", "generated-image.svg");
+  });
+
+  it("opens an image viewer when the loaded image is activated", () => {
+    render(
+      <ChatGeneratedImageBubble
+        alt="Generated image"
+        downloadLabel="Download generated image"
+        src="https://example.com/generated-image.png"
+      />,
+    );
+
+    const image = screen.getByRole("img", { name: "Generated image" });
+    fireEvent.load(image);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "View image Generated image" }),
+    );
+
+    const viewer = screen.getByTestId("image-viewer");
+    expect(viewer).toBeInTheDocument();
+    expect(viewer.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://example.com/generated-image.png",
+    );
   });
 });

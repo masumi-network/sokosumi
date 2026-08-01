@@ -762,6 +762,11 @@
       "placeholder": "組織を選択",
       "search": "組織を検索…",
       "empty": "組織が見つかりません。"
+    },
+    "ImageViewer": {
+      "title": "画像",
+      "viewImage": "画像を表示 {fileName}",
+      "download": "画像をダウンロード"
     }
   },
   "Join": {
