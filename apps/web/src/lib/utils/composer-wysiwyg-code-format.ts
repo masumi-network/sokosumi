@@ -1,3 +1,5 @@
+import { placeComposerCaretAfterMark } from "@/lib/utils/composer-wysiwyg-arrow-exit";
+
 /**
  * Inline `<code>` toggle for the WYSIWYG composer.
  * Empty caret enters/exits code typing mode without inserting a placeholder word.
@@ -31,16 +33,6 @@ function findInlineCodeAncestor(
   }
 
   return null;
-}
-
-function placeCaretAfter(node: Node): void {
-  const selection = window.getSelection();
-  if (!selection) return;
-  const range = document.createRange();
-  range.setStartAfter(node);
-  range.collapse(true);
-  selection.removeAllRanges();
-  selection.addRange(range);
 }
 
 function placeCaretInCode(code: HTMLElement): void {
@@ -85,7 +77,7 @@ function insertHtmlAtSelection(html: string): void {
     const fragment = template.content;
     const last = fragment.lastChild;
     range.insertNode(fragment);
-    if (last) placeCaretAfter(last);
+    if (last) placeComposerCaretAfterMark(last);
   }
 }
 
@@ -114,7 +106,7 @@ export function toggleComposerInlineCode(editor: HTMLElement): void {
 
   const codeAncestor = findInlineCodeAncestor(selection.anchorNode, editor);
   if (codeAncestor) {
-    placeCaretAfter(codeAncestor);
+    placeComposerCaretAfterMark(codeAncestor);
     const visible = (codeAncestor.textContent ?? "").replace(
       new RegExp(COMPOSER_CODE_CARET_MARK, "g"),
       "",

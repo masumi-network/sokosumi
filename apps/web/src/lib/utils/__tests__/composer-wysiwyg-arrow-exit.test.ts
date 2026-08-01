@@ -43,6 +43,23 @@ describe("tryExitComposerInlineFormatOnArrow", () => {
     editor.remove();
   });
 
+  it("exits inline code at the end with ArrowRight", () => {
+    const editor = document.createElement("div");
+    editor.contentEditable = "true";
+    editor.innerHTML = "<code>code asdasd</code>";
+    document.body.append(editor);
+
+    const text = editor.querySelector("code")?.firstChild;
+    expect(text).toBeTruthy();
+    placeCaretInText(editor, text!, "code asdasd".length);
+
+    expect(tryExitComposerInlineFormatOnArrow(editor, "right")).toBe(true);
+    expect(selectionInsideTag("CODE")).toBe(false);
+    expect(editor.querySelector("[data-composer-exit='1']")).toBeTruthy();
+
+    editor.remove();
+  });
+
   it("exits bold at the start with ArrowLeft", () => {
     const editor = document.createElement("div");
     editor.contentEditable = "true";

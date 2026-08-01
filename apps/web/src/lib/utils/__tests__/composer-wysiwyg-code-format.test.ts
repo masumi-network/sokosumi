@@ -73,7 +73,8 @@ describe("toggleComposerInlineCode", () => {
     toggleComposerInlineCode(editor);
 
     expect(editor.querySelector("code")).toBeNull();
-    expect(editor.textContent).toBe("hi ");
+    expect(editor.textContent?.replace(/\u200b/g, "")).toBe("hi ");
+    expect(editor.querySelector("[data-composer-exit='1']")).toBeTruthy();
 
     editor.remove();
   });

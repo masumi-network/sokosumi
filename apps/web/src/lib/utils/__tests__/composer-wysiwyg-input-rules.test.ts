@@ -108,8 +108,9 @@ describe("tryApplyComposerInputRuleAtCaret", () => {
 
     expect(tryApplyComposerInputRuleAtCaret(root)).toBe(true);
     expect(root.querySelector("em")?.textContent).toBe("asds");
-    expect(root.textContent).toBe("asds");
+    expect(root.textContent?.replace(/\u200b/g, "")).toBe("asds");
     expect(root.innerHTML).not.toContain("_");
+    expect(root.querySelector("[data-composer-exit='1']")).toBeTruthy();
 
     root.remove();
   });
@@ -131,6 +132,54 @@ describe("tryApplyComposerInputRuleAtCaret", () => {
 
     expect(tryApplyComposerInputRuleAtCaret(root)).toBe(false);
     expect(root.textContent).toBe("_x_");
+
+    root.remove();
+  });
+
+  it("leaves caret outside code after closing backtick so typing stays plain", () => {
+    const root = document.createElement("div");
+    root.contentEditable = "true";
+    const textNode = document.createTextNode("`code`");
+    root.appendChild(textNode);
+    document.body.appendChild(root);
+
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode, 6);
+    range.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+
+    expect(tryApplyComposerInputRuleAtCaret(root)).toBe(true);
+
+    const code = root.querySelector("code");
+    expect(code?.textContent).toBe("code");
+    expect(root.querySelector("[data-composer-exit='1']")).toBeTruthy();
+
+    let node: Node | null | undefined = selection?.anchorNode;
+    let insideCode = false;
+    while (node) {
+      if (node instanceof HTMLElement && node.tagName === "CODE") {
+        insideCode = true;
+        break;
+      }
+      node = node.parentNode;
+    }
+    expect(insideCode).toBe(false);
+
+    // Simulate continued typing at the caret — must not land inside <code>.
+    const typed = document.createTextNode(" asdasd");
+    const anchor = selection?.anchorNode;
+    const offset = selection?.anchorOffset ?? 0;
+    expect(anchor).toBeTruthy();
+    if (anchor?.nodeType === Node.TEXT_NODE) {
+      const text = anchor.textContent ?? "";
+      anchor.textContent = `${text.slice(0, offset)} asdasd${text.slice(offset)}`;
+    } else if (anchor instanceof HTMLElement) {
+      anchor.appendChild(typed);
+    }
+    expect(code?.textContent).toBe("code");
+    expect(root.textContent?.replace(/\u200b/g, "")).toContain(" asdasd");
 
     root.remove();
   });

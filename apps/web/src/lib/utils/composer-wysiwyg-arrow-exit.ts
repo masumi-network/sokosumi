@@ -254,6 +254,8 @@ function placeCaretAfter(node: Node): void {
   if (!selection) return;
 
   // Explicit plain span so the next keystrokes do not inherit sticky marks.
+  // Empty adjacent text nodes collapse in Chromium and snap typing back into
+  // the mark (especially visible for <code> backgrounds).
   const pad = document.createElement("span");
   pad.dataset.composerExit = "1";
   pad.style.fontWeight = "normal";
@@ -267,6 +269,14 @@ function placeCaretAfter(node: Node): void {
   nextRange.collapse(true);
   selection.removeAllRanges();
   selection.addRange(nextRange);
+}
+
+/**
+ * Place caret just after an inline mark using a ZWSP exit pad.
+ * Shared by arrow-exit and markdown input rules.
+ */
+export function placeComposerCaretAfterMark(mark: Node): void {
+  placeCaretAfter(mark);
 }
 
 function placeCaretBeforeWithPad(node: Node): void {

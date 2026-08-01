@@ -1,3 +1,5 @@
+import { placeComposerCaretAfterMark } from "@/lib/utils/composer-wysiwyg-arrow-exit";
+
 export type ComposerInputRuleFormat = "italic" | "bold" | "strike" | "code";
 
 export interface ComposerInputRuleMatch {
@@ -135,22 +137,18 @@ function applyComposerInputRuleToTextNode(
   const parent = textNode.parentNode;
   if (!parent) return false;
 
-  const afterNode = document.createTextNode(after);
   const beforeNode = document.createTextNode(before);
-
   parent.insertBefore(beforeNode, textNode);
   parent.insertBefore(formatted, textNode);
-  parent.insertBefore(afterNode, textNode);
+
+  if (after) {
+    parent.insertBefore(document.createTextNode(after), textNode);
+  }
   parent.removeChild(textNode);
 
-  const selection = window.getSelection();
-  if (selection) {
-    const range = document.createRange();
-    range.setStart(afterNode, 0);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
+  // Exit pad (not an empty text node) so Chromium does not snap the caret
+  // back into the mark on the next keystroke — critical for <code> chips.
+  placeComposerCaretAfterMark(formatted);
 
   return true;
 }
