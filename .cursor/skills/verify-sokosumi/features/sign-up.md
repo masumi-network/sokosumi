@@ -43,8 +43,9 @@ Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alo
 
 ## Gotchas
 
+- Already-authenticated sessions redirect `/signup` into the app (`/chat`). Clear cookies or sign out before driving the form.
 - Email verification is off in local/core config — do not wait for a verification email. A “confirm email” banner after login is OK.
-- OAuth signup paths are invalid with placeholder credentials.
+- OAuth and magic-link signup paths are invalid with placeholder credentials.
 - Do not reuse an email that already exists; pick a fresh address per run.
 - On cloud-agent branches, prefer fixtures over signup unless testing signup itself.
 - Origin must be `http://localhost:3000` for Core auth API calls (`INVALID_ORIGIN` otherwise).
