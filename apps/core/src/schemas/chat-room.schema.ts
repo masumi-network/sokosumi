@@ -275,6 +275,11 @@ export const createChatRoomMessageRequestSchema = z
         description:
           "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.",
       }),
+    clientMessageId: z.string().trim().min(1).max(128).optional().openapi({
+      description:
+        "Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).",
+      example: "019fbee7-676b-771f-ab7a-998f25f1f16b",
+    }),
   })
   .openapi("CreateChatRoomMessageRequest");
 

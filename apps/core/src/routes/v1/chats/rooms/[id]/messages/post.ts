@@ -2,7 +2,9 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
+import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -64,6 +66,7 @@ const route = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
+      409: jsonErrorResponse("Conflict"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -121,14 +124,72 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const userContext = requireUserAuthContext(authContext);
+    const trimmedClientId =
+      typeof body.clientMessageId === "string"
+        ? body.clientMessageId.trim()
+        : "";
+    const clientId = trimmedClientId.length > 0 ? trimmedClientId : null;
 
-    const { message, mentionIds, mentionedUserIds, room } =
-      await prisma.$transaction(async (tx) => {
+    let persisted: {
+      message: Awaited<
+        ReturnType<typeof mapChatRoomMessage> extends infer _T ? never : never
+      > extends never
+        ? Awaited<
+            ReturnType<
+              typeof prisma.chatRoomMessage.create<{
+                include: typeof chatRoomMessageInclude;
+              }>
+            >
+          >
+        : never;
+      mentionIds: string[];
+      mentionedUserIds: string[];
+      room: {
+        id: string;
+        name: string;
+        organizationId: string | null;
+      };
+      created: boolean;
+    };
+
+    try {
+      persisted = await prisma.$transaction(async (tx) => {
         const room = await requireChatRoomUserWriteAccess(
           id,
           userContext.userId,
           tx,
         );
+
+        if (clientId) {
+          const existing = await tx.chatRoomMessage.findUnique({
+            where: {
+              roomId_clientMessageId: {
+                roomId: room.id,
+                clientMessageId: clientId,
+              },
+            },
+            include: chatRoomMessageInclude,
+          });
+          if (existing) {
+            if (existing.senderUserId !== userContext.userId) {
+              throw conflict(
+                "clientMessageId already used by another sender in this room",
+              );
+            }
+            return {
+              message: existing,
+              mentionIds: [] as string[],
+              mentionedUserIds: [] as string[],
+              room: {
+                id: room.id,
+                name: room.name,
+                organizationId: room.organizationId,
+              },
+              created: false,
+            };
+          }
+        }
+
         const skipCoworkerMentions =
           room.kind === "direct" &&
           room.coworkerMembers.length === 1 &&
@@ -150,7 +211,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.id,
           body.quote?.messageId,
         );
-        const metadata = mergeChatRoomMessageMetadata(null, quote);
+        const metadata = mergeChatRoomMessageMetadata(
+          clientId ? { client_message_id: clientId } : null,
+          quote,
+        );
 
         // A thread reply goes to every coworker already part of the thread —
         // as a sender or a mention target — without requiring a fresh @mention.
@@ -208,6 +272,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             parentMessageId,
             senderUserId: userContext.userId,
             content: body.content,
+            ...(clientId ? { clientMessageId: clientId } : {}),
             ...(metadata ? { metadata } : {}),
             mentionsAsSource: {
               create: mentionedCoworkerIds.map((coworkerId) => ({
@@ -246,25 +311,70 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             name: room.name,
             organizationId: room.organizationId,
           },
+          created: true,
         };
       });
-
-    for (const mentionId of mentionIds) {
-      waitUntil(dispatchChatRoomMention(mentionId));
+    } catch (error) {
+      if (!clientId || !isPrismaUniqueViolation(error)) {
+        throw error;
+      }
+      // Interactive tx aborted after failed create — re-read on root client.
+      const raced = await prisma.chatRoomMessage.findUnique({
+        where: {
+          roomId_clientMessageId: {
+            roomId: id,
+            clientMessageId: clientId,
+          },
+        },
+        include: chatRoomMessageInclude,
+      });
+      if (!raced) {
+        throw error;
+      }
+      if (raced.senderUserId !== userContext.userId) {
+        throw conflict(
+          "clientMessageId already used by another sender in this room",
+        );
+      }
+      persisted = {
+        message: raced,
+        mentionIds: [],
+        mentionedUserIds: [],
+        room: {
+          id: id,
+          name: "",
+          organizationId: null,
+        },
+        created: false,
+      };
     }
 
-    if (mentionedUserIds.length > 0) {
-      waitUntil(
-        emitChatMentionNotifications({
-          roomId: room.id,
-          roomName: room.name,
-          organizationId: room.organizationId,
-          messageId: message.id,
-          authorUserId: userContext.userId,
-          authorName: message.senderUser?.name ?? "Someone",
-          mentionedUserIds,
-        }),
-      );
+    const {
+      message,
+      mentionIds,
+      mentionedUserIds,
+      room,
+      created: didCreate,
+    } = persisted;
+
+    if (didCreate) {
+      for (const mentionId of mentionIds) {
+        waitUntil(dispatchChatRoomMention(mentionId));
+      }
+
+      if (mentionedUserIds.length > 0) {
+        waitUntil(
+          emitChatMentionNotifications({
+            roomId: room.id,
+            roomName: room.name,
+            organizationId: room.organizationId,
+            messageId: message.id,
+            authorUserId: userContext.userId,
+            authorName: message.senderUser?.name ?? "Someone",
+            mentionedUserIds,
+          }),
+        );
+      }
     }
 
     return created(
