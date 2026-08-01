@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type ClipboardEvent,
   type DragEvent,
   type ReactNode,
   useCallback,
@@ -13,9 +14,23 @@ function dataTransferHasFiles(dataTransfer: DataTransfer): boolean {
   return Array.from(dataTransfer.types).includes("Files");
 }
 
+function filesFromClipboard(clipboardData: DataTransfer | null): File[] {
+  const items = clipboardData?.items;
+  if (!items) return [];
+
+  const files: File[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item?.kind !== "file") continue;
+    const file = item.getAsFile();
+    if (file && file.size > 0) files.push(file);
+  }
+  return files;
+}
+
 /**
- * Room-shell file drop target: message list + composer (or draft/thread pane).
- * Shows a light overlay while dragging files. Non-file drags are ignored.
+ * Room-shell file drop/paste target: message list + composer (or draft/thread pane).
+ * Shows a light overlay while dragging files. Non-file drags/pastes are ignored.
  */
 export function RoomFileDropZone({
   enabled,
@@ -79,6 +94,17 @@ export function RoomFileDropZone({
     [onFiles, resetDrag],
   );
 
+  const handlePaste = useCallback(
+    (event: ClipboardEvent<HTMLDivElement>) => {
+      const files = filesFromClipboard(event.clipboardData);
+      if (files.length === 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onFiles(files);
+    },
+    [onFiles],
+  );
+
   if (!enabled) {
     return <div className={className}>{children}</div>;
   }
@@ -90,6 +116,7 @@ export function RoomFileDropZone({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      onPaste={handlePaste}
     >
       {children}
       {isDraggingFiles ? (
