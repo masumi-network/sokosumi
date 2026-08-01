@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, CaseSensitive, Loader2, Paperclip } from "lucide-react";
+import { AtSign, Loader2, Paperclip, Type } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type Dispatch,
@@ -8,6 +8,7 @@ import {
   type Ref,
   type SetStateAction,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
@@ -92,6 +93,7 @@ export function RoomComposer({
   sendDisabled,
   showMentionShortcut = true,
   allowAttachments = true,
+  onChromeResize,
 }: {
   ref?: Ref<RoomComposerHandle>;
   /** When set, attaches mint via room chat file endpoint. */
@@ -110,6 +112,11 @@ export function RoomComposer({
   showMentionShortcut?: boolean;
   /** False when the send path cannot persist uploads (e.g. coworker stream). */
   allowAttachments?: boolean;
+  /**
+   * Fired when composer chrome height changes (e.g. format strip toggles)
+   * so the parent can keep the latest message visible above the composer.
+   */
+  onChromeResize?: () => void;
 }) {
   const t = useTranslations("App.Channels");
   const tToolbar = useTranslations("App.Channels.Toolbar");
@@ -123,10 +130,22 @@ export function RoomComposer({
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
   /** Slack Aa: formatting strip above the editor. */
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
+  const onChromeResizeRef = useRef(onChromeResize);
+  onChromeResizeRef.current = onChromeResize;
   const composerMentions = showMentionShortcut ? mentions : {};
   const handleSelectedKeysChange = showMentionShortcut
     ? onSelectedKeysChange
     : undefined;
+
+  // After paint so the format strip has height before the parent scrolls.
+  useEffect(() => {
+    const notify = onChromeResizeRef.current;
+    if (!notify) return;
+    const frame = requestAnimationFrame(() => {
+      notify();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [formatToolbarOpen]);
 
   const handleFilesSelected = useCallback(
     async (files: FileList | File[] | null) => {
@@ -302,7 +321,7 @@ export function RoomComposer({
               aria-pressed={formatToolbarOpen}
               onClick={() => setFormatToolbarOpen((open) => !open)}
             >
-              <CaseSensitive className="size-4" aria-hidden />
+              <Type className="size-4" aria-hidden />
             </Button>
             <RoomComposerEmojiPicker
               title={t("Toolbar.emoji")}
