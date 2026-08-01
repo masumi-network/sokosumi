@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -45,6 +45,14 @@ vi.mock("@/components/ui/tooltip", () => ({
   ),
   TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
+
+function touchActions() {
+  const node = document.querySelector('[data-message-actions="touch"]');
+  if (!(node instanceof HTMLElement)) {
+    throw new Error("Touch message actions chrome missing");
+  }
+  return within(node);
+}
 
 function userMessage(
   overrides: Partial<ChatRoomMessage> = {},
@@ -185,15 +193,45 @@ describe("ChatMessageRow", () => {
     expect(article).toHaveAttribute("data-message-id", "message-1");
   });
 
+  it("hides Quote on touch until message actions overflow opens", async () => {
+    const user = userEvent.setup();
+    const onQuote = vi.fn();
+    renderRow({ onQuote });
+
+    expect(
+      touchActions().queryByRole("button", { name: "Quote.action" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      touchActions().getByRole("button", { name: "Actions.more" }),
+    );
+    expect(
+      touchActions().getByRole("button", { name: "Quote.action" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows Quote action and calls onQuote", async () => {
     const user = userEvent.setup();
     const onQuote = vi.fn();
     renderRow({ onQuote });
 
-    await user.click(screen.getByRole("button", { name: "Quote.action" }));
+    await user.click(
+      touchActions().getByRole("button", { name: "Actions.more" }),
+    );
+    await user.click(
+      touchActions().getByRole("button", { name: "Quote.action" }),
+    );
     expect(onQuote).toHaveBeenCalledWith(
       expect.objectContaining({ id: "message-1" }),
     );
+  });
+
+  it("reserves hover-only right gutter on article", () => {
+    renderRow();
+
+    const article = screen.getByRole("article");
+    expect(article.className).toContain("[@media(hover:hover)]:pr-20");
+    expect(article.className.split(/\s+/)).not.toContain("pr-20");
   });
 
   it("renders quote snapshot from DTO and soft-fails jump when target missing", async () => {

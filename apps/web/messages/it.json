@@ -4551,6 +4551,7 @@
     },
     "Channels": {
       "Actions": {
+        "more": "Azioni del messaggio",
         "sectionTitle": "Gestisci il canale",
         "leave": "Abbandona il canale",
         "archive": "Archivia il canale",

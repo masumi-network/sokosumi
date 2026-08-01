@@ -5,9 +5,21 @@ import {
   isFileLikeUrl,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
-import { CheckCircle2, Loader2, MessageCircle, Quote } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  MessageCircle,
+  MoreHorizontal,
+  Quote,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
@@ -248,6 +260,76 @@ function ChannelMessageText({
   return <>{nodes}</>;
 }
 
+function MessageActionControls({
+  message,
+  onToggleReaction,
+  onOpenThread,
+  onQuote,
+  showThreadButton,
+  showQuoteButton,
+  onAfterAction,
+}: {
+  message: ChatRoomMessage;
+  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onOpenThread?: (message: ChatRoomMessage) => void;
+  onQuote?: (message: ChatRoomMessage) => void;
+  showThreadButton: boolean;
+  showQuoteButton: boolean;
+  onAfterAction?: () => void;
+}) {
+  const t = useTranslations("App.Channels");
+
+  return (
+    <>
+      <EmojiPicker
+        title={t("Reactions.add")}
+        ariaLabel={t("Reactions.add")}
+        align="end"
+        triggerClassName="size-9 rounded-full sm:size-7"
+        onPick={(emoji) => {
+          onToggleReaction(message, emoji);
+          onAfterAction?.();
+        }}
+      />
+      {showQuoteButton && onQuote ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={t("Quote.action")}
+          aria-label={t("Quote.action")}
+          onClick={() => {
+            onQuote(message);
+            onAfterAction?.();
+          }}
+        >
+          <Quote className="size-4" aria-hidden />
+        </Button>
+      ) : null}
+      {showThreadButton && onOpenThread ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={t("Thread.open")}
+          aria-label={t("Thread.open")}
+          onClick={() => {
+            onOpenThread(message);
+            onAfterAction?.();
+          }}
+        >
+          <MessageCircle className="size-4" aria-hidden />
+        </Button>
+      ) : null}
+    </>
+  );
+}
+
+const messageActionsPillClassName =
+  "border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm";
+
 function MessageActions({
   message,
   onToggleReaction,
@@ -264,43 +346,75 @@ function MessageActions({
   showQuoteButton: boolean;
 }) {
   const t = useTranslations("App.Channels");
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  const controlProps = {
+    message,
+    onToggleReaction,
+    onOpenThread,
+    onQuote,
+    showThreadButton,
+    showQuoteButton,
+  };
 
   return (
-    <div className="border-border bg-background absolute top-1.5 right-2 flex items-center gap-0.5 rounded-full border p-0.5 shadow-sm transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100">
-      <EmojiPicker
-        title={t("Reactions.add")}
-        ariaLabel={t("Reactions.add")}
-        align="end"
-        triggerClassName="size-9 rounded-full sm:size-7"
-        onPick={(emoji) => onToggleReaction(message, emoji)}
-      />
-      {showQuoteButton && onQuote ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-9 rounded-full sm:size-7"
-          title={t("Quote.action")}
-          aria-label={t("Quote.action")}
-          onClick={() => onQuote(message)}
-        >
-          <Quote className="size-4" aria-hidden />
-        </Button>
-      ) : null}
-      {showThreadButton && onOpenThread ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-9 rounded-full sm:size-7"
-          title={t("Thread.open")}
-          aria-label={t("Thread.open")}
-          onClick={() => onOpenThread(message)}
-        >
-          <MessageCircle className="size-4" aria-hidden />
-        </Button>
-      ) : null}
-    </div>
+    <>
+      <div
+        data-message-actions="hover"
+        className={cn(
+          messageActionsPillClassName,
+          "hidden transition-opacity focus-within:opacity-100 [@media(hover:hover)]:flex [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100",
+        )}
+      >
+        <MessageActionControls {...controlProps} />
+      </div>
+      <div
+        data-message-actions="touch"
+        className="absolute top-1.5 right-2 flex [@media(hover:hover)]:hidden"
+      >
+        {open ? (
+          <div className={cn(messageActionsPillClassName, "static")}>
+            <MessageActionControls
+              {...controlProps}
+              onAfterAction={() => {
+                setOpen(false);
+              }}
+            />
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="border-border bg-background size-9 rounded-full border shadow-sm sm:size-7"
+            title={t("Actions.more")}
+            aria-label={t("Actions.more")}
+            onClick={() => {
+              setOpen(true);
+            }}
+          >
+            <MoreHorizontal className="size-4" aria-hidden />
+          </Button>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -438,7 +552,7 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex gap-3.5 rounded-md pr-20 pl-2 transition-colors hover:bg-muted/45",
+        "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
         isContinuation ? "min-h-0 py-0.5" : "mt-3 min-h-0 pt-1 pb-0.5",
       )}
     >
