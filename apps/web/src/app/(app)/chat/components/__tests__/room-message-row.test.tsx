@@ -7,7 +7,17 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import { ChatMessageRow } from "../room-message-row";
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
+    if (key === "Reactions.whoReacted" && values) {
+      const names = String(values.names ?? "");
+      const more = Number(values.more ?? 0);
+      return more > 0 ? `${names}, and ${more} more` : names;
+    }
+    if (key === "Reactions.andMore" && values) {
+      return `and ${values.count} more`;
+    }
+    return key;
+  },
 }));
 
 vi.mock("@/components/markdown", () => ({
@@ -18,7 +28,17 @@ vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
   FileChipMiniPreviewWithMetadata: () => null,
 }));
 
-function userMessage(): ChatRoomMessage {
+vi.mock("@/components/ui/tooltip", () => ({
+  Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: ReactNode }) => (
+    <div role="tooltip">{children}</div>
+  ),
+  TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+function userMessage(
+  overrides: Partial<ChatRoomMessage> = {},
+): ChatRoomMessage {
   return {
     id: "message-1",
     roomId: "room-1",
@@ -40,13 +60,14 @@ function userMessage(): ChatRoomMessage {
         presence: "offline",
       },
     },
+    ...overrides,
   };
 }
 
-function renderContinuation() {
+function renderContinuation(message: ChatRoomMessage = userMessage()) {
   render(
     <ChatMessageRow
-      message={userMessage()}
+      message={message}
       coworkersById={new Map()}
       coworkersBySlug={new Map()}
       onToggleReaction={vi.fn()}
@@ -66,5 +87,51 @@ describe("ChatMessageRow", () => {
     renderContinuation();
 
     expect(screen.getByRole("time")).toHaveClass("whitespace-nowrap");
+  });
+
+  it("shows reactor names in reaction tooltip in API order", () => {
+    renderContinuation(
+      userMessage({
+        reactions: [
+          {
+            emoji: "👍",
+            count: 2,
+            reactedByCurrentUser: true,
+            reactors: [
+              { id: "user-1", name: "Ada" },
+              { id: "user-2", name: "Bob" },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Ada, Bob");
+    expect(
+      screen.getByRole("button", { name: "Reactions.toggle" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows and N more when count exceeds listed reactors", () => {
+    renderContinuation(
+      userMessage({
+        reactions: [
+          {
+            emoji: "🎉",
+            count: 5,
+            reactedByCurrentUser: false,
+            reactors: [
+              { id: "user-1", name: "Ada" },
+              { id: "user-2", name: "Bob" },
+              { id: "user-3", name: "Carol" },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByRole("tooltip")).toHaveTextContent(
+      "Ada, Bob, Carol, and 2 more",
+    );
   });
 });
