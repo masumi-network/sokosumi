@@ -998,12 +998,17 @@ export function ComposerWysiwygEditor<TData = unknown>({
             role="listbox"
             style={
               triggerPosition
-                ? { top: triggerPosition.top, left: triggerPosition.left }
+                ? {
+                    top: triggerPosition.top,
+                    left: triggerPosition.left,
+                    maxHeight: triggerPosition.maxHeight,
+                  }
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(
-              "bg-popover text-popover-foreground fixed z-50 max-h-60 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
-              !triggerPosition && "mt-1",
+              "bg-popover text-popover-foreground fixed z-50 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
+              !triggerPosition && "mt-1 max-h-60",
+              triggerPosition?.side === "top" && "-translate-y-full",
             )}
           >
             {suggestionKind === "emoji"
