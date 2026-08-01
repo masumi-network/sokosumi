@@ -25,6 +25,7 @@ import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
+import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import {
   type ComposeDraft,
   clearComposeDraft,
@@ -284,8 +285,10 @@ export function RoomsClient({
     },
   });
 
-  const bottomRef = useRef<HTMLDivElement | null>(null);
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
+  const { scrollerRef, contentRef, scrollToBottomIfPinned } = useStickToBottom({
+    resetKey: selectedRoomId,
+  });
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
@@ -632,15 +635,6 @@ export function RoomsClient({
         : current,
     );
   }, [messages, messagesNextCursor, selectedRoomId]);
-
-  // Scroll on room switch or when the newest message changes — not when
-  // an older page is prepended (length grows, last id stays the same).
-  const latestMessageId = displayMessages.at(-1)?.id ?? null;
-  const latestStreamContent =
-    topLevelStreamOverlayMessages.at(-1)?.content ?? "";
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [latestMessageId, latestStreamContent, selectedRoomId]);
 
   const latestVisibleMessageId = displayMessages.at(-1)?.id ?? "empty";
   const selectedRoomReadId = selectedRoom?.id ?? null;
@@ -1196,8 +1190,11 @@ export function RoomsClient({
                 </div>
               </header>
 
-              <ScrollArea className="min-h-0 flex-1">
-                <div className="flex w-full flex-col px-5 pt-6 pb-8">
+              <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
+                <div
+                  ref={contentRef}
+                  className="flex w-full flex-col px-5 pt-6 pb-8"
+                >
                   {messageLoadFailed ? (
                     <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
                       <p className="font-medium">
@@ -1281,7 +1278,6 @@ export function RoomsClient({
                       </div>
                     );
                   })}
-                  <div ref={bottomRef} />
                 </div>
               </ScrollArea>
 
@@ -1315,9 +1311,7 @@ export function RoomsClient({
                 allowAttachments={!isCoworkerStreamRoom}
                 pendingQuote={pendingQuote}
                 onClearPendingQuote={() => setPendingQuote(null)}
-                onChromeResize={() => {
-                  bottomRef.current?.scrollIntoView({ block: "end" });
-                }}
+                onChromeResize={scrollToBottomIfPinned}
               />
             </RoomFileDropZone>
           ) : (
