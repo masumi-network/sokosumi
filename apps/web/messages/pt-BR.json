@@ -27,7 +27,7 @@
       "confirm": "OK"
     },
     "EmojiPicker": {
-      "searchPlaceholder": "Pesquisar emoji",
+      "searchPlaceholder": "Pesquisar todos os emojis",
       "frequentlyUsed": "Usados com frequência",
       "noResults": "Nenhum emoji encontrado",
       "categories": {

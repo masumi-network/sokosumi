@@ -27,7 +27,7 @@
       "confirm": "OK"
     },
     "EmojiPicker": {
-      "searchPlaceholder": "絵文字を検索",
+      "searchPlaceholder": "すべての絵文字を検索",
       "frequentlyUsed": "よく使う絵文字",
       "noResults": "絵文字が見つかりません",
       "categories": {

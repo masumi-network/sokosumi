@@ -2,7 +2,7 @@
 
 import { SmilePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffectEvent, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import {
   type EmojiCatalogEntry,
+  type EmojiCategoryId,
   FREQUENTLY_USED_SECTION_ID,
   listEmojiCatalogSections,
   listEmojiCategories,
@@ -22,6 +24,12 @@ import {
 
 const FREQUENTLY_USED_STORAGE_KEY = "sokosumi.emoji-picker.recent.v1";
 const FREQUENTLY_USED_NAV_EMOJI = "🕒";
+const SEARCH_NAV_ID = "search" as const;
+
+type NavTargetId =
+  | typeof SEARCH_NAV_ID
+  | typeof FREQUENTLY_USED_SECTION_ID
+  | EmojiCategoryId;
 
 export interface EmojiPickerProps {
   onPick: (emoji: string) => void;
@@ -72,6 +80,34 @@ function EmojiGridButton({
   );
 }
 
+function NavButton({
+  label,
+  active,
+  onClick,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "hover:bg-muted focus-visible:ring-ring flex size-8 shrink-0 items-center justify-center rounded-md text-base outline-none focus-visible:ring-2",
+        active && "bg-muted ring-primary ring-1",
+      )}
+      title={label}
+      aria-label={label}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function EmojiPicker({
   onPick,
   title,
@@ -83,6 +119,8 @@ export function EmojiPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [frequentlyUsed, setFrequentlyUsed] = useState<string[]>([]);
+  const [activeNavId, setActiveNavId] =
+    useState<NavTargetId>("smileys-emotion");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
 
@@ -98,15 +136,23 @@ export function EmojiPicker({
     : listEmojiCatalogSections({ frequentlyUsed });
   const showFrequentlyUsedNav = frequentlyUsed.length > 0;
 
-  useEffect(() => {
-    if (!open) return;
-    setFrequentlyUsed(readFrequentlyUsedEmojis());
-    setQuery("");
-    const frame = requestAnimationFrame(() => {
+  const focusSearch = useEffectEvent(() => {
+    requestAnimationFrame(() => {
       searchInputRef.current?.focus();
     });
-    return () => cancelAnimationFrame(frame);
-  }, [open]);
+  });
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen) return;
+    const recent = readFrequentlyUsedEmojis();
+    setFrequentlyUsed(recent);
+    setQuery("");
+    setActiveNavId(
+      recent.length > 0 ? FREQUENTLY_USED_SECTION_ID : "smileys-emotion",
+    );
+    focusSearch();
+  }
 
   function handlePick(emoji: string) {
     const next = recordFrequentlyUsedEmoji(frequentlyUsed, emoji);
@@ -116,14 +162,23 @@ export function EmojiPicker({
     setOpen(false);
   }
 
-  function handleScrollToSection(sectionId: string) {
+  function handleScrollToSection(sectionId: NavTargetId) {
+    if (sectionId === SEARCH_NAV_ID) {
+      setActiveNavId(SEARCH_NAV_ID);
+      focusSearch();
+      return;
+    }
+    setQuery("");
+    setActiveNavId(sectionId);
     const target = sectionRefs.current.get(sectionId);
     if (!target) return;
     target.scrollIntoView({ block: "start", behavior: "smooth" });
   }
 
+  const resolvedActiveNavId = isSearching ? SEARCH_NAV_ID : activeNavId;
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -140,47 +195,51 @@ export function EmojiPicker({
         align={align}
         className="flex max-h-[360px] w-80 flex-col overflow-hidden p-0"
       >
+        <nav className="border-border flex shrink-0 gap-0.5 overflow-x-auto border-b px-1.5 py-1">
+          <NavButton
+            label={t("searchPlaceholder")}
+            active={resolvedActiveNavId === SEARCH_NAV_ID}
+            onClick={() => handleScrollToSection(SEARCH_NAV_ID)}
+          >
+            🔍
+          </NavButton>
+          {showFrequentlyUsedNav ? (
+            <NavButton
+              label={t("frequentlyUsed")}
+              active={resolvedActiveNavId === FREQUENTLY_USED_SECTION_ID}
+              onClick={() => handleScrollToSection(FREQUENTLY_USED_SECTION_ID)}
+            >
+              {FREQUENTLY_USED_NAV_EMOJI}
+            </NavButton>
+          ) : null}
+          {categories.map((category) => (
+            <NavButton
+              key={category.id}
+              label={t(`categories.${category.messageKey}`)}
+              active={resolvedActiveNavId === category.id}
+              onClick={() => handleScrollToSection(category.id)}
+            >
+              {category.navEmoji}
+            </NavButton>
+          ))}
+        </nav>
+
         <div className="border-border border-b p-2">
           <Input
             ref={searchInputRef}
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              if (event.target.value.trim().length > 0) {
+                setActiveNavId(SEARCH_NAV_ID);
+              }
+            }}
             placeholder={t("searchPlaceholder")}
             aria-label={t("searchPlaceholder")}
             className="h-8"
           />
         </div>
-
-        {!isSearching ? (
-          <nav className="border-border flex shrink-0 gap-0.5 overflow-x-auto border-b px-1.5 py-1">
-            {showFrequentlyUsedNav ? (
-              <button
-                type="button"
-                className="hover:bg-muted focus-visible:ring-ring flex size-8 shrink-0 items-center justify-center rounded-md text-base outline-none focus-visible:ring-2"
-                title={t("frequentlyUsed")}
-                aria-label={t("frequentlyUsed")}
-                onClick={() =>
-                  handleScrollToSection(FREQUENTLY_USED_SECTION_ID)
-                }
-              >
-                {FREQUENTLY_USED_NAV_EMOJI}
-              </button>
-            ) : null}
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                type="button"
-                className="hover:bg-muted focus-visible:ring-ring flex size-8 shrink-0 items-center justify-center rounded-md text-base outline-none focus-visible:ring-2"
-                title={t(`categories.${category.messageKey}`)}
-                aria-label={t(`categories.${category.messageKey}`)}
-                onClick={() => handleScrollToSection(category.id)}
-              >
-                {category.navEmoji}
-              </button>
-            ))}
-          </nav>
-        ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
           {isSearching ? (

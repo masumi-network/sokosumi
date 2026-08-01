@@ -27,7 +27,7 @@
       "confirm": "确定"
     },
     "EmojiPicker": {
-      "searchPlaceholder": "搜索表情",
+      "searchPlaceholder": "搜索全部表情",
       "frequentlyUsed": "常用表情",
       "noResults": "未找到表情",
       "categories": {
