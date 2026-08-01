@@ -86,9 +86,10 @@ export function resolveComposerEnterAction(options: {
   shiftKey: boolean;
   metaKey: boolean;
   ctrlKey: boolean;
-  isMentionKeyboardActive: boolean;
+  /** True when mention or emoji suggestion keyboard owns Enter. */
+  isSuggestionKeyboardActive: boolean;
 }): ComposerEnterAction {
-  if (options.isMentionKeyboardActive) return "ignore";
+  if (options.isSuggestionKeyboardActive) return "ignore";
   if (options.shiftKey || options.metaKey || options.ctrlKey) {
     return "newline";
   }

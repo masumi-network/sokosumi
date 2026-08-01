@@ -377,6 +377,35 @@ export function getActiveTrigger(
   return { query, triggerStart: tokenStart };
 }
 
+const EMOJI_SHORTCODE_QUERY_PATTERN = /^[a-z0-9_+-]*$/i;
+
+/**
+ * Detect in-progress emoji shortcode at caret.
+ * Token is start/whitespace-delimited, leading `:`, query = [a-z0-9_+-]*.
+ * Does not share logic with getActiveTrigger (mentions keep rejecting `:`).
+ */
+export function getActiveEmojiTrigger(
+  text: string,
+  caret: number,
+): { query: string; triggerStart: number } | null {
+  const clampedCaret = Math.max(0, Math.min(caret, text.length));
+  if (clampedCaret === 0) return null;
+
+  let tokenStart = clampedCaret;
+  while (tokenStart > 0 && !isWhitespaceChar(text[tokenStart - 1] ?? "")) {
+    tokenStart -= 1;
+  }
+
+  if (tokenStart === clampedCaret) return null;
+  if (text[tokenStart] !== ":") return null;
+
+  const query = text.slice(tokenStart + 1, clampedCaret);
+  if (query.includes("@") || query.includes(":")) return null;
+  if (!EMOJI_SHORTCODE_QUERY_PATTERN.test(query)) return null;
+
+  return { query: query.toLowerCase(), triggerStart: tokenStart };
+}
+
 export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
   // Measure against the visual viewport so an open virtual keyboard counts as
   // unavailable space. `interactiveWidget: "resizes-content"` shrinks the

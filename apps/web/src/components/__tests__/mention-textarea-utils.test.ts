@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildMentionToken,
+  getActiveEmojiTrigger,
   getActiveTrigger,
   serializeEditorText,
   setEditorFromRaw,
@@ -57,5 +58,28 @@ describe("mention-textarea utils", () => {
       query: "wr",
       triggerStart: 6,
     });
+  });
+
+  it("activates emoji trigger for in-progress shortcode queries", () => {
+    expect(getActiveEmojiTrigger("Hello :gri", 10)).toEqual({
+      query: "gri",
+      triggerStart: 6,
+    });
+    expect(getActiveEmojiTrigger(":", 1)).toEqual({
+      query: "",
+      triggerStart: 0,
+    });
+  });
+
+  it("does not activate emoji trigger on space, @, or mid-token colon", () => {
+    expect(getActiveEmojiTrigger(":gri ", 5)).toBeNull();
+    expect(getActiveEmojiTrigger(":@user", 6)).toBeNull();
+    expect(getActiveEmojiTrigger(":smile:", 7)).toBeNull();
+    expect(getActiveEmojiTrigger("a:smile", 7)).toBeNull();
+  });
+
+  it("keeps mention trigger rejecting queries that contain colon", () => {
+    const text = "@agent-1:writer-agent";
+    expect(getActiveTrigger(text, text.length)).toBeNull();
   });
 });
