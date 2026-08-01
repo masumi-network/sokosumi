@@ -33,6 +33,19 @@ describe("resolveComposerSuggestion", () => {
     }
   });
 
+  it("resolves emoji shortcode when mention catalog exists but caret is on :", () => {
+    const result = resolveComposerSuggestion("hi :smi", 7, {
+      mentionsAvailable: true,
+    });
+    expect(result?.kind).toBe("emoji");
+    if (result?.kind === "emoji") {
+      expect(result.query).toBe("smi");
+      expect(result.matches.some((match) => match.name.includes("smi"))).toBe(
+        true,
+      );
+    }
+  });
+
   it("resolves bare colon to capped emoji list", () => {
     const result = resolveComposerSuggestion(":", 1, {
       mentionsAvailable: false,

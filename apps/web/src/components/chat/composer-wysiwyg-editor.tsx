@@ -684,18 +684,43 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
   const syncSuggestionsWithCaret = useCallback(() => {
     publishActiveFormats();
-    if (!suggestionUi.open) return;
+    if (!suggestionUi.open || !editorRef.current) return;
     if (manualMentionOpenRef.current) return;
+
     const live = getLiveSuggestionAtCaret();
     if (!live || live.kind !== suggestionKind) {
       closeSuggestions();
+      return;
     }
+
+    const listLength =
+      live.kind === "emoji"
+        ? live.matches.length
+        : live.query === ""
+          ? normalizedMentions.length
+          : normalizedMentions.filter((mention) =>
+              mention.value.toLowerCase().includes(live.query.toLowerCase()),
+            ).length;
+
+    if (listLength === 0) {
+      closeSuggestions();
+      return;
+    }
+
+    openSuggestions({
+      suggestion: live,
+      nextTriggerPosition: getSuggestionPopupPosition(editorRef.current),
+      nextActiveIndex: Math.min(suggestionUi.activeIndex, listLength - 1),
+    });
   }, [
     closeSuggestions,
     getLiveSuggestionAtCaret,
+    getSuggestionPopupPosition,
+    normalizedMentions,
+    openSuggestions,
     publishActiveFormats,
     suggestionKind,
-    suggestionUi.open,
+    suggestionUi,
   ]);
 
   const setActiveSuggestionIndex = useCallback(
@@ -712,22 +737,17 @@ export function ComposerWysiwygEditor<TData = unknown>({
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const key = event.key.toLowerCase();
       const hasModifier = event.metaKey || event.ctrlKey || event.altKey;
-      const liveSuggestion = getLiveSuggestionAtCaret();
       const isDropdownVisible = isOpen && visibleSuggestionCount > 0;
-      const isCaretOnLiveTrigger =
-        Boolean(liveSuggestion) || manualMentionOpenRef.current;
-      const isSuggestionKeyboardActive =
-        isDropdownVisible &&
-        isCaretOnLiveTrigger &&
-        liveSuggestion?.kind === suggestionKind;
 
-      if (isSuggestionKeyboardActive && !hasModifier) {
-        if (key === "escape") {
-          event.preventDefault();
-          closeSuggestions();
-          return;
-        }
+      // Escape always dismisses while the popup is open, even if caret left the
+      // trigger (selectionchange may lag behind the key event).
+      if (isOpen && !hasModifier && key === "escape") {
+        event.preventDefault();
+        closeSuggestions();
+        return;
+      }
 
+      if (isDropdownVisible && !hasModifier) {
         if (key === "arrowdown") {
           event.preventDefault();
           setActiveSuggestionIndex((prev) =>
@@ -792,7 +812,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
           shiftKey: event.shiftKey,
           metaKey: event.metaKey,
           ctrlKey: event.ctrlKey,
-          isSuggestionKeyboardActive,
+          isSuggestionKeyboardActive: isDropdownVisible,
         });
 
         if (action === "ignore") return;
@@ -817,7 +837,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
       closeSuggestions,
       emojiMatches,
       filteredMentions,
-      getLiveSuggestionAtCaret,
       handleInput,
       insertEmojiShortcode,
       insertMention,
