@@ -6,16 +6,6 @@ interface NotificationHrefItem {
   metadata: Record<string, unknown> | null;
 }
 
-function getRoomHrefFromMetadata(
-  metadata: Record<string, unknown> | null,
-): string | null {
-  const roomId = metadata?.roomId;
-  if (typeof roomId !== "string" || roomId.length === 0) {
-    return null;
-  }
-  return `/chat/rooms/${encodeURIComponent(roomId)}`;
-}
-
 /**
  * Get the href for a notification based on its kind and metadata.
  * Uses the same routing logic as History for consistency.
@@ -35,10 +25,21 @@ export function getNotificationHref(
       return `/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(notification.referenceId)}`;
     }
 
-    case "SYSTEM":
-    case "BILLING": {
-      return getRoomHrefFromMetadata(notification.metadata) ?? `/`;
+    case "CHAT": {
+      const roomIdFromMetadata = notification.metadata?.roomId;
+      const roomId =
+        typeof roomIdFromMetadata === "string" && roomIdFromMetadata.length > 0
+          ? roomIdFromMetadata
+          : notification.referenceId;
+      if (!roomId) {
+        return `/`;
+      }
+      return `/chat/rooms/${encodeURIComponent(roomId)}`;
     }
+
+    case "SYSTEM":
+    case "BILLING":
+      return `/`;
 
     default: {
       const _exhaustive: never = notification.kind;

@@ -15,7 +15,7 @@ export interface EmitChatMentionNotificationsParams {
 }
 
 /**
- * Emit SYSTEM in-app notifications for human @mentions after a user message
+ * Emit CHAT in-app notifications for human @mentions after a user message
  * commits. Callers should schedule this via waitUntil so notify failures never
  * fail the HTTP create. createNotification is idempotent on
  * (userId, kind, referenceId, eventId, messageKey).
@@ -36,19 +36,39 @@ export async function emitChatMentionNotifications(
   }
 
   let workspaceId: string | null = null;
-  if (params.organizationId) {
-    const workspace = await prisma.workspace.findUnique({
-      where: { organizationId: params.organizationId },
-      select: { id: true },
+  try {
+    if (params.organizationId) {
+      const workspace = await prisma.workspace.findUnique({
+        where: { organizationId: params.organizationId },
+        select: { id: true },
+      });
+      workspaceId = workspace?.id ?? null;
+    }
+  } catch (error) {
+    console.error(
+      "Failed to resolve workspace for chat mention notification:",
+      {
+        roomId: params.roomId,
+        messageId: params.messageId,
+        organizationId: params.organizationId,
+        error,
+      },
+    );
+    Sentry.captureException(error, {
+      extra: {
+        roomId: params.roomId,
+        messageId: params.messageId,
+        organizationId: params.organizationId,
+        notificationType: "chat-mention-workspace-lookup",
+      },
     });
-    workspaceId = workspace?.id ?? null;
   }
 
   for (const userId of recipientUserIds) {
     try {
       await createNotification({
         userId,
-        kind: NotificationKind.SYSTEM,
+        kind: NotificationKind.CHAT,
         referenceId: params.roomId,
         eventId: params.messageId,
         messageKey: "Notifications.Chat.mentioned",

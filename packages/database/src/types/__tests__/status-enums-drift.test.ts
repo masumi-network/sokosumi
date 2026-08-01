@@ -38,12 +38,13 @@ describe("status enum drift guard", () => {
     });
   });
 
-  it("Prisma NotificationKind excludes legacy CONVERSATION after rooms cutover", () => {
+  it("Prisma NotificationKind includes CHAT and excludes legacy CONVERSATION", () => {
     expect({ ...PrismaNotificationKind }).toEqual({
       JOB: "JOB",
       TASK: "TASK",
       BILLING: "BILLING",
       SYSTEM: "SYSTEM",
+      CHAT: "CHAT",
     });
   });
 

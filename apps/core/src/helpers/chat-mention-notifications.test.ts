@@ -42,7 +42,7 @@ beforeEach(() => {
 });
 
 describe("emitChatMentionNotifications", () => {
-  it("creates one SYSTEM notification per mentioned user with room metadata", async () => {
+  it("creates one CHAT notification per mentioned user with room metadata", async () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "general",
@@ -60,7 +60,7 @@ describe("emitChatMentionNotifications", () => {
     expect(createNotificationMock).toHaveBeenCalledTimes(2);
     expect(createNotificationMock).toHaveBeenCalledWith({
       userId: MENTIONED_ID,
-      kind: NotificationKind.SYSTEM,
+      kind: NotificationKind.CHAT,
       referenceId: ROOM_ID,
       eventId: MESSAGE_ID,
       messageKey: "Notifications.Chat.mentioned",
@@ -77,7 +77,7 @@ describe("emitChatMentionNotifications", () => {
     });
     expect(createNotificationMock).toHaveBeenCalledWith({
       userId: OTHER_ID,
-      kind: NotificationKind.SYSTEM,
+      kind: NotificationKind.CHAT,
       referenceId: ROOM_ID,
       eventId: MESSAGE_ID,
       messageKey: "Notifications.Chat.mentioned",
@@ -92,6 +92,33 @@ describe("emitChatMentionNotifications", () => {
         organizationId: "org_1",
       },
     });
+  });
+
+  it("still emits when workspace lookup fails", async () => {
+    workspaceFindUniqueMock.mockRejectedValueOnce(new Error("db down"));
+
+    await expect(
+      emitChatMentionNotifications({
+        roomId: ROOM_ID,
+        roomName: "general",
+        organizationId: "org_1",
+        messageId: MESSAGE_ID,
+        authorUserId: AUTHOR_ID,
+        authorName: "Patrick",
+        mentionedUserIds: [MENTIONED_ID],
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(captureExceptionMock).toHaveBeenCalled();
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: MENTIONED_ID,
+        kind: NotificationKind.CHAT,
+        metadata: expect.objectContaining({
+          workspaceId: null,
+        }),
+      }),
+    );
   });
 
   it("filters the author and no-ops when nobody remains", async () => {
