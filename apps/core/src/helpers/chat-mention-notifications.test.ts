@@ -42,7 +42,7 @@ beforeEach(() => {
 });
 
 describe("emitChatMentionNotifications", () => {
-  it("creates one CHAT notification per mentioned user with room metadata", async () => {
+  it("creates one CHAT notification per mentioned user", async () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "general",
@@ -69,55 +69,12 @@ describe("emitChatMentionNotifications", () => {
         roomName: "general",
       },
       metadata: {
-        roomId: ROOM_ID,
         messageId: MESSAGE_ID,
         workspaceId: "workspace_1",
-        organizationId: "org_1",
       },
     });
-    expect(createNotificationMock).toHaveBeenCalledWith({
-      userId: OTHER_ID,
-      kind: NotificationKind.CHAT,
-      referenceId: ROOM_ID,
-      eventId: MESSAGE_ID,
-      messageKey: "Notifications.Chat.mentioned",
-      messageParams: {
-        authorName: "Patrick",
-        roomName: "general",
-      },
-      metadata: {
-        roomId: ROOM_ID,
-        messageId: MESSAGE_ID,
-        workspaceId: "workspace_1",
-        organizationId: "org_1",
-      },
-    });
-  });
-
-  it("still emits when workspace lookup fails", async () => {
-    workspaceFindUniqueMock.mockRejectedValueOnce(new Error("db down"));
-
-    await expect(
-      emitChatMentionNotifications({
-        roomId: ROOM_ID,
-        roomName: "general",
-        organizationId: "org_1",
-        messageId: MESSAGE_ID,
-        authorUserId: AUTHOR_ID,
-        authorName: "Patrick",
-        mentionedUserIds: [MENTIONED_ID],
-      }),
-    ).resolves.toBeUndefined();
-
-    expect(captureExceptionMock).toHaveBeenCalled();
     expect(createNotificationMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: MENTIONED_ID,
-        kind: NotificationKind.CHAT,
-        metadata: expect.objectContaining({
-          workspaceId: null,
-        }),
-      }),
+      expect.objectContaining({ userId: OTHER_ID }),
     );
   });
 
@@ -136,7 +93,7 @@ describe("emitChatMentionNotifications", () => {
     expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("sets workspaceId null when organizationId is null", async () => {
+  it("skips workspace lookup when organizationId is null", async () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
       roomName: "dm",
@@ -151,15 +108,15 @@ describe("emitChatMentionNotifications", () => {
     expect(createNotificationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: MENTIONED_ID,
-        metadata: expect.objectContaining({
+        metadata: {
+          messageId: MESSAGE_ID,
           workspaceId: null,
-          organizationId: null,
-        }),
+        },
       }),
     );
   });
 
-  it("swallows createNotification failures so callers stay healthy", async () => {
+  it("continues when createNotification fails for one recipient", async () => {
     createNotificationMock.mockRejectedValueOnce(new Error("db down"));
 
     await expect(

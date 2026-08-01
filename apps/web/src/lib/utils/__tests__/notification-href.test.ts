@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 
 describe("getNotificationHref", () => {
-  it("links jobs to the agent job detail route when agentId is present", () => {
+  it("returns job href with agentId", () => {
     expect(
       getNotificationHref({
         kind: "JOB",
@@ -13,7 +13,7 @@ describe("getNotificationHref", () => {
     ).toBe("/agents/agent-1/jobs/job-1");
   });
 
-  it("falls back to tasks when job agentId metadata is missing", () => {
+  it("falls back to /tasks when job metadata lacks agentId", () => {
     expect(
       getNotificationHref({
         kind: "JOB",
@@ -23,7 +23,7 @@ describe("getNotificationHref", () => {
     ).toBe("/tasks");
   });
 
-  it("links tasks to the task detail route", () => {
+  it("returns task href", () => {
     expect(
       getNotificationHref({
         kind: "TASK",
@@ -33,12 +33,12 @@ describe("getNotificationHref", () => {
     ).toBe("/tasks/task-1");
   });
 
-  it("deep-links CHAT mention notifications to the room", () => {
+  it("deep-links CHAT notifications to the room", () => {
     expect(
       getNotificationHref({
         kind: "CHAT",
         referenceId: "room-1",
-        metadata: { roomId: "room-1", messageId: "msg-1" },
+        metadata: { messageId: "msg-1", workspaceId: "ws-1" },
       }),
     ).toBe("/chat/rooms/room-1");
   });
@@ -48,19 +48,9 @@ describe("getNotificationHref", () => {
       getNotificationHref({
         kind: "CHAT",
         referenceId: "room/with spaces",
-        metadata: { roomId: "room/with spaces" },
-      }),
-    ).toBe("/chat/rooms/room%2Fwith%20spaces");
-  });
-
-  it("uses referenceId when CHAT metadata.roomId is missing", () => {
-    expect(
-      getNotificationHref({
-        kind: "CHAT",
-        referenceId: "room-2",
         metadata: null,
       }),
-    ).toBe("/chat/rooms/room-2");
+    ).toBe("/chat/rooms/room%2Fwith%20spaces");
   });
 
   it("falls back to home for SYSTEM notifications", () => {

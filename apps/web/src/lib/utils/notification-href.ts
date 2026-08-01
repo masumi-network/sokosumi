@@ -25,17 +25,8 @@ export function getNotificationHref(
       return `/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(notification.referenceId)}`;
     }
 
-    case "CHAT": {
-      const roomIdFromMetadata = notification.metadata?.roomId;
-      const roomId =
-        typeof roomIdFromMetadata === "string" && roomIdFromMetadata.length > 0
-          ? roomIdFromMetadata
-          : notification.referenceId;
-      if (!roomId) {
-        return `/`;
-      }
-      return `/chat/rooms/${encodeURIComponent(roomId)}`;
-    }
+    case "CHAT":
+      return `/chat/rooms/${encodeURIComponent(notification.referenceId)}`;
 
     case "SYSTEM":
     case "BILLING":

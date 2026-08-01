@@ -180,8 +180,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const mentionedUserIds = resolveMentionedUserIds({
           content: body.content,
           explicitUserIds: body.mentionedUserIds ?? [],
-          roomUsers: room.userMembers.map(({ user }) => ({
-            id: user.id,
+          roomUsers: room.userMembers.map(({ userId, user }) => ({
+            id: userId,
             name: user.name,
           })),
           excludeUserId: userContext.userId,

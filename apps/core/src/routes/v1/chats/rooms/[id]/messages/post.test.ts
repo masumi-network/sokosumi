@@ -115,7 +115,7 @@ function roomWithMembers(
   overrides: {
     userMembers?: Array<{
       userId: string;
-      user: { id: string; name: string };
+      user: { name: string };
     }>;
   } = {},
 ) {
@@ -157,7 +157,7 @@ function coworkerOnlyDirectRoom() {
     userMembers: [
       {
         userId: USER_ID,
-        user: { id: USER_ID, name: "Patrick" },
+        user: { name: "Patrick" },
       },
     ],
     coworkerMembers: [
@@ -406,11 +406,11 @@ describe("POST /chats/rooms/{id}/messages", () => {
           userMembers: [
             {
               userId: USER_ID,
-              user: { id: USER_ID, name: "Patrick" },
+              user: { name: "Patrick" },
             },
             {
               userId: ALICE_ID,
-              user: { id: ALICE_ID, name: "Alice" },
+              user: { name: "Alice" },
             },
           ],
         }),

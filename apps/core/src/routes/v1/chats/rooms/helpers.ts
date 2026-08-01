@@ -528,7 +528,6 @@ const chatRoomWriteSelect = {
       userId: true,
       user: {
         select: {
-          id: true,
           name: true,
         },
       },
