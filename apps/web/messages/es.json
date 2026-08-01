@@ -4712,6 +4712,10 @@
       },
       "MentionAll": {
         "label": "Todos"
+      },
+      "MentionSections": {
+        "people": "Personas",
+        "coworkers": "Coworkers"
       }
     }
   },

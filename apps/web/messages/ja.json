@@ -4712,6 +4712,10 @@
       },
       "MentionAll": {
         "label": "全員"
+      },
+      "MentionSections": {
+        "people": "メンバー",
+        "coworkers": "コワーカー"
       }
     }
   },

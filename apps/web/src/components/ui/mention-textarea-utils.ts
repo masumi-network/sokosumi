@@ -15,6 +15,13 @@ export interface NormalizedMention<TData = unknown> {
   data?: TData;
 }
 
+/** Optional sectioned mention picker groups (e.g. People / Coworkers). */
+export interface MentionSuggestionGroup<TData = unknown> {
+  id: string;
+  label: string;
+  items: NormalizedMention<TData>[];
+}
+
 export interface TriggerPosition {
   top: number;
   left: number;
