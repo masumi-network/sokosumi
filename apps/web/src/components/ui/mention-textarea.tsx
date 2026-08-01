@@ -892,13 +892,13 @@ function MentionTextareaInner<TData = unknown>(
                     top: popupPosition.top,
                     left: popupPosition.left,
                     maxHeight: popupPosition.maxHeight,
+                    ...(popupPosition.side === "top"
+                      ? { transform: "translateY(-100%)" }
+                      : {}),
                   }
                 : undefined
             }
-            className={cn(
-              "bg-popover text-popover-foreground fixed z-50 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
-              popupPosition?.side === "top" && "-translate-y-full",
-            )}
+            className="bg-popover text-popover-foreground fixed z-50 w-72 overflow-y-auto rounded-md border p-1 shadow-md"
           >
             {filteredMentions.map((mention, index) => (
               <div
