@@ -4623,8 +4623,10 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "添加收件人后开始",
-        "oneToOneOnlyError": "私信目前仅为一对一。请选择一位成员或一位同事。",
-        "searchPlaceholderReplace": "更换收件人"
+        "searchPlaceholderReplace": "更换收件人",
+        "groupDirectHumansOnly": "群组私信仅限真人成员。",
+        "groupDirectNoCoworkersError": "群组私信不能包含同事。",
+        "coworkerDirectOneToOneOnly": "与同事的私信仅支持一对一。"
       },
       "Toolbar": {
         "mention": "Mention coworker",

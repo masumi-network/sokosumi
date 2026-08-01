@@ -41,7 +41,9 @@ vi.mock("@/lib/db/prisma", () => ({
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER_ID = "user_123";
 const OTHER_USER_ID = "user_456";
+const THIRD_USER_ID = "user_789";
 const ORG_ID = "org_1";
+const GROUP_DIRECT_KEY = "direct:v2:user:user_123:user:user_456:user:user_789";
 
 const tx = {
   chatRoom: {
@@ -388,20 +390,244 @@ describe("POST /chats/rooms", () => {
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects group direct targets with 400", async () => {
+  it("creates a multi-human group direct with 201 and direct:v2 key", async () => {
+    const created = directRoom({
+      name: "Bob, Carol",
+      slug: "bob-carol",
+      directKey: GROUP_DIRECT_KEY,
+      userMembers: [
+        {
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          user: {
+            id: OTHER_USER_ID,
+            name: "Bob",
+            email: "bob@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          user: {
+            id: THIRD_USER_ID,
+            name: "Carol",
+            email: "carol@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(null);
+    roomCreateMock.mockResolvedValueOnce(created);
+    userFindManyMock.mockResolvedValue([
+      { id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" },
+      { id: THIRD_USER_ID, name: "Carol", email: "carol@example.com" },
+    ]);
+
     const app = createApp(userAuthContext);
     const response = await app.request("/", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         kind: "direct",
-        memberUserIds: [OTHER_USER_ID, "user_789"],
+        memberUserIds: [OTHER_USER_ID, THIRD_USER_ID],
+        coworkerIds: [],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.kind).toBe("direct");
+    expect(body.data.directKey).toBe(GROUP_DIRECT_KEY);
+    expect(body.data.directKey.startsWith("direct:v2:")).toBe(true);
+    expect(
+      body.data.userMembers.map((m: { id: string }) => m.id).sort(),
+    ).toEqual([USER_ID, OTHER_USER_ID, THIRD_USER_ID].sort());
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          kind: "direct",
+          directKey: GROUP_DIRECT_KEY,
+          userMembers: {
+            create: expect.arrayContaining([
+              { userId: USER_ID },
+              { userId: OTHER_USER_ID },
+              { userId: THIRD_USER_ID },
+            ]),
+          },
+        }),
+      }),
+    );
+  });
+
+  it("returns the same group direct room for the same member set with 200", async () => {
+    const existing = directRoom({
+      name: "Bob, Carol",
+      slug: "bob-carol",
+      directKey: GROUP_DIRECT_KEY,
+      userMembers: [
+        {
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          user: {
+            id: OTHER_USER_ID,
+            name: "Bob",
+            email: "bob@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          user: {
+            id: THIRD_USER_ID,
+            name: "Carol",
+            email: "carol@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(null);
+    roomCreateMock.mockResolvedValueOnce(existing);
+
+    userFindManyMock.mockResolvedValue([
+      { id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" },
+      { id: THIRD_USER_ID, name: "Carol", email: "carol@example.com" },
+    ]);
+
+    const app = createApp(userAuthContext);
+    const createResponse = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID, THIRD_USER_ID],
+      }),
+    });
+    expect(createResponse.status).toBe(201);
+
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+
+    const getResponse = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [THIRD_USER_ID, OTHER_USER_ID],
+      }),
+    });
+
+    expect(getResponse.status).toBe(200);
+    const getBody = await getResponse.json();
+    expect(getBody.data.id).toBe(ROOM_ID);
+    expect(getBody.data.directKey).toBe(GROUP_DIRECT_KEY);
+    expect(roomCreateMock).toHaveBeenCalledTimes(1);
+    expect(roomFindFirstMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          organizationId: ORG_ID,
+          directKey: GROUP_DIRECT_KEY,
+          archivedAt: null,
+        }),
+      }),
+    );
+  });
+
+  it("uses an order-independent directKey for multi-human group directs", async () => {
+    const created = directRoom({
+      name: "Bob, Carol",
+      slug: "bob-carol",
+      directKey: GROUP_DIRECT_KEY,
+      userMembers: [
+        {
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          user: {
+            id: OTHER_USER_ID,
+            name: "Bob",
+            email: "bob@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          user: {
+            id: THIRD_USER_ID,
+            name: "Carol",
+            email: "carol@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(null);
+    roomCreateMock.mockResolvedValueOnce(created);
+    userFindManyMock.mockResolvedValue([
+      { id: THIRD_USER_ID, name: "Carol", email: "carol@example.com" },
+      { id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" },
+    ]);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [THIRD_USER_ID, OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          directKey: GROUP_DIRECT_KEY,
+        }),
+      }),
+    );
+  });
+
+  it("rejects multi-human group direct without an active organization with 400", async () => {
+    const app = createApp({
+      ...userAuthContext,
+      organizationId: null,
+    });
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID, THIRD_USER_ID],
       }),
     });
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe(
-      "Direct messages are 1:1. Pick one member or one coworker.",
+      "Switch to an organization to message a teammate.",
     );
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
@@ -420,7 +646,25 @@ describe("POST /chats/rooms", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toBe(
-      "Direct messages are 1:1. Pick one member or one coworker.",
+      "Group direct messages cannot include coworkers.",
+    );
+    expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects multi-coworker direct targets with 400", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        coworkerIds: ["cow_123", "cow_456"],
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe(
+      "Direct messages support one coworker only.",
     );
     expect(roomCreateMock).not.toHaveBeenCalled();
   });
