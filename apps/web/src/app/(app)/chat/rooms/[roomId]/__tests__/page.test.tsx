@@ -85,6 +85,7 @@ function room(
     userMembers: [],
     coworkerMembers: [],
     unreadCount: 0,
+    unreadMentionCount: 0,
   };
 }
 

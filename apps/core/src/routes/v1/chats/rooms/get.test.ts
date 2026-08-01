@@ -14,6 +14,7 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   messageGroupByMock,
+  notificationGroupByMock,
   queryRawUnsafeMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
@@ -22,6 +23,7 @@ const {
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   messageGroupByMock: vi.fn(),
+  notificationGroupByMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
@@ -40,6 +42,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     chatRoomMessage: {
       groupBy: messageGroupByMock,
+    },
+    notification: {
+      groupBy: notificationGroupByMock,
     },
     $queryRawUnsafe: queryRawUnsafeMock,
     $transaction: prismaTransactionMock,
@@ -74,6 +79,7 @@ beforeEach(() => {
   roomFindManyMock.mockResolvedValue([]);
   roomCountMock.mockResolvedValue(0);
   messageGroupByMock.mockResolvedValue([]);
+  notificationGroupByMock.mockResolvedValue([]);
   queryRawUnsafeMock.mockResolvedValue([]);
 });
 
