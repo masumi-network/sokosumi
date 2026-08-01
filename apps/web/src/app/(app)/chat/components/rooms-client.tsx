@@ -27,6 +27,7 @@ import {
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import {
   type ComposeDraft,
+  clearComposeDraft,
   composeDraftKey,
 } from "@/app/chat/utils/compose-draft-storage";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
@@ -206,6 +207,20 @@ export function RoomsClient({
   const [threadMentionedIds, setThreadMentionedIds] = useState<string[]>([]);
   const [pendingThreadQuote, setPendingThreadQuote] =
     useState<PendingRoomQuote | null>(null);
+  const composeSurfaceEpoch = `${selectedRoomId}:${isNewDirectMessage}:${isCreateChannelRequested}`;
+  const [syncedComposeSurfaceEpoch, setSyncedComposeSurfaceEpoch] =
+    useState(composeSurfaceEpoch);
+  if (composeSurfaceEpoch !== syncedComposeSurfaceEpoch) {
+    setSyncedComposeSurfaceEpoch(composeSurfaceEpoch);
+    setMentionedIds([]);
+    setPendingQuote(null);
+    setThreadParentMessage(null);
+    setThreadMessages([]);
+    setThreadComposerValue("");
+    setThreadComposerAttachments([]);
+    setThreadMentionedIds([]);
+    setPendingThreadQuote(null);
+  }
 
   const channelComposeDraftKey =
     selectedRoomId != null && !isNewDirectMessage && !isCreateChannelRequested
@@ -603,17 +618,6 @@ export function RoomsClient({
         : current,
     );
   }, [messages, messagesNextCursor, selectedRoomId]);
-
-  useEffect(() => {
-    setMentionedIds([]);
-    setPendingQuote(null);
-    setThreadParentMessage(null);
-    setThreadMessages([]);
-    setThreadComposerValue("");
-    setThreadComposerAttachments([]);
-    setThreadMentionedIds([]);
-    setPendingThreadQuote(null);
-  }, [selectedRoomId, isNewDirectMessage, isCreateChannelRequested]);
 
   // Scroll on room switch or when the newest message changes — not when
   // an older page is prepended (length grows, last id stays the same).
@@ -1036,6 +1040,7 @@ export function RoomsClient({
 
     const { mentionedCoworkerIds, mentionedUserIds } =
       partitionMentionIds(mentionedIds);
+    const sentChannelDraftKey = composeDraftKey.room(roomId);
     startSendingTransition(async () => {
       const result = await sendRoomMessageAction(
         roomId,
@@ -1050,15 +1055,16 @@ export function RoomsClient({
         toast.error(result.message);
         return;
       }
+      clearComposeDraft(sentChannelDraftKey);
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
+      clearChannelComposeDraft();
       setMessagesState((current) => appendMessage(current, result.data));
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
       setPendingQuote(null);
-      clearChannelComposeDraft();
     });
   }
 
@@ -1090,6 +1096,7 @@ export function RoomsClient({
 
     const { mentionedCoworkerIds, mentionedUserIds } =
       partitionMentionIds(threadMentionedIds);
+    const sentThreadDraftKey = composeDraftKey.thread(roomId, parentMessageId);
     startSendingThreadReplyTransition(async () => {
       const result = await sendRoomMessageAction(
         roomId,
@@ -1105,17 +1112,18 @@ export function RoomsClient({
         toast.error(result.message);
         return;
       }
+      clearComposeDraft(sentThreadDraftKey);
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
 
+      clearThreadComposeDraft();
       setThreadMessages((current) => [...current, result.data]);
       updateParentThreadPreview(parentMessageId, result.data);
       setThreadComposerValue("");
       setThreadComposerAttachments([]);
       setThreadMentionedIds([]);
       setPendingThreadQuote(null);
-      clearThreadComposeDraft();
     });
   }
 
