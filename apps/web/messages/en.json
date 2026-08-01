@@ -4740,10 +4740,12 @@
         "ready": "Recipient selected",
         "chooseRecipientError": "Choose a recipient.",
         "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
-        "oneToOneOnlyError": "Direct messages are 1:1. Pick one member or one coworker.",
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
-        "composerPlaceholderNoRecipients": "Add a recipient to start"
+        "composerPlaceholderNoRecipients": "Add a recipient to start",
+        "groupDirectHumansOnly": "Group direct messages are humans only.",
+        "groupDirectNoCoworkersError": "Group direct messages cannot include coworkers.",
+        "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1."
       },
       "Toolbar": {
         "mention": "Mention coworker",
