@@ -86,6 +86,12 @@ export {
   withPreservedDesignMdMetadata,
 } from "./design-md-metadata-guard.js";
 export {
+  buildOrganizationDesignMdPathname,
+  buildOrganizationDesignMdPrefix,
+  buildUserDesignMdPathname,
+  buildUserDesignMdPrefix,
+} from "./design-md-path.js";
+export {
   DESIGN_MD_BLOB_PATH_PREFIX,
   isDesignMdBlobUrl,
 } from "./design-md-url.js";
