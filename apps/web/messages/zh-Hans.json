@@ -4883,6 +4883,9 @@
         "completed": "{coworkerName} 已完成 {taskName}",
         "failed": "{coworkerName} 未能完成 {taskName}",
         "canceled": "{taskName} 已取消"
+      },
+      "Chat": {
+        "mentioned": "{authorName}在{roomName}中提到了你"
       }
     }
   },

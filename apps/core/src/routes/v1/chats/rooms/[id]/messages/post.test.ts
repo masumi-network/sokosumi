@@ -18,6 +18,7 @@ const {
   memberFindUniqueMock,
   prismaTransactionMock,
   dispatchMock,
+  emitChatMentionNotificationsMock,
   waitUntilMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -30,6 +31,7 @@ const {
   memberFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   dispatchMock: vi.fn(),
+  emitChatMentionNotificationsMock: vi.fn(),
   waitUntilMock: vi.fn(),
 }));
 
@@ -47,11 +49,18 @@ vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: dispatchMock,
 }));
 
+vi.mock("@/helpers/chat-mention-notifications", () => ({
+  emitChatMentionNotifications: (...args: unknown[]) =>
+    emitChatMentionNotificationsMock(...args),
+}));
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
+const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
 const MENTION_ID = "550e8400-e29b-41d4-a716-446655440003";
 const COWORKER_ID = "coworker_1";
 const USER_ID = "user_123";
+const ALICE_ID = "user_alice";
 
 const tx = {
   chatRoom: {
@@ -102,7 +111,14 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
   vendorId: "vendor_1",
 };
 
-function roomWithMembers() {
+function roomWithMembers(
+  overrides: {
+    userMembers?: Array<{
+      userId: string;
+      user: { name: string };
+    }>;
+  } = {},
+) {
   return {
     id: ROOM_ID,
     organizationId: "org_1",
@@ -115,7 +131,7 @@ function roomWithMembers() {
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
     archivedAt: null,
-    userMembers: [],
+    userMembers: overrides.userMembers ?? [],
     coworkerMembers: [
       {
         coworker: {
@@ -134,10 +150,16 @@ function coworkerOnlyDirectRoom() {
   return {
     id: ROOM_ID,
     organizationId: null,
+    name: "Hannah",
     slug: "hannah",
     kind: "direct",
     providerConversationId: "conv_remote_1",
-    userMembers: [{ userId: USER_ID }],
+    userMembers: [
+      {
+        userId: USER_ID,
+        user: { name: "Patrick" },
+      },
+    ],
     coworkerMembers: [
       {
         coworker: {
@@ -164,7 +186,7 @@ function createdMessage(
   }> = {},
 ) {
   return {
-    id: "550e8400-e29b-41d4-a716-446655440002",
+    id: MESSAGE_ID,
     roomId: ROOM_ID,
     parentMessageId: overrides.parentMessageId ?? null,
     senderUserId: overrides.senderUserId ?? null,
@@ -204,6 +226,7 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   roomUpdateMock.mockResolvedValue({});
   readStateUpsertMock.mockResolvedValue({});
+  emitChatMentionNotificationsMock.mockResolvedValue(undefined);
   waitUntilMock.mockImplementation(() => {});
 });
 
@@ -378,7 +401,20 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
 
     it("accepts mentionedUserIds without creating ChatRoomMention rows", async () => {
-      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          userMembers: [
+            {
+              userId: USER_ID,
+              user: { name: "Patrick" },
+            },
+            {
+              userId: ALICE_ID,
+              user: { name: "Alice" },
+            },
+          ],
+        }),
+      );
       messageCreateMock.mockResolvedValue(
         createdMessage({
           senderUserId: USER_ID,
@@ -400,7 +436,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
         body: JSON.stringify({
           content: `@${COWORKER_ID}:hannah hey @user_alice:alice`,
           mentionedCoworkerIds: [COWORKER_ID],
-          mentionedUserIds: ["user_alice", "user_outside"],
+          mentionedUserIds: [ALICE_ID, "user_outside"],
         }),
       });
 
@@ -415,6 +451,35 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
       expect(dispatchMock).toHaveBeenCalledWith(MENTION_ID);
+      expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        roomName: "general",
+        organizationId: "org_1",
+        messageId: MESSAGE_ID,
+        authorUserId: USER_ID,
+        authorName: "Patrick",
+        mentionedUserIds: [ALICE_ID],
+      });
+      expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
+      // coworker dispatch + human mention emit both scheduled
+      expect(waitUntilMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("does not emit human mention notifications when nobody is mentioned", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderUserId: USER_ID }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "no mention here" }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(emitChatMentionNotificationsMock).not.toHaveBeenCalled();
     });
   });
 });

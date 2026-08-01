@@ -3091,7 +3091,8 @@ export const NotificationKind = {
     JOB: 'JOB',
     TASK: 'TASK',
     BILLING: 'BILLING',
-    SYSTEM: 'SYSTEM'
+    SYSTEM: 'SYSTEM',
+    CHAT: 'CHAT'
 } as const;
 
 /**
