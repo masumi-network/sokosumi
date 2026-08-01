@@ -1,5 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   STICK_TO_BOTTOM_NEAR_PX,
@@ -12,8 +12,6 @@ type ResizeObserverCallback = (
 ) => void;
 
 const observerCallbacks = new Set<ResizeObserverCallback>();
-const observeSpy = vi.fn();
-const disconnectSpy = vi.fn();
 
 class ResizeObserverMock {
   private readonly callback: ResizeObserverCallback;
@@ -23,12 +21,9 @@ class ResizeObserverMock {
     observerCallbacks.add(callback);
   }
 
-  observe(target: Element) {
-    observeSpy(target);
-  }
+  observe(_target: Element) {}
 
   disconnect() {
-    disconnectSpy();
     observerCallbacks.delete(this.callback);
   }
 
@@ -84,8 +79,6 @@ function Harness({ resetKey }: { resetKey: string | null }) {
 describe("useStickToBottom", () => {
   beforeEach(() => {
     observerCallbacks.clear();
-    observeSpy.mockClear();
-    disconnectSpy.mockClear();
     global.ResizeObserver =
       ResizeObserverMock as unknown as typeof global.ResizeObserver;
   });
@@ -107,7 +100,7 @@ describe("useStickToBottom", () => {
       fireResize();
     });
 
-    // jsdom does not clamp scrollTop to max; hook assigns scrollHeight.
+    // jsdom does not clamp scrollTop; hook assigns scrollHeight.
     expect(scroller.scrollTop).toBe(1000);
   });
 

@@ -2,31 +2,26 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-/** Distance from bottom that still counts as "pinned" (Slack-style follow). */
+/**
+ * Within this distance of the bottom, content resizes still pin the viewport.
+ * Wider than a tiny nudge so mid-stream growth does not drop follow.
+ */
 export const STICK_TO_BOTTOM_NEAR_PX = 200;
 
 interface UseStickToBottomOptions {
-  /**
-   * When this changes (e.g. room id), force pin and scroll to the live edge.
-   * Also re-attaches observers after the scroller remounts.
-   */
+  /** Room id (or similar): force pin, scroll to live edge, rebind observers. */
   resetKey?: string | null;
   nearBottomPx?: number;
 }
 
-/**
- * Stick the scroll viewport to the bottom while the user is near it.
- * Content growth (reactions, stream text, new rows) re-pins via ResizeObserver
- * without fingerprinting message fields. Scroll away and growth leaves you alone.
- */
 export function useStickToBottom({
   resetKey = null,
   nearBottomPx = STICK_TO_BOTTOM_NEAR_PX,
 }: UseStickToBottomOptions = {}) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  // Measured on scroll *before* growth. Reading after a ResizeObserver pin
-  // can make a pinned user look scrolled-up for one frame.
+  // Sticky flag measured on scroll *before* growth. Measuring after a
+  // ResizeObserver jump can make a pinned user look scrolled-up for a frame.
   const stickToBottomRef = useRef(true);
 
   const scrollToBottom = useCallback(() => {
