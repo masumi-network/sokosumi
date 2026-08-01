@@ -57,8 +57,10 @@ describe("ComposerWysiwygEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
 
     const listbox = screen.getByRole("listbox");
-    expect(listbox).toHaveStyle({ maxHeight: "120px" });
-    expect(listbox.className).toContain("-translate-y-full");
+    expect(listbox).toHaveStyle({
+      maxHeight: "120px",
+      transform: "translateY(-100%)",
+    });
     expect(getPopupPositionFromRect).toHaveBeenCalled();
   });
 
