@@ -421,8 +421,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
       editorRef.current?.focus();
       document.execCommand(command, false, commandValue);
       handleInput();
+      // queryCommandState for typing style can settle after the command;
+      // refresh toolbar pressed state on the next frame.
+      requestAnimationFrame(() => {
+        publishActiveFormats();
+      });
     },
-    [handleInput],
+    [handleInput, publishActiveFormats],
   );
 
   const insertText = useCallback(

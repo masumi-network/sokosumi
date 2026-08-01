@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   EMPTY_COMPOSER_ACTIVE_FORMATS,
@@ -21,6 +21,20 @@ function placeCaretIn(editor: HTMLElement, textHost: Node): void {
   editor.focus();
 }
 
+function selectNodeContents(editor: HTMLElement, host: Node): void {
+  const selection = window.getSelection();
+  if (!selection) throw new Error("No selection");
+  const range = document.createRange();
+  range.selectNodeContents(host);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  editor.focus();
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("getComposerActiveFormats", () => {
   it("returns empty when selection is outside the editor", () => {
     const editor = document.createElement("div");
@@ -41,7 +55,7 @@ describe("getComposerActiveFormats", () => {
     outside.remove();
   });
 
-  it("detects inline marks and link from ancestors", () => {
+  it("detects inline marks and link from a range selection", () => {
     const editor = document.createElement("div");
     editor.contentEditable = "true";
     editor.innerHTML =
@@ -50,7 +64,7 @@ describe("getComposerActiveFormats", () => {
 
     const text = editor.querySelector("a")?.firstChild;
     expect(text).toBeTruthy();
-    placeCaretIn(editor, text!);
+    selectNodeContents(editor, text!);
 
     expect(getComposerActiveFormats(editor)).toMatchObject({
       bold: true,
@@ -65,6 +79,31 @@ describe("getComposerActiveFormats", () => {
     editor.remove();
   });
 
+  it("uses queryCommandState for collapsed caret typing style", () => {
+    const editor = document.createElement("div");
+    editor.contentEditable = "true";
+    editor.innerHTML = "<p><strong>bold</strong></p>";
+    document.body.append(editor);
+
+    const text = editor.querySelector("strong")?.firstChild;
+    expect(text).toBeTruthy();
+    placeCaretIn(editor, text!);
+
+    const queryCommandState = vi.fn((command: string) => command === "bold");
+    Object.defineProperty(document, "queryCommandState", {
+      configurable: true,
+      writable: true,
+      value: queryCommandState,
+    });
+    expect(getComposerActiveFormats(editor).bold).toBe(true);
+
+    queryCommandState.mockImplementation(() => false);
+    // Caret still inside <strong>, but typing style is off after toggle.
+    expect(getComposerActiveFormats(editor).bold).toBe(false);
+
+    editor.remove();
+  });
+
   it("detects lists, quote, and code block", () => {
     const editor = document.createElement("div");
     editor.contentEditable = "true";
@@ -74,7 +113,7 @@ describe("getComposerActiveFormats", () => {
 
     const listText = editor.querySelector("li")?.firstChild;
     expect(listText).toBeTruthy();
-    placeCaretIn(editor, listText!);
+    selectNodeContents(editor, listText!);
     expect(getComposerActiveFormats(editor)).toMatchObject({
       quote: true,
       bulletList: true,

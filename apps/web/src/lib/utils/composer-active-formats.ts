@@ -77,6 +77,22 @@ function queryCommandActive(command: string): boolean {
 }
 
 /**
+ * For a collapsed caret, execCommand typing style is the source of truth —
+ * DOM ancestors lag when the user toggles a mark off at the end of a run
+ * (toolbar stays pressed until the next key if we only walk `<strong>` etc.).
+ * For a range selection, walk ancestors (and still consult queryCommandState).
+ */
+function inlineMarkActive(
+  collapsed: boolean,
+  probeNode: Node,
+  tags: ReadonlySet<string>,
+  command: string,
+): boolean {
+  if (collapsed) return queryCommandActive(command);
+  return hasTag(probeNode, tags) || queryCommandActive(command);
+}
+
+/**
  * Read which formats apply at the current selection inside `editor`.
  * Returns empty formats when there is no in-editor selection.
  */
@@ -93,7 +109,8 @@ export function getComposerActiveFormats(
   const anchor = selectionAnchorInEditor(selection, editor);
   if (!anchor) return { ...EMPTY_COMPOSER_ACTIVE_FORMATS };
 
-  const probeNode = selection.isCollapsed
+  const collapsed = selection.isCollapsed;
+  const probeNode = collapsed
     ? anchor
     : selection.getRangeAt(0).commonAncestorContainer;
 
@@ -104,21 +121,31 @@ export function getComposerActiveFormats(
   );
 
   return {
-    bold: hasTag(probeNode, BOLD_TAGS) || queryCommandActive("bold"),
-    italic: hasTag(probeNode, ITALIC_TAGS) || queryCommandActive("italic"),
-    underline:
-      hasTag(probeNode, UNDERLINE_TAGS) || queryCommandActive("underline"),
-    strikethrough:
-      hasTag(probeNode, STRIKE_TAGS) || queryCommandActive("strikeThrough"),
+    bold: inlineMarkActive(collapsed, probeNode, BOLD_TAGS, "bold"),
+    italic: inlineMarkActive(collapsed, probeNode, ITALIC_TAGS, "italic"),
+    underline: inlineMarkActive(
+      collapsed,
+      probeNode,
+      UNDERLINE_TAGS,
+      "underline",
+    ),
+    strikethrough: inlineMarkActive(
+      collapsed,
+      probeNode,
+      STRIKE_TAGS,
+      "strikeThrough",
+    ),
     code: Boolean(code) && !pre,
     codeBlock: Boolean(pre),
     quote: hasTag(probeNode, QUOTE_TAGS),
-    bulletList:
-      hasTag(probeNode, BULLET_LIST_TAGS) ||
-      queryCommandActive("insertUnorderedList"),
-    numberedList:
-      hasTag(probeNode, NUMBERED_LIST_TAGS) ||
-      queryCommandActive("insertOrderedList"),
+    bulletList: collapsed
+      ? queryCommandActive("insertUnorderedList")
+      : hasTag(probeNode, BULLET_LIST_TAGS) ||
+        queryCommandActive("insertUnorderedList"),
+    numberedList: collapsed
+      ? queryCommandActive("insertOrderedList")
+      : hasTag(probeNode, NUMBERED_LIST_TAGS) ||
+        queryCommandActive("insertOrderedList"),
     link: hasTag(probeNode, LINK_TAGS),
   };
 }
