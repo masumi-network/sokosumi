@@ -30,6 +30,10 @@ import {
 } from "@/components/ui/mention-textarea-utils";
 import { cn } from "@/lib/utils";
 import {
+  type ComposerActiveFormats,
+  getComposerActiveFormats,
+} from "@/lib/utils/composer-active-formats";
+import {
   htmlToMarkdown,
   markdownToHtml,
 } from "@/lib/utils/composer-markdown-dom";
@@ -60,6 +64,7 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   className?: string;
   onSubmitShortcut?: () => void;
   onLinkShortcut?: () => void;
+  onActiveFormatsChange?: (formats: ComposerActiveFormats) => void;
   onSelectedKeysChange?: (selectedKeys: string[]) => void;
   renderMentionItem?: (
     mention: NormalizedMention<TData>,
@@ -119,6 +124,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   className,
   onSubmitShortcut,
   onLinkShortcut,
+  onActiveFormatsChange,
   onSelectedKeysChange,
   renderMentionItem,
 }: ComposerWysiwygEditorProps<TData>) {
@@ -128,6 +134,8 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const isInternalChange = useRef(false);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const manualMentionOpenRef = useRef(false);
+  const onActiveFormatsChangeRef = useRef(onActiveFormatsChange);
+  onActiveFormatsChangeRef.current = onActiveFormatsChange;
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -272,6 +280,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
     return { markdown, text, caret };
   }, [onChange]);
 
+  const publishActiveFormats = useCallback(() => {
+    const notify = onActiveFormatsChangeRef.current;
+    if (!notify) return;
+    notify(getComposerActiveFormats(editorRef.current));
+  }, []);
+
   useEffect(() => {
     if (editorRef.current && !isInternalChange.current) {
       const currentHtml = editorRef.current.innerHTML;
@@ -293,6 +307,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
     isInternalChange.current = true;
     const { text, caret } = syncFromEditor();
+    publishActiveFormats();
 
     if (manualMentionOpenRef.current && normalizedMentions.length > 0) {
       const caretRect = getCaretRect(editorRef.current);
@@ -333,6 +348,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     closeSuggestions,
     normalizedMentions.length,
     openSuggestions,
+    publishActiveFormats,
     syncFromEditor,
   ]);
 
@@ -558,13 +574,19 @@ export function ComposerWysiwygEditor<TData = unknown>({
   }, []);
 
   const syncMentionSuggestionsWithCaret = useCallback(() => {
+    publishActiveFormats();
     if (!isOpen) return;
     if (manualMentionOpenRef.current) return;
     const trigger = getCurrentTriggerAtCaret();
     if (!trigger) {
       closeSuggestions();
     }
-  }, [closeSuggestions, getCurrentTriggerAtCaret, isOpen]);
+  }, [
+    closeSuggestions,
+    getCurrentTriggerAtCaret,
+    isOpen,
+    publishActiveFormats,
+  ]);
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -684,8 +706,24 @@ export function ComposerWysiwygEditor<TData = unknown>({
         closeSuggestions();
       }
       isSelectingRef.current = false;
+      publishActiveFormats();
     }, 150);
-  }, [closeSuggestions]);
+  }, [closeSuggestions, publishActiveFormats]);
+
+  useEffect(() => {
+    const onSelectionChange = () => {
+      publishActiveFormats();
+    };
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", onSelectionChange);
+    };
+  }, [publishActiveFormats]);
+
+  useEffect(() => {
+    if (!onActiveFormatsChange) return;
+    publishActiveFormats();
+  }, [onActiveFormatsChange, publishActiveFormats]);
 
   useEffect(() => {
     if (!isOpen || !listRef.current) return;

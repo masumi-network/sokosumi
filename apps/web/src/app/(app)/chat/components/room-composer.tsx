@@ -36,6 +36,10 @@ import {
 } from "@/components/ui/mention-textarea";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
+import {
+  type ComposerActiveFormats,
+  EMPTY_COMPOSER_ACTIVE_FORMATS,
+} from "@/lib/utils/composer-active-formats";
 import type { ComposerFormatCommand } from "@/lib/utils/composer-markdown-wrap";
 import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
 import { getInitials } from "@/lib/utils/text";
@@ -130,6 +134,9 @@ export function RoomComposer({
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
   /** Slack Aa: formatting strip above the editor. */
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
+  const [activeFormats, setActiveFormats] = useState<ComposerActiveFormats>(
+    EMPTY_COMPOSER_ACTIVE_FORMATS,
+  );
   const onChromeResizeRef = useRef(onChromeResize);
   onChromeResizeRef.current = onChromeResize;
   const composerMentions = showMentionShortcut ? mentions : {};
@@ -146,6 +153,35 @@ export function RoomComposer({
     });
     return () => cancelAnimationFrame(frame);
   }, [formatToolbarOpen]);
+
+  useEffect(() => {
+    if (!formatToolbarOpen) {
+      setActiveFormats(EMPTY_COMPOSER_ACTIVE_FORMATS);
+    }
+  }, [formatToolbarOpen]);
+
+  const handleActiveFormatsChange = useCallback(
+    (formats: ComposerActiveFormats) => {
+      setActiveFormats((previous) => {
+        if (
+          previous.bold === formats.bold &&
+          previous.italic === formats.italic &&
+          previous.underline === formats.underline &&
+          previous.strikethrough === formats.strikethrough &&
+          previous.code === formats.code &&
+          previous.codeBlock === formats.codeBlock &&
+          previous.quote === formats.quote &&
+          previous.bulletList === formats.bulletList &&
+          previous.numberedList === formats.numberedList &&
+          previous.link === formats.link
+        ) {
+          return previous;
+        }
+        return formats;
+      });
+    },
+    [],
+  );
 
   const handleFilesSelected = useCallback(
     async (files: FileList | File[] | null) => {
@@ -265,6 +301,7 @@ export function RoomComposer({
             <ComposerFormatToolbar
               onFormat={handleFormat}
               onLink={openLinkDialog}
+              activeFormats={activeFormats}
             />
           ) : null
         }
@@ -353,6 +390,9 @@ export function RoomComposer({
           placeholder={placeholder}
           onSubmitShortcut={() => formRef.current?.requestSubmit()}
           onLinkShortcut={openLinkDialog}
+          onActiveFormatsChange={
+            formatToolbarOpen ? handleActiveFormatsChange : undefined
+          }
           className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
           renderMentionItem={(mention) => (
             <RoomMentionSuggestion mention={mention} />

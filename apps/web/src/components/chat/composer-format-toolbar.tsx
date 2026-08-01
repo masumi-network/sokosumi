@@ -17,16 +17,21 @@ import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  type ComposerActiveFormats,
+  EMPTY_COMPOSER_ACTIVE_FORMATS,
+} from "@/lib/utils/composer-active-formats";
 import type { ComposerFormatCommand } from "@/lib/utils/composer-markdown-wrap";
 
 interface ComposerFormatToolbarProps {
   onFormat: (command: ComposerFormatCommand) => void;
   onLink: () => void;
+  activeFormats?: ComposerActiveFormats;
   className?: string;
 }
 
 interface FormatTool {
-  key: string;
+  key: keyof ComposerActiveFormats;
   labelKey:
     | "bold"
     | "italic"
@@ -49,6 +54,7 @@ interface FormatTool {
 export function ComposerFormatToolbar({
   onFormat,
   onLink,
+  activeFormats = EMPTY_COMPOSER_ACTIVE_FORMATS,
   className,
 }: ComposerFormatToolbarProps) {
   const t = useTranslations("App.Channels.Toolbar");
@@ -125,20 +131,29 @@ export function ComposerFormatToolbar({
         className,
       )}
     >
-      {tools.map((tool) => (
-        <Button
-          key={tool.key}
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground size-8 shrink-0 rounded-md"
-          title={t(tool.labelKey)}
-          aria-label={t(tool.labelKey)}
-          onClick={tool.onClick}
-        >
-          {tool.icon}
-        </Button>
-      ))}
+      {tools.map((tool) => {
+        const isActive = activeFormats[tool.key];
+        return (
+          <Button
+            key={tool.key}
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "text-muted-foreground size-8 shrink-0 rounded-md",
+              isActive && "bg-muted text-foreground",
+            )}
+            title={t(tool.labelKey)}
+            aria-label={t(tool.labelKey)}
+            aria-pressed={isActive}
+            // Keep the editor selection when pressing toolbar buttons.
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={tool.onClick}
+          >
+            {tool.icon}
+          </Button>
+        );
+      })}
     </div>
   );
 }
