@@ -4670,6 +4670,7 @@
     },
     "Channels": {
       "Actions": {
+        "more": "Message actions",
         "sectionTitle": "Manage channel",
         "leave": "Leave channel",
         "archive": "Archive channel",

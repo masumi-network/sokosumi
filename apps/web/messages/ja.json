@@ -4551,6 +4551,7 @@
     },
     "Channels": {
       "Actions": {
+        "more": "メッセージ操作",
         "sectionTitle": "チャンネルの管理",
         "leave": "チャンネルから退出",
         "archive": "チャンネルをアーカイブ",
