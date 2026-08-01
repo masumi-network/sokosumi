@@ -44,7 +44,7 @@ describe("resolveComposerEnterAction", () => {
         shiftKey: false,
         metaKey: false,
         ctrlKey: false,
-        isMentionKeyboardActive: false,
+        isSuggestionKeyboardActive: false,
       }),
     ).toBe("submit");
   });
@@ -56,7 +56,7 @@ describe("resolveComposerEnterAction", () => {
         shiftKey: true,
         metaKey: false,
         ctrlKey: false,
-        isMentionKeyboardActive: false,
+        isSuggestionKeyboardActive: false,
       }),
     ).toBe("newline");
     expect(
@@ -65,7 +65,7 @@ describe("resolveComposerEnterAction", () => {
         shiftKey: false,
         metaKey: true,
         ctrlKey: false,
-        isMentionKeyboardActive: false,
+        isSuggestionKeyboardActive: false,
       }),
     ).toBe("newline");
     expect(
@@ -74,19 +74,19 @@ describe("resolveComposerEnterAction", () => {
         shiftKey: false,
         metaKey: false,
         ctrlKey: false,
-        isMentionKeyboardActive: false,
+        isSuggestionKeyboardActive: false,
       }),
     ).toBe("newline");
   });
 
-  it("ignores Enter while mention keyboard is active", () => {
+  it("ignores Enter while suggestion keyboard is active", () => {
     expect(
       resolveComposerEnterAction({
         isNarrowViewport: false,
         shiftKey: false,
         metaKey: false,
         ctrlKey: false,
-        isMentionKeyboardActive: true,
+        isSuggestionKeyboardActive: true,
       }),
     ).toBe("ignore");
   });
