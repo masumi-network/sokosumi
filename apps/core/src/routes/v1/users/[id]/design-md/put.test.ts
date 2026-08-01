@@ -104,7 +104,11 @@ describe("PUT /users/{id}/design-md", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(uploadDesignMdContentMock).toHaveBeenCalledWith("# Brand", "123");
+    expect(uploadDesignMdContentMock).toHaveBeenCalledWith({
+      content: "# Brand",
+      owner: { kind: "user", id: "user_123" },
+      extractionId: "123",
+    });
     expect(updateUserMetadataMock).toHaveBeenCalledWith(
       "user_123",
       expect.stringContaining("https://blob.example/design.md"),

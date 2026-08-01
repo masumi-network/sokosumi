@@ -77,7 +77,11 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
 
     let url: string | null = null;
     if (body.content !== null) {
-      url = await uploadDesignMdContent(body.content, body.extractionId);
+      url = await uploadDesignMdContent({
+        content: body.content,
+        owner: { kind: "user", id: resolvedUserId },
+        extractionId: body.extractionId,
+      });
       if (!url) {
         throw serviceUnavailable("Failed to store the DESIGN.md");
       }
