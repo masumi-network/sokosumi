@@ -142,4 +142,31 @@ describe("RoomFileDropZone", () => {
 
     expect(onFiles).not.toHaveBeenCalled();
   });
+
+  it("handles paste bubbled from a nested contentEditable", () => {
+    const onFiles = vi.fn();
+    render(
+      <RoomFileDropZone enabled onFiles={onFiles} label="Drop files to attach">
+        <div contentEditable role="textbox">
+          composer
+        </div>
+      </RoomFileDropZone>,
+    );
+
+    const editor = screen.getByRole("textbox");
+    const file = new File(["img"], "paste.png", { type: "image/png" });
+    fireEvent.paste(editor, {
+      clipboardData: {
+        items: [
+          {
+            kind: "file",
+            getAsFile: () => file,
+          },
+        ],
+      },
+    });
+
+    expect(onFiles).toHaveBeenCalledTimes(1);
+    expect(onFiles.mock.calls[0]?.[0]).toEqual([file]);
+  });
 });
