@@ -1,5 +1,5 @@
-import { MemberRole } from "@sokosumi/database";
-import { describe, expect, it } from "vitest";
+import { MemberRole, NotificationKind } from "@sokosumi/database";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildDirectCoworkerRoomKey,
@@ -8,6 +8,7 @@ import {
   buildDirectRoomName,
   canManageChatRoomLifecycle,
   contentIncludesRoomAllMention,
+  getChatRoomUnreadMentionCounts,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
   resolveMentionedCoworkerIds,
@@ -276,6 +277,46 @@ describe("mergeChatRoomMessageMetadata", () => {
 
   it("returns null when empty and no quote", () => {
     expect(mergeChatRoomMessageMetadata(null, null)).toBeNull();
+  });
+});
+
+describe("getChatRoomUnreadMentionCounts", () => {
+  it("groups unread CHAT notifications by room referenceId", async () => {
+    const groupBy = vi.fn().mockResolvedValue([
+      { referenceId: "room-a", _count: { _all: 2 } },
+      { referenceId: "room-b", _count: { _all: 1 } },
+    ]);
+
+    const counts = await getChatRoomUnreadMentionCounts(
+      ["room-a", "room-b", "room-c"],
+      "user_1",
+      { notification: { groupBy } } as never,
+    );
+
+    expect(groupBy).toHaveBeenCalledWith({
+      by: ["referenceId"],
+      where: {
+        userId: "user_1",
+        kind: NotificationKind.CHAT,
+        isRead: false,
+        referenceId: { in: ["room-a", "room-b", "room-c"] },
+      },
+      _count: { _all: true },
+    });
+    expect(counts.get("room-a")).toBe(2);
+    expect(counts.get("room-b")).toBe(1);
+    expect(counts.has("room-c")).toBe(false);
+  });
+
+  it("returns an empty map without querying when room ids are empty", async () => {
+    const groupBy = vi.fn();
+
+    const counts = await getChatRoomUnreadMentionCounts([], "user_1", {
+      notification: { groupBy },
+    } as never);
+
+    expect(counts.size).toBe(0);
+    expect(groupBy).not.toHaveBeenCalled();
   });
 });
 

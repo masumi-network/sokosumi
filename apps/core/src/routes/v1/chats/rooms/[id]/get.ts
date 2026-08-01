@@ -12,6 +12,7 @@ import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
   getChatRoomUnreadCounts,
+  getChatRoomUnreadMentionCounts,
   mapChatRoom,
   requireChatRoomUserAccess,
 } from "../helpers";
@@ -59,16 +60,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const unreadCounts = await getChatRoomUnreadCounts(
-      [room.id],
-      userContext.userId,
-      prisma,
-    );
+    const [unreadCounts, unreadMentionCounts] = await Promise.all([
+      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+    ]);
 
     return ok(
       c,
       chatRoomSchema.parse(
-        mapChatRoom(room, userContext.userId, unreadCounts.get(room.id) ?? 0),
+        mapChatRoom(room, userContext.userId, {
+          unreadCount: unreadCounts.get(room.id) ?? 0,
+          unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
+        }),
       ),
     );
   });

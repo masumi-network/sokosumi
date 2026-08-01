@@ -1168,6 +1168,10 @@ export type ChatRoom = {
      * Messages sent by others after the current user's read marker.
      */
     unreadCount: number;
+    /**
+     * Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.
+     */
+    unreadMentionCount: number;
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
 };
