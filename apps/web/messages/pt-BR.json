@@ -783,7 +783,14 @@
       "title": "Imagem",
       "viewImage": "Ver imagem {fileName}",
       "download": "Baixar imagem",
-      "close": "Fechar"
+      "close": "Fechar",
+      "print": "Imprimir",
+      "zoomIn": "Aumentar zoom",
+      "zoomOut": "Diminuir zoom",
+      "zoomReset": "Redefinir zoom",
+      "more": "Mais opções",
+      "openInNewTab": "Abrir em nova aba",
+      "copyImage": "Copiar imagem"
     }
   },
   "Join": {

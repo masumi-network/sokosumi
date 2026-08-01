@@ -783,7 +783,14 @@
       "title": "Immagine",
       "viewImage": "Visualizza immagine {fileName}",
       "download": "Scarica immagine",
-      "close": "Chiudi"
+      "close": "Chiudi",
+      "print": "Stampa",
+      "zoomIn": "Ingrandisci",
+      "zoomOut": "Riduci",
+      "zoomReset": "Reimposta zoom",
+      "more": "Altre opzioni",
+      "openInNewTab": "Apri in una nuova scheda",
+      "copyImage": "Copia immagine"
     }
   },
   "Join": {

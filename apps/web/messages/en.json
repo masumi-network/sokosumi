@@ -794,7 +794,14 @@
       "title": "Image",
       "viewImage": "View image {fileName}",
       "download": "Download image",
-      "close": "Close"
+      "close": "Close",
+      "print": "Print",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "zoomReset": "Reset zoom",
+      "more": "More options",
+      "openInNewTab": "Open in new tab",
+      "copyImage": "Copy image"
     }
   },
   "Join": {
