@@ -56,6 +56,8 @@ import type {
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
   PostJobsByIdInputsData,
+  PostOrganizationsByIdFilesCleanupData,
+  PostOrganizationsByIdFilesData,
   PostOrganizationsByIdInviteLinksData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
@@ -230,6 +232,8 @@ import {
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postOrganizationInviteLinksByTokenAccept as corePostOrganizationInviteLinksByTokenAccept,
+  postOrganizationsByIdFiles as corePostOrganizationsByIdFiles,
+  postOrganizationsByIdFilesCleanup as corePostOrganizationsByIdFilesCleanup,
   postOrganizationsByIdInviteLinks as corePostOrganizationsByIdInviteLinks,
   postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
   postOrganizationsByIdVendorGrants as corePostOrganizationsByIdVendorGrants,
@@ -2788,13 +2792,13 @@ export function createCoreClient(getClient: GetClient) {
    * organization-logo blob, returning its public URL (or null when no usable
    * icon was found). Core performs the SSRF-guarded fetch server-side.
    */
-  async function resolveSiteIcon(url: string) {
+  async function resolveSiteIcon(url: string, organizationId: string) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetToolsSiteIcon({
           client,
-          query: { url },
+          query: { url, organizationId },
           cache: "no-store",
         }),
       "Failed to resolve site icon",
@@ -3168,6 +3172,40 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function createOrganizationLogoUploadSession(
+    organizationId: string,
+    body: NonNullable<PostOrganizationsByIdFilesData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdFiles({
+          client,
+          path: { id: organizationId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create organization logo upload session",
+    );
+  }
+
+  async function cleanupOrganizationLogo(
+    organizationId: string,
+    body: NonNullable<PostOrganizationsByIdFilesCleanupData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdFilesCleanup({
+          client,
+          path: { id: organizationId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to cleanup organization logo",
+    );
+  }
+
   async function createTaskFileUploadSession(
     taskId: string,
     body: NonNullable<PostTasksByIdFilesData["body"]>,
@@ -3508,7 +3546,9 @@ export function createCoreClient(getClient: GetClient) {
     createChatRoom,
     createAgentJob,
     createChatRoomFileUploadSession,
+    cleanupOrganizationLogo,
     createMyFileUploadSession,
+    createOrganizationLogoUploadSession,
     createTask,
     createTaskFileUploadSession,
     createTaskLink,
