@@ -773,6 +773,12 @@
       "copy": "Copy",
       "copySuccess": "Copied to clipboard",
       "copyError": "Failed to copy"
+    },
+    "ImageViewer": {
+      "title": "Image",
+      "viewImage": "View image {fileName}",
+      "download": "Download image",
+      "close": "Close"
     }
   },
   "Join": {

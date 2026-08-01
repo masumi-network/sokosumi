@@ -1,9 +1,13 @@
 "use client";
 
-import Image from "next/image";
+import { getExtensionFromUrl, isImageUrl } from "@sokosumi/utils";
 import { X } from "lucide-react";
+import Image from "next/image";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { FileTypeIcon } from "@/components/ui/file-icon";
+import { ImageViewer } from "@/components/ui/image-viewer";
 import {
   Tooltip,
   TooltipContent,
@@ -11,7 +15,6 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
-import {getExtensionFromUrl, isImageUrl} from "@sokosumi/utils";
 
 export interface FileChipMiniPreviewProps {
   url: string;
@@ -24,6 +27,9 @@ export interface FileChipMiniPreviewProps {
   removeLabel?: string;
 }
 
+const previewTriggerClassName =
+  "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 overflow-hidden rounded-xl border outline-none transition";
+
 export function FileChipMiniPreview({
   url,
   fileName,
@@ -34,6 +40,8 @@ export function FileChipMiniPreview({
   onRemove,
   removeLabel = "Remove file",
 }: FileChipMiniPreviewProps) {
+  const t = useTranslations("Components.ImageViewer");
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const resolvedFileName = fileName ?? url.split("/").pop() ?? url;
   const isImage =
     mediaType?.toLowerCase().startsWith("image/") ||
@@ -46,33 +54,39 @@ export function FileChipMiniPreview({
     <div className={cn("not-prose relative inline-flex", className)}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer noopener"
-            className={cn(
-              "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 overflow-hidden rounded-xl border outline-none transition",
-              sizeClass,
-            )}
-          >
-            {isImage ? (
+          {isImage ? (
+            <button
+              type="button"
+              aria-label={t("viewImage", { fileName: resolvedFileName })}
+              className={cn(previewTriggerClassName, sizeClass)}
+              onClick={() => {
+                setIsViewerOpen(true);
+              }}
+            >
               <div className="relative size-full overflow-hidden">
-                  <Image
-                    src={url}
-                    alt={resolvedFileName}
-                    fill
-                    sizes="96px"
-                    className="object-cover object-center"
-                  />
+                <Image
+                  src={url}
+                  alt={resolvedFileName}
+                  fill
+                  sizes="96px"
+                  className="object-cover object-center"
+                />
               </div>
-            ) : (
+            </button>
+          ) : (
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer noopener"
+              className={cn(previewTriggerClassName, sizeClass)}
+            >
               <div className="text-muted-foreground flex size-full items-center justify-center">
                 <div className="flex size-8 items-center justify-center rounded-md">
                   <FileTypeIcon extension={extension || "file"} />
                 </div>
               </div>
-            )}
-          </a>
+            </a>
+          )}
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-64">
           <div className="flex flex-col">
@@ -97,6 +111,18 @@ export function FileChipMiniPreview({
           </TooltipTrigger>
           <TooltipContent side="top">{removeLabel}</TooltipContent>
         </Tooltip>
+      ) : null}
+      {isImage ? (
+        <ImageViewer
+          open={isViewerOpen}
+          onOpenChange={setIsViewerOpen}
+          src={url}
+          alt={resolvedFileName}
+          title={t("title")}
+          downloadLabel={t("download")}
+          closeLabel={t("close")}
+          downloadFilename={resolvedFileName}
+        />
       ) : null}
     </div>
   );

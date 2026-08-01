@@ -762,6 +762,12 @@
       "placeholder": "选择组织",
       "search": "搜索组织…",
       "empty": "未找到组织。"
+    },
+    "ImageViewer": {
+      "title": "图片",
+      "viewImage": "查看图片 {fileName}",
+      "download": "下载图片",
+      "close": "关闭"
     }
   },
   "Join": {
