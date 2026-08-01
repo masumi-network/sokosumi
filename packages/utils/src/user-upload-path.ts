@@ -38,15 +38,3 @@ export function buildUserUploadPathname(
     fileName,
   )}`;
 }
-
-/** True when the URL path contains this user's upload prefix (`users/{userId}/`). */
-export function isOwnedUserUploadUrl(url: string, userId: string): boolean {
-  if (!userId) return false;
-
-  const marker = buildUserUploadPrefix(userId);
-  try {
-    return new URL(url).pathname.includes(marker);
-  } catch {
-    return false;
-  }
-}

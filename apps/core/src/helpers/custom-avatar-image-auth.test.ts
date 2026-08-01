@@ -23,8 +23,10 @@ vi.mock("@/services/stripe-user-email.service", () => ({
 import { applyCustomAvatarImageGuardToUserUpdate } from "./custom-avatar-image-auth";
 
 const USER_ID = "user_123";
-const CUSTOM_AVATAR = "https://blob.example/users/user_123/avatar.png";
-const OTHER_CUSTOM_AVATAR = "https://blob.example/users/user_123/avatar-v2.png";
+const CUSTOM_AVATAR =
+  "https://abc.public.blob.vercel-storage.com/users/user_123/avatar.png";
+const OTHER_CUSTOM_AVATAR =
+  "https://abc.public.blob.vercel-storage.com/users/user_123/avatar-v2.png";
 const OAUTH_AVATAR = "https://lh3.googleusercontent.com/a/oauth-photo";
 
 describe("applyCustomAvatarImageGuardToUserUpdate", () => {
