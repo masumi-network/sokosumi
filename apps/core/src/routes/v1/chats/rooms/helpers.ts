@@ -1,5 +1,6 @@
 import { MemberRole, type Prisma } from "@sokosumi/database";
 import {
+  buildQuoteSnippet,
   CHAT_PRESENCE_AFK_WINDOW_MS,
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "@sokosumi/utils";
@@ -309,28 +310,6 @@ export function mapChatRoomMessage(
     metadata,
     quote: readQuoteFromMetadata(metadata),
   };
-}
-
-/** Soft cap for quote preview text shown under a room message. */
-export const QUOTE_SNIPPET_MAX_CHARS = 280;
-
-/**
- * Light plain-text preview for a quoted message. Strips cheap markdown markers
- * and collapses whitespace so the UI can show a short attribution snippet.
- */
-export function buildQuoteSnippet(content: string): string {
-  const flattened = content
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/[*_~>#]+/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (flattened.length > QUOTE_SNIPPET_MAX_CHARS) {
-    return `${flattened.slice(0, QUOTE_SNIPPET_MAX_CHARS)}…`;
-  }
-  return flattened;
 }
 
 export function mergeChatRoomMessageMetadata(

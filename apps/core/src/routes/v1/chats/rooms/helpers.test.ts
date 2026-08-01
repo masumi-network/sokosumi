@@ -6,7 +6,6 @@ import {
   buildDirectParticipantRoomKey,
   buildDirectRoomKey,
   buildDirectRoomName,
-  buildQuoteSnippet,
   canManageChatRoomLifecycle,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
@@ -160,16 +159,6 @@ describe("canManageChatRoomLifecycle", () => {
         role: MemberRole.MEMBER,
       }),
     ).toBe(false);
-  });
-});
-
-describe("buildQuoteSnippet", () => {
-  it("strips light markdown and truncates to 280 chars", () => {
-    const long = `**bold** and [link](https://x.test) ${"a".repeat(300)}`;
-    const snippet = buildQuoteSnippet(long);
-    expect(snippet.startsWith("bold and link ")).toBe(true);
-    expect(snippet.length).toBeLessThanOrEqual(281);
-    expect(snippet.endsWith("…")).toBe(true);
   });
 });
 

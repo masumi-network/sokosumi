@@ -1,3 +1,4 @@
+import { buildQuoteSnippet } from "@sokosumi/utils";
 import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
@@ -109,28 +110,6 @@ export function toggleId(
 
 /** Slack-like gap before a same-sender burst starts a new full header. */
 export const MESSAGE_GROUP_GAP_MS = 5 * 60 * 1000;
-
-/** Soft cap for composer / timeline quote preview text (mirrors Core). */
-export const QUOTE_SNIPPET_MAX_CHARS = 280;
-
-/**
- * Light plain-text preview for a quoted message. Strips cheap markdown
- * markers and collapses whitespace for the composer chip and pending state.
- */
-export function buildQuoteSnippet(content: string): string {
-  const flattened = content
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/[*_~>#]+/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (flattened.length > QUOTE_SNIPPET_MAX_CHARS) {
-    return `${flattened.slice(0, QUOTE_SNIPPET_MAX_CHARS)}…`;
-  }
-  return flattened;
-}
 
 /** Pending composer quote (author + snippet snapshot for the dismissible chip). */
 export interface PendingRoomQuote {
