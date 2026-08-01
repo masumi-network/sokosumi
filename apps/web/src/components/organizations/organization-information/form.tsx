@@ -172,9 +172,12 @@ export default function OrganizationInformationForm({
       const pendingLogoFile = pendingLogoFiles[0];
       const previousPersistedLogo = logoAtOpenRef.current;
 
-      // Blob previews are local-only; never send them to the API.
+      // Create may hold a File / blob: preview until the org exists — never
+      // mint under the user prefix. Edit uploads immediately, so prefer the
+      // form URL even if FileUpload still reports a pending file (replace
+      // before save must not wipe logo to "").
       const logoForApi =
-        pendingLogoFile || isBlobPreviewUrl(values.logo)
+        isCreating && (pendingLogoFile || isBlobPreviewUrl(values.logo))
           ? null
           : normalizeOrganizationLogo(values.logo);
 
@@ -216,7 +219,8 @@ export default function OrganizationInformationForm({
           data: {
             name: values.name,
             metadata: metadataForApi ?? undefined,
-            logo: logoForApi ?? "",
+            // null clears; never coerce to "" (Better Auth accepts nullish).
+            logo: logoForApi,
           },
         });
       }
@@ -268,7 +272,7 @@ export default function OrganizationInformationForm({
           !isCreating &&
           organization &&
           previousPersistedLogo &&
-          (logoForApi ?? "") !== previousPersistedLogo
+          (logoForApi ?? null) !== previousPersistedLogo
         ) {
           void cleanupOrganizationLogoBestEffort(
             organization.id,

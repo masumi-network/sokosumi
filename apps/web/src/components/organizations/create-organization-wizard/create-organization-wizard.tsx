@@ -256,7 +256,7 @@ export function CreateOrganizationWizard({
   }, [open, resetAll]);
 
   const persistLogo = useCallback(
-    async (nextLogo: string, previousLogo?: string) => {
+    async (nextLogo: string | null, previousLogo?: string) => {
       if (!organizationId) return;
       await authClient.organization.update({
         organizationId,
@@ -517,7 +517,7 @@ export function CreateOrganizationWizard({
     const previousLogo = logoUrl;
     setLogoUrl("");
     setPendingLogoFiles([]);
-    void persistLogo("", previousLogo);
+    void persistLogo(null, previousLogo);
   }, [logoUrl, persistLogo]);
 
   const handleCopyLink = useCallback(async () => {

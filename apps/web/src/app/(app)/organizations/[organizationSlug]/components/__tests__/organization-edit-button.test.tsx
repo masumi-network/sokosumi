@@ -178,7 +178,7 @@ describe("OrganizationEditButton", () => {
     ).toBeInTheDocument();
   });
 
-  it("sends empty string for logo in the update payload when the logo is cleared", async () => {
+  it("sends null for logo in the update payload when the logo is cleared", async () => {
     mockedOrganizationUpdate.mockResolvedValue({
       data: {},
       error: null,
@@ -212,8 +212,89 @@ describe("OrganizationEditButton", () => {
         organizationId: "org_1",
         data: expect.objectContaining({
           name: "Acme",
-          logo: "",
+          logo: null,
         }),
+      }),
+    );
+  });
+
+  it("keeps the uploaded logo URL on save after replace (not empty string)", async () => {
+    const uploadedUrl =
+      "https://otherstore.public.blob.vercel-storage.com/organizations/org_1/logos/new.png";
+
+    mockedUploadLogo.mockResolvedValue({
+      publicUrl: uploadedUrl,
+      metadata: {
+        pathname: "organizations/org_1/logos/new.png",
+        downloadUrl: "https://blob.example/download/new.png",
+        size: 1,
+        uploadedAt: new Date("2026-03-24T12:00:00.000Z"),
+        etag: '"etag-456"',
+      },
+    });
+    mockedOrganizationUpdate.mockResolvedValue({
+      data: {},
+      error: null,
+    } as Awaited<ReturnType<typeof authClient.organization.update>>);
+
+    const user = userEvent.setup();
+    const organization = createOrganization({
+      id: "org_1",
+      name: "Acme",
+      logo: "https://example.com/existing.png",
+    });
+
+    render(<OrganizationEditButtonHarness organizationSeed={organization} />);
+
+    await user.click(screen.getByRole("button", { name: "edit" }));
+
+    const dialog = await screen.findByRole("dialog");
+    const fileInput = dialog.querySelector(
+      "input[type=file]",
+    ) as HTMLInputElement;
+
+    const file = new File(["x"], "logo.png", { type: "image/png" });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+
+    await act(async () => {
+      fireEvent.change(fileInput, { target: { files: dataTransfer.files } });
+    });
+
+    await waitFor(() => {
+      expect(mockedUploadLogo).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(
+        within(dialog).getByRole("button", { name: "Submit.edit" }),
+      ).not.toBeDisabled();
+    });
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Submit.edit" }),
+    );
+
+    await waitFor(() => {
+      expect(mockedOrganizationUpdate).toHaveBeenCalled();
+    });
+
+    expect(mockedOrganizationUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org_1",
+        data: expect.objectContaining({
+          logo: uploadedUrl,
+        }),
+      }),
+    );
+    expect(mockedOrganizationUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ logo: "" }),
+      }),
+    );
+    expect(mockedOrganizationUpdate).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ logo: null }),
       }),
     );
   });
