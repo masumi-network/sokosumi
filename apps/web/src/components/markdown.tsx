@@ -2,6 +2,7 @@ import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
 import remarkBreaks from "remark-breaks";
+import remarkEmoji from "remark-emoji";
 import remarkGfm from "remark-gfm";
 
 import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
@@ -130,7 +131,11 @@ export default function Markdown({
   return (
     <div className={cn(baseTypographyClassName, className)}>
       <ReactMarkdown
-        remarkPlugins={[remarkBreaks, remarkGfm]}
+        remarkPlugins={[
+          remarkBreaks,
+          remarkGfm,
+          [remarkEmoji, { emoticon: true }],
+        ]}
         rehypePlugins={[rehypeRaw, [rehypeHighlight, { detect: true }]]}
         components={components}
       >
