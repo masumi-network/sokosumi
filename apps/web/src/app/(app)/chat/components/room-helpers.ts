@@ -409,7 +409,7 @@ export function formatRoomMarkdownMentions({
 
   let formatted = "";
   let lastIndex = 0;
-  matches.forEach((match) => {
+  for (const match of matches) {
     if (match.start > lastIndex) {
       formatted += content.slice(lastIndex, match.start);
     }
@@ -417,10 +417,14 @@ export function formatRoomMarkdownMentions({
       coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
     const user =
       usersById?.get(match.id) ?? usersBySlug?.get(match.slug) ?? undefined;
-    const displayName = coworker?.name ?? user?.name ?? match.id;
-    formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
+    const displayName = coworker?.name ?? user?.name;
+    if (displayName) {
+      formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
+    } else {
+      formatted += content.slice(match.start, match.end);
+    }
     lastIndex = match.end;
-  });
+  }
   if (lastIndex < content.length) {
     formatted += content.slice(lastIndex);
   }
