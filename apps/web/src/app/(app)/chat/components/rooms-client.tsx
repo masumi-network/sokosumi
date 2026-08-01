@@ -78,6 +78,7 @@ import {
   presenceLabel,
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  roomMessageScrollAnchorKey,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
   shouldShowRoomMentionShortcut,
@@ -633,14 +634,16 @@ export function RoomsClient({
     );
   }, [messages, messagesNextCursor, selectedRoomId]);
 
-  // Scroll on room switch or when the newest message changes — not when
-  // an older page is prepended (length grows, last id stays the same).
-  const latestMessageId = displayMessages.at(-1)?.id ?? null;
+  // Scroll on room switch or newest-message anchor change — not older prepends.
+  // Anchor includes footer growth (reactions, thread link, mention badges).
+  const latestMessageScrollAnchorKey = roomMessageScrollAnchorKey(
+    displayMessages.at(-1),
+  );
   const latestStreamContent =
     topLevelStreamOverlayMessages.at(-1)?.content ?? "";
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ block: "end" });
-  }, [latestMessageId, latestStreamContent, selectedRoomId]);
+  }, [latestMessageScrollAnchorKey, latestStreamContent, selectedRoomId]);
 
   const latestVisibleMessageId = displayMessages.at(-1)?.id ?? "empty";
   const selectedRoomReadId = selectedRoom?.id ?? null;
