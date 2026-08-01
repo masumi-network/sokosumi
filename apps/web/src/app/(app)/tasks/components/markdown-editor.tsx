@@ -1,11 +1,6 @@
 "use client";
 
 import {
-  escapeMarkdownLinkUrl,
-  replaceMarkdownLinks,
-  unescapeMarkdownLinkUrl,
-} from "@sokosumi/utils";
-import {
   Bold,
   Code,
   Heading2,
@@ -35,9 +30,7 @@ import {
   findPositionForOffset,
   getActiveTrigger,
   getCaretRect,
-  getMentionToken,
   getPopupPositionFromRect,
-  isMentionSpan,
   MENTION_CLASSNAME,
   type MentionRecordEntry,
   type NormalizedMention,
@@ -50,11 +43,11 @@ import {
 } from "@/components/ui/mention-textarea-utils";
 import { cn } from "@/lib/utils";
 import {
-  getBacktickFence,
-  isBlockMarkdownElement,
-  normalizeUrl,
-} from "@/lib/utils/markdown-editor-utils";
-import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
+  htmlToMarkdown,
+  markdownToHtml,
+} from "@/lib/utils/composer-markdown-dom";
+import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
+import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 
 interface MarkdownEditorProps {
   id?: string;
@@ -78,16 +71,6 @@ interface MarkdownEditorProps {
 export interface MarkdownEditorHandle {
   insertText: (text: string) => void;
   insertLink: (label: string, url: string) => void;
-}
-
-const PERSISTED_INTERNAL_MENTION_REGEX = /@@MENTION_?(\d+)@@/g;
-
-function normalizePersistedInternalMentions(text: string): string {
-  return text.replace(
-    PERSISTED_INTERNAL_MENTION_REGEX,
-    (_match, mentionIndex: string) =>
-      `@unknown-mention-${mentionIndex}:unknown-mention-${mentionIndex}`,
-  );
 }
 
 export const MarkdownEditor = forwardRef<
@@ -207,319 +190,10 @@ export const MarkdownEditor = forwardRef<
     setTriggerPosition(null);
   }, []);
 
-  // Convert markdown to HTML (only on initial load or external value changes)
-  const markdownToHtml = useCallback(
-    (text: string): string => {
-      if (!text) return "";
-
-      const escaped = normalizePersistedInternalMentions(text)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-
-      // Extract fenced code blocks before other markdown transforms, so inline
-      // patterns don't accidentally rewrite code content.
-      const codeBlocks: Array<{
-        token: string;
-        html: string;
-      }> = [];
-
-      const withCodeBlockTokens = escaped.replace(
-        /(^|\n)(`{3,})([^\n]*)\n([\s\S]*?)\n\2(?=\n|$)/g,
-        (
-          _match,
-          leadingNewline: string,
-          fence: string,
-          info: string,
-          code: string,
-        ) => {
-          const token = `@@CODEBLOCKTOKEN${codeBlocks.length}@@`;
-          const language = info.trim();
-          const html = `<pre><code${
-            language ? ` data-language="${language}"` : ""
-          }>${code}</code></pre>`;
-
-          codeBlocks.push({ token, html });
-          return `${leadingNewline}${token}`;
-        },
-      );
-
-      const linkTokens: Array<{
-        token: string;
-        html: string;
-      }> = [];
-
-      const withLinkTokens = replaceMarkdownLinks(
-        withCodeBlockTokens,
-        ({ match, text: label, rawUrl }) => {
-          const normalizedUrl = normalizeUrl(unescapeMarkdownLinkUrl(rawUrl));
-          if (!normalizedUrl) {
-            return match;
-          }
-
-          const token = `@@LINKTOKEN${linkTokens.length}@@`;
-          linkTokens.push({
-            token,
-            html: `<a href="${normalizedUrl}">${label}</a>`,
-          });
-          return token;
-        },
-      );
-
-      const mentionTokens: Array<{
-        token: string;
-        html: string;
-      }> = [];
-
-      let withMentionTokens = withLinkTokens;
-      const parsedMentions = parseMentions(withLinkTokens);
-      if (parsedMentions.length > 0) {
-        let lastIndex = 0;
-        let rebuilt = "";
-
-        for (const mention of parsedMentions) {
-          if (mention.start > lastIndex) {
-            rebuilt += withLinkTokens.slice(lastIndex, mention.start);
-          }
-
-          const rawMentionToken = withLinkTokens.slice(
-            mention.start,
-            mention.end,
-          );
-          if (rawMentionToken.startsWith("@@")) {
-            rebuilt += rawMentionToken;
-            lastIndex = mention.end;
-            continue;
-          }
-
-          const token = `@@MENTIONTOKEN${mentionTokens.length}@@`;
-          const { displayName, isKnown } = resolveMentionDisplay(
-            mention.id,
-            mention.slug,
-          );
-          const mentionSpan = createMentionSpan(
-            mention.id,
-            mention.slug,
-            displayName,
-            isKnown,
-            {
-              mentionClassName: MENTION_CLASSNAME,
-              unknownMentionClassName: UNKNOWN_MENTION_CLASSNAME,
-            },
-          );
-          mentionTokens.push({
-            token,
-            html: mentionSpan.outerHTML,
-          });
-          rebuilt += token;
-          lastIndex = mention.end;
-        }
-
-        if (lastIndex < withLinkTokens.length) {
-          rebuilt += withLinkTokens.slice(lastIndex);
-        }
-
-        withMentionTokens = rebuilt;
-      }
-
-      const html = withMentionTokens
-        .replace(/^### (.+)$/gm, "<h3>$1</h3>")
-        .replace(/^## (.+)$/gm, "<h2>$1</h2>")
-        .replace(/^# (.+)$/gm, "<h1>$1</h1>")
-        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-        .replace(/_(.+?)_/g, "<em>$1</em>")
-        .replace(/`(.+?)`/g, "<code>$1</code>")
-        .replace(/^[-*] (.+)$/gm, "<ul><li>$1</li></ul>")
-        .replace(/^(\d+)\. (.+)$/gm, "<ol><li>$2</li></ol>")
-        .replace(/\n/g, "<br>");
-
-      const withRestoredMentions = mentionTokens.reduce((result, mention) => {
-        return result.replace(mention.token, () => mention.html);
-      }, html);
-
-      const withRestoredLinks = linkTokens.reduce((result, link) => {
-        return result.replace(link.token, () => link.html);
-      }, withRestoredMentions);
-
-      return codeBlocks.reduce((result, block) => {
-        return result.replace(block.token, () => block.html);
-      }, withRestoredLinks);
-    },
+  const convertMarkdownToHtml = useCallback(
+    (text: string): string => markdownToHtml(text, resolveMentionDisplay),
     [resolveMentionDisplay],
   );
-
-  // Convert HTML to markdown (on every change)
-  const htmlToMarkdown = useCallback((element: HTMLElement): string => {
-    let result = "";
-
-    function getCodeContent(codeContainer: HTMLElement): string {
-      const text = codeContainer.innerText ?? codeContainer.textContent ?? "";
-      return text.replace(/\r/g, "");
-    }
-
-    function getCodeLanguage(codeElement: HTMLElement): string {
-      const dataLanguage = codeElement.dataset.language?.trim() ?? "";
-      if (dataLanguage) return dataLanguage;
-
-      const classLanguage =
-        codeElement.className
-          .split(/\s+/)
-          .find((className) => className.startsWith("language-"))
-          ?.replace("language-", "")
-          .trim() ?? "";
-
-      return classLanguage;
-    }
-
-    function serializeFencedCode(
-      codeContent: string,
-      language: string | undefined,
-    ): string {
-      const fence = getBacktickFence(codeContent);
-      const infoString = language?.trim();
-      const fenceHeader = infoString ? `${fence}${infoString}` : fence;
-      return `${fenceHeader}\n${codeContent}\n${fence}\n`;
-    }
-
-    function appendChildMarkdown(
-      acc: string,
-      child: Node,
-      childMarkdown: string,
-    ): string {
-      if (!childMarkdown) return acc;
-      if (child.nodeType !== Node.ELEMENT_NODE) {
-        return acc + childMarkdown;
-      }
-
-      const childElement = child as HTMLElement;
-      const childTag = childElement.tagName.toLowerCase();
-      const shouldSeparateAsBlock = isBlockMarkdownElement(
-        childTag,
-        childMarkdown,
-      );
-
-      if (shouldSeparateAsBlock && acc.length > 0 && !acc.endsWith("\n")) {
-        return `${acc}\n${childMarkdown}`;
-      }
-
-      return acc + childMarkdown;
-    }
-
-    const processNode = (node: Node): string => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        return node.textContent || "";
-      }
-
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const el = node as HTMLElement;
-        const tag = el.tagName.toLowerCase();
-
-        if (isMentionSpan(el)) {
-          return getMentionToken(
-            el.dataset.mentionKey ?? "",
-            el.dataset.mentionSlug ?? "",
-          );
-        }
-
-        const element = el as HTMLElement;
-
-        if (tag === "pre") {
-          const codeElement = element.querySelector("code");
-          const content = getCodeContent(codeElement ?? element);
-          const language = codeElement
-            ? getCodeLanguage(codeElement)
-            : undefined;
-          return serializeFencedCode(content, language);
-        }
-
-        let content = "";
-
-        element.childNodes.forEach((child: Node) => {
-          const childMarkdown = processNode(child);
-          content = appendChildMarkdown(content, child, childMarkdown);
-        });
-
-        switch (tag) {
-          case "strong":
-          case "b":
-            return `**${content}**`;
-          case "em":
-          case "i":
-            return `_${content}_`;
-          case "code": {
-            if (content.includes("\n")) {
-              return serializeFencedCode(content, getCodeLanguage(element));
-            }
-            return `\`${content}\``;
-          }
-          case "a":
-            return `[${content}](${escapeMarkdownLinkUrl(
-              element.getAttribute("href") || "",
-            )})`;
-          case "h1":
-            return `# ${content}\n`;
-          case "h2":
-            return `## ${content}\n`;
-          case "h3":
-            return `### ${content}\n`;
-          case "li":
-            return `- ${content}\n`;
-          case "ul": {
-            const items = Array.from(element.children).filter(
-              (child) => child.tagName.toLowerCase() === "li",
-            );
-            return items
-              .map((child) => {
-                let itemContent = "";
-                child.childNodes.forEach((grandchild: Node) => {
-                  itemContent += processNode(grandchild);
-                });
-                return `- ${itemContent.trim()}`;
-              })
-              .join("\n")
-              .concat("\n");
-          }
-          case "ol": {
-            const items = Array.from(element.children).filter(
-              (child) => child.tagName.toLowerCase() === "li",
-            );
-            return items
-              .map((child, index) => {
-                let itemContent = "";
-                child.childNodes.forEach((grandchild: Node) => {
-                  itemContent += processNode(grandchild);
-                });
-                return `${index + 1}. ${itemContent.trim()}`;
-              })
-              .join("\n")
-              .concat("\n");
-          }
-          case "br":
-            return "\n";
-          case "div":
-          case "p":
-          case "blockquote":
-            return content.endsWith("\n") ? content : `${content}\n`;
-          default:
-            return content;
-        }
-      }
-
-      return "";
-    };
-
-    element.childNodes.forEach((node) => {
-      const nodeMarkdown = processNode(node);
-      result = appendChildMarkdown(result, node, nodeMarkdown);
-    });
-
-    const normalized = result.replace(/\r/g, "");
-    if (normalized.trim().length === 0) {
-      return "";
-    }
-
-    return normalized;
-  }, []);
 
   const syncFromEditor = useCallback(() => {
     if (!editorRef.current) {
@@ -535,13 +209,13 @@ export const MarkdownEditor = forwardRef<
     onChange(markdown);
 
     return { markdown, text, caret };
-  }, [htmlToMarkdown, onChange]);
+  }, [onChange]);
 
   // Initialize editor content from value prop
   useEffect(() => {
     if (editorRef.current && !isInternalChange.current) {
       const currentHtml = editorRef.current.innerHTML;
-      const newHtml = markdownToHtml(value);
+      const newHtml = convertMarkdownToHtml(value);
       const isFocused = editorRef.current.contains(document.activeElement);
       const isExternalClear = value.trim().length === 0;
 
@@ -551,7 +225,7 @@ export const MarkdownEditor = forwardRef<
       }
     }
     isInternalChange.current = false;
-  }, [value, markdownToHtml]);
+  }, [value, convertMarkdownToHtml]);
 
   const handleInput = useCallback(() => {
     if (editorRef.current) {
@@ -1033,11 +707,12 @@ export const MarkdownEditor = forwardRef<
           "outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
           "empty:before:text-muted-foreground empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]",
-          "[&_em]:italic [&_strong]:font-bold",
+          "[&_em]:italic [&_strong]:font-bold [&_u]:underline [&_s]:line-through",
           "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
           "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
           "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
           "[&_a]:text-primary [&_a]:underline",
+          "[&_blockquote]:border-muted-foreground/40 [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
           "[&_h1]:mt-2 [&_h1]:mb-1 [&_h1]:text-xl [&_h1]:font-bold",
           "[&_h2]:mt-2 [&_h2]:mb-1 [&_h2]:text-lg [&_h2]:font-semibold",
           "[&_h3]:mt-2 [&_h3]:mb-1 [&_h3]:text-base [&_h3]:font-semibold",

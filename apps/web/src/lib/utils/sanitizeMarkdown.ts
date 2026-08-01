@@ -82,6 +82,7 @@ export function sanitizeMarkdown(markdown: string): string {
       "code",
       "mark",
       "span",
+      "u",
     ],
     allowedAttributes: {
       a: ["href"],
