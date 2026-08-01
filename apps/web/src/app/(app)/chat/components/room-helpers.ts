@@ -466,23 +466,19 @@ export function formatRoomMarkdownMentions({
 
   let formatted = "";
   let lastIndex = 0;
-  matches.forEach((match) => {
+  for (const match of matches) {
     if (match.start > lastIndex) {
       formatted += content.slice(lastIndex, match.start);
     }
-    if (isRoomMentionAllId(match.id)) {
-      formatted += `<span class="text-primary font-medium">${escapeHtml(ROOM_MENTION_ALL_BARE)}</span>`;
-      lastIndex = match.end;
-      return;
-    }
-    const coworker =
-      coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
-    const user =
-      usersById?.get(match.id) ?? usersBySlug?.get(match.slug) ?? undefined;
-    const displayName = coworker?.name ?? user?.name ?? match.id;
+    const displayName = isRoomMentionAllId(match.id)
+      ? ROOM_MENTION_ALL_ID
+      : ((coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug))
+          ?.name ??
+        (usersById?.get(match.id) ?? usersBySlug?.get(match.slug))?.name ??
+        match.id);
     formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
     lastIndex = match.end;
-  });
+  }
   if (lastIndex < content.length) {
     formatted += content.slice(lastIndex);
   }
