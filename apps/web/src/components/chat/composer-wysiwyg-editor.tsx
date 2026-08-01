@@ -31,9 +31,9 @@ import {
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
+  type ComposerFormatCommand,
   getComposerActiveFormats,
 } from "@/lib/utils/composer-active-formats";
-import type { ComposerFormatCommand } from "@/lib/utils/composer-format-command";
 import {
   htmlToMarkdown,
   markdownToHtml,

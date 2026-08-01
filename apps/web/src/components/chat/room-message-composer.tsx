@@ -48,8 +48,7 @@ interface RoomMessageComposerProps {
   children: ReactNode;
   toolbarStart?: ReactNode;
   /**
-   * Slack-style formatting strip above the editor (e.g. bold/italic row).
-   * Rendered after attachment chips, before the editor body.
+   * Formatting strip above the editor body (after attachment chips).
    */
   aboveEditor?: ReactNode;
   isSending: boolean;

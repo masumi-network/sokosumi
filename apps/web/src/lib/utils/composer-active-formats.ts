@@ -16,6 +16,12 @@ export interface ComposerActiveFormats {
   link: boolean;
 }
 
+/** Toolbar/editor format ids. Link uses a separate dialog, not this union. */
+export type ComposerFormatCommand = Exclude<
+  keyof ComposerActiveFormats,
+  "link"
+>;
+
 export const EMPTY_COMPOSER_ACTIVE_FORMATS: ComposerActiveFormats = {
   bold: false,
   italic: false,

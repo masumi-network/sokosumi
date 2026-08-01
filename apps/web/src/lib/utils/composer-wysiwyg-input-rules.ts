@@ -96,8 +96,7 @@ export function resolveComposerEnterAction(options: {
 
 const PROTECTED_TAGS = new Set(["CODE", "PRE"]);
 
-/** True when node sits inside code, pre, or a mention chip. */
-export function isInsideComposerProtectedContext(
+function isInsideComposerProtectedContext(
   node: Node | null,
   root: HTMLElement,
 ): boolean {
@@ -114,9 +113,8 @@ export function isInsideComposerProtectedContext(
 
 /**
  * Apply a matched input rule inside a text node ending at `caretOffset`.
- * Replaces `_inner_` (etc.) with a formatted element; returns true on success.
  */
-export function applyComposerInputRuleToTextNode(
+function applyComposerInputRuleToTextNode(
   textNode: Text,
   caretOffset: number,
   match: ComposerInputRuleMatch,

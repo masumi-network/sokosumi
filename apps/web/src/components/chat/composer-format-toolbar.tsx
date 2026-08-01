@@ -19,9 +19,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
+  type ComposerFormatCommand,
   EMPTY_COMPOSER_ACTIVE_FORMATS,
 } from "@/lib/utils/composer-active-formats";
-import type { ComposerFormatCommand } from "@/lib/utils/composer-format-command";
 
 interface ComposerFormatToolbarProps {
   onFormat: (command: ComposerFormatCommand) => void;
@@ -48,8 +48,7 @@ interface FormatTool {
 }
 
 /**
- * Slack-style formatting strip. Order matches Slack compose: marks, link,
- * lists, quote, then code.
+ * Slack-style formatting strip above the composer editor.
  */
 export function ComposerFormatToolbar({
   onFormat,

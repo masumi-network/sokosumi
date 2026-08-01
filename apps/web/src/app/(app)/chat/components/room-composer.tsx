@@ -38,10 +38,9 @@ import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
   type ComposerActiveFormats,
+  type ComposerFormatCommand,
   EMPTY_COMPOSER_ACTIVE_FORMATS,
 } from "@/lib/utils/composer-active-formats";
-import type { ComposerFormatCommand } from "@/lib/utils/composer-format-command";
-import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import type { RoomMentionParticipant } from "./room-helpers";
@@ -132,7 +131,7 @@ export function RoomComposer({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
-  /** Slack Aa: formatting strip above the editor. */
+  /** Slack Aa toggle: formatting strip above the editor. */
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
   const [activeFormats, setActiveFormats] = useState<ComposerActiveFormats>(
     EMPTY_COMPOSER_ACTIVE_FORMATS,
@@ -272,7 +271,6 @@ export function RoomComposer({
   }
 
   function handleLinkSave(text: string, url: string) {
-    if (!normalizeUrl(url)) return;
     editorRef.current?.insertLink(text, url);
     editorRef.current?.focus();
   }
