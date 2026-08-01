@@ -26,6 +26,22 @@
       "description": "Actualmente experimentamos problemas con la ejecución de jobs debido a fallos técnicos de uno de nuestros proveedores externos. No te preocupes, todo volverá a la normalidad pronto.",
       "confirm": "OK"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "Buscar emoji",
+      "frequentlyUsed": "Usados con frecuencia",
+      "noResults": "No se encontraron emojis",
+      "categories": {
+        "smileysEmotion": "Emoticonos y emociones",
+        "peopleBody": "Personas y cuerpo",
+        "animalsNature": "Animales y naturaleza",
+        "foodDrink": "Comida y bebida",
+        "travelPlaces": "Viajes y lugares",
+        "activities": "Actividades",
+        "objects": "Objetos",
+        "symbols": "Símbolos",
+        "flags": "Banderas"
+      }
+    },
     "ShareButton": {
       "linkCopied": "Enlace copiado al portapapeles",
       "copyError": "No se pudo copiar el enlace"

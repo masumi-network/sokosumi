@@ -26,6 +26,22 @@
       "description": "現在、外部プロバイダーの技術的な問題によりジョブの実行に不具合が発生しています。ご安心ください。まもなく通常どおりご利用いただけます。",
       "confirm": "OK"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "絵文字を検索",
+      "frequentlyUsed": "よく使う絵文字",
+      "noResults": "絵文字が見つかりません",
+      "categories": {
+        "smileysEmotion": "笑顔と感情",
+        "peopleBody": "人と体",
+        "animalsNature": "動物と自然",
+        "foodDrink": "食べ物と飲み物",
+        "travelPlaces": "旅行と場所",
+        "activities": "アクティビティ",
+        "objects": "物",
+        "symbols": "記号",
+        "flags": "旗"
+      }
+    },
     "ShareButton": {
       "linkCopied": "リンクをクリップボードにコピーしました",
       "copyError": "リンクのコピーに失敗しました"

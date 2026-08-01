@@ -123,13 +123,21 @@ describe("searchEmojiCatalog", () => {
     expect(thumbs?.emoji).toBe("👍");
   });
 
-  it("returns alphabetical slice for empty query", () => {
+  it("returns alphabetical slice for empty query when capped", () => {
     const results = searchEmojiCatalog("", { cap: 5 });
     expect(results).toHaveLength(5);
     const primaryNames = results.map((entry) => entry.names[0] ?? "");
     expect(primaryNames).toEqual(
       [...primaryNames].toSorted((a, b) => a.localeCompare(b)),
     );
+  });
+
+  it("returns all ranked matches when cap is omitted", () => {
+    const capped = searchEmojiCatalog("a", { cap: 5 });
+    const uncapped = searchEmojiCatalog("a");
+    expect(capped.length).toBeLessThanOrEqual(5);
+    expect(uncapped.length).toBeGreaterThan(capped.length);
+    expect(uncapped.slice(0, capped.length)).toEqual(capped);
   });
 });
 

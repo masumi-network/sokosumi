@@ -232,13 +232,15 @@ export function listEmojiCatalogSections(
 
 /**
  * Ranked catalog search: name-prefix > name-includes > tag/description.
- * Empty query → stable alphabetical top-N (by primary name).
+ * Empty query → stable alphabetical list (capped only when `cap` is set).
+ * Omit `cap` to return all ranked matches.
  */
 export function searchEmojiCatalog(
   query: string,
   options: SearchEmojiCatalogOptions = {},
 ): EmojiCatalogEntry[] {
-  const limit = Math.max(0, options.cap ?? DEFAULT_EMOJI_RESULT_CAP);
+  const hasCap = options.cap !== undefined;
+  const limit = hasCap ? Math.max(0, options.cap ?? 0) : null;
   if (limit === 0) return [];
 
   const source = options.categoryId
@@ -247,9 +249,10 @@ export function searchEmojiCatalog(
 
   const normalizedQuery = query.toLowerCase().trim();
   if (normalizedQuery.length === 0) {
-    return [...source]
-      .toSorted((a, b) => (a.names[0] ?? "").localeCompare(b.names[0] ?? ""))
-      .slice(0, limit);
+    const sorted = [...source].toSorted((a, b) =>
+      (a.names[0] ?? "").localeCompare(b.names[0] ?? ""),
+    );
+    return limit === null ? sorted : sorted.slice(0, limit);
   }
 
   const prefixMatches: EmojiCatalogEntry[] = [];
@@ -273,11 +276,12 @@ export function searchEmojiCatalog(
     }
   }
 
-  return [
+  const ranked = [
     ...prefixMatches,
     ...includesMatches,
     ...tagOrDescriptionMatches,
-  ].slice(0, limit);
+  ];
+  return limit === null ? ranked : ranked.slice(0, limit);
 }
 
 /**
