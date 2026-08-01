@@ -205,29 +205,6 @@ export function pendingQuoteFromMessage(
   };
 }
 
-/**
- * Scroll-anchor fingerprint for the newest room message.
- * Id alone misses footer growth (reactions, thread reply link, mention badges).
- */
-export function roomMessageScrollAnchorKey(
-  message: ChatRoomMessage | null | undefined,
-): string | null {
-  if (!message) {
-    return null;
-  }
-
-  const reactionsKey = message.reactions
-    .map((reaction) => `${reaction.emoji}:${reaction.count}`)
-    .join(",");
-
-  return [
-    message.id,
-    `r:${reactionsKey}`,
-    `t:${message.threadReplyCount}`,
-    `m:${message.mentions.length}`,
-  ].join("|");
-}
-
 /** Soft-fail scroll to a room message article when it is still in the DOM. */
 export function scrollToRoomMessageElement(messageId: string): boolean {
   if (typeof document === "undefined") {
