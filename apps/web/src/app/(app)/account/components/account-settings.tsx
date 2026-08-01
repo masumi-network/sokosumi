@@ -48,11 +48,11 @@ export function AccountSettings({
   return (
     <div className="w-full space-y-8">
       <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
-        <NameForm />
-        <EmailForm />
         <div className="md:col-span-2">
           <ProfileImageSection userImage={userImage} />
         </div>
+        <NameForm />
+        <EmailForm />
         <div className="md:col-span-2">
           {credentialAccountsLoadError ? (
             credentialAccountsLoadError
