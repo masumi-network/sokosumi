@@ -66,6 +66,7 @@
     "dompurify": "3.4.12",
     "embla-carousel-react": "8.6.0",
     "fake-indexeddb": "6.2.5",
+    "gemoji": "8.1.0",
     "gravatar-url": "4.0.2",
     "happy-dom": "20.11.1",
     "humanize-duration": "3.34.0",
