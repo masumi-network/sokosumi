@@ -427,13 +427,13 @@ describe("core auth config", () => {
     expect(config.socialProviders.google).toEqual({
       clientId: "google-client-id",
       clientSecret: "google-client-secret",
-      overrideUserInfoOnSignIn: true,
+      overrideUserInfoOnSignIn: false,
       mapProfileToUser: expect.any(Function),
     });
     expect(config.socialProviders.microsoft).toEqual({
       clientId: "microsoft-client-id",
       clientSecret: "microsoft-client-secret",
-      overrideUserInfoOnSignIn: true,
+      overrideUserInfoOnSignIn: false,
       mapProfileToUser: expect.any(Function),
     });
     expect(config.socialProviders.google.mapProfileToUser).toBe(
