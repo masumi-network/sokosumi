@@ -58,7 +58,6 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
-import { applyCustomAvatarImageGuardToUserUpdate } from "@/helpers/custom-avatar-image-auth";
 import {
   applyDesignMdMetadataGuardToOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate,
@@ -329,13 +328,15 @@ export const auth = betterAuth({
     google: {
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
-      overrideUserInfoOnSignIn: true,
+      // Seed name/image on first OAuth create only. Later sign-ins keep
+      // local account data (including custom profile images on /account).
+      overrideUserInfoOnSignIn: false,
       mapProfileToUser,
     },
     microsoft: {
       clientId: env.MICROSOFT_CLIENT_ID,
       clientSecret: env.MICROSOFT_CLIENT_SECRET,
-      overrideUserInfoOnSignIn: true,
+      overrideUserInfoOnSignIn: false,
       mapProfileToUser,
     },
   },
@@ -443,12 +444,8 @@ export const auth = betterAuth({
       update: {
         before: async (data, ctx) => {
           await prepareStripeEmailSyncForUserUpdate(data, ctx, prisma);
-          const designMdGuarded = await applyDesignMdMetadataGuardToUserUpdate(
+          const guarded = await applyDesignMdMetadataGuardToUserUpdate(
             data,
-            ctx,
-          );
-          const guarded = await applyCustomAvatarImageGuardToUserUpdate(
-            designMdGuarded,
             ctx,
           );
           return { data: guarded };

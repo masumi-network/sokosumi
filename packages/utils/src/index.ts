@@ -244,7 +244,6 @@ export {
   USER_UPLOAD_ALLOWED_CONTENT_TYPE_SET,
   USER_UPLOAD_ALLOWED_CONTENT_TYPES,
 } from "./user-upload-content-type.js";
-export { isOwnedUserUploadUrl } from "./user-upload-owned.js";
 export {
   buildUserUploadPathname,
   buildUserUploadPrefix,
