@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, Loader2, Paperclip, Type } from "lucide-react";
+import { ALargeSmall, AtSign, Loader2, Paperclip } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type Dispatch,
@@ -321,7 +321,7 @@ export function RoomComposer({
               aria-pressed={formatToolbarOpen}
               onClick={() => setFormatToolbarOpen((open) => !open)}
             >
-              <Type className="size-4" aria-hidden />
+              <ALargeSmall className="size-4" aria-hidden />
             </Button>
             <RoomComposerEmojiPicker
               title={t("Toolbar.emoji")}
