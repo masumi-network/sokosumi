@@ -24,7 +24,11 @@ import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
-import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
+import {
+  RoomComposer,
+  type RoomComposerAttachment,
+  type RoomComposerHandle,
+} from "./room-composer";
 import {
   AiCoworkerIcon,
   buildDirectDraftTargets,
@@ -33,6 +37,7 @@ import {
   filterDraftTargets,
   MembersRosterLoadFailed,
 } from "./room-draft-shared";
+import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
   buildRoomComposerMessageContent,
   isRoomComposerEmpty,
@@ -56,6 +61,7 @@ export function DraftDirectMessage({
   const t = useTranslations("App.Channels");
   const router = useRouter();
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const composerRef = useRef<RoomComposerHandle | null>(null);
   const [recipientQuery, setRecipientQuery] = useState("");
   const [isRecipientPickerOpen, setIsRecipientPickerOpen] = useState(true);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -217,7 +223,14 @@ export function DraftDirectMessage({
   }
 
   return (
-    <>
+    <RoomFileDropZone
+      enabled
+      onFiles={(files) => {
+        composerRef.current?.attachFiles(files);
+      }}
+      label={t("Toolbar.dropToAttach")}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <header className="min-h-14 shrink-0 border-b px-5 py-2">
         <div className="relative flex w-full items-start gap-2">
           <span className="text-muted-foreground pt-2 text-sm font-medium">
@@ -324,6 +337,7 @@ export function DraftDirectMessage({
       </ScrollArea>
 
       <RoomComposer
+        ref={composerRef}
         value={composerValue}
         onValueChange={setComposerValue}
         mentions={selectedMentionParticipants}
@@ -343,6 +357,6 @@ export function DraftDirectMessage({
         }
         showMentionShortcut={selectedTargets.length > 1}
       />
-    </>
+    </RoomFileDropZone>
   );
 }

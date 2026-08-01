@@ -20,7 +20,11 @@ import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
-import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
+import {
+  RoomComposer,
+  type RoomComposerAttachment,
+  type RoomComposerHandle,
+} from "./room-composer";
 import {
   AiCoworkerIcon,
   buildDirectDraftTargets,
@@ -29,6 +33,7 @@ import {
   filterDraftTargets,
   MembersRosterLoadFailed,
 } from "./room-draft-shared";
+import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
   buildRoomComposerMessageContent,
   isRoomComposerEmpty,
@@ -50,6 +55,7 @@ export function DraftChannel({
   const router = useRouter();
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const composerRef = useRef<RoomComposerHandle | null>(null);
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
   const [recipientQuery, setRecipientQuery] = useState("");
@@ -182,7 +188,14 @@ export function DraftChannel({
   }
 
   return (
-    <>
+    <RoomFileDropZone
+      enabled
+      onFiles={(files) => {
+        composerRef.current?.attachFiles(files);
+      }}
+      label={t("Toolbar.dropToAttach")}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <header className="min-h-14 shrink-0 border-b px-5 py-2">
         <div className="space-y-2">
           <div className="flex w-full items-start gap-2">
@@ -322,6 +335,7 @@ export function DraftChannel({
       </ScrollArea>
 
       <RoomComposer
+        ref={composerRef}
         value={composerValue}
         onValueChange={setComposerValue}
         mentions={selectedMentionParticipants}
@@ -340,6 +354,6 @@ export function DraftChannel({
           isRoomComposerEmpty(composerValue, composerAttachments)
         }
       />
-    </>
+    </RoomFileDropZone>
   );
 }

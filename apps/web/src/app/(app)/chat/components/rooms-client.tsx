@@ -51,7 +51,12 @@ import { getInitials } from "@/lib/utils/text";
 import { DraftChannel } from "./draft-channel";
 import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
-import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
+import {
+  RoomComposer,
+  type RoomComposerAttachment,
+  type RoomComposerHandle,
+} from "./room-composer";
+import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
   appendMessage,
   buildRoomComposerMessageContent,
@@ -190,6 +195,7 @@ export function RoomsClient({
   >([]);
   const [threadMentionedIds, setThreadMentionedIds] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const roomComposerRef = useRef<RoomComposerHandle | null>(null);
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
@@ -1034,7 +1040,14 @@ export function RoomsClient({
               membersLoadFailed={membersLoadFailed}
             />
           ) : selectedRoom ? (
-            <>
+            <RoomFileDropZone
+              enabled={!isCoworkerStreamRoom}
+              onFiles={(files) => {
+                roomComposerRef.current?.attachFiles(files);
+              }}
+              label={t("Toolbar.dropToAttach")}
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
                 <div className="flex min-w-0 items-center gap-2">
                   {isDirectRoom ? (
@@ -1150,6 +1163,7 @@ export function RoomsClient({
               </ScrollArea>
 
               <RoomComposer
+                ref={roomComposerRef}
                 roomId={selectedRoom.id}
                 value={composerValue}
                 onValueChange={setComposerValue}
@@ -1177,7 +1191,7 @@ export function RoomsClient({
                 )}
                 allowAttachments={!isCoworkerStreamRoom}
               />
-            </>
+            </RoomFileDropZone>
           ) : (
             <div className="flex flex-1 items-center justify-center p-6">
               <div className="border-border/70 bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">

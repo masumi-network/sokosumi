@@ -5,8 +5,10 @@ import { useTranslations } from "next-intl";
 import {
   type Dispatch,
   type FormEvent,
+  type Ref,
   type SetStateAction,
   useCallback,
+  useImperativeHandle,
   useRef,
   useState,
 } from "react";
@@ -34,6 +36,11 @@ import type { RoomMentionParticipant } from "./room-helpers";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
+}
+
+/** Shell drop zones call this to reuse the paperclip upload path. */
+export interface RoomComposerHandle {
+  attachFiles: (files: FileList | File[] | null) => void;
 }
 
 function RoomMentionSuggestion({
@@ -64,6 +71,7 @@ function RoomMentionSuggestion({
 }
 
 export function RoomComposer({
+  ref,
   roomId,
   value,
   onValueChange,
@@ -78,6 +86,7 @@ export function RoomComposer({
   showMentionShortcut = true,
   allowAttachments = true,
 }: {
+  ref?: Ref<RoomComposerHandle>;
   /** When set, attaches mint via room chat file endpoint. */
   roomId?: string;
   value: string;
@@ -100,6 +109,7 @@ export function RoomComposer({
   const formRef = useRef<HTMLFormElement | null>(null);
   const textareaRef = useRef<MentionTextareaHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const isUploadingFilesRef = useRef(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const composerMentions = showMentionShortcut ? mentions : {};
   const handleSelectedKeysChange = showMentionShortcut
@@ -107,14 +117,17 @@ export function RoomComposer({
     : undefined;
 
   const handleFilesSelected = useCallback(
-    async (files: FileList | null) => {
+    async (files: FileList | File[] | null) => {
+      if (!allowAttachments) return;
+
       const selectedFiles = Array.from(files ?? []).filter(
         (file) => file.size > 0,
       );
-      if (selectedFiles.length === 0) {
+      if (selectedFiles.length === 0 || isUploadingFilesRef.current) {
         return;
       }
 
+      isUploadingFilesRef.current = true;
       setIsUploadingFiles(true);
 
       try {
@@ -149,13 +162,24 @@ export function RoomComposer({
       } catch {
         // Error toast is handled by uploadComposeAttachments.
       } finally {
+        isUploadingFilesRef.current = false;
         setIsUploadingFiles(false);
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
       }
     },
-    [onAttachmentsChange, roomId, tToolbar],
+    [allowAttachments, onAttachmentsChange, roomId, tToolbar],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      attachFiles: (files) => {
+        void handleFilesSelected(files);
+      },
+    }),
+    [handleFilesSelected],
   );
 
   function removeAttachment(attachment: RoomComposerAttachment) {
