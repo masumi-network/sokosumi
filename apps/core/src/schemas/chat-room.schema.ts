@@ -180,11 +180,29 @@ export const chatRoomMessageSenderSchema = z
   ])
   .openapi("ChatRoomMessageSender");
 
+/** Cap on named reactors returned per emoji; `count` may still exceed this. */
+export const MAX_LISTED_CHAT_REACTION_REACTORS = 20;
+
+export const chatRoomMessageReactorSchema = z
+  .object({
+    id: z.string().openapi({ example: "user_123" }),
+    name: z.string().openapi({ example: "Jane Doe" }),
+  })
+  .openapi("ChatRoomMessageReactor");
+
 export const chatRoomMessageReactionSchema = z
   .object({
     emoji: z.string().min(1).max(24).openapi({ example: "👍" }),
     count: z.number().int().min(0).openapi({ example: 3 }),
     reactedByCurrentUser: z.boolean().openapi({ example: true }),
+    reactors: z
+      .array(chatRoomMessageReactorSchema)
+      .max(MAX_LISTED_CHAT_REACTION_REACTORS)
+      .openapi({
+        description:
+          "First reactors by createdAt ascending (capped). count may exceed reactors.length.",
+        example: [{ id: "user_123", name: "Jane Doe" }],
+      }),
   })
   .openapi("ChatRoomMessageReaction");
 

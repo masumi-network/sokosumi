@@ -19,9 +19,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomMessageReaction,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -34,6 +40,23 @@ import {
 } from "./room-helpers";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
+
+function formatWhoReactedLabel(
+  reaction: ChatRoomMessageReaction,
+  t: ReturnType<typeof useTranslations>,
+): string | null {
+  const names = reaction.reactors.map((reactor) => reactor.name).join(", ");
+  const more = Math.max(0, reaction.count - reaction.reactors.length);
+
+  if (!names) {
+    if (more === 0) {
+      return null;
+    }
+    return t("Reactions.andMore", { count: more });
+  }
+
+  return t("Reactions.whoReacted", { names, more });
+}
 
 function ChannelMarkdownSegment({
   content,
@@ -238,22 +261,38 @@ function MessageMetaFooter({
     <>
       {message.reactions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1">
-          {message.reactions.map((reaction) => (
-            <button
-              key={reaction.emoji}
-              type="button"
-              onClick={() => onToggleReaction(message, reaction.emoji)}
-              className={cn(
-                "border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
-                reaction.reactedByCurrentUser &&
-                  "border-primary/30 bg-primary/10 text-primary",
-              )}
-              aria-label={t("Reactions.toggle", { emoji: reaction.emoji })}
-            >
-              <span className="text-sm leading-none">{reaction.emoji}</span>
-              <span>{reaction.count}</span>
-            </button>
-          ))}
+          {message.reactions.map((reaction) => {
+            const whoReactedLabel = formatWhoReactedLabel(reaction, t);
+
+            return (
+              <Tooltip key={reaction.emoji}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => onToggleReaction(message, reaction.emoji)}
+                    className={cn(
+                      "border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
+                      reaction.reactedByCurrentUser &&
+                        "border-primary/30 bg-primary/10 text-primary",
+                    )}
+                    aria-label={t("Reactions.toggle", {
+                      emoji: reaction.emoji,
+                    })}
+                  >
+                    <span className="text-sm leading-none">
+                      {reaction.emoji}
+                    </span>
+                    <span>{reaction.count}</span>
+                  </button>
+                </TooltipTrigger>
+                {whoReactedLabel ? (
+                  <TooltipContent side="top" sideOffset={6}>
+                    {whoReactedLabel}
+                  </TooltipContent>
+                ) : null}
+              </Tooltip>
+            );
+          })}
         </div>
       ) : null}
       {showThreadButton && message.threadReplyCount > 0 && onOpenThread ? (
