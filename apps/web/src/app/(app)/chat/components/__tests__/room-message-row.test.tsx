@@ -254,4 +254,34 @@ describe("ChatMessageRow", () => {
     });
     expect(quoteButton.textContent).toContain("line one\nline two");
   });
+
+  it("shows the full quote body without a line clamp", () => {
+    const fullSnippet =
+      "Two more things about the chat here:\nCan you please make chat drafts persistent during tab-switches. Writing a long message and losing it because I quickly wanted to check sth. in another chat is painful :) and please add @all:all tagging functionality please.";
+
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-3",
+          authorName: "Phil",
+          snippet: fullSnippet,
+        },
+      }),
+    });
+
+    const quoteButton = screen.getByRole("button", {
+      name: "Jump to message from Phil",
+    });
+    const snippetHost = quoteButton.querySelector(".whitespace-pre-line");
+    expect(snippetHost).not.toBeNull();
+    expect(snippetHost?.className ?? "").not.toMatch(/line-clamp-/);
+    expect(quoteButton.textContent).toContain(
+      "Two more things about the chat here:",
+    );
+    expect(quoteButton.textContent).toContain(
+      "chat drafts persistent during tab-switches",
+    );
+    expect(quoteButton.textContent).toContain("tagging functionality please.");
+  });
 });

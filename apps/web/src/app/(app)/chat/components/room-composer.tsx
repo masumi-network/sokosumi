@@ -172,7 +172,7 @@ function PendingQuotePreview({
         <div className="text-foreground truncate text-xs font-semibold">
           {quote.authorName}
         </div>
-        <div className="text-muted-foreground line-clamp-2 text-xs leading-5 whitespace-pre-line">
+        <div className="text-muted-foreground text-xs leading-5 whitespace-pre-line">
           <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
             {formatRoomMarkdownMentions({
               content: quote.snippet,
