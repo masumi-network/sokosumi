@@ -762,6 +762,12 @@
       "placeholder": "Selecione uma organização",
       "search": "Pesquisar organizações…",
       "empty": "Nenhuma organização encontrada."
+    },
+    "ImageViewer": {
+      "title": "Imagem",
+      "viewImage": "Ver imagem {fileName}",
+      "download": "Baixar imagem",
+      "close": "Fechar"
     }
   },
   "Join": {
