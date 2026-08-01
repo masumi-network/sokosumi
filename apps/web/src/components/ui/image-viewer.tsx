@@ -3,12 +3,12 @@
 import {
   Download,
   ImageIcon,
+  Minus,
   MoreVertical,
+  Plus,
   Printer,
   Search,
   XIcon,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -262,7 +262,7 @@ function ImageViewerChrome({
             disabled={zoom <= MIN_ZOOM}
             onClick={handleZoomOut}
           >
-            <ZoomOut className="size-4" aria-hidden="true" />
+            <Minus className="size-4" aria-hidden="true" />
           </Button>
           <Button
             type="button"
@@ -283,7 +283,7 @@ function ImageViewerChrome({
             disabled={zoom >= MAX_ZOOM}
             onClick={handleZoomIn}
           >
-            <ZoomIn className="size-4" aria-hidden="true" />
+            <Plus className="size-4" aria-hidden="true" />
           </Button>
         </div>
       </div>
