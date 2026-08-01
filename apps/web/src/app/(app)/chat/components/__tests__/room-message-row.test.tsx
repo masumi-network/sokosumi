@@ -64,27 +64,37 @@ function userMessage(
   };
 }
 
-function renderContinuation(message: ChatRoomMessage = userMessage()) {
+function renderRow({
+  message = userMessage(),
+  isContinuation = false,
+}: {
+  message?: ChatRoomMessage;
+  isContinuation?: boolean;
+} = {}) {
   render(
     <ChatMessageRow
       message={message}
       coworkersById={new Map()}
       coworkersBySlug={new Map()}
       onToggleReaction={vi.fn()}
-      isContinuation
+      isContinuation={isContinuation}
     />,
   );
 }
 
+function renderContinuation(message: ChatRoomMessage = userMessage()) {
+  renderRow({ message, isContinuation: true });
+}
+
 describe("ChatMessageRow", () => {
   it("keeps sender attribution on continuation rows", () => {
-    renderContinuation();
+    renderRow({ isContinuation: true });
 
     expect(screen.getByRole("article", { name: "Ada" })).toBeInTheDocument();
   });
 
   it("keeps continuation timestamps on one line", () => {
-    renderContinuation();
+    renderRow({ isContinuation: true });
 
     expect(screen.getByRole("time")).toHaveClass("whitespace-nowrap");
   });
@@ -133,5 +143,23 @@ describe("ChatMessageRow", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent(
       "Ada, Bob, Carol, and 2 more",
     );
+  });
+
+  it("keeps continuation rows tight so same-sender bursts stay dense", () => {
+    renderRow({ isContinuation: true });
+
+    const article = screen.getByRole("article", { name: "Ada" });
+    expect(article).toHaveClass("py-0.5");
+    expect(article).not.toHaveClass("py-2.5");
+    expect(article).not.toHaveClass("mt-3");
+  });
+
+  it("separates author groups with top margin instead of fat vertical padding", () => {
+    renderRow({ isContinuation: false });
+
+    const article = screen.getByRole("article");
+    expect(article).toHaveClass("mt-3");
+    expect(article).toHaveClass("pb-0.5");
+    expect(article).not.toHaveClass("py-2.5");
   });
 });
