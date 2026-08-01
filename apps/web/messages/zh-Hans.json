@@ -4712,6 +4712,10 @@
       },
       "MentionAll": {
         "label": "所有人"
+      },
+      "MentionSections": {
+        "people": "成员",
+        "coworkers": "协作伙伴"
       }
     }
   },

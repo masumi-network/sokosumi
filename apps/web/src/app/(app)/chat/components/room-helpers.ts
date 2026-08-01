@@ -1,5 +1,9 @@
 import { buildQuoteSnippet } from "@sokosumi/utils";
 import type {
+  MentionSuggestionGroup,
+  NormalizedMention,
+} from "@/components/ui/mention-textarea-utils";
+import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -67,6 +71,44 @@ export function buildRoomAllMentionRecord(label: string): {
       image: null,
     },
   };
+}
+
+/**
+ * Partition filtered room mention suggestions into People (humans + @all)
+ * and Coworkers. Omits empty sections. Preserves within-section filter order.
+ */
+export function partitionRoomMentionSuggestions(
+  filtered: NormalizedMention<RoomMentionParticipant>[],
+  labels: { peopleLabel: string; coworkersLabel: string },
+): MentionSuggestionGroup<RoomMentionParticipant>[] {
+  const people: NormalizedMention<RoomMentionParticipant>[] = [];
+  const coworkers: NormalizedMention<RoomMentionParticipant>[] = [];
+
+  for (const mention of filtered) {
+    if (mention.data?.kind === "coworker") {
+      coworkers.push(mention);
+    } else {
+      // human | all | missing kind → People (safe fallback for humans-shaped rows)
+      people.push(mention);
+    }
+  }
+
+  const groups: MentionSuggestionGroup<RoomMentionParticipant>[] = [];
+  if (people.length > 0) {
+    groups.push({
+      id: "people",
+      label: labels.peopleLabel,
+      items: people,
+    });
+  }
+  if (coworkers.length > 0) {
+    groups.push({
+      id: "coworkers",
+      label: labels.coworkersLabel,
+      items: coworkers,
+    });
+  }
+  return groups;
 }
 
 export function appendComposerBlock(value: string, block: string): string {
