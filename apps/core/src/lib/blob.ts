@@ -4,12 +4,16 @@ import * as Sentry from "@sentry/node";
 import {
   buildCoworkerChatRoomFilePathname,
   buildCoworkerImagePathname,
+  buildOrganizationLogoContentHashPathname,
+  buildOrganizationLogoPathname,
   buildTaskFilePathname,
   buildUserChatRoomFilePathname,
   buildUserUploadPathname,
   buildUserUploadPrefix,
   isOwnedCoworkerImageUrl,
+  isOwnedOrganizationLogoUrl,
   isOwnedTaskFileUrl,
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
 } from "@sokosumi/utils";
 import { del, list, put } from "@vercel/blob";
 
@@ -80,6 +84,34 @@ export async function createUserFileUploadSession(
   }
 
   return createBlobUploadGrant(grantInput);
+}
+
+/**
+ * Organization-logo direct upload grant (presigned PUT). Path under
+ * `organizations/{orgId}/logos/`. No onUploadCompleted webhook.
+ */
+export async function createOrganizationLogoUploadSession(
+  organizationId: string,
+  file: {
+    filename: string;
+    contentType: string;
+    size: number;
+    maxSizeBytes: number;
+  },
+  token: string,
+): Promise<BlobUploadGrant> {
+  const pathname = buildOrganizationLogoPathname(organizationId, file.filename);
+
+  return createBlobUploadGrant({
+    pathname,
+    contentType: file.contentType,
+    maximumSizeInBytes: file.size,
+    maxSizeBytes: file.maxSizeBytes,
+    access: "public",
+    addRandomSuffix: true,
+    token,
+    allowedContentTypes: ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  });
 }
 
 /** Task-file direct upload grant (presigned PUT). Same shape as user-file mint. */
@@ -358,11 +390,12 @@ export async function uploadGeneratedChatImage(params: {
 
 /**
  * Persist raw image bytes (a favicon/logo scraped from a site) as a public
- * organization-logo blob, so we own the asset instead of hot-linking an
- * external favicon URL that can rot or track viewers. Returns the public
- * URL, or null when blob storage isn't configured.
+ * organization-logo blob under `organizations/{orgId}/logos/{sha256}`, so we
+ * own the asset instead of hot-linking an external favicon URL. Returns the
+ * public URL, or null when blob storage isn't configured.
  */
 export async function uploadOrganizationLogoBytes(params: {
+  organizationId: string;
   bytes: ArrayBuffer | Buffer;
   contentType: string;
 }): Promise<string | null> {
@@ -378,7 +411,10 @@ export async function uploadOrganizationLogoBytes(params: {
     ? params.bytes
     : Buffer.from(params.bytes);
   const hash = crypto.createHash("sha256").update(buffer).digest("hex");
-  const pathname = `${STORAGE.ORGANIZATION_LOGO_UPLOAD_DIR}/${hash}`;
+  const pathname = buildOrganizationLogoContentHashPathname(
+    params.organizationId,
+    hash,
+  );
 
   try {
     const blob = await put(pathname, buffer, {
@@ -386,10 +422,10 @@ export async function uploadOrganizationLogoBytes(params: {
       contentType: params.contentType,
       token: env.BLOB_READ_WRITE_TOKEN,
       addRandomSuffix: false,
-      // The pathname is a content hash, so re-uploading the same icon (a
-      // retry, or a second organization whose site uses the same logo) targets
-      // an existing blob. Without this, `put` throws on that collision and the
-      // caller silently falls back to no logo.
+      // The pathname is a content hash under the org prefix, so re-uploading
+      // the same icon for the same org (retry) targets an existing blob.
+      // Without this, `put` throws on that collision and the caller silently
+      // falls back to no logo.
       allowOverwrite: true,
     });
     return blob.url;
@@ -398,6 +434,39 @@ export async function uploadOrganizationLogoBytes(params: {
       tags: { function: "uploadOrganizationLogoBytes" },
     });
     return null;
+  }
+}
+
+/**
+ * Best-effort delete of a previous organization logo when the URL is owned by
+ * that organization (pathname under `organizations/{id}/logos/`). Foreign /
+ * invalid / legacy flat URLs are ignored.
+ */
+export async function deleteOrganizationLogoIfOwned(
+  url: string | null | undefined,
+  organizationId: string,
+): Promise<void> {
+  if (!url || !isOwnedOrganizationLogoUrl(url, organizationId)) {
+    return;
+  }
+
+  const env = getEnv();
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    return;
+  }
+
+  try {
+    await del(url, { token: env.BLOB_READ_WRITE_TOKEN });
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: {
+        function: "deleteOrganizationLogoIfOwned",
+      },
+      extra: {
+        organizationId,
+        url,
+      },
+    });
   }
 }
 
