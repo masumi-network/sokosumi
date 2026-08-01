@@ -257,6 +257,56 @@ function serializeBlockquote(content: string): string {
     .join("\n")}\n`;
 }
 
+/**
+ * Put leading/trailing whitespace outside inline markers so CommonMark
+ * (room Markdown) and the lenient composer regex stay in sync.
+ * `<strong>hi </strong>` → `**hi** ` not `**hi **`.
+ */
+export function wrapInlineMarkdownMarker(
+  content: string,
+  open: string,
+  close: string,
+): string {
+  const leadingMatch = content.match(/^\s*/);
+  const trailingMatch = content.match(/\s*$/);
+  const leading = leadingMatch?.[0] ?? "";
+  const trailing = trailingMatch?.[0] ?? "";
+  const inner = content.slice(leading.length, content.length - trailing.length);
+  if (!inner) return content;
+  return `${leading}${open}${inner}${close}${trailing}`;
+}
+
+/**
+ * Rewrite loose emphasis like `**hi **` / `_hi _` / `~~hi ~~` into
+ * CommonMark-valid markers with spaces moved outside. Used when rendering
+ * so older persisted messages still show as bold/italic/strike.
+ */
+export function normalizeLooseInlineMarkdown(markdown: string): string {
+  if (!markdown) return markdown;
+
+  return markdown
+    .replace(
+      /\*\*(\s*)(.+?)(\s*)\*\*/g,
+      (_match, leading: string, inner: string, trailing: string) =>
+        `${leading}**${inner}**${trailing}`,
+    )
+    .replace(
+      /~~(\s*)(.+?)(\s*)~~/g,
+      (_match, leading: string, inner: string, trailing: string) =>
+        `${leading}~~${inner}~~${trailing}`,
+    )
+    .replace(
+      /(^|[^\\])_(\s*)(.+?)(\s*)_/g,
+      (
+        _match,
+        prefix: string,
+        leading: string,
+        inner: string,
+        trailing: string,
+      ) => `${prefix}${leading}_${inner}_${trailing}`,
+    );
+}
+
 /** HTML (contentEditable root) → markdown string for persistence. */
 export function htmlToMarkdown(element: HTMLElement): string {
   let result = "";
@@ -296,21 +346,21 @@ export function htmlToMarkdown(element: HTMLElement): string {
       switch (tag) {
         case "strong":
         case "b":
-          return `**${content}**`;
+          return wrapInlineMarkdownMarker(content, "**", "**");
         case "em":
         case "i":
-          return `_${content}_`;
+          return wrapInlineMarkdownMarker(content, "_", "_");
         case "u":
-          return `<u>${content}</u>`;
+          return wrapInlineMarkdownMarker(content, "<u>", "</u>");
         case "s":
         case "strike":
         case "del":
-          return `~~${content}~~`;
+          return wrapInlineMarkdownMarker(content, "~~", "~~");
         case "code": {
           if (content.includes("\n")) {
             return serializeFencedCode(content, getCodeLanguage(htmlElement));
           }
-          return `\`${content}\``;
+          return wrapInlineMarkdownMarker(content, "`", "`");
         }
         case "a":
           return `[${content}](${escapeMarkdownLinkUrl(
