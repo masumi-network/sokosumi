@@ -4623,8 +4623,10 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "宛先を追加して開始",
-        "oneToOneOnlyError": "ダイレクトメッセージは1対1です。メンバーまたはコワーカーを1人選んでください。",
-        "searchPlaceholderReplace": "宛先を差し替え"
+        "searchPlaceholderReplace": "宛先を差し替え",
+        "groupDirectHumansOnly": "グループのダイレクトメッセージは人間のみです。",
+        "groupDirectNoCoworkersError": "グループのダイレクトメッセージにコワーカーは含められません。",
+        "coworkerDirectOneToOneOnly": "コワーカーとのダイレクトメッセージは1対1です。"
       },
       "Toolbar": {
         "mention": "Mention coworker",

@@ -4623,8 +4623,10 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Empfänger hinzufügen, um zu starten",
-        "oneToOneOnlyError": "Direktnachrichten sind 1:1. Wähle ein Mitglied oder einen Coworker.",
-        "searchPlaceholderReplace": "Empfänger ersetzen"
+        "searchPlaceholderReplace": "Empfänger ersetzen",
+        "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
+        "groupDirectNoCoworkersError": "Gruppendirektnachrichten können keine Coworker enthalten.",
+        "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1."
       },
       "Toolbar": {
         "mention": "Mention coworker",
