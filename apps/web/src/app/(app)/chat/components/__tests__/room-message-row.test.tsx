@@ -219,6 +219,52 @@ describe("ChatMessageRow", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  it("dismisses the sheet when swiped down past the threshold", async () => {
+    const user = userEvent.setup();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderRow({ onQuote: vi.fn() });
+      await user.click(screen.getByRole("button", { name: "Actions.more" }));
+
+      const sheet = screen.getByRole("dialog");
+      const handle = sheet.querySelector("[data-sheet-swipe-handle]");
+      expect(handle).toBeTruthy();
+
+      await act(async () => {
+        handle!.dispatchEvent(
+          new PointerEvent("pointerdown", {
+            bubbles: true,
+            button: 0,
+            pointerId: 1,
+            clientX: 40,
+            clientY: 20,
+          }),
+        );
+        sheet.dispatchEvent(
+          new PointerEvent("pointermove", {
+            bubbles: true,
+            pointerId: 1,
+            clientX: 40,
+            clientY: 140,
+          }),
+        );
+        sheet.dispatchEvent(
+          new PointerEvent("pointerup", {
+            bubbles: true,
+            pointerId: 1,
+            clientX: 40,
+            clientY: 140,
+          }),
+        );
+        await vi.advanceTimersByTimeAsync(200);
+      });
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("opens message actions sheet after long-press when hover is unavailable", async () => {
     const matchMediaSpy = vi
       .spyOn(window, "matchMedia")
