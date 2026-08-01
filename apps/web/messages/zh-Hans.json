@@ -4689,7 +4689,9 @@
         "action": "引用",
         "dismiss": "移除引用",
         "previewLabel": "正在引用 {author}",
-        "jump": "跳转到 {author} 的消息"
+        "jump": "跳转到 {author} 的消息",
+        "showMore": "更多",
+        "showLess": "收起"
       },
       "MentionAll": {
         "label": "所有人"

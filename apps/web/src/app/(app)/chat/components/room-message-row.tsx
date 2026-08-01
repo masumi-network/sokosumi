@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/utils";
 import { CheckCircle2, Loader2, MessageCircle, Quote } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactNode } from "react";
+import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
@@ -70,31 +70,77 @@ function MessageQuoteBlock({
   usersBySlug?: Map<string, UserMentionLookup>;
 }) {
   const t = useTranslations("App.Channels.Quote");
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const snippetRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    setExpanded(false);
+  }, [quote.messageId, quote.snippet]);
+
+  useLayoutEffect(() => {
+    const node = snippetRef.current;
+    if (!node || expanded) {
+      return;
+    }
+
+    function measureOverflow() {
+      const el = snippetRef.current;
+      if (!el) {
+        return;
+      }
+      setOverflows(el.scrollHeight > el.clientHeight + 1);
+    }
+
+    measureOverflow();
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [expanded, quote.snippet]);
 
   return (
-    <button
-      type="button"
-      className="border-border bg-muted/40 hover:bg-muted/70 focus-visible:ring-ring mb-1.5 w-full rounded-md border-l-2 border-l-primary/60 px-2.5 py-1.5 text-left outline-none transition-colors focus-visible:ring-2"
-      aria-label={t("jump", { author: quote.authorName })}
-      onClick={() => {
-        scrollToRoomMessageElement(quote.messageId);
-      }}
-    >
-      <div className="text-foreground truncate text-xs font-semibold">
-        {quote.authorName}
-      </div>
-      <div className="text-muted-foreground text-xs leading-5 whitespace-pre-line">
-        <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
-          {formatRoomMarkdownMentions({
-            content: quote.snippet,
-            coworkersById,
-            coworkersBySlug,
-            usersById,
-            usersBySlug,
-          })}
-        </Markdown>
-      </div>
-    </button>
+    <div className="border-border bg-muted/40 mb-1.5 w-full rounded-md border-l-2 border-l-primary/60 px-2.5 py-1.5">
+      <button
+        type="button"
+        className="hover:bg-muted/70 focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
+        aria-label={t("jump", { author: quote.authorName })}
+        onClick={() => {
+          scrollToRoomMessageElement(quote.messageId);
+        }}
+      >
+        <div className="text-foreground truncate text-xs font-semibold">
+          {quote.authorName}
+        </div>
+        <div
+          ref={snippetRef}
+          className={cn(
+            "text-muted-foreground text-xs leading-5 whitespace-pre-line",
+            expanded ? null : "line-clamp-4",
+          )}
+        >
+          <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+            {formatRoomMarkdownMentions({
+              content: quote.snippet,
+              coworkersById,
+              coworkersBySlug,
+              usersById,
+              usersBySlug,
+            })}
+          </Markdown>
+        </div>
+      </button>
+      {expanded || overflows ? (
+        <button
+          type="button"
+          className="text-primary hover:text-primary/80 mt-0.5 text-xs font-medium outline-none focus-visible:underline"
+          onClick={() => {
+            setExpanded((current) => !current);
+          }}
+        >
+          {expanded ? t("showLess") : t("showMore")}
+        </button>
+      ) : null}
+    </div>
   );
 }
 

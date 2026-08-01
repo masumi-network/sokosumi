@@ -20,6 +20,12 @@ vi.mock("next-intl", () => ({
     if (key === "jump" && values) {
       return `Jump to message from ${values.author}`;
     }
+    if (key === "showMore") {
+      return "More";
+    }
+    if (key === "showLess") {
+      return "Less";
+    }
     return key;
   },
 }));
@@ -255,33 +261,129 @@ describe("ChatMessageRow", () => {
     expect(quoteButton.textContent).toContain("line one\nline two");
   });
 
-  it("shows the full quote body without a line clamp", () => {
-    const fullSnippet =
-      "Two more things about the chat here:\nCan you please make chat drafts persistent during tab-switches. Writing a long message and losing it because I quickly wanted to check sth. in another chat is painful :) and please add @all:all tagging functionality please.";
-
-    renderRow({
-      message: userMessage({
-        content: "Reply body",
-        quote: {
-          messageId: "original-3",
-          authorName: "Phil",
-          snippet: fullSnippet,
-        },
-      }),
+  it("clamps long quotes and expands with More/Less when content overflows", async () => {
+    const user = userEvent.setup();
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    const clientDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 120;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return 40;
+      },
     });
 
-    const quoteButton = screen.getByRole("button", {
-      name: "Jump to message from Phil",
+    try {
+      const fullSnippet =
+        "Two more things about the chat here:\nCan you please make chat drafts persistent during tab-switches. Writing a long message and losing it because I quickly wanted to check sth. in another chat is painful :) and please add @all:all tagging functionality please.";
+
+      renderRow({
+        message: userMessage({
+          content: "Reply body",
+          quote: {
+            messageId: "original-3",
+            authorName: "Phil",
+            snippet: fullSnippet,
+          },
+        }),
+      });
+
+      const jumpButton = screen.getByRole("button", {
+        name: "Jump to message from Phil",
+      });
+      expect(jumpButton.querySelector(".line-clamp-4")).not.toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "More" }));
+      expect(jumpButton.querySelector(".line-clamp-4")).toBeNull();
+      expect(screen.getByRole("button", { name: "Less" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Less" }));
+      expect(jumpButton.querySelector(".line-clamp-4")).not.toBeNull();
+      expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
+    } finally {
+      if (scrollDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollDescriptor,
+        );
+      }
+      if (clientDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientHeight",
+          clientDescriptor,
+        );
+      }
+    }
+  });
+
+  it("hides More when the clamped quote does not overflow", () => {
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    const clientDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 20;
+      },
     });
-    const snippetHost = quoteButton.querySelector(".whitespace-pre-line");
-    expect(snippetHost).not.toBeNull();
-    expect(snippetHost?.className ?? "").not.toMatch(/line-clamp-/);
-    expect(quoteButton.textContent).toContain(
-      "Two more things about the chat here:",
-    );
-    expect(quoteButton.textContent).toContain(
-      "chat drafts persistent during tab-switches",
-    );
-    expect(quoteButton.textContent).toContain("tagging functionality please.");
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return 20;
+      },
+    });
+
+    try {
+      renderRow({
+        message: userMessage({
+          content: "Reply body",
+          quote: {
+            messageId: "original-short",
+            authorName: "Phil",
+            snippet: "short quote",
+          },
+        }),
+      });
+
+      expect(
+        screen.queryByRole("button", { name: "More" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Jump to message from Phil" }),
+      ).toBeInTheDocument();
+    } finally {
+      if (scrollDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollDescriptor,
+        );
+      }
+      if (clientDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientHeight",
+          clientDescriptor,
+        );
+      }
+    }
   });
 });

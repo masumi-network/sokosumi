@@ -4689,7 +4689,9 @@
         "action": "Cita",
         "dismiss": "Rimuovi citazione",
         "previewLabel": "Citando {author}",
-        "jump": "Vai al messaggio di {author}"
+        "jump": "Vai al messaggio di {author}",
+        "showMore": "Altro",
+        "showLess": "Meno"
       },
       "MentionAll": {
         "label": "Tutti"

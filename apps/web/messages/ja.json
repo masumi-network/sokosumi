@@ -4689,7 +4689,9 @@
         "action": "引用",
         "dismiss": "引用を削除",
         "previewLabel": "{author} を引用中",
-        "jump": "{author} のメッセージへ移動"
+        "jump": "{author} のメッセージへ移動",
+        "showMore": "続きを表示",
+        "showLess": "折りたたむ"
       },
       "MentionAll": {
         "label": "全員"
