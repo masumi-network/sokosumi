@@ -115,8 +115,8 @@ export function RoomMessageComposer({
           ) : null}
           {children}
           {belowEditor}
-          <div className="flex items-center justify-between px-3 pb-3">
-            <div className="text-muted-foreground flex items-center gap-1">
+          <div className="flex items-center justify-between gap-2 px-3 pb-3">
+            <div className="text-muted-foreground flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
               {toolbarStart}
             </div>
             {submitControl ?? (

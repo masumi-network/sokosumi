@@ -14,6 +14,8 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
+import { ComposerAddLinkDialog } from "@/components/chat/composer-add-link-dialog";
+import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
 import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
@@ -30,6 +32,10 @@ import {
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
+import {
+  buildMarkdownLink,
+  type ComposerFormatCommand,
+} from "@/lib/utils/composer-markdown-wrap";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import type { RoomMentionParticipant } from "./room-helpers";
@@ -111,6 +117,13 @@ export function RoomComposer({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isUploadingFilesRef = useRef(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkInitialText, setLinkInitialText] = useState("");
+  const [linkInitialUrl, setLinkInitialUrl] = useState("");
+  const [linkSelection, setLinkSelection] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
   const composerMentions = showMentionShortcut ? mentions : {};
   const handleSelectedKeysChange = showMentionShortcut
     ? onSelectedKeysChange
@@ -189,93 +202,137 @@ export function RoomComposer({
     textareaRef.current?.focus();
   }
 
+  function openLinkDialog() {
+    const range = textareaRef.current?.getSelectionRange();
+    const selected = range != null ? value.slice(range.start, range.end) : "";
+    setLinkSelection(range ?? { start: value.length, end: value.length });
+    setLinkInitialText(selected);
+    setLinkInitialUrl(
+      /^https?:\/\//i.test(selected.trim()) ? selected.trim() : "",
+    );
+    setLinkDialogOpen(true);
+  }
+
+  function handleFormat(command: ComposerFormatCommand) {
+    textareaRef.current?.applyMarkdownWrap(command);
+  }
+
+  function handleLinkSave(text: string, url: string) {
+    const range = linkSelection ?? {
+      start: value.length,
+      end: value.length,
+    };
+    const link = buildMarkdownLink(text, url);
+    if (!link) return;
+
+    textareaRef.current?.replaceRange(range.start, range.end, link);
+    setLinkSelection(null);
+    textareaRef.current?.focus();
+  }
+
   return (
-    <RoomMessageComposer
-      formRef={formRef}
-      onSubmit={onSubmit}
-      attachments={attachments}
-      onRemoveAttachment={(attachment) =>
-        removeAttachment({
-          url: attachment.url,
-          fileName: attachment.fileName,
-          mediaType: attachment.mediaType ?? null,
-        })
-      }
-      removeAttachmentLabel={(name) => t("Toolbar.removeAttachment", { name })}
-      isSending={isSending}
-      sendDisabled={isUploadingFiles || sendDisabled}
-      sendAriaLabel={t("send")}
-      toolbarStart={
-        <>
-          {showMentionShortcut ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-              title={t("Toolbar.mention")}
-              aria-label={t("Toolbar.mention")}
-              onClick={() => textareaRef.current?.openMentions()}
-            >
-              <AtSign className="size-4" aria-hidden />
-            </Button>
-          ) : null}
-          {allowAttachments ? (
-            <>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                tabIndex={-1}
-                onChange={(event) => {
-                  void handleFilesSelected(event.currentTarget.files);
-                }}
-              />
+    <>
+      <RoomMessageComposer
+        formRef={formRef}
+        onSubmit={onSubmit}
+        attachments={attachments}
+        onRemoveAttachment={(attachment) =>
+          removeAttachment({
+            url: attachment.url,
+            fileName: attachment.fileName,
+            mediaType: attachment.mediaType ?? null,
+          })
+        }
+        removeAttachmentLabel={(name) =>
+          t("Toolbar.removeAttachment", { name })
+        }
+        isSending={isSending}
+        sendDisabled={isUploadingFiles || sendDisabled}
+        sendAriaLabel={t("send")}
+        toolbarStart={
+          <>
+            <ComposerFormatToolbar
+              onFormat={handleFormat}
+              onLink={openLinkDialog}
+            />
+            {showMentionShortcut ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-                title={t("Toolbar.attach")}
-                aria-label={t("Toolbar.attach")}
-                disabled={isUploadingFiles}
-                onClick={() => fileInputRef.current?.click()}
+                title={t("Toolbar.mention")}
+                aria-label={t("Toolbar.mention")}
+                onClick={() => textareaRef.current?.openMentions()}
               >
-                {isUploadingFiles ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <Paperclip className="size-4" aria-hidden />
-                )}
+                <AtSign className="size-4" aria-hidden />
               </Button>
-            </>
-          ) : null}
-          <RoomComposerEmojiPicker
-            title={t("Toolbar.emoji")}
-            ariaLabel={t("Toolbar.emoji")}
-            onPick={(emoji) => textareaRef.current?.insertText(emoji)}
-          />
-        </>
-      }
-    >
-      <MentionTextarea
-        ref={textareaRef}
-        value={value}
-        onChange={onValueChange}
-        onSelectedKeysChange={handleSelectedKeysChange}
-        mentions={composerMentions}
-        placeholder={placeholder}
-        suggestionsAnchor="editor"
-        submitOnEnter
-        // On a phone Enter is the only newline key, and the send button is
-        // always visible — so Enter composes rather than sends.
-        allowEnterToSubmitOnMobile={false}
-        onSubmitShortcut={() => formRef.current?.requestSubmit()}
-        // Capped so a long draft scrolls inside the composer instead of
-        // growing it until the toolbar and send button leave the screen.
-        className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
-        renderItem={(mention) => <RoomMentionSuggestion mention={mention} />}
+            ) : null}
+            {allowAttachments ? (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  tabIndex={-1}
+                  onChange={(event) => {
+                    void handleFilesSelected(event.currentTarget.files);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                  title={t("Toolbar.attach")}
+                  aria-label={t("Toolbar.attach")}
+                  disabled={isUploadingFiles}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {isUploadingFiles ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Paperclip className="size-4" aria-hidden />
+                  )}
+                </Button>
+              </>
+            ) : null}
+            <RoomComposerEmojiPicker
+              title={t("Toolbar.emoji")}
+              ariaLabel={t("Toolbar.emoji")}
+              onPick={(emoji) => textareaRef.current?.insertText(emoji)}
+            />
+          </>
+        }
+      >
+        <MentionTextarea
+          ref={textareaRef}
+          value={value}
+          onChange={onValueChange}
+          onSelectedKeysChange={handleSelectedKeysChange}
+          mentions={composerMentions}
+          placeholder={placeholder}
+          suggestionsAnchor="editor"
+          submitOnEnter
+          // On a phone Enter is the only newline key, and the send button is
+          // always visible — so Enter composes rather than sends.
+          allowEnterToSubmitOnMobile={false}
+          onSubmitShortcut={() => formRef.current?.requestSubmit()}
+          onLinkShortcut={openLinkDialog}
+          // Capped so a long draft scrolls inside the composer instead of
+          // growing it until the toolbar and send button leave the screen.
+          className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
+          renderItem={(mention) => <RoomMentionSuggestion mention={mention} />}
+        />
+      </RoomMessageComposer>
+      <ComposerAddLinkDialog
+        open={linkDialogOpen}
+        onOpenChange={setLinkDialogOpen}
+        initialText={linkInitialText}
+        initialUrl={linkInitialUrl}
+        onSave={handleLinkSave}
       />
-    </RoomMessageComposer>
+    </>
   );
 }

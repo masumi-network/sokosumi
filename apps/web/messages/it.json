@@ -4609,8 +4609,17 @@
         "attach": "Attach file",
         "dropToAttach": "Trascina i file per allegarli",
         "emoji": "Emoji",
-        "format": "Formatting",
-        "bold": "Bold",
+        "format": "Formattazione",
+        "bold": "Grassetto",
+        "italic": "Corsivo",
+        "underline": "Sottolineato",
+        "strikethrough": "Barrato",
+        "code": "Codice",
+        "codeBlock": "Blocco di codice",
+        "quote": "Citazione",
+        "bulletList": "Elenco puntato",
+        "numberedList": "Elenco numerato",
+        "link": "Collegamento",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "Caricamento di {fileName}",
         "uploadingFiles": "Caricamento di {count} file",
@@ -4640,7 +4649,16 @@
       "loadOlder": "Carica messaggi precedenti",
       "loadingOlder": "Caricamento messaggi precedenti…",
       "roomUnavailable": "Questa chat non è disponibile oppure non hai più accesso.",
-      "archivedChannels": "Archiviati"
+      "archivedChannels": "Archiviati",
+      "AddLink": {
+        "title": "Aggiungi collegamento",
+        "text": "Testo",
+        "textPlaceholder": "Testo visualizzato",
+        "link": "Collegamento",
+        "linkPlaceholder": "https://",
+        "cancel": "Annulla",
+        "save": "Salva"
+      }
     }
   },
   "Share": {

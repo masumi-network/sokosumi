@@ -4730,6 +4730,15 @@
         "emoji": "Emoji",
         "format": "Formatting",
         "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline",
+        "strikethrough": "Strikethrough",
+        "code": "Code",
+        "codeBlock": "Code block",
+        "quote": "Quote",
+        "bulletList": "Bulleted list",
+        "numberedList": "Numbered list",
+        "link": "Link",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
@@ -4759,7 +4768,16 @@
       "loadOlder": "Load older messages",
       "loadingOlder": "Loading older messages…",
       "roomUnavailable": "This chat is unavailable or you no longer have access.",
-      "archivedChannels": "Archived"
+      "archivedChannels": "Archived",
+      "AddLink": {
+        "title": "Add link",
+        "text": "Text",
+        "textPlaceholder": "Display text",
+        "link": "Link",
+        "linkPlaceholder": "https://",
+        "cancel": "Cancel",
+        "save": "Save"
+      }
     }
   },
   "Share": {

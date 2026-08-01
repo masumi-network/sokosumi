@@ -13,6 +13,11 @@ import {
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
+import {
+  applyComposerFormat,
+  applyMarkdownLink,
+  type ComposerFormatCommand,
+} from "@/lib/utils/composer-markdown-wrap";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
 
 import {
@@ -24,6 +29,7 @@ import {
   getCaretRect,
   getMentionToken,
   getPopupPositionFromRect,
+  getSerializedOffset,
   isLineBreak,
   isMentionSpan,
   isWhitespaceChar,
@@ -42,10 +48,24 @@ import {
 
 export type { MentionRecordEntry, NormalizedMention };
 
+export interface MentionSelectionRange {
+  start: number;
+  end: number;
+}
+
 export interface MentionTextareaHandle {
   focus: () => void;
   insertText: (text: string) => void;
   openMentions: () => void;
+  getSelectionRange: () => MentionSelectionRange | null;
+  replaceRange: (
+    start: number,
+    end: number,
+    replacement: string,
+    nextSelection?: MentionSelectionRange,
+  ) => void;
+  applyMarkdownWrap: (command: ComposerFormatCommand) => void;
+  applyLink: (text: string, url: string) => boolean;
 }
 
 interface MentionTextareaProps<TData = unknown> {
@@ -64,11 +84,54 @@ interface MentionTextareaProps<TData = unknown> {
    */
   allowEnterToSubmitOnMobile?: boolean;
   onSubmitShortcut?: () => void;
+  /** Fired for Cmd/Ctrl+K so the host can open an Add link dialog. */
+  onLinkShortcut?: () => void;
   renderItem?: (
     mention: NormalizedMention<TData>,
     isActive: boolean,
   ) => ReactNode;
   onSelectedKeysChange?: (selectedKeys: string[]) => void;
+}
+
+function getEditorSelectionRange(
+  root: HTMLElement,
+): MentionSelectionRange | null {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return null;
+  const range = selection.getRangeAt(0);
+  if (
+    !root.contains(range.startContainer) ||
+    !root.contains(range.endContainer)
+  ) {
+    return null;
+  }
+
+  const start = getSerializedOffset(
+    root,
+    range.startContainer,
+    range.startOffset,
+  );
+  const end = getSerializedOffset(root, range.endContainer, range.endOffset);
+  return {
+    start: Math.min(start, end),
+    end: Math.max(start, end),
+  };
+}
+
+function setEditorSelectionRange(
+  root: HTMLElement,
+  start: number,
+  end: number,
+): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const startPos = findPositionForOffset(root, start);
+  const endPos = findPositionForOffset(root, end);
+  const range = document.createRange();
+  range.setStart(startPos.node, startPos.offset);
+  range.setEnd(endPos.node, endPos.offset);
+  selection.removeAllRanges();
+  selection.addRange(range);
 }
 
 function getFirstSerializedChar(node: Node): string | undefined {
@@ -304,6 +367,7 @@ function MentionTextareaInner<TData = unknown>(
     submitOnEnter = false,
     allowEnterToSubmitOnMobile = true,
     onSubmitShortcut,
+    onLinkShortcut,
     renderItem,
     onSelectedKeysChange,
   }: MentionTextareaProps<TData>,
@@ -634,6 +698,109 @@ function MentionTextareaInner<TData = unknown>(
     [syncEditorValueAndMentions],
   );
 
+  const applySerializedEdit = useCallback(
+    (
+      nextText: string,
+      selectionStart: number,
+      selectionEnd: number,
+    ) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+
+      setEditorFromRaw(editor, nextText, resolveDisplay, {
+        mentionClassName: MENTION_CLASSNAME,
+        unknownMentionClassName: UNKNOWN_MENTION_CLASSNAME,
+      });
+      lastSerializedValueRef.current = nextText;
+      onChange(nextText);
+      editor.focus();
+      setEditorSelectionRange(editor, selectionStart, selectionEnd);
+      closeSuggestions();
+    },
+    [closeSuggestions, onChange, resolveDisplay],
+  );
+
+  const getSelectionRange = useCallback((): MentionSelectionRange | null => {
+    const editor = editorRef.current;
+    if (!editor) return null;
+    return getEditorSelectionRange(editor);
+  }, []);
+
+  const replaceRange = useCallback(
+    (
+      start: number,
+      end: number,
+      replacement: string,
+      nextSelection?: MentionSelectionRange,
+    ) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const current = serializeEditorText(editor);
+      const safeStart = Math.max(0, Math.min(start, current.length));
+      const safeEnd = Math.max(safeStart, Math.min(end, current.length));
+      const nextText =
+        current.slice(0, safeStart) + replacement + current.slice(safeEnd);
+      const selectionStart = nextSelection?.start ?? safeStart;
+      const selectionEnd =
+        nextSelection?.end ?? safeStart + replacement.length;
+      applySerializedEdit(nextText, selectionStart, selectionEnd);
+    },
+    [applySerializedEdit],
+  );
+
+  const applyMarkdownWrap = useCallback(
+    (command: ComposerFormatCommand) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const current = serializeEditorText(editor);
+      const range =
+        getEditorSelectionRange(editor) ?? {
+          start: current.length,
+          end: current.length,
+        };
+      const result = applyComposerFormat(
+        current,
+        range.start,
+        range.end,
+        command,
+      );
+      applySerializedEdit(
+        result.text,
+        result.selectionStart,
+        result.selectionEnd,
+      );
+    },
+    [applySerializedEdit],
+  );
+
+  const applyLink = useCallback(
+    (text: string, url: string) => {
+      const editor = editorRef.current;
+      if (!editor) return false;
+      const current = serializeEditorText(editor);
+      const range =
+        getEditorSelectionRange(editor) ?? {
+          start: current.length,
+          end: current.length,
+        };
+      const result = applyMarkdownLink(
+        current,
+        range.start,
+        range.end,
+        text,
+        url,
+      );
+      if (!result) return false;
+      applySerializedEdit(
+        result.text,
+        result.selectionStart,
+        result.selectionEnd,
+      );
+      return true;
+    },
+    [applySerializedEdit],
+  );
+
   const openMentionSuggestions = useCallback(() => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -659,14 +826,53 @@ function MentionTextareaInner<TData = unknown>(
       },
       insertText,
       openMentions: openMentionSuggestions,
+      getSelectionRange,
+      replaceRange,
+      applyMarkdownWrap,
+      applyLink,
     }),
-    [insertText, openMentionSuggestions],
+    [
+      applyLink,
+      applyMarkdownWrap,
+      getSelectionRange,
+      insertText,
+      openMentionSuggestions,
+      replaceRange,
+    ],
   );
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const editor = editorRef.current;
       if (!editor) return;
+
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        !event.altKey &&
+        !event.nativeEvent.isComposing
+      ) {
+        const key = event.key.toLowerCase();
+        if (key === "b") {
+          event.preventDefault();
+          applyMarkdownWrap("bold");
+          return;
+        }
+        if (key === "i") {
+          event.preventDefault();
+          applyMarkdownWrap("italic");
+          return;
+        }
+        if (key === "u") {
+          event.preventDefault();
+          applyMarkdownWrap("underline");
+          return;
+        }
+        if (key === "k") {
+          event.preventDefault();
+          onLinkShortcut?.();
+          return;
+        }
+      }
 
       if (event.key === "Backspace") {
         if (removeMentionAtSelection(editor, "backward")) {
@@ -746,10 +952,12 @@ function MentionTextareaInner<TData = unknown>(
     [
       activeIndex,
       allowEnterToSubmitOnMobile,
+      applyMarkdownWrap,
       closeSuggestions,
       filteredMentions,
       insertMention,
       isOpen,
+      onLinkShortcut,
       onSubmitShortcut,
       submitOnEnter,
       syncEditorValue,
