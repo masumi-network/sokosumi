@@ -38,6 +38,7 @@ import {
 import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
 import {
   listOrganizationArchivedChatRoomsAction,
@@ -421,18 +422,9 @@ export function OrganizationChatList({
       }
     }
 
-    // Channels: A–Z. DMs: most recent activity first (`updatedAt` bumps on send).
-    namedChannels.sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
-    );
-    directMessages.sort((a, b) => {
-      const byActivity =
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-      if (byActivity !== 0) {
-        return byActivity;
-      }
-      return a.id.localeCompare(b.id);
-    });
+    // Active channels and DMs: most recent activity first (`updatedAt` bumps on send).
+    namedChannels.sort(compareChatRoomsByRecentActivity);
+    directMessages.sort(compareChatRoomsByRecentActivity);
 
     return { directMessages, namedChannels };
   }, [roomRows]);
