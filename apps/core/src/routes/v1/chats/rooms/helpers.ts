@@ -513,10 +513,9 @@ export async function requireArchivedChatRoomUserAccess(
   return room;
 }
 
-// Write paths only need the room's identity plus the coworker roster used
-// for mention dispatch. Hydrating the full include here would pull every user
-// member, their user rows, and a session-presence lookup into the write
-// transaction — hundreds of unused rows per message on a large room.
+// Write paths need room identity, coworker roster for AI mention dispatch,
+// and human member names for resolveMentionedUserIds. Avoid the full include
+// (sessions / presence) — that would pull hundreds of unused rows per message.
 const chatRoomWriteSelect = {
   id: true,
   name: true,
@@ -527,6 +526,12 @@ const chatRoomWriteSelect = {
   userMembers: {
     select: {
       userId: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
     orderBy: { createdAt: "asc" },
   },
@@ -769,7 +774,7 @@ export function resolveMentionedCoworkerIds(params: {
  * Resolve human @mentions for a room message. Candidates must already be room
  * members. The author is always excluded. Unlike coworkers, these IDs do not
  * create ChatRoomMention rows or trigger AI dispatch — they address humans via
- * content tokens only (v1 has no notify surface).
+ * content tokens; callers emit in-app notifications after the message commits.
  */
 export function resolveMentionedUserIds(params: {
   content: string;

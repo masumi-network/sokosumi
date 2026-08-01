@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
+import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -24,6 +25,7 @@ import {
   requireChatRoomCoworkerAccess,
   requireChatRoomUserWriteAccess,
   resolveMentionedCoworkerIds,
+  resolveMentionedUserIds,
   resolveThreadParentMessageId,
 } from "../../helpers";
 
@@ -111,111 +113,142 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const userContext = requireUserAuthContext(authContext);
 
-    const { message, mentionIds } = await prisma.$transaction(async (tx) => {
-      const room = await requireChatRoomUserWriteAccess(
-        id,
-        userContext.userId,
-        tx,
-      );
-      const skipCoworkerMentions =
-        room.kind === "direct" &&
-        room.coworkerMembers.length === 1 &&
-        room.userMembers.length === 1 &&
-        room.userMembers[0]?.userId === userContext.userId;
+    const { message, mentionIds, mentionedUserIds, room } =
+      await prisma.$transaction(async (tx) => {
+        const room = await requireChatRoomUserWriteAccess(
+          id,
+          userContext.userId,
+          tx,
+        );
+        const skipCoworkerMentions =
+          room.kind === "direct" &&
+          room.coworkerMembers.length === 1 &&
+          room.userMembers.length === 1 &&
+          room.userMembers[0]?.userId === userContext.userId;
 
-      const directCoworkerIds =
-        room.kind === "direct" && !skipCoworkerMentions
-          ? room.coworkerMembers.map(({ coworker }) => coworker.id)
-          : [];
+        const directCoworkerIds =
+          room.kind === "direct" && !skipCoworkerMentions
+            ? room.coworkerMembers.map(({ coworker }) => coworker.id)
+            : [];
 
-      const parentMessageId = await resolveThreadParentMessageId(
-        tx,
-        room.id,
-        body.parentMessageId,
-      );
+        const parentMessageId = await resolveThreadParentMessageId(
+          tx,
+          room.id,
+          body.parentMessageId,
+        );
 
-      // A thread reply goes to every coworker already part of the thread —
-      // as a sender or a mention target — without requiring a fresh @mention.
-      let threadCoworkerIds: string[] = [];
-      if (parentMessageId) {
-        const threadMessages = await tx.chatRoomMessage.findMany({
-          where: {
-            roomId: room.id,
-            OR: [{ id: parentMessageId }, { parentMessageId }],
-          },
-          select: {
-            senderCoworkerId: true,
-            mentionsAsSource: { select: { coworkerId: true } },
-          },
-        });
-        threadCoworkerIds = threadMessages.flatMap((threadMessage) => [
-          ...(threadMessage.senderCoworkerId
-            ? [threadMessage.senderCoworkerId]
-            : []),
-          ...threadMessage.mentionsAsSource.map(
-            (mention) => mention.coworkerId,
-          ),
-        ]);
-      }
-
-      const mentionedCoworkerIds = skipCoworkerMentions
-        ? []
-        : resolveMentionedCoworkerIds({
-            content: body.content,
-            explicitCoworkerIds: [
-              ...(body.mentionedCoworkerIds ?? []),
-              ...directCoworkerIds,
-              ...threadCoworkerIds,
-            ],
-            roomCoworkers: room.coworkerMembers.map(({ coworker }) => ({
-              id: coworker.id,
-              name: coworker.name,
-              slug: coworker.slug,
-            })),
+        // A thread reply goes to every coworker already part of the thread —
+        // as a sender or a mention target — without requiring a fresh @mention.
+        let threadCoworkerIds: string[] = [];
+        if (parentMessageId) {
+          const threadMessages = await tx.chatRoomMessage.findMany({
+            where: {
+              roomId: room.id,
+              OR: [{ id: parentMessageId }, { parentMessageId }],
+            },
+            select: {
+              senderCoworkerId: true,
+              mentionsAsSource: { select: { coworkerId: true } },
+            },
           });
+          threadCoworkerIds = threadMessages.flatMap((threadMessage) => [
+            ...(threadMessage.senderCoworkerId
+              ? [threadMessage.senderCoworkerId]
+              : []),
+            ...threadMessage.mentionsAsSource.map(
+              (mention) => mention.coworkerId,
+            ),
+          ]);
+        }
 
-      const message = await tx.chatRoomMessage.create({
-        data: {
-          roomId: room.id,
-          parentMessageId,
-          senderUserId: userContext.userId,
+        const mentionedCoworkerIds = skipCoworkerMentions
+          ? []
+          : resolveMentionedCoworkerIds({
+              content: body.content,
+              explicitCoworkerIds: [
+                ...(body.mentionedCoworkerIds ?? []),
+                ...directCoworkerIds,
+                ...threadCoworkerIds,
+              ],
+              roomCoworkers: room.coworkerMembers.map(({ coworker }) => ({
+                id: coworker.id,
+                name: coworker.name,
+                slug: coworker.slug,
+              })),
+            });
+
+        const mentionedUserIds = resolveMentionedUserIds({
           content: body.content,
-          mentionsAsSource: {
-            create: mentionedCoworkerIds.map((coworkerId) => ({
-              coworkerId,
-            })),
-          },
-        },
-        include: chatRoomMessageInclude,
-      });
+          explicitUserIds: body.mentionedUserIds ?? [],
+          roomUsers: room.userMembers.map(({ user }) => ({
+            id: user.id,
+            name: user.name,
+          })),
+          excludeUserId: userContext.userId,
+        });
 
-      await tx.chatRoom.update({
-        where: { id: room.id },
-        data: { updatedAt: new Date() },
-      });
-      await tx.chatRoomReadState.upsert({
-        where: {
-          roomId_userId: {
+        const message = await tx.chatRoomMessage.create({
+          data: {
+            roomId: room.id,
+            parentMessageId,
+            senderUserId: userContext.userId,
+            content: body.content,
+            mentionsAsSource: {
+              create: mentionedCoworkerIds.map((coworkerId) => ({
+                coworkerId,
+              })),
+            },
+          },
+          include: chatRoomMessageInclude,
+        });
+
+        await tx.chatRoom.update({
+          where: { id: room.id },
+          data: { updatedAt: new Date() },
+        });
+        await tx.chatRoomReadState.upsert({
+          where: {
+            roomId_userId: {
+              roomId: room.id,
+              userId: userContext.userId,
+            },
+          },
+          update: { lastReadAt: message.createdAt },
+          create: {
             roomId: room.id,
             userId: userContext.userId,
+            lastReadAt: message.createdAt,
           },
-        },
-        update: { lastReadAt: message.createdAt },
-        create: {
-          roomId: room.id,
-          userId: userContext.userId,
-          lastReadAt: message.createdAt,
-        },
-      });
+        });
 
-      return {
-        message,
-        mentionIds: message.mentionsAsSource.map((mention) => mention.id),
-      };
-    });
+        return {
+          message,
+          mentionIds: message.mentionsAsSource.map((mention) => mention.id),
+          mentionedUserIds,
+          room: {
+            id: room.id,
+            name: room.name,
+            organizationId: room.organizationId,
+          },
+        };
+      });
 
     for (const mentionId of mentionIds) {
       waitUntil(dispatchChatRoomMention(mentionId));
+    }
+
+    if (mentionedUserIds.length > 0) {
+      waitUntil(
+        emitChatMentionNotifications({
+          roomId: room.id,
+          roomName: room.name,
+          organizationId: room.organizationId,
+          messageId: message.id,
+          authorUserId: userContext.userId,
+          authorName: message.senderUser?.name ?? "Someone",
+          mentionedUserIds,
+        }),
+      );
     }
 
     return created(
