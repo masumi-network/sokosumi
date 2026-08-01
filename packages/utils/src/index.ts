@@ -173,6 +173,12 @@ export {
   type InviteLinkStatusFields,
 } from "./organization-invite-link.js";
 export {
+  buildOrganizationLogoContentHashPathname,
+  buildOrganizationLogoPathname,
+  buildOrganizationLogoPrefix,
+  isOwnedOrganizationLogoUrl,
+} from "./organization-logo-path.js";
+export {
   isOrganizationLogoAllowedContentType,
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,

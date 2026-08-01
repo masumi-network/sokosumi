@@ -2713,6 +2713,73 @@ export type UpdateOrganizationSubscriptionSeats = {
     seats: number;
 };
 
+export type OrganizationLogoCleanupResult = {
+    ok: true;
+};
+
+export type OrganizationLogoCleanupRequest = {
+    /**
+     * Public blob URL of a prior organization logo to delete if owned
+     */
+    url: string;
+};
+
+export type OrganizationLogoUploadSession = {
+    /**
+     * Presigned Blob PUT URL (time-scoped, path-scoped)
+     */
+    uploadUrl: string;
+    /**
+     * Server-generated upload pathname (before random suffix)
+     */
+    pathname: string;
+    /**
+     * Blob access level for the upload
+     */
+    access: 'public';
+    /**
+     * HTTP method for the client upload request
+     */
+    method: 'PUT';
+    /**
+     * Headers the client must send on the PUT
+     */
+    headers: {
+        'Content-Type': string;
+    };
+    /**
+     * When the presigned upload URL expires (ISO-8601)
+     */
+    expiresAt: Date;
+    /**
+     * Maximum supported file size for this upload policy
+     */
+    maxSizeBytes: number;
+    /**
+     * Whether Blob appends a random suffix to the final pathname
+     */
+    addRandomSuffix: boolean;
+};
+
+export type CreateOrganizationLogoUploadRequest = {
+    /**
+     * Original file name supplied by the client
+     */
+    filename: string;
+    /**
+     * Declared logo MIME type from the client
+     */
+    contentType: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+    /**
+     * Optional per-upload size ceiling in bytes. Must not exceed the organization logo maximum.
+     */
+    maxSizeBytes?: number;
+};
+
 export type ResolveOrganizationInviteLink = {
     status: 'valid' | 'expired' | 'revoked' | 'depleted' | 'not_found';
     organization: {
@@ -19348,6 +19415,254 @@ export type PutOrganizationsByIdDesignMdResponses = {
 
 export type PutOrganizationsByIdDesignMdResponse = PutOrganizationsByIdDesignMdResponses[keyof PutOrganizationsByIdDesignMdResponses];
 
+export type PostOrganizationsByIdFilesCleanupData = {
+    body: OrganizationLogoCleanupRequest;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/files/cleanup';
+};
+
+export type PostOrganizationsByIdFilesCleanupErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdFilesCleanupError = PostOrganizationsByIdFilesCleanupErrors[keyof PostOrganizationsByIdFilesCleanupErrors];
+
+export type PostOrganizationsByIdFilesCleanupResponses = {
+    /**
+     * Cleanup attempted (owned logos deleted; others ignored)
+     */
+    200: {
+        data: OrganizationLogoCleanupResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdFilesCleanupResponse = PostOrganizationsByIdFilesCleanupResponses[keyof PostOrganizationsByIdFilesCleanupResponses];
+
+export type PostOrganizationsByIdFilesData = {
+    body: CreateOrganizationLogoUploadRequest;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/files';
+};
+
+export type PostOrganizationsByIdFilesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdFilesError = PostOrganizationsByIdFilesErrors[keyof PostOrganizationsByIdFilesErrors];
+
+export type PostOrganizationsByIdFilesResponses = {
+    /**
+     * Organization logo upload session created successfully
+     */
+    201: {
+        data: OrganizationLogoUploadSession;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdFilesResponse = PostOrganizationsByIdFilesResponses[keyof PostOrganizationsByIdFilesResponses];
+
 export type GetOrganizationInviteLinksByTokenData = {
     body?: never;
     path: {
@@ -26483,15 +26798,47 @@ export type GetToolsSiteIconData = {
          * Website URL to scrape a high-quality icon from.
          */
         url: string;
+        /**
+         * Organization that will own the scraped logo blob under organizations/{id}/logos/.
+         */
+        organizationId: string;
     };
     url: '/tools/site-icon';
 };
 
 export type GetToolsSiteIconErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
