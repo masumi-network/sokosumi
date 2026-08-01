@@ -159,6 +159,14 @@ describe("contentIncludesRoomAllMention", () => {
     expect(contentIncludesRoomAllMention("ping @all")).toBe(true);
     expect(contentIncludesRoomAllMention("@allison")).toBe(false);
     expect(contentIncludesRoomAllMention("@all:other")).toBe(false);
+    expect(contentIncludesRoomAllMention("@ALL")).toBe(false);
+  });
+
+  it("detects tokens wrapped in common markdown markers", () => {
+    expect(contentIncludesRoomAllMention("**@all:all** please")).toBe(true);
+    expect(contentIncludesRoomAllMention("`@all:all`")).toBe(true);
+    expect(contentIncludesRoomAllMention("_@all_")).toBe(true);
+    expect(contentIncludesRoomAllMention("> @all:all")).toBe(true);
   });
 });
 

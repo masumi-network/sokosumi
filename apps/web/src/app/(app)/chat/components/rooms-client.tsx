@@ -512,11 +512,11 @@ export function RoomsClient({
       // Pin @all first so the picker surfaces it above long member lists.
       entries.unshift([
         ROOM_MENTION_ALL_ID,
-        buildRoomAllMentionRecord(),
+        buildRoomAllMentionRecord(t("MentionAll.label")),
       ] as const);
     }
     return Object.fromEntries(entries);
-  }, [currentUserId, selectedRoom]);
+  }, [currentUserId, selectedRoom, t]);
 
   function partitionMentionIds(selectedKeys: string[]): {
     mentionedCoworkerIds: string[];

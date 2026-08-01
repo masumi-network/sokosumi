@@ -857,15 +857,29 @@ export function resolveMentionedCoworkerIds(params: {
 export const ROOM_MENTION_ALL_ID = "all" as const;
 
 /**
+ * Unwrap common inline markdown around @all tokens so composer bold/italic/code
+ * (`**@all:all**`, `_@all_`, `` `@all:all` ``) still notify. Case-sensitive.
+ */
+function unwrapRoomAllMentionMarkdown(content: string): string {
+  return content
+    .replace(/\*\*(@all:all|@all)\*\*/g, " $1 ")
+    .replace(/__(@all:all|@all)__/g, " $1 ")
+    .replace(/~~(@all:all|@all)~~/g, " $1 ")
+    .replace(/`(@all:all|@all)`/g, " $1 ")
+    .replace(/_(@all:all|@all)_/g, " $1 ");
+}
+
+/**
  * True when content includes a room-all mention: persist token `@all:all` or
  * bare `@all` at a word boundary. Must not match `@allison` or `@all:other`.
  */
 export function contentIncludesRoomAllMention(content: string): boolean {
-  if (/(?:^|\s)@all:all(?=$|[\s.,!?;:])/.test(content)) {
+  const normalized = unwrapRoomAllMentionMarkdown(content);
+  if (/(?:^|\s)@all:all(?=$|[\s.,!?;:])/.test(normalized)) {
     return true;
   }
   // Bare form must not treat `@all:other` as a match (colon form handled above).
-  return /(?:^|\s)@all(?=$|[\s.,!?;])/.test(content);
+  return /(?:^|\s)@all(?=$|[\s.,!?;])/.test(normalized);
 }
 
 /**

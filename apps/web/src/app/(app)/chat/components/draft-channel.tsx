@@ -122,10 +122,13 @@ export function DraftChannel({
       ),
     };
     if (shouldIncludeRoomAllMention(draftRoom, currentUserId)) {
-      entries.unshift([ROOM_MENTION_ALL_ID, buildRoomAllMentionRecord()]);
+      entries.unshift([
+        ROOM_MENTION_ALL_ID,
+        buildRoomAllMentionRecord(t("MentionAll.label")),
+      ]);
     }
     return Object.fromEntries(entries);
-  }, [currentUserId, selectedTargets]);
+  }, [currentUserId, selectedTargets, t]);
   const selectedMemberUserIds = selectedTargets
     .filter((target) => target.kind === "human")
     .map((target) => target.id);

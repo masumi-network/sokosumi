@@ -34,9 +34,6 @@ export const ROOM_MENTION_ALL_SLUG = "all" as const;
 /** Persist form written by the wysiwyg serializer (`@key:slug`). */
 export const ROOM_MENTION_ALL_TOKEN = "@all:all" as const;
 
-/** Bare form accepted when users type/paste without the `:slug` suffix. */
-export const ROOM_MENTION_ALL_BARE = "@all" as const;
-
 export function isRoomMentionAllId(id: string): boolean {
   return id === ROOM_MENTION_ALL_ID;
 }
@@ -50,19 +47,22 @@ export interface RoomMentionParticipant {
   image: string | null;
 }
 
-/** Synthetic catalog row for the @all picker entry. */
-export function buildRoomAllMentionRecord(): {
+/**
+ * Synthetic catalog row for the @all picker entry.
+ * `label` is the localized display/search value (e.g. "Everyone"); key/slug stay `all`.
+ */
+export function buildRoomAllMentionRecord(label: string): {
   value: string;
   slug: string;
   data: RoomMentionParticipant;
 } {
   return {
-    value: ROOM_MENTION_ALL_ID,
+    value: label,
     slug: ROOM_MENTION_ALL_SLUG,
     data: {
       kind: "all",
       id: ROOM_MENTION_ALL_ID,
-      name: ROOM_MENTION_ALL_ID,
+      name: label,
       slug: ROOM_MENTION_ALL_SLUG,
       image: null,
     },

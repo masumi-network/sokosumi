@@ -101,16 +101,29 @@ describe("formatRoomMarkdownMentions", () => {
     expect(formatted).toContain(">@all</span>");
     expect(formatted).not.toContain("@all:all");
   });
+
+  it("renders bare @all as an @all chip", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: "@all please look",
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+    });
+
+    expect(formatted).toContain(">@all</span>");
+  });
 });
 
 describe("buildRoomAllMentionRecord", () => {
-  it("builds a synthetic catalog entry keyed as all", () => {
-    const record = buildRoomAllMentionRecord();
+  it("builds a synthetic catalog entry keyed as all with localized label", () => {
+    const record = buildRoomAllMentionRecord("Everyone");
+    expect(record.value).toBe("Everyone");
     expect(record.slug).toBe(ROOM_MENTION_ALL_SLUG);
     expect(record.data).toEqual({
       kind: "all",
       id: ROOM_MENTION_ALL_ID,
-      name: ROOM_MENTION_ALL_ID,
+      name: "Everyone",
       slug: ROOM_MENTION_ALL_SLUG,
       image: null,
     });
