@@ -26,6 +26,22 @@
       "description": "Stiamo riscontrando problemi nell’esecuzione dei job a causa di difficoltà tecniche con uno dei nostri fornitori terzi. Non preoccuparti, tornerà tutto alla normalità a breve.",
       "confirm": "OK"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "Cerca tutte le emoji",
+      "frequentlyUsed": "Usati di frequente",
+      "noResults": "Nessuna emoji trovata",
+      "categories": {
+        "smileysEmotion": "Faccine ed emozioni",
+        "peopleBody": "Persone e corpo",
+        "animalsNature": "Animali e natura",
+        "foodDrink": "Cibo e bevande",
+        "travelPlaces": "Viaggi e luoghi",
+        "activities": "Attività",
+        "objects": "Oggetti",
+        "symbols": "Simboli",
+        "flags": "Bandiere"
+      }
+    },
     "ShareButton": {
       "linkCopied": "Link copiato negli appunti",
       "copyError": "Impossibile copiare il link"
