@@ -66,6 +66,8 @@ import {
   isMessageContinuation,
   isRoomComposerEmpty,
   messageDayKey,
+  type PendingRoomQuote,
+  pendingQuoteFromMessage,
   presenceLabel,
   type RoomMentionParticipant,
   shouldShowChatRoomThreadButton,
@@ -176,6 +178,9 @@ export function RoomsClient({
     RoomComposerAttachment[]
   >([]);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
+  const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
+    null,
+  );
   const [messagesState, setMessagesState] =
     useState<ChatRoomMessage[]>(messages);
   const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
@@ -194,6 +199,8 @@ export function RoomsClient({
     RoomComposerAttachment[]
   >([]);
   const [threadMentionedIds, setThreadMentionedIds] = useState<string[]>([]);
+  const [pendingThreadQuote, setPendingThreadQuote] =
+    useState<PendingRoomQuote | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
   const readMarkerRef = useRef<string | null>(null);
@@ -536,11 +543,13 @@ export function RoomsClient({
     setComposerValue("");
     setComposerAttachments([]);
     setMentionedIds([]);
+    setPendingQuote(null);
     setThreadParentMessage(null);
     setThreadMessages([]);
     setThreadComposerValue("");
     setThreadComposerAttachments([]);
     setThreadMentionedIds([]);
+    setPendingThreadQuote(null);
   }, [selectedRoomId, isNewDirectMessage, isCreateChannelRequested]);
 
   // Scroll on room switch or when the newest message changes — not when
@@ -927,6 +936,14 @@ export function RoomsClient({
     });
   }
 
+  function handleQuoteMessage(message: ChatRoomMessage) {
+    setPendingQuote(pendingQuoteFromMessage(message));
+  }
+
+  function handleQuoteThreadMessage(message: ChatRoomMessage) {
+    setPendingThreadQuote(pendingQuoteFromMessage(message));
+  }
+
   function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedRoom) return;
@@ -938,10 +955,17 @@ export function RoomsClient({
     );
     if (!content) return;
 
-    if (shouldUseCoworkerRoomStream(selectedRoom)) {
+    const quotePayload = pendingQuote
+      ? { messageId: pendingQuote.messageId }
+      : undefined;
+
+    // Stream OpenAPI has no quote field — classic POST when quoting so the
+    // snapshot persists (coworker AI auto-reply may not run for that turn).
+    if (shouldUseCoworkerRoomStream(selectedRoom) && !quotePayload) {
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
+      setPendingQuote(null);
       sendStreamMessage(content);
       return;
     }
@@ -955,6 +979,7 @@ export function RoomsClient({
         mentionedCoworkerIds,
         {
           mentionedUserIds,
+          quote: quotePayload,
         },
       );
       if (!result.ok) {
@@ -968,6 +993,7 @@ export function RoomsClient({
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
+      setPendingQuote(null);
     });
   }
 
@@ -983,10 +1009,15 @@ export function RoomsClient({
     );
     if (!content) return;
 
-    if (shouldUseCoworkerRoomStream(selectedRoom)) {
+    const quotePayload = pendingThreadQuote
+      ? { messageId: pendingThreadQuote.messageId }
+      : undefined;
+
+    if (shouldUseCoworkerRoomStream(selectedRoom) && !quotePayload) {
       setThreadComposerValue("");
       setThreadComposerAttachments([]);
       setThreadMentionedIds([]);
+      setPendingThreadQuote(null);
       sendStreamMessage(content, { parentMessageId });
       return;
     }
@@ -1001,6 +1032,7 @@ export function RoomsClient({
         {
           mentionedUserIds,
           parentMessageId,
+          quote: quotePayload,
         },
       );
       if (!result.ok) {
@@ -1016,6 +1048,7 @@ export function RoomsClient({
       setThreadComposerValue("");
       setThreadComposerAttachments([]);
       setThreadMentionedIds([]);
+      setPendingThreadQuote(null);
     });
   }
 
@@ -1145,6 +1178,7 @@ export function RoomsClient({
                               ? loadThreadMessages
                               : undefined
                           }
+                          onQuote={handleQuoteMessage}
                           // Stream overlays never show thread chrome.
                           showThreadButton={shouldShowChatRoomThreadButton({
                             room: selectedRoom,
@@ -1190,6 +1224,8 @@ export function RoomsClient({
                   selectedRoom,
                 )}
                 allowAttachments={!isCoworkerStreamRoom}
+                pendingQuote={pendingQuote}
+                onClearPendingQuote={() => setPendingQuote(null)}
                 onChromeResize={() => {
                   bottomRef.current?.scrollIntoView({ block: "end" });
                 }}
@@ -1245,8 +1281,12 @@ export function RoomsClient({
               setThreadParentMessage(null);
               setThreadMessages([]);
               setThreadOlderNextCursor(null);
+              setPendingThreadQuote(null);
             }}
             onToggleReaction={handleToggleReaction}
+            onQuote={handleQuoteThreadMessage}
+            pendingQuote={pendingThreadQuote}
+            onClearPendingQuote={() => setPendingThreadQuote(null)}
             showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
             allowAttachments={!isCoworkerStreamRoom}
             roomId={selectedRoom.id}

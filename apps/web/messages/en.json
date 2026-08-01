@@ -4787,6 +4787,12 @@
         "linkPlaceholder": "https://",
         "cancel": "Cancel",
         "save": "Save"
+      },
+      "Quote": {
+        "action": "Quote",
+        "dismiss": "Remove quote",
+        "previewLabel": "Quoting {author}",
+        "jump": "Jump to message from {author}"
       }
     }
   },

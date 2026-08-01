@@ -1,3 +1,4 @@
+import { buildQuoteSnippet } from "@sokosumi/utils";
 import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
@@ -109,6 +110,38 @@ export function toggleId(
 
 /** Slack-like gap before a same-sender burst starts a new full header. */
 export const MESSAGE_GROUP_GAP_MS = 5 * 60 * 1000;
+
+/** Pending composer quote (author + snippet snapshot for the dismissible chip). */
+export interface PendingRoomQuote {
+  messageId: string;
+  authorName: string;
+  snippet: string;
+}
+
+export function pendingQuoteFromMessage(
+  message: ChatRoomMessage,
+): PendingRoomQuote {
+  return {
+    messageId: message.id,
+    authorName: messageSender(message).name,
+    snippet: buildQuoteSnippet(message.content),
+  };
+}
+
+/** Soft-fail scroll to a room message article when it is still in the DOM. */
+export function scrollToRoomMessageElement(messageId: string): boolean {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  const target = document.querySelector<HTMLElement>(
+    `[data-message-id="${CSS.escape(messageId)}"]`,
+  );
+  if (!target) {
+    return false;
+  }
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  return true;
+}
 
 export function messageSender(message: ChatRoomMessage) {
   if (message.sender.type === "user") {

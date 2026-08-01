@@ -4668,6 +4668,12 @@
         "linkPlaceholder": "https://",
         "cancel": "キャンセル",
         "save": "保存"
+      },
+      "Quote": {
+        "action": "引用",
+        "dismiss": "引用を削除",
+        "previewLabel": "{author} を引用中",
+        "jump": "{author} のメッセージへ移動"
       }
     }
   },

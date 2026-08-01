@@ -7,6 +7,8 @@ import {
   buildDirectRoomKey,
   buildDirectRoomName,
   canManageChatRoomLifecycle,
+  mapChatRoomMessage,
+  mergeChatRoomMessageMetadata,
   resolveMentionedCoworkerIds,
   resolveMentionedUserIds,
 } from "./helpers";
@@ -157,5 +159,97 @@ describe("canManageChatRoomLifecycle", () => {
         role: MemberRole.MEMBER,
       }),
     ).toBe(false);
+  });
+});
+
+describe("mergeChatRoomMessageMetadata", () => {
+  it("sets quote without wiping other keys", () => {
+    expect(
+      mergeChatRoomMessageMetadata(
+        { client_message_id: "c1", quote: { old: true } },
+        {
+          messageId: "550e8400-e29b-41d4-a716-446655440004",
+          authorName: "Alice",
+          snippet: "hello",
+        },
+      ),
+    ).toEqual({
+      client_message_id: "c1",
+      quote: {
+        messageId: "550e8400-e29b-41d4-a716-446655440004",
+        authorName: "Alice",
+        snippet: "hello",
+      },
+    });
+  });
+
+  it("returns null when empty and no quote", () => {
+    expect(mergeChatRoomMessageMetadata(null, null)).toBeNull();
+  });
+});
+
+describe("mapChatRoomMessage quote", () => {
+  it("promotes metadata.quote onto the DTO quote field", () => {
+    const quote = {
+      messageId: "550e8400-e29b-41d4-a716-446655440004",
+      authorName: "Alice",
+      snippet: "Earlier point",
+    };
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: "user_123",
+      senderCoworkerId: null,
+      content: "hello",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      metadata: { quote, client_message_id: "c1" },
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: {
+        id: "user_123",
+        name: "Patrick",
+        email: "patrick@example.com",
+        image: null,
+        sessions: [],
+      },
+      senderCoworker: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      _count: { replies: 0 },
+    });
+
+    expect(mapped.quote).toEqual(quote);
+    expect(mapped.metadata).toEqual({ quote, client_message_id: "c1" });
+  });
+
+  it("returns null quote when metadata has no quote", () => {
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: null,
+      senderCoworkerId: "coworker_1",
+      content: "hello",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      metadata: null,
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: null,
+      senderCoworker: {
+        id: "coworker_1",
+        name: "Hannah",
+        slug: "hannah",
+        caption: null,
+        image: null,
+      },
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      _count: { replies: 0 },
+    });
+
+    expect(mapped.quote).toBeNull();
   });
 });

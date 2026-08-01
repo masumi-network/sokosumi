@@ -357,6 +357,8 @@ export async function sendRoomMessageAction(
   options?: {
     mentionedUserIds?: string[];
     parentMessageId?: string;
+    /** Same-room quote target; does not set parentMessageId. */
+    quote?: { messageId: string };
   },
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
@@ -371,6 +373,9 @@ export async function sendRoomMessageAction(
       mentionedUserIds: cleanIds(options?.mentionedUserIds),
       ...(options?.parentMessageId && {
         parentMessageId: options.parentMessageId,
+      }),
+      ...(options?.quote?.messageId && {
+        quote: { messageId: options.quote.messageId },
       }),
     });
     // No revalidatePath: client appends/merges the returned message. Revalidating

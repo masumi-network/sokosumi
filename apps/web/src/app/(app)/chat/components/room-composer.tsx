@@ -1,6 +1,6 @@
 "use client";
 
-import { ALargeSmall, AtSign, Loader2, Paperclip } from "lucide-react";
+import { ALargeSmall, AtSign, Loader2, Paperclip, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type Dispatch,
@@ -43,7 +43,7 @@ import {
 } from "@/lib/utils/composer-active-formats";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
-import type { RoomMentionParticipant } from "./room-helpers";
+import type { PendingRoomQuote, RoomMentionParticipant } from "./room-helpers";
 
 export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
@@ -81,6 +81,44 @@ function RoomMentionSuggestion({
   );
 }
 
+function PendingQuotePreview({
+  quote,
+  onDismiss,
+}: {
+  quote: PendingRoomQuote;
+  onDismiss: () => void;
+}) {
+  const t = useTranslations("App.Channels.Quote");
+
+  return (
+    <div
+      className="border-border bg-muted/30 flex items-start gap-2 border-b px-3 py-2"
+      role="status"
+      aria-label={t("previewLabel", { author: quote.authorName })}
+    >
+      <div className="border-primary/60 min-w-0 flex-1 border-l-2 pl-2.5">
+        <div className="text-foreground truncate text-xs font-semibold">
+          {quote.authorName}
+        </div>
+        <div className="text-muted-foreground line-clamp-2 text-xs leading-5">
+          {quote.snippet}
+        </div>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="size-7 shrink-0 rounded-full"
+        title={t("dismiss")}
+        aria-label={t("dismiss")}
+        onClick={onDismiss}
+      >
+        <X className="size-3.5" aria-hidden />
+      </Button>
+    </div>
+  );
+}
+
 export function RoomComposer({
   ref,
   roomId,
@@ -96,6 +134,8 @@ export function RoomComposer({
   sendDisabled,
   showMentionShortcut = true,
   allowAttachments = true,
+  pendingQuote = null,
+  onClearPendingQuote,
   onChromeResize,
 }: {
   ref?: Ref<RoomComposerHandle>;
@@ -115,6 +155,9 @@ export function RoomComposer({
   showMentionShortcut?: boolean;
   /** False when the send path cannot persist uploads (e.g. coworker stream). */
   allowAttachments?: boolean;
+  /** Slack-like dismissible quote chip above the editor. */
+  pendingQuote?: PendingRoomQuote | null;
+  onClearPendingQuote?: () => void;
   /**
    * Fired when composer chrome height changes (e.g. format strip toggles)
    * so the parent can keep the latest message visible above the composer.
@@ -143,7 +186,7 @@ export function RoomComposer({
     ? onSelectedKeysChange
     : undefined;
 
-  // After paint so the format strip has height before the parent scrolls.
+  // After paint so the format strip / quote chip have height before scroll.
   useEffect(() => {
     const notify = onChromeResizeRef.current;
     if (!notify) return;
@@ -151,7 +194,7 @@ export function RoomComposer({
       notify();
     });
     return () => cancelAnimationFrame(frame);
-  }, [formatToolbarOpen]);
+  }, [formatToolbarOpen, pendingQuote?.messageId]);
 
   useEffect(() => {
     if (!formatToolbarOpen) {
@@ -295,13 +338,21 @@ export function RoomComposer({
         sendDisabled={isUploadingFiles || sendDisabled}
         sendAriaLabel={t("send")}
         aboveEditor={
-          formatToolbarOpen ? (
-            <ComposerFormatToolbar
-              onFormat={handleFormat}
-              onLink={openLinkDialog}
-              activeFormats={activeFormats}
-            />
-          ) : null
+          <>
+            {pendingQuote && onClearPendingQuote ? (
+              <PendingQuotePreview
+                quote={pendingQuote}
+                onDismiss={onClearPendingQuote}
+              />
+            ) : null}
+            {formatToolbarOpen ? (
+              <ComposerFormatToolbar
+                onFormat={handleFormat}
+                onLink={openLinkDialog}
+                activeFormats={activeFormats}
+              />
+            ) : null}
+          </>
         }
         toolbarStart={
           <>

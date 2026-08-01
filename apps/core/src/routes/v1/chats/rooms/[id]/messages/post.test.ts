@@ -58,9 +58,16 @@ const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
 const MENTION_ID = "550e8400-e29b-41d4-a716-446655440003";
+const QUOTE_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440004";
 const COWORKER_ID = "coworker_1";
 const USER_ID = "user_123";
 const ALICE_ID = "user_alice";
+
+const quoteSnapshot = {
+  messageId: QUOTE_MESSAGE_ID,
+  authorName: "Alice",
+  snippet: "Earlier point about launch risk",
+};
 
 const tx = {
   chatRoom: {
@@ -177,6 +184,7 @@ function createdMessage(
     senderUserId: string | null;
     senderCoworkerId: string | null;
     parentMessageId: string | null;
+    metadata: Record<string, unknown> | null;
     mentionsAsSource: Array<{
       id: string;
       coworkerId: string;
@@ -192,7 +200,7 @@ function createdMessage(
     senderUserId: overrides.senderUserId ?? null,
     senderCoworkerId: overrides.senderCoworkerId ?? null,
     content: "hello",
-    metadata: null,
+    metadata: overrides.metadata ?? null,
     createdAt: new Date("2025-01-02T00:00:00.000Z"),
     senderUser: overrides.senderUserId
       ? {
@@ -216,6 +224,30 @@ function createdMessage(
     reactions: [],
     replies: [],
     _count: { replies: 0 },
+  };
+}
+
+function quotedSourceMessage(
+  overrides: Partial<{
+    id: string;
+    content: string;
+    senderUserName: string | null;
+    senderCoworkerName: string | null;
+  }> = {},
+) {
+  return {
+    id: overrides.id ?? QUOTE_MESSAGE_ID,
+    content: overrides.content ?? "Earlier point about launch risk",
+    senderUser:
+      overrides.senderUserName === null
+        ? null
+        : {
+            name: overrides.senderUserName ?? "Alice",
+          },
+    senderCoworker:
+      overrides.senderCoworkerName != null
+        ? { name: overrides.senderCoworkerName }
+        : null,
   };
 }
 
@@ -480,6 +512,153 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
       expect(response.status).toBe(201);
       expect(emitChatMentionNotificationsMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("quote", () => {
+    it("persists quote snapshot in metadata and returns typed quote", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          senderUserId: USER_ID,
+          metadata: { quote: quoteSnapshot },
+        }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "agreeing with that",
+          quote: { messageId: QUOTE_MESSAGE_ID },
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.quote).toEqual(quoteSnapshot);
+      expect(body.data.parentMessageId).toBeNull();
+      expect(body.data.metadata).toEqual({ quote: quoteSnapshot });
+
+      expect(messageFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID },
+        }),
+      );
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            parentMessageId: null,
+            metadata: { quote: quoteSnapshot },
+          }),
+        }),
+      );
+    });
+
+    it("returns 400 when quoted message is missing or in another room", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindFirstMock.mockResolvedValue(null);
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "quoting ghost",
+          quote: { messageId: QUOTE_MESSAGE_ID },
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(messageCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps quote independent of parentMessageId", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindFirstMock
+        .mockResolvedValueOnce({
+          id: PARENT_MESSAGE_ID,
+          parentMessageId: null,
+        })
+        .mockResolvedValueOnce(quotedSourceMessage());
+      messageFindManyMock.mockResolvedValue([
+        { senderCoworkerId: COWORKER_ID, mentionsAsSource: [] },
+      ]);
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          senderUserId: USER_ID,
+          parentMessageId: PARENT_MESSAGE_ID,
+          metadata: { quote: quoteSnapshot },
+          mentionsAsSource: [
+            {
+              id: MENTION_ID,
+              coworkerId: COWORKER_ID,
+              status: "pending",
+              responseMessageId: null,
+            },
+          ],
+        }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "thread reply that also quotes",
+          parentMessageId: PARENT_MESSAGE_ID,
+          quote: { messageId: QUOTE_MESSAGE_ID },
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.parentMessageId).toBe(PARENT_MESSAGE_ID);
+      expect(body.data.quote).toEqual(quoteSnapshot);
+
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            parentMessageId: PARENT_MESSAGE_ID,
+            metadata: { quote: quoteSnapshot },
+          }),
+        }),
+      );
+    });
+
+    it("lets a coworker post with a quote snapshot", async () => {
+      roomFindFirstMock.mockResolvedValue({ id: ROOM_ID });
+      messageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          senderCoworkerId: COWORKER_ID,
+          metadata: { quote: quoteSnapshot },
+        }),
+      );
+
+      const app = createApp(coworkerAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "coworker quoting",
+          quote: { messageId: QUOTE_MESSAGE_ID },
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.quote).toEqual(quoteSnapshot);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            parentMessageId: null,
+            metadata: { quote: quoteSnapshot },
+          }),
+        }),
+      );
     });
   });
 });

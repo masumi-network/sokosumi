@@ -4668,6 +4668,12 @@
         "linkPlaceholder": "https://",
         "cancel": "取消",
         "save": "保存"
+      },
+      "Quote": {
+        "action": "引用",
+        "dismiss": "移除引用",
+        "previewLabel": "正在引用 {author}",
+        "jump": "跳转到 {author} 的消息"
       }
     }
   },

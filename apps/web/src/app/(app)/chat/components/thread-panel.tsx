@@ -25,6 +25,7 @@ import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
   isMessageContinuation,
   isRoomComposerEmpty,
+  type PendingRoomQuote,
   type RoomMentionParticipant,
 } from "./room-helpers";
 import { ChatMessageRow } from "./room-message-row";
@@ -50,6 +51,9 @@ export function ThreadPanel({
   isSendingReply,
   onClose,
   onToggleReaction,
+  onQuote,
+  pendingQuote = null,
+  onClearPendingQuote,
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
@@ -74,6 +78,9 @@ export function ThreadPanel({
   isSendingReply: boolean;
   onClose: () => void;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onQuote?: (message: ChatRoomMessage) => void;
+  pendingQuote?: PendingRoomQuote | null;
+  onClearPendingQuote?: () => void;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   roomId?: string;
@@ -128,6 +135,7 @@ export function ThreadPanel({
               usersById={usersById}
               usersBySlug={usersBySlug}
               onToggleReaction={onToggleReaction}
+              onQuote={onQuote}
               showThreadButton={false}
             />
             <div className="my-4 border-t" />
@@ -169,6 +177,7 @@ export function ThreadPanel({
                         usersById={usersById}
                         usersBySlug={usersBySlug}
                         onToggleReaction={onToggleReaction}
+                        onQuote={onQuote}
                         showThreadButton={false}
                         isContinuation={isMessageContinuation(
                           replies[index - 1],
@@ -202,6 +211,8 @@ export function ThreadPanel({
           sendDisabled={isRoomComposerEmpty(replyValue, replyAttachments)}
           showMentionShortcut={showMentionShortcut}
           allowAttachments={allowAttachments}
+          pendingQuote={pendingQuote}
+          onClearPendingQuote={onClearPendingQuote}
           onChromeResize={() => {
             threadBottomRef.current?.scrollIntoView({ block: "end" });
           }}

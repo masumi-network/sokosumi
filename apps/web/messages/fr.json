@@ -4668,6 +4668,12 @@
         "linkPlaceholder": "https://",
         "cancel": "Annuler",
         "save": "Enregistrer"
+      },
+      "Quote": {
+        "action": "Citer",
+        "dismiss": "Retirer la citation",
+        "previewLabel": "Citation de {author}",
+        "jump": "Aller au message de {author}"
       }
     }
   },

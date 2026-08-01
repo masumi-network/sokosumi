@@ -206,6 +206,19 @@ export const chatRoomMessageReactionSchema = z
   })
   .openapi("ChatRoomMessageReaction");
 
+/** Snapshot of a quoted room message, stored under metadata.quote and promoted on the DTO. */
+export const chatRoomMessageQuoteSchema = z
+  .object({
+    messageId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    authorName: z.string().openapi({ example: "Jane Doe" }),
+    snippet: z.string().openapi({
+      example: "Can you summarize this launch risk?",
+    }),
+  })
+  .openapi("ChatRoomMessageQuote");
+
 export const chatRoomMessageSchema = z
   .object({
     id: z.string().uuid(),
@@ -219,6 +232,7 @@ export const chatRoomMessageSchema = z
     threadReplyCount: z.number().int().min(0),
     threadLastReplyAt: dateTimeSchema.nullable(),
     metadata: z.record(z.string(), z.any()).nullable(),
+    quote: chatRoomMessageQuoteSchema.nullable(),
   })
   .openapi("ChatRoomMessage");
 
@@ -245,6 +259,17 @@ export const createChatRoomMessageRequestSchema = z
       description: "Root message ID when posting a threaded reply.",
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
+    quote: z
+      .object({
+        messageId: z.string().uuid().openapi({
+          example: "550e8400-e29b-41d4-a716-446655440000",
+        }),
+      })
+      .optional()
+      .openapi({
+        description:
+          "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.",
+      }),
   })
   .openapi("CreateChatRoomMessageRequest");
 
@@ -289,3 +314,4 @@ export const restoredChatRoomSchema = chatRoomSchema;
 
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
+export type ChatRoomMessageQuote = z.infer<typeof chatRoomMessageQuoteSchema>;

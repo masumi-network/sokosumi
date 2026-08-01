@@ -5,7 +5,13 @@ import {
   isFileLikeUrl,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
-import { CheckCircle2, Loader2, MessageCircle, SmilePlus } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  MessageCircle,
+  Quote,
+  SmilePlus,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 import { ROOM_COMPOSER_EMOJIS } from "@/components/chat/room-message-composer";
@@ -27,6 +33,7 @@ import {
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomMessageQuote,
   ChatRoomMessageReaction,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
@@ -37,9 +44,11 @@ import {
   formatMessageTime,
   formatRoomMarkdownMentions,
   messageSender,
+  scrollToRoomMessageElement,
 } from "./room-helpers";
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
+type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
 
 function formatWhoReactedLabel(
   reaction: ChatRoomMessageReaction,
@@ -56,6 +65,28 @@ function formatWhoReactedLabel(
   }
 
   return t("Reactions.whoReacted", { names, more });
+}
+
+function MessageQuoteBlock({ quote }: { quote: RoomMessageQuoteSnapshot }) {
+  const t = useTranslations("App.Channels.Quote");
+
+  return (
+    <button
+      type="button"
+      className="border-border bg-muted/40 hover:bg-muted/70 focus-visible:ring-ring mb-1.5 w-full rounded-md border-l-2 border-l-primary/60 px-2.5 py-1.5 text-left outline-none transition-colors focus-visible:ring-2"
+      aria-label={t("jump", { author: quote.authorName })}
+      onClick={() => {
+        scrollToRoomMessageElement(quote.messageId);
+      }}
+    >
+      <div className="text-foreground truncate text-xs font-semibold">
+        {quote.authorName}
+      </div>
+      <div className="text-muted-foreground line-clamp-2 text-xs leading-5">
+        {quote.snippet}
+      </div>
+    </button>
+  );
 }
 
 function ChannelMarkdownSegment({
@@ -210,12 +241,16 @@ function MessageActions({
   message,
   onToggleReaction,
   onOpenThread,
+  onQuote,
   showThreadButton,
+  showQuoteButton,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
+  onQuote?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
+  showQuoteButton: boolean;
 }) {
   const t = useTranslations("App.Channels");
 
@@ -225,6 +260,19 @@ function MessageActions({
         label={t("Reactions.add")}
         onSelect={(emoji) => onToggleReaction(message, emoji)}
       />
+      {showQuoteButton && onQuote ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={t("Quote.action")}
+          aria-label={t("Quote.action")}
+          onClick={() => onQuote(message)}
+        >
+          <Quote className="size-4" aria-hidden />
+        </Button>
+      ) : null}
       {showThreadButton && onOpenThread ? (
         <Button
           type="button"
@@ -340,7 +388,9 @@ export function ChatMessageRow({
   usersBySlug,
   onToggleReaction,
   onOpenThread,
+  onQuote,
   showThreadButton = true,
+  showQuoteButton = true,
   isContinuation = false,
 }: {
   message: ChatRoomMessage;
@@ -350,7 +400,9 @@ export function ChatMessageRow({
   usersBySlug?: Map<string, UserMentionLookup>;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
+  onQuote?: (message: ChatRoomMessage) => void;
   showThreadButton?: boolean;
+  showQuoteButton?: boolean;
   /** Slack-style continuation: omit avatar / name / primary timestamp. */
   isContinuation?: boolean;
 }) {
@@ -363,9 +415,13 @@ export function ChatMessageRow({
     message.content.trim().length === 0;
   const formattedTime = formatMessageTime(message.createdAt);
   const createdAtIso = new Date(message.createdAt).toISOString();
+  const canQuote = showQuoteButton && Boolean(onQuote) && !isStreamOverlay;
+  const quote = message.quote;
 
   return (
     <article
+      id={`message-${message.id}`}
+      data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
         "group relative -mx-2 flex gap-3.5 rounded-md pr-20 pl-2 transition-colors hover:bg-muted/45",
@@ -413,6 +469,7 @@ export function ChatMessageRow({
           </div>
         )}
         <div className="text-foreground wrap-break-word text-sm leading-6">
+          {quote ? <MessageQuoteBlock quote={quote} /> : null}
           {isThinking ? (
             <span
               className="reasoning-text-shine text-sm leading-5"
@@ -444,7 +501,9 @@ export function ChatMessageRow({
           message={message}
           onToggleReaction={onToggleReaction}
           onOpenThread={onOpenThread}
+          onQuote={onQuote}
           showThreadButton={showThreadButton}
+          showQuoteButton={canQuote}
         />
       ) : null}
     </article>
