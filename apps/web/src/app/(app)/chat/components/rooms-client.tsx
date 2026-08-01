@@ -304,6 +304,10 @@ export function RoomsClient({
   const [isLoadingOlderThread, startLoadingOlderThreadTransition] =
     useTransition();
   const pendingReactionsRef = useRef<Set<string>>(new Set());
+  // Classic POST send: one in-flight clientMessageId per composer. Blocks
+  // double-submit before the server action settles; Core also dedups by id.
+  const classicSendInFlightRef = useRef<string | null>(null);
+  const classicThreadSendInFlightRef = useRef<string | null>(null);
   const selectedRoom = isNewDirectMessage
     ? null
     : (rooms.find((room) => room.id === selectedRoomId) ?? null);
@@ -1046,33 +1050,60 @@ export function RoomsClient({
       return;
     }
 
+    if (classicSendInFlightRef.current) return;
+    const clientMessageId = crypto.randomUUID();
+    classicSendInFlightRef.current = clientMessageId;
+
     const { mentionedCoworkerIds, mentionedUserIds } =
       partitionMentionIds(mentionedIds);
     const sentChannelDraftKey = composeDraftKey.room(roomId);
+    const composerSnapshot = {
+      value: composerValue,
+      attachments: composerAttachments,
+      mentionedIds,
+      pendingQuote,
+    };
+
+    // Clear before await so a second Enter cannot resubmit the same draft.
+    // Restore snapshot if the POST fails while this room is still selected.
+    setComposerValue("");
+    setComposerAttachments([]);
+    setMentionedIds([]);
+    setPendingQuote(null);
+    clearChannelComposeDraft();
+
     startSendingTransition(async () => {
-      const result = await sendRoomMessageAction(
-        roomId,
-        content,
-        mentionedCoworkerIds,
-        {
-          mentionedUserIds,
-          quote: quotePayload,
-        },
-      );
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
+      try {
+        const result = await sendRoomMessageAction(
+          roomId,
+          content,
+          mentionedCoworkerIds,
+          {
+            mentionedUserIds,
+            quote: quotePayload,
+            clientMessageId,
+          },
+        );
+        if (!result.ok) {
+          toast.error(result.message);
+          if (isStillSelectedRoom(roomId)) {
+            setComposerValue(composerSnapshot.value);
+            setComposerAttachments(composerSnapshot.attachments);
+            setMentionedIds(composerSnapshot.mentionedIds);
+            setPendingQuote(composerSnapshot.pendingQuote);
+          }
+          return;
+        }
+        clearComposeDraft(sentChannelDraftKey);
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
+        setMessagesState((current) => appendMessage(current, result.data));
+      } finally {
+        if (classicSendInFlightRef.current === clientMessageId) {
+          classicSendInFlightRef.current = null;
+        }
       }
-      clearComposeDraft(sentChannelDraftKey);
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
-      clearChannelComposeDraft();
-      setMessagesState((current) => appendMessage(current, result.data));
-      setComposerValue("");
-      setComposerAttachments([]);
-      setMentionedIds([]);
-      setPendingQuote(null);
     });
   }
 
@@ -1102,36 +1133,63 @@ export function RoomsClient({
       return;
     }
 
+    if (classicThreadSendInFlightRef.current) return;
+    const clientMessageId = crypto.randomUUID();
+    classicThreadSendInFlightRef.current = clientMessageId;
+
     const { mentionedCoworkerIds, mentionedUserIds } =
       partitionMentionIds(threadMentionedIds);
     const sentThreadDraftKey = composeDraftKey.thread(roomId, parentMessageId);
-    startSendingThreadReplyTransition(async () => {
-      const result = await sendRoomMessageAction(
-        roomId,
-        content,
-        mentionedCoworkerIds,
-        {
-          mentionedUserIds,
-          parentMessageId,
-          quote: quotePayload,
-        },
-      );
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
-      }
-      clearComposeDraft(sentThreadDraftKey);
-      if (!isStillSelectedRoom(roomId)) {
-        return;
-      }
+    const threadComposerSnapshot = {
+      value: threadComposerValue,
+      attachments: threadComposerAttachments,
+      mentionedIds: threadMentionedIds,
+      pendingQuote: pendingThreadQuote,
+    };
 
-      clearThreadComposeDraft();
-      setThreadMessages((current) => [...current, result.data]);
-      updateParentThreadPreview(parentMessageId, result.data);
-      setThreadComposerValue("");
-      setThreadComposerAttachments([]);
-      setThreadMentionedIds([]);
-      setPendingThreadQuote(null);
+    // Clear before await so a second Enter cannot resubmit the same draft.
+    // Restore snapshot if the POST fails while this room is still selected.
+    setThreadComposerValue("");
+    setThreadComposerAttachments([]);
+    setThreadMentionedIds([]);
+    setPendingThreadQuote(null);
+    clearThreadComposeDraft();
+
+    startSendingThreadReplyTransition(async () => {
+      try {
+        const result = await sendRoomMessageAction(
+          roomId,
+          content,
+          mentionedCoworkerIds,
+          {
+            mentionedUserIds,
+            parentMessageId,
+            quote: quotePayload,
+            clientMessageId,
+          },
+        );
+        if (!result.ok) {
+          toast.error(result.message);
+          if (isStillSelectedRoom(roomId)) {
+            setThreadComposerValue(threadComposerSnapshot.value);
+            setThreadComposerAttachments(threadComposerSnapshot.attachments);
+            setThreadMentionedIds(threadComposerSnapshot.mentionedIds);
+            setPendingThreadQuote(threadComposerSnapshot.pendingQuote);
+          }
+          return;
+        }
+        clearComposeDraft(sentThreadDraftKey);
+        if (!isStillSelectedRoom(roomId)) {
+          return;
+        }
+
+        setThreadMessages((current) => appendMessage(current, result.data));
+        updateParentThreadPreview(parentMessageId, result.data);
+      } finally {
+        if (classicThreadSendInFlightRef.current === clientMessageId) {
+          classicThreadSendInFlightRef.current = null;
+        }
+      }
     });
   }
 
