@@ -11,6 +11,7 @@ const {
   roomFindFirstMock,
   roomUpdateMock,
   messageFindFirstMock,
+  messageFindUniqueMock,
   messageFindManyMock,
   messageCreateMock,
   readStateUpsertMock,
@@ -24,6 +25,7 @@ const {
   roomFindFirstMock: vi.fn(),
   roomUpdateMock: vi.fn(),
   messageFindFirstMock: vi.fn(),
+  messageFindUniqueMock: vi.fn(),
   messageFindManyMock: vi.fn(),
   messageCreateMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
@@ -38,6 +40,12 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    chatRoom: {
+      findFirst: roomFindFirstMock,
+    },
+    chatRoomMessage: {
+      findUnique: messageFindUniqueMock,
+    },
   },
 }));
 
@@ -76,6 +84,7 @@ const tx = {
   },
   chatRoomMessage: {
     findFirst: messageFindFirstMock,
+    findUnique: messageFindUniqueMock,
     findMany: messageFindManyMock,
     create: messageCreateMock,
   },
@@ -258,6 +267,7 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   roomUpdateMock.mockResolvedValue({});
   readStateUpsertMock.mockResolvedValue({});
+  messageFindUniqueMock.mockResolvedValue(null);
   emitChatMentionNotificationsMock.mockResolvedValue(undefined);
   waitUntilMock.mockImplementation(() => {});
 });
@@ -571,6 +581,89 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(emitArgs.mentionedUserIds).toHaveLength(2);
       expect(emitArgs.mentionedUserIds).not.toContain(USER_ID);
       expect(emitArgs.mentionedUserIds).not.toContain(COWORKER_ID);
+    });
+  });
+
+  describe("clientMessageId idempotency", () => {
+    const CLIENT_MESSAGE_ID = "client-msg-dedup-1";
+
+    it("includes clientMessageId on create when provided", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindUniqueMock.mockResolvedValue(null);
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderUserId: USER_ID }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "hello once",
+          clientMessageId: CLIENT_MESSAGE_ID,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            clientMessageId: CLIENT_MESSAGE_ID,
+            metadata: expect.objectContaining({
+              client_message_id: CLIENT_MESSAGE_ID,
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("returns the existing message for the same clientMessageId without recreating or re-dispatching", async () => {
+      const existing = createdMessage({
+        senderUserId: USER_ID,
+        mentionsAsSource: [
+          {
+            id: MENTION_ID,
+            coworkerId: COWORKER_ID,
+            status: "pending",
+            responseMessageId: null,
+          },
+        ],
+      });
+
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindUniqueMock
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(existing);
+      messageCreateMock.mockResolvedValue(existing);
+
+      const app = createApp(userAuthContext);
+      const first = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: `@${COWORKER_ID}:hannah hello`,
+          mentionedCoworkerIds: [COWORKER_ID],
+          clientMessageId: CLIENT_MESSAGE_ID,
+        }),
+      });
+      expect(first.status).toBe(201);
+      expect(messageCreateMock).toHaveBeenCalledTimes(1);
+      expect(dispatchMock).toHaveBeenCalledTimes(1);
+
+      const second = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: `@${COWORKER_ID}:hannah hello`,
+          mentionedCoworkerIds: [COWORKER_ID],
+          clientMessageId: CLIENT_MESSAGE_ID,
+        }),
+      });
+      expect(second.status).toBe(201);
+      const secondBody = await second.json();
+      expect(secondBody.data.id).toBe(MESSAGE_ID);
+      expect(messageCreateMock).toHaveBeenCalledTimes(1);
+      expect(dispatchMock).toHaveBeenCalledTimes(1);
     });
   });
 
