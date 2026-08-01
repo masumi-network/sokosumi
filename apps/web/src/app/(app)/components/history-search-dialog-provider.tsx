@@ -11,6 +11,7 @@ import {
 } from "react";
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
+import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 
 interface HistorySearchContextValue {
   openHistorySearch: () => void;
@@ -53,12 +54,8 @@ export function HistorySearchDialogProvider({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target;
-      if (target instanceof HTMLElement) {
-        const tag = target.tagName;
-        if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) {
-          return;
-        }
+      if (isEditableKeyboardTarget(event.target)) {
+        return;
       }
 
       if (

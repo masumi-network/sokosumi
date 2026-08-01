@@ -1,8 +1,22 @@
-/**
- * Whether a keyboard event target is a text-editing surface.
- * Global shortcuts should skip these so editor bindings (e.g. Cmd+B bold) win.
- */
-export function isEditableKeyboardTarget(_target: EventTarget | null): boolean {
-  // Stub: failing repro before the editable-target guard lands.
+export function isEditableKeyboardTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tag = target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+    return true;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  if (
+    target.closest('[contenteditable=""], [contenteditable="true"]') !== null
+  ) {
+    return true;
+  }
+
   return false;
 }
