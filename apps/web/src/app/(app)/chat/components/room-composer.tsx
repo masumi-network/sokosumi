@@ -35,12 +35,17 @@ import {
   RoomMessageComposer,
   type RoomMessageComposerAttachment,
 } from "@/components/chat/room-message-composer";
+import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomUserParticipant,
+} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {
@@ -51,6 +56,7 @@ import {
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import {
+  formatRoomMarkdownMentions,
   type PendingRoomQuote,
   partitionRoomMentionSuggestions,
   type RoomMentionParticipant,
@@ -101,14 +107,61 @@ function RoomMentionSuggestion({
   );
 }
 
+type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
+
+function mentionLookupMapsFromCatalog(
+  mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>,
+): {
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById: Map<string, UserMentionLookup>;
+  usersBySlug: Map<string, UserMentionLookup>;
+} {
+  const coworkersById = new Map<string, ChatRoomCoworkerParticipant>();
+  const coworkersBySlug = new Map<string, ChatRoomCoworkerParticipant>();
+  const usersById = new Map<string, UserMentionLookup>();
+  const usersBySlug = new Map<string, UserMentionLookup>();
+
+  for (const entry of Object.values(mentions)) {
+    const data = entry.data;
+    if (!data) {
+      continue;
+    }
+    if (data.kind === "coworker") {
+      const coworker: ChatRoomCoworkerParticipant = {
+        id: data.id,
+        name: data.name,
+        slug: data.slug,
+        caption: null,
+        image: data.image,
+        presence: "offline",
+      };
+      coworkersById.set(data.id, coworker);
+      coworkersBySlug.set(data.slug, coworker);
+      continue;
+    }
+    if (data.kind === "human") {
+      const user: UserMentionLookup = { id: data.id, name: data.name };
+      usersById.set(data.id, user);
+      usersBySlug.set(data.slug, user);
+    }
+  }
+
+  return { coworkersById, coworkersBySlug, usersById, usersBySlug };
+}
+
 function PendingQuotePreview({
   quote,
   onDismiss,
+  mentions,
 }: {
   quote: PendingRoomQuote;
   onDismiss: () => void;
+  mentions: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
 }) {
   const t = useTranslations("App.Channels.Quote");
+  const { coworkersById, coworkersBySlug, usersById, usersBySlug } =
+    mentionLookupMapsFromCatalog(mentions);
 
   return (
     <div
@@ -120,8 +173,16 @@ function PendingQuotePreview({
         <div className="text-foreground truncate text-xs font-semibold">
           {quote.authorName}
         </div>
-        <div className="text-muted-foreground line-clamp-2 text-xs leading-5">
-          {quote.snippet}
+        <div className="text-muted-foreground line-clamp-4 text-xs leading-5">
+          <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+            {formatRoomMarkdownMentions({
+              content: quote.snippet,
+              coworkersById,
+              coworkersBySlug,
+              usersById,
+              usersBySlug,
+            })}
+          </Markdown>
         </div>
       </div>
       <Button
@@ -363,6 +424,7 @@ export function RoomComposer({
               <PendingQuotePreview
                 quote={pendingQuote}
                 onDismiss={onClearPendingQuote}
+                mentions={composerMentions}
               />
             ) : null}
             {formatToolbarOpen ? (

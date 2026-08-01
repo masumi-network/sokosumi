@@ -4827,7 +4827,9 @@
         "action": "Quote",
         "dismiss": "Remove quote",
         "previewLabel": "Quoting {author}",
-        "jump": "Jump to message from {author}"
+        "jump": "Jump to message from {author}",
+        "showMore": "More",
+        "showLess": "Less"
       },
       "MentionAll": {
         "label": "Everyone"
