@@ -37,7 +37,12 @@ export {
   isOwnedCoworkerChatRoomFileUrl,
   isOwnedUserChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
-export { buildQuoteSnippet } from "./chat-room-quote-snippet.js";
+export {
+  buildQuoteSnippet,
+  buildRoomQuoteSnippetParts,
+  type ChatRoomQuoteAttachment,
+  type ChatRoomQuoteSnippetParts,
+} from "./chat-room-quote-snippet.js";
 export {
   CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
   CHAT_UI_NON_REASONING_PART_TYPES,

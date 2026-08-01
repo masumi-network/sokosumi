@@ -1,6 +1,6 @@
 import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
 import {
-  buildQuoteSnippet,
+  buildRoomQuoteSnippetParts,
   CHAT_PRESENCE_AFK_WINDOW_MS,
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "@sokosumi/utils";
@@ -366,6 +366,34 @@ export function mergeChatRoomMessageMetadata(
   return Object.keys(base).length > 0 ? base : null;
 }
 
+function readQuoteAttachmentFromMetadata(
+  candidate: Record<string, unknown>,
+): ChatRoomMessageQuote["attachment"] {
+  if (!("attachment" in candidate)) {
+    return undefined;
+  }
+  const raw = candidate.attachment;
+  if (raw === null) {
+    return null;
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const attachment = raw as Record<string, unknown>;
+  if (
+    typeof attachment.fileName !== "string" ||
+    typeof attachment.url !== "string" ||
+    (attachment.mediaKind !== "image" && attachment.mediaKind !== "file")
+  ) {
+    return undefined;
+  }
+  return {
+    fileName: attachment.fileName,
+    url: attachment.url,
+    mediaKind: attachment.mediaKind,
+  };
+}
+
 function readQuoteFromMetadata(
   metadata: Record<string, unknown> | null,
 ): ChatRoomMessageQuote | null {
@@ -381,10 +409,12 @@ function readQuoteFromMetadata(
   ) {
     return null;
   }
+  const attachment = readQuoteAttachmentFromMetadata(candidate);
   return {
     messageId: candidate.messageId,
     authorName: candidate.authorName,
     snippet: candidate.snippet,
+    ...(attachment !== undefined ? { attachment } : {}),
   };
 }
 
@@ -419,11 +449,14 @@ export async function resolveRoomQuoteSnapshot(
     throw badRequest("Quoted message not found");
   }
 
+  const { snippet, attachment } = buildRoomQuoteSnippetParts(quoted.content);
+
   return {
     messageId: quoted.id,
     authorName:
       quoted.senderUser?.name ?? quoted.senderCoworker?.name ?? "Someone",
-    snippet: buildQuoteSnippet(quoted.content),
+    snippet,
+    attachment,
   };
 }
 
