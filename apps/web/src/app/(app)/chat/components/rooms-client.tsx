@@ -1193,7 +1193,7 @@ export function RoomsClient({
               <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
                 <div
                   ref={contentRef}
-                  className="flex w-full flex-col px-5 pt-6 pb-8"
+                  className="flex w-full flex-col px-5 pt-6 pb-3"
                 >
                   {messageLoadFailed ? (
                     <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
