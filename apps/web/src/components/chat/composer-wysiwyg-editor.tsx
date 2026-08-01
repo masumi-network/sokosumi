@@ -25,6 +25,7 @@ import {
   getPopupPositionFromRect,
   MENTION_CLASSNAME,
   type MentionRecordEntry,
+  type MentionSuggestionGroup,
   type NormalizedMention,
   serializeEditor,
   setCaretAfterNode,
@@ -90,6 +91,10 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
     mention: NormalizedMention<TData>,
     isActive: boolean,
   ) => ReactNode;
+  /** When set, mention popup renders section headers; keyboard uses flat items only. */
+  groupMentions?: (
+    filtered: NormalizedMention<TData>[],
+  ) => MentionSuggestionGroup<TData>[];
 }
 
 const EDITOR_PROSE_CLASSNAME = cn(
@@ -147,6 +152,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   onActiveFormatsChange,
   onSelectedKeysChange,
   renderMentionItem,
+  groupMentions,
 }: ComposerWysiwygEditorProps<TData>) {
   const editorRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -236,6 +242,18 @@ export function ComposerWysiwygEditor<TData = unknown>({
     );
   }, [mentionQuery, normalizedMentions]);
 
+  const mentionGroups = useMemo(() => {
+    if (!groupMentions || mentionQuery === null) return null;
+    return groupMentions(filteredMentions);
+  }, [filteredMentions, groupMentions, mentionQuery]);
+
+  const selectableMentions = useMemo(() => {
+    if (mentionGroups) {
+      return mentionGroups.flatMap((group) => group.items);
+    }
+    return filteredMentions;
+  }, [filteredMentions, mentionGroups]);
+
   const emojiMatches =
     suggestionUi.open && suggestionUi.suggestion.kind === "emoji"
       ? suggestionUi.suggestion.matches
@@ -248,7 +266,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
     : null;
   const isOpen = suggestionUi.open;
   const visibleSuggestionCount =
-    suggestionKind === "emoji" ? emojiMatches.length : filteredMentions.length;
+    suggestionKind === "emoji"
+      ? emojiMatches.length
+      : selectableMentions.length;
 
   const selectedKeys = useMemo(() => {
     const parsed = parseMentions(value);
@@ -777,7 +797,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
             const match = emojiMatches[activeIndex];
             if (match) insertEmojiShortcode(match);
           } else {
-            const mention = filteredMentions[activeIndex];
+            const mention = selectableMentions[activeIndex];
             if (mention) insertMention(mention);
           }
           return;
@@ -842,13 +862,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
       applyFormat,
       closeSuggestions,
       emojiMatches,
-      filteredMentions,
       handleInput,
       insertEmojiShortcode,
       insertMention,
       isOpen,
       onLinkShortcut,
       onSubmitShortcut,
+      selectableMentions,
       setActiveSuggestionIndex,
       suggestionKind,
       visibleSuggestionCount,
@@ -1016,38 +1036,95 @@ export function ComposerWysiwygEditor<TData = unknown>({
                     <span className="truncate">:{match.name}:</span>
                   </div>
                 ))
-              : filteredMentions.map((mention, index) => (
-                  <div
-                    key={mention.key}
-                    data-index={index}
-                    role="option"
-                    aria-selected={index === activeIndex}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
-                      index === activeIndex &&
-                        "bg-accent text-accent-foreground",
-                    )}
-                    onMouseDown={() => {
-                      isSelectingRef.current = true;
-                    }}
-                    onClick={() => {
-                      insertMention(mention);
-                      isSelectingRef.current = false;
-                    }}
-                    onMouseEnter={() => setActiveSuggestionIndex(() => index)}
-                  >
-                    {renderMentionItem ? (
-                      renderMentionItem(mention, index === activeIndex)
-                    ) : (
-                      <>
-                        <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
-                          {mention.value.charAt(0).toUpperCase()}
+              : mentionGroups
+                ? (() => {
+                    let optionIndex = 0;
+                    return mentionGroups.map((group) => (
+                      <div key={group.id}>
+                        <div
+                          role="presentation"
+                          className="text-muted-foreground px-2 py-1.5 text-xs font-medium"
+                        >
+                          {group.label}
                         </div>
-                        <span className="truncate">{mention.value}</span>
-                      </>
-                    )}
-                  </div>
-                ))}
+                        {group.items.map((mention) => {
+                          const index = optionIndex;
+                          optionIndex += 1;
+                          return (
+                            <div
+                              key={mention.key}
+                              data-index={index}
+                              role="option"
+                              aria-selected={index === activeIndex}
+                              className={cn(
+                                "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+                                index === activeIndex &&
+                                  "bg-accent text-accent-foreground",
+                              )}
+                              onMouseDown={() => {
+                                isSelectingRef.current = true;
+                              }}
+                              onClick={() => {
+                                insertMention(mention);
+                                isSelectingRef.current = false;
+                              }}
+                              onMouseEnter={() =>
+                                setActiveSuggestionIndex(() => index)
+                              }
+                            >
+                              {renderMentionItem ? (
+                                renderMentionItem(
+                                  mention,
+                                  index === activeIndex,
+                                )
+                              ) : (
+                                <>
+                                  <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+                                    {mention.value.charAt(0).toUpperCase()}
+                                  </div>
+                                  <span className="truncate">
+                                    {mention.value}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ));
+                  })()
+                : selectableMentions.map((mention, index) => (
+                    <div
+                      key={mention.key}
+                      data-index={index}
+                      role="option"
+                      aria-selected={index === activeIndex}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",
+                        index === activeIndex &&
+                          "bg-accent text-accent-foreground",
+                      )}
+                      onMouseDown={() => {
+                        isSelectingRef.current = true;
+                      }}
+                      onClick={() => {
+                        insertMention(mention);
+                        isSelectingRef.current = false;
+                      }}
+                      onMouseEnter={() => setActiveSuggestionIndex(() => index)}
+                    >
+                      {renderMentionItem ? (
+                        renderMentionItem(mention, index === activeIndex)
+                      ) : (
+                        <>
+                          <div className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium">
+                            {mention.value.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="truncate">{mention.value}</span>
+                        </>
+                      )}
+                    </div>
+                  ))}
           </div>,
           document.body,
         )}

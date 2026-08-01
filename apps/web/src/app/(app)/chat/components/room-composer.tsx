@@ -58,6 +58,7 @@ import { AiCoworkerIcon } from "./room-draft-shared";
 import {
   formatRoomMarkdownMentions,
   type PendingRoomQuote,
+  partitionRoomMentionSuggestions,
   type RoomMentionParticipant,
 } from "./room-helpers";
 
@@ -524,6 +525,12 @@ export function RoomComposer({
             formatToolbarOpen ? handleActiveFormatsChange : undefined
           }
           className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
+          groupMentions={(filtered) =>
+            partitionRoomMentionSuggestions(filtered, {
+              peopleLabel: t("MentionSections.people"),
+              coworkersLabel: t("MentionSections.coworkers"),
+            })
+          }
           renderMentionItem={(mention) => (
             <RoomMentionSuggestion mention={mention} />
           )}
