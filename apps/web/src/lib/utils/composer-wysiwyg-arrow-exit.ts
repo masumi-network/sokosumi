@@ -352,11 +352,6 @@ export function tryExitComposerInlineFormatOnArrow(
   );
   if (offset === null) return false;
   const editorLength = (editor.textContent ?? "").replace(/\u200b/g, "").length;
-  const visibleOffset = Math.min(
-    offset,
-    // rough: treat zwsp as invisible for edge checks via range when possible
-    offset,
-  );
 
   if (direction === "right") {
     try {
@@ -366,7 +361,7 @@ export function tryExitComposerInlineFormatOnArrow(
         return clearStickyFormatsWithoutDom(editor);
       }
     } catch {
-      if (visibleOffset >= editorLength) {
+      if (offset >= editorLength) {
         return clearStickyFormatsWithoutDom(editor);
       }
     }
@@ -380,7 +375,7 @@ export function tryExitComposerInlineFormatOnArrow(
         return clearStickyFormatsWithoutDom(editor);
       }
     } catch {
-      if (visibleOffset <= 0) {
+      if (offset <= 0) {
         return clearStickyFormatsWithoutDom(editor);
       }
     }

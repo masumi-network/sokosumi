@@ -21,7 +21,7 @@ import {
   type ComposerActiveFormats,
   EMPTY_COMPOSER_ACTIVE_FORMATS,
 } from "@/lib/utils/composer-active-formats";
-import type { ComposerFormatCommand } from "@/lib/utils/composer-markdown-wrap";
+import type { ComposerFormatCommand } from "@/lib/utils/composer-format-command";
 
 interface ComposerFormatToolbarProps {
   onFormat: (command: ComposerFormatCommand) => void;
