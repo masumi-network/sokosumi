@@ -6,7 +6,10 @@ import {
 
 import { badRequest, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
-import { MAX_LISTED_CHAT_REACTION_REACTORS } from "@/schemas/chat-room.schema";
+import {
+  type ChatRoomMessageQuote,
+  MAX_LISTED_CHAT_REACTION_REACTORS,
+} from "@/schemas/chat-room.schema";
 
 export const chatRoomUserSelect = {
   id: true,
@@ -278,6 +281,8 @@ export function mapChatRoomMessage(
     reactionCounts.set(reaction.emoji, current);
   }
 
+  const metadata = (message.metadata as Record<string, unknown> | null) ?? null;
+
   return {
     id: message.id,
     roomId: message.roomId,
@@ -301,7 +306,107 @@ export function mapChatRoomMessage(
     ),
     threadReplyCount: message._count.replies,
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
-    metadata: (message.metadata as Record<string, unknown> | null) ?? null,
+    metadata,
+    quote: readQuoteFromMetadata(metadata),
+  };
+}
+
+/** Soft cap for quote preview text shown under a room message. */
+export const QUOTE_SNIPPET_MAX_CHARS = 280;
+
+/**
+ * Light plain-text preview for a quoted message. Strips cheap markdown markers
+ * and collapses whitespace so the UI can show a short attribution snippet.
+ */
+export function buildQuoteSnippet(content: string): string {
+  const flattened = content
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[*_~>#]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (flattened.length > QUOTE_SNIPPET_MAX_CHARS) {
+    return `${flattened.slice(0, QUOTE_SNIPPET_MAX_CHARS)}…`;
+  }
+  return flattened;
+}
+
+export function mergeChatRoomMessageMetadata(
+  existing: unknown,
+  quote: ChatRoomMessageQuote | null,
+): Record<string, unknown> | null {
+  const base =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? { ...(existing as Record<string, unknown>) }
+      : {};
+
+  if (quote) {
+    base.quote = quote;
+  }
+
+  return Object.keys(base).length > 0 ? base : null;
+}
+
+function readQuoteFromMetadata(
+  metadata: Record<string, unknown> | null,
+): ChatRoomMessageQuote | null {
+  const raw = metadata?.quote;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const candidate = raw as Record<string, unknown>;
+  if (
+    typeof candidate.messageId !== "string" ||
+    typeof candidate.authorName !== "string" ||
+    typeof candidate.snippet !== "string"
+  ) {
+    return null;
+  }
+  return {
+    messageId: candidate.messageId,
+    authorName: candidate.authorName,
+    snippet: candidate.snippet,
+  };
+}
+
+/**
+ * Resolve a same-room quote target into a durable snapshot. Missing or
+ * cross-room ids are a client error (400), not a soft omit — the composer
+ * already chose a specific message.
+ */
+export async function resolveRoomQuoteSnapshot(
+  tx: Prisma.TransactionClient,
+  roomId: string,
+  quoteMessageId: string | undefined,
+): Promise<ChatRoomMessageQuote | null> {
+  if (!quoteMessageId) {
+    return null;
+  }
+
+  const quoted = await tx.chatRoomMessage.findFirst({
+    where: {
+      id: quoteMessageId,
+      roomId,
+    },
+    select: {
+      id: true,
+      content: true,
+      senderUser: { select: { name: true } },
+      senderCoworker: { select: { name: true } },
+    },
+  });
+
+  if (!quoted) {
+    throw badRequest("Quoted message not found");
+  }
+
+  return {
+    messageId: quoted.id,
+    authorName:
+      quoted.senderUser?.name ?? quoted.senderCoworker?.name ?? "Someone",
+    snippet: buildQuoteSnippet(quoted.content),
   };
 }
 

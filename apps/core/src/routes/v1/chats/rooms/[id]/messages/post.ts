@@ -22,10 +22,12 @@ import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  mergeChatRoomMessageMetadata,
   requireChatRoomCoworkerAccess,
   requireChatRoomUserWriteAccess,
   resolveMentionedCoworkerIds,
   resolveMentionedUserIds,
+  resolveRoomQuoteSnapshot,
   resolveThreadParentMessageId,
 } from "../../helpers";
 
@@ -86,6 +88,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.id,
           body.parentMessageId,
         );
+        const quote = await resolveRoomQuoteSnapshot(
+          tx,
+          room.id,
+          body.quote?.messageId,
+        );
+        const metadata = mergeChatRoomMessageMetadata(null, quote);
 
         const message = await tx.chatRoomMessage.create({
           data: {
@@ -93,6 +101,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             parentMessageId,
             senderCoworkerId: coworkerId,
             content: body.content,
+            ...(metadata ? { metadata } : {}),
           },
           include: chatRoomMessageInclude,
         });
@@ -136,6 +145,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           room.id,
           body.parentMessageId,
         );
+        const quote = await resolveRoomQuoteSnapshot(
+          tx,
+          room.id,
+          body.quote?.messageId,
+        );
+        const metadata = mergeChatRoomMessageMetadata(null, quote);
 
         // A thread reply goes to every coworker already part of the thread —
         // as a sender or a mention target — without requiring a fresh @mention.
@@ -193,6 +208,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             parentMessageId,
             senderUserId: userContext.userId,
             content: body.content,
+            ...(metadata ? { metadata } : {}),
             mentionsAsSource: {
               create: mentionedCoworkerIds.map((coworkerId) => ({
                 coworkerId,
