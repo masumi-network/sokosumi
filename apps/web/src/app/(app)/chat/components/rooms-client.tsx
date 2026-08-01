@@ -122,7 +122,7 @@ function RoomParticipantStack({ room }: { room: ChatRoom }) {
   }
 
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
       <div
         className="flex -space-x-2"
         aria-label={participants
@@ -132,11 +132,11 @@ function RoomParticipantStack({ room }: { room: ChatRoom }) {
         {visibleParticipants.map((participant, index) => (
           <span
             key={`${participant.kind}-${participant.id}`}
-            className="relative block size-7 shrink-0"
+            className="relative block size-6 shrink-0 md:size-7"
             style={{ zIndex: visibleParticipants.length - index }}
             title={participant.name}
           >
-            <Avatar className="border-background ring-border/60 size-7 border-2 shadow-xs ring-1">
+            <Avatar className="border-background ring-border/60 size-6 border-2 shadow-xs ring-1 md:size-7">
               <AvatarImage src={participant.image ?? undefined} alt="" />
               <AvatarFallback
                 className={cn(
@@ -1164,8 +1164,8 @@ export function RoomsClient({
               label={t("Toolbar.dropToAttach")}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
-                <div className="flex min-w-0 items-center gap-2">
+              <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-3 md:h-16 md:gap-4 md:px-6">
+                <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
                   {isDirectRoom ? (
                     <MessageCircle className="text-muted-foreground size-4 shrink-0" />
                   ) : (
@@ -1175,7 +1175,7 @@ export function RoomsClient({
                     {selectedRoomDisplayName}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
                   <RoomParticipantStack room={selectedRoom} />
                   {isDirectRoom ? null : (
                     <EditChannelDialog
