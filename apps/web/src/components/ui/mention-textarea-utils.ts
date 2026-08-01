@@ -428,10 +428,11 @@ export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
   const viewportWidth = visual ? visual.width : window.innerWidth;
   const belowSpace = viewportBottom - rect.bottom - VIEWPORT_PADDING_PX;
   const aboveSpace = rect.top - viewportTop - VIEWPORT_PADDING_PX;
+  // Prefer above when the preferred popup height cannot fit below and there is
+  // more room above (bottom composers). Cap used to be min(240, 96), which kept
+  // lists growing into a thin strip under the caret with little scroll room.
   const side =
-    belowSpace < Math.min(POPUP_HEIGHT_PX, 96) && aboveSpace > belowSpace
-      ? "top"
-      : "bottom";
+    belowSpace < POPUP_HEIGHT_PX && aboveSpace > belowSpace ? "top" : "bottom";
   const maxHeight = Math.min(
     POPUP_HEIGHT_PX,
     Math.max(80, side === "top" ? aboveSpace - 4 : belowSpace - 4),
