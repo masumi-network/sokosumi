@@ -25,7 +25,17 @@ export function getNotificationHref(
       return `/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(notification.referenceId)}`;
     }
 
-    default:
+    case "CHAT":
+      return `/chat/rooms/${encodeURIComponent(notification.referenceId)}`;
+
+    case "SYSTEM":
+    case "BILLING":
       return `/`;
+
+    default: {
+      const _exhaustive: never = notification.kind;
+      void _exhaustive;
+      return `/`;
+    }
   }
 }

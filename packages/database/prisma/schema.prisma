@@ -365,6 +365,7 @@ enum NotificationKind {
   TASK
   BILLING
   SYSTEM
+  CHAT
 }
 
 model Notification {

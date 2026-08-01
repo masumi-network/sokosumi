@@ -10475,7 +10475,8 @@ export const NotificationKindSchema = {
         'JOB',
         'TASK',
         'BILLING',
-        'SYSTEM'
+        'SYSTEM',
+        'CHAT'
     ],
     description: 'Notification source domain',
     example: 'JOB'
