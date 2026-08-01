@@ -4674,6 +4674,9 @@
         "dismiss": "Quitar cita",
         "previewLabel": "Citando a {author}",
         "jump": "Ir al mensaje de {author}"
+      },
+      "MentionAll": {
+        "label": "Todos"
       }
     }
   },

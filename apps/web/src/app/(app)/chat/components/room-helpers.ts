@@ -25,13 +25,48 @@ export interface RoomParticipantPreview {
   kind: "human" | "coworker";
 }
 
-/** Shared mention-picker payload for humans and coworkers in room composers. */
+/** Catalog / chip key for room-wide @all. Not a user UUID. */
+export const ROOM_MENTION_ALL_ID = "all" as const;
+
+/** Slug half of the persist token `@all:all`. */
+export const ROOM_MENTION_ALL_SLUG = "all" as const;
+
+/** Persist form written by the wysiwyg serializer (`@key:slug`). */
+export const ROOM_MENTION_ALL_TOKEN = "@all:all" as const;
+
+/** Bare form accepted when users type/paste without the `:slug` suffix. */
+export const ROOM_MENTION_ALL_BARE = "@all" as const;
+
+export function isRoomMentionAllId(id: string): boolean {
+  return id === ROOM_MENTION_ALL_ID;
+}
+
+/** Shared mention-picker payload for humans, coworkers, and synthetic @all. */
 export interface RoomMentionParticipant {
-  kind: "human" | "coworker";
+  kind: "human" | "coworker" | "all";
   id: string;
   name: string;
   slug: string;
   image: string | null;
+}
+
+/** Synthetic catalog row for the @all picker entry. */
+export function buildRoomAllMentionRecord(): {
+  value: string;
+  slug: string;
+  data: RoomMentionParticipant;
+} {
+  return {
+    value: ROOM_MENTION_ALL_ID,
+    slug: ROOM_MENTION_ALL_SLUG,
+    data: {
+      kind: "all",
+      id: ROOM_MENTION_ALL_ID,
+      name: ROOM_MENTION_ALL_ID,
+      slug: ROOM_MENTION_ALL_SLUG,
+      image: null,
+    },
+  };
 }
 
 export function appendComposerBlock(value: string, block: string): string {
@@ -311,11 +346,33 @@ export function shouldShowChatRoomThreadButton(options: {
 }
 
 /** Direct rooms: @ only when the roster has more than two people (incl. you). */
-export function shouldShowRoomMentionShortcut(room: ChatRoom): boolean {
+export function shouldShowRoomMentionShortcut(room: {
+  kind: string;
+  userMembers: readonly unknown[];
+  coworkerMembers: readonly unknown[];
+}): boolean {
   if (room.kind !== "direct") {
     return true;
   }
   return room.userMembers.length + room.coworkerMembers.length > 2;
+}
+
+/**
+ * Offer @all when mentions already work and at least one other human can be
+ * notified (room humans excluding the author).
+ */
+export function shouldIncludeRoomAllMention(
+  room: {
+    kind: string;
+    userMembers: ReadonlyArray<{ id: string }>;
+    coworkerMembers: readonly unknown[];
+  },
+  currentUserId: string,
+): boolean {
+  if (!shouldShowRoomMentionShortcut(room)) {
+    return false;
+  }
+  return room.userMembers.some((member) => member.id !== currentUserId);
 }
 
 export function formatDirectParticipantNames(
@@ -412,6 +469,11 @@ export function formatRoomMarkdownMentions({
   matches.forEach((match) => {
     if (match.start > lastIndex) {
       formatted += content.slice(lastIndex, match.start);
+    }
+    if (isRoomMentionAllId(match.id)) {
+      formatted += `<span class="text-primary font-medium">${escapeHtml(ROOM_MENTION_ALL_BARE)}</span>`;
+      lastIndex = match.end;
+      return;
     }
     const coworker =
       coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);

@@ -4674,6 +4674,9 @@
         "dismiss": "移除引用",
         "previewLabel": "正在引用 {author}",
         "jump": "跳转到 {author} 的消息"
+      },
+      "MentionAll": {
+        "label": "所有人"
       }
     }
   },
