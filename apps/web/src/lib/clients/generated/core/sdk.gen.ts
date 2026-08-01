@@ -413,7 +413,7 @@ export const getChatsRoomsByIdStreamMessages = <ThrowOnError extends boolean = f
 export const getChatsRoomsByIdStreamActive = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdStreamActiveData, ThrowOnError, GetChatsRoomsByIdStreamActiveResponse>): Promise<ServerSentEventsResult<GetChatsRoomsByIdStreamActiveResponses>> => (options.client ?? client).sse.get<GetChatsRoomsByIdStreamActiveResponses, GetChatsRoomsByIdStreamActiveErrors, ThrowOnError>({ url: '/chats/rooms/{id}/stream/active', ...options });
 
 /**
- * Stream a coworker 1:1 reply into a chat room (AI SDK SSE). Persists to chat_room_message; does not write conversation* rows. Optional parentMessageId scopes the turn as a thread reply under that top-level message. Requires a direct room with exactly one user member (the caller) and one coworker member.
+ * Stream a coworker 1:1 reply into a chat room (AI SDK SSE). Persists to chat_room_message; does not write conversation* rows. Optional parentMessageId scopes the turn as a thread reply under that top-level message. Optional quote snapshots another same-room message into metadata.quote without setting parentMessageId. Requires a direct room with exactly one user member (the caller) and one coworker member.
  */
 export const postChatsRoomsByIdStream = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdStreamData, ThrowOnError, PostChatsRoomsByIdStreamResponse>): Promise<ServerSentEventsResult<PostChatsRoomsByIdStreamResponses>> => (options.client ?? client).sse.post<PostChatsRoomsByIdStreamResponses, PostChatsRoomsByIdStreamErrors, ThrowOnError>({
     url: '/chats/rooms/{id}/stream',

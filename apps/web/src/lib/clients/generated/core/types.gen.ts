@@ -9177,6 +9177,9 @@ export type PostChatsRoomsByIdStreamData = {
     } & {
         parentMessageId?: string;
         roomId?: string;
+        quote?: {
+            messageId: string;
+        };
     };
     headers?: {
         /**
