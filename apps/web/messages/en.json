@@ -4745,7 +4745,9 @@
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
-        "attachmentFallback": "file"
+        "attachmentFallback": "file",
+        "showFormatting": "Show formatting",
+        "hideFormatting": "Hide formatting"
       },
       "Reactions": {
         "add": "Add reaction",

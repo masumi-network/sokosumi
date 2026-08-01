@@ -1,6 +1,6 @@
 "use client";
 
-import { AtSign, Loader2, Paperclip } from "lucide-react";
+import { AtSign, CaseSensitive, Loader2, Paperclip } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type Dispatch,
@@ -33,6 +33,7 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
+import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import type { ComposerFormatCommand } from "@/lib/utils/composer-markdown-wrap";
 import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
@@ -120,6 +121,8 @@ export function RoomComposer({
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkInitialText, setLinkInitialText] = useState("");
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
+  /** Slack Aa: formatting strip above the editor. */
+  const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
   const composerMentions = showMentionShortcut ? mentions : {};
   const handleSelectedKeysChange = showMentionShortcut
     ? onSelectedKeysChange
@@ -199,6 +202,7 @@ export function RoomComposer({
   }
 
   function openLinkDialog() {
+    setFormatToolbarOpen(true);
     const selected = editorRef.current?.getSelectedPlainText() ?? "";
     setLinkInitialText(selected);
     setLinkInitialUrl(
@@ -208,6 +212,7 @@ export function RoomComposer({
   }
 
   function handleFormat(command: ComposerFormatCommand) {
+    setFormatToolbarOpen(true);
     editorRef.current?.applyFormat(command);
   }
 
@@ -236,25 +241,16 @@ export function RoomComposer({
         isSending={isSending}
         sendDisabled={isUploadingFiles || sendDisabled}
         sendAriaLabel={t("send")}
-        toolbarStart={
-          <>
+        aboveEditor={
+          formatToolbarOpen ? (
             <ComposerFormatToolbar
               onFormat={handleFormat}
               onLink={openLinkDialog}
             />
-            {showMentionShortcut ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-                title={t("Toolbar.mention")}
-                aria-label={t("Toolbar.mention")}
-                onClick={() => editorRef.current?.openMentions()}
-              >
-                <AtSign className="size-4" aria-hidden />
-              </Button>
-            ) : null}
+          ) : null
+        }
+        toolbarStart={
+          <>
             {allowAttachments ? (
               <>
                 <input
@@ -285,11 +281,47 @@ export function RoomComposer({
                 </Button>
               </>
             ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
+                formatToolbarOpen && "bg-muted text-foreground",
+              )}
+              title={
+                formatToolbarOpen
+                  ? t("Toolbar.hideFormatting")
+                  : t("Toolbar.showFormatting")
+              }
+              aria-label={
+                formatToolbarOpen
+                  ? t("Toolbar.hideFormatting")
+                  : t("Toolbar.showFormatting")
+              }
+              aria-pressed={formatToolbarOpen}
+              onClick={() => setFormatToolbarOpen((open) => !open)}
+            >
+              <CaseSensitive className="size-4" aria-hidden />
+            </Button>
             <RoomComposerEmojiPicker
               title={t("Toolbar.emoji")}
               ariaLabel={t("Toolbar.emoji")}
               onPick={(emoji) => editorRef.current?.insertText(emoji)}
             />
+            {showMentionShortcut ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                title={t("Toolbar.mention")}
+                aria-label={t("Toolbar.mention")}
+                onClick={() => editorRef.current?.openMentions()}
+              >
+                <AtSign className="size-4" aria-hidden />
+              </Button>
+            ) : null}
           </>
         }
       >

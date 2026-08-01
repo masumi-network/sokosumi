@@ -47,6 +47,11 @@ interface RoomMessageComposerProps {
   removeAttachmentLabel: (fileName: string) => string;
   children: ReactNode;
   toolbarStart?: ReactNode;
+  /**
+   * Slack-style formatting strip above the editor (e.g. bold/italic row).
+   * Rendered after attachment chips, before the editor body.
+   */
+  aboveEditor?: ReactNode;
   isSending: boolean;
   sendDisabled: boolean;
   sendAriaLabel: string;
@@ -75,6 +80,7 @@ export function RoomMessageComposer({
   removeAttachmentLabel,
   children,
   toolbarStart,
+  aboveEditor,
   isSending,
   sendDisabled,
   sendAriaLabel,
@@ -113,6 +119,7 @@ export function RoomMessageComposer({
               ))}
             </div>
           ) : null}
+          {aboveEditor}
           {children}
           {belowEditor}
           <div className="flex items-center justify-between gap-2 px-3 pb-3">

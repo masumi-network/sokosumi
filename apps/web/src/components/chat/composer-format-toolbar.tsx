@@ -15,7 +15,6 @@ import {
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
-import { ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME } from "@/components/chat/room-message-composer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { ComposerFormatCommand } from "@/lib/utils/composer-markdown-wrap";
@@ -43,6 +42,10 @@ interface FormatTool {
   onClick: () => void;
 }
 
+/**
+ * Slack-style formatting strip. Order matches Slack compose: marks, link,
+ * lists, quote, then code.
+ */
 export function ComposerFormatToolbar({
   onFormat,
   onLink,
@@ -76,6 +79,30 @@ export function ComposerFormatToolbar({
       onClick: () => onFormat("strikethrough"),
     },
     {
+      key: "link",
+      labelKey: "link",
+      icon: <Link2 className="size-4" aria-hidden />,
+      onClick: onLink,
+    },
+    {
+      key: "numberedList",
+      labelKey: "numberedList",
+      icon: <ListOrdered className="size-4" aria-hidden />,
+      onClick: () => onFormat("numberedList"),
+    },
+    {
+      key: "bulletList",
+      labelKey: "bulletList",
+      icon: <List className="size-4" aria-hidden />,
+      onClick: () => onFormat("bulletList"),
+    },
+    {
+      key: "quote",
+      labelKey: "quote",
+      icon: <Quote className="size-4" aria-hidden />,
+      onClick: () => onFormat("quote"),
+    },
+    {
       key: "code",
       labelKey: "code",
       icon: <Code className="size-4" aria-hidden />,
@@ -87,30 +114,6 @@ export function ComposerFormatToolbar({
       icon: <SquareCode className="size-4" aria-hidden />,
       onClick: () => onFormat("codeBlock"),
     },
-    {
-      key: "quote",
-      labelKey: "quote",
-      icon: <Quote className="size-4" aria-hidden />,
-      onClick: () => onFormat("quote"),
-    },
-    {
-      key: "bulletList",
-      labelKey: "bulletList",
-      icon: <List className="size-4" aria-hidden />,
-      onClick: () => onFormat("bulletList"),
-    },
-    {
-      key: "numberedList",
-      labelKey: "numberedList",
-      icon: <ListOrdered className="size-4" aria-hidden />,
-      onClick: () => onFormat("numberedList"),
-    },
-    {
-      key: "link",
-      labelKey: "link",
-      icon: <Link2 className="size-4" aria-hidden />,
-      onClick: onLink,
-    },
   ];
 
   return (
@@ -118,7 +121,7 @@ export function ComposerFormatToolbar({
       role="toolbar"
       aria-label={t("format")}
       className={cn(
-        "flex max-w-full items-center gap-0.5 overflow-x-auto",
+        "border-border bg-muted/20 flex max-w-full items-center gap-0.5 overflow-x-auto border-b px-2 py-1.5",
         className,
       )}
     >
@@ -128,7 +131,7 @@ export function ComposerFormatToolbar({
           type="button"
           variant="ghost"
           size="icon"
-          className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+          className="text-muted-foreground size-8 shrink-0 rounded-md"
           title={t(tool.labelKey)}
           aria-label={t(tool.labelKey)}
           onClick={tool.onClick}
