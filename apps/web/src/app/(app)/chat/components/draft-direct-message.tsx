@@ -15,6 +15,11 @@ import {
   ensureCoworkerDirectRoomAction,
   sendNewDirectMessageAction,
 } from "@/app/chat/actions";
+import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
+import {
+  type ComposeDraft,
+  composeDraftKey,
+} from "@/app/chat/utils/compose-draft-storage";
 import { stashPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,7 +62,7 @@ export function DraftDirectMessage({
   members: Member[];
   coworkers: Coworker[];
   currentUserId: string;
-  /** False in personal workspace — human 1:1 room DMs need an org. */
+  /** False in personal workspace — human 1:1 / group room DMs need an org. */
   canCreateRoomDirect: boolean;
   membersLoadFailed?: boolean;
 }) {
@@ -74,6 +79,31 @@ export function DraftDirectMessage({
   >([]);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
   const [isSending, startSendingTransition] = useTransition();
+  const composeDraft = useMemo<ComposeDraft>(
+    () => ({
+      text: composerValue,
+      attachments: composerAttachments.map((attachment) => ({
+        url: attachment.url,
+        fileName: attachment.fileName,
+        ...(attachment.mediaType ? { mediaType: attachment.mediaType } : {}),
+      })),
+    }),
+    [composerValue, composerAttachments],
+  );
+  const { clearDraft } = usePersistComposeDraft({
+    key: composeDraftKey.draftDm(),
+    draft: composeDraft,
+    onHydrate: (draft) => {
+      setComposerValue(draft.text);
+      setComposerAttachments(
+        draft.attachments.map((attachment) => ({
+          url: attachment.url,
+          fileName: attachment.fileName,
+          mediaType: attachment.mediaType ?? null,
+        })),
+      );
+    },
+  });
   const targets = useMemo(
     () => buildDirectDraftTargets(members, coworkers, currentUserId),
     [members, coworkers, currentUserId],
@@ -147,10 +177,37 @@ export function DraftDirectMessage({
     () => new Set(selectedMemberUserIds),
     [selectedMemberUserIds],
   );
+  const hasSelectedHumans = selectedMemberUserIds.length > 0;
+  const hasSelectedCoworker = selectedCoworkerIds.length > 0;
+  const crossKindDisabledReason = hasSelectedHumans
+    ? t("Draft.groupDirectHumansOnly")
+    : hasSelectedCoworker
+      ? t("Draft.coworkerDirectOneToOneOnly")
+      : undefined;
+
+  function isTargetDisabled(target: DirectDraftTarget): boolean {
+    if (hasSelectedHumans && target.kind === "coworker") {
+      return true;
+    }
+    if (hasSelectedCoworker && target.kind === "human") {
+      return true;
+    }
+    return false;
+  }
 
   function addTarget(target: DirectDraftTarget) {
-    // Direct messages are 1:1 until group DM ships — selecting replaces.
-    setSelectedKeys([target.key]);
+    if (isTargetDisabled(target)) {
+      return;
+    }
+    if (target.kind === "coworker") {
+      // Coworker DMs stay replace-to-solo (1:1).
+      setSelectedKeys([target.key]);
+    } else {
+      // Humans accumulate for 1:1 or multi-human group DMs.
+      setSelectedKeys((current) =>
+        current.includes(target.key) ? current : [...current, target.key],
+      );
+    }
     setRecipientQuery("");
     setIsRecipientPickerOpen(true);
     window.requestAnimationFrame(() => searchInputRef.current?.focus());
@@ -200,19 +257,30 @@ export function DraftDirectMessage({
         setComposerValue("");
         setComposerAttachments([]);
         setMentionedIds([]);
+        clearDraft();
         notifyOrganizationChatRoomsChanged(roomResult.data);
         router.replace(`/chat/rooms/${roomResult.data.id}`);
       });
       return;
     }
 
-    if (!canCreateRoomDirect) {
-      toast.error(t("Draft.organizationRequiredForGroup"));
+    if (selectedMemberUserIds.length > 0 && selectedCoworkerIds.length > 0) {
+      toast.error(t("Draft.groupDirectNoCoworkersError"));
       return;
     }
 
-    if (selectedMemberUserIds.length !== 1 || selectedCoworkerIds.length > 0) {
-      toast.error(t("Draft.oneToOneOnlyError"));
+    if (selectedCoworkerIds.length > 1) {
+      toast.error(t("Draft.coworkerDirectOneToOneOnly"));
+      return;
+    }
+
+    if (selectedMemberUserIds.length === 0) {
+      toast.error(t("Draft.chooseRecipientError"));
+      return;
+    }
+
+    if (!canCreateRoomDirect) {
+      toast.error(t("Draft.organizationRequiredForGroup"));
       return;
     }
 
@@ -237,10 +305,15 @@ export function DraftDirectMessage({
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
+      clearDraft();
       notifyOrganizationChatRoomsChanged(result.data.room);
       router.replace(`/chat/rooms/${result.data.room.id}`);
     });
   }
+
+  const firstEnabledCandidate = candidateTargets.find(
+    (target) => !isTargetDisabled(target),
+  );
 
   return (
     <RoomFileDropZone
@@ -303,9 +376,9 @@ export function DraftDirectMessage({
                   window.setTimeout(() => setIsRecipientPickerOpen(false), 120);
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && candidateTargets[0]) {
+                  if (event.key === "Enter" && firstEnabledCandidate) {
                     event.preventDefault();
-                    addTarget(candidateTargets[0]);
+                    addTarget(firstEnabledCandidate);
                   }
                   if (
                     event.key === "Backspace" &&
@@ -318,7 +391,9 @@ export function DraftDirectMessage({
                 placeholder={
                   selectedTargets.length === 0
                     ? t("Draft.searchPlaceholder")
-                    : t("Draft.searchPlaceholderReplace")
+                    : hasSelectedHumans
+                      ? t("Draft.searchPlaceholderMore")
+                      : t("Draft.searchPlaceholderReplace")
                 }
                 className="placeholder:text-muted-foreground h-9 w-full bg-transparent pr-2 pl-6 text-base outline-none md:text-sm"
               />
@@ -333,6 +408,8 @@ export function DraftDirectMessage({
                 <DirectDraftTargetList
                   targets={candidateTargets}
                   onSelect={addTarget}
+                  isTargetDisabled={isTargetDisabled}
+                  disabledReason={crossKindDisabledReason}
                 />
               ) : membersLoadFailed ? null : (
                 <p className="text-muted-foreground px-3 py-4 text-sm">

@@ -4027,6 +4027,23 @@
         "clientSecretPlaceholder": "输入您的 OAuth 客户端密钥",
         "clientSecretHelp": "机密客户端需要客户端密钥。公开客户端请留空。"
       },
+      "ProfileImage": {
+        "title": "头像",
+        "description": "上传或移除用于你账户的头像。",
+        "imageDescription": "上传不超过 {maxSize} 的图片。移除后将回退到 Gravatar。",
+        "imageUpload": "上传",
+        "imageReplace": "替换",
+        "imageRemove": "移除图片",
+        "imagePreviewAlt": "头像预览",
+        "imageUploadSuccess": "头像已更新",
+        "imageUploadError": "上传头像失败",
+        "imageSaveError": "保存头像失败",
+        "imageRemoveSuccess": "头像已移除",
+        "imageRemoveError": "移除头像失败",
+        "fileTooLarge": "文件过大",
+        "fileTypeNotAccepted": "不支持的文件类型",
+        "maxFilesExceeded": "一次只能上传一张图片"
+      },
       "BrandProfile": {
         "title": "品牌资料",
         "description": "设置用于创建个人 DESIGN.md 的品牌信息。",
@@ -4623,8 +4640,10 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "添加收件人后开始",
-        "oneToOneOnlyError": "私信目前仅为一对一。请选择一位成员或一位同事。",
-        "searchPlaceholderReplace": "更换收件人"
+        "searchPlaceholderReplace": "更换收件人",
+        "groupDirectHumansOnly": "群组私信仅限真人成员。",
+        "groupDirectNoCoworkersError": "群组私信不能包含同事。",
+        "coworkerDirectOneToOneOnly": "与同事的私信仅支持一对一。"
       },
       "Toolbar": {
         "mention": "Mention coworker",

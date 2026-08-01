@@ -386,7 +386,7 @@ export const getChatsRooms = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * Create a chat room. `kind: "channel"` requires an active organization. `kind: "direct"` creates or returns a 1:1 room scoped to the active organization when one is set. Coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.
+ * Create a chat room. `kind: "channel"` requires an active organization. `kind: "direct"` creates or returns a direct room (1:1 or multi-human group) scoped to the active organization when one is set. Coworker DMs may be personal (`organizationId` null) with no active org; human DMs always require an active organization.
  */
 export const postChatsRooms = <ThrowOnError extends boolean = false>(options?: Options<PostChatsRoomsData, ThrowOnError>): RequestResult<PostChatsRoomsResponses, PostChatsRoomsErrors, ThrowOnError> => (options?.client ?? client).post<PostChatsRoomsResponses, PostChatsRoomsErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsResponseTransformer,

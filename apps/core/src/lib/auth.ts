@@ -328,13 +328,13 @@ export const auth = betterAuth({
     google: {
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
-      overrideUserInfoOnSignIn: true,
+      overrideUserInfoOnSignIn: false,
       mapProfileToUser,
     },
     microsoft: {
       clientId: env.MICROSOFT_CLIENT_ID,
       clientSecret: env.MICROSOFT_CLIENT_SECRET,
-      overrideUserInfoOnSignIn: true,
+      overrideUserInfoOnSignIn: false,
       mapProfileToUser,
     },
   },

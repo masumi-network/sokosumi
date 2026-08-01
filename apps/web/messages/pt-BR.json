@@ -4027,6 +4027,23 @@
         "clientSecretPlaceholder": "Digite seu OAuth Client Secret",
         "clientSecretHelp": "Seu client secret é obrigatório para clientes confidenciais. Para clientes públicos, deixe em branco."
       },
+      "ProfileImage": {
+        "title": "Imagem de perfil",
+        "description": "Envie ou remova o avatar usado na sua conta.",
+        "imageDescription": "Envie uma imagem de até {maxSize}. Remova-a para voltar ao Gravatar.",
+        "imageUpload": "Enviar",
+        "imageReplace": "Substituir",
+        "imageRemove": "Remover imagem",
+        "imagePreviewAlt": "Pré-visualização da imagem de perfil",
+        "imageUploadSuccess": "Imagem de perfil atualizada",
+        "imageUploadError": "Falha ao enviar a imagem de perfil",
+        "imageSaveError": "Falha ao salvar a imagem de perfil",
+        "imageRemoveSuccess": "Imagem de perfil removida",
+        "imageRemoveError": "Falha ao remover a imagem de perfil",
+        "fileTooLarge": "O arquivo é muito grande",
+        "fileTypeNotAccepted": "Tipo de arquivo não aceito",
+        "maxFilesExceeded": "Envie apenas uma imagem por vez"
+      },
       "BrandProfile": {
         "title": "Perfil da marca",
         "description": "Defina os dados de marca usados para criar seu DESIGN.md pessoal.",
@@ -4623,8 +4640,10 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Adicione um destinatário para começar",
-        "oneToOneOnlyError": "Mensagens diretas são 1:1. Escolha um membro ou um coworker.",
-        "searchPlaceholderReplace": "Substituir destinatário"
+        "searchPlaceholderReplace": "Substituir destinatário",
+        "groupDirectHumansOnly": "Mensagens diretas em grupo são apenas entre pessoas.",
+        "groupDirectNoCoworkersError": "Mensagens diretas em grupo não podem incluir coworkers.",
+        "coworkerDirectOneToOneOnly": "Mensagens diretas com coworkers são 1:1."
       },
       "Toolbar": {
         "mention": "Mention coworker",

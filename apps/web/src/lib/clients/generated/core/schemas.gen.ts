@@ -4492,7 +4492,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'direct'
                     ],
-                    description: 'Creates or returns a 1:1 direct room (one organization member XOR one coworker) scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Group directs are not supported yet.'
+                    description: 'Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization.'
                 },
                 memberUserIds: {
                     type: 'array',

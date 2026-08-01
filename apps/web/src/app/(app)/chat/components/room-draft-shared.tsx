@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type {
   ChatRoomPresence,
   Coworker,
@@ -122,16 +127,31 @@ export function filterDraftTargets(
 export function DirectDraftTargetRow({
   target,
   onSelect,
+  disabled = false,
+  disabledReason,
 }: {
   target: DirectDraftTarget;
   onSelect: (target: DirectDraftTarget) => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
-  return (
+  const row = (
     <button
       type="button"
-      className="hover:bg-muted/70 flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors"
+      disabled={disabled}
+      aria-disabled={disabled || undefined}
+      title={disabled ? disabledReason : undefined}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors",
+        disabled
+          ? "text-muted-foreground cursor-not-allowed opacity-50"
+          : "hover:bg-muted/70",
+      )}
       onMouseDown={(event) => {
         event.preventDefault();
+        if (disabled) {
+          return;
+        }
         onSelect(target);
       }}
     >
@@ -154,14 +174,33 @@ export function DirectDraftTargetRow({
       </span>
     </button>
   );
+
+  if (!disabled || !disabledReason) {
+    return row;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="block w-full">{row}</span>
+      </TooltipTrigger>
+      <TooltipContent side="left" sideOffset={6}>
+        {disabledReason}
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 export function DirectDraftTargetList({
   targets,
   onSelect,
+  isTargetDisabled,
+  disabledReason,
 }: {
   targets: readonly DirectDraftTarget[];
   onSelect: (target: DirectDraftTarget) => void;
+  isTargetDisabled?: (target: DirectDraftTarget) => boolean;
+  disabledReason?: string;
 }) {
   const t = useTranslations("App.Channels");
   const humans = targets.filter((target) => target.kind === "human");
@@ -179,13 +218,18 @@ export function DirectDraftTargetList({
               {t("Dialog.humans")}
             </div>
           ) : null}
-          {humans.map((target) => (
-            <DirectDraftTargetRow
-              key={target.key}
-              target={target}
-              onSelect={onSelect}
-            />
-          ))}
+          {humans.map((target) => {
+            const disabled = isTargetDisabled?.(target) ?? false;
+            return (
+              <DirectDraftTargetRow
+                key={target.key}
+                target={target}
+                onSelect={onSelect}
+                disabled={disabled}
+                disabledReason={disabled ? disabledReason : undefined}
+              />
+            );
+          })}
         </div>
       ) : null}
       {coworkerTargets.length > 0 ? (
@@ -195,13 +239,18 @@ export function DirectDraftTargetList({
               {t("Dialog.coworkers")}
             </div>
           ) : null}
-          {coworkerTargets.map((target) => (
-            <DirectDraftTargetRow
-              key={target.key}
-              target={target}
-              onSelect={onSelect}
-            />
-          ))}
+          {coworkerTargets.map((target) => {
+            const disabled = isTargetDisabled?.(target) ?? false;
+            return (
+              <DirectDraftTargetRow
+                key={target.key}
+                target={target}
+                onSelect={onSelect}
+                disabled={disabled}
+                disabledReason={disabled ? disabledReason : undefined}
+              />
+            );
+          })}
         </div>
       ) : null}
     </>

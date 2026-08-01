@@ -61,6 +61,7 @@ export default async function Page() {
             ) : undefined
           }
           notificationsOptIn={session?.user.notificationsOptIn ?? true}
+          userImage={session?.user.image}
           userLogo={session?.user.logo}
           userMetadata={session?.user.metadata}
           marketingOptIn={session?.user.marketingOptIn ?? false}

@@ -4027,6 +4027,23 @@
         "clientSecretPlaceholder": "Inserisci il tuo client secret OAuth",
         "clientSecretHelp": "Il client secret è obbligatorio per i client confidenziali. Per i client pubblici, lascia vuoto."
       },
+      "ProfileImage": {
+        "title": "Immagine del profilo",
+        "description": "Carica o rimuovi l'avatar usato per il tuo account.",
+        "imageDescription": "Carica un'immagine fino a {maxSize}. Rimuovila per tornare a Gravatar.",
+        "imageUpload": "Carica",
+        "imageReplace": "Sostituisci",
+        "imageRemove": "Rimuovi immagine",
+        "imagePreviewAlt": "Anteprima dell'immagine del profilo",
+        "imageUploadSuccess": "Immagine del profilo aggiornata",
+        "imageUploadError": "Impossibile caricare l'immagine del profilo",
+        "imageSaveError": "Impossibile salvare l'immagine del profilo",
+        "imageRemoveSuccess": "Immagine del profilo rimossa",
+        "imageRemoveError": "Impossibile rimuovere l'immagine del profilo",
+        "fileTooLarge": "Il file è troppo grande",
+        "fileTypeNotAccepted": "Tipo di file non accettato",
+        "maxFilesExceeded": "Carica una sola immagine alla volta"
+      },
       "BrandProfile": {
         "title": "Profilo del brand",
         "description": "Imposta i dettagli del brand usati per creare il tuo DESIGN.md personale.",
@@ -4623,8 +4640,10 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Aggiungi un destinatario per iniziare",
-        "oneToOneOnlyError": "I messaggi diretti sono 1:1. Scegli un membro o un coworker.",
-        "searchPlaceholderReplace": "Sostituisci destinatario"
+        "searchPlaceholderReplace": "Sostituisci destinatario",
+        "groupDirectHumansOnly": "I messaggi diretti di gruppo sono solo tra persone.",
+        "groupDirectNoCoworkersError": "I messaggi diretti di gruppo non possono includere coworker.",
+        "coworkerDirectOneToOneOnly": "I messaggi diretti con coworker sono 1:1."
       },
       "Toolbar": {
         "mention": "Mention coworker",

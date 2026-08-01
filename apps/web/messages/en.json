@@ -4090,6 +4090,23 @@
         "clientSecretPlaceholder": "Enter your OAuth Client Secret",
         "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty."
       },
+      "ProfileImage": {
+        "title": "Profile image",
+        "description": "Upload or remove the avatar used for your account.",
+        "imageDescription": "Upload an image up to {maxSize}. Remove it to fall back to Gravatar.",
+        "imageUpload": "Upload",
+        "imageReplace": "Replace",
+        "imageRemove": "Remove image",
+        "imagePreviewAlt": "Profile image preview",
+        "imageUploadSuccess": "Profile image updated",
+        "imageUploadError": "Failed to upload profile image",
+        "imageSaveError": "Failed to save profile image",
+        "imageRemoveSuccess": "Profile image removed",
+        "imageRemoveError": "Failed to remove profile image",
+        "fileTooLarge": "File is too large",
+        "fileTypeNotAccepted": "File type is not accepted",
+        "maxFilesExceeded": "Upload one image at a time"
+      },
       "BrandProfile": {
         "title": "Brand profile",
         "description": "Set the brand details used when creating a personal DESIGN.md.",
@@ -4740,10 +4757,12 @@
         "ready": "Recipient selected",
         "chooseRecipientError": "Choose a recipient.",
         "organizationRequiredForGroup": "Switch to an organization to message a teammate.",
-        "oneToOneOnlyError": "Direct messages are 1:1. Pick one member or one coworker.",
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
-        "composerPlaceholderNoRecipients": "Add a recipient to start"
+        "composerPlaceholderNoRecipients": "Add a recipient to start",
+        "groupDirectHumansOnly": "Group direct messages are humans only.",
+        "groupDirectNoCoworkersError": "Group direct messages cannot include coworkers.",
+        "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1."
       },
       "Toolbar": {
         "mention": "Mention coworker",
