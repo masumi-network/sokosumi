@@ -44,9 +44,12 @@ import {
 } from "./room-draft-shared";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
+  buildRoomAllMentionRecord,
   buildRoomComposerMessageContent,
   isRoomComposerEmpty,
+  ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  shouldIncludeRoomAllMention,
 } from "./room-helpers";
 
 export function DraftDirectMessage({
@@ -119,30 +122,47 @@ export function DraftDirectMessage({
   const selectedMentionParticipants = useMemo<
     Record<string, MentionRecordEntry<RoomMentionParticipant>>
   >(() => {
-    return Object.fromEntries(
-      selectedTargets.map((target) => {
-        const slug =
-          target.kind === "coworker"
-            ? (target.slug ?? target.id)
-            : slugifyMentionValue(target.name);
-        const participant: RoomMentionParticipant = {
-          kind: target.kind,
-          id: target.id,
-          name: target.name,
+    const entries = selectedTargets.map((target) => {
+      const slug =
+        target.kind === "coworker"
+          ? (target.slug ?? target.id)
+          : slugifyMentionValue(target.name);
+      const participant: RoomMentionParticipant = {
+        kind: target.kind,
+        id: target.id,
+        name: target.name,
+        slug,
+        image: target.image,
+      };
+      return [
+        target.id,
+        {
+          value: target.name,
           slug,
-          image: target.image,
-        };
-        return [
-          target.id,
-          {
-            value: target.name,
-            slug,
-            data: participant,
-          },
-        ];
-      }),
-    );
-  }, [selectedTargets]);
+          data: participant,
+        },
+      ] as const;
+    });
+    const draftRoom = {
+      kind: "direct" as const,
+      userMembers: [
+        { id: currentUserId },
+        ...selectedTargets
+          .filter((target) => target.kind === "human")
+          .map((target) => ({ id: target.id })),
+      ],
+      coworkerMembers: selectedTargets.filter(
+        (target) => target.kind === "coworker",
+      ),
+    };
+    if (shouldIncludeRoomAllMention(draftRoom, currentUserId)) {
+      entries.unshift([
+        ROOM_MENTION_ALL_ID,
+        buildRoomAllMentionRecord(t("MentionAll.label")),
+      ]);
+    }
+    return Object.fromEntries(entries);
+  }, [currentUserId, selectedTargets, t]);
   const selectedMemberUserIds = selectedTargets
     .filter((target) => target.kind === "human")
     .map((target) => target.id);

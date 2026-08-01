@@ -229,8 +229,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
     if (mentionQuery === null) return [];
     if (mentionQuery === "") return normalizedMentions;
     const normalizedQuery = mentionQuery.toLowerCase();
-    return normalizedMentions.filter((mention) =>
-      mention.value.toLowerCase().includes(normalizedQuery),
+    return normalizedMentions.filter(
+      (mention) =>
+        mention.value.toLowerCase().includes(normalizedQuery) ||
+        mention.slug.toLowerCase().includes(normalizedQuery),
     );
   }, [mentionQuery, normalizedMentions]);
 
@@ -698,9 +700,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
         ? live.matches.length
         : live.query === ""
           ? normalizedMentions.length
-          : normalizedMentions.filter((mention) =>
-              mention.value.toLowerCase().includes(live.query.toLowerCase()),
-            ).length;
+          : normalizedMentions.filter((mention) => {
+              const q = live.query.toLowerCase();
+              return (
+                mention.value.toLowerCase().includes(q) ||
+                mention.slug.toLowerCase().includes(q)
+              );
+            }).length;
 
     if (listLength === 0) {
       closeSuggestions();

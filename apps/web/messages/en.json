@@ -4809,6 +4809,9 @@
         "dismiss": "Remove quote",
         "previewLabel": "Quoting {author}",
         "jump": "Jump to message from {author}"
+      },
+      "MentionAll": {
+        "label": "Everyone"
       }
     }
   },
