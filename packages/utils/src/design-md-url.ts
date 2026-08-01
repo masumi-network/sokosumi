@@ -8,6 +8,8 @@ export const DESIGN_MD_BLOB_PATH_PREFIX = "/design-md/";
 
 /**
  * True when `url` is an HTTPS public Vercel Blob URL under `/design-md/…`.
+ * Matches both legacy flat paths (`/design-md/{hash}.md`) and owner-scoped
+ * nested paths (`/design-md/users/…`, `/design-md/organizations/…`).
  * Used to stop SSRF via attacker-controlled `metadata.designMdUrl` values —
  * only Core-uploaded DESIGN.md blobs match this shape.
  */
