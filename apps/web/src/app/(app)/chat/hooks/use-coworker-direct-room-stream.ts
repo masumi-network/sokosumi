@@ -162,6 +162,34 @@ export interface UseCoworkerDirectRoomStreamParams {
   onStreamSettled: (roomId: string) => boolean | Promise<boolean>;
 }
 
+export interface CoworkerStreamSendOptions {
+  parentMessageId?: string;
+  /** Same-room quote target; does not set parentMessageId. */
+  quote?: { messageId: string };
+}
+
+/**
+ * Build AI SDK `sendMessage` options so optional `parentMessageId` and `quote`
+ * share one request body (Core room stream OpenAPI).
+ */
+export function buildCoworkerStreamSendMessageOptions(
+  options?: CoworkerStreamSendOptions,
+):
+  | { body: { parentMessageId?: string; quote?: { messageId: string } } }
+  | undefined {
+  const parentMessageId = options?.parentMessageId?.trim() || undefined;
+  const quoteMessageId = options?.quote?.messageId?.trim() || undefined;
+  if (!parentMessageId && !quoteMessageId) {
+    return undefined;
+  }
+  return {
+    body: {
+      ...(parentMessageId ? { parentMessageId } : {}),
+      ...(quoteMessageId ? { quote: { messageId: quoteMessageId } } : {}),
+    },
+  };
+}
+
 export interface UseCoworkerDirectRoomStreamResult {
   streamOverlayMessages: ChatRoomMessage[];
   isStreaming: boolean;
@@ -172,10 +200,11 @@ export interface UseCoworkerDirectRoomStreamResult {
   activeStreamParentMessageId: string | null;
   /**
    * Stream a top-level turn, or a thread reply when `parentMessageId` is set.
+   * Optional `quote` snapshots another same-room message on the user persist.
    */
   sendStreamMessage: (
     text: string,
-    options?: { parentMessageId?: string },
+    options?: CoworkerStreamSendOptions,
   ) => void;
   /** Consume a one-shot draft pending message for this room (Strict Mode safe). */
   consumePendingStreamMessage: (text: string) => void;
@@ -365,7 +394,7 @@ export function useCoworkerDirectRoomStream({
   ]);
 
   const sendStreamMessage = useCallback(
-    (text: string, options?: { parentMessageId?: string }) => {
+    (text: string, options?: CoworkerStreamSendOptions) => {
       const trimmed = text.trim();
       if (!enabled || !roomId || !trimmed) {
         return;
@@ -378,7 +407,7 @@ export function useCoworkerDirectRoomStream({
       writeStoredStreamParentMessageId(roomId, parentMessageId);
       void sendMessage(
         { text: trimmed },
-        parentMessageId ? { body: { parentMessageId } } : undefined,
+        buildCoworkerStreamSendMessageOptions(options),
       );
     },
     [enabled, roomId, sendMessage, setMessages],

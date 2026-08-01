@@ -973,14 +973,14 @@ export function RoomsClient({
       ? { messageId: pendingQuote.messageId }
       : undefined;
 
-    // Stream OpenAPI has no quote field — classic POST when quoting so the
-    // snapshot persists (coworker AI auto-reply may not run for that turn).
-    if (shouldUseCoworkerRoomStream(selectedRoom) && !quotePayload) {
+    // Coworker stream rooms keep SSE even with a pending quote (Core persists
+    // the quote snapshot on the user message). Classic POST stays for non-stream.
+    if (shouldUseCoworkerRoomStream(selectedRoom)) {
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
       setPendingQuote(null);
-      sendStreamMessage(content);
+      sendStreamMessage(content, { quote: quotePayload });
       return;
     }
 
@@ -1027,12 +1027,12 @@ export function RoomsClient({
       ? { messageId: pendingThreadQuote.messageId }
       : undefined;
 
-    if (shouldUseCoworkerRoomStream(selectedRoom) && !quotePayload) {
+    if (shouldUseCoworkerRoomStream(selectedRoom)) {
       setThreadComposerValue("");
       setThreadComposerAttachments([]);
       setThreadMentionedIds([]);
       setPendingThreadQuote(null);
-      sendStreamMessage(content, { parentMessageId });
+      sendStreamMessage(content, { parentMessageId, quote: quotePayload });
       return;
     }
 

@@ -81,6 +81,12 @@ describe("coworker DM cutover gating (rooms-client wiring)", () => {
     expect(shouldUseCoworkerRoomStream(humanDirect)).toBe(false);
   });
 
+  it("keeps stream routing when a pending quote is present (SOK-684)", () => {
+    // rooms-client gates only on shouldUseCoworkerRoomStream — quote is
+    // passed on the stream body, not a classic-POST fallback trigger.
+    expect(shouldUseCoworkerRoomStream(coworkerOnlyDirect)).toBe(true);
+  });
+
   it("shows thread button on coworker-only directs (SOK-656 Option B)", () => {
     expect(
       shouldShowChatRoomThreadButton({
