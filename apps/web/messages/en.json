@@ -4844,6 +4844,12 @@
         "deleteConfirm": "Delete this message? Others will see that it was deleted.",
         "deleted": "This message was deleted"
       },
+      "Edit": {
+        "action": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "edited": "Edited"
+      },
       "MentionAll": {
         "label": "Everyone"
       },

@@ -40,6 +40,7 @@ import type {
   PaginationMetadata,
   PatchAdminVendorData,
   PatchChatsRoomsByIdData,
+  PatchChatsRoomsByIdMessagesByMessageIdData,
   PatchCoworkersByIdData,
   PatchCoworkersByIdWhitelistData,
   PatchEnterpriseContractRequest,
@@ -198,6 +199,7 @@ import {
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
   patchChatsRoomsById as corePatchChatsRoomsById,
+  patchChatsRoomsByIdMessagesByMessageId as corePatchChatsRoomsByIdMessagesByMessageId,
   patchCoworkersById as corePatchCoworkersById,
   patchCoworkersByIdWhitelist as corePatchCoworkersByIdWhitelist,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -694,6 +696,23 @@ export function createCoreClient(getClient: GetClient) {
           path: { id, messageId },
         }),
       "Failed to delete chat room message",
+    );
+  }
+
+  async function updateChatRoomMessage(
+    id: string,
+    messageId: string,
+    body: NonNullable<PatchChatsRoomsByIdMessagesByMessageIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchChatsRoomsByIdMessagesByMessageId({
+          client,
+          path: { id, messageId },
+          body,
+        }),
+      "Failed to update chat room message",
     );
   }
 
@@ -3628,6 +3647,7 @@ export function createCoreClient(getClient: GetClient) {
     getNotifications,
     getNotificationsUnreadCount,
     updateChatRoom,
+    updateChatRoomMessage,
     patchNotificationRead,
     patchNotificationsReadAll,
     listHermesIntegrations,

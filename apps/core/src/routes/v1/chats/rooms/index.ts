@@ -5,6 +5,7 @@ import mountPostChatRoomFile from "./[id]/files/post.js";
 import mountGetChatRoom from "./[id]/get.js";
 import mountDeleteChatRoomSelfMembership from "./[id]/members/me/delete.js";
 import mountDeleteChatRoomMessage from "./[id]/messages/[messageId]/delete.js";
+import mountPatchChatRoomMessage from "./[id]/messages/[messageId]/patch.js";
 import mountPostChatRoomMessageReaction from "./[id]/messages/[messageId]/reactions/post.js";
 import mountGetChatRoomMessages from "./[id]/messages/get.js";
 import mountPostChatRoomMessage from "./[id]/messages/post.js";
@@ -30,6 +31,7 @@ mountPostChatRoomRead(app);
 mountGetChatRoomMessages(app);
 mountPostChatRoomMessage(app);
 mountDeleteChatRoomMessage(app);
+mountPatchChatRoomMessage(app);
 mountPostChatRoomMessageReaction(app);
 mountPostChatRoomFile(app);
 

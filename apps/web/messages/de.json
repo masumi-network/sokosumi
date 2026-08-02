@@ -4731,6 +4731,12 @@
       "MentionSections": {
         "people": "Personen",
         "coworkers": "Coworkers"
+      },
+      "Edit": {
+        "action": "Bearbeiten",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "edited": "Bearbeitet"
       }
     }
   },

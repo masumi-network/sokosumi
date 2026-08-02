@@ -4806,6 +4806,14 @@ export const ChatRoomMessageSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        editedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         sender: {
             $ref: '#/components/schemas/ChatRoomMessageSender'
         },
@@ -4851,6 +4859,7 @@ export const ChatRoomMessageSchema = {
         'content',
         'createdAt',
         'deletedAt',
+        'editedAt',
         'sender',
         'mentions',
         'reactions',
@@ -5130,6 +5139,21 @@ export const CreateChatRoomMessageRequestSchema = {
             maxLength: 128,
             description: 'Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).',
             example: '019fbee7-676b-771f-ab7a-998f25f1f16b'
+        }
+    },
+    required: [
+        'content'
+    ]
+} as const;
+
+export const UpdateChatRoomMessageRequestSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000,
+            example: 'Fixed typo in the launch summary'
         }
     },
     required: [

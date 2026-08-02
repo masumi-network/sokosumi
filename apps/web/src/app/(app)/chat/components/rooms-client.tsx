@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 import {
   deleteRoomMessageAction,
+  editRoomMessageAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
   sendRoomMessageAction,
@@ -212,6 +213,11 @@ export function RoomsClient({
   const [threadMentionedIds, setThreadMentionedIds] = useState<string[]>([]);
   const [pendingThreadQuote, setPendingThreadQuote] =
     useState<PendingRoomQuote | null>(null);
+  const [editSession, setEditSession] = useState<{
+    messageId: string;
+    draft: string;
+  } | null>(null);
+  const [isSavingEdit, startSavingEditTransition] = useTransition();
   const composeSurfaceEpoch = `${selectedRoomId}:${isNewDirectMessage}:${isCreateChannelRequested}`;
   const [syncedComposeSurfaceEpoch, setSyncedComposeSurfaceEpoch] =
     useState(composeSurfaceEpoch);
@@ -225,6 +231,7 @@ export function RoomsClient({
     setThreadComposerAttachments([]);
     setThreadMentionedIds([]);
     setPendingThreadQuote(null);
+    setEditSession(null);
   }
 
   const channelComposeDraftKey =
@@ -1017,6 +1024,42 @@ export function RoomsClient({
     });
   }
 
+  function handleStartEdit(message: ChatRoomMessage) {
+    setEditSession({ messageId: message.id, draft: message.content });
+  }
+
+  function handleCancelEdit() {
+    if (isSavingEdit) return;
+    setEditSession(null);
+  }
+
+  function handleEditDraftChange(draft: string) {
+    setEditSession((current) => (current ? { ...current, draft } : current));
+  }
+
+  function handleSaveEdit() {
+    if (!selectedRoom || !editSession || isSavingEdit) return;
+    const roomId = selectedRoom.id;
+    const { messageId, draft } = editSession;
+    const content = draft.trim();
+    if (!content) return;
+
+    startSavingEditTransition(async () => {
+      const result = await editRoomMessageAction(roomId, messageId, content);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      if (!isStillSelectedRoom(roomId)) {
+        return;
+      }
+      mergeUpdatedMessage(result.data);
+      setEditSession((current) =>
+        current?.messageId === messageId ? null : current,
+      );
+    });
+  }
+
   function handleDeleteMessage(message: ChatRoomMessage) {
     if (!selectedRoom) return;
     const roomId = selectedRoom.id;
@@ -1342,7 +1385,21 @@ export function RoomsClient({
                               : undefined
                           }
                           onQuote={handleQuoteMessage}
+                          onStartEdit={handleStartEdit}
                           onDelete={handleDeleteMessage}
+                          isEditing={editSession?.messageId === message.id}
+                          editDraft={
+                            editSession?.messageId === message.id
+                              ? editSession.draft
+                              : ""
+                          }
+                          onEditDraftChange={handleEditDraftChange}
+                          onCancelEdit={handleCancelEdit}
+                          onSaveEdit={handleSaveEdit}
+                          isSavingEdit={
+                            isSavingEdit &&
+                            editSession?.messageId === message.id
+                          }
                           // Stream overlays never show thread chrome.
                           showThreadButton={shouldShowChatRoomThreadButton({
                             room: selectedRoom,
@@ -1446,8 +1503,14 @@ export function RoomsClient({
             }}
             onToggleReaction={handleToggleReaction}
             onQuote={handleQuoteThreadMessage}
-            onDelete={handleDeleteMessage}
             currentUserId={currentUserId}
+            onStartEdit={handleStartEdit}
+            onDelete={handleDeleteMessage}
+            editSession={editSession}
+            onEditDraftChange={handleEditDraftChange}
+            onCancelEdit={handleCancelEdit}
+            onSaveEdit={handleSaveEdit}
+            isSavingEdit={isSavingEdit}
             pendingQuote={pendingThreadQuote}
             onClearPendingQuote={() => setPendingThreadQuote(null)}
             showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}

@@ -4731,6 +4731,12 @@
       "MentionSections": {
         "people": "メンバー",
         "coworkers": "コワーカー"
+      },
+      "Edit": {
+        "action": "編集",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "edited": "編集済み"
       }
     }
   },

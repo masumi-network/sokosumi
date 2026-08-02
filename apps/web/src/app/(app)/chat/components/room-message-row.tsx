@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Loader2,
   MessageCircle,
+  Pencil,
   Quote,
   Trash2,
 } from "lucide-react";
@@ -49,6 +50,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -399,9 +401,11 @@ function MessageActionControls({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showEditButton,
   showDeleteButton,
   onAfterAction,
 }: {
@@ -409,9 +413,11 @@ function MessageActionControls({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showEditButton: boolean;
   showDeleteButton: boolean;
   onAfterAction?: () => void;
 }) {
@@ -429,6 +435,22 @@ function MessageActionControls({
           onAfterAction?.();
         }}
       />
+      {showEditButton && onEdit ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={t("Edit.action")}
+          aria-label={t("Edit.action")}
+          onClick={() => {
+            onEdit(message);
+            onAfterAction?.();
+          }}
+        >
+          <Pencil className="size-4" aria-hidden />
+        </Button>
+      ) : null}
       {showQuoteButton && onQuote ? (
         <Button
           type="button"
@@ -489,18 +511,22 @@ function MessageActions({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showEditButton,
   showDeleteButton,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
   return (
@@ -516,9 +542,11 @@ function MessageActions({
         onToggleReaction={onToggleReaction}
         onOpenThread={onOpenThread}
         onQuote={onQuote}
+        onEdit={onEdit}
         onDelete={onDelete}
         showThreadButton={showThreadButton}
         showQuoteButton={showQuoteButton}
+        showEditButton={showEditButton}
         showDeleteButton={showDeleteButton}
       />
     </div>
@@ -657,9 +685,11 @@ function TouchMessageActionsSheet({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showEditButton,
   showDeleteButton,
 }: {
   open: boolean;
@@ -668,9 +698,11 @@ function TouchMessageActionsSheet({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
   const t = useTranslations("App.Channels");
@@ -738,6 +770,21 @@ function TouchMessageActionsSheet({
           />
         </div>
         <div className="border-border flex flex-col gap-1 border-t px-2 py-2">
+          {showEditButton && onEdit ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(() => {
+                  onEdit(message);
+                });
+              }}
+            >
+              <Pencil className="size-4 shrink-0" aria-hidden />
+              {t("Edit.action")}
+            </Button>
+          ) : null}
           {showQuoteButton && onQuote ? (
             <Button
               type="button"
@@ -786,6 +833,69 @@ function TouchMessageActionsSheet({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function MessageEditComposer({
+  value,
+  originalContent,
+  onChange,
+  onSave,
+  onCancel,
+  isSaving,
+}: {
+  value: string;
+  originalContent: string;
+  onChange: (value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const t = useTranslations("App.Channels");
+  const trimmed = value.trim();
+  const canSave =
+    trimmed.length > 0 && trimmed !== originalContent.trim() && !isSaving;
+
+  return (
+    <div className="space-y-2 pt-0.5">
+      <Textarea
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+        disabled={isSaving}
+        className="min-h-20"
+        autoFocus
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            if (!isSaving) onCancel();
+            return;
+          }
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+            event.preventDefault();
+            if (canSave) onSave();
+          }
+        }}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" size="sm" disabled={!canSave} onClick={onSave}>
+          {isSaving ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : null}
+          {t("Edit.save")}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={isSaving}
+          onClick={onCancel}
+        >
+          {t("Edit.cancel")}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -891,7 +1001,14 @@ export function ChatMessageRow({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onStartEdit,
   onDelete,
+  isEditing = false,
+  editDraft = "",
+  onEditDraftChange,
+  onCancelEdit,
+  onSaveEdit,
+  isSavingEdit = false,
   showThreadButton = true,
   showQuoteButton = true,
   isContinuation = false,
@@ -905,7 +1022,14 @@ export function ChatMessageRow({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  isEditing?: boolean;
+  editDraft?: string;
+  onEditDraftChange?: (value: string) => void;
+  onCancelEdit?: () => void;
+  onSaveEdit?: () => void;
+  isSavingEdit?: boolean;
   showThreadButton?: boolean;
   showQuoteButton?: boolean;
   /** Slack-style continuation: omit avatar / name / primary timestamp. */
@@ -924,6 +1048,13 @@ export function ChatMessageRow({
   const createdAtIso = new Date(message.createdAt).toISOString();
   const canQuote =
     showQuoteButton && Boolean(onQuote) && !isStreamOverlay && !isDeleted;
+  const canEdit =
+    Boolean(onStartEdit) &&
+    Boolean(currentUserId) &&
+    message.sender.type === "user" &&
+    message.sender.user.id === currentUserId &&
+    !isStreamOverlay &&
+    !isDeleted;
   const canDelete =
     Boolean(onDelete) &&
     Boolean(currentUserId) &&
@@ -931,13 +1062,14 @@ export function ChatMessageRow({
     !isStreamOverlay &&
     message.sender.type === "user" &&
     message.sender.user.id === currentUserId;
+  const showEdited = !isDeleted && message.editedAt != null;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const longPress = useLongPress(() => {
     setSheetOpen(true);
   });
-  const showActions = !isThinking && !isDeleted;
+  const showActions = !isThinking && !isDeleted && !isEditing;
 
   function requestDelete(_message: ChatRoomMessage) {
     setSheetOpen(false);
@@ -998,6 +1130,11 @@ export function ChatMessageRow({
             >
               {formattedTime}
             </time>
+            {showEdited ? (
+              <span className="text-muted-foreground text-xs">
+                {tChannels("Edit.edited")}
+              </span>
+            ) : null}
           </div>
         )}
         <div className="text-foreground wrap-break-word text-sm leading-6">
@@ -1016,7 +1153,16 @@ export function ChatMessageRow({
                   usersBySlug={usersBySlug}
                 />
               ) : null}
-              {isThinking ? (
+              {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
+                <MessageEditComposer
+                  value={editDraft}
+                  originalContent={message.content}
+                  onChange={onEditDraftChange}
+                  onSave={onSaveEdit}
+                  onCancel={onCancelEdit}
+                  isSaving={isSavingEdit}
+                />
+              ) : isThinking ? (
                 <span
                   className="reasoning-text-shine text-sm leading-5"
                   role="status"
@@ -1025,25 +1171,34 @@ export function ChatMessageRow({
                   {tChat("reasoning.thinking")}
                 </span>
               ) : (
-                <ChannelMessageText
-                  content={message.content}
-                  coworkersById={coworkersById}
-                  coworkersBySlug={coworkersBySlug}
-                  usersById={usersById}
-                  usersBySlug={usersBySlug}
-                />
+                <>
+                  <ChannelMessageText
+                    content={message.content}
+                    coworkersById={coworkersById}
+                    coworkersBySlug={coworkersBySlug}
+                    usersById={usersById}
+                    usersBySlug={usersBySlug}
+                  />
+                  {isContinuation && showEdited ? (
+                    <span className="text-muted-foreground ml-1.5 text-xs">
+                      {tChannels("Edit.edited")}
+                    </span>
+                  ) : null}
+                </>
               )}
             </>
           )}
         </div>
-        <MessageMetaFooter
-          message={message}
-          coworkersById={coworkersById}
-          onToggleReaction={onToggleReaction}
-          onOpenThread={onOpenThread}
-          showThreadButton={showThreadButton}
-          isDeleted={isDeleted}
-        />
+        {!isEditing ? (
+          <MessageMetaFooter
+            message={message}
+            coworkersById={coworkersById}
+            onToggleReaction={onToggleReaction}
+            onOpenThread={onOpenThread}
+            showThreadButton={showThreadButton}
+            isDeleted={isDeleted}
+          />
+        ) : null}
       </div>
       {showActions ? (
         <>
@@ -1052,9 +1207,11 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onEdit={onStartEdit}
             onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showEditButton={canEdit}
             showDeleteButton={canDelete}
           />
           <button
@@ -1073,9 +1230,11 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onEdit={onStartEdit}
             onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showEditButton={canEdit}
             showDeleteButton={canDelete}
           />
         </>

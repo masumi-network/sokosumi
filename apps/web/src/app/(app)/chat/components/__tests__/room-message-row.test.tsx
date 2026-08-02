@@ -55,13 +55,14 @@ function userMessage(
     parentMessageId: null,
     content: "Hello",
     createdAt: new Date("2026-07-01T14:35:00.000Z"),
+    editedAt: null,
+    deletedAt: null,
     mentions: [],
     reactions: [],
     threadReplyCount: 0,
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
-    deletedAt: null,
     sender: {
       type: "user",
       user: {
@@ -79,15 +80,29 @@ function userMessage(
 function renderRow({
   message = userMessage(),
   isContinuation = false,
-  currentUserId,
   onQuote,
+  currentUserId,
+  onStartEdit,
   onDelete,
+  isEditing = false,
+  editDraft = "",
+  onEditDraftChange,
+  onCancelEdit,
+  onSaveEdit,
+  isSavingEdit = false,
 }: {
   message?: ChatRoomMessage;
   isContinuation?: boolean;
-  currentUserId?: string;
   onQuote?: (message: ChatRoomMessage) => void;
+  currentUserId?: string;
+  onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  isEditing?: boolean;
+  editDraft?: string;
+  onEditDraftChange?: (value: string) => void;
+  onCancelEdit?: () => void;
+  onSaveEdit?: () => void;
+  isSavingEdit?: boolean;
 } = {}) {
   render(
     <ChatMessageRow
@@ -97,7 +112,14 @@ function renderRow({
       currentUserId={currentUserId}
       onToggleReaction={vi.fn()}
       onQuote={onQuote}
+      onStartEdit={onStartEdit}
       onDelete={onDelete}
+      isEditing={isEditing}
+      editDraft={editDraft}
+      onEditDraftChange={onEditDraftChange}
+      onCancelEdit={onCancelEdit}
+      onSaveEdit={onSaveEdit}
+      isSavingEdit={isSavingEdit}
       isContinuation={isContinuation}
     />,
   );
@@ -571,6 +593,109 @@ describe("ChatMessageRow", () => {
         );
       }
     }
+  });
+
+  it("shows Edit for own user messages and hides for others", async () => {
+    const user = userEvent.setup();
+    const onStartEdit = vi.fn();
+
+    const { rerender } = render(
+      <ChatMessageRow
+        message={userMessage()}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="user-1"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Edit.action" }),
+    ).toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={userMessage()}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="other-user"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit.action" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={userMessage({ id: "stream:temp" })}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="user-1"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit.action" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={userMessage()}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="user-1"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Edit.action" }));
+    expect(onStartEdit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "message-1" }),
+    );
+  });
+
+  it("shows Edited when editedAt is set", () => {
+    renderRow({
+      message: userMessage({
+        editedAt: new Date("2026-07-01T15:00:00.000Z"),
+      }),
+    });
+
+    expect(screen.getByText("Edit.edited")).toBeInTheDocument();
+  });
+
+  it("renders inline editor when isEditing", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+    const onCancelEdit = vi.fn();
+    const onEditDraftChange = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange,
+      onCancelEdit,
+      onSaveEdit,
+    });
+
+    expect(screen.getByDisplayValue("Original fixed")).toBeInTheDocument();
+    expect(screen.queryByText("Original")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit.save" }));
+    expect(onSaveEdit).toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Edit.cancel" }));
+    expect(onCancelEdit).toHaveBeenCalled();
   });
 
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {

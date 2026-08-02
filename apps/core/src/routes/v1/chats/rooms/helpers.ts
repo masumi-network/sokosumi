@@ -330,6 +330,7 @@ export function mapChatRoomMessage(
     content: isDeleted ? "" : message.content,
     createdAt: message.createdAt,
     deletedAt: message.deletedAt ?? null,
+    editedAt: isDeleted ? null : (message.editedAt ?? null),
     sender,
     mentions: isDeleted
       ? []
