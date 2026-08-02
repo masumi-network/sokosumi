@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Characterization pin for agent guidance.
- * Fails if required facts disappear from AGENTS.md / rules after a cleanup.
- */
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
