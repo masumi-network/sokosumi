@@ -28,9 +28,19 @@ import {
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import {
   Sheet,
@@ -460,7 +470,6 @@ function MessageActionControls({
           title={t("Message.delete")}
           aria-label={t("Message.delete")}
           onClick={() => {
-            if (!window.confirm(t("Message.deleteConfirm"))) return;
             onDelete(message);
             onAfterAction?.();
           }}
@@ -765,7 +774,6 @@ function TouchMessageActionsSheet({
               variant="ghost"
               className="text-destructive hover:text-destructive h-11 justify-start gap-3 px-3"
               onClick={() => {
-                if (!window.confirm(t("Message.deleteConfirm"))) return;
                 runAndClose(() => {
                   onDelete(message);
                 });
@@ -925,10 +933,21 @@ export function ChatMessageRow({
     message.sender.user.id === currentUserId;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const longPress = useLongPress(() => {
     setSheetOpen(true);
   });
   const showActions = !isThinking && !isDeleted;
+
+  function requestDelete(_message: ChatRoomMessage) {
+    setSheetOpen(false);
+    setDeleteDialogOpen(true);
+  }
+
+  function confirmDelete() {
+    onDelete?.(message);
+    setDeleteDialogOpen(false);
+  }
 
   return (
     <article
@@ -1033,7 +1052,7 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
-            onDelete={onDelete}
+            onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
             showDeleteButton={canDelete}
@@ -1054,12 +1073,35 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
-            onDelete={onDelete}
+            onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
             showDeleteButton={canDelete}
           />
         </>
+      ) : null}
+      {canDelete ? (
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{tChannels("Message.delete")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {tChannels("Message.deleteConfirm")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                {tChannels("Actions.cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className={buttonVariants({ variant: "destructive" })}
+                onClick={confirmDelete}
+              >
+                {tChannels("Message.delete")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       ) : null}
     </article>
   );

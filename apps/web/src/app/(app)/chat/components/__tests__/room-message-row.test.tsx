@@ -576,32 +576,59 @@ describe("ChatMessageRow", () => {
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();
-    const confirmMock = vi.fn(() => true);
-    const previousConfirm = window.confirm;
-    window.confirm = confirmMock;
 
-    try {
-      renderRow({
-        currentUserId: "user-1",
-        onDelete,
-        onQuote: vi.fn(),
-      });
+    renderRow({
+      currentUserId: "user-1",
+      onDelete,
+      onQuote: vi.fn(),
+    });
 
-      await user.click(screen.getByRole("button", { name: "Actions.more" }));
-      await user.click(
-        within(screen.getByRole("dialog")).getByRole("button", {
-          name: "Message.delete",
-        }),
-      );
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Message.delete",
+      }),
+    );
 
-      expect(confirmMock).toHaveBeenCalled();
-      expect(onDelete).toHaveBeenCalledWith(
-        expect.objectContaining({ id: "message-1" }),
-      );
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    } finally {
-      window.confirm = previousConfirm;
-    }
+    const confirmDialog = await screen.findByRole("alertdialog");
+    expect(
+      within(confirmDialog).getByText("Message.deleteConfirm"),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(confirmDialog).getByRole("button", { name: "Message.delete" }),
+    );
+
+    expect(onDelete).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "message-1" }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("cancels delete without calling onDelete", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn();
+
+    renderRow({
+      currentUserId: "user-1",
+      onDelete,
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Message.delete",
+      }),
+    );
+
+    const confirmDialog = await screen.findByRole("alertdialog");
+    await user.click(
+      within(confirmDialog).getByRole("button", { name: "Actions.cancel" }),
+    );
+
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
   it("does not show Delete for other authors", async () => {
