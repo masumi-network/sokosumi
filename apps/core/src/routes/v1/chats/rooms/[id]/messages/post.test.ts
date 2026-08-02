@@ -751,7 +751,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
       expect(messageFindFirstMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID },
+          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID, deletedAt: null },
         }),
       );
       expect(messageCreateMock).toHaveBeenCalledWith(

@@ -155,6 +155,14 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function deleteMessage(
+    roomId: string,
+    messageId: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.deleteChatRoomMessage(roomId, messageId);
+    return response.data;
+  }
+
   async function editMessage(
     roomId: string,
     messageId: string,
@@ -169,6 +177,7 @@ export const chatRoomService = (() => {
   return {
     archiveRoom,
     createRoom,
+    deleteMessage,
     editMessage,
     getRoom,
     listArchivedRooms,

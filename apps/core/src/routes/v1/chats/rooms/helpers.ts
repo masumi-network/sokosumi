@@ -321,33 +321,37 @@ export function mapChatRoomMessage(
   }
 
   const metadata = (message.metadata as Record<string, unknown> | null) ?? null;
+  const isDeleted = message.deletedAt != null;
 
   return {
     id: message.id,
     roomId: message.roomId,
     parentMessageId: message.parentMessageId,
-    content: message.content,
+    content: isDeleted ? "" : message.content,
     createdAt: message.createdAt,
-    editedAt: message.editedAt,
+    deletedAt: message.deletedAt ?? null,
+    editedAt: isDeleted ? null : (message.editedAt ?? null),
     sender,
-    mentions: message.mentionsAsSource.map((mention) => ({
-      id: mention.id,
-      coworkerId: mention.coworkerId,
-      status: mention.status,
-      responseMessageId: mention.responseMessageId,
-    })),
-    reactions: Array.from(reactionCounts.entries()).map(
-      ([emoji, reaction]) => ({
-        emoji,
-        count: reaction.count,
-        reactedByCurrentUser: reaction.reactedByCurrentUser,
-        reactors: reaction.reactors,
-      }),
-    ),
+    mentions: isDeleted
+      ? []
+      : message.mentionsAsSource.map((mention) => ({
+          id: mention.id,
+          coworkerId: mention.coworkerId,
+          status: mention.status,
+          responseMessageId: mention.responseMessageId,
+        })),
+    reactions: isDeleted
+      ? []
+      : Array.from(reactionCounts.entries()).map(([emoji, reaction]) => ({
+          emoji,
+          count: reaction.count,
+          reactedByCurrentUser: reaction.reactedByCurrentUser,
+          reactors: reaction.reactors,
+        })),
     threadReplyCount: message._count.replies,
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
-    metadata,
-    quote: readQuoteFromMetadata(metadata),
+    metadata: isDeleted ? null : metadata,
+    quote: isDeleted ? null : readQuoteFromMetadata(metadata),
   };
 }
 
@@ -437,6 +441,7 @@ export async function resolveRoomQuoteSnapshot(
     where: {
       id: quoteMessageId,
       roomId,
+      deletedAt: null,
     },
     select: {
       id: true,

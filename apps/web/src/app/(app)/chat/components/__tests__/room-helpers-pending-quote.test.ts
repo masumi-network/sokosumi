@@ -20,6 +20,7 @@ function userMessage(
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
+    deletedAt: null,
     sender: {
       type: "user",
       user: {

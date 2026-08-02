@@ -456,6 +456,21 @@ export async function toggleMessageReactionAction(
   }
 }
 
+export async function deleteRoomMessageAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  try {
+    const message = await chatRoomService.deleteMessage(roomId, messageId);
+    return { ok: true, data: message };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not delete message."),
+    };
+  }
+}
+
 export async function editRoomMessageAction(
   roomId: string,
   messageId: string,

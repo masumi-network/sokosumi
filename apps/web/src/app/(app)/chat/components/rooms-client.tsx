@@ -13,6 +13,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
+  deleteRoomMessageAction,
   editRoomMessageAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
@@ -226,6 +227,7 @@ export function RoomsClient({
   const [isSendingThreadReply, startSendingThreadReplyTransition] =
     useTransition();
   const [_isReacting, startReactionTransition] = useTransition();
+  const [_isDeleting, startDeleteTransition] = useTransition();
   const [isLoadingOlder, startLoadingOlderTransition] = useTransition();
   const [isLoadingOlderThread, startLoadingOlderThreadTransition] =
     useTransition();
@@ -977,6 +979,22 @@ export function RoomsClient({
     });
   }
 
+  function handleDeleteMessage(message: ChatRoomMessage) {
+    if (!selectedRoom) return;
+    const roomId = selectedRoom.id;
+    startDeleteTransition(async () => {
+      const result = await deleteRoomMessageAction(roomId, message.id);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      if (!isStillSelectedRoom(roomId)) {
+        return;
+      }
+      mergeUpdatedMessage(result.data);
+    });
+  }
+
   function handleQuoteMessage(message: ChatRoomMessage) {
     setPendingQuote(pendingQuoteFromMessage(message));
   }
@@ -1256,6 +1274,7 @@ export function RoomsClient({
                           }
                           onQuote={handleQuoteMessage}
                           onStartEdit={handleStartEdit}
+                          onDelete={handleDeleteMessage}
                           isEditing={editSession?.messageId === message.id}
                           editDraft={
                             editSession?.messageId === message.id
@@ -1369,6 +1388,7 @@ export function RoomsClient({
             onQuote={handleQuoteThreadMessage}
             currentUserId={currentUserId}
             onStartEdit={handleStartEdit}
+            onDelete={handleDeleteMessage}
             editSession={editSession}
             onEditDraftChange={handleEditDraftChange}
             onCancelEdit={handleCancelEdit}

@@ -31,6 +31,7 @@ function message(id: string, createdAt: string, content = id): ChatRoomMessage {
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
+    deletedAt: null,
   };
 }
 
