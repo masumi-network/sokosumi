@@ -83,69 +83,75 @@ export function ChatRoomSidebarRow({
   }
 
   return (
-    <SidebarMenuItem className="group/room-row relative">
-      <SidebarMenuButton asChild isActive={isActive}>
-        <SheetClose asChild>
-          <Link
-            aria-current={isActive ? "page" : undefined}
-            className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3 pr-10"
-            href={href}
-          >
-            {leading}
-            <span
-              className={cn(
-                "min-w-0 flex-1 truncate",
-                bold && "font-semibold text-foreground",
-              )}
+    <SidebarMenuItem className="group/room-row">
+      <div className="hover:bg-sidebar-accent flex min-h-auto w-full items-center gap-1 px-1">
+        <SidebarMenuButton
+          asChild
+          isActive={isActive}
+          className="min-w-0 flex-1"
+        >
+          <SheetClose asChild>
+            <Link
+              aria-current={isActive ? "page" : undefined}
+              className="text-tertiary-foreground dark:text-muted-foreground hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-2"
+              href={href}
             >
-              {label}
-            </span>
-            {isPinned ? (
-              <Pin
-                className="text-muted-foreground size-3 shrink-0 fill-current"
-                aria-hidden
-              />
-            ) : null}
-            <MentionBadge count={badgeCount} />
-          </Link>
-        </SheetClose>
-      </SidebarMenuButton>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            disabled={isPending}
-            className="text-muted-foreground absolute top-1/2 right-1 z-10 size-7 -translate-y-1/2 opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100"
-            aria-label={tActions("roomMenu", { name: label })}
-          >
-            <Ellipsis className="size-4" aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem
-            disabled={isActive || isPending}
-            onSelect={() => {
-              runRoomAction(markOrganizationChatRoomUnreadAction);
-            }}
-          >
-            {tActions("markUnread")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={isPending}
-            onSelect={() => {
-              runRoomAction(
-                isPinned
-                  ? unpinOrganizationChatRoomAction
-                  : pinOrganizationChatRoomAction,
-              );
-            }}
-          >
-            {isPinned ? tActions("unpin") : tActions("pin")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+              {leading}
+              <span
+                className={cn(
+                  "min-w-0 flex-1 truncate",
+                  bold && "font-semibold text-foreground",
+                )}
+              >
+                {label}
+              </span>
+              {isPinned ? (
+                <Pin
+                  className="text-muted-foreground size-3 shrink-0 fill-current"
+                  aria-hidden
+                />
+              ) : null}
+              <MentionBadge count={badgeCount} />
+            </Link>
+          </SheetClose>
+        </SidebarMenuButton>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={isPending}
+              className="text-muted-foreground size-7 shrink-0 opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100"
+              aria-label={tActions("roomMenu", { name: label })}
+            >
+              <Ellipsis className="size-4" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem
+              disabled={isActive || isPending}
+              onSelect={() => {
+                runRoomAction(markOrganizationChatRoomUnreadAction);
+              }}
+            >
+              {tActions("markUnread")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={isPending}
+              onSelect={() => {
+                runRoomAction(
+                  isPinned
+                    ? unpinOrganizationChatRoomAction
+                    : pinOrganizationChatRoomAction,
+                );
+              }}
+            >
+              {isPinned ? tActions("unpin") : tActions("pin")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </SidebarMenuItem>
   );
 }
