@@ -14,6 +14,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
+  deleteRoomMessageAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
   sendRoomMessageAction,
@@ -300,6 +301,7 @@ export function RoomsClient({
   const [isSendingThreadReply, startSendingThreadReplyTransition] =
     useTransition();
   const [_isReacting, startReactionTransition] = useTransition();
+  const [_isDeleting, startDeleteTransition] = useTransition();
   const [isLoadingOlder, startLoadingOlderTransition] = useTransition();
   const [isLoadingOlderThread, startLoadingOlderThreadTransition] =
     useTransition();
@@ -1015,6 +1017,22 @@ export function RoomsClient({
     });
   }
 
+  function handleDeleteMessage(message: ChatRoomMessage) {
+    if (!selectedRoom) return;
+    const roomId = selectedRoom.id;
+    startDeleteTransition(async () => {
+      const result = await deleteRoomMessageAction(roomId, message.id);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      if (!isStillSelectedRoom(roomId)) {
+        return;
+      }
+      mergeUpdatedMessage(result.data);
+    });
+  }
+
   function handleQuoteMessage(message: ChatRoomMessage) {
     setPendingQuote(pendingQuoteFromMessage(message));
   }
@@ -1313,6 +1331,7 @@ export function RoomsClient({
                           coworkersBySlug={coworkersBySlug}
                           usersById={usersById}
                           usersBySlug={usersBySlug}
+                          currentUserId={currentUserId}
                           onToggleReaction={handleToggleReaction}
                           onOpenThread={
                             shouldShowChatRoomThreadButton({
@@ -1323,6 +1342,7 @@ export function RoomsClient({
                               : undefined
                           }
                           onQuote={handleQuoteMessage}
+                          onDelete={handleDeleteMessage}
                           // Stream overlays never show thread chrome.
                           showThreadButton={shouldShowChatRoomThreadButton({
                             room: selectedRoom,
@@ -1426,6 +1446,8 @@ export function RoomsClient({
             }}
             onToggleReaction={handleToggleReaction}
             onQuote={handleQuoteThreadMessage}
+            onDelete={handleDeleteMessage}
+            currentUserId={currentUserId}
             pendingQuote={pendingThreadQuote}
             onClearPendingQuote={() => setPendingThreadQuote(null)}
             showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}

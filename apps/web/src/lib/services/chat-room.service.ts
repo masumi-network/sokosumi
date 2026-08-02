@@ -155,9 +155,18 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function deleteMessage(
+    roomId: string,
+    messageId: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.deleteChatRoomMessage(roomId, messageId);
+    return response.data;
+  }
+
   return {
     archiveRoom,
     createRoom,
+    deleteMessage,
     getRoom,
     listArchivedRooms,
     listMessages,

@@ -4720,6 +4720,11 @@
         "showMore": "更多",
         "showLess": "收起"
       },
+      "Message": {
+        "delete": "删除",
+        "deleteConfirm": "删除这条消息？其他人会看到该消息已被删除。",
+        "deleted": "此消息已删除"
+      },
       "MentionAll": {
         "label": "所有人"
       },

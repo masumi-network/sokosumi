@@ -6,7 +6,13 @@ import {
   isFileLikeUrl,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
-import { CheckCircle2, Loader2, MessageCircle, Quote } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  MessageCircle,
+  Quote,
+  Trash2,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
@@ -383,16 +389,20 @@ function MessageActionControls({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onDelete,
   showThreadButton,
   showQuoteButton,
+  showDeleteButton,
   onAfterAction,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showDeleteButton: boolean;
   onAfterAction?: () => void;
 }) {
   const t = useTranslations("App.Channels");
@@ -441,6 +451,23 @@ function MessageActionControls({
           <MessageCircle className="size-4" aria-hidden />
         </Button>
       ) : null}
+      {showDeleteButton && onDelete ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive size-9 rounded-full sm:size-7"
+          title={t("Message.delete")}
+          aria-label={t("Message.delete")}
+          onClick={() => {
+            if (!window.confirm(t("Message.deleteConfirm"))) return;
+            onDelete(message);
+            onAfterAction?.();
+          }}
+        >
+          <Trash2 className="size-4" aria-hidden />
+        </Button>
+      ) : null}
     </>
   );
 }
@@ -453,15 +480,19 @@ function MessageActions({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onDelete,
   showThreadButton,
   showQuoteButton,
+  showDeleteButton,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showDeleteButton: boolean;
 }) {
   return (
     <div
@@ -476,8 +507,10 @@ function MessageActions({
         onToggleReaction={onToggleReaction}
         onOpenThread={onOpenThread}
         onQuote={onQuote}
+        onDelete={onDelete}
         showThreadButton={showThreadButton}
         showQuoteButton={showQuoteButton}
+        showDeleteButton={showDeleteButton}
       />
     </div>
   );
@@ -615,8 +648,10 @@ function TouchMessageActionsSheet({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onDelete,
   showThreadButton,
   showQuoteButton,
+  showDeleteButton,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -624,8 +659,10 @@ function TouchMessageActionsSheet({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showDeleteButton: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
@@ -722,6 +759,22 @@ function TouchMessageActionsSheet({
               {t("Thread.open")}
             </Button>
           ) : null}
+          {showDeleteButton && onDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive hover:text-destructive h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                if (!window.confirm(t("Message.deleteConfirm"))) return;
+                runAndClose(() => {
+                  onDelete(message);
+                });
+              }}
+            >
+              <Trash2 className="size-4 shrink-0" aria-hidden />
+              {t("Message.delete")}
+            </Button>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>
@@ -734,18 +787,20 @@ function MessageMetaFooter({
   onToggleReaction,
   onOpenThread,
   showThreadButton,
+  isDeleted,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
+  isDeleted: boolean;
 }) {
   const t = useTranslations("App.Channels");
 
   return (
     <>
-      {message.reactions.length > 0 ? (
+      {!isDeleted && message.reactions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1">
           {message.reactions.map((reaction) => {
             const whoReactedLabel = formatWhoReactedLabel(reaction, t);
@@ -790,7 +845,7 @@ function MessageMetaFooter({
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
       ) : null}
-      {message.mentions.length > 0 ? (
+      {!isDeleted && message.mentions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1.5">
           {message.mentions.map((mention) => {
             const name =
@@ -824,9 +879,11 @@ export function ChatMessageRow({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  currentUserId,
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onDelete,
   showThreadButton = true,
   showQuoteButton = true,
   isContinuation = false,
@@ -836,9 +893,11 @@ export function ChatMessageRow({
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  currentUserId?: string;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton?: boolean;
   showQuoteButton?: boolean;
   /** Slack-style continuation: omit avatar / name / primary timestamp. */
@@ -848,18 +907,28 @@ export function ChatMessageRow({
   const tChannels = useTranslations("App.Channels");
   const sender = messageSender(message);
   const isStreamOverlay = message.id.startsWith("stream:");
+  const isDeleted = message.deletedAt != null;
   const isThinking =
     isStreamOverlay &&
     message.sender.type === "coworker" &&
     message.content.trim().length === 0;
   const formattedTime = formatMessageTime(message.createdAt);
   const createdAtIso = new Date(message.createdAt).toISOString();
-  const canQuote = showQuoteButton && Boolean(onQuote) && !isStreamOverlay;
+  const canQuote =
+    showQuoteButton && Boolean(onQuote) && !isStreamOverlay && !isDeleted;
+  const canDelete =
+    Boolean(onDelete) &&
+    Boolean(currentUserId) &&
+    !isDeleted &&
+    !isStreamOverlay &&
+    message.sender.type === "user" &&
+    message.sender.user.id === currentUserId;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
   const longPress = useLongPress(() => {
     setSheetOpen(true);
   });
+  const showActions = !isThinking && !isDeleted;
 
   return (
     <article
@@ -870,7 +939,7 @@ export function ChatMessageRow({
         "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
         isContinuation ? "min-h-0 py-0.5" : "mt-3 min-h-0 pt-1 pb-0.5",
       )}
-      {...(isThinking ? {} : longPress)}
+      {...(showActions ? longPress : {})}
     >
       {isContinuation ? (
         <div className="flex w-8 shrink-0 justify-center pt-0.5">
@@ -913,31 +982,39 @@ export function ChatMessageRow({
           </div>
         )}
         <div className="text-foreground wrap-break-word text-sm leading-6">
-          {quote ? (
-            <MessageQuoteBlock
-              quote={quote}
-              coworkersById={coworkersById}
-              coworkersBySlug={coworkersBySlug}
-              usersById={usersById}
-              usersBySlug={usersBySlug}
-            />
-          ) : null}
-          {isThinking ? (
-            <span
-              className="reasoning-text-shine text-sm leading-5"
-              role="status"
-              aria-live="polite"
-            >
-              {tChat("reasoning.thinking")}
-            </span>
+          {isDeleted ? (
+            <p className="text-muted-foreground italic">
+              {tChannels("Message.deleted")}
+            </p>
           ) : (
-            <ChannelMessageText
-              content={message.content}
-              coworkersById={coworkersById}
-              coworkersBySlug={coworkersBySlug}
-              usersById={usersById}
-              usersBySlug={usersBySlug}
-            />
+            <>
+              {quote ? (
+                <MessageQuoteBlock
+                  quote={quote}
+                  coworkersById={coworkersById}
+                  coworkersBySlug={coworkersBySlug}
+                  usersById={usersById}
+                  usersBySlug={usersBySlug}
+                />
+              ) : null}
+              {isThinking ? (
+                <span
+                  className="reasoning-text-shine text-sm leading-5"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {tChat("reasoning.thinking")}
+                </span>
+              ) : (
+                <ChannelMessageText
+                  content={message.content}
+                  coworkersById={coworkersById}
+                  coworkersBySlug={coworkersBySlug}
+                  usersById={usersById}
+                  usersBySlug={usersBySlug}
+                />
+              )}
+            </>
           )}
         </div>
         <MessageMetaFooter
@@ -946,17 +1023,20 @@ export function ChatMessageRow({
           onToggleReaction={onToggleReaction}
           onOpenThread={onOpenThread}
           showThreadButton={showThreadButton}
+          isDeleted={isDeleted}
         />
       </div>
-      {!isThinking ? (
+      {showActions ? (
         <>
           <MessageActions
             message={message}
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onDelete={onDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showDeleteButton={canDelete}
           />
           <button
             type="button"
@@ -974,8 +1054,10 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onDelete={onDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showDeleteButton={canDelete}
           />
         </>
       ) : null}

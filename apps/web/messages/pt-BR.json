@@ -4720,6 +4720,11 @@
         "showMore": "Mais",
         "showLess": "Menos"
       },
+      "Message": {
+        "delete": "Excluir",
+        "deleteConfirm": "Excluir esta mensagem? Os outros verão que ela foi excluída.",
+        "deleted": "Esta mensagem foi excluída"
+      },
       "MentionAll": {
         "label": "Todos"
       },

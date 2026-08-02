@@ -61,6 +61,7 @@ function userMessage(
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
+    deletedAt: null,
     sender: {
       type: "user",
       user: {
@@ -78,19 +79,25 @@ function userMessage(
 function renderRow({
   message = userMessage(),
   isContinuation = false,
+  currentUserId,
   onQuote,
+  onDelete,
 }: {
   message?: ChatRoomMessage;
   isContinuation?: boolean;
+  currentUserId?: string;
   onQuote?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
 } = {}) {
   render(
     <ChatMessageRow
       message={message}
       coworkersById={new Map()}
       coworkersBySlug={new Map()}
+      currentUserId={currentUserId}
       onToggleReaction={vi.fn()}
       onQuote={onQuote}
+      onDelete={onDelete}
       isContinuation={isContinuation}
     />,
   );
@@ -564,5 +571,70 @@ describe("ChatMessageRow", () => {
         );
       }
     }
+  });
+
+  it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn();
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    try {
+      renderRow({
+        currentUserId: "user-1",
+        onDelete,
+        onQuote: vi.fn(),
+      });
+
+      await user.click(screen.getByRole("button", { name: "Actions.more" }));
+      await user.click(
+        within(screen.getByRole("dialog")).getByRole("button", {
+          name: "Message.delete",
+        }),
+      );
+
+      expect(confirmSpy).toHaveBeenCalled();
+      expect(onDelete).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "message-1" }),
+      );
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it("does not show Delete for other authors", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      currentUserId: "user-2",
+      onDelete: vi.fn(),
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", {
+        name: "Message.delete",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a tombstone and hides message actions when deleted", () => {
+    renderRow({
+      currentUserId: "user-1",
+      onDelete: vi.fn(),
+      onQuote: vi.fn(),
+      message: userMessage({
+        content: "",
+        deletedAt: new Date("2026-07-02T10:00:00.000Z"),
+      }),
+    });
+
+    expect(screen.getByText("Message.deleted")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Actions.more" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Message.delete" }),
+    ).not.toBeInTheDocument();
   });
 });

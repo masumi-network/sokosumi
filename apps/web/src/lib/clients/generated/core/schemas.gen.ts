@@ -4798,6 +4798,14 @@ export const ChatRoomMessageSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        deletedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         sender: {
             $ref: '#/components/schemas/ChatRoomMessageSender'
         },
@@ -4842,6 +4850,7 @@ export const ChatRoomMessageSchema = {
         'parentMessageId',
         'content',
         'createdAt',
+        'deletedAt',
         'sender',
         'mentions',
         'reactions',

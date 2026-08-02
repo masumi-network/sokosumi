@@ -52,6 +52,8 @@ export function ThreadPanel({
   onClose,
   onToggleReaction,
   onQuote,
+  onDelete,
+  currentUserId,
   pendingQuote = null,
   onClearPendingQuote,
   showMentionShortcut = true,
@@ -79,6 +81,8 @@ export function ThreadPanel({
   onClose: () => void;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
+  currentUserId?: string;
   pendingQuote?: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
   showMentionShortcut?: boolean;
@@ -134,8 +138,10 @@ export function ThreadPanel({
               coworkersBySlug={coworkersBySlug}
               usersById={usersById}
               usersBySlug={usersBySlug}
+              currentUserId={currentUserId}
               onToggleReaction={onToggleReaction}
               onQuote={onQuote}
+              onDelete={onDelete}
               showThreadButton={false}
             />
             <div className="my-4 border-t" />
@@ -176,8 +182,10 @@ export function ThreadPanel({
                         coworkersBySlug={coworkersBySlug}
                         usersById={usersById}
                         usersBySlug={usersBySlug}
+                        currentUserId={currentUserId}
                         onToggleReaction={onToggleReaction}
                         onQuote={onQuote}
+                        onDelete={onDelete}
                         showThreadButton={false}
                         isContinuation={isMessageContinuation(
                           replies[index - 1],
