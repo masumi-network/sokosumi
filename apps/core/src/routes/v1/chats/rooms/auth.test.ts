@@ -122,6 +122,9 @@ const { default: mountGetChatRoomMessages } = await import(
 const { default: mountPostChatRoomMessage } = await import(
   "./[id]/messages/post"
 );
+const { default: mountDeleteChatRoomMessage } = await import(
+  "./[id]/messages/[messageId]/delete"
+);
 const { default: mountPostChatRoomMessageReaction } = await import(
   "./[id]/messages/[messageId]/reactions/post"
 );
@@ -175,6 +178,7 @@ function createApp(authContext: AuthVariables["authContext"]) {
   mountPostChatRoomRead(typed);
   mountGetChatRoomMessages(typed);
   mountPostChatRoomMessage(typed);
+  mountDeleteChatRoomMessage(typed);
   mountPostChatRoomMessageReaction(typed);
   mountRoomStream(typed);
   return app;

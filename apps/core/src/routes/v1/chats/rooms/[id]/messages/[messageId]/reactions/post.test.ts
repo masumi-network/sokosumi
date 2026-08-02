@@ -15,6 +15,7 @@ const {
   deleteManyMock,
   createManyMock,
   messageFindUniqueOrThrowMock,
+  messageFindFirstMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -24,6 +25,7 @@ const {
   deleteManyMock: vi.fn(),
   createManyMock: vi.fn(),
   messageFindUniqueOrThrowMock: vi.fn(),
+  messageFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -54,6 +56,7 @@ const tx = {
   },
   chatRoomMessage: {
     findUniqueOrThrow: messageFindUniqueOrThrowMock,
+    findFirst: messageFindFirstMock,
   },
 };
 
@@ -85,6 +88,7 @@ const mappedMessage = {
   parentMessageId: null,
   content: "hello",
   createdAt: new Date("2026-07-01T12:00:00.000Z"),
+  deletedAt: null,
   senderUserId: USER_ID,
   senderCoworkerId: null,
   metadata: null,
@@ -123,6 +127,7 @@ describe("POST /chat-rooms/:id/messages/:messageId/reactions", () => {
       role: "member",
     });
     queryRawMock.mockResolvedValue([{ id: MESSAGE_ID }]);
+    messageFindFirstMock.mockResolvedValue({ deletedAt: null });
     deleteManyMock.mockResolvedValue({ count: 0 });
     createManyMock.mockResolvedValue({ count: 1 });
     messageFindUniqueOrThrowMock.mockResolvedValue(mappedMessage);

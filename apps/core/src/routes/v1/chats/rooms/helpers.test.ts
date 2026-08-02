@@ -340,6 +340,7 @@ describe("mapChatRoomMessage quote", () => {
       senderCoworkerId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
       metadata: { quote, client_message_id: "c1" },
       clientMessageId: null,
       responsesApiResponseId: null,
@@ -375,6 +376,7 @@ describe("mapChatRoomMessage quote", () => {
       senderCoworkerId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
       metadata: { quote },
       clientMessageId: null,
       responsesApiResponseId: null,
@@ -405,6 +407,7 @@ describe("mapChatRoomMessage quote", () => {
       senderCoworkerId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
       metadata: {
         quote: {
           messageId: "550e8400-e29b-41d4-a716-446655440004",
@@ -445,6 +448,7 @@ describe("mapChatRoomMessage quote", () => {
       senderCoworkerId: "coworker_1",
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
       metadata: null,
       clientMessageId: null,
       responsesApiResponseId: null,
@@ -463,5 +467,46 @@ describe("mapChatRoomMessage quote", () => {
     });
 
     expect(mapped.quote).toBeNull();
+  });
+
+  it("redacts content and quote for soft-deleted messages", () => {
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: "user_123",
+      senderCoworkerId: null,
+      content: "",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: new Date("2025-01-03T00:00:00.000Z"),
+      metadata: null,
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: {
+        id: "user_123",
+        name: "Patrick",
+        email: "patrick@example.com",
+        image: null,
+        sessions: [],
+      },
+      senderCoworker: null,
+      mentionsAsSource: [],
+      reactions: [
+        {
+          userId: "user_123",
+          emoji: "👍",
+          user: { id: "user_123", name: "Patrick" },
+        },
+      ],
+      replies: [],
+      _count: { replies: 2 },
+    });
+
+    expect(mapped.content).toBe("");
+    expect(mapped.deletedAt).toEqual(new Date("2025-01-03T00:00:00.000Z"));
+    expect(mapped.quote).toBeNull();
+    expect(mapped.metadata).toBeNull();
+    expect(mapped.reactions).toEqual([]);
+    expect(mapped.threadReplyCount).toBe(2);
   });
 });
