@@ -4705,7 +4705,6 @@
       "coworkerBadge": "AI coworker",
       "humanBadge": "Human",
       "openDirectMessage": "Message",
-      "viewCoworkerProfile": "View profile",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
