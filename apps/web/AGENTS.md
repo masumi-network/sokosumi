@@ -84,7 +84,7 @@ The web app uses the shared Biome configuration from the repo root. See [root AG
 - **Status**: This is a repository convention and code review rule; it is no longer enforced by the formatter/linter.
 - **Fix**: Use typed config functions:
   - `getEnvSecrets()` - for sensitive variables (API keys, database URLs)
-  - `getEnvConfig()` - for public configuration (feature flags, URLs)
+  - `getEnvPublicConfig()` - for public configuration (feature flags, URLs)
 
 **Example**:
 
@@ -94,7 +94,9 @@ const apiKey = process.env.API_KEY;
 
 // ✅ Correct - type-safe and validated
 import { getEnvSecrets } from "@/config/env.secrets";
+import { getEnvPublicConfig } from "@/config/env.public";
 const apiKey = getEnvSecrets().API_KEY;
+const appUrl = getEnvPublicConfig().NEXT_PUBLIC_SOKOSUMI_URL;
 ```
 
 #### Import Paths
@@ -129,7 +131,7 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 
 - **Status**: This remains the expected project convention, but it is not currently enforced by Biome
 
-#### Internationalization (i18next)
+#### Internationalization (next-intl)
 
 - All user-facing text requires translation keys
 - Use `useTranslations()` hook in components
@@ -419,18 +421,10 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi   # auto-saves/restores cookies
 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
-- [Analysis Process](.cursor/rules/analysis-process.mdc)
 - [Effects](.cursor/rules/effects.mdc)
-- [Interface](.cursor/rules/interface.mdc)
-- [Key Conventions](.cursor/rules/key-convention.mdc)
 - [Principles](../../.cursor/rules/principles.mdc) – architecture judgment (monorepo-wide)
-- [Web code style](.cursor/rules/code-style.mdc)
-- [Linting](.cursor/rules/lint.mdc)
-- [Naming Convention](.cursor/rules/naming-convention.mdc)
-- [Optimization](.cursor/rules/optimization.mdc)
 - [Translations](.cursor/rules/translations.mdc)
 - [Locale-safe formatting](.cursor/rules/i18n-formatting.mdc) – `useFormatter` / `getFormatter`; avoid bare `toLocaleString()` in client components
-- [TypeScript](.cursor/rules/typescript.mdc)
 
 ## References
 

@@ -5,7 +5,8 @@ alwaysApply: true
 
 # Data Access (Core)
 
-- Use **direct Prisma** in route handlers (e.g. `prisma` from `@/lib/db/prisma`).
-- Do **not** use the repository pattern from `@sokosumi/database` for new routes; core uses Prisma with type-safe includes and helpers where needed.
+- New **route handlers** use **direct Prisma** (`prisma` from `@/lib/db/prisma` or `@sokosumi/database/client`).
+- Do **not** introduce new repository usage in routes.
+- Legacy services may still call `@sokosumi/database/repositories`.
 
 See [AGENTS.md](../AGENTS.md) (Accessing Job-Related Resources).

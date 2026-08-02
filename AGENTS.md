@@ -6,7 +6,7 @@
 
 **Core Stack**: Next.js 16 (App Router), React 19.2, TypeScript, pnpm workspace, Node.js 24.x  
 **Web Architecture**: Three-layer pattern with services (`src/lib/services/`) coordinating domain flows and actions (`src/lib/actions/`) exposing typed server mutations. Web reaches data **only through the Core API** — it never touches Prisma/Postgres directly (see [Database Access](#database-access)).
-**API Architecture**: Hono with OpenAPI validation and standardized response helpers. Core owns all database access via repositories (`@sokosumi/database`) wrapping Prisma/Postgres.
+**API Architecture**: Hono with OpenAPI validation and standardized response helpers. Core owns all database access via Prisma (`@sokosumi/database`). New Core routes use direct Prisma; repositories remain for some legacy Core services. Web never touches the DB.
 **Styling**: Tailwind CSS + shadcn/ui + Radix UI primitives
 **Auth**: Better Auth with organization-aware sessions
 **i18n**: next-intl for internationalization
@@ -48,10 +48,11 @@ sokosumi/
 │   │   └── src/types/         # Agent types
 │   ├── utils/                 # Shared utilities (@sokosumi/utils)
 │   │   └── src/               # URL/file helpers, markdown link extraction, user-name, etc.
+│   ├── net/                   # Network helpers (@sokosumi/net; SSRF-safe fetch, etc.)
 │   ├── email/                 # Shared email renderers and locales (@sokosumi/email)
 │   ├── chat/                  # Chat types and shared chat utilities (@sokosumi/chat)
 │   └── ai-provider/           # Sokosumi AI SDK provider (@sokosumi/ai-provider)
-├── docs/                      # Documentation (future)
+├── docs/                      # Agent, domain, coworker, and design docs
 └── biome.jsonc                # Root Biome configuration
 ```
 
@@ -214,7 +215,7 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 
 ## Testing Guidelines
 
-- **Framework**: Vitest with Testing Library and workspace-specific environments (for example `happy-dom` in `apps/web` and Node in packages/services)
+- **Framework**: Vitest with Testing Library and workspace-specific environments (for example `happy-dom` in `apps/web` and Node in packages and `apps/core`)
 - **Test Files**: Name as `*.test.ts(x)` and colocate under nearest `__tests__/`
 - **Coverage**: Cover both success and failure paths when touching `src/lib`
 - **Mocking**: Use `__mocks__` or Prisma factories for external services
@@ -290,7 +291,7 @@ docs(readme): update setup instructions
 
 - **When logic is duplicated across apps** (e.g. core and web): move the implementation to a shared package (e.g. `packages/utils`) so there is a single source of truth; fix bugs and add features in one place.
 - **Prefer direct imports** from the shared package (`@sokosumi/utils`, `@sokosumi/database`, etc.). Do not add re-export-only layers—see [avoid re-exports](.cursor/rules/avoid-re-exports.mdc).
-- **`packages/utils`** holds framework-agnostic helpers (URL/file utilities, markdown link extraction, user-name helpers, client-safe billing types/parsers). Add new shared helpers here when multiple apps or packages would use them. Do not import `@sokosumi/database/helpers` from client components—see [utils vs database helpers](.cursor/rules/utils-vs-database.mdc).
+- **`packages/utils`** holds framework-agnostic helpers (URL/file utilities, markdown link extraction, user-name helpers, client-safe billing types/parsers). Add new shared helpers here when multiple apps or packages would use them. Web must not import `@sokosumi/database` (including `/helpers`)—see [utils vs database helpers](.cursor/rules/utils-vs-database.mdc).
 
 ### Database Access
 
@@ -298,7 +299,7 @@ docs(readme): update setup instructions
 > **Direct database access from `apps/web` is forbidden.** All database reads and writes MUST be implemented in `apps/core` and exposed as Core API endpoints. The web app consumes data exclusively through the generated Core API client — never through Prisma, Postgres, or `@sokosumi/database` repositories.
 
 - **Forbidden in `apps/web`**: importing `@sokosumi/database` repositories/helpers, instantiating or calling the Prisma client, or issuing raw SQL. Web services (`src/lib/services/`) and actions (`src/lib/actions/`) coordinate domain flows but obtain their data by calling Core endpoints.
-- **Required in `apps/core`**: every new data-access need is implemented as a versioned route under `apps/core/src/routes/v1/`, backed by `@sokosumi/database` repositories, validated with the Core Zod/OpenAPI schemas (`apps/core/src/schemas/`).
+- **Required in `apps/core`**: every new data-access need is implemented as a versioned route under `apps/core/src/routes/v1/`, using direct Prisma (legacy services may still use `@sokosumi/database/repositories`), validated with the Core Zod/OpenAPI schemas (`apps/core/src/schemas/`).
 - **Web → Core wiring**: after adding/changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`) to catch DTO drift. Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Do not hand-edit the generated client—see [Generated Files](#generated-files).
 - **Web DTO boundary**: do not import `@sokosumi/database` or domain enum **values** from `@sokosumi/utils` in web — use the generated Core client. Details and approved utils exceptions live in `apps/web/AGENTS.md` (Core DTO boundary).
 - **Why**: a single owner for data access keeps authorization, validation, and schema invariants in one place, lets the web app stay a thin client, and removes Prisma/Postgres credentials from the web runtime.
@@ -339,7 +340,6 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 - [Principles](.cursor/rules/principles.mdc) – architecture judgment: delete over shims, simplest keepable design, layered growth
 - [Maintainability](.cursor/rules/maintainability.mdc) – long-term clarity and consistency over short-term wins
-- [Linting](.cursor/rules/lint.mdc)
 - [Pinned dependencies](.cursor/rules/pinned-dependencies.mdc) – exact versions in `package.json`, no semver ranges on registry packages
 - [Result Type with neverthrow](.cursor/rules/neverthrow.mdc)
 - [Shared packages and deduplication](.cursor/rules/shared-packages.mdc) – when moving logic to `packages/utils` or refactoring duplicated code
@@ -360,7 +360,7 @@ These notes cover non-obvious, durable facts about running this repo in the Curs
 
 ### Runtime versions
 
-- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.15.1 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
+- **Node 24 is the required runtime** (`engines: 24.x`, root `.nvmrc` = `lts/krypton`). The base image's `/exec-daemon/node` is Node 22 and is early in `PATH`, so Node 24 (installed via nvm) is symlinked into `/usr/local/cargo/bin` (which is first in `PATH`) as `node`/`npm`/`npx`/`corepack`/`pnpm`. This makes `node -v` = 24 and `pnpm -v` = 11.18.0 in **every** shell (login or not). If a future run somehow sees Node 22, recreate those symlinks from `~/.nvm/versions/node/v24*/bin`.
 
 ### Database (Cloud agent Neon branch)
 
