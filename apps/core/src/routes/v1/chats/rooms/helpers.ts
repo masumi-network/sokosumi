@@ -219,6 +219,8 @@ export interface MapChatRoomAttentionOptions {
   unreadMentionCount?: number;
   /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
   lastActivityAt?: Date | null;
+  pinnedAt?: Date | null;
+  markedUnread?: boolean;
 }
 
 export function mapChatRoom(
@@ -226,7 +228,13 @@ export function mapChatRoom(
   currentUserId?: string,
   attention: MapChatRoomAttentionOptions = {},
 ) {
-  const { unreadCount = 0, unreadMentionCount = 0, lastActivityAt } = attention;
+  const {
+    unreadCount = 0,
+    unreadMentionCount = 0,
+    lastActivityAt,
+    pinnedAt = null,
+    markedUnread = false,
+  } = attention;
 
   return {
     id: room.id,
@@ -241,6 +249,8 @@ export function mapChatRoom(
     updatedAt: lastActivityAt ?? room.updatedAt,
     unreadCount,
     unreadMentionCount,
+    pinnedAt,
+    markedUnread,
     userMembers: room.userMembers.map(({ user }) => ({
       id: user.id,
       name: user.name,
@@ -257,6 +267,69 @@ export function mapChatRoom(
       presence: "online" as const,
     })),
   };
+}
+
+export interface ChatRoomSidebarFlags {
+  pinnedAt: Date | null;
+  markedUnread: boolean;
+}
+
+/** Batch-load per-user pin + forced-unread flags for sidebar mapping. */
+export async function getChatRoomSidebarFlags(
+  roomIds: readonly string[],
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, ChatRoomSidebarFlags>> {
+  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
+  if (uniqueRoomIds.length === 0) {
+    return new Map();
+  }
+
+  const [memberships, readStates] = await Promise.all([
+    tx.chatRoomUserMember.findMany({
+      where: {
+        userId,
+        roomId: { in: uniqueRoomIds },
+      },
+      select: {
+        roomId: true,
+        pinnedAt: true,
+      },
+    }),
+    tx.chatRoomReadState.findMany({
+      where: {
+        userId,
+        roomId: { in: uniqueRoomIds },
+      },
+      select: {
+        roomId: true,
+        markedUnreadAt: true,
+      },
+    }),
+  ]);
+
+  const flagged = new Map<string, ChatRoomSidebarFlags>(
+    uniqueRoomIds.map((roomId) => [
+      roomId,
+      { pinnedAt: null, markedUnread: false },
+    ]),
+  );
+
+  for (const membership of memberships) {
+    const current = flagged.get(membership.roomId);
+    if (current) {
+      current.pinnedAt = membership.pinnedAt;
+    }
+  }
+
+  for (const readState of readStates) {
+    const current = flagged.get(readState.roomId);
+    if (current) {
+      current.markedUnread = readState.markedUnreadAt != null;
+    }
+  }
+
+  return flagged;
 }
 
 export function mapChatRoomMessage(

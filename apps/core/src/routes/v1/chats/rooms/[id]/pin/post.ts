@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { NotificationKind } from "@sokosumi/database";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -11,7 +10,13 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
-import { mapChatRoom, requireChatRoomUserAccess } from "../../helpers";
+import {
+  getChatRoomSidebarFlags,
+  getChatRoomUnreadCounts,
+  getChatRoomUnreadMentionCounts,
+  mapChatRoom,
+  requireChatRoomUserAccess,
+} from "../../helpers";
 
 const paramsSchema = z.object({
   id: z
@@ -26,14 +31,14 @@ const paramsSchema = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
-    path: "/{id}/read",
-    description: "Mark an organization chat room as read for the current user.",
+    path: "/{id}/pin",
+    description: "Pin an organization chat room for the current user.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(chatRoomSchema, "Chat room marked read"),
+      200: jsonSuccessResponse(chatRoomSchema, "Chat room pinned"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
@@ -46,61 +51,41 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
-    const readAt = new Date();
+    const pinnedAt = new Date();
 
-    const { room, pinnedAt } = await prisma.$transaction(async (tx) => {
+    const room = await prisma.$transaction(async (tx) => {
       const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
 
-      await tx.chatRoomReadState.upsert({
+      await tx.chatRoomUserMember.update({
         where: {
           roomId_userId: {
             roomId: room.id,
             userId: userContext.userId,
           },
         },
-        update: { lastReadAt: readAt, markedUnreadAt: null },
-        create: {
-          roomId: room.id,
-          userId: userContext.userId,
-          lastReadAt: readAt,
-          markedUnreadAt: null,
-        },
+        data: { pinnedAt },
       });
 
-      await tx.notification.updateMany({
-        where: {
-          userId: userContext.userId,
-          kind: NotificationKind.CHAT,
-          referenceId: room.id,
-          isRead: false,
-        },
-        data: {
-          isRead: true,
-          readAt,
-        },
-      });
-
-      const membership = await tx.chatRoomUserMember.findUnique({
-        where: {
-          roomId_userId: {
-            roomId: room.id,
-            userId: userContext.userId,
-          },
-        },
-        select: { pinnedAt: true },
-      });
-
-      return { room, pinnedAt: membership?.pinnedAt ?? null };
+      return room;
     });
+
+    const [unreadCounts, unreadMentionCounts, sidebarFlags] = await Promise.all(
+      [
+        getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+        getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+        getChatRoomSidebarFlags([room.id], userContext.userId, prisma),
+      ],
+    );
+    const flags = sidebarFlags.get(room.id);
 
     return ok(
       c,
       chatRoomSchema.parse(
         mapChatRoom(room, userContext.userId, {
-          unreadCount: 0,
-          unreadMentionCount: 0,
-          pinnedAt,
-          markedUnread: false,
+          unreadCount: unreadCounts.get(room.id) ?? 0,
+          unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
+          pinnedAt: flags?.pinnedAt ?? pinnedAt,
+          markedUnread: flags?.markedUnread ?? false,
         }),
       ),
     );
