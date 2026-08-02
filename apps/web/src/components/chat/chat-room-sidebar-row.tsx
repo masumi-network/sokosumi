@@ -71,10 +71,15 @@ export function ChatRoomSidebarRow({
     action: (
       roomId: string,
     ) => Promise<{ ok: true; data: ChatRoom } | { ok: false }>,
+    optimisticRoom?: ChatRoom,
   ) {
+    if (optimisticRoom) {
+      onRoomUpdated(optimisticRoom);
+    }
     startTransition(async () => {
       const result = await action(room.id);
       if (!result.ok) {
+        onRoomUpdated(room);
         toast.error(tActions("actionFailed"));
         return;
       }
@@ -132,7 +137,10 @@ export function ChatRoomSidebarRow({
             <DropdownMenuItem
               disabled={isActive || isPending}
               onSelect={() => {
-                runRoomAction(markOrganizationChatRoomUnreadAction);
+                runRoomAction(markOrganizationChatRoomUnreadAction, {
+                  ...room,
+                  markedUnread: true,
+                });
               }}
             >
               {tActions("markUnread")}
@@ -140,11 +148,17 @@ export function ChatRoomSidebarRow({
             <DropdownMenuItem
               disabled={isPending}
               onSelect={() => {
-                runRoomAction(
-                  isPinned
-                    ? unpinOrganizationChatRoomAction
-                    : pinOrganizationChatRoomAction,
-                );
+                if (isPinned) {
+                  runRoomAction(unpinOrganizationChatRoomAction, {
+                    ...room,
+                    pinnedAt: null,
+                  });
+                  return;
+                }
+                runRoomAction(pinOrganizationChatRoomAction, {
+                  ...room,
+                  pinnedAt: new Date(),
+                });
               }}
             >
               {isPinned ? tActions("unpin") : tActions("pin")}
