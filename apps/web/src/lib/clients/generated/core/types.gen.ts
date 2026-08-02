@@ -1318,6 +1318,7 @@ export type ChatRoomMessage = {
     parentMessageId: string | null;
     content: string;
     createdAt: Date;
+    deletedAt: Date | null;
     editedAt: Date | null;
     sender: ChatRoomMessageSender;
     mentions: Array<ChatRoomMessageMention>;
@@ -10239,6 +10240,99 @@ export type PostChatsRoomsByIdMessagesResponses = {
 };
 
 export type PostChatsRoomsByIdMessagesResponse = PostChatsRoomsByIdMessagesResponses[keyof PostChatsRoomsByIdMessagesResponses];
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}';
+};
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdError = DeleteChatsRoomsByIdMessagesByMessageIdErrors[keyof DeleteChatsRoomsByIdMessagesByMessageIdErrors];
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdResponses = {
+    /**
+     * Room message soft-deleted
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdResponse = DeleteChatsRoomsByIdMessagesByMessageIdResponses[keyof DeleteChatsRoomsByIdMessagesByMessageIdResponses];
 
 export type PatchChatsRoomsByIdMessagesByMessageIdData = {
     body?: UpdateChatRoomMessageRequest;

@@ -1724,6 +1724,7 @@ model ChatRoomMessage {
   content   String
   metadata  Json?
   createdAt DateTime  @default(now())
+  deletedAt DateTime?
   editedAt  DateTime?
 
   /// AI SDK / client message id for user stream-turn idempotency.
@@ -1746,6 +1747,7 @@ model ChatRoomMessage {
   @@index([parentMessageId, createdAt])
   @@index([senderUserId])
   @@index([senderCoworkerId])
+  @@index([deletedAt])
   @@map("chat_room_message")
 }
 

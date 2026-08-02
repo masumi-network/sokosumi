@@ -240,6 +240,7 @@ export const chatRoomMessageSchema = z
     parentMessageId: z.string().uuid().nullable(),
     content: z.string(),
     createdAt: dateTimeSchema,
+    deletedAt: dateTimeSchema.nullable(),
     editedAt: dateTimeSchema.nullable(),
     sender: chatRoomMessageSenderSchema,
     mentions: z.array(chatRoomMessageMentionSchema),

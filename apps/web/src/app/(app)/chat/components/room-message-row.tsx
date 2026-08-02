@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Pencil,
   Quote,
+  Trash2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -28,9 +29,19 @@ import {
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import {
   Sheet,
@@ -391,9 +402,11 @@ function MessageActionControls({
   onOpenThread,
   onQuote,
   onEdit,
+  onDelete,
   showThreadButton,
   showQuoteButton,
   showEditButton,
+  showDeleteButton,
   onAfterAction,
 }: {
   message: ChatRoomMessage;
@@ -401,9 +414,11 @@ function MessageActionControls({
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onEdit?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
   showEditButton: boolean;
+  showDeleteButton: boolean;
   onAfterAction?: () => void;
 }) {
   const t = useTranslations("App.Channels");
@@ -468,6 +483,22 @@ function MessageActionControls({
           <MessageCircle className="size-4" aria-hidden />
         </Button>
       ) : null}
+      {showDeleteButton && onDelete ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive size-9 rounded-full sm:size-7"
+          title={t("Message.delete")}
+          aria-label={t("Message.delete")}
+          onClick={() => {
+            onDelete(message);
+            onAfterAction?.();
+          }}
+        >
+          <Trash2 className="size-4" aria-hidden />
+        </Button>
+      ) : null}
     </>
   );
 }
@@ -481,18 +512,22 @@ function MessageActions({
   onOpenThread,
   onQuote,
   onEdit,
+  onDelete,
   showThreadButton,
   showQuoteButton,
   showEditButton,
+  showDeleteButton,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onEdit?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
   showEditButton: boolean;
+  showDeleteButton: boolean;
 }) {
   return (
     <div
@@ -508,9 +543,11 @@ function MessageActions({
         onOpenThread={onOpenThread}
         onQuote={onQuote}
         onEdit={onEdit}
+        onDelete={onDelete}
         showThreadButton={showThreadButton}
         showQuoteButton={showQuoteButton}
         showEditButton={showEditButton}
+        showDeleteButton={showDeleteButton}
       />
     </div>
   );
@@ -649,9 +686,11 @@ function TouchMessageActionsSheet({
   onOpenThread,
   onQuote,
   onEdit,
+  onDelete,
   showThreadButton,
   showQuoteButton,
   showEditButton,
+  showDeleteButton,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -660,9 +699,11 @@ function TouchMessageActionsSheet({
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onEdit?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
   showEditButton: boolean;
+  showDeleteButton: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
@@ -774,6 +815,21 @@ function TouchMessageActionsSheet({
               {t("Thread.open")}
             </Button>
           ) : null}
+          {showDeleteButton && onDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive hover:text-destructive h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(() => {
+                  onDelete(message);
+                });
+              }}
+            >
+              <Trash2 className="size-4 shrink-0" aria-hidden />
+              {t("Message.delete")}
+            </Button>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>
@@ -849,18 +905,20 @@ function MessageMetaFooter({
   onToggleReaction,
   onOpenThread,
   showThreadButton,
+  isDeleted,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
+  isDeleted: boolean;
 }) {
   const t = useTranslations("App.Channels");
 
   return (
     <>
-      {message.reactions.length > 0 ? (
+      {!isDeleted && message.reactions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1">
           {message.reactions.map((reaction) => {
             const whoReactedLabel = formatWhoReactedLabel(reaction, t);
@@ -905,7 +963,7 @@ function MessageMetaFooter({
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
       ) : null}
-      {message.mentions.length > 0 ? (
+      {!isDeleted && message.mentions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1.5">
           {message.mentions.map((mention) => {
             const name =
@@ -944,6 +1002,7 @@ export function ChatMessageRow({
   onOpenThread,
   onQuote,
   onStartEdit,
+  onDelete,
   isEditing = false,
   editDraft = "",
   onEditDraftChange,
@@ -964,6 +1023,7 @@ export function ChatMessageRow({
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onStartEdit?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   isEditing?: boolean;
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
@@ -979,25 +1039,47 @@ export function ChatMessageRow({
   const tChannels = useTranslations("App.Channels");
   const sender = messageSender(message);
   const isStreamOverlay = message.id.startsWith("stream:");
+  const isDeleted = message.deletedAt != null;
   const isThinking =
     isStreamOverlay &&
     message.sender.type === "coworker" &&
     message.content.trim().length === 0;
   const formattedTime = formatMessageTime(message.createdAt);
   const createdAtIso = new Date(message.createdAt).toISOString();
-  const canQuote = showQuoteButton && Boolean(onQuote) && !isStreamOverlay;
+  const canQuote =
+    showQuoteButton && Boolean(onQuote) && !isStreamOverlay && !isDeleted;
   const canEdit =
     Boolean(onStartEdit) &&
     Boolean(currentUserId) &&
     message.sender.type === "user" &&
     message.sender.user.id === currentUserId &&
-    !isStreamOverlay;
-  const showEdited = message.editedAt != null;
+    !isStreamOverlay &&
+    !isDeleted;
+  const canDelete =
+    Boolean(onDelete) &&
+    Boolean(currentUserId) &&
+    !isDeleted &&
+    !isStreamOverlay &&
+    message.sender.type === "user" &&
+    message.sender.user.id === currentUserId;
+  const showEdited = !isDeleted && message.editedAt != null;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const longPress = useLongPress(() => {
     setSheetOpen(true);
   });
+  const showActions = !isThinking && !isDeleted && !isEditing;
+
+  function requestDelete(_message: ChatRoomMessage) {
+    setSheetOpen(false);
+    setDeleteDialogOpen(true);
+  }
+
+  function confirmDelete() {
+    onDelete?.(message);
+    setDeleteDialogOpen(false);
+  }
 
   return (
     <article
@@ -1008,7 +1090,7 @@ export function ChatMessageRow({
         "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
         isContinuation ? "min-h-0 py-0.5" : "mt-3 min-h-0 pt-1 pb-0.5",
       )}
-      {...(isThinking || isEditing ? {} : longPress)}
+      {...(showActions ? longPress : {})}
     >
       {isContinuation ? (
         <div className="flex w-8 shrink-0 justify-center pt-0.5">
@@ -1056,46 +1138,54 @@ export function ChatMessageRow({
           </div>
         )}
         <div className="text-foreground wrap-break-word text-sm leading-6">
-          {quote ? (
-            <MessageQuoteBlock
-              quote={quote}
-              coworkersById={coworkersById}
-              coworkersBySlug={coworkersBySlug}
-              usersById={usersById}
-              usersBySlug={usersBySlug}
-            />
-          ) : null}
-          {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
-            <MessageEditComposer
-              value={editDraft}
-              originalContent={message.content}
-              onChange={onEditDraftChange}
-              onSave={onSaveEdit}
-              onCancel={onCancelEdit}
-              isSaving={isSavingEdit}
-            />
-          ) : isThinking ? (
-            <span
-              className="reasoning-text-shine text-sm leading-5"
-              role="status"
-              aria-live="polite"
-            >
-              {tChat("reasoning.thinking")}
-            </span>
+          {isDeleted ? (
+            <p className="text-muted-foreground italic">
+              {tChannels("Message.deleted")}
+            </p>
           ) : (
             <>
-              <ChannelMessageText
-                content={message.content}
-                coworkersById={coworkersById}
-                coworkersBySlug={coworkersBySlug}
-                usersById={usersById}
-                usersBySlug={usersBySlug}
-              />
-              {isContinuation && showEdited ? (
-                <span className="text-muted-foreground ml-1.5 text-xs">
-                  {tChannels("Edit.edited")}
-                </span>
+              {quote ? (
+                <MessageQuoteBlock
+                  quote={quote}
+                  coworkersById={coworkersById}
+                  coworkersBySlug={coworkersBySlug}
+                  usersById={usersById}
+                  usersBySlug={usersBySlug}
+                />
               ) : null}
+              {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
+                <MessageEditComposer
+                  value={editDraft}
+                  originalContent={message.content}
+                  onChange={onEditDraftChange}
+                  onSave={onSaveEdit}
+                  onCancel={onCancelEdit}
+                  isSaving={isSavingEdit}
+                />
+              ) : isThinking ? (
+                <span
+                  className="reasoning-text-shine text-sm leading-5"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {tChat("reasoning.thinking")}
+                </span>
+              ) : (
+                <>
+                  <ChannelMessageText
+                    content={message.content}
+                    coworkersById={coworkersById}
+                    coworkersBySlug={coworkersBySlug}
+                    usersById={usersById}
+                    usersBySlug={usersBySlug}
+                  />
+                  {isContinuation && showEdited ? (
+                    <span className="text-muted-foreground ml-1.5 text-xs">
+                      {tChannels("Edit.edited")}
+                    </span>
+                  ) : null}
+                </>
+              )}
             </>
           )}
         </div>
@@ -1106,10 +1196,11 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             showThreadButton={showThreadButton}
+            isDeleted={isDeleted}
           />
         ) : null}
       </div>
-      {!isThinking && !isEditing ? (
+      {showActions ? (
         <>
           <MessageActions
             message={message}
@@ -1117,9 +1208,11 @@ export function ChatMessageRow({
             onOpenThread={onOpenThread}
             onQuote={onQuote}
             onEdit={onStartEdit}
+            onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
             showEditButton={canEdit}
+            showDeleteButton={canDelete}
           />
           <button
             type="button"
@@ -1138,11 +1231,36 @@ export function ChatMessageRow({
             onOpenThread={onOpenThread}
             onQuote={onQuote}
             onEdit={onStartEdit}
+            onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
             showEditButton={canEdit}
+            showDeleteButton={canDelete}
           />
         </>
+      ) : null}
+      {canDelete ? (
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{tChannels("Message.delete")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {tChannels("Message.deleteConfirm")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                {tChannels("Actions.cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className={buttonVariants({ variant: "destructive" })}
+                onClick={confirmDelete}
+              >
+                {tChannels("Message.delete")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       ) : null}
     </article>
   );

@@ -1,0 +1,202 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { defaultValidationHook } from "@/lib/hono";
+import type { AuthVariables } from "@/middleware/auth";
+
+import mountDeleteChatRoomMessage from "./delete";
+
+const {
+  roomFindFirstMock,
+  organizationFindUniqueMock,
+  memberFindUniqueMock,
+  messageFindFirstMock,
+  messageUpdateMock,
+  messageFindUniqueOrThrowMock,
+  prismaTransactionMock,
+} = vi.hoisted(() => ({
+  roomFindFirstMock: vi.fn(),
+  organizationFindUniqueMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
+  messageFindFirstMock: vi.fn(),
+  messageUpdateMock: vi.fn(),
+  messageFindUniqueOrThrowMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: prismaTransactionMock,
+  },
+}));
+
+const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
+const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
+const USER_ID = "user_123";
+const OTHER_USER_ID = "user_456";
+
+const tx = {
+  chatRoom: {
+    findFirst: roomFindFirstMock,
+  },
+  organization: {
+    findUnique: organizationFindUniqueMock,
+  },
+  member: {
+    findUnique: memberFindUniqueMock,
+  },
+  chatRoomMessage: {
+    findFirst: messageFindFirstMock,
+    update: messageUpdateMock,
+    findUniqueOrThrow: messageFindUniqueOrThrowMock,
+  },
+};
+
+function createApp(authContext: AuthVariables["authContext"]) {
+  const app = new OpenAPIHono<{ Variables: AuthVariables }>({
+    defaultHook: defaultValidationHook,
+  });
+
+  app.use("*", async (c, next) => {
+    c.set("isAuthenticated", true);
+    c.set("authContext", authContext);
+    return await next();
+  });
+
+  mountDeleteChatRoomMessage(app as unknown as OpenAPIHonoWithAuth);
+  return app;
+}
+
+const userAuthContext: AuthVariables["authContext"] = {
+  actor: "user",
+  userId: USER_ID,
+  organizationId: "org_1",
+  role: "user",
+};
+
+function baseMessage(overrides: Record<string, unknown> = {}) {
+  return {
+    id: MESSAGE_ID,
+    roomId: ROOM_ID,
+    parentMessageId: null,
+    content: "secret oops",
+    createdAt: new Date("2026-07-01T12:00:00.000Z"),
+    deletedAt: null,
+    senderUserId: USER_ID,
+    senderCoworkerId: null,
+    metadata: { quote: { messageId: "x" } },
+    senderUser: {
+      id: USER_ID,
+      name: "Ada",
+      email: "ada@example.com",
+      image: null,
+    },
+    senderCoworker: null,
+    mentionsAsSource: [],
+    reactions: [],
+    _count: { replies: 0 },
+    replies: [],
+    ...overrides,
+  };
+}
+
+describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaTransactionMock.mockImplementation(
+      async (fn: (client: typeof tx) => Promise<unknown>) => fn(tx),
+    );
+    roomFindFirstMock.mockResolvedValue({
+      id: ROOM_ID,
+      organizationId: "org_1",
+      kind: "channel",
+      archivedAt: null,
+      userMembers: [{ userId: USER_ID }],
+      coworkerMembers: [],
+    });
+    organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
+    memberFindUniqueMock.mockResolvedValue({
+      id: "member_1",
+      userId: USER_ID,
+      organizationId: "org_1",
+      role: "member",
+    });
+    messageFindFirstMock.mockResolvedValue(baseMessage());
+    const tombstone = baseMessage({
+      content: "",
+      deletedAt: new Date("2026-08-02T05:00:00.000Z"),
+      metadata: null,
+    });
+    messageUpdateMock.mockResolvedValue(tombstone);
+    messageFindUniqueOrThrowMock.mockResolvedValue(tombstone);
+  });
+
+  it("soft-deletes the author message and returns a tombstone", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.content).toBe("");
+    expect(body.data.deletedAt).toBeTruthy();
+    expect(messageUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: MESSAGE_ID },
+        data: expect.objectContaining({
+          content: "",
+          metadata: null,
+          deletedAt: expect.any(Date),
+        }),
+      }),
+    );
+  });
+
+  it("returns 403 when a different member tries to delete", async () => {
+    messageFindFirstMock.mockResolvedValue(
+      baseMessage({ senderUserId: OTHER_USER_ID }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(403);
+    expect(messageUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("is idempotent when the author deletes an already-deleted message", async () => {
+    const tombstone = baseMessage({
+      content: "",
+      deletedAt: new Date("2026-08-01T00:00:00.000Z"),
+      metadata: null,
+    });
+    messageFindFirstMock.mockResolvedValue(tombstone);
+    messageFindUniqueOrThrowMock.mockResolvedValue(tombstone);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(messageUpdateMock).not.toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.data.deletedAt).toBeTruthy();
+    expect(body.data.content).toBe("");
+  });
+
+  it("returns 404 when the message is missing", async () => {
+    messageFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(404);
+  });
+});

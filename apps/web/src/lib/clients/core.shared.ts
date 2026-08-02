@@ -88,6 +88,7 @@ import {
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
+  deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
@@ -683,6 +684,18 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to update chat room message reaction",
+    );
+  }
+
+  async function deleteChatRoomMessage(id: string, messageId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMessagesByMessageId({
+          client,
+          path: { id, messageId },
+        }),
+      "Failed to delete chat room message",
     );
   }
 
@@ -3624,6 +3637,7 @@ export function createCoreClient(getClient: GetClient) {
     getChatRoomMessages,
     getChatRooms,
     markChatRoomRead,
+    deleteChatRoomMessage,
     toggleChatRoomMessageReaction,
     getHermesInstance,
     getHermesMessages,

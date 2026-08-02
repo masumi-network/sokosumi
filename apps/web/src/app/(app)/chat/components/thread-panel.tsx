@@ -54,6 +54,7 @@ export function ThreadPanel({
   onQuote,
   currentUserId,
   onStartEdit,
+  onDelete,
   editSession = null,
   onEditDraftChange,
   onCancelEdit,
@@ -88,6 +89,7 @@ export function ThreadPanel({
   onQuote?: (message: ChatRoomMessage) => void;
   currentUserId?: string;
   onStartEdit?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   editSession?: { messageId: string; draft: string } | null;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
@@ -108,6 +110,7 @@ export function ThreadPanel({
     return {
       currentUserId,
       onStartEdit,
+      onDelete,
       isEditing,
       editDraft: isEditing && editSession ? editSession.draft : "",
       onEditDraftChange,
