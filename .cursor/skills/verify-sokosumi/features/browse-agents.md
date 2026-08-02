@@ -23,8 +23,8 @@ Preconditions:
 - Prefer a Neon fork or seeded catalog; empty local Postgres may 500 until credit costs exist.
 
 - **Open catalog.** Run `agent-browser open http://localhost:3000/agents` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. Page is `/agents` and not `/signin`.
-- **Healthy list.** Snapshot shows one or more agent links/cards under “Browse all agents”. Note one agent name and its `href` (e.g. `agent-browser get attr @ref href`).
-- **Open detail.** Scroll the catalog link into view (`scrollintoview`), then click it. URL matches `/agents/<id>` (optional `/jobs` child). Detail heading matches the agent name. If the click no-ops (list still visible), open the noted `href` directly — still valid after discovering it from the list.
+- **Healthy list.** Snapshot shows one or more agent links/cards under **Browse all agents** (below the coworker gallery — do not treat coworker cards as catalog detail). Note one agent name and its `href` (e.g. `agent-browser get attr @ref href`).
+- **Open detail.** Scroll the catalog link into view (`scrollintoview`), then click it. URL matches `/agents/<id>` (not `/jobs`). Detail `h1` matches the agent name. If the click no-ops (list still visible — common), open the noted `href` directly — still valid after discovering it from the list.
 - **Empty/error path.** If the page shows **No agents available** (web soft-empty when Core `GET /v1/agents` 500s for missing `credit_cost`) or a hard error, capture screenshot + snapshot and stop. Report unmet catalog precondition — do not invent hire/job success.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/browse-agents` then screenshot + `snapshot -i` for list and (if reached) detail under that directory.
 

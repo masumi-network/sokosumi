@@ -24,6 +24,7 @@ Preconditions before launch:
 - `pnpm install` already done
 - Workspace packages built at least once (`pnpm packages:build`) — Core imports compiled `@sokosumi/utils` / `@sokosumi/database` exports
 - `apps/web/.env` and `apps/core/.env` present (copy from `.env.example` if missing). **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see AGENTS.md cloud notes): `POSTMARK_FROM_EMAIL` = valid email; `HERMES_ORCH_BASE_URL` = valid URL; Ably keys any non-empty string; Blob/Postmark/OAuth secrets any non-empty dummy
+- **`COMPOSIO_API_KEY`**: Core Zod allows omitting it, but if set it **must start with `ak_`**. A dummy like `dummy-composio-api-key` fails boot (`Invalid string: must start with "ak_"`). Use `ak_…` dummy or comment/remove the key
 - `APP_SIGNING_SECRET` (web) equals `BETTER_AUTH_SECRET` (core)
 - **`BETTER_AUTH_COOKIE_DOMAIN` must be unset / commented out for localhost.** Core `.env.example` sets `BETTER_AUTH_COOKIE_DOMAIN="sokosumi.com"` for production-shaped deploys — if that value is copied into local `.env`, session cookies are scoped to `.sokosumi.com` and **email/password login appears to succeed but the browser never keeps a session on `localhost`**. `doctor` fails when this trap is present
 - Database reachable (Neon agent branch, or local Postgres). Prefer `with-db.mjs` when an agent branch is provisioned. Run `node scripts/cloud-agent-db/provision.mjs` when `NEON_API_KEY` + `NEON_PROJECT_ID` are set and `.cursor/cloud-agent-db.env` is missing
@@ -111,7 +112,7 @@ Root: `.cursor/verify-sokosumi-artifacts/` (gitignored). Keep proofs; cleanup mu
 
 Per feature, under `.cursor/verify-sokosumi-artifacts/<feature-id>/`:
 
-- Screenshot(s) with app chrome visible. `agent-browser screenshot` writes under `~/.agent-browser/tmp/screenshots/` — copy the newest file into the feature artifact dir.
+- Screenshot(s) with app chrome visible. `agent-browser screenshot` writes under `~/.agent-browser/tmp/screenshots/` — copy the newest file into the feature artifact dir. Prefer **no path argument** then `cp` (passing a destination path can yield a blank image in some agent-browser versions).
 - Interactive snapshot: `agent-browser snapshot -i > <path>.snapshot.txt`
 - For API: response body + HTTP status file
 - Record feature ID and entry point used. Never commit passwords; `account.txt` may store email only.
@@ -153,6 +154,7 @@ Default ports **3000** (web) and **8787** (core) are shared. Second concurrent v
 - Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.cursor/cloud-agent-db.env` exists
 - **`BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com` (or any production domain) on localhost** → cookies never stick; disable it before blaming the form
 - Copying `.env.example` without replacing `<…>` placeholders → Core/Web fail Zod at boot (“missing env”)
+- `COMPOSIO_API_KEY` set without an `ak_` prefix → Core refuses to start (optional key; omit or use `ak_…`)
 - Empty local catalog: `/agents` soft-empty (“No agents available”) or Core 500 until `credit_cost` rows exist
 - Ably placeholders break realtime chat UI
 - Fixtures exist only on agent Neon branches, not production/`main`
