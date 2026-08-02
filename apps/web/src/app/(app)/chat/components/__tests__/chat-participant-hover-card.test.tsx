@@ -11,6 +11,7 @@ vi.mock("next-intl", () => ({
     const labels: Record<string, string> = {
       coworkerBadge: "AI coworker",
       humanBadge: "Human",
+      openDirectMessage: "Message",
       "Presence.online": "Online",
       "Presence.afk": "Away",
       "Presence.offline": "Offline",
@@ -100,6 +101,69 @@ describe("ChatParticipantHoverCard", () => {
     expect(screen.getByTestId("chat-participant-hover-card")).toHaveTextContent(
       "@hannah",
     );
+  });
+
+  it("shows Message for another human when human directs are available", () => {
+    render(
+      <ChatParticipantHoverCard
+        profile={humanProfile}
+        currentUserId="user-2"
+        canOpenHumanDirect
+        onOpenDirect={vi.fn()}
+      >
+        <span>Ada Lovelace</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    expect(screen.getByRole("button", { name: "Message" })).toBeInTheDocument();
+  });
+
+  it("hides Message for the current human user", () => {
+    render(
+      <ChatParticipantHoverCard
+        profile={humanProfile}
+        currentUserId={humanProfile.id}
+        canOpenHumanDirect
+        onOpenDirect={vi.fn()}
+      >
+        <span>Ada Lovelace</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Message" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Message for a coworker without human direct access", () => {
+    render(
+      <ChatParticipantHoverCard
+        profile={coworkerProfile}
+        currentUserId="user-1"
+        onOpenDirect={vi.fn()}
+      >
+        <span>Hannah</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    expect(screen.getByRole("button", { name: "Message" })).toBeInTheDocument();
+  });
+
+  it("calls onOpenDirect with the participant", async () => {
+    const user = userEvent.setup();
+    const onOpenDirect = vi.fn();
+    render(
+      <ChatParticipantHoverCard
+        profile={coworkerProfile}
+        onOpenDirect={onOpenDirect}
+      >
+        <span>Hannah</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Message" }));
+
+    expect(onOpenDirect).toHaveBeenCalledWith(coworkerProfile);
   });
 
   it("renders children only when profile is missing", () => {

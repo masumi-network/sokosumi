@@ -4585,6 +4585,7 @@
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
       "humanBadge": "Umano",
+      "openDirectMessage": "Messaggio",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",

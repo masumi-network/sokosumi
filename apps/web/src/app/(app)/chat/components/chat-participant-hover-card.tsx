@@ -1,10 +1,12 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { CSSProperties, ReactNode } from "react";
 
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   HoverCard,
   HoverCardContent,
@@ -13,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 
+import { canShowOpenDirect } from "./open-direct-with-participant";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
@@ -26,6 +29,10 @@ interface ChatParticipantHoverCardProps {
   align?: "start" | "center" | "end";
   className?: string;
   style?: CSSProperties;
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirect?: (profile: ChatParticipantHoverProfile) => void;
+  isOpeningDirect?: boolean;
 }
 
 export function ChatParticipantHoverCard({
@@ -35,6 +42,10 @@ export function ChatParticipantHoverCard({
   align = "start",
   className,
   style,
+  currentUserId,
+  canOpenHumanDirect = false,
+  onOpenDirect,
+  isOpeningDirect = false,
 }: ChatParticipantHoverCardProps) {
   const t = useTranslations("App.Channels");
 
@@ -49,6 +60,12 @@ export function ChatParticipantHoverCard({
     profile.kind === "human"
       ? profile.email
       : profile.caption?.trim() || (profile.slug ? `@${profile.slug}` : null);
+  const showOpenDirect = canShowOpenDirect({
+    profile,
+    currentUserId,
+    canOpenHumanDirect,
+    onOpenDirect,
+  });
 
   return (
     <HoverCard openDelay={200} closeDelay={100}>
@@ -119,6 +136,24 @@ export function ChatParticipantHoverCard({
             </p>
           </div>
         </div>
+        {showOpenDirect ? (
+          <Button
+            type="button"
+            size="sm"
+            className="mt-3 w-full"
+            disabled={isOpeningDirect}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onOpenDirect?.(profile);
+            }}
+          >
+            {isOpeningDirect ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : null}
+            {t("openDirectMessage")}
+          </Button>
+        ) : null}
       </HoverCardContent>
     </HoverCard>
   );

@@ -67,8 +67,10 @@ import type {
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
+import { participantDirectKey } from "./open-direct-with-participant";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import {
+  type ChatParticipantHoverProfile,
   formatMessageTime,
   formatRoomMarkdownMentions,
   messageSender,
@@ -999,6 +1001,9 @@ export function ChatMessageRow({
   usersById,
   usersBySlug,
   currentUserId,
+  canOpenHumanDirect = false,
+  onOpenDirectMessage,
+  openingDirectParticipantKey = null,
   onToggleReaction,
   onOpenThread,
   onQuote,
@@ -1020,6 +1025,9 @@ export function ChatMessageRow({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
   currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
@@ -1040,6 +1048,9 @@ export function ChatMessageRow({
   const tChannels = useTranslations("App.Channels");
   const sender = messageSender(message);
   const hoverProfile = sender.kind === "unknown" ? null : sender;
+  const isOpeningDirect = hoverProfile
+    ? openingDirectParticipantKey === participantDirectKey(hoverProfile)
+    : false;
   const isStreamOverlay = message.id.startsWith("stream:");
   const isDeleted = message.deletedAt != null;
   const isThinking =
@@ -1111,6 +1122,10 @@ export function ChatMessageRow({
           side="right"
           align="start"
           className="mt-0.5 shrink-0"
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirect={onOpenDirectMessage}
+          isOpeningDirect={isOpeningDirect}
         >
           <Avatar className="size-8">
             <AvatarImage src={sender.image ?? undefined} alt="" />
@@ -1133,6 +1148,10 @@ export function ChatMessageRow({
               side="bottom"
               align="start"
               className="min-w-0 max-w-full"
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirect={onOpenDirectMessage}
+              isOpeningDirect={isOpeningDirect}
             >
               <span className="truncate text-sm font-semibold">
                 {sender.name}

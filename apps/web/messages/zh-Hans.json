@@ -4585,6 +4585,7 @@
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
       "humanBadge": "人类",
+      "openDirectMessage": "发消息",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
