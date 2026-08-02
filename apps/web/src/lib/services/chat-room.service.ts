@@ -155,9 +155,21 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function editMessage(
+    roomId: string,
+    messageId: string,
+    content: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.updateChatRoomMessage(roomId, messageId, {
+      content,
+    });
+    return response.data;
+  }
+
   return {
     archiveRoom,
     createRoom,
+    editMessage,
     getRoom,
     listArchivedRooms,
     listMessages,

@@ -90,6 +90,7 @@ export function createResumePendingCoworkerShell({
     parentMessageId,
     content: "",
     createdAt,
+    editedAt: null,
     sender: { type: "coworker", coworker },
     mentions: [],
     reactions: [],
@@ -125,6 +126,7 @@ function uiMessageToTransientRoomMessage({
       parentMessageId,
       content,
       createdAt,
+      editedAt: null,
       sender: currentUser
         ? { type: "user", user: currentUser }
         : { type: "unknown" },
@@ -143,6 +145,7 @@ function uiMessageToTransientRoomMessage({
     parentMessageId,
     content,
     createdAt,
+    editedAt: null,
     sender: coworker ? { type: "coworker", coworker } : { type: "unknown" },
     mentions: [],
     reactions: [],

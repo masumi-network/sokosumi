@@ -52,6 +52,13 @@ export function ThreadPanel({
   onClose,
   onToggleReaction,
   onQuote,
+  currentUserId,
+  onStartEdit,
+  editSession = null,
+  onEditDraftChange,
+  onCancelEdit,
+  onSaveEdit,
+  isSavingEdit = false,
   pendingQuote = null,
   onClearPendingQuote,
   showMentionShortcut = true,
@@ -79,6 +86,13 @@ export function ThreadPanel({
   onClose: () => void;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  currentUserId?: string;
+  onStartEdit?: (message: ChatRoomMessage) => void;
+  editSession?: { messageId: string; draft: string } | null;
+  onEditDraftChange?: (value: string) => void;
+  onCancelEdit?: () => void;
+  onSaveEdit?: () => void;
+  isSavingEdit?: boolean;
   pendingQuote?: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
   showMentionShortcut?: boolean;
@@ -88,6 +102,20 @@ export function ThreadPanel({
   const t = useTranslations("App.Channels");
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
   const threadBottomRef = useRef<HTMLDivElement | null>(null);
+
+  function editPropsFor(messageId: string) {
+    const isEditing = editSession?.messageId === messageId;
+    return {
+      currentUserId,
+      onStartEdit,
+      isEditing,
+      editDraft: isEditing && editSession ? editSession.draft : "",
+      onEditDraftChange,
+      onCancelEdit,
+      onSaveEdit,
+      isSavingEdit: isSavingEdit && isEditing,
+    };
+  }
 
   return (
     // Below lg the thread takes over the whole pane: side-by-side would leave
@@ -137,6 +165,7 @@ export function ThreadPanel({
               onToggleReaction={onToggleReaction}
               onQuote={onQuote}
               showThreadButton={false}
+              {...editPropsFor(parentMessage.id)}
             />
             <div className="my-4 border-t" />
             {isLoading ? (
@@ -183,6 +212,7 @@ export function ThreadPanel({
                           replies[index - 1],
                           reply,
                         )}
+                        {...editPropsFor(reply.id)}
                       />
                     ))}
                   </div>

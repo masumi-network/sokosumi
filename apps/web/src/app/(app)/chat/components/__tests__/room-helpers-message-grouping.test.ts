@@ -16,6 +16,7 @@ function baseMessage(
     roomId: "room-1",
     parentMessageId: null,
     content: "hi",
+    editedAt: null,
     mentions: [],
     reactions: [],
     threadReplyCount: 0,
@@ -34,6 +35,7 @@ function userMessage(
   return baseMessage({
     id,
     createdAt: new Date(createdAt),
+    editedAt: null,
     sender: {
       type: "user",
       user: {
@@ -55,6 +57,7 @@ function coworkerMessage(
   return baseMessage({
     id,
     createdAt: new Date(createdAt),
+    editedAt: null,
     sender: {
       type: "coworker",
       coworker: {
@@ -73,6 +76,7 @@ function unknownMessage(id: string, createdAt: string): ChatRoomMessage {
   return baseMessage({
     id,
     createdAt: new Date(createdAt),
+    editedAt: null,
     sender: { type: "unknown" },
   });
 }
