@@ -10,8 +10,8 @@ Source of truth for drafting Sokosumi **requirement** issues on Linear.
 
 ## Runtime notes
 
-- Cursor loads this as a project skill (auto-invoke when the description matches).
-- Claude Code and Codex: treat `SKILL.md` as task instructions.
+- Cursor: `disable-model-invocation: true` — load only when the user names this skill or explicitly asks to draft/file a Linear requirement. Never auto-start from poteto-mode / implement context.
+- Claude Code and Codex: treat `SKILL.md` as task instructions only when the user asks to file a requirement.
 - If Linear MCP is unavailable after approval, return the approved draft and say what to reload.
 
 ## Output rule
