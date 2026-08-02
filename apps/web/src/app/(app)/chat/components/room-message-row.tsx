@@ -66,6 +66,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import {
   formatMessageTime,
@@ -1038,6 +1039,7 @@ export function ChatMessageRow({
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
   const sender = messageSender(message);
+  const hoverProfile = sender.kind === "unknown" ? null : sender;
   const isStreamOverlay = message.id.startsWith("stream:");
   const isDeleted = message.deletedAt != null;
   const isThinking =
@@ -1104,12 +1106,19 @@ export function ChatMessageRow({
           </time>
         </div>
       ) : (
-        <Avatar className="mt-0.5 size-8 shrink-0">
-          <AvatarImage src={sender.image ?? undefined} alt="" />
-          <AvatarFallback className="text-xs">
-            {getInitials(sender.name)}
-          </AvatarFallback>
-        </Avatar>
+        <ChatParticipantHoverCard
+          profile={hoverProfile}
+          side="right"
+          align="start"
+          className="mt-0.5 shrink-0"
+        >
+          <Avatar className="size-8">
+            <AvatarImage src={sender.image ?? undefined} alt="" />
+            <AvatarFallback className="text-xs">
+              {getInitials(sender.name)}
+            </AvatarFallback>
+          </Avatar>
+        </ChatParticipantHoverCard>
       )}
       <div
         className={cn(
@@ -1119,9 +1128,16 @@ export function ChatMessageRow({
       >
         {isContinuation ? null : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <span className="truncate text-sm font-semibold">
-              {sender.name}
-            </span>
+            <ChatParticipantHoverCard
+              profile={hoverProfile}
+              side="bottom"
+              align="start"
+              className="min-w-0 max-w-full"
+            >
+              <span className="truncate text-sm font-semibold">
+                {sender.name}
+              </span>
+            </ChatParticipantHoverCard>
             {sender.kind === "coworker" ? <AiCoworkerIcon /> : null}
             <time
               dateTime={createdAtIso}

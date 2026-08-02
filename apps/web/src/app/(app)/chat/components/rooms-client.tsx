@@ -50,6 +50,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { getInitials } from "@/lib/utils/text";
+import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { DraftChannel } from "./draft-channel";
 import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
@@ -124,11 +125,13 @@ function RoomParticipantStack({ room }: { room: ChatRoom }) {
           .join(", ")}
       >
         {visibleParticipants.map((participant, index) => (
-          <span
+          <ChatParticipantHoverCard
             key={`${participant.kind}-${participant.id}`}
-            className="relative block size-6 shrink-0 md:size-7"
+            profile={participant}
+            side="bottom"
+            align="center"
+            className="size-6 shrink-0 md:size-7"
             style={{ zIndex: visibleParticipants.length - index }}
-            title={participant.name}
           >
             <Avatar className="border-background ring-border/60 size-6 border-2 shadow-xs ring-1 md:size-7">
               <AvatarImage src={participant.image ?? undefined} alt="" />
@@ -148,7 +151,7 @@ function RoomParticipantStack({ room }: { room: ChatRoom }) {
               label={presenceLabel(t, participant.presence)}
               className="absolute -right-0.5 -bottom-0.5"
             />
-          </span>
+          </ChatParticipantHoverCard>
         ))}
       </div>
       {remainingCount > 0 ? (
