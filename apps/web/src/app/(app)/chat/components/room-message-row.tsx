@@ -1119,7 +1119,7 @@ export function ChatMessageRow({
       ) : (
         <ChatParticipantHoverCard
           profile={hoverProfile}
-          side="right"
+          side="top"
           align="start"
           className="mt-0.5 shrink-0"
           currentUserId={currentUserId}
@@ -1145,7 +1145,7 @@ export function ChatMessageRow({
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <ChatParticipantHoverCard
               profile={hoverProfile}
-              side="bottom"
+              side="top"
               align="start"
               className="min-w-0 max-w-full"
               currentUserId={currentUserId}
