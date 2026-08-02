@@ -23,12 +23,13 @@ Preconditions:
 
 - **Open landing.** Run `agent-browser open http://localhost:3000/chat` then `agent-browser wait --load networkidle`.
 - **Confirm URL.** Run `agent-browser get url`. URL contains `/chat` and is not `/signin`.
-- **Confirm shell.** Run `agent-browser snapshot -i`. Authenticated chrome is present (welcome / composer / nav).
-- **Ably note.** If a “Something went wrong” error card/overlay appears from Ably auth failure, screenshot it and continue — landing still counts if URL and chrome prove `/chat`. Do not claim message send/receive unless Ably keys are real.
+- **Auth `/` redirect.** Run `agent-browser open http://localhost:3000/` then wait; URL ends on `/chat` (covers `chat-default-landing` via the authenticated root hop).
+- **Confirm shell.** Run `agent-browser snapshot -i`. Prefer welcome heading and/or `[data-testid="multimodal-input"]` / message composer plus app nav (`data-app-shell` / sidebar), not a room transcript.
+- **Ably note.** If a **Chat Error** boundary or **Something went wrong** app error card/overlay appears from Ably auth failure, screenshot it and continue — landing still counts if URL and chrome prove `/chat`. Do not claim message send/receive unless Ably keys are real.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/chat-landing`, save snapshot, `agent-browser screenshot`, copy newest shot into that directory.
 
 ## Gotchas
 
-- Ably placeholder keys make `POST /api/ably/auth` fail; that is an environment gap, not a routing regression.
+- Ably placeholder keys make `POST /api/ably/auth` fail; that is an environment gap, not a routing regression. Chat layout may title the boundary **Chat Error**; the app error card may say **Something went wrong** — treat either as env gap for landing proof.
 - Proving a chat **message** requires configured Ably — out of scope unless keys are set.
 - `/` while logged out is not this feature; use [Sign in](./sign-in.md).
