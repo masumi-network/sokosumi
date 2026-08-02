@@ -66,7 +66,7 @@ describe("ChatParticipantHoverCard", () => {
     expect(card).toHaveTextContent("Ada Lovelace");
     expect(card).toHaveTextContent("Human");
     expect(card).toHaveTextContent("ada@example.com");
-    expect(card).toHaveTextContent("Online");
+    expect(card).not.toHaveTextContent("Online");
     expect(card).not.toHaveTextContent("AI coworker");
   });
 
@@ -84,7 +84,7 @@ describe("ChatParticipantHoverCard", () => {
     expect(card).toHaveTextContent("Hannah");
     expect(card).toHaveTextContent("AI coworker");
     expect(card).toHaveTextContent("Research assistant");
-    expect(card).toHaveTextContent("Away");
+    expect(card).not.toHaveTextContent("Away");
     expect(card).not.toHaveTextContent("@hannah");
   });
 

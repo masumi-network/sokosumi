@@ -124,7 +124,6 @@ export function ChatParticipantHoverCard({
             {detail ? (
               <p className="text-muted-foreground truncate text-xs">{detail}</p>
             ) : null}
-            <p className="text-muted-foreground text-xs">{statusLabel}</p>
           </div>
         </div>
         {showOpenDirect ? (
