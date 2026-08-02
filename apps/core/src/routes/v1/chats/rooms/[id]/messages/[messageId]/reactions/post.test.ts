@@ -85,6 +85,7 @@ const mappedMessage = {
   parentMessageId: null,
   content: "hello",
   createdAt: new Date("2026-07-01T12:00:00.000Z"),
+  editedAt: null,
   senderUserId: USER_ID,
   senderCoworkerId: null,
   metadata: null,

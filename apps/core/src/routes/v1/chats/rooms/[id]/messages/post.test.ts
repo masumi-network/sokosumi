@@ -225,6 +225,7 @@ function createdMessage(
     content: "hello",
     metadata: overrides.metadata ?? null,
     createdAt: new Date("2025-01-02T00:00:00.000Z"),
+    editedAt: null,
     senderUser: overrides.senderUserId
       ? {
           id: overrides.senderUserId,

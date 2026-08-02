@@ -340,6 +340,7 @@ describe("mapChatRoomMessage quote", () => {
       senderCoworkerId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      editedAt: null,
       metadata: { quote, client_message_id: "c1" },
       clientMessageId: null,
       responsesApiResponseId: null,
@@ -375,6 +376,7 @@ describe("mapChatRoomMessage quote", () => {
       senderCoworkerId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      editedAt: null,
       metadata: { quote },
       clientMessageId: null,
       responsesApiResponseId: null,
@@ -405,6 +407,7 @@ describe("mapChatRoomMessage quote", () => {
       senderCoworkerId: null,
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      editedAt: null,
       metadata: {
         quote: {
           messageId: "550e8400-e29b-41d4-a716-446655440004",
@@ -445,6 +448,7 @@ describe("mapChatRoomMessage quote", () => {
       senderCoworkerId: "coworker_1",
       content: "hello",
       createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      editedAt: null,
       metadata: null,
       clientMessageId: null,
       responsesApiResponseId: null,

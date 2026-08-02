@@ -1723,7 +1723,8 @@ model ChatRoomMessage {
 
   content   String
   metadata  Json?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  editedAt  DateTime?
 
   /// AI SDK / client message id for user stream-turn idempotency.
   /// Also mirrored in metadata.client_message_id for transcript consumers.

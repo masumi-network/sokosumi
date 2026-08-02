@@ -328,6 +328,7 @@ export function mapChatRoomMessage(
     parentMessageId: message.parentMessageId,
     content: message.content,
     createdAt: message.createdAt,
+    editedAt: message.editedAt,
     sender,
     mentions: message.mentionsAsSource.map((mention) => ({
       id: mention.id,

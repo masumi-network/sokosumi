@@ -323,6 +323,7 @@ describe("chat room user auth guards", () => {
               content: "hello from coworker",
               metadata: null,
               createdAt: new Date("2025-01-01T00:00:00.000Z"),
+              editedAt: null,
               updatedAt: new Date("2025-01-01T00:00:00.000Z"),
               senderUserId: null,
               senderCoworkerId: COWORKER_ID,
