@@ -7,7 +7,7 @@ type OrganizationChatListActionResult =
   | { ok: true; data: ChatRoom[] }
   | { ok: false };
 
-type MarkOrganizationChatReadActionResult =
+type OrganizationChatRoomMutationResult =
   | { ok: true; data: ChatRoom }
   | { ok: false };
 
@@ -32,7 +32,7 @@ export async function listOrganizationArchivedChatRoomsAction(): Promise<Organiz
 
 export async function markOrganizationChatRoomReadAction(
   roomId: string,
-): Promise<MarkOrganizationChatReadActionResult> {
+): Promise<OrganizationChatRoomMutationResult> {
   const cleanRoomId = roomId.trim();
   if (!cleanRoomId) {
     return { ok: false };
@@ -50,7 +50,7 @@ export async function markOrganizationChatRoomReadAction(
 
 export async function pinOrganizationChatRoomAction(
   roomId: string,
-): Promise<MarkOrganizationChatReadActionResult> {
+): Promise<OrganizationChatRoomMutationResult> {
   const cleanRoomId = roomId.trim();
   if (!cleanRoomId) {
     return { ok: false };
@@ -66,7 +66,7 @@ export async function pinOrganizationChatRoomAction(
 
 export async function unpinOrganizationChatRoomAction(
   roomId: string,
-): Promise<MarkOrganizationChatReadActionResult> {
+): Promise<OrganizationChatRoomMutationResult> {
   const cleanRoomId = roomId.trim();
   if (!cleanRoomId) {
     return { ok: false };
@@ -82,7 +82,7 @@ export async function unpinOrganizationChatRoomAction(
 
 export async function markOrganizationChatRoomUnreadAction(
   roomId: string,
-): Promise<MarkOrganizationChatReadActionResult> {
+): Promise<OrganizationChatRoomMutationResult> {
   const cleanRoomId = roomId.trim();
   if (!cleanRoomId) {
     return { ok: false };
