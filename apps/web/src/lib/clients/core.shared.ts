@@ -40,6 +40,7 @@ import type {
   PaginationMetadata,
   PatchAdminVendorData,
   PatchChatsRoomsByIdData,
+  PatchChatsRoomsByIdMessagesByMessageIdData,
   PatchCoworkersByIdData,
   PatchCoworkersByIdWhitelistData,
   PatchEnterpriseContractRequest,
@@ -87,6 +88,7 @@ import {
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
+  deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
@@ -197,6 +199,7 @@ import {
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
   patchChatsRoomsById as corePatchChatsRoomsById,
+  patchChatsRoomsByIdMessagesByMessageId as corePatchChatsRoomsByIdMessagesByMessageId,
   patchCoworkersById as corePatchCoworkersById,
   patchCoworkersByIdWhitelist as corePatchCoworkersByIdWhitelist,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -681,6 +684,35 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to update chat room message reaction",
+    );
+  }
+
+  async function deleteChatRoomMessage(id: string, messageId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMessagesByMessageId({
+          client,
+          path: { id, messageId },
+        }),
+      "Failed to delete chat room message",
+    );
+  }
+
+  async function updateChatRoomMessage(
+    id: string,
+    messageId: string,
+    body: NonNullable<PatchChatsRoomsByIdMessagesByMessageIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchChatsRoomsByIdMessagesByMessageId({
+          client,
+          path: { id, messageId },
+          body,
+        }),
+      "Failed to update chat room message",
     );
   }
 
@@ -3605,6 +3637,7 @@ export function createCoreClient(getClient: GetClient) {
     getChatRoomMessages,
     getChatRooms,
     markChatRoomRead,
+    deleteChatRoomMessage,
     toggleChatRoomMessageReaction,
     getHermesInstance,
     getHermesMessages,
@@ -3614,6 +3647,7 @@ export function createCoreClient(getClient: GetClient) {
     getNotifications,
     getNotificationsUnreadCount,
     updateChatRoom,
+    updateChatRoomMessage,
     patchNotificationRead,
     patchNotificationsReadAll,
     listHermesIntegrations,

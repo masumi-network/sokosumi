@@ -920,7 +920,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(streamTextMock).toHaveBeenCalledOnce();
       expect(chatRoomMessageFindFirstMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID },
+          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID, deletedAt: null },
         }),
       );
     });

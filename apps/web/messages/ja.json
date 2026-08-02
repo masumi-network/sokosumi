@@ -783,7 +783,14 @@
       "title": "画像",
       "viewImage": "画像を表示 {fileName}",
       "download": "画像をダウンロード",
-      "close": "閉じる"
+      "close": "閉じる",
+      "print": "印刷",
+      "zoomIn": "拡大",
+      "zoomOut": "縮小",
+      "zoomReset": "ズームをリセット",
+      "more": "その他のオプション",
+      "openInNewTab": "新しいタブで開く",
+      "copyImage": "画像をコピー"
     }
   },
   "Join": {
@@ -4568,7 +4575,7 @@
         "restoreSuccess": "{name} を復元しました。"
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "チャット",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4713,12 +4720,23 @@
         "showMore": "続きを表示",
         "showLess": "折りたたむ"
       },
+      "Message": {
+        "delete": "削除",
+        "deleteConfirm": "このメッセージを削除しますか？他の人には削除されたことが表示されます。",
+        "deleted": "このメッセージは削除されました"
+      },
       "MentionAll": {
         "label": "全員"
       },
       "MentionSections": {
         "people": "メンバー",
         "coworkers": "コワーカー"
+      },
+      "Edit": {
+        "action": "編集",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "edited": "編集済み"
       }
     }
   },

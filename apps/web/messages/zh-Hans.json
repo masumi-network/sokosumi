@@ -783,7 +783,14 @@
       "title": "图片",
       "viewImage": "查看图片 {fileName}",
       "download": "下载图片",
-      "close": "关闭"
+      "close": "关闭",
+      "print": "打印",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "zoomReset": "重置缩放",
+      "more": "更多选项",
+      "openInNewTab": "在新标签页中打开",
+      "copyImage": "复制图片"
     }
   },
   "Join": {
@@ -4568,7 +4575,7 @@
         "restoreSuccess": "已恢复 {name}。"
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "聊天",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4713,12 +4720,23 @@
         "showMore": "更多",
         "showLess": "收起"
       },
+      "Message": {
+        "delete": "删除",
+        "deleteConfirm": "删除这条消息？其他人会看到该消息已被删除。",
+        "deleted": "此消息已删除"
+      },
       "MentionAll": {
         "label": "所有人"
       },
       "MentionSections": {
         "people": "成员",
         "coworkers": "协作伙伴"
+      },
+      "Edit": {
+        "action": "编辑",
+        "save": "保存",
+        "cancel": "取消",
+        "edited": "已编辑"
       }
     }
   },

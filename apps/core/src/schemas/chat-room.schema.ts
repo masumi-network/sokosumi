@@ -240,6 +240,8 @@ export const chatRoomMessageSchema = z
     parentMessageId: z.string().uuid().nullable(),
     content: z.string(),
     createdAt: dateTimeSchema,
+    deletedAt: dateTimeSchema.nullable(),
+    editedAt: dateTimeSchema.nullable(),
     sender: chatRoomMessageSenderSchema,
     mentions: z.array(chatRoomMessageMentionSchema),
     reactions: z.array(chatRoomMessageReactionSchema),
@@ -291,6 +293,14 @@ export const createChatRoomMessageRequestSchema = z
     }),
   })
   .openapi("CreateChatRoomMessageRequest");
+
+export const updateChatRoomMessageRequestSchema = z
+  .object({
+    content: z.string().trim().min(1).max(10_000).openapi({
+      example: "Fixed typo in the launch summary",
+    }),
+  })
+  .openapi("UpdateChatRoomMessageRequest");
 
 export const reactToChatRoomMessageRequestSchema = z
   .object({

@@ -137,7 +137,11 @@ describe("PUT /organizations/{id}/design-md", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(uploadDesignMdContentMock).toHaveBeenCalledWith("# Brand", "55");
+    expect(uploadDesignMdContentMock).toHaveBeenCalledWith({
+      content: "# Brand",
+      owner: { kind: "organization", id: "org_123" },
+      extractionId: "55",
+    });
     expect(updateOrganizationByIdMock).toHaveBeenCalledWith(
       "org_123",
       { metadata: expect.stringContaining("https://blob.example/org.md") },
@@ -216,7 +220,11 @@ describe("PUT /organizations/{id}/design-md", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(uploadDesignMdContentMock).toHaveBeenCalledWith("# Brand", "55");
+    expect(uploadDesignMdContentMock).toHaveBeenCalledWith({
+      content: "# Brand",
+      owner: { kind: "organization", id: "org_123" },
+      extractionId: "55",
+    });
     expect(body.data.designMd).toEqual({
       url: "https://blob.example/org.md",
       extractionId: "55",

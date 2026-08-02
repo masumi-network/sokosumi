@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
+import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -88,6 +88,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       `;
       if (lockedMessages.length === 0) {
         throw notFound("Message not found");
+      }
+
+      const target = await tx.chatRoomMessage.findFirst({
+        where: { id: messageId, roomId: id },
+        select: { deletedAt: true },
+      });
+      if (!target || target.deletedAt != null) {
+        throw badRequest("Cannot react to a deleted message");
       }
 
       // Under the message lock, delete-then-create is a true toggle: either we

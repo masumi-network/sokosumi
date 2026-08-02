@@ -13,12 +13,14 @@ function userMessage(
     parentMessageId: null,
     content: "Hello",
     createdAt: new Date("2026-07-01T14:35:00.000Z"),
+    editedAt: null,
     mentions: [],
     reactions: [],
     threadReplyCount: 0,
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
+    deletedAt: null,
     sender: {
       type: "user",
       user: {

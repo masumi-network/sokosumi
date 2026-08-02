@@ -118,9 +118,6 @@ export function FileChipMiniPreview({
           onOpenChange={setIsViewerOpen}
           src={url}
           alt={resolvedFileName}
-          title={t("title")}
-          downloadLabel={t("download")}
-          closeLabel={t("close")}
           downloadFilename={resolvedFileName}
         />
       ) : null}

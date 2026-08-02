@@ -783,7 +783,14 @@
       "title": "Imagen",
       "viewImage": "Ver imagen {fileName}",
       "download": "Descargar imagen",
-      "close": "Cerrar"
+      "close": "Cerrar",
+      "print": "Imprimir",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "zoomReset": "Restablecer zoom",
+      "more": "Más opciones",
+      "openInNewTab": "Abrir en una pestaña nueva",
+      "copyImage": "Copiar imagen"
     }
   },
   "Join": {
@@ -4568,7 +4575,7 @@
         "restoreSuccess": "{name} se restauró."
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "Chat",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4713,12 +4720,23 @@
         "showMore": "Más",
         "showLess": "Menos"
       },
+      "Message": {
+        "delete": "Eliminar",
+        "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",
+        "deleted": "Este mensaje fue eliminado"
+      },
       "MentionAll": {
         "label": "Todos"
       },
       "MentionSections": {
         "people": "Personas",
         "coworkers": "Coworkers"
+      },
+      "Edit": {
+        "action": "Editar",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "edited": "Editado"
       }
     }
   },

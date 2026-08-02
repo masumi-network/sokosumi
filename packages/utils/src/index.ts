@@ -86,6 +86,12 @@ export {
   withPreservedDesignMdMetadata,
 } from "./design-md-metadata-guard.js";
 export {
+  buildOrganizationDesignMdPathname,
+  buildOrganizationDesignMdPrefix,
+  buildUserDesignMdPathname,
+  buildUserDesignMdPrefix,
+} from "./design-md-path.js";
+export {
   DESIGN_MD_BLOB_PATH_PREFIX,
   isDesignMdBlobUrl,
 } from "./design-md-url.js";
@@ -107,6 +113,10 @@ export {
   resolveIpfsOrHttpUrl,
   sanitizeOrganizationLogoForApi,
 } from "./ipfs-url.js";
+export {
+  buildJobBlobPathname,
+  buildJobBlobPrefix,
+} from "./job-blob-path.js";
 export {
   type AppLocale,
   DEFAULT_LOCALE,

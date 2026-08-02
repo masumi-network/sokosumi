@@ -225,6 +225,7 @@ function createdMessage(
     content: "hello",
     metadata: overrides.metadata ?? null,
     createdAt: new Date("2025-01-02T00:00:00.000Z"),
+    editedAt: null,
     senderUser: overrides.senderUserId
       ? {
           id: overrides.senderUserId,
@@ -750,7 +751,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
       expect(messageFindFirstMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID },
+          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID, deletedAt: null },
         }),
       );
       expect(messageCreateMock).toHaveBeenCalledWith(

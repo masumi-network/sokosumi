@@ -455,3 +455,45 @@ export async function toggleMessageReactionAction(
     };
   }
 }
+
+export async function deleteRoomMessageAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  try {
+    const message = await chatRoomService.deleteMessage(roomId, messageId);
+    return { ok: true, data: message };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not delete message."),
+    };
+  }
+}
+
+export async function editRoomMessageAction(
+  roomId: string,
+  messageId: string,
+  content: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  const cleanContent = cleanString(content);
+  if (!cleanContent) {
+    return { ok: false, message: "Message is required." };
+  }
+
+  try {
+    const message = await chatRoomService.editMessage(
+      roomId,
+      messageId,
+      cleanContent,
+    );
+    // No revalidatePath: the updated message is returned and merged client
+    // side, so a full RSC re-render of /chat would only duplicate work.
+    return { ok: true, data: message };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not edit message."),
+    };
+  }
+}

@@ -22,11 +22,13 @@ Preconditions:
 - `verify-sokosumi doctor` ok.
 
 - **Open board.** Run `agent-browser open http://localhost:3000/tasks` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. URL stays `/tasks` (not `/signin`).
-- **Confirm shell.** Snapshot shows Tasks/Jobs tablist and kanban column headings, **or** a tasks empty-state. Note which.
+- **Confirm shell.** Snapshot shows Tasks/Jobs tablist and five kanban column headings (**BACKLOG** / **TODO** / **IN PROGRESS** / **INPUT REQUIRED** / **DONE**, or Title Case equivalents), **or** a tasks empty-state / list-mode chrome with the same tabs. Note which.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/tasks-board` then screenshot + snapshot.
 
 ## Gotchas
 
 - Empty columns / empty-state onboarding are valid — do not require existing tasks.
+- i18n strings are Title Case; CSS `uppercase` often makes the a11y tree show ALL CAPS — either form is success.
+- A `tasks-view-mode=list` cookie can hide kanban headers; Tasks/Jobs tabs alone still count as shell, or clear the cookie to force board mode.
 - Creating or editing a task is out of scope; this feature proves landing + board shell only.
 - Jobs tab on the same page is adjacent UI — proving Tasks tab shell is enough for this entry.
