@@ -72,10 +72,11 @@ flowchart LR
 
 ## Verification
 
-Allowlisted scripts from `VERIFY.md`. **Required:** check + test for the **verify set**. List **build** only when Implement/Review must run it. If TDD required per `VERIFY.md` → list the allowlisted test command that proves the Contract (do not paste TDD globs here). **UI routes:** ≥1 path-only route **iff** Deliverables include `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, or `apps/web/messages/**` - else omit Routes.
+Allowlisted scripts from `VERIFY.md`. **Required:** check + test for the **verify set**. List **build** only when Implement/Review must run it. If TDD required per `VERIFY.md` → list the allowlisted test command that proves the Contract (do not paste TDD globs here). **UI routes:** ≥1 path-only route **iff** Deliverables include `apps/web/src/app/**/page.tsx` or `layout.tsx`, `apps/web/src/components/**`, or `apps/web/messages/**` - else omit Routes. Optional: `swarm-verify: true` to arm Review swarm at the pinned SHA (also armed by user ask or Linear label `swarm-verify`).
 
 - Scope: `apps/web` - web:check, web:test
 - Routes (UI): `/example-path`
+- swarm-verify: false
 
 ## Out of scope
 
