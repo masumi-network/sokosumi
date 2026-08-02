@@ -1,0 +1,15 @@
+---
+description: "Web TypeScript and component code style"
+alwaysApply: true
+---
+
+## Web code style
+
+Architecture judgment lives in the root [principles](../../../../.cursor/rules/principles.mdc) rule. This file is web implementation style only.
+
+- Write concise, technical TypeScript with accurate examples.
+- Prefer functional and declarative patterns; avoid classes.
+- Prefer iteration and modularization over duplication.
+- Use descriptive names with auxiliary verbs (e.g. `isLoading`, `hasError`).
+- Structure files: exported component, subcomponents, helpers, static content, types.
+- Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commits and pull request titles.
