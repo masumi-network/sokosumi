@@ -4263,6 +4263,20 @@ export const ChatRoomSchema = {
             description: 'Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.',
             example: 1
         },
+        pinnedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-08-02T12:00:00.000Z',
+            description: 'When the current user pinned this room in their sidebar. Null when unpinned.'
+        },
+        markedUnread: {
+            type: 'boolean',
+            description: 'True when the current user marked this room unread. Cleared on mark-read.',
+            example: false
+        },
         userMembers: {
             type: 'array',
             items: {
@@ -4289,6 +4303,8 @@ export const ChatRoomSchema = {
         'updatedAt',
         'unreadCount',
         'unreadMentionCount',
+        'pinnedAt',
+        'markedUnread',
         'userMembers',
         'coworkerMembers'
     ]

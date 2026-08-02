@@ -47,3 +47,51 @@ export async function markOrganizationChatRoomReadAction(
     return { ok: false };
   }
 }
+
+export async function pinOrganizationChatRoomAction(
+  roomId: string,
+): Promise<MarkOrganizationChatReadActionResult> {
+  const cleanRoomId = roomId.trim();
+  if (!cleanRoomId) {
+    return { ok: false };
+  }
+
+  try {
+    const room = await chatRoomService.pinRoom(cleanRoomId);
+    return { ok: true, data: room };
+  } catch {
+    return { ok: false };
+  }
+}
+
+export async function unpinOrganizationChatRoomAction(
+  roomId: string,
+): Promise<MarkOrganizationChatReadActionResult> {
+  const cleanRoomId = roomId.trim();
+  if (!cleanRoomId) {
+    return { ok: false };
+  }
+
+  try {
+    const room = await chatRoomService.unpinRoom(cleanRoomId);
+    return { ok: true, data: room };
+  } catch {
+    return { ok: false };
+  }
+}
+
+export async function markOrganizationChatRoomUnreadAction(
+  roomId: string,
+): Promise<MarkOrganizationChatReadActionResult> {
+  const cleanRoomId = roomId.trim();
+  if (!cleanRoomId) {
+    return { ok: false };
+  }
+
+  try {
+    const room = await chatRoomService.markUnread(cleanRoomId);
+    return { ok: true, data: room };
+  } catch {
+    return { ok: false };
+  }
+}

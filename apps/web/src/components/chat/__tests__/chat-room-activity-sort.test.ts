@@ -42,4 +42,42 @@ describe("compareChatRoomsByRecentActivity", () => {
     expect(compareChatRoomsByRecentActivity(a, b)).toBeGreaterThan(0);
     expect(compareChatRoomsByRecentActivity(b, a)).toBeLessThan(0);
   });
+
+  it("sorts pinned rooms before unpinned rooms", () => {
+    const unpinned = {
+      id: "newer-unpinned",
+      updatedAt: "2026-08-02T18:00:00.000Z",
+      pinnedAt: null,
+    };
+    const pinned = {
+      id: "older-pinned",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      pinnedAt: "2026-08-02T12:00:00.000Z",
+    };
+
+    expect(
+      [unpinned, pinned]
+        .sort(compareChatRoomsByRecentActivity)
+        .map((r) => r.id),
+    ).toEqual(["older-pinned", "newer-unpinned"]);
+  });
+
+  it("orders pinned rooms by pinnedAt descending", () => {
+    const pinnedEarlier = {
+      id: "earlier",
+      updatedAt: "2026-08-02T18:00:00.000Z",
+      pinnedAt: "2026-08-02T10:00:00.000Z",
+    };
+    const pinnedLater = {
+      id: "later",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      pinnedAt: "2026-08-02T12:00:00.000Z",
+    };
+
+    expect(
+      [pinnedEarlier, pinnedLater]
+        .sort(compareChatRoomsByRecentActivity)
+        .map((r) => r.id),
+    ).toEqual(["later", "earlier"]);
+  });
 });

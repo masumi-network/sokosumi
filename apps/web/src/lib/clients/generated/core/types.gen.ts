@@ -1172,6 +1172,14 @@ export type ChatRoom = {
      * Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.
      */
     unreadMentionCount: number;
+    /**
+     * When the current user pinned this room in their sidebar. Null when unpinned.
+     */
+    pinnedAt: Date | null;
+    /**
+     * True when the current user marked this room unread. Cleared on mark-read.
+     */
+    markedUnread: boolean;
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
 };
@@ -10015,6 +10023,282 @@ export type PostChatsRoomsByIdReadResponses = {
 };
 
 export type PostChatsRoomsByIdReadResponse = PostChatsRoomsByIdReadResponses[keyof PostChatsRoomsByIdReadResponses];
+
+export type PostChatsRoomsByIdUnreadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/unread';
+};
+
+export type PostChatsRoomsByIdUnreadErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdUnreadError = PostChatsRoomsByIdUnreadErrors[keyof PostChatsRoomsByIdUnreadErrors];
+
+export type PostChatsRoomsByIdUnreadResponses = {
+    /**
+     * Chat room marked unread
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdUnreadResponse = PostChatsRoomsByIdUnreadResponses[keyof PostChatsRoomsByIdUnreadResponses];
+
+export type DeleteChatsRoomsByIdPinData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/pin';
+};
+
+export type DeleteChatsRoomsByIdPinErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdPinError = DeleteChatsRoomsByIdPinErrors[keyof DeleteChatsRoomsByIdPinErrors];
+
+export type DeleteChatsRoomsByIdPinResponses = {
+    /**
+     * Chat room unpinned
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdPinResponse = DeleteChatsRoomsByIdPinResponses[keyof DeleteChatsRoomsByIdPinResponses];
+
+export type PostChatsRoomsByIdPinData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/pin';
+};
+
+export type PostChatsRoomsByIdPinErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdPinError = PostChatsRoomsByIdPinErrors[keyof PostChatsRoomsByIdPinErrors];
+
+export type PostChatsRoomsByIdPinResponses = {
+    /**
+     * Chat room pinned
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdPinResponse = PostChatsRoomsByIdPinResponses[keyof PostChatsRoomsByIdPinResponses];
 
 export type GetChatsRoomsByIdMessagesData = {
     body?: never;

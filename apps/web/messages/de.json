@@ -4572,7 +4572,12 @@
         "archiveConfirm": "Kanal archivieren",
         "archiveSuccess": "{name} wurde archiviert.",
         "restore": "Wiederherstellen",
-        "restoreSuccess": "{name} wurde wiederhergestellt."
+        "restoreSuccess": "{name} wurde wiederhergestellt.",
+        "markUnread": "Als ungelesen markieren",
+        "pin": "Anheften",
+        "unpin": "Lösen",
+        "roomMenu": "Chat-Aktionen für {name}",
+        "actionFailed": "Dieser Chat konnte nicht aktualisiert werden. Bitte erneut versuchen."
       },
       "Metadata": {
         "title": "Chat",

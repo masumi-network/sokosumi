@@ -32,19 +32,18 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
+import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
 import {
   listOrganizationArchivedChatRoomsAction,
   listOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
-import { resolveRoomAttention } from "./room-attention";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
@@ -180,23 +179,6 @@ function DirectAvatarStack({
   );
 }
 
-function MentionBadge({ count }: { count: number }) {
-  if (count <= 0) {
-    return null;
-  }
-
-  const label = count > 99 ? "99+" : String(count);
-
-  return (
-    <span
-      aria-label={`${label} mentions`}
-      className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
-    >
-      {label}
-    </span>
-  );
-}
-
 function SectionHeader({
   children,
   href,
@@ -324,6 +306,7 @@ export function OrganizationChatList({
                 ...room,
                 unreadCount: 0,
                 unreadMentionCount: 0,
+                markedUnread: false,
               })
             : room,
         ),
@@ -407,6 +390,12 @@ export function OrganizationChatList({
     });
   }
 
+  function handleRoomUpdated(updated: ChatRoom) {
+    setRoomRows((current) =>
+      current.map((room) => (room.id === updated.id ? updated : room)),
+    );
+  }
+
   const { directMessages, namedChannels } = useMemo(() => {
     const directMessages: ChatRoom[] = [];
     const namedChannels: ChatRoom[] = [];
@@ -422,7 +411,7 @@ export function OrganizationChatList({
       }
     }
 
-    // Active channels and DMs: most recent activity first (`updatedAt` bumps on send).
+    // Pinned first, then most recent activity (`updatedAt` bumps on send).
     namedChannels.sort(compareChatRoomsByRecentActivity);
     directMessages.sort(compareChatRoomsByRecentActivity);
 
@@ -451,39 +440,17 @@ export function OrganizationChatList({
           </SectionHeader>
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
-              {namedChannels.map((room) => {
-                const isActive = activeRoomId === room.id;
-                const { bold, badgeCount } = resolveRoomAttention({
-                  unreadCount: room.unreadCount,
-                  unreadMentionCount: room.unreadMentionCount,
-                  isActive,
-                });
-
-                return (
-                  <SidebarMenuItem key={room.id}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <SheetClose asChild>
-                        <Link
-                          aria-current={isActive ? "page" : undefined}
-                          className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3"
-                          href={`/chat/rooms/${room.id}`}
-                        >
-                          <Hash className="size-4 shrink-0" aria-hidden />
-                          <span
-                            className={cn(
-                              "flex-1 truncate",
-                              bold && "font-semibold text-foreground",
-                            )}
-                          >
-                            {room.name}
-                          </span>
-                          <MentionBadge count={badgeCount} />
-                        </Link>
-                      </SheetClose>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {namedChannels.map((room) => (
+                <ChatRoomSidebarRow
+                  key={room.id}
+                  room={room}
+                  href={`/chat/rooms/${room.id}`}
+                  label={room.name}
+                  isActive={activeRoomId === room.id}
+                  leading={<Hash className="size-4 shrink-0" aria-hidden />}
+                  onRoomUpdated={handleRoomUpdated}
+                />
+              ))}
               {namedChannels.length === 0 ? (
                 <SidebarMenuItem>
                   <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
@@ -562,42 +529,22 @@ export function OrganizationChatList({
           </SectionHeader>
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
-              {directMessages.map((room) => {
-                const isActive = activeRoomId === room.id;
-                const label = getDirectRoomDisplayName(room, currentUserId);
-                const { bold, badgeCount } = resolveRoomAttention({
-                  unreadCount: room.unreadCount,
-                  unreadMentionCount: room.unreadMentionCount,
-                  isActive,
-                });
-                return (
-                  <SidebarMenuItem key={room.id}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <SheetClose asChild>
-                        <Link
-                          aria-current={isActive ? "page" : undefined}
-                          className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3"
-                          href={`/chat/rooms/${room.id}`}
-                        >
-                          <DirectAvatarStack
-                            room={room}
-                            currentUserId={currentUserId}
-                          />
-                          <span
-                            className={cn(
-                              "min-w-0 flex-1 truncate",
-                              bold && "font-semibold text-foreground",
-                            )}
-                          >
-                            {label}
-                          </span>
-                          <MentionBadge count={badgeCount} />
-                        </Link>
-                      </SheetClose>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {directMessages.map((room) => (
+                <ChatRoomSidebarRow
+                  key={room.id}
+                  room={room}
+                  href={`/chat/rooms/${room.id}`}
+                  label={getDirectRoomDisplayName(room, currentUserId)}
+                  isActive={activeRoomId === room.id}
+                  leading={
+                    <DirectAvatarStack
+                      room={room}
+                      currentUserId={currentUserId}
+                    />
+                  }
+                  onRoomUpdated={handleRoomUpdated}
+                />
+              ))}
               {directMessages.length === 0 ? (
                 <SidebarMenuItem>
                   <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">

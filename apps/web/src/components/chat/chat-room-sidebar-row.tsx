@@ -1,0 +1,151 @@
+"use client";
+
+import { Ellipsis, Pin } from "lucide-react";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { type ReactNode, useTransition } from "react";
+import { toast } from "sonner";
+import {
+  markOrganizationChatRoomUnreadAction,
+  pinOrganizationChatRoomAction,
+  unpinOrganizationChatRoomAction,
+} from "@/components/chat/organization-chat-list.actions";
+import { resolveRoomAttention } from "@/components/chat/room-attention";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { SheetClose } from "@/components/ui/sheet";
+import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
+import type { ChatRoom } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
+
+interface ChatRoomSidebarRowProps {
+  room: ChatRoom;
+  href: string;
+  label: string;
+  isActive: boolean;
+  leading: ReactNode;
+  onRoomUpdated: (room: ChatRoom) => void;
+}
+
+function MentionBadge({ count }: { count: number }) {
+  if (count <= 0) {
+    return null;
+  }
+
+  const label = count > 99 ? "99+" : String(count);
+
+  return (
+    <span
+      aria-label={`${label} mentions`}
+      className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] leading-4 font-semibold tabular-nums"
+    >
+      {label}
+    </span>
+  );
+}
+
+export function ChatRoomSidebarRow({
+  room,
+  href,
+  label,
+  isActive,
+  leading,
+  onRoomUpdated,
+}: ChatRoomSidebarRowProps) {
+  const tActions = useTranslations("App.Channels.Actions");
+  const [isPending, startTransition] = useTransition();
+  const isPinned = room.pinnedAt != null;
+  const { bold, badgeCount } = resolveRoomAttention({
+    unreadCount: room.unreadCount,
+    unreadMentionCount: room.unreadMentionCount,
+    markedUnread: room.markedUnread,
+    isActive,
+  });
+
+  function runRoomAction(
+    action: (
+      roomId: string,
+    ) => Promise<{ ok: true; data: ChatRoom } | { ok: false }>,
+  ) {
+    startTransition(async () => {
+      const result = await action(room.id);
+      if (!result.ok) {
+        toast.error(tActions("actionFailed"));
+        return;
+      }
+      onRoomUpdated(result.data);
+    });
+  }
+
+  return (
+    <SidebarMenuItem className="group/room-row relative">
+      <SidebarMenuButton asChild isActive={isActive}>
+        <SheetClose asChild>
+          <Link
+            aria-current={isActive ? "page" : undefined}
+            className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3 pr-10"
+            href={href}
+          >
+            {leading}
+            <span
+              className={cn(
+                "min-w-0 flex-1 truncate",
+                bold && "font-semibold text-foreground",
+              )}
+            >
+              {label}
+            </span>
+            {isPinned ? (
+              <Pin
+                className="text-muted-foreground size-3 shrink-0 fill-current"
+                aria-hidden
+              />
+            ) : null}
+            <MentionBadge count={badgeCount} />
+          </Link>
+        </SheetClose>
+      </SidebarMenuButton>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={isPending}
+            className="text-muted-foreground absolute top-1/2 right-1 z-10 size-7 -translate-y-1/2 opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100"
+            aria-label={tActions("roomMenu", { name: label })}
+          >
+            <Ellipsis className="size-4" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem
+            disabled={isActive || isPending}
+            onSelect={() => {
+              runRoomAction(markOrganizationChatRoomUnreadAction);
+            }}
+          >
+            {tActions("markUnread")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={isPending}
+            onSelect={() => {
+              runRoomAction(
+                isPinned
+                  ? unpinOrganizationChatRoomAction
+                  : pinOrganizationChatRoomAction,
+              );
+            }}
+          >
+            {isPinned ? tActions("unpin") : tActions("pin")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SidebarMenuItem>
+  );
+}
