@@ -2,12 +2,7 @@
 
 import { Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import {
-  type Dispatch,
-  type FormEvent,
-  type SetStateAction,
-  useRef,
-} from "react";
+import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,19 +11,19 @@ import type {
   ChatRoomMessage,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
-import {
-  RoomComposer,
-  type RoomComposerAttachment,
-  type RoomComposerHandle,
-} from "./room-composer";
+import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
   isMessageContinuation,
-  isRoomComposerEmpty,
   type PendingRoomQuote,
   type RoomMentionParticipant,
 } from "./room-helpers";
 import { ChatMessageRow } from "./room-message-row";
+import {
+  RoomSessionComposer,
+  type RoomSessionSendRequest,
+  type RoomSessionSendResult,
+} from "./room-session-composer";
 
 export function ThreadPanel({
   parentMessage,
@@ -42,12 +37,9 @@ export function ThreadPanel({
   usersById,
   usersBySlug,
   mentionRecords,
-  replyValue,
-  onReplyValueChange,
-  replyMentionedIdsChange,
-  replyAttachments,
-  onReplyAttachmentsChange,
-  onSubmitReply,
+  draftKey,
+  onBeforeSendReply,
+  onSendReply,
   isSendingReply,
   onClose,
   onToggleReaction,
@@ -61,6 +53,7 @@ export function ThreadPanel({
   isSavingEdit = false,
   pendingQuote = null,
   onClearPendingQuote,
+  onRestorePendingQuote,
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
@@ -76,12 +69,11 @@ export function ThreadPanel({
   usersById?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   usersBySlug?: Map<string, Pick<ChatRoomUserParticipant, "id" | "name">>;
   mentionRecords: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
-  replyValue: string;
-  onReplyValueChange: Dispatch<SetStateAction<string>>;
-  replyMentionedIdsChange: (selectedKeys: string[]) => void;
-  replyAttachments: RoomComposerAttachment[];
-  onReplyAttachmentsChange: Dispatch<SetStateAction<RoomComposerAttachment[]>>;
-  onSubmitReply: (event: FormEvent<HTMLFormElement>) => void;
+  draftKey: string;
+  onBeforeSendReply?: (clientMessageId: string) => boolean;
+  onSendReply: (
+    request: RoomSessionSendRequest,
+  ) => Promise<RoomSessionSendResult>;
   isSendingReply: boolean;
   onClose: () => void;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
@@ -95,9 +87,10 @@ export function ThreadPanel({
   isSavingEdit?: boolean;
   pendingQuote?: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
+  onRestorePendingQuote?: (quote: PendingRoomQuote) => void;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
-  roomId?: string;
+  roomId: string;
 }) {
   const t = useTranslations("App.Channels");
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
@@ -226,26 +219,24 @@ export function ThreadPanel({
             )}
           </div>
         </ScrollArea>
-        <RoomComposer
+        <RoomSessionComposer
+          key={draftKey}
           ref={threadComposerRef}
           roomId={roomId}
-          value={replyValue}
-          onValueChange={onReplyValueChange}
+          draftKey={draftKey}
           mentions={mentionRecords}
-          onSelectedKeysChange={replyMentionedIdsChange}
           placeholder={t("Thread.replyPlaceholder")}
-          attachments={replyAttachments}
-          onAttachmentsChange={onReplyAttachmentsChange}
-          onSubmit={onSubmitReply}
           isSending={isSendingReply}
-          sendDisabled={isRoomComposerEmpty(replyValue, replyAttachments)}
           showMentionShortcut={showMentionShortcut}
           allowAttachments={allowAttachments}
           pendingQuote={pendingQuote}
           onClearPendingQuote={onClearPendingQuote}
+          onRestorePendingQuote={onRestorePendingQuote}
           onChromeResize={() => {
             threadBottomRef.current?.scrollIntoView({ block: "end" });
           }}
+          onBeforeSend={onBeforeSendReply}
+          onSend={onSendReply}
         />
       </RoomFileDropZone>
     </aside>
