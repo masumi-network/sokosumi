@@ -124,16 +124,7 @@ export function ChatParticipantHoverCard({
             {detail ? (
               <p className="text-muted-foreground truncate text-xs">{detail}</p>
             ) : null}
-            <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <span aria-hidden="true">
-                <PresenceDot
-                  presence={profile.presence}
-                  label={statusLabel}
-                  className="size-2 border-0"
-                />
-              </span>
-              {statusLabel}
-            </p>
+            <p className="text-muted-foreground text-xs">{statusLabel}</p>
           </div>
         </div>
         {showOpenDirect ? (
