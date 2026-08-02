@@ -14,6 +14,7 @@ import type {
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
+  type ChatParticipantHoverProfile,
   isMessageContinuation,
   type PendingRoomQuote,
   type RoomMentionParticipant,
@@ -45,6 +46,9 @@ export function ThreadPanel({
   onToggleReaction,
   onQuote,
   currentUserId,
+  canOpenHumanDirect = false,
+  onOpenDirectMessage,
+  openingDirectParticipantKey = null,
   onStartEdit,
   onDelete,
   editSession = null,
@@ -80,6 +84,9 @@ export function ThreadPanel({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   editSession?: { messageId: string; draft: string } | null;
@@ -158,6 +165,9 @@ export function ThreadPanel({
               coworkersBySlug={coworkersBySlug}
               usersById={usersById}
               usersBySlug={usersBySlug}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirectMessage={onOpenDirectMessage}
+              openingDirectParticipantKey={openingDirectParticipantKey}
               onToggleReaction={onToggleReaction}
               onQuote={onQuote}
               showThreadButton={false}
@@ -201,6 +211,11 @@ export function ThreadPanel({
                         coworkersBySlug={coworkersBySlug}
                         usersById={usersById}
                         usersBySlug={usersBySlug}
+                        canOpenHumanDirect={canOpenHumanDirect}
+                        onOpenDirectMessage={onOpenDirectMessage}
+                        openingDirectParticipantKey={
+                          openingDirectParticipantKey
+                        }
                         onToggleReaction={onToggleReaction}
                         onQuote={onQuote}
                         showThreadButton={false}
