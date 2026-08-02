@@ -89,7 +89,7 @@ export function ChatParticipantHoverCard({
         data-testid="chat-participant-hover-card"
       >
         <div className="flex gap-3">
-          <div className="relative shrink-0">
+          <div className="relative size-12 shrink-0 self-start">
             <Avatar className="size-12">
               <AvatarImage src={profile.image ?? undefined} alt="" />
               <AvatarFallback
