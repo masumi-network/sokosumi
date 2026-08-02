@@ -5,7 +5,7 @@ alwaysApply: false
 
 ## Utils vs database helpers
 
-Use this rule when adding or moving code shared between **web (including client components)**, **core**, and **database**.
+Use this rule when adding or moving code shared between **web**, **core**, and **database**.
 
 ### Put in `@sokosumi/utils`
 
@@ -22,16 +22,16 @@ Export from `packages/utils/src/index.ts` and colocate tests under `packages/uti
 - **Helpers that need a transaction client** or load rows from the database
 - **Domain resolution** that combines DB state (e.g. `resolveOrganizationBillingPlan`, enterprise contract lifecycle, credit-bucket scope with org membership)
 
-Server code may import these from `@sokosumi/database/helpers`.
+Core and other server packages that own DB access may import these from `@sokosumi/database/helpers`.
 
 ### Import rules
 
 | Consumer | Import from |
 | -------- | ----------- |
-| Client components, shared UI utils | `@sokosumi/utils` |
-| Server Components, server actions, API routes, database helpers | `@sokosumi/utils` for pure shared bits; `@sokosumi/database/helpers` for DB-backed helpers |
+| Web app (client or server) | `@sokosumi/utils` for pure shared bits; **never** `@sokosumi/database` or `@sokosumi/database/helpers` (web goes through Core) |
+| Core / packages that own DB access | `@sokosumi/utils` for pure shared bits; `@sokosumi/database/helpers` for DB-backed helpers |
 
-**Do not** import `@sokosumi/database/helpers` from client code. The helpers barrel re-exports server-only modules (Prisma, repositories). A single value import can pull the whole graph into the Next.js client bundle and fail the build (`node:module`, etc.).
+**Do not** import `@sokosumi/database` or `@sokosumi/database/helpers` from the web app. Web reaches data only through the Core API. The helpers barrel re-exports server-only modules (Prisma, repositories); a value import can also pull that graph into a Next.js client bundle and fail the build (`node:module`, etc.).
 
 **Do not** add new `@sokosumi/database/helpers/<subpath>` exports only to dodge the barrel—move the shared surface to utils instead.
 
@@ -48,7 +48,7 @@ Server code may import these from `@sokosumi/database/helpers`.
 ### Checklist before merging
 
 1. New shared pure helper → utils + export from `index.ts` + vitest in utils
-2. Client or `subscription-plan-utils`-style module → no `@sokosumi/database/helpers` import
+2. Web or `subscription-plan-utils`-style module → no `@sokosumi/database` / helpers import
 3. `pnpm --filter @sokosumi/utils build` when database or apps depend on new utils exports
 4. `pnpm web:build` (or `pnpm build`) after touching client import paths
 

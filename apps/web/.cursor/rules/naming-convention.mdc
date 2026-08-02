@@ -1,7 +1,0 @@
----
-description: "Naming Convention"
-alwaysApply: true
----
-- Use lowercase with dashes for directories (e.g., components/auth-wizard).
-- Favor named exports for components.
-- Prefix event handlers with "handle" (handleClick, handleSubmit)
