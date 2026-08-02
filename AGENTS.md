@@ -337,6 +337,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 ## Additional Rules
 
+- [Principles](.cursor/rules/principles.mdc) – architecture judgment: delete over shims, simplest keepable design, layered growth
 - [Maintainability](.cursor/rules/maintainability.mdc) – long-term clarity and consistency over short-term wins
 - [Linting](.cursor/rules/lint.mdc)
 - [Pinned dependencies](.cursor/rules/pinned-dependencies.mdc) – exact versions in `package.json`, no semver ranges on registry packages

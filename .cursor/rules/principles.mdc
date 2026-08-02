@@ -1,0 +1,47 @@
+---
+description: "Architecture and implementation judgment principles for agents"
+alwaysApply: true
+---
+
+## Principles
+
+Judgment layer for design choices. Project facts (stack, Core vs web, codegen) live in `AGENTS.md` — follow those. This rule steers *how* to choose when several approaches fit.
+
+### Prefer delete over compatibility theater
+
+Do not preserve backward compatibility in **code paths** by default. Remove obsolete callers, branches, flags, and shims instead of adding fallbacks, dual code paths, or “temporary” adapters.
+
+**Sokosumi caveat:** persisted data and released contracts still need proper change machinery — Prisma migrations, Core OpenAPI + web client regen, and honest API versioning when external clients exist. Prefer a clean cut in application code; do not invent silent dual-read/dual-write layers “just in case.”
+
+### Simplest that fully meets today’s requirements
+
+Choose the simplest implementation that completely satisfies the current requirement. Avoid speculative abstractions, config knobs, indirection, and extension points for needs that are not real yet.
+
+### Grow in working layers
+
+Start from the smallest version that works end to end. Add each new capability on top of a product that already works. Never trade a working product for unfinished complexity.
+
+### Separate concerns
+
+Keep modules modular and responsibilities clear. Put logic at the right layer (web UI/actions/services → Core routes/repos → shared packages). Do not smuggle domain rules across boundaries to “save a file.”
+
+### Prefer known libraries; check what you already have
+
+Prefer established, well-maintained libraries when they reduce overall complexity or improve reliability. Do not reimplement common functionality without a clear reason.
+
+Before writing a custom helper or adding a package: lean on dependencies already in the monorepo. Check documentation and types — do not assume a library lacks a capability.
+
+External npm versions stay **pinned** (see pinned-dependencies). Prefer `workspace:*` packages over copying logic between apps.
+
+### Design for the long term
+
+Make architectural decisions you would keep. Do not accept a stopgap that only works for now and is “meant to be replaced later” unless the user explicitly scopes a hotfix and tracks the follow-up.
+
+### Conflict resolver
+
+When principles pull in different directions:
+
+1. **Facts beat slogans** — `AGENTS.md` boundaries (e.g. web never touches the DB) win over a “simpler” shortcut that breaks them.
+2. **Simplest keepable shape** — if “simplest now” and “long-term” conflict, pick the smallest design you would still want in six months, not the smallest hack.
+3. **Working slice over perfect scaffold** — ship a thin end-to-end path before a generalized framework.
+4. **Maintainability** — when two keepable options remain, prefer [maintainability](maintainability.mdc).
