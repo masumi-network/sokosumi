@@ -50,14 +50,20 @@ import type {
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { getInitials } from "@/lib/utils/text";
+import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { DraftChannel } from "./draft-channel";
 import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
+import {
+  openDirectWithParticipant,
+  participantDirectKey,
+} from "./open-direct-with-participant";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
   appendMessage,
   buildRoomAllMentionRecord,
+  type ChatParticipantHoverProfile,
   getRoomDisplayName,
   getRoomParticipantPreviews,
   hasPendingCoworkerMention,
@@ -105,7 +111,19 @@ const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
 /** Match sidebar channel-list cadence for peer traffic while a room is open. */
 const ROOM_LIVE_POLL_MS = 15_000;
 
-function RoomParticipantStack({ room }: { room: ChatRoom }) {
+function RoomParticipantStack({
+  room,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirect,
+  openingDirectKey,
+}: {
+  room: ChatRoom;
+  currentUserId: string;
+  canOpenHumanDirect: boolean;
+  onOpenDirect: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectKey: string | null;
+}) {
   const t = useTranslations("App.Channels");
   const participants = getRoomParticipantPreviews(room);
   const visibleParticipants = participants.slice(0, 4);
@@ -124,11 +142,20 @@ function RoomParticipantStack({ room }: { room: ChatRoom }) {
           .join(", ")}
       >
         {visibleParticipants.map((participant, index) => (
-          <span
+          <ChatParticipantHoverCard
             key={`${participant.kind}-${participant.id}`}
-            className="relative block size-6 shrink-0 md:size-7"
+            profile={participant}
+            side="bottom"
+            align="center"
+            className="size-6 shrink-0 md:size-7"
             style={{ zIndex: visibleParticipants.length - index }}
-            title={participant.name}
+            currentUserId={currentUserId}
+            canOpenHumanDirect={canOpenHumanDirect}
+            onOpenDirect={onOpenDirect}
+            isOpeningDirect={
+              openingDirectKey === participantDirectKey(participant)
+            }
+            isDirectActionBusy={openingDirectKey != null}
           >
             <Avatar className="border-background ring-border/60 size-6 border-2 shadow-xs ring-1 md:size-7">
               <AvatarImage src={participant.image ?? undefined} alt="" />
@@ -148,7 +175,7 @@ function RoomParticipantStack({ room }: { room: ChatRoom }) {
               label={presenceLabel(t, participant.presence)}
               className="absolute -right-0.5 -bottom-0.5"
             />
-          </span>
+          </ChatParticipantHoverCard>
         ))}
       </div>
       {remainingCount > 0 ? (
@@ -177,6 +204,8 @@ export function RoomsClient({
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const router = useRouter();
+  const canOpenHumanDirect = Boolean(activeOrganization);
+  const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
     null,
   );
@@ -239,6 +268,23 @@ export function RoomsClient({
   const selectedRoom = isNewDirectMessage
     ? null
     : (rooms.find((room) => room.id === selectedRoomId) ?? null);
+
+  async function handleOpenDirectMessage(
+    profile: ChatParticipantHoverProfile,
+  ): Promise<void> {
+    if (openingDirectKey) return;
+    setOpeningDirectKey(participantDirectKey(profile));
+    try {
+      await openDirectWithParticipant({
+        profile,
+        selectedRoomId,
+        router,
+        onError: toast.error,
+      });
+    } finally {
+      setOpeningDirectKey(null);
+    }
+  }
 
   function isStillSelectedRoom(roomId: string): boolean {
     return selectedRoomIdRef.current === roomId;
@@ -1183,7 +1229,13 @@ export function RoomsClient({
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
-                  <RoomParticipantStack room={selectedRoom} />
+                  <RoomParticipantStack
+                    room={selectedRoom}
+                    currentUserId={currentUserId}
+                    canOpenHumanDirect={canOpenHumanDirect}
+                    onOpenDirect={handleOpenDirectMessage}
+                    openingDirectKey={openingDirectKey}
+                  />
                   {isDirectRoom ? null : (
                     <EditChannelDialog
                       channel={selectedRoom}
@@ -1263,6 +1315,9 @@ export function RoomsClient({
                           usersById={usersById}
                           usersBySlug={usersBySlug}
                           currentUserId={currentUserId}
+                          canOpenHumanDirect={canOpenHumanDirect}
+                          onOpenDirectMessage={handleOpenDirectMessage}
+                          openingDirectParticipantKey={openingDirectKey}
                           onToggleReaction={handleToggleReaction}
                           onOpenThread={
                             shouldShowChatRoomThreadButton({
@@ -1387,6 +1442,9 @@ export function RoomsClient({
             onToggleReaction={handleToggleReaction}
             onQuote={handleQuoteThreadMessage}
             currentUserId={currentUserId}
+            canOpenHumanDirect={canOpenHumanDirect}
+            onOpenDirectMessage={handleOpenDirectMessage}
+            openingDirectParticipantKey={openingDirectKey}
             onStartEdit={handleStartEdit}
             onDelete={handleDeleteMessage}
             editSession={editSession}

@@ -5,6 +5,7 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import {
   isMessageContinuation,
   MESSAGE_GROUP_GAP_MS,
+  messageSender,
   messageSenderKey,
 } from "../room-helpers";
 
@@ -96,6 +97,35 @@ describe("messageSenderKey", () => {
     expect(
       messageSenderKey(unknownMessage("m3", "2026-07-01T12:00:00.000Z")),
     ).toBeNull();
+  });
+});
+
+describe("messageSender", () => {
+  it("returns human profile with email and presence", () => {
+    expect(
+      messageSender(userMessage("m1", "2026-07-01T12:00:00.000Z")),
+    ).toEqual({
+      kind: "human",
+      id: "user-1",
+      name: "Ada",
+      email: "ada@example.com",
+      image: null,
+      presence: "offline",
+    });
+  });
+
+  it("returns coworker profile with slug, caption, and presence", () => {
+    expect(
+      messageSender(coworkerMessage("m2", "2026-07-01T12:00:00.000Z")),
+    ).toEqual({
+      kind: "coworker",
+      id: "cow-1",
+      name: "Jamal",
+      slug: "jamal",
+      caption: null,
+      image: null,
+      presence: "online",
+    });
   });
 });
 

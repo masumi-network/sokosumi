@@ -4703,6 +4703,8 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "humanBadge": "Human",
+      "openDirectMessage": "Message",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
