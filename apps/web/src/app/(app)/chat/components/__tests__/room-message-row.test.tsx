@@ -576,7 +576,9 @@ describe("ChatMessageRow", () => {
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirmMock = vi.fn(() => true);
+    const previousConfirm = window.confirm;
+    window.confirm = confirmMock;
 
     try {
       renderRow({
@@ -592,13 +594,13 @@ describe("ChatMessageRow", () => {
         }),
       );
 
-      expect(confirmSpy).toHaveBeenCalled();
+      expect(confirmMock).toHaveBeenCalled();
       expect(onDelete).toHaveBeenCalledWith(
         expect.objectContaining({ id: "message-1" }),
       );
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     } finally {
-      confirmSpy.mockRestore();
+      window.confirm = previousConfirm;
     }
   });
 
