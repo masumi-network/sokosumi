@@ -313,7 +313,7 @@ docs(readme): update setup instructions
 
 ### Linear issue implementation
 
-Ship one Linear issue with `## Requirement` under **/poteto-mode** via [`.cursor/skills/sokosumi-linear-issue/`](.cursor/skills/sokosumi-linear-issue/). That skill owns Spec, allowlisted verify, TDD globs, draft PR, CI gate, and Review `/goal`. Bugs/refactors without a Linear Requirement use other poteto playbooks.
+Ship one Linear issue with `## Requirement` under **/poteto-mode** via [`.cursor/skills/sokosumi-linear-issue/`](.cursor/skills/sokosumi-linear-issue/). That skill owns Spec, allowlisted verify, TDD globs, draft PR, CI gate, pinned-`headSha` re-verify, Review `/goal`, and opt-in swarm-verify (user ask, `swarm-verify: true`, or label `swarm-verify`). Human merges. Bugs/refactors without a Linear Requirement use other poteto playbooks.
 
 Do **not** invent or file Linear issues during poteto implement work. Filing a new requirement is a separate, explicit ask via [`.cursor/skills/linear-requirement/`](.cursor/skills/linear-requirement/) (`disable-model-invocation`).
 

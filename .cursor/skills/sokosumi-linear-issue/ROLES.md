@@ -67,6 +67,8 @@ Omit empty sections. No essay preamble.
 
 ## Reviewer
 
-**Goal:** Run `/goal` in `REVIEW.md`. Human merges.
+**Goal:** Pin `headSha`, run `/goal` in `REVIEW.md` at that SHA, opt-in swarm when armed. Human merges.
 
-**Load:** `REVIEW.md`. Then `QUALITY-TRIGGERS.md` + matching `QUALITY-RULES.md` sections only. UI in scope → `VISUAL-CAPTURE.md`.
+**Load:** `REVIEW.md`. Then `QUALITY-TRIGGERS.md` + matching `QUALITY-RULES.md` sections only. UI in scope → `VISUAL-CAPTURE.md`. Swarm armed → poteto **swarm** skill per `REVIEW.md` lanes only.
+
+**Do not:** Merge, auto-merge, or mark draft ready. Do not run swarm when not armed.

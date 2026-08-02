@@ -2,9 +2,10 @@
 name: sokosumi-linear-issue
 description: >-
   Sokosumi Linear issue ship under /poteto-mode - ## Requirement through green
-  draft PR (investigate, Spec, Feature implement, CI, review). Use for SOK-XXX
-  or Linear issues with ## Requirement. Not for bugs/refactors with no Linear
-  Requirement - use other poteto playbooks.
+  draft PR (investigate, Spec, Feature implement, CI, pin headSha, review,
+  opt-in swarm-verify). Use for SOK-XXX or Linear issues with ## Requirement.
+  Not for bugs/refactors with no Linear Requirement - use other poteto
+  playbooks.
 disable-model-invocation: true
 ---
 
@@ -19,8 +20,12 @@ flowchart LR
   inv[Investigate] --> spec[Spec]
   spec --> impl[Implement]
   impl --> ci[CI green]
-  ci --> rev[Review]
-  rev --> done[PR ready]
+  ci --> pin[Pin headSha]
+  pin --> rev[Review]
+  rev --> swarm{swarm-verify?}
+  swarm -->|no| done[PR ready]
+  swarm -->|yes| sv[Swarm at SHA]
+  sv --> done
 ```
 
 ## Non-negotiables (Sokosumi gates)
@@ -30,6 +35,8 @@ flowchart LR
 - **Branch:** Linear `gitBranchName`, else `{issue-id-lower}-{short-kebab}` (≤6 segments).
 - **Draft PR** unless user asked ready-for-review. Title = primary commit subject (Conventional Commit). Body: issue link + Spec summary ≤8 lines.
 - **CI green:** `gh pr checks` - all `pass`/`success`; wait on `pending`; fail on `fail`/`failure`/`cancelled`/`timed_out`. Skip a check only if Spec Out of scope names it exactly. On fail: `root:` then fix per `VERIFY.md` (≤3 fix+push).
+- **Pinned head SHA:** After CI green, record `headSha` (`gh pr view --json headRefOid -q .headRefOid`). Fresh allowlisted verify (and UI verify when in scope) must pass against that SHA before ready. Any push voids the pin - re-check CI, re-pin, re-verify. Ready only when current head equals the pinned SHA. Details in `REVIEW.md`.
+- **Swarm-verify (opt-in only):** Run Autopilot-style swarm at the pinned SHA only when the user asks, Spec/session sets `swarm-verify: true`, or the issue has label `swarm-verify`. Default off. Lanes in `REVIEW.md`. Never auto-merge after a clean verdict - human merges.
 - **Subagents:** `poteto-agent` for code delegates. `cavecrew-investigator` only for symbol locate. Never Linear MCP from subagents.
 - **UI Routes in Spec** → project skill `verify-sokosumi` after allowlisted verify; Reviewer also uses `VISUAL-CAPTURE.md`.
 
@@ -40,7 +47,7 @@ flowchart LR
 | Investigate | Orchestrator (`ROLES.md`); `cavecrew-investigator` for symbol locate only |
 | Spec | Orchestrator (`SPEC.md` + `RUBRIC.md` + flagged `QUALITY-RULES.md`) |
 | Implement | Orchestrator runs Feature steps; code via `poteto-agent` |
-| CI + Review `/goal` | Orchestrator (`REVIEW.md`) |
+| CI + pin + Review `/goal` (+ opt-in swarm) | Orchestrator (`REVIEW.md`) |
 
 ## Playbook steps
 
@@ -57,9 +64,11 @@ flowchart LR
 7. **Delegate implement** via `poteto-agent` with paths, domain shape, success criteria = Contract rows. Parent reviews the diff. Prefer **arena** when multiple Spec-valid shapes compete. **TDD** and allowlisted verify per `VERIFY.md`. Rubric ≥ 2 → sequential blocks (`SEQUENTIAL.md` between); one draft PR after last `ok`.
 8. **Prove.** Allowlisted verify (evidence before `ok`). UI Routes → `verify-sokosumi` on those routes; inconclusive ≠ pass.
 9. **Open draft PR** (gates above). Then **CI green**.
-10. **Review `/goal`** per `REVIEW.md`. Contested design → `interrogate` before ready. Human merges.
+10. **Pin headSha** after CI green. Then **Review `/goal`** per `REVIEW.md` (fresh verify at pinned SHA; void pin on push). Contested design → `interrogate` before ready.
+11. **Swarm-verify (opt-in).** If armed per gates above, run swarm lanes at the pinned SHA per `REVIEW.md`. Findings → fix-forward within Review budget, re-pin, re-swarm. Skip with `swarm-verify skipped: default off` when not armed.
+12. **Ready.** Human merges. Never merge / auto-merge / mark ready yourself unless the user explicitly asked.
 
-Skip poteto Opening-a-PR / babysit playbooks when this skill already owns PR + CI + Review.
+Skip poteto Opening-a-PR / babysit / Autopilot-full/stack playbooks when this skill already owns PR + CI + Review (+ opt-in swarm).
 
 ## Token efficiency
 
@@ -77,8 +86,10 @@ Load supporting files only when that step runs.
 ok: true|false
 prUrl: <url or empty>
 branch: <name>
+headSha: <pinned sha or empty>
 verification: <commands + exit 0>
 pushed: true|false
+swarmVerify: skipped|clean|issues|blocked
 summary: <one line>
 blocker: <text if ok false>
 ```
@@ -91,18 +102,19 @@ blocker: <text if ok false>
 | Same session - upstream done | Skip completed |
 | New session - review only + open PR | Investigate if missing → rebuild Spec → Review |
 | New session - no Spec | Investigate → Spec → Implement |
-| PR open, CI incomplete | Wait CI, then Review |
-| Review pass + CI green | Stop - await human merge |
+| PR open, CI incomplete | Wait CI, then pin + Review |
+| Review pass + CI green + head matches pin (+ swarm clean if armed) | Stop - await human merge |
+| Pin voided by push | Re-check CI → re-pin → re-verify (and re-swarm if armed) |
 
 ## Stop early
 
 - User asked for one step
 - PR already ready - await merge
-- **Unrecoverable:** no Requirement; PR trust fail; verify fail after one fix cycle; CI fail after ≤3 fix+push (unless Out of scope); user withholds Requirement confirm; Review `/goal` fail after one fixable cycle
+- **Unrecoverable:** no Requirement; PR trust fail; verify fail after one fix cycle; CI fail after ≤3 fix+push (unless Out of scope); user withholds Requirement confirm; Review `/goal` fail after one fixable cycle; opt-in swarm blocked after one fixable cycle
 
 ## Output
 
-Issue id/URL, steps done, **PR link**, CI + Review summary. Reply per poteto-mode Writing the reply.
+Issue id/URL, steps done, **PR link**, `headSha`, CI + Review summary, swarm status when armed. Reply per poteto-mode Writing the reply.
 
 ## Supporting files
 
@@ -110,9 +122,9 @@ Issue id/URL, steps done, **PR link**, CI + Review summary. Reply per poteto-mod
 |------|------|
 | `ROLES.md` | Current role only |
 | `SPEC.md` / `RUBRIC.md` | Spec step |
-| `VERIFY.md` | Implement / verify / CI fix |
+| `VERIFY.md` | Implement / verify / CI fix / pin re-verify |
 | `SEQUENTIAL.md` | **Coders:** ≥ 2 |
-| `REVIEW.md` | Review `/goal` |
+| `REVIEW.md` | Review `/goal`, pin SHA, opt-in swarm |
 | `QUALITY-TRIGGERS.md` | Investigate always; others for flags |
 | `QUALITY-RULES.md` | Flagged `Rn` sections only |
 | `VISUAL-CAPTURE.md` | Review + UI in scope |
