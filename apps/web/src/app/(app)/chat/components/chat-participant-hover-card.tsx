@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, MessageCircle } from "lucide-react";
+import { ExternalLink, Loader2, MessageCircle } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -21,6 +22,10 @@ import {
   type ChatParticipantHoverProfile,
   presenceLabel,
 } from "./room-helpers";
+
+export function coworkerDetailHref(slug: string): string {
+  return `/agents?query=${encodeURIComponent(slug)}`;
+}
 
 interface ChatParticipantHoverCardProps {
   profile: ChatParticipantHoverProfile | null | undefined;
@@ -66,6 +71,10 @@ export function ChatParticipantHoverCard({
     canOpenHumanDirect,
     onOpenDirect,
   });
+  const coworkerProfileHref =
+    profile.kind === "coworker" && profile.slug
+      ? coworkerDetailHref(profile.slug)
+      : null;
 
   return (
     <HoverCard openDelay={200} closeDelay={100}>
@@ -113,7 +122,16 @@ export function ChatParticipantHoverCard({
           </div>
           <div className="min-w-0 flex-1 space-y-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
-              <p className="truncate text-sm font-semibold">{profile.name}</p>
+              {coworkerProfileHref ? (
+                <Link
+                  href={coworkerProfileHref}
+                  className="truncate text-sm font-semibold hover:underline"
+                >
+                  {profile.name}
+                </Link>
+              ) : (
+                <p className="truncate text-sm font-semibold">{profile.name}</p>
+              )}
               {profile.kind === "coworker" ? (
                 <AiCoworkerIcon className="size-3.5 shrink-0" />
               ) : null}
@@ -136,25 +154,43 @@ export function ChatParticipantHoverCard({
             </p>
           </div>
         </div>
-        {showOpenDirect ? (
-          <Button
-            type="button"
-            size="sm"
-            className="mt-3 w-full"
-            disabled={isOpeningDirect}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onOpenDirect?.(profile);
-            }}
-          >
-            {isOpeningDirect ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <MessageCircle className="size-4" aria-hidden />
-            )}
-            {t("openDirectMessage")}
-          </Button>
+        {showOpenDirect || coworkerProfileHref ? (
+          <div className="mt-3 flex flex-col gap-2">
+            {showOpenDirect ? (
+              <Button
+                type="button"
+                size="sm"
+                className="w-full"
+                disabled={isOpeningDirect}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onOpenDirect?.(profile);
+                }}
+              >
+                {isOpeningDirect ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <MessageCircle className="size-4" aria-hidden />
+                )}
+                {t("openDirectMessage")}
+              </Button>
+            ) : null}
+            {coworkerProfileHref ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full"
+                asChild
+              >
+                <Link href={coworkerProfileHref}>
+                  <ExternalLink className="size-4" aria-hidden />
+                  {t("viewCoworkerProfile")}
+                </Link>
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </HoverCardContent>
     </HoverCard>

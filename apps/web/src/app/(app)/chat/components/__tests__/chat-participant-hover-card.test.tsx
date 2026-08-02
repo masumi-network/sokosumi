@@ -12,12 +12,29 @@ vi.mock("next-intl", () => ({
       coworkerBadge: "AI coworker",
       humanBadge: "Human",
       openDirectMessage: "Message",
+      viewCoworkerProfile: "View profile",
       "Presence.online": "Online",
       "Presence.afk": "Away",
       "Presence.offline": "Offline",
     };
     return labels[key] ?? key;
   },
+}));
+
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...props
+  }: {
+    href: string;
+    children: ReactNode;
+    className?: string;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("@/components/ui/hover-card", () => ({
@@ -164,6 +181,38 @@ describe("ChatParticipantHoverCard", () => {
     await user.click(screen.getByRole("button", { name: "Message" }));
 
     expect(onOpenDirect).toHaveBeenCalledWith(coworkerProfile);
+  });
+
+  it("links coworkers to the agents gallery detail", () => {
+    render(
+      <ChatParticipantHoverCard profile={coworkerProfile}>
+        <span>Hannah</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    const profileLinks = screen.getAllByRole("link", {
+      name: /Hannah|View profile/,
+    });
+    expect(profileLinks.length).toBeGreaterThanOrEqual(1);
+    for (const link of profileLinks) {
+      expect(link).toHaveAttribute("href", "/agents?query=hannah");
+    }
+    expect(
+      screen.getByRole("link", { name: "View profile" }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not link humans to a coworker profile", () => {
+    render(
+      <ChatParticipantHoverCard profile={humanProfile}>
+        <span>Ada Lovelace</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "View profile" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders children only when profile is missing", () => {
