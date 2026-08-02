@@ -32,7 +32,10 @@ interface ChatParticipantHoverCardProps {
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
   onOpenDirect?: (profile: ChatParticipantHoverProfile) => void;
+  /** True while this participant's DM is being created/opened. */
   isOpeningDirect?: boolean;
+  /** True while any hover-card DM open is in flight (disables Message). */
+  isDirectActionBusy?: boolean;
 }
 
 export function ChatParticipantHoverCard({
@@ -46,6 +49,7 @@ export function ChatParticipantHoverCard({
   canOpenHumanDirect = false,
   onOpenDirect,
   isOpeningDirect = false,
+  isDirectActionBusy = false,
 }: ChatParticipantHoverCardProps) {
   const t = useTranslations("App.Channels");
 
@@ -73,6 +77,7 @@ export function ChatParticipantHoverCard({
         <button
           type="button"
           style={style}
+          aria-label={profile.name}
           className={cn(
             "relative inline-flex max-w-full cursor-pointer rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
             className,
@@ -131,7 +136,7 @@ export function ChatParticipantHoverCard({
             type="button"
             size="sm"
             className="mt-3 w-full"
-            disabled={isOpeningDirect}
+            disabled={isOpeningDirect || isDirectActionBusy}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();

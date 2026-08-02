@@ -1051,6 +1051,7 @@ export function ChatMessageRow({
   const isOpeningDirect = hoverProfile
     ? openingDirectParticipantKey === participantDirectKey(hoverProfile)
     : false;
+  const isDirectActionBusy = openingDirectParticipantKey != null;
   const isStreamOverlay = message.id.startsWith("stream:");
   const isDeleted = message.deletedAt != null;
   const isThinking =
@@ -1126,6 +1127,7 @@ export function ChatMessageRow({
           canOpenHumanDirect={canOpenHumanDirect}
           onOpenDirect={onOpenDirectMessage}
           isOpeningDirect={isOpeningDirect}
+          isDirectActionBusy={isDirectActionBusy}
         >
           <Avatar className="size-8">
             <AvatarImage src={sender.image ?? undefined} alt="" />
@@ -1152,6 +1154,7 @@ export function ChatMessageRow({
               canOpenHumanDirect={canOpenHumanDirect}
               onOpenDirect={onOpenDirectMessage}
               isOpeningDirect={isOpeningDirect}
+              isDirectActionBusy={isDirectActionBusy}
             >
               <span className="truncate text-sm font-semibold">
                 {sender.name}

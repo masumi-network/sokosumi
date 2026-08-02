@@ -166,6 +166,32 @@ describe("ChatParticipantHoverCard", () => {
     expect(onOpenDirect).toHaveBeenCalledWith(coworkerProfile);
   });
 
+  it("disables Message while another direct open is busy", () => {
+    render(
+      <ChatParticipantHoverCard
+        profile={coworkerProfile}
+        onOpenDirect={vi.fn()}
+        isDirectActionBusy
+      >
+        <span>Hannah</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    expect(screen.getByRole("button", { name: "Message" })).toBeDisabled();
+  });
+
+  it("names the avatar trigger with the participant name", () => {
+    render(
+      <ChatParticipantHoverCard profile={humanProfile}>
+        <span aria-hidden="true">avatar</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Ada Lovelace" }),
+    ).toBeInTheDocument();
+  });
+
   it("renders children only when profile is missing", () => {
     render(
       <ChatParticipantHoverCard profile={null}>

@@ -155,6 +155,7 @@ function RoomParticipantStack({
             isOpeningDirect={
               openingDirectKey === participantDirectKey(participant)
             }
+            isDirectActionBusy={openingDirectKey != null}
           >
             <Avatar className="border-background ring-border/60 size-6 border-2 shadow-xs ring-1 md:size-7">
               <AvatarImage src={participant.image ?? undefined} alt="" />
