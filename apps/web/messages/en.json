@@ -4839,6 +4839,12 @@
         "showMore": "More",
         "showLess": "Less"
       },
+      "Edit": {
+        "action": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "edited": "Edited"
+      },
       "MentionAll": {
         "label": "Everyone"
       },

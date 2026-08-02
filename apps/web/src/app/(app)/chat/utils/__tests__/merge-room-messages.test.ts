@@ -14,6 +14,7 @@ function message(id: string, createdAt: string, content = id): ChatRoomMessage {
     parentMessageId: null,
     content,
     createdAt: new Date(createdAt),
+    editedAt: null,
     sender: {
       type: "user",
       user: {
