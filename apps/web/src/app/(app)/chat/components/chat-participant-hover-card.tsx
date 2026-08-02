@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { CSSProperties, ReactNode } from "react";
 
@@ -150,7 +150,9 @@ export function ChatParticipantHoverCard({
           >
             {isOpeningDirect ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : null}
+            ) : (
+              <MessageCircle className="size-4" aria-hidden />
+            )}
             {t("openDirectMessage")}
           </Button>
         ) : null}
