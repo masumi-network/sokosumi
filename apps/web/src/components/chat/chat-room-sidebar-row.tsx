@@ -71,6 +71,7 @@ export function ChatRoomSidebarRow({
     unreadCount: room.unreadCount,
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
+    isMuted,
     isActive,
   });
 
