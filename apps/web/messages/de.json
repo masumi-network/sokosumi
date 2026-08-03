@@ -4707,7 +4707,8 @@
         "add": "Add reaction",
         "toggle": "React with {emoji}",
         "whoReacted": "{names}{more, plural, =0 {} other { und # weitere}}",
-        "andMore": "und {count} weitere"
+        "andMore": "und {count} weitere",
+        "whoReactedList": "Wer reagiert hat"
       },
       "Presence": {
         "online": "Online",
