@@ -4,7 +4,7 @@ export type BrowserNotificationPermission =
 
 export interface BrowserNotificationGateInput {
   permission: BrowserNotificationPermission;
-  documentHidden: boolean;
+  isDocumentFocused: boolean;
   isRead: boolean;
 }
 
@@ -34,32 +34,23 @@ export function getBrowserNotificationPermission(): BrowserNotificationPermissio
 
 export function shouldShowBrowserNotification({
   permission,
-  documentHidden,
+  isDocumentFocused,
   isRead,
 }: BrowserNotificationGateInput): boolean {
-  if (isRead) {
-    return false;
-  }
-
-  if (permission !== "granted") {
-    return false;
-  }
-
-  return documentHidden;
+  if (isRead) return false;
+  if (permission !== "granted") return false;
+  return !isDocumentFocused;
 }
 
 export function shouldShowInAppNotificationToast({
-  documentHidden,
+  isDocumentFocused,
   isRead,
 }: {
-  documentHidden: boolean;
+  isDocumentFocused: boolean;
   isRead: boolean;
 }): boolean {
-  if (isRead) {
-    return false;
-  }
-
-  return !documentHidden;
+  if (isRead) return false;
+  return isDocumentFocused;
 }
 
 export async function requestBrowserNotificationPermission(): Promise<BrowserNotificationPermission> {

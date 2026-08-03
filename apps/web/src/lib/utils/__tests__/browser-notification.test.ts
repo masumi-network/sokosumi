@@ -9,17 +9,7 @@ import {
 } from "@/lib/utils/browser-notification";
 
 describe("shouldShowBrowserNotification", () => {
-  it("shows only when granted, document unfocused, and unread", () => {
-    expect(
-      shouldShowBrowserNotification({
-        permission: "granted",
-        isDocumentFocused: false,
-        isRead: false,
-      }),
-    ).toBe(true);
-  });
-
-  it("shows when the tab is visible but unfocused (other app has OS focus)", () => {
+  it("shows when granted, unread, and document unfocused (including visible-but-unfocused)", () => {
     // Spec / product copy: "open but not focused" — not Page Visibility alone.
     expect(
       shouldShowBrowserNotification({
