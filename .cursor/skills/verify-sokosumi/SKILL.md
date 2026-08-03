@@ -114,8 +114,9 @@ Credentials (pick one):
 
 | Source | Email | Password | When |
 | --- | --- | --- | --- |
-| Cloud-agent fixtures | `alice@sokosumi.test` | `Password123!` | Neon `cloud-agent-*` branches after migrate/seed |
-| Cloud-agent admin | `admin@sokosumi.test` | `Password123!` | Admin UI `/admin` |
+| Cloud-agent fixtures | `alice@sokosumi.test` | `Password123!` | Neon `cloud-agent-*` branches after migrate/seed (owns org `alice-fixture`) |
+| Cloud-agent admin | `admin@sokosumi.test` | `Password123!` | Admin UI `/admin` (owns org `admin-fixture`) |
+| Cloud-agent bob | `bob@sokosumi.test` | `Password123!` | Second user (owns org `bob-fixture`) |
 | Local signup | unique `*@sokosumi.test` via `/signup` | choose once | Empty/local DB without fixtures |
 | Coworker vault | `agent-browser auth save sokosumi …` | machine-local | Personal accounts — never commit |
 
