@@ -4576,6 +4576,8 @@
         "markUnread": "Marquer comme non lu",
         "pin": "Épingler",
         "unpin": "Désépingler",
+        "mute": "Mettre en sourdine",
+        "unmute": "Réactiver les notifications",
         "roomMenu": "Actions du chat pour {name}",
         "actionFailed": "Impossible de mettre à jour ce chat. Réessayez."
       },

@@ -44,4 +44,16 @@ describe("resolveRoomAttention", () => {
       }),
     ).toEqual({ bold: true, badgeCount: 0 });
   });
+
+  it("suppresses bold and badge when the room is muted", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 5,
+        unreadMentionCount: 2,
+        markedUnread: true,
+        isMuted: true,
+        isActive: false,
+      }),
+    ).toEqual({ bold: false, badgeCount: 0 });
+  });
 });

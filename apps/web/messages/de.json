@@ -4576,6 +4576,8 @@
         "markUnread": "Als ungelesen markieren",
         "pin": "Anheften",
         "unpin": "Lösen",
+        "mute": "Stummschalten",
+        "unmute": "Stummschaltung aufheben",
         "roomMenu": "Chat-Aktionen für {name}",
         "actionFailed": "Dieser Chat konnte nicht aktualisiert werden. Bitte erneut versuchen."
       },

@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   createNotificationMock,
   workspaceFindUniqueMock,
+  membershipFindManyMock,
   captureExceptionMock,
 } = vi.hoisted(() => ({
   createNotificationMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
   captureExceptionMock: vi.fn(),
 }));
 
@@ -19,6 +21,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     workspace: {
       findUnique: workspaceFindUniqueMock,
+    },
+    chatRoomUserMember: {
+      findMany: membershipFindManyMock,
     },
   },
 }));
@@ -39,6 +44,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   createNotificationMock.mockResolvedValue({ created: true });
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
+  membershipFindManyMock.mockResolvedValue([]);
 });
 
 describe("emitChatMentionNotifications", () => {
@@ -53,6 +59,14 @@ describe("emitChatMentionNotifications", () => {
       mentionedUserIds: [MENTIONED_ID, OTHER_ID],
     });
 
+    expect(membershipFindManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: ROOM_ID,
+        userId: { in: [MENTIONED_ID, OTHER_ID] },
+        mutedAt: { not: null },
+      },
+      select: { userId: true },
+    });
     expect(workspaceFindUniqueMock).toHaveBeenCalledWith({
       where: { organizationId: "org_1" },
       select: { id: true },
@@ -78,6 +92,45 @@ describe("emitChatMentionNotifications", () => {
     );
   });
 
+  it("skips recipients who muted the room", async () => {
+    membershipFindManyMock.mockResolvedValue([{ userId: MENTIONED_ID }]);
+
+    await emitChatMentionNotifications({
+      roomId: ROOM_ID,
+      roomName: "general",
+      organizationId: "org_1",
+      messageId: MESSAGE_ID,
+      authorUserId: AUTHOR_ID,
+      authorName: "Patrick",
+      mentionedUserIds: [MENTIONED_ID, OTHER_ID],
+    });
+
+    expect(createNotificationMock).toHaveBeenCalledTimes(1);
+    expect(createNotificationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: OTHER_ID }),
+    );
+    expect(createNotificationMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ userId: MENTIONED_ID }),
+    );
+  });
+
+  it("no-ops when every remaining recipient muted the room", async () => {
+    membershipFindManyMock.mockResolvedValue([{ userId: MENTIONED_ID }]);
+
+    await emitChatMentionNotifications({
+      roomId: ROOM_ID,
+      roomName: "general",
+      organizationId: "org_1",
+      messageId: MESSAGE_ID,
+      authorUserId: AUTHOR_ID,
+      authorName: "Patrick",
+      mentionedUserIds: [MENTIONED_ID],
+    });
+
+    expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("filters the author and no-ops when nobody remains", async () => {
     await emitChatMentionNotifications({
       roomId: ROOM_ID,
@@ -90,6 +143,7 @@ describe("emitChatMentionNotifications", () => {
     });
 
     expect(createNotificationMock).not.toHaveBeenCalled();
+    expect(membershipFindManyMock).not.toHaveBeenCalled();
     expect(workspaceFindUniqueMock).not.toHaveBeenCalled();
   });
 

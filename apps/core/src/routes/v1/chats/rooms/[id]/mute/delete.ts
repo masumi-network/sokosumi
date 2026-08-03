@@ -31,14 +31,14 @@ const paramsSchema = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "delete",
-    path: "/{id}/pin",
-    description: "Unpin an organization chat room for the current user.",
+    path: "/{id}/mute",
+    description: "Unmute an organization chat room for the current user.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(chatRoomSchema, "Chat room unpinned"),
+      200: jsonSuccessResponse(chatRoomSchema, "Chat room unmuted"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
@@ -62,7 +62,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
           },
         },
-        data: { pinnedAt: null },
+        data: { mutedAt: null },
       });
 
       return room;
@@ -83,8 +83,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         mapChatRoom(room, userContext.userId, {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          pinnedAt: null,
-          mutedAt: flags?.mutedAt ?? null,
+          pinnedAt: flags?.pinnedAt ?? null,
+          mutedAt: null,
           markedUnread: flags?.markedUnread ?? false,
         }),
       ),

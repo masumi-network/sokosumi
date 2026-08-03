@@ -4695,6 +4695,8 @@
         "markUnread": "Mark as unread",
         "pin": "Pin",
         "unpin": "Unpin",
+        "mute": "Mute",
+        "unmute": "Unmute",
         "roomMenu": "Chat actions for {name}",
         "actionFailed": "Could not update this chat. Try again."
       },

@@ -80,4 +80,59 @@ describe("compareChatRoomsByRecentActivity", () => {
         .map((r) => r.id),
     ).toEqual(["earlier", "later"]);
   });
+
+  it("sorts unmuted rooms before muted rooms", () => {
+    const muted = {
+      id: "muted-newer",
+      updatedAt: "2026-08-03T18:00:00.000Z",
+      mutedAt: "2026-08-03T12:00:00.000Z",
+    };
+    const unmuted = {
+      id: "unmuted-older",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      mutedAt: null,
+    };
+
+    expect(
+      [muted, unmuted].sort(compareChatRoomsByRecentActivity).map((r) => r.id),
+    ).toEqual(["unmuted-older", "muted-newer"]);
+  });
+
+  it("keeps pin order among unmuted rooms and activity among muted", () => {
+    const mutedNewer = {
+      id: "muted-newer",
+      updatedAt: "2026-08-03T20:00:00.000Z",
+      mutedAt: "2026-08-03T12:00:00.000Z",
+      pinnedAt: null,
+    };
+    const mutedOlder = {
+      id: "muted-older",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      mutedAt: "2026-08-03T11:00:00.000Z",
+      pinnedAt: null,
+    };
+    const unmutedUnpinned = {
+      id: "unmuted-unpinned",
+      updatedAt: "2026-08-03T19:00:00.000Z",
+      mutedAt: null,
+      pinnedAt: null,
+    };
+    const unmutedPinned = {
+      id: "unmuted-pinned",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      mutedAt: null,
+      pinnedAt: "2026-08-03T09:00:00.000Z",
+    };
+
+    expect(
+      [mutedNewer, unmutedUnpinned, mutedOlder, unmutedPinned]
+        .sort(compareChatRoomsByRecentActivity)
+        .map((r) => r.id),
+    ).toEqual([
+      "unmuted-pinned",
+      "unmuted-unpinned",
+      "muted-newer",
+      "muted-older",
+    ]);
+  });
 });

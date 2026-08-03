@@ -4272,6 +4272,15 @@ export const ChatRoomSchema = {
             example: '2026-08-02T12:00:00.000Z',
             description: 'When the current user pinned this room in their sidebar. Null when unpinned.'
         },
+        mutedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-08-03T12:00:00.000Z',
+            description: 'When the current user muted this room in their sidebar. Null when unmuted.'
+        },
         markedUnread: {
             type: 'boolean',
             description: 'True when the current user marked this room unread. Cleared on mark-read.',
@@ -4304,6 +4313,7 @@ export const ChatRoomSchema = {
         'unreadCount',
         'unreadMentionCount',
         'pinnedAt',
+        'mutedAt',
         'markedUnread',
         'userMembers',
         'coworkerMembers'

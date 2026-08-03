@@ -220,6 +220,7 @@ export interface MapChatRoomAttentionOptions {
   /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
   lastActivityAt?: Date | null;
   pinnedAt?: Date | null;
+  mutedAt?: Date | null;
   markedUnread?: boolean;
 }
 
@@ -233,6 +234,7 @@ export function mapChatRoom(
     unreadMentionCount = 0,
     lastActivityAt,
     pinnedAt = null,
+    mutedAt = null,
     markedUnread = false,
   } = attention;
 
@@ -250,6 +252,7 @@ export function mapChatRoom(
     unreadCount,
     unreadMentionCount,
     pinnedAt,
+    mutedAt,
     markedUnread,
     userMembers: room.userMembers.map(({ user }) => ({
       id: user.id,
@@ -271,10 +274,11 @@ export function mapChatRoom(
 
 export interface ChatRoomSidebarFlags {
   pinnedAt: Date | null;
+  mutedAt: Date | null;
   markedUnread: boolean;
 }
 
-/** Batch-load per-user pin + forced-unread flags for sidebar mapping. */
+/** Batch-load per-user pin + mute + forced-unread flags for sidebar mapping. */
 export async function getChatRoomSidebarFlags(
   roomIds: readonly string[],
   userId: string,
@@ -294,6 +298,7 @@ export async function getChatRoomSidebarFlags(
       select: {
         roomId: true,
         pinnedAt: true,
+        mutedAt: true,
       },
     }),
     tx.chatRoomReadState.findMany({
@@ -311,7 +316,7 @@ export async function getChatRoomSidebarFlags(
   const flagged = new Map<string, ChatRoomSidebarFlags>(
     uniqueRoomIds.map((roomId) => [
       roomId,
-      { pinnedAt: null, markedUnread: false },
+      { pinnedAt: null, mutedAt: null, markedUnread: false },
     ]),
   );
 
@@ -319,6 +324,7 @@ export async function getChatRoomSidebarFlags(
     const current = flagged.get(membership.roomId);
     if (current) {
       current.pinnedAt = membership.pinnedAt;
+      current.mutedAt = membership.mutedAt;
     }
   }
 
@@ -330,6 +336,31 @@ export async function getChatRoomSidebarFlags(
   }
 
   return flagged;
+}
+
+/** mapChatRoom with per-user pin/mute/markedUnread loaded for the viewer. */
+export async function mapChatRoomWithSidebarFlags(
+  room: ChatRoomWithMembers,
+  userId: string,
+  tx: Prisma.TransactionClient,
+  attention: {
+    unreadCount?: number;
+    unreadMentionCount?: number;
+    lastActivityAt?: Date | null;
+  } = {},
+) {
+  const flags = (await getChatRoomSidebarFlags([room.id], userId, tx)).get(
+    room.id,
+  );
+
+  return mapChatRoom(room, userId, {
+    unreadCount: attention.unreadCount ?? 0,
+    unreadMentionCount: attention.unreadMentionCount ?? 0,
+    lastActivityAt: attention.lastActivityAt,
+    pinnedAt: flags?.pinnedAt ?? null,
+    mutedAt: flags?.mutedAt ?? null,
+    markedUnread: flags?.markedUnread ?? false,
+  });
 }
 
 export function mapChatRoomMessage(

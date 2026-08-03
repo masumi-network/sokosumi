@@ -14,7 +14,7 @@ import { restoredChatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
   canManageChatRoomLifecycle,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireArchivedChatRoomUserAccess,
   requireChatRoomUserAccess,
 } from "../../helpers";
@@ -114,7 +114,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userContext.userId,
         tx,
       );
-      return mapChatRoom(live, userContext.userId, {
+      return mapChatRoomWithSidebarFlags(live, userContext.userId, tx, {
         unreadCount: 0,
         unreadMentionCount: 0,
       });

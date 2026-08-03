@@ -89,6 +89,7 @@ import {
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
+  deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
   deleteChatsRoomsByIdPin as coreDeleteChatsRoomsByIdPin,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
@@ -219,6 +220,7 @@ import {
   postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
+  postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
   postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
@@ -658,6 +660,30 @@ export function createCoreClient(getClient: GetClient) {
           path: { id },
         }),
       "Failed to unpin chat room",
+    );
+  }
+
+  async function muteChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMute({
+          client,
+          path: { id },
+        }),
+      "Failed to mute chat room",
+    );
+  }
+
+  async function unmuteChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMute({
+          client,
+          path: { id },
+        }),
+      "Failed to unmute chat room",
     );
   }
 
@@ -3678,6 +3704,8 @@ export function createCoreClient(getClient: GetClient) {
     markChatRoomRead,
     pinChatRoom,
     unpinChatRoom,
+    muteChatRoom,
+    unmuteChatRoom,
     markChatRoomUnread,
     deleteChatRoomMessage,
     toggleChatRoomMessageReaction,
