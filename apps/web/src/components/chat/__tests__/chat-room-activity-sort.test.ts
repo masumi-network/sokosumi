@@ -62,7 +62,7 @@ describe("compareChatRoomsByRecentActivity", () => {
     ).toEqual(["older-pinned", "newer-unpinned"]);
   });
 
-  it("orders pinned rooms by pinnedAt descending", () => {
+  it("orders pinned rooms by pinnedAt ascending", () => {
     const pinnedEarlier = {
       id: "earlier",
       updatedAt: "2026-08-02T18:00:00.000Z",
@@ -78,6 +78,6 @@ describe("compareChatRoomsByRecentActivity", () => {
       [pinnedEarlier, pinnedLater]
         .sort(compareChatRoomsByRecentActivity)
         .map((r) => r.id),
-    ).toEqual(["later", "earlier"]);
+    ).toEqual(["earlier", "later"]);
   });
 });
