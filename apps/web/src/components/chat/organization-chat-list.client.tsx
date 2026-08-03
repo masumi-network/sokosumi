@@ -44,6 +44,11 @@ import {
   listOrganizationArchivedChatRoomsAction,
   listOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
+import {
+  applyRoomReadOverlays,
+  forgetRoomRead,
+  rememberRoomRead,
+} from "./room-read-overlay";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
@@ -241,7 +246,7 @@ export function OrganizationChatList({
   const tActions = useTranslations("App.Channels.Actions");
   const pathname = usePathname();
   const router = useRouter();
-  const [roomRows, setRoomRows] = useState(rooms);
+  const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
@@ -251,7 +256,7 @@ export function OrganizationChatList({
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
 
   useEffect(() => {
-    setRoomRows(rooms);
+    setRoomRows(applyRoomReadOverlays(rooms));
   }, [rooms]);
 
   useEffect(() => {
@@ -272,12 +277,16 @@ export function OrganizationChatList({
         return;
       }
       if (activeResult.ok) {
-        setRoomRows(activeResult.data);
+        setRoomRows(applyRoomReadOverlays(activeResult.data));
       }
       if (archivedResult.ok) {
         setArchivedRows(archivedResult.data);
       }
     };
+
+    // Mobile sheet remounts the list with stale RSC props; refresh immediately
+    // so overlays can drop once Core confirms the mark-read.
+    void refreshRooms();
 
     const intervalId = window.setInterval(
       refreshRooms,
@@ -301,16 +310,22 @@ export function OrganizationChatList({
         return;
       }
 
+      if (detail.room) {
+        rememberRoomRead(detail.room);
+      }
+
       setRoomRows((current) =>
-        current.map((room) =>
-          room.id === detail.roomId
-            ? (detail.room ?? {
-                ...room,
-                unreadCount: 0,
-                unreadMentionCount: 0,
-                markedUnread: false,
-              })
-            : room,
+        applyRoomReadOverlays(
+          current.map((room) =>
+            room.id === detail.roomId
+              ? (detail.room ?? {
+                  ...room,
+                  unreadCount: 0,
+                  unreadMentionCount: 0,
+                  markedUnread: false,
+                })
+              : room,
+          ),
         ),
       );
     };
@@ -330,7 +345,7 @@ export function OrganizationChatList({
       if (room) {
         setRoomRows((current) => {
           const without = current.filter((row) => row.id !== room.id);
-          return [room, ...without];
+          return applyRoomReadOverlays([room, ...without]);
         });
         setArchivedRows((current) =>
           current.filter((row) => row.id !== room.id),
@@ -348,7 +363,7 @@ export function OrganizationChatList({
           return;
         }
         if (activeResult.ok) {
-          setRoomRows(activeResult.data);
+          setRoomRows(applyRoomReadOverlays(activeResult.data));
         }
         if (archivedResult.ok) {
           setArchivedRows(archivedResult.data);
@@ -385,7 +400,7 @@ export function OrganizationChatList({
       setArchivedRows((current) => current.filter((row) => row.id !== room.id));
       setRoomRows((current) => {
         const without = current.filter((row) => row.id !== result.data.id);
-        return [result.data, ...without];
+        return applyRoomReadOverlays([result.data, ...without]);
       });
       router.push(`/chat/rooms/${result.data.id}`);
       router.refresh();
@@ -393,8 +408,15 @@ export function OrganizationChatList({
   }
 
   function handleRoomUpdated(updated: ChatRoom) {
+    if (updated.markedUnread) {
+      forgetRoomRead(updated.id);
+    } else if (updated.unreadCount === 0 && updated.unreadMentionCount === 0) {
+      rememberRoomRead(updated);
+    }
     setRoomRows((current) =>
-      current.map((room) => (room.id === updated.id ? updated : room)),
+      applyRoomReadOverlays(
+        current.map((room) => (room.id === updated.id ? updated : room)),
+      ),
     );
   }
 
