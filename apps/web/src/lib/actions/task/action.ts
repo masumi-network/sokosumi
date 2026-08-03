@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  buildAdHocDesignMdPrefix,
   hasActiveTaskSchedule,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
@@ -22,6 +23,7 @@ import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
+import { sanitizeTaskAttachmentLabel } from "@/lib/utils/task-attachments";
 import {
   hasTaskScheduleChanged,
   selectionToApiBody,
@@ -37,6 +39,10 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   assigneeId: string | null;
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
+  /** Attach this DESIGN.md instead of resolving the caller's own effective
+   * one — e.g. a task-scoped "use a different company's branding" pick.
+   * Ignored when `skipDesignMdAttachment` is true. */
+  designMdAttachmentOverride?: { label: string; url: string };
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
 }
@@ -94,6 +100,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   assigneeId: string | null;
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
+  designMdAttachmentOverride?: { label: string; url: string };
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
   relation: UserWritableTaskLinkRelation;
@@ -202,11 +209,45 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
   }
 }
 
+/**
+ * Ad hoc overrides are the only client-supplied DESIGN.md attach path.
+ * Description text is already freeform, but this gate still keeps the
+ * privileged prepend limited to https blobs under this user's ad hoc prefix
+ * and strips markdown-breaking brackets from the label.
+ */
+function resolveDesignMdAttachmentOverride(
+  override: { label: string; url: string },
+  userId: string,
+): { label: string; url: string } {
+  let parsed: URL;
+  try {
+    parsed = new URL(override.url.trim());
+  } catch {
+    throw new Error("Invalid DESIGN.md attachment URL");
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("DESIGN.md attachment URL must use https");
+  }
+
+  const expectedPathPrefix = `/${buildAdHocDesignMdPrefix(userId)}`;
+  if (!parsed.pathname.startsWith(expectedPathPrefix)) {
+    throw new Error("DESIGN.md attachment URL is not valid for this user");
+  }
+
+  return {
+    label: sanitizeTaskAttachmentLabel(override.label, "DESIGN.md"),
+    url: parsed.href,
+  };
+}
+
 async function createTaskFromDescription(input: {
   description: string;
   assigneeId: string | null;
   projectId?: string | null;
+  userId: string;
   skipDesignMdAttachment?: boolean;
+  designMdAttachmentOverride?: { label: string; url: string };
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
 }): Promise<Task> {
@@ -218,7 +259,15 @@ async function createTaskFromDescription(input: {
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
   const descriptionWithDesignMd = input.skipDesignMdAttachment
     ? trimmedDescription
-    : await designMdService.appendDesignMdToDescription(trimmedDescription);
+    : input.designMdAttachmentOverride
+      ? designMdService.withDesignMdAttachment(
+          trimmedDescription,
+          resolveDesignMdAttachmentOverride(
+            input.designMdAttachmentOverride,
+            input.userId,
+          ),
+        )
+      : await designMdService.appendDesignMdToDescription(trimmedDescription);
 
   const task = await taskService.createTask({
     description: descriptionWithDesignMd,
@@ -367,6 +416,7 @@ export const createTask = withSession<
     projectId,
     session,
     skipDesignMdAttachment,
+    designMdAttachmentOverride,
     status,
     schedule,
   }) => {
@@ -375,7 +425,9 @@ export const createTask = withSession<
         description,
         assigneeId,
         projectId,
+        userId: session.user.id,
         skipDesignMdAttachment,
+        designMdAttachmentOverride,
         status,
         schedule,
       });
@@ -704,6 +756,7 @@ export const createTaskAndLink = withSession<
     session,
     status,
     skipDesignMdAttachment,
+    designMdAttachmentOverride,
     schedule,
     relation,
     note,
@@ -721,7 +774,9 @@ export const createTaskAndLink = withSession<
         description,
         assigneeId,
         projectId,
+        userId: session.user.id,
         skipDesignMdAttachment,
+        designMdAttachmentOverride,
         status,
         schedule,
       });

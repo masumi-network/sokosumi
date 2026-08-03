@@ -1814,6 +1814,18 @@
         "files": "Ficheiros"
       },
       "NewTask": {
+        "DesignMdAttachment": {
+          "organizationLabel": "Design de marca da {organization}",
+          "personalLabel": "O teu design de marca",
+          "customLabel": "Design de marca de {hostname}",
+          "tooltip": "O DESIGN.md é um guia de marca já criado para a {organization} pelo seu proprietário. Anexá-lo aqui ajuda este agente a aplicar a tua marca automaticamente.",
+          "tooltipPersonal": "O DESIGN.md é um guia de marca que já criaste. Anexá-lo aqui ajuda este agente a aplicar a tua marca automaticamente.",
+          "tooltipCustom": "DESIGN.md gerado a partir de {hostname} apenas para esta tarefa. Anexá-lo aqui ajuda este agente a aplicar essa marca. Nada é guardado no teu perfil.",
+          "learnMore": "Saber mais sobre o DESIGN.md",
+          "infoAria": "Sobre este anexo",
+          "useDifferentBranding": "Usar outra marca",
+          "resetToDefault": "Repor a marca"
+        },
         "title": "Nova tarefa",
         "details": "Detalhes",
         "detailsDescription": "Explique brevemente a tarefa que tem de ser feita",
@@ -4342,6 +4354,11 @@
       "allAgentsSubtitle": "Todos os agentes no Sokosumi, agrupados pelo que fazem."
     },
     "DesignMd": {
+      "adHocDialogTitle": "Usar uma marca diferente",
+      "adHocDialogDescription": "Introduz o website de outra empresa e o Masumi vai gerar um guia de marca DESIGN.md apenas para esta tarefa. Nada é guardado no teu perfil.",
+      "adHocUrlLabel": "Website da empresa",
+      "adHocUrlPlaceholder": "https://exemplo.com",
+      "adHocMissingUrl": "Introduz primeiro um URL de website.",
       "title": "DESIGN.md",
       "statusReady": "Pronto",
       "statusEmpty": "Não definido",

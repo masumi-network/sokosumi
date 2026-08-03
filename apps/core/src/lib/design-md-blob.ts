@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 
 import * as Sentry from "@sentry/node";
 import {
+  buildAdHocDesignMdPathname,
   buildOrganizationDesignMdPathname,
   buildUserDesignMdPathname,
 } from "@sokosumi/utils";
@@ -11,7 +12,10 @@ import { getEnv } from "@/config/env";
 
 export interface UploadDesignMdContentOptions {
   content: string;
-  owner: { kind: "user"; id: string } | { kind: "organization"; id: string };
+  owner:
+    | { kind: "user"; id: string }
+    | { kind: "organization"; id: string }
+    | { kind: "adhoc"; id: string };
   extractionId?: string | null;
 }
 
@@ -48,6 +52,9 @@ export async function uploadDesignMdContent({
       break;
     case "organization":
       pathname = buildOrganizationDesignMdPathname(owner.id, fileName);
+      break;
+    case "adhoc":
+      pathname = buildAdHocDesignMdPathname(owner.id, fileName);
       break;
     default: {
       const _exhaustive: never = owner;

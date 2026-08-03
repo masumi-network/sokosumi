@@ -3,6 +3,28 @@ import { z } from "@hono/zod-openapi";
 import { LIMITS } from "@/config/constants";
 
 /**
+ * Which profile the effective DESIGN.md actually resolved from. The web app
+ * needs this to label the attachment correctly (an organization's name, or a
+ * generic "your" wording for the personal fallback) without re-deriving the
+ * same organization-membership resolution Core already did.
+ */
+export const designMdOwnerInfoSchema = z
+  .discriminatedUnion("type", [
+    z.object({
+      type: z.literal("organization"),
+      name: z.string().openapi({ example: "Acme Inc" }),
+      logo: z
+        .string()
+        .nullable()
+        .openapi({ example: "https://blob.example/logo.png" }),
+    }),
+    z.object({ type: z.literal("user") }),
+  ])
+  .openapi("DesignMdOwnerInfo");
+
+export type DesignMdOwnerInfo = z.infer<typeof designMdOwnerInfoSchema>;
+
+/**
  * The DESIGN.md attachment that is currently in effect for a user.
  *
  * Resolution prefers the active organization's DESIGN.md (when the user is a
@@ -20,6 +42,7 @@ export const effectiveDesignMdSchema = z
           example: "https://blob.example/design.md",
           description: "Public blob URL of the DESIGN.md attachment",
         }),
+        owner: designMdOwnerInfoSchema,
       })
       .nullable()
       .openapi({ description: "The effective DESIGN.md, or null when none" }),
@@ -85,3 +108,53 @@ export const persistedDesignMdSchema = z
   .openapi("PersistedDesignMd");
 
 export type PersistedDesignMd = z.infer<typeof persistedDesignMdSchema>;
+
+/**
+ * Request body for storing an ad hoc DESIGN.md: content generated for one
+ * task, not attached to any user's or organization's profile. Unlike
+ * {@link designMdWriteSchema}, `content` is never null — there is nothing to
+ * "clear" for a value that was never persisted anywhere.
+ */
+export const adHocDesignMdWriteSchema = z
+  .object({
+    content: z
+      .string()
+      .refine((value) => value.trim().length > 0, "DESIGN.md must not be empty")
+      .refine(
+        (value) =>
+          Buffer.byteLength(value, "utf8") <= LIMITS.DESIGN_MD_MAX_SIZE_BYTES,
+        `DESIGN.md exceeds the maximum size of ${LIMITS.DESIGN_MD_MAX_SIZE_BYTES} bytes`,
+      )
+      .openapi({
+        example: "# DESIGN.md\n\nBrand guidelines…",
+        description: "DESIGN.md markdown to store",
+      }),
+    extractionId: z.string().nullable().openapi({
+      example: "12345",
+      description: "Extraction id of the generated DESIGN.md, when known",
+    }),
+  })
+  .openapi("AdHocDesignMdWrite");
+
+export type AdHocDesignMdWrite = z.infer<typeof adHocDesignMdWriteSchema>;
+
+/**
+ * Result of storing an ad hoc DESIGN.md. Always non-null — an ad hoc store
+ * never clears anything, it only ever creates a fresh blob.
+ */
+export const adHocDesignMdSchema = z
+  .object({
+    designMd: z.object({
+      url: z.string().openapi({
+        example: "https://blob.example/design.md",
+        description: "Public blob URL of the stored DESIGN.md",
+      }),
+      extractionId: z.string().nullable().openapi({
+        example: "12345",
+        description: "Extraction id of the stored DESIGN.md, when known",
+      }),
+    }),
+  })
+  .openapi("AdHocDesignMd");
+
+export type AdHocDesignMd = z.infer<typeof adHocDesignMdSchema>;

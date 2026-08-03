@@ -22,8 +22,8 @@ import { DesignMdGenerateDialog } from "./design-md-generate-dialog";
 import { DesignMdUploadTrigger } from "./design-md-upload-trigger";
 import {
   DESIGN_MD_TRANSLATION_NAMESPACE,
-  type DesignMdOwner,
   type DesignMdProfileValue,
+  type ManageableDesignMdOwner,
 } from "./types";
 
 interface DesignMdProfileSectionProps {
@@ -31,7 +31,7 @@ interface DesignMdProfileSectionProps {
   className?: string;
   editHref?: null | string;
   onValueChange?: (value?: DesignMdProfileValue) => void;
-  owner: DesignMdOwner;
+  owner: ManageableDesignMdOwner;
   value?: DesignMdProfileValue;
   websiteUrl?: null | string;
 }

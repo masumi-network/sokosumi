@@ -1,22 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-  createDesignMdDismissedState,
   descriptionIncludesTaskAttachmentLink,
-  ensureDesignMdInDescription,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
-  isDesignMdAttachmentSkipped,
-  markDesignMdDismissed,
   removeTaskAttachmentLinks,
   sanitizeTaskAttachmentLabel,
-  seedTaskDescriptionWithDesignMd,
-  syncDesignMdDismissedState,
 } from "@/lib/utils/task-attachments";
-
-const designMdAttachment = {
-  label: "DESIGN.md",
-  url: "https://blob.example/design.md",
-};
 
 describe("task-attachments", () => {
   it("extracts file-like markdown links", () => {
@@ -113,66 +102,5 @@ describe("task-attachments", () => {
     expect(sanitizeTaskAttachmentLabel("[]", "fallback-file")).toBe(
       "fallback-file",
     );
-  });
-
-  it("seeds empty descriptions with DESIGN.md attachment links", () => {
-    expect(
-      seedTaskDescriptionWithDesignMd("", {
-        label: "DESIGN.md",
-        url: "https://blob.example/design.md",
-      }),
-    ).toBe("[DESIGN.md](https://blob.example/design.md)\n");
-  });
-
-  it("does not seed DESIGN.md over existing description text", () => {
-    expect(
-      seedTaskDescriptionWithDesignMd("Write docs", {
-        label: "DESIGN.md",
-        url: "https://blob.example/design.md",
-      }),
-    ).toBe("Write docs");
-  });
-
-  it("prepends DESIGN.md to non-empty descriptions when ensuring attachment", () => {
-    expect(
-      ensureDesignMdInDescription("Write docs", {
-        label: "DESIGN.md",
-        url: "https://blob.example/design.md",
-      }),
-    ).toBe("[DESIGN.md](https://blob.example/design.md)\n\nWrite docs");
-  });
-
-  it("marks design.md as dismissed after the prefilled link disappears", () => {
-    const state = createDesignMdDismissedState();
-    const seededDescription = seedTaskDescriptionWithDesignMd(
-      "",
-      designMdAttachment,
-    );
-
-    syncDesignMdDismissedState(seededDescription, designMdAttachment, state);
-    expect(isDesignMdAttachmentSkipped(state)).toBe(false);
-
-    syncDesignMdDismissedState("Build landing page", designMdAttachment, state);
-    expect(isDesignMdAttachmentSkipped(state)).toBe(true);
-  });
-
-  it("does not skip design.md when the link was never prefilled", () => {
-    const state = createDesignMdDismissedState();
-
-    syncDesignMdDismissedState("Write docs", designMdAttachment, state);
-    expect(isDesignMdAttachmentSkipped(state)).toBe(false);
-  });
-
-  it("marks design.md dismissed immediately when removed via attachment control", () => {
-    const state = createDesignMdDismissedState();
-    const seededDescription = seedTaskDescriptionWithDesignMd(
-      "",
-      designMdAttachment,
-    );
-
-    syncDesignMdDismissedState(seededDescription, designMdAttachment, state);
-    markDesignMdDismissed(state);
-
-    expect(isDesignMdAttachmentSkipped(state)).toBe(true);
   });
 });

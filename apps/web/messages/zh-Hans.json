@@ -1814,6 +1814,18 @@
         "files": "文件"
       },
       "NewTask": {
+        "DesignMdAttachment": {
+          "organizationLabel": "{organization} 品牌设计",
+          "personalLabel": "你的品牌设计",
+          "customLabel": "{hostname} 品牌设计",
+          "tooltip": "DESIGN.md 是所有者已为 {organization} 创建的品牌指南。在此附加它可帮助该智能体自动应用你的品牌。",
+          "tooltipPersonal": "DESIGN.md 是你已创建的品牌指南。在此附加它可帮助该智能体自动应用你的品牌。",
+          "tooltipCustom": "这是从 {hostname} 为此任务单独生成的 DESIGN.md。在此附加它可帮助该智能体应用该品牌。不会保存到你的个人资料。",
+          "learnMore": "了解更多关于 DESIGN.md 的信息",
+          "infoAria": "关于此附件",
+          "useDifferentBranding": "使用其他品牌",
+          "resetToDefault": "重置品牌"
+        },
         "title": "新建任务",
         "details": "详情",
         "detailsDescription": "简要说明需要完成的任务",
@@ -4342,6 +4354,11 @@
       "allAgentsSubtitle": "Sokosumi 上的全部智能体，按它们擅长的工作分类。"
     },
     "DesignMd": {
+      "adHocDialogTitle": "使用其他品牌",
+      "adHocDialogDescription": "输入另一家公司的网站，Masumi 将仅为此任务生成一份 DESIGN.md 品牌指南。不会保存到你的个人资料中。",
+      "adHocUrlLabel": "公司网站",
+      "adHocUrlPlaceholder": "https://example.com",
+      "adHocMissingUrl": "请先输入网站 URL。",
       "title": "DESIGN.md",
       "statusReady": "就绪",
       "statusEmpty": "未设置",

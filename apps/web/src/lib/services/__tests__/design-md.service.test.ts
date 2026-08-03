@@ -45,6 +45,7 @@ const getWorkspaceDesignMdMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
 const setMyDesignMdMock = vi.fn();
 const setOrganizationDesignMdMock = vi.fn();
+const storeAdHocDesignMdMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
@@ -55,6 +56,7 @@ vi.mock("@/lib/clients/core.client", () => ({
     setMyDesignMd: (...args: unknown[]) => setMyDesignMdMock(...args),
     setOrganizationDesignMd: (...args: unknown[]) =>
       setOrganizationDesignMdMock(...args),
+    storeAdHocDesignMd: (...args: unknown[]) => storeAdHocDesignMdMock(...args),
   },
 }));
 
@@ -91,6 +93,14 @@ describe("designMdService", () => {
       data: {
         designMd: {
           url: "https://blob.example/design-md/42-hash.md",
+          extractionId: "42",
+        },
+      },
+    });
+    storeAdHocDesignMdMock.mockResolvedValue({
+      data: {
+        designMd: {
+          url: "https://blob.example/design-md/adhoc/user-1/42-hash.md",
           extractionId: "42",
         },
       },
@@ -216,6 +226,83 @@ describe("designMdService", () => {
     });
   });
 
+  it("stores ad hoc generation on the adhoc blob path, never a profile write", async () => {
+    submitMock.mockResolvedValue(
+      ok({
+        designMd: "# Competitor brand",
+        extractionId: 99,
+        status: "done",
+      }),
+    );
+
+    const { designMdService } = await import("../design-md.service");
+    const started = await designMdService.startDesignMdGeneration(
+      session,
+      { type: "adhoc" },
+      "https://competitor.example",
+    );
+
+    expect(started).toEqual({
+      kind: "completed",
+      data: {
+        extractionId: "42",
+        previewUrl: "https://www.masumi.example/tools/design-md?cached=42",
+        url: "https://blob.example/design-md/adhoc/user-1/42-hash.md",
+      },
+    });
+    expect(storeAdHocDesignMdMock).toHaveBeenCalledWith({
+      content: "# Competitor brand",
+      extractionId: "99",
+    });
+    expect(setMyDesignMdMock).not.toHaveBeenCalled();
+    expect(setOrganizationDesignMdMock).not.toHaveBeenCalled();
+    expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
+  });
+
+  it("finalizes queued ad hoc jobs via storeAdHocDesignMd", async () => {
+    submitMock.mockResolvedValue(
+      ok({
+        jobId: "job_adhoc",
+        status: "queued",
+      }),
+    );
+    pollJobMock.mockResolvedValue(
+      ok({
+        designMd: "# Ad hoc brand",
+        extractionId: 7,
+        status: "done",
+      }),
+    );
+
+    const { designMdService } = await import("../design-md.service");
+    const started = await designMdService.startDesignMdGeneration(
+      session,
+      { type: "adhoc" },
+      "https://competitor.example",
+    );
+
+    if (started.kind !== "queued") {
+      throw new Error("Expected queued job");
+    }
+
+    const persisted = await designMdService.finalizeAndPersistDesignMd(
+      session,
+      { type: "adhoc" },
+      started.jobId,
+      started.jobToken,
+    );
+
+    expect(storeAdHocDesignMdMock).toHaveBeenCalledWith({
+      content: "# Ad hoc brand",
+      extractionId: "7",
+    });
+    expect(setMyDesignMdMock).not.toHaveBeenCalled();
+    expect(setOrganizationDesignMdMock).not.toHaveBeenCalled();
+    expect(persisted.url).toBe(
+      "https://blob.example/design-md/adhoc/user-1/42-hash.md",
+    );
+  });
+
   it("requires organization admin access for organization owners", async () => {
     getMyMemberInOrganizationMock.mockResolvedValue({
       data: { role: MemberRole.MEMBER },
@@ -306,6 +393,7 @@ describe("designMdService", () => {
         designMd: {
           label: "DESIGN.md",
           url: "https://blob.example/org-design.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
         },
       },
     });
@@ -317,6 +405,7 @@ describe("designMdService", () => {
     expect(designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/org-design.md",
+      owner: { type: "organization", name: "Acme Inc", logo: null },
     });
   });
 
@@ -337,6 +426,7 @@ describe("designMdService", () => {
         designMd: {
           label: "DESIGN.md",
           url: "https://blob.example/user-design.md",
+          owner: { type: "user" },
         },
       },
     });
@@ -356,7 +446,13 @@ describe("designMdService", () => {
   it("does not duplicate design.md links when the url needs markdown escaping", async () => {
     const designMdUrl = "https://blob.example/user-design).md";
     getWorkspaceDesignMdMock.mockResolvedValue({
-      data: { designMd: { label: "DESIGN.md", url: designMdUrl } },
+      data: {
+        designMd: {
+          label: "DESIGN.md",
+          url: designMdUrl,
+          owner: { type: "user" },
+        },
+      },
     });
 
     const { designMdService } = await import("../design-md.service");

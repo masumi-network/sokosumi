@@ -12887,6 +12887,60 @@ export const CreateVendorLogoUploadRequestSchema = {
     ]
 } as const;
 
+export const AdHocDesignMdSchema = {
+    type: 'object',
+    properties: {
+        designMd: {
+            type: 'object',
+            properties: {
+                url: {
+                    type: 'string',
+                    example: 'https://blob.example/design.md',
+                    description: 'Public blob URL of the stored DESIGN.md'
+                },
+                extractionId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: '12345',
+                    description: 'Extraction id of the stored DESIGN.md, when known'
+                }
+            },
+            required: [
+                'url',
+                'extractionId'
+            ]
+        }
+    },
+    required: [
+        'designMd'
+    ]
+} as const;
+
+export const AdHocDesignMdWriteSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string',
+            example: '# DESIGN.md\n\nBrand guidelines…',
+            description: 'DESIGN.md markdown to store'
+        },
+        extractionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: '12345',
+            description: 'Extraction id of the generated DESIGN.md, when known'
+        }
+    },
+    required: [
+        'content',
+        'extractionId'
+    ]
+} as const;
+
 export const EffectiveDesignMdSchema = {
     type: 'object',
     properties: {
@@ -12905,17 +12959,67 @@ export const EffectiveDesignMdSchema = {
                     type: 'string',
                     example: 'https://blob.example/design.md',
                     description: 'Public blob URL of the DESIGN.md attachment'
+                },
+                owner: {
+                    $ref: '#/components/schemas/DesignMdOwnerInfo'
                 }
             },
             required: [
                 'label',
-                'url'
+                'url',
+                'owner'
             ],
             description: 'The effective DESIGN.md, or null when none'
         }
     },
     required: [
         'designMd'
+    ]
+} as const;
+
+export const DesignMdOwnerInfoSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'organization'
+                    ]
+                },
+                name: {
+                    type: 'string',
+                    example: 'Acme Inc'
+                },
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://blob.example/logo.png'
+                }
+            },
+            required: [
+                'type',
+                'name',
+                'logo'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'user'
+                    ]
+                }
+            },
+            required: [
+                'type'
+            ]
+        }
     ]
 } as const;
 
