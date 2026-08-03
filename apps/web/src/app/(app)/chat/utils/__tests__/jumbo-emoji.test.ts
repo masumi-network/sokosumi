@@ -72,9 +72,9 @@ describe("getJumboEmojiCount", () => {
 
 describe("jumboEmojiClassName", () => {
   it("scales down as count grows", () => {
-    expect(jumboEmojiClassName(1)).toContain("text-5xl");
-    expect(jumboEmojiClassName(3)).toContain("text-4xl");
-    expect(jumboEmojiClassName(6)).toContain("text-3xl");
-    expect(jumboEmojiClassName(10)).toContain("text-2xl");
+    expect(jumboEmojiClassName(1)).toContain("text-4xl");
+    expect(jumboEmojiClassName(3)).toContain("text-3xl");
+    expect(jumboEmojiClassName(6)).toContain("text-2xl");
+    expect(jumboEmojiClassName(10)).toContain("text-xl");
   });
 });

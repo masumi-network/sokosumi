@@ -741,7 +741,7 @@ describe("ChatMessageRow", () => {
 
     const body = screen.getByTestId("room-message-body");
     expect(body).toHaveAttribute("data-jumbo-emoji", "1");
-    expect(body.className).toContain("text-5xl");
+    expect(body.className).toContain("text-4xl");
     expect(body.className).not.toContain("line-clamp-[16]");
   });
 
@@ -752,7 +752,7 @@ describe("ChatMessageRow", () => {
 
     const body = screen.getByTestId("room-message-body");
     expect(body).not.toHaveAttribute("data-jumbo-emoji");
-    expect(body.className).not.toContain("text-5xl");
+    expect(body.className).not.toContain("text-4xl");
   });
 
   it("hides Show more when the message body does not overflow", () => {

@@ -58,13 +58,13 @@ export function getJumboEmojiCount(content: string): number | null {
 /** Tailwind size class for a jumbo emoji count (larger when fewer emoji). */
 export function jumboEmojiClassName(count: number): string {
   if (count <= 1) {
-    return "text-5xl leading-none";
-  }
-  if (count <= 3) {
     return "text-4xl leading-none";
   }
-  if (count <= 6) {
-    return "text-3xl leading-snug";
+  if (count <= 3) {
+    return "text-3xl leading-none";
   }
-  return "text-2xl leading-snug";
+  if (count <= 6) {
+    return "text-2xl leading-snug";
+  }
+  return "text-xl leading-snug";
 }
