@@ -13,6 +13,10 @@ export const designMdOwnerInfoSchema = z
     z.object({
       type: z.literal("organization"),
       name: z.string().openapi({ example: "Acme Inc" }),
+      logo: z
+        .string()
+        .nullable()
+        .openapi({ example: "https://blob.example/logo.png" }),
     }),
     z.object({ type: z.literal("user") }),
   ])

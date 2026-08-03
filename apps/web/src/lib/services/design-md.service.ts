@@ -51,7 +51,7 @@ export interface PersistedDesignMd {
 }
 
 export type EffectiveDesignMdOwner =
-  | { type: "organization"; name: string }
+  | { type: "organization"; name: string; logo: string | null }
   | { type: "user" };
 
 export interface EffectiveDesignMdAttachment {

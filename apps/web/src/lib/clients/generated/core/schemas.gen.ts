@@ -12991,11 +12991,19 @@ export const DesignMdOwnerInfoSchema = {
                 name: {
                     type: 'string',
                     example: 'Acme Inc'
+                },
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'https://blob.example/logo.png'
                 }
             },
             required: [
                 'type',
-                'name'
+                'name',
+                'logo'
             ]
         },
         {

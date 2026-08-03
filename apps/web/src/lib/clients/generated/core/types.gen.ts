@@ -3831,6 +3831,7 @@ export type EffectiveDesignMd = {
 export type DesignMdOwnerInfo = {
     type: 'organization';
     name: string;
+    logo: string | null;
 } | {
     type: 'user';
 };

@@ -714,7 +714,7 @@ describe("TaskForm", () => {
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
-          owner: { type: "organization", name: "Acme Inc" },
+          owner: { type: "organization", name: "Acme Inc", logo: null },
         }}
         onSuccess={vi.fn()}
       />,
@@ -740,7 +740,7 @@ describe("TaskForm", () => {
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
-          owner: { type: "organization", name: "Acme Inc" },
+          owner: { type: "organization", name: "Acme Inc", logo: null },
         }}
         onSuccess={vi.fn()}
       />,
@@ -765,7 +765,7 @@ describe("TaskForm", () => {
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
-          owner: { type: "organization", name: "Acme Inc" },
+          owner: { type: "organization", name: "Acme Inc", logo: null },
         }}
         onSuccess={vi.fn()}
       />,
@@ -806,7 +806,7 @@ describe("TaskForm", () => {
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
-          owner: { type: "organization", name: "Acme Inc" },
+          owner: { type: "organization", name: "Acme Inc", logo: null },
         }}
         onSuccess={vi.fn()}
       />,

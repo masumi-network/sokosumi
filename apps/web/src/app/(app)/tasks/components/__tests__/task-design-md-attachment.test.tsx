@@ -28,10 +28,42 @@ vi.mock("@/components/design-md", () => ({
   },
 }));
 
+// Radix's AvatarImage and Favicon's <img> both gate rendering on a real
+// image-load event that never fires in this DOM test environment, so
+// asserting on the resulting <img> is untestable here — stub each down to
+// its `src`/`sources` prop instead, which is the part this component
+// actually controls.
+vi.mock("@/components/ui/avatar", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/ui/avatar")>();
+  return {
+    ...actual,
+    AvatarImage: (props: { src?: string; alt?: string }) => (
+      <img data-testid="avatar-image" src={props.src} alt={props.alt} />
+    ),
+  };
+});
+
+vi.mock("@/components/ui/favicon", () => ({
+  Favicon: (props: { sources: string[]; alt?: string }) => (
+    <img data-testid="favicon-image" src={props.sources[0]} alt={props.alt} />
+  ),
+}));
+
 const organizationAttachment: EffectiveDesignMdAttachment = {
   label: "DESIGN.md",
   url: "https://blob.example/org.md",
-  owner: { type: "organization", name: "Acme Inc" },
+  owner: { type: "organization", name: "Acme Inc", logo: null },
+};
+
+const organizationAttachmentWithLogo: EffectiveDesignMdAttachment = {
+  label: "DESIGN.md",
+  url: "https://blob.example/org.md",
+  owner: {
+    type: "organization",
+    name: "Acme Inc",
+    logo: "https://blob.example/logo.png",
+  },
 };
 
 const personalAttachment: EffectiveDesignMdAttachment = {
@@ -55,6 +87,55 @@ describe("TaskDesignMdAttachmentField", () => {
         name: 'organizationLabel:{"organization":"Acme Inc"}',
       }),
     ).toBeChecked();
+  });
+
+  it("shows the organization's initial when it has no logo", () => {
+    render(
+      <TaskDesignMdAttachmentField
+        defaultAttachment={organizationAttachment}
+        selection={{ enabled: true, custom: null }}
+        onSelectionChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("A")).toBeInTheDocument();
+  });
+
+  it("renders an avatar image sourced from the organization's logo", () => {
+    render(
+      <TaskDesignMdAttachmentField
+        defaultAttachment={organizationAttachmentWithLogo}
+        selection={{ enabled: true, custom: null }}
+        onSelectionChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("avatar-image")).toHaveAttribute(
+      "src",
+      "https://blob.example/logo.png",
+    );
+  });
+
+  it("shows a favicon avatar for the swapped-in company", () => {
+    render(
+      <TaskDesignMdAttachmentField
+        defaultAttachment={organizationAttachment}
+        selection={{
+          enabled: true,
+          custom: {
+            label: "DESIGN.md",
+            url: "https://blob.example/adhoc.md",
+            sourceUrl: "https://competitor.com",
+          },
+        }}
+        onSelectionChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("favicon-image")).toHaveAttribute(
+      "src",
+      "https://competitor.com/favicon.ico",
+    );
   });
 
   it("falls back to the personal label when there is no organization owner", () => {

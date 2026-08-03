@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Info } from "lucide-react";
+import { ExternalLink, FileText, Globe, Info, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -8,7 +8,10 @@ import {
   type DesignMdAdHocAttachment,
   DesignMdAdHocDialog,
 } from "@/components/design-md";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Favicon } from "@/components/ui/favicon";
 import {
   HoverCard,
   HoverCardContent,
@@ -16,6 +19,7 @@ import {
 } from "@/components/ui/hover-card";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import { cn } from "@/lib/utils";
+import { buildFaviconCandidates } from "@/lib/utils/url";
 
 const DESIGN_MD_LEARN_MORE_URL =
   "https://github.com/google-labs-code/design.md";
@@ -69,14 +73,50 @@ export function TaskDesignMdAttachmentField({
       ? t("tooltip", { organization: defaultAttachment.owner.name })
       : t("tooltipPersonal");
 
+  // The leading avatar doubles as a state readout: it always reflects whose
+  // branding is currently selected, so swapping branding is visible at a
+  // glance instead of only being spelled out in the label/action text.
+  const avatar = selection.custom ? (
+    <span className="bg-muted flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full">
+      <Favicon
+        sources={buildFaviconCandidates(selection.custom.sourceUrl)}
+        alt=""
+        size={20}
+        className="rounded-full"
+        fallback={
+          <Globe className="text-muted-foreground size-3.5" aria-hidden />
+        }
+      />
+    </span>
+  ) : defaultAttachment.owner.type === "organization" ? (
+    <Avatar className="size-6">
+      {defaultAttachment.owner.logo ? (
+        <AvatarImage
+          src={defaultAttachment.owner.logo}
+          alt=""
+          className="object-cover"
+        />
+      ) : null}
+      <AvatarFallback className="text-[10px] font-medium">
+        {defaultAttachment.owner.name.slice(0, 1).toUpperCase()}
+      </AvatarFallback>
+    </Avatar>
+  ) : (
+    <Avatar className="size-6">
+      <AvatarFallback>
+        <FileText className="text-muted-foreground size-3.5" aria-hidden />
+      </AvatarFallback>
+    </Avatar>
+  );
+
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 rounded-lg border p-3",
+        "flex items-center justify-between gap-3 rounded-md border p-3",
         className,
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         <Checkbox
           id="task-design-md-attachment"
           checked={selection.enabled}
@@ -84,6 +124,7 @@ export function TaskDesignMdAttachmentField({
             onSelectionChange({ ...selection, enabled: checked === true })
           }
         />
+        {avatar}
         <label
           htmlFor="task-design-md-attachment"
           className="min-w-0 flex-1 cursor-pointer truncate text-sm font-medium"
@@ -96,12 +137,9 @@ export function TaskDesignMdAttachmentField({
             <button
               type="button"
               aria-label={t("infoAria")}
-              className="focus-visible:ring-ring inline-flex size-5 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2"
+              className="text-muted-foreground/70 hover:bg-accent hover:text-foreground focus-visible:ring-ring inline-flex size-5 shrink-0 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2"
             >
-              <Info
-                className="text-muted-foreground/70 hover:text-foreground size-3.5 transition-colors"
-                aria-hidden
-              />
+              <Info className="size-3.5" aria-hidden />
             </button>
           </HoverCardTrigger>
           <HoverCardContent side="top" align="start" className="w-72 text-sm">
@@ -119,9 +157,11 @@ export function TaskDesignMdAttachmentField({
         </HoverCard>
       </div>
 
-      <button
+      <Button
         type="button"
-        className="text-primary shrink-0 text-xs font-medium hover:underline"
+        variant="ghost"
+        size="sm"
+        className="shrink-0 text-xs"
         onClick={() => {
           if (selection.custom) {
             onSelectionChange({ ...selection, custom: null });
@@ -130,8 +170,9 @@ export function TaskDesignMdAttachmentField({
           setIsAdHocDialogOpen(true);
         }}
       >
+        <RefreshCw className="size-3.5" aria-hidden />
         {selection.custom ? t("resetToDefault") : t("useDifferentBranding")}
-      </button>
+      </Button>
 
       <DesignMdAdHocDialog
         open={isAdHocDialogOpen}

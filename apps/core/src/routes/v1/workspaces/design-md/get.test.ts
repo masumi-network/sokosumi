@@ -96,6 +96,7 @@ describe("GET /workspaces/design-md", () => {
     organizationFindUniqueMock.mockResolvedValueOnce({
       metadata: JSON.stringify({ designMdUrl: "https://blob.example/org.md" }),
       name: "Acme Inc",
+      logo: "https://blob.example/logo.png",
     });
 
     const response = await createApp(USER_AUTH_WITH_ORG).request(
@@ -112,9 +113,36 @@ describe("GET /workspaces/design-md", () => {
     expect(body.data.designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/org.md",
-      owner: { type: "organization", name: "Acme Inc" },
+      owner: {
+        type: "organization",
+        name: "Acme Inc",
+        logo: "https://blob.example/logo.png",
+      },
     });
     expect(getUserByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("returns a null logo when the organization has none set", async () => {
+    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce({
+      id: "member_1",
+    });
+    organizationFindUniqueMock.mockResolvedValueOnce({
+      metadata: JSON.stringify({ designMdUrl: "https://blob.example/org.md" }),
+      name: "Acme Inc",
+      logo: null,
+    });
+
+    const response = await createApp(USER_AUTH_WITH_ORG).request(
+      "http://localhost/design-md",
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.designMd).toEqual({
+      label: "DESIGN.md",
+      url: "https://blob.example/org.md",
+      owner: { type: "organization", name: "Acme Inc", logo: null },
+    });
   });
 
   it("falls back to the personal DESIGN.md when the active org has none", async () => {
