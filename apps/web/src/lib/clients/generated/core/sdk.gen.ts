@@ -501,7 +501,7 @@ export const deleteChatsRoomsByIdPin = <ThrowOnError extends boolean = false>(op
 });
 
 /**
- * Pin an organization chat room for the current user.
+ * Pin an organization chat room for the current user. Cannot pin a muted room.
  */
 export const postChatsRoomsByIdPin = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdPinData, ThrowOnError>): RequestResult<PostChatsRoomsByIdPinResponses, PostChatsRoomsByIdPinErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdPinResponses, PostChatsRoomsByIdPinErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdPinResponseTransformer,
@@ -519,7 +519,7 @@ export const deleteChatsRoomsByIdMute = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Mute an organization chat room for the current user.
+ * Mute an organization chat room for the current user. Cannot mute a pinned room.
  */
 export const postChatsRoomsByIdMute = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdMuteData, ThrowOnError>): RequestResult<PostChatsRoomsByIdMuteResponses, PostChatsRoomsByIdMuteErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdMuteResponses, PostChatsRoomsByIdMuteErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdMuteResponseTransformer,

@@ -4662,6 +4662,15 @@
         "groupDirectNoCoworkersError": "グループのダイレクトメッセージにコワーカーは含められません。",
         "coworkerDirectOneToOneOnly": "コワーカーとのダイレクトメッセージは1対1です。"
       },
+      "RoomSearch": {
+        "open": "このチャット内を検索",
+        "placeholder": "メッセージを検索…",
+        "idle": "入力してこのチャット内のメッセージを検索します。",
+        "empty": "一致するメッセージはありません。",
+        "loading": "検索中…",
+        "error": "メッセージを検索できませんでした。もう一度お試しください。",
+        "replyBadge": "スレッド返信"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
