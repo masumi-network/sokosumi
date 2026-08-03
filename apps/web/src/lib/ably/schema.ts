@@ -34,3 +34,28 @@ export const notificationEventDataSchema = z.object({
 });
 
 export type NotificationEventData = z.infer<typeof notificationEventDataSchema>;
+
+export const chatRoomMessageEventDataSchema = z.object({
+  message: z
+    .object({
+      id: z.string().min(1),
+      roomId: z.string().min(1),
+      parentMessageId: z.string().nullable(),
+      content: z.string(),
+      createdAt: z.string(),
+      deletedAt: z.string().nullable(),
+      editedAt: z.string().nullable(),
+      sender: z.unknown(),
+      mentions: z.array(z.unknown()),
+      reactions: z.array(z.unknown()),
+      threadReplyCount: z.number().int().min(0),
+      threadLastReplyAt: z.string().nullable(),
+      metadata: z.record(z.string(), z.unknown()).nullable(),
+      quote: z.unknown().nullable(),
+    })
+    .passthrough(),
+});
+
+export type ChatRoomMessageEventData = z.infer<
+  typeof chatRoomMessageEventDataSchema
+>;

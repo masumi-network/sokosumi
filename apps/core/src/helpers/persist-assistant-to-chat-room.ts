@@ -1,3 +1,4 @@
+import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import type { PersistedChatUiPart } from "./message-content";
@@ -132,6 +133,7 @@ export async function persistAssistantToChatRoom(params: {
       responseId,
     );
     if (existing) {
+      await publishChatRoomMessageRealtimeById(existing.id);
       return { id: existing.id };
     }
   }
@@ -164,6 +166,7 @@ export async function persistAssistantToChatRoom(params: {
       });
       return message;
     });
+    await publishChatRoomMessageRealtimeById(created.id);
     return { id: created.id };
   } catch (error) {
     if (!responseId || !isPrismaUniqueViolation(error)) {
@@ -175,6 +178,7 @@ export async function persistAssistantToChatRoom(params: {
       responseId,
     );
     if (raced) {
+      await publishChatRoomMessageRealtimeById(raced.id);
       return { id: raced.id };
     }
     throw error;
@@ -221,6 +225,7 @@ export async function persistUserMessageToChatRoom(params: {
   if (clientId) {
     const existing = await findUserByClientMessageId(roomId, clientId);
     if (existing) {
+      await publishChatRoomMessageRealtimeById(existing.id);
       return { id: existing.id };
     }
   }
@@ -253,6 +258,7 @@ export async function persistUserMessageToChatRoom(params: {
       return message;
     });
 
+    await publishChatRoomMessageRealtimeById(created.id);
     return { id: created.id };
   } catch (error) {
     if (!clientId || !isPrismaUniqueViolation(error)) {
@@ -261,6 +267,7 @@ export async function persistUserMessageToChatRoom(params: {
     // Interactive tx aborted after failed create — re-read on root client.
     const raced = await findUserByClientMessageId(roomId, clientId);
     if (raced) {
+      await publishChatRoomMessageRealtimeById(raced.id);
       return { id: raced.id };
     }
     throw error;
