@@ -27,9 +27,6 @@ describe("compose-draft-storage", () => {
     expect(composeDraftKey.draftDm()).toBe(
       "sokosumi:compose-draft:v1:draft-dm",
     );
-    expect(composeDraftKey.draftChannel()).toBe(
-      "sokosumi:compose-draft:v1:draft-channel",
-    );
   });
 
   it("roundtrips text and attachments", () => {
@@ -68,7 +65,7 @@ describe("compose-draft-storage", () => {
   });
 
   it("clearComposeDraft removes the key", () => {
-    const key = composeDraftKey.draftChannel();
+    const key = composeDraftKey.draftDm();
     setComposeDraft(key, { text: "draft", attachments: [] });
     clearComposeDraft(key);
     expect(window.localStorage.getItem(key)).toBeNull();
