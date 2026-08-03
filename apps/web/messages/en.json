@@ -781,6 +781,7 @@
       "markAllReadError": "Failed to mark all notifications as read",
       "fetchError": "Could not load notifications",
       "retry": "Try again",
+      "accept": "Accept",
       "dismiss": "Dismiss",
       "view": "View",
       "dismissNotification": "Dismiss notification",
@@ -788,7 +789,9 @@
       "browserPermissionTitle": "Get alerts when you're in another tab",
       "browserPermissionDescription": "Allow browser notifications for jobs, tasks, billing, system, and chat updates while Sokosumi is open but not focused.",
       "browserPermissionEnable": "Enable browser notifications",
-      "browserPermissionRequesting": "Waiting for permission…"
+      "browserPermissionRequesting": "Waiting for permission…",
+      "vendorGrantAcceptSuccess": "Vendor access approved",
+      "vendorGrantAcceptError": "Failed to approve vendor access"
     },
     "HashValue": {
       "copy": "Copy",

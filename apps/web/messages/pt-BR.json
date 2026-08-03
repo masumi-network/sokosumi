@@ -765,6 +765,7 @@
       "markAllReadError": "Não foi possível marcar todas as notificações como lidas",
       "fetchError": "Não foi possível carregar as notificações",
       "retry": "Tentar novamente",
+      "accept": "Aceitar",
       "dismiss": "Dispensar",
       "view": "Ver",
       "dismissNotification": "Dispensar notificação",
@@ -772,7 +773,9 @@
       "browserPermissionTitle": "Receba alertas quando estiver em outra aba",
       "browserPermissionDescription": "Permita notificações do navegador para jobs, tarefas, cobrança, sistema e chat enquanto o Sokosumi estiver aberto, mas sem foco.",
       "browserPermissionEnable": "Ativar notificações do navegador",
-      "browserPermissionRequesting": "Aguardando permissão…"
+      "browserPermissionRequesting": "Aguardando permissão…",
+      "vendorGrantAcceptSuccess": "Acesso do fornecedor aprovado",
+      "vendorGrantAcceptError": "Falha ao aprovar o acesso do fornecedor"
     },
     "HashValue": {
       "copy": "Copiar",

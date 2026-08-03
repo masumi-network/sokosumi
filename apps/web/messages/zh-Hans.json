@@ -765,6 +765,7 @@
       "markAllReadError": "无法将所有通知标为已读",
       "fetchError": "无法加载通知",
       "retry": "重试",
+      "accept": "接受",
       "dismiss": "关闭",
       "view": "查看",
       "dismissNotification": "关闭通知",
@@ -772,7 +773,9 @@
       "browserPermissionTitle": "在其他标签页时也能收到提醒",
       "browserPermissionDescription": "在 Sokosumi 已打开但未聚焦时，允许浏览器通知推送任务、作业、账单、系统和聊天更新。",
       "browserPermissionEnable": "启用浏览器通知",
-      "browserPermissionRequesting": "正在等待权限…"
+      "browserPermissionRequesting": "正在等待权限…",
+      "vendorGrantAcceptSuccess": "已批准供应商访问",
+      "vendorGrantAcceptError": "批准供应商访问失败"
     },
     "HashValue": {
       "copy": "复制",

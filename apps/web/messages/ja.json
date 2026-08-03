@@ -765,6 +765,7 @@
       "markAllReadError": "すべての通知を既読にできませんでした",
       "fetchError": "通知を読み込めませんでした",
       "retry": "再試行",
+      "accept": "承認",
       "dismiss": "閉じる",
       "view": "表示",
       "dismissNotification": "通知を閉じる",
@@ -772,7 +773,9 @@
       "browserPermissionTitle": "別のタブにいるときもアラートを受け取る",
       "browserPermissionDescription": "Sokosumiが開いているがフォーカスされていない間も、ジョブ・タスク・請求・システム・チャットのブラウザ通知を許可します。",
       "browserPermissionEnable": "ブラウザ通知を有効にする",
-      "browserPermissionRequesting": "許可を待機中…"
+      "browserPermissionRequesting": "許可を待機中…",
+      "vendorGrantAcceptSuccess": "ベンダーアクセスを承認しました",
+      "vendorGrantAcceptError": "ベンダーアクセスの承認に失敗しました"
     },
     "HashValue": {
       "copy": "コピー",

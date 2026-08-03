@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
+import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
 
 interface NotificationsPageContentProps {
   userId: string;
@@ -325,30 +327,63 @@ function NotificationRow({
   timeLabel,
   onClick,
 }: NotificationRowProps) {
+  const showVendorGrantActions = isPendingVendorGrantNotification(notification);
+  const rowClassName = cn(
+    "hover:bg-accent flex w-full p-4 text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
+    !notification.isRead && "bg-accent/50",
+    isPending && "bg-accent opacity-80",
+    showVendorGrantActions ? "cursor-default" : "cursor-pointer",
+  );
+
+  const body = (
+    <div className="flex w-full items-start gap-3">
+      <Bell
+        className={cn(
+          "mt-0.5 size-4 shrink-0",
+          notification.isRead ? "text-muted-foreground" : "text-primary",
+        )}
+      />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {showVendorGrantActions ? (
+          <button
+            type="button"
+            className="hover:bg-accent/50 -mx-1 cursor-pointer rounded-md px-1 text-left"
+            onClick={() => onClick(notification)}
+          >
+            <p className={cn("text-sm", !notification.isRead && "font-medium")}>
+              {message}
+            </p>
+            <p className="text-muted-foreground text-xs">{timeLabel}</p>
+          </button>
+        ) : (
+          <>
+            <p className={cn("text-sm", !notification.isRead && "font-medium")}>
+              {message}
+            </p>
+            <p className="text-muted-foreground text-xs">{timeLabel}</p>
+          </>
+        )}
+        {showVendorGrantActions ? (
+          <VendorGrantNotificationActions
+            notification={notification}
+            layout="inline"
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+
+  if (showVendorGrantActions) {
+    return <div className={rowClassName}>{body}</div>;
+  }
+
   return (
     <button
       type="button"
-      className={cn(
-        "hover:bg-accent flex w-full cursor-pointer p-4 text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
-        !notification.isRead && "bg-accent/50",
-        isPending && "bg-accent opacity-80",
-      )}
+      className={rowClassName}
       onClick={() => onClick(notification)}
     >
-      <div className="flex w-full items-start gap-3">
-        <Bell
-          className={cn(
-            "mt-0.5 size-4 shrink-0",
-            notification.isRead ? "text-muted-foreground" : "text-primary",
-          )}
-        />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <p className={cn("text-sm", !notification.isRead && "font-medium")}>
-            {message}
-          </p>
-          <p className="text-muted-foreground text-xs">{timeLabel}</p>
-        </div>
-      </div>
+      {body}
     </button>
   );
 }
