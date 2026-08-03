@@ -772,7 +772,9 @@
       "browserPermissionTitle": "在其他标签页时也能收到提醒",
       "browserPermissionDescription": "在 Sokosumi 已打开但未聚焦时，允许浏览器通知推送任务、作业、账单、系统和聊天更新。",
       "browserPermissionEnable": "启用浏览器通知",
-      "browserPermissionRequesting": "正在等待权限…"
+      "browserPermissionRequesting": "正在等待权限…",
+      "browserPermissionDeniedTitle": "浏览器通知已被屏蔽",
+      "browserPermissionDeniedDescription": "此网站的通知已在浏览器中被屏蔽。请打开浏览器中 Sokosumi 的通知设置以允许通知。"
     },
     "HashValue": {
       "copy": "复制",
