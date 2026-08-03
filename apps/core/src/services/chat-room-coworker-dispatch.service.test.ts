@@ -10,7 +10,7 @@ const {
   createMock,
   deleteMock,
   messageFindUniqueMock,
-  generateTextMock,
+  streamTextMock,
   createCoworkerConversationMock,
   getSokosumiProviderMock,
   transactionUpdateManyMock,
@@ -25,7 +25,7 @@ const {
   createMock: vi.fn(),
   deleteMock: vi.fn(),
   messageFindUniqueMock: vi.fn(),
-  generateTextMock: vi.fn(),
+  streamTextMock: vi.fn(),
   createCoworkerConversationMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
   transactionUpdateManyMock: vi.fn(),
@@ -77,13 +77,17 @@ vi.mock("@/routes/v1/chats/stream/coworker-conversation", () => ({
 }));
 
 vi.mock("ai", () => ({
-  generateText: generateTextMock,
+  streamText: streamTextMock,
 }));
 
 import {
   buildRoomMentionPrompt,
   dispatchChatRoomMention,
   listStaleSentChatRoomMentionIds,
+  ROOM_COWORKER_CHUNK_MS,
+  ROOM_COWORKER_FIRST_CHUNK_MS,
+  ROOM_COWORKER_STREAM_TIMEOUT,
+  ROOM_COWORKER_TOTAL_MS,
   ROOM_SENT_STALE_MS,
 } from "./chat-room-coworker-dispatch.service";
 
@@ -127,7 +131,9 @@ beforeEach(() => {
   getSokosumiProviderMock.mockReturnValue(() => "mock-model");
   createCoworkerConversationMock.mockResolvedValue({ id: "provider_conv_1" });
   findManyMock.mockResolvedValue([]);
-  generateTextMock.mockResolvedValue({ text: "Hello back" });
+  streamTextMock.mockReturnValue({
+    text: Promise.resolve("Hello back"),
+  });
   createMock.mockResolvedValue({ id: "reply_1" });
   deleteMock.mockResolvedValue({ id: "reply_1" });
   messageFindUniqueMock.mockResolvedValue({ deletedAt: null });
@@ -135,6 +141,20 @@ beforeEach(() => {
   updateManyMock.mockResolvedValue({ count: 1 });
   transactionUpdateManyMock.mockResolvedValue({ count: 1 });
   coworkerMemberFindUniqueMock.mockResolvedValue({ id: "membership_1" });
+});
+
+describe("room coworker stream timeout budgets", () => {
+  it("uses idle chunk timeouts under a hard total, with stale above total", () => {
+    expect(ROOM_COWORKER_STREAM_TIMEOUT).toEqual({
+      totalMs: ROOM_COWORKER_TOTAL_MS,
+      firstChunkMs: ROOM_COWORKER_FIRST_CHUNK_MS,
+      chunkMs: ROOM_COWORKER_CHUNK_MS,
+    });
+    expect(ROOM_COWORKER_CHUNK_MS).toBe(90_000);
+    expect(ROOM_COWORKER_FIRST_CHUNK_MS).toBe(90_000);
+    expect(ROOM_COWORKER_TOTAL_MS).toBeGreaterThan(ROOM_COWORKER_CHUNK_MS);
+    expect(ROOM_SENT_STALE_MS).toBeGreaterThan(ROOM_COWORKER_TOTAL_MS);
+  });
 });
 
 describe("buildRoomMentionPrompt", () => {
@@ -227,7 +247,7 @@ describe("dispatchChatRoomMention claim", () => {
         }),
       }),
     );
-    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
     expect(createMock).not.toHaveBeenCalled();
   });
@@ -238,7 +258,14 @@ describe("dispatchChatRoomMention claim", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
-    expect(generateTextMock).toHaveBeenCalled();
+    expect(streamTextMock).toHaveBeenCalled();
+    expect(streamTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeout: ROOM_COWORKER_STREAM_TIMEOUT,
+        maxRetries: 0,
+      }),
+    );
+    expect(streamTextMock.mock.calls[0]?.[0]).not.toHaveProperty("abortSignal");
     expect(createCoworkerConversationMock).toHaveBeenCalled();
     expect(createMock).toHaveBeenCalled();
     expect(transactionUpdateManyMock).toHaveBeenCalledWith({
@@ -292,7 +319,7 @@ describe("dispatchChatRoomMention claim", () => {
         data: { status: "sent", error: null },
       }),
     );
-    expect(generateTextMock).toHaveBeenCalled();
+    expect(streamTextMock).toHaveBeenCalled();
   });
 
   it("does not reclaim a fresh sent mention still in flight", async () => {
@@ -305,7 +332,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
-    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
     expect(createCoworkerConversationMock).not.toHaveBeenCalled();
   });
 
@@ -322,11 +349,11 @@ describe("dispatchChatRoomMention claim", () => {
         error: "Coworker is no longer a member of this room",
       },
     });
-    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it("fails closed when membership disappears during generateText", async () => {
+  it("fails closed when membership disappears during streamText", async () => {
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
     coworkerMemberFindUniqueMock
@@ -335,7 +362,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
-    expect(generateTextMock).toHaveBeenCalled();
+    expect(streamTextMock).toHaveBeenCalled();
     expect(createMock).not.toHaveBeenCalled();
     expect(transactionUpdateManyMock).toHaveBeenCalledWith({
       where: {
@@ -368,11 +395,11 @@ describe("dispatchChatRoomMention claim", () => {
         error: "Source message was deleted",
       },
     });
-    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(streamTextMock).not.toHaveBeenCalled();
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it("discards the reply when the source message is soft-deleted during generateText", async () => {
+  it("discards the reply when the source message is soft-deleted during streamText", async () => {
     findUniqueMock.mockResolvedValue(pendingMention());
     updateManyMock.mockResolvedValue({ count: 1 });
     messageFindUniqueMock.mockResolvedValue({
@@ -381,7 +408,7 @@ describe("dispatchChatRoomMention claim", () => {
 
     await dispatchChatRoomMention(MENTION_ID);
 
-    expect(generateTextMock).toHaveBeenCalled();
+    expect(streamTextMock).toHaveBeenCalled();
     expect(createMock).not.toHaveBeenCalled();
     expect(transactionUpdateManyMock).toHaveBeenCalledWith({
       where: {
