@@ -35,6 +35,7 @@ import {
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
+import { rememberRoomRead } from "@/components/chat/room-read-overlay";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
@@ -632,7 +633,14 @@ export function RoomsClient({
 
     let cancelled = false;
     markOrganizationChatRoomReadAction(selectedRoomReadId).then((result) => {
-      if (cancelled || !result.ok) {
+      if (!result.ok) {
+        return;
+      }
+      // Persist before the cancelled check: mobile Sheet unmounts the sidebar
+      // list so the event below often has no listener, and remount would
+      // otherwise rehydrate unread from stale RSC props.
+      rememberRoomRead(result.data);
+      if (cancelled) {
         return;
       }
       window.dispatchEvent(
