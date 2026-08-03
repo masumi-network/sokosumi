@@ -28,7 +28,7 @@ export interface FileChipMiniPreviewProps {
 }
 
 const previewTriggerClassName =
-  "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 overflow-hidden rounded-xl border outline-none transition";
+  "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
 
 function FileChipMiniPreviewTrigger({
   url,
