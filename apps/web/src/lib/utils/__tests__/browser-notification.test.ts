@@ -10,7 +10,6 @@ import {
 
 describe("shouldShowBrowserNotification", () => {
   it("shows when granted, unread, and document unfocused (including visible-but-unfocused)", () => {
-    // Spec / product copy: "open but not focused" — not Page Visibility alone.
     expect(
       shouldShowBrowserNotification({
         permission: "granted",

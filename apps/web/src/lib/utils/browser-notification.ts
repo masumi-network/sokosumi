@@ -37,8 +37,14 @@ export function shouldShowBrowserNotification({
   isDocumentFocused,
   isRead,
 }: BrowserNotificationGateInput): boolean {
-  if (isRead) return false;
-  if (permission !== "granted") return false;
+  if (isRead) {
+    return false;
+  }
+
+  if (permission !== "granted") {
+    return false;
+  }
+
   return !isDocumentFocused;
 }
 
@@ -49,7 +55,10 @@ export function shouldShowInAppNotificationToast({
   isDocumentFocused: boolean;
   isRead: boolean;
 }): boolean {
-  if (isRead) return false;
+  if (isRead) {
+    return false;
+  }
+
   return isDocumentFocused;
 }
 
