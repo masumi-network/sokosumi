@@ -386,6 +386,8 @@ export function getActiveTrigger(
 
 const EMOJI_SHORTCODE_QUERY_PATTERN = /^[a-z0-9_+-]*$/i;
 
+export const EMOJI_SHORTCODE_MIN_QUERY_LENGTH = 2;
+
 /**
  * Detect in-progress emoji shortcode at caret.
  * Token is start/whitespace-delimited, leading `:`, query = [a-z0-9_+-]*.
@@ -409,6 +411,7 @@ export function getActiveEmojiTrigger(
   const query = text.slice(tokenStart + 1, clampedCaret);
   if (query.includes("@") || query.includes(":")) return null;
   if (!EMOJI_SHORTCODE_QUERY_PATTERN.test(query)) return null;
+  if (query.length < EMOJI_SHORTCODE_MIN_QUERY_LENGTH) return null;
 
   return { query: query.toLowerCase(), triggerStart: tokenStart };
 }

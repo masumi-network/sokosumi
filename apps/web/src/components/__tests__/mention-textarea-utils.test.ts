@@ -95,10 +95,16 @@ describe("mention-textarea utils", () => {
       query: "gri",
       triggerStart: 6,
     });
-    expect(getActiveEmojiTrigger(":", 1)).toEqual({
-      query: "",
+    expect(getActiveEmojiTrigger(":da", 3)).toEqual({
+      query: "da",
       triggerStart: 0,
     });
+  });
+
+  it("does not activate emoji trigger for bare colon or single-char query", () => {
+    expect(getActiveEmojiTrigger(":", 1)).toBeNull();
+    expect(getActiveEmojiTrigger(":d", 2)).toBeNull();
+    expect(getActiveEmojiTrigger(":D", 2)).toBeNull();
   });
 
   it("does not activate emoji trigger on space, @, or mid-token colon", () => {
