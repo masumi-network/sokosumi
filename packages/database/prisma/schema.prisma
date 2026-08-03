@@ -1687,11 +1687,14 @@ model ChatRoomUserMember {
 
   /// Null = unpinned. Set to now when the user pins the room in their sidebar.
   pinnedAt  DateTime?
+  /// Null = unmuted. Set to now when the user mutes the room in their sidebar.
+  mutedAt   DateTime?
   createdAt DateTime  @default(now())
 
   @@unique([roomId, userId])
   @@index([userId])
   @@index([userId, pinnedAt])
+  @@index([userId, mutedAt])
   @@map("chat_room_user_member")
 }
 
