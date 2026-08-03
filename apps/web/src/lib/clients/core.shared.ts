@@ -88,6 +88,7 @@ import {
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
+  deleteChatsRoomsById as coreDeleteChatsRoomsById,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
@@ -630,6 +631,18 @@ export function createCoreClient(getClient: GetClient) {
           path: { id },
         }),
       "Failed to restore chat room",
+    );
+  }
+
+  async function deleteChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsById({
+          client,
+          path: { id },
+        }),
+      "Failed to permanently delete chat room",
     );
   }
 
@@ -3705,6 +3718,7 @@ export function createCoreClient(getClient: GetClient) {
     acknowledgeNotice,
     addChatRoomMessage,
     archiveChatRoom,
+    deleteChatRoom,
     restoreChatRoom,
     leaveChatRoom,
     joinChatRoom,

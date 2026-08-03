@@ -125,6 +125,10 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function deleteRoom(id: string): Promise<void> {
+    await coreClient.deleteChatRoom(id);
+  }
+
   async function leaveRoom(id: string) {
     const response = await coreClient.leaveChatRoom(id);
     return response.data;
@@ -239,6 +243,7 @@ export const chatRoomService = (() => {
     archiveRoom,
     createRoom,
     deleteMessage,
+    deleteRoom,
     editMessage,
     getRoom,
     joinRoom,

@@ -11,6 +11,7 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import { chatRoomService, userService } from "@/lib/services";
 import type { CreditUsage } from "@/lib/types/credit";
@@ -119,6 +120,15 @@ export default async function Sidebar({
   ]);
   const subscriptionPeriodEnd = creditsData?.subscription?.periodEnd ?? null;
 
+  const canDeleteArchivedRooms = Boolean(
+    activeOrganizationId &&
+      members.some(
+        (membership) =>
+          membership.organizationId === activeOrganizationId &&
+          isOrganizationOwnerOrAdmin(membership.role),
+      ),
+  );
+
   return (
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-16 border-b p-0">
@@ -147,6 +157,7 @@ export default async function Sidebar({
               archivedRooms={archivedChatRooms}
               currentUserId={session.user.id}
               organizationId={activeOrganizationId}
+              canDeleteArchivedRooms={canDeleteArchivedRooms}
             />
           </SidebarNav>
         </div>

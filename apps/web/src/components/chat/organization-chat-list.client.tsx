@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronDown, MessageCircle, Plus, RotateCcw } from "lucide-react";
+import {
+  ChevronDown,
+  Ellipsis,
+  MessageCircle,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,9 +19,23 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { joinRoomAction, restoreRoomAction } from "@/app/chat/actions";
+import {
+  deleteRoomAction,
+  joinRoomAction,
+  restoreRoomAction,
+} from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { PresenceDot } from "@/components/chat/presence-dot";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +43,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -59,11 +86,16 @@ import {
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
+/** Same absolute slot as live room rows so archived height matches Channels/DMs. */
+const ARCHIVED_TRAILING_CONTROL_CLASS =
+  "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center";
+
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
   currentUserId: string;
   organizationId: string | null;
+  canDeleteArchivedRooms?: boolean;
 }
 
 interface DirectParticipant {
@@ -259,6 +291,7 @@ export function OrganizationChatList({
   archivedRooms,
   currentUserId,
   organizationId,
+  canDeleteArchivedRooms = false,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
@@ -276,8 +309,13 @@ export function OrganizationChatList({
   const [directOpen, setDirectOpen] = useState(true);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
+  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
+    null,
+  );
   const [_isRestoring, startRestoreTransition] = useTransition();
   const [_isJoining, startJoinTransition] = useTransition();
+  const [_isDeleting, startDeleteTransition] = useTransition();
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const unreadRoomCount = countChatRoomsWithUnreadAttention(roomRows, {
     activeRoomId,
@@ -465,7 +503,7 @@ export function OrganizationChatList({
   }
 
   function handleRestoreRoom(room: ChatRoom) {
-    if (restoringRoomId) {
+    if (restoringRoomId || deletingRoomId) {
       return;
     }
     setRestoringRoomId(room.id);
@@ -483,6 +521,26 @@ export function OrganizationChatList({
         return applyRoomReadOverlays([result.data, ...without]);
       });
       router.push(`/chat/rooms/${result.data.id}`);
+      router.refresh();
+    });
+  }
+
+  function handleConfirmDeleteRoom() {
+    const room = pendingDeleteRoom;
+    if (!room || restoringRoomId || deletingRoomId) {
+      return;
+    }
+    setDeletingRoomId(room.id);
+    startDeleteTransition(async () => {
+      const result = await deleteRoomAction(room.id);
+      setDeletingRoomId(null);
+      setPendingDeleteRoom(null);
+      if (!result.ok) {
+        toast.error(result.message || tActions("deleteError"));
+        return;
+      }
+      toast.success(tActions("deleteSuccess", { name: room.name }));
+      setArchivedRows((current) => current.filter((row) => row.id !== room.id));
       router.refresh();
     });
   }
@@ -614,6 +672,10 @@ export function OrganizationChatList({
               <SidebarMenu className="gap-0">
                 {sortedArchivedChannels.map((room) => {
                   const isRestoring = restoringRoomId === room.id;
+                  const isDeleting = deletingRoomId === room.id;
+                  const actionBusy =
+                    restoringRoomId !== null || deletingRoomId !== null;
+                  const showOverflowMenu = canDeleteArchivedRooms;
                   return (
                     <SidebarMenuItem
                       key={room.id}
@@ -629,29 +691,78 @@ export function OrganizationChatList({
                         </span>
                         <span className="size-7 shrink-0" aria-hidden />
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center",
-                          "group-data-[collapsible=icon]:hidden text-muted-foreground",
-                          isRestoring
-                            ? "opacity-100"
-                            : "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/room-row:opacity-100 [@media(hover:hover)]:group-focus-within/room-row:opacity-100",
-                        )}
-                        disabled={isRestoring || restoringRoomId !== null}
-                        onClick={() => handleRestoreRoom(room)}
-                        aria-label={`${tActions("restore")} ${room.name}`}
-                      >
-                        <RotateCcw
+                      {showOverflowMenu ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={actionBusy}
+                              className={cn(
+                                ARCHIVED_TRAILING_CONTROL_CLASS,
+                                "group-data-[collapsible=icon]:hidden text-muted-foreground",
+                                isRestoring || isDeleting
+                                  ? "opacity-100"
+                                  : "opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                              )}
+                              aria-label={tActions("roomMenu", {
+                                name: room.name,
+                              })}
+                            >
+                              <Ellipsis
+                                className={cn(
+                                  "size-4",
+                                  (isRestoring || isDeleting) &&
+                                    "animate-pulse",
+                                )}
+                                aria-hidden
+                              />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem
+                              disabled={actionBusy}
+                              onSelect={() => handleRestoreRoom(room)}
+                            >
+                              <RotateCcw className="size-4" aria-hidden />
+                              {tActions("restore")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={actionBusy}
+                              variant="destructive"
+                              onSelect={() => setPendingDeleteRoom(room)}
+                            >
+                              <Trash2 className="size-4" aria-hidden />
+                              {tActions("delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
                           className={cn(
-                            "size-3.5",
-                            isRestoring && "animate-spin",
+                            ARCHIVED_TRAILING_CONTROL_CLASS,
+                            "group-data-[collapsible=icon]:hidden text-muted-foreground",
+                            isRestoring
+                              ? "opacity-100"
+                              : "opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100",
                           )}
-                          aria-hidden
-                        />
-                      </Button>
+                          disabled={actionBusy}
+                          onClick={() => handleRestoreRoom(room)}
+                          aria-label={`${tActions("restore")} ${room.name}`}
+                        >
+                          <RotateCcw
+                            className={cn(
+                              "size-3.5",
+                              isRestoring && "animate-spin",
+                            )}
+                            aria-hidden
+                          />
+                        </Button>
+                      )}
                     </SidebarMenuItem>
                   );
                 })}
@@ -659,6 +770,48 @@ export function OrganizationChatList({
             </CollapsibleContent>
           </Collapsible>
         ) : null}
+
+        <AlertDialog
+          open={pendingDeleteRoom !== null}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && deletingRoomId === null) {
+              setPendingDeleteRoom(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {pendingDeleteRoom
+                  ? tActions("deleteConfirmTitle", {
+                      name: pendingDeleteRoom.name,
+                    })
+                  : null}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingDeleteRoom
+                  ? tActions("deleteConfirmDescription", {
+                      name: pendingDeleteRoom.name,
+                    })
+                  : null}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingRoomId !== null}>
+                {tActions("cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deletingRoomId !== null}
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleConfirmDeleteRoom();
+                }}
+              >
+                {tActions("deleteConfirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
           {/*

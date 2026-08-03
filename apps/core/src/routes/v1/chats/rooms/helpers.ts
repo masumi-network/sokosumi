@@ -738,6 +738,16 @@ export function canManageChatRoomLifecycle(options: {
   );
 }
 
+/**
+ * Permanent delete removes the room and cascaded children for everyone.
+ * Organization owner/admin only — room creator membership is not enough.
+ */
+export function canPermanentlyDeleteChatRoom(options: {
+  role: string;
+}): boolean {
+  return options.role === MemberRole.OWNER || options.role === MemberRole.ADMIN;
+}
+
 export async function requireChatRoomUserAccess(
   roomId: string,
   userId: string,
