@@ -74,6 +74,12 @@ export function NotificationBrowserPermissionPrimer({
         size="sm"
         variant="outline"
         className="shrink-0 self-start sm:self-center"
+        onPointerDown={(event) => {
+          // Keep the notification dropdown open while the OS permission dialog runs.
+          if (variant === "menu") {
+            event.preventDefault();
+          }
+        }}
         onClick={handleEnable}
         disabled={isRequesting}
       >

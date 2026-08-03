@@ -60,6 +60,21 @@ export function NotificationToastListener({
     onNotification: (notification) => {
       const documentHidden =
         typeof document !== "undefined" ? document.hidden : false;
+      const permission = getBrowserNotificationPermission();
+      const showBrowser = shouldShowBrowserNotification({
+        permission,
+        documentHidden,
+        isRead: notification.isRead,
+      });
+      const showToast = shouldShowInAppNotificationToast({
+        documentHidden,
+        isRead: notification.isRead,
+      });
+
+      if (!showBrowser && !showToast) {
+        return;
+      }
+
       const message = formatMessage(
         notification.messageKey,
         notification.messageParams ?? {},
@@ -87,18 +102,15 @@ export function NotificationToastListener({
         })();
       };
 
-      if (
-        shouldShowBrowserNotification({
-          permission: getBrowserNotificationPermission(),
-          documentHidden,
-          isRead: notification.isRead,
-        })
-      ) {
+      if (showBrowser) {
         const browserNotification = showBrowserNotification({
           id: notification.id,
           title: t("browserNotificationTitle"),
           body: message,
-          icon: "/images/app-icons/apple-icon-180.png",
+          icon: new URL(
+            "/images/app-icons/apple-icon-180.png",
+            window.location.origin,
+          ).href,
           onClick: openNotification,
         });
         if (browserNotification == null) {
@@ -107,15 +119,6 @@ export function NotificationToastListener({
             { id: notification.id },
           );
         }
-        return;
-      }
-
-      if (
-        !shouldShowInAppNotificationToast({
-          documentHidden,
-          isRead: notification.isRead,
-        })
-      ) {
         return;
       }
 
