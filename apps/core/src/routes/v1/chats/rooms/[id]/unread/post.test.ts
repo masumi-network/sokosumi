@@ -8,56 +8,47 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountGetChatRoom from "./get";
+import mountMarkChatRoomUnread from "./post";
 
 const {
   roomFindFirstMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
-  queryRawUnsafeMock,
-  notificationGroupByMock,
-  membershipFindManyMock,
-  readStateFindManyMock,
+  readStateUpsertMock,
+  membershipFindUniqueMock,
+  unreadQueryMock,
+  mentionGroupByMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
-  queryRawUnsafeMock: vi.fn(),
-  notificationGroupByMock: vi.fn(),
-  membershipFindManyMock: vi.fn(),
-  readStateFindManyMock: vi.fn(),
+  readStateUpsertMock: vi.fn(),
+  membershipFindUniqueMock: vi.fn(),
+  unreadQueryMock: vi.fn(),
+  mentionGroupByMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    chatRoom: {
-      findFirst: roomFindFirstMock,
-    },
-    organization: {
-      findUnique: organizationFindUniqueMock,
-    },
-    member: {
-      findUnique: memberFindUniqueMock,
-    },
-    notification: {
-      groupBy: notificationGroupByMock,
-    },
-    chatRoomUserMember: {
-      findMany: membershipFindManyMock,
-    },
-    chatRoomReadState: {
-      findMany: readStateFindManyMock,
-    },
-    $queryRawUnsafe: queryRawUnsafeMock,
     $transaction: prismaTransactionMock,
+    $queryRawUnsafe: unreadQueryMock,
+    notification: { groupBy: mentionGroupByMock },
   },
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER_ID = "user_123";
 const ORG_ID = "org_1";
+
+const tx = {
+  chatRoom: { findFirst: roomFindFirstMock },
+  organization: { findUnique: organizationFindUniqueMock },
+  member: { findUnique: memberFindUniqueMock },
+  chatRoomReadState: { upsert: readStateUpsertMock },
+  chatRoomUserMember: { findUnique: membershipFindUniqueMock },
+};
 
 function createApp(authContext: AuthVariables["authContext"]) {
   const app = new OpenAPIHono<{
@@ -67,14 +58,14 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.use("*", async (c, next) => {
-    c.set("requestId", "req_get_chat_room");
+    c.set("requestId", "req_mark_chat_room_unread");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
 
   app.onError(errorHandler);
-  mountGetChatRoom(app as unknown as OpenAPIHonoWithAuth);
+  mountMarkChatRoomUnread(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
@@ -115,51 +106,44 @@ function room() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   roomFindFirstMock.mockResolvedValue(room());
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
-  queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
-  notificationGroupByMock.mockResolvedValue([
-    { referenceId: ROOM_ID, _count: { _all: 1 } },
-  ]);
-  membershipFindManyMock.mockResolvedValue([]);
-  readStateFindManyMock.mockResolvedValue([]);
+  readStateUpsertMock.mockResolvedValue({});
+  membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null });
+  unreadQueryMock.mockResolvedValue([]);
+  mentionGroupByMock.mockResolvedValue([]);
 });
 
-describe("GET /chats/rooms/{id}", () => {
-  it("returns the room without opening an interactive transaction", async () => {
-    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
+describe("POST /chats/rooms/{id}/unread", () => {
+  it("upserts markedUnreadAt without rewinding lastReadAt on update", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/unread`,
+      { method: "POST" },
+    );
 
     expect(response.status).toBe(200);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
-    expect(roomFindFirstMock).toHaveBeenCalledOnce();
-    expect(organizationFindUniqueMock).toHaveBeenCalledOnce();
-    expect(memberFindUniqueMock).toHaveBeenCalledOnce();
-    expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
-    expect(notificationGroupByMock).toHaveBeenCalledOnce();
-    expect(membershipFindManyMock).toHaveBeenCalledOnce();
-    expect(readStateFindManyMock).toHaveBeenCalledOnce();
+    expect(readStateUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          roomId_userId: { roomId: ROOM_ID, userId: USER_ID },
+        },
+        update: { markedUnreadAt: expect.any(Date) },
+        create: expect.objectContaining({
+          roomId: ROOM_ID,
+          userId: USER_ID,
+          lastReadAt: expect.any(Date),
+          markedUnreadAt: expect.any(Date),
+        }),
+      }),
+    );
 
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: ROOM_ID,
-      name: "Launch Room",
-      unreadCount: 2,
-      unreadMentionCount: 1,
+      markedUnread: true,
       pinnedAt: null,
-      markedUnread: false,
     });
-  });
-
-  it("returns 404 when the room is missing", async () => {
-    roomFindFirstMock.mockResolvedValue(null);
-
-    const response = await createApp(userAuthContext).request(`/${ROOM_ID}`);
-
-    expect(response.status).toBe(404);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
-    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
-    expect(memberFindUniqueMock).not.toHaveBeenCalled();
-    expect(queryRawUnsafeMock).not.toHaveBeenCalled();
   });
 });

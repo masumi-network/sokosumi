@@ -86,6 +86,8 @@ function room(
     coworkerMembers: [],
     unreadCount: 0,
     unreadMentionCount: 0,
+    pinnedAt: null,
+    markedUnread: false,
   };
 }
 

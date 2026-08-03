@@ -1685,10 +1685,13 @@ model ChatRoomUserMember {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
+  /// Null = unpinned. Set to now when the user pins the room in their sidebar.
+  pinnedAt  DateTime?
+  createdAt DateTime  @default(now())
 
   @@unique([roomId, userId])
   @@index([userId])
+  @@index([userId, pinnedAt])
   @@map("chat_room_user_member")
 }
 
@@ -1777,8 +1780,10 @@ model ChatRoomReadState {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   lastReadAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  /// Null = not forced-unread. Cleared whenever mark-read runs.
+  markedUnreadAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([roomId, userId])
   @@index([userId])
