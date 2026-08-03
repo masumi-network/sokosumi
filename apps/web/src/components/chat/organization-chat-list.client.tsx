@@ -6,6 +6,7 @@ import {
   MessageCircle,
   Plus,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -18,8 +19,18 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { restoreRoomAction } from "@/app/chat/actions";
+import { deleteRoomAction, restoreRoomAction } from "@/app/chat/actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,6 +70,7 @@ interface OrganizationChatListProps {
   archivedRooms: ChatRoom[];
   currentUserId: string;
   hasOrganization: boolean;
+  canDeleteArchivedRooms?: boolean;
 }
 
 interface DirectParticipant {
@@ -243,6 +255,7 @@ export function OrganizationChatList({
   archivedRooms,
   currentUserId,
   hasOrganization,
+  canDeleteArchivedRooms = false,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
@@ -254,7 +267,12 @@ export function OrganizationChatList({
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
+  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
+    null,
+  );
   const [_isRestoring, startRestoreTransition] = useTransition();
+  const [_isDeleting, startDeleteTransition] = useTransition();
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const unreadRoomCount = countChatRoomsWithUnreadAttention(roomRows, {
     activeRoomId,
@@ -391,7 +409,7 @@ export function OrganizationChatList({
   }, [hasOrganization]);
 
   function handleRestoreRoom(room: ChatRoom) {
-    if (restoringRoomId) {
+    if (restoringRoomId || deletingRoomId) {
       return;
     }
     setRestoringRoomId(room.id);
@@ -409,6 +427,26 @@ export function OrganizationChatList({
         return applyRoomReadOverlays([result.data, ...without]);
       });
       router.push(`/chat/rooms/${result.data.id}`);
+      router.refresh();
+    });
+  }
+
+  function handleConfirmDeleteRoom() {
+    const room = pendingDeleteRoom;
+    if (!room || restoringRoomId || deletingRoomId) {
+      return;
+    }
+    setDeletingRoomId(room.id);
+    startDeleteTransition(async () => {
+      const result = await deleteRoomAction(room.id);
+      setDeletingRoomId(null);
+      setPendingDeleteRoom(null);
+      if (!result.ok) {
+        toast.error(result.message || tActions("deleteError"));
+        return;
+      }
+      toast.success(tActions("deleteSuccess", { name: room.name }));
+      setArchivedRows((current) => current.filter((row) => row.id !== room.id));
       router.refresh();
     });
   }
@@ -506,6 +544,9 @@ export function OrganizationChatList({
               <SidebarMenu className="gap-0">
                 {sortedArchivedChannels.map((room) => {
                   const isRestoring = restoringRoomId === room.id;
+                  const isDeleting = deletingRoomId === room.id;
+                  const actionBusy =
+                    restoringRoomId !== null || deletingRoomId !== null;
                   return (
                     <SidebarMenuItem
                       key={room.id}
@@ -519,31 +560,60 @@ export function OrganizationChatList({
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}
                         </span>
-                        <span className="size-7 shrink-0" aria-hidden />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center",
-                          "group-data-[collapsible=icon]:hidden text-muted-foreground",
-                          isRestoring
-                            ? "opacity-100"
-                            : "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/room-row:opacity-100 [@media(hover:hover)]:group-focus-within/room-row:opacity-100",
-                        )}
-                        disabled={isRestoring || restoringRoomId !== null}
-                        onClick={() => handleRestoreRoom(room)}
-                        aria-label={`${tActions("restore")} ${room.name}`}
-                      >
-                        <RotateCcw
+                        <span
                           className={cn(
-                            "size-3.5",
-                            isRestoring && "animate-spin",
+                            "shrink-0",
+                            canDeleteArchivedRooms ? "size-14" : "size-7",
                           )}
                           aria-hidden
                         />
-                      </Button>
+                      </div>
+                      <div
+                        className={cn(
+                          "absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center gap-0.5",
+                          "group-data-[collapsible=icon]:hidden",
+                          isRestoring || isDeleting
+                            ? "opacity-100"
+                            : "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/room-row:opacity-100 [@media(hover:hover)]:group-focus-within/room-row:opacity-100",
+                        )}
+                      >
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="flex size-7 items-center justify-center text-muted-foreground"
+                          disabled={actionBusy}
+                          onClick={() => handleRestoreRoom(room)}
+                          aria-label={`${tActions("restore")} ${room.name}`}
+                        >
+                          <RotateCcw
+                            className={cn(
+                              "size-3.5",
+                              isRestoring && "animate-spin",
+                            )}
+                            aria-hidden
+                          />
+                        </Button>
+                        {canDeleteArchivedRooms ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="flex size-7 items-center justify-center text-muted-foreground"
+                            disabled={actionBusy}
+                            onClick={() => setPendingDeleteRoom(room)}
+                            aria-label={`${tActions("delete")} ${room.name}`}
+                          >
+                            <Trash2
+                              className={cn(
+                                "size-3.5",
+                                isDeleting && "animate-pulse",
+                              )}
+                              aria-hidden
+                            />
+                          </Button>
+                        ) : null}
+                      </div>
                     </SidebarMenuItem>
                   );
                 })}
@@ -551,6 +621,48 @@ export function OrganizationChatList({
             </CollapsibleContent>
           </Collapsible>
         ) : null}
+
+        <AlertDialog
+          open={pendingDeleteRoom !== null}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && deletingRoomId === null) {
+              setPendingDeleteRoom(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {pendingDeleteRoom
+                  ? tActions("deleteConfirmTitle", {
+                      name: pendingDeleteRoom.name,
+                    })
+                  : null}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingDeleteRoom
+                  ? tActions("deleteConfirmDescription", {
+                      name: pendingDeleteRoom.name,
+                    })
+                  : null}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingRoomId !== null}>
+                {tActions("cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deletingRoomId !== null}
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleConfirmDeleteRoom();
+                }}
+              >
+                {tActions("deleteConfirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
           {/*

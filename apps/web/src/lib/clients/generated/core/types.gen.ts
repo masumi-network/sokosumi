@@ -1177,7 +1177,7 @@ export type ChatRoom = {
      */
     pinnedAt: Date | null;
     /**
-     * When the current user muted this room in their sidebar. Null when unmuted.
+     * When the current user muted this room. Null when unmuted. Muted rooms sort last, hide sidebar attention chrome, and skip CHAT mention notifications.
      */
     mutedAt: Date | null;
     /**
@@ -9420,6 +9420,105 @@ export type PostChatsRoomsByIdStreamResponses = {
 
 export type PostChatsRoomsByIdStreamResponse = PostChatsRoomsByIdStreamResponses[keyof PostChatsRoomsByIdStreamResponses];
 
+export type DeleteChatsRoomsByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}';
+};
+
+export type DeleteChatsRoomsByIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdError = DeleteChatsRoomsByIdErrors[keyof DeleteChatsRoomsByIdErrors];
+
+export type DeleteChatsRoomsByIdResponses = {
+    /**
+     * Room permanently deleted
+     */
+    204: void;
+};
+
+export type DeleteChatsRoomsByIdResponse = DeleteChatsRoomsByIdResponses[keyof DeleteChatsRoomsByIdResponses];
+
 export type GetChatsRoomsByIdData = {
     body?: never;
     headers?: {
@@ -10271,6 +10370,20 @@ export type PostChatsRoomsByIdPinErrors = {
         };
     };
     /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -10444,6 +10557,20 @@ export type PostChatsRoomsByIdMuteErrors = {
      * Room not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
