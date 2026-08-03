@@ -117,6 +117,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name?: string;
           slug?: string;
           topic?: string | null;
+          visibility?: "public" | "private";
         } = {};
 
         if (body.name !== undefined) {
@@ -134,6 +135,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (body.topic !== undefined) {
           updateData.topic = body.topic?.trim() || null;
+        }
+
+        if (body.visibility !== undefined) {
+          updateData.visibility = body.visibility;
         }
 
         if (body.memberUserIds !== undefined) {

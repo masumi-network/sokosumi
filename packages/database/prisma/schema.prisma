@@ -1656,6 +1656,8 @@ model ChatRoom {
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
   providerConversationId String?
   topic      String?
+  /// Channels: `"public"` | `"private"`. Directs: null.
+  visibility String?
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -1673,6 +1675,7 @@ model ChatRoom {
   // express WHERE organizationId IS NOT NULL / IS NULL partial uniques.
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])
+  @@index([organizationId, kind, visibility, archivedAt])
   @@index([createdByUserId, kind, updatedAt])
   @@map("chat_room")
 }

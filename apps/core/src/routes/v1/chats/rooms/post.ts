@@ -125,6 +125,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             name: body.name,
             slug,
             topic: body.topic?.trim() || null,
+            visibility: body.visibility,
             userMembers: {
               create: memberUserIds.map((userId) => ({ userId })),
             },
