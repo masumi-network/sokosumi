@@ -76,6 +76,41 @@ type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
 type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
+/** Collapsed preview height for primary message bodies (taller than quotes). */
+const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+function useClampedOverflow(resetKey: string) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    setExpanded(false);
+  }, [resetKey]);
+
+  useLayoutEffect(() => {
+    const node = contentRef.current;
+    if (!node || expanded) {
+      return;
+    }
+
+    function measureOverflow() {
+      const el = contentRef.current;
+      if (!el) {
+        return;
+      }
+      setOverflows(el.scrollHeight > el.clientHeight + 1);
+    }
+
+    measureOverflow();
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [expanded, resetKey]);
+
+  return { expanded, setExpanded, overflows, contentRef };
+}
+
 function MessageQuoteAttachmentChip({
   attachment,
 }: {
@@ -137,33 +172,9 @@ function MessageQuoteBlock({
   usersBySlug?: Map<string, UserMentionLookup>;
 }) {
   const t = useTranslations("App.Channels.Quote");
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  const snippetRef = useRef<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    setExpanded(false);
-  }, [quote.messageId, quote.snippet]);
-
-  useLayoutEffect(() => {
-    const node = snippetRef.current;
-    if (!node || expanded) {
-      return;
-    }
-
-    function measureOverflow() {
-      const el = snippetRef.current;
-      if (!el) {
-        return;
-      }
-      setOverflows(el.scrollHeight > el.clientHeight + 1);
-    }
-
-    measureOverflow();
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [expanded, quote.snippet]);
+  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
+    `${quote.messageId}\0${quote.snippet}`,
+  );
 
   const attachment = quote.attachment ?? null;
 
@@ -182,7 +193,7 @@ function MessageQuoteBlock({
         </div>
         {quote.snippet.trim() ? (
           <div
-            ref={snippetRef}
+            ref={contentRef}
             className={cn(
               "text-muted-foreground text-xs leading-5",
               expanded ? null : "line-clamp-4",
@@ -314,6 +325,56 @@ function ChannelMessageText({
         }
       })}
     </>
+  );
+}
+
+function ChannelMessageBody({
+  messageId,
+  content,
+  coworkersById,
+  coworkersBySlug,
+  usersById,
+  usersBySlug,
+}: {
+  messageId: string;
+  content: string;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
+}) {
+  const t = useTranslations("App.Channels.Message");
+  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
+    `${messageId}\0${content}`,
+  );
+
+  return (
+    <div>
+      <div
+        ref={contentRef}
+        data-testid="room-message-body"
+        className={cn(expanded ? null : MESSAGE_BODY_CLAMP_CLASS)}
+      >
+        <ChannelMessageText
+          content={content}
+          coworkersById={coworkersById}
+          coworkersBySlug={coworkersBySlug}
+          usersById={usersById}
+          usersBySlug={usersBySlug}
+        />
+      </div>
+      {expanded || overflows ? (
+        <button
+          type="button"
+          className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"
+          onClick={() => {
+            setExpanded((current) => !current);
+          }}
+        >
+          {expanded ? t("showLess") : t("showMore")}
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -1200,7 +1261,8 @@ export function ChatMessageRow({
                 </span>
               ) : (
                 <>
-                  <ChannelMessageText
+                  <ChannelMessageBody
+                    messageId={message.id}
                     content={message.content}
                     coworkersById={coworkersById}
                     coworkersBySlug={coworkersBySlug}

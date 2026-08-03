@@ -4849,7 +4849,9 @@
       "Message": {
         "delete": "Delete",
         "deleteConfirm": "Delete this message? Others will see that it was deleted.",
-        "deleted": "This message was deleted"
+        "deleted": "This message was deleted",
+        "showMore": "Show more",
+        "showLess": "Show less"
       },
       "Edit": {
         "action": "Edit",
