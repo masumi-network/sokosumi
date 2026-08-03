@@ -4753,6 +4753,7 @@
         "loading": "正在加载频道…",
         "empty": "没有可加入的公开频道。",
         "join": "加入",
+        "joinAria": "加入 {name}",
         "joinSuccess": "你已加入 {name}。",
         "joinError": "无法加入频道。",
         "loadError": "无法加载频道。",

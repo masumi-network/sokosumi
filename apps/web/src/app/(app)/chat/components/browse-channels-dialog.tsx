@@ -1,6 +1,6 @@
 "use client";
 
-import { Compass, Hash, Loader2, Search } from "lucide-react";
+import { Hash, List, Loader2, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -86,6 +86,8 @@ export function BrowseChannelsDialog({
       toast.success(t("joinSuccess", { name: result.data.name }));
       notifyOrganizationChatRoomsChanged(result.data);
       setOpen(false);
+      // Soft router navigation from this Dialog + useTransition path does not
+      // commit; hard assign reliably opens the joined room.
       window.location.assign(`/chat/rooms/${result.data.id}`);
     });
   }
@@ -104,7 +106,7 @@ export function BrowseChannelsDialog({
           aria-label={t("trigger")}
           title={t("trigger")}
         >
-          <Compass className="size-3.5" aria-hidden />
+          <List className="size-3.5" aria-hidden />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden shadow-none sm:max-w-lg">

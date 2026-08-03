@@ -51,12 +51,18 @@ export const chatRoomService = (() => {
 
   async function listBrowsableChannels(options?: {
     q?: string;
+    /** Cap Core pagination walks. Sidebar suggestions use 1 page. */
+    maxPages?: number;
   }): Promise<BrowsableChatRoom[]> {
     const rooms: BrowsableChatRoom[] = [];
     let cursor: string | undefined;
     const q = options?.q?.trim();
+    const maxPages = Math.min(
+      Math.max(options?.maxPages ?? ROOM_LIST_MAX_PAGES, 1),
+      ROOM_LIST_MAX_PAGES,
+    );
 
-    for (let page = 0; page < ROOM_LIST_MAX_PAGES; page += 1) {
+    for (let page = 0; page < maxPages; page += 1) {
       const response = await coreClient.getBrowsableChatRooms({
         limit: ROOM_LIST_PAGE_LIMIT,
         ...(q ? { q } : {}),

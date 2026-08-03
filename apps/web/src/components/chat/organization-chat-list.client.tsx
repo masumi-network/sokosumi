@@ -18,7 +18,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { restoreRoomAction } from "@/app/chat/actions";
+import { joinRoomAction, restoreRoomAction } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,16 +33,25 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
+  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
+import type {
+  BrowsableChatRoom,
+  ChatRoom,
+  ChatRoomPresence,
+} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
-import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
+import {
+  notifyOrganizationChatRoomsChanged,
+  ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+} from "./organization-chat-events";
 import {
   listOrganizationArchivedChatRoomsAction,
+  listOrganizationBrowsableChannelsAction,
   listOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
 
@@ -251,15 +260,19 @@ export function OrganizationChatList({
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
+  const tBrowse = useTranslations("App.Channels.Browse");
   const pathname = usePathname();
   const router = useRouter();
   const [roomRows, setRoomRows] = useState(rooms);
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
+  const [joinableRooms, setJoinableRooms] = useState<BrowsableChatRoom[]>([]);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
+  const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [_isRestoring, startRestoreTransition] = useTransition();
+  const [_isJoining, startJoinTransition] = useTransition();
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
 
   useEffect(() => {
@@ -271,14 +284,26 @@ export function OrganizationChatList({
   }, [archivedRooms]);
 
   useEffect(() => {
+    if (!hasOrganization) {
+      setJoinableRooms([]);
+    }
+  }, [hasOrganization]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const refreshRooms = async () => {
-      const [activeResult, archivedResult] = await Promise.all([
+      const [activeResult, archivedResult, joinableResult] = await Promise.all([
         listOrganizationChatRoomsAction(),
         hasOrganization
           ? listOrganizationArchivedChatRoomsAction()
           : Promise.resolve({ ok: true as const, data: [] as ChatRoom[] }),
+        hasOrganization
+          ? listOrganizationBrowsableChannelsAction()
+          : Promise.resolve({
+              ok: true as const,
+              data: [] as BrowsableChatRoom[],
+            }),
       ]);
       if (cancelled) {
         return;
@@ -289,7 +314,12 @@ export function OrganizationChatList({
       if (archivedResult.ok) {
         setArchivedRows(archivedResult.data);
       }
+      if (joinableResult.ok) {
+        setJoinableRooms(joinableResult.data);
+      }
     };
+
+    void refreshRooms();
 
     const intervalId = window.setInterval(
       refreshRooms,
@@ -347,6 +377,9 @@ export function OrganizationChatList({
         setArchivedRows((current) =>
           current.filter((row) => row.id !== room.id),
         );
+        setJoinableRooms((current) =>
+          current.filter((row) => row.id !== room.id),
+        );
         return;
       }
 
@@ -355,7 +388,13 @@ export function OrganizationChatList({
         hasOrganization
           ? listOrganizationArchivedChatRoomsAction()
           : Promise.resolve({ ok: true as const, data: [] as ChatRoom[] }),
-      ]).then(([activeResult, archivedResult]) => {
+        hasOrganization
+          ? listOrganizationBrowsableChannelsAction()
+          : Promise.resolve({
+              ok: true as const,
+              data: [] as BrowsableChatRoom[],
+            }),
+      ]).then(([activeResult, archivedResult, joinableResult]) => {
         if (cancelled) {
           return;
         }
@@ -364,6 +403,9 @@ export function OrganizationChatList({
         }
         if (archivedResult.ok) {
           setArchivedRows(archivedResult.data);
+        }
+        if (joinableResult.ok) {
+          setJoinableRooms(joinableResult.data);
         }
       });
     };
@@ -380,6 +422,31 @@ export function OrganizationChatList({
       );
     };
   }, [hasOrganization]);
+
+  function handleJoinChannel(room: BrowsableChatRoom) {
+    if (joiningRoomId) {
+      return;
+    }
+
+    setJoiningRoomId(room.id);
+    startJoinTransition(async () => {
+      const result = await joinRoomAction(room.id);
+      if (!result.ok) {
+        setJoiningRoomId(null);
+        toast.error(result.message || tBrowse("joinError"));
+        return;
+      }
+
+      toast.success(tBrowse("joinSuccess", { name: result.data.name }));
+      setJoinableRooms((current) =>
+        current.filter((candidate) => candidate.id !== result.data.id),
+      );
+      notifyOrganizationChatRoomsChanged(result.data);
+      // Soft router navigation from useTransition does not always commit;
+      // hard assign reliably opens the joined room.
+      window.location.assign(`/chat/rooms/${result.data.id}`);
+    });
+  }
 
   function handleRestoreRoom(room: ChatRoom) {
     if (restoringRoomId) {
@@ -438,6 +505,13 @@ export function OrganizationChatList({
     );
   }, [archivedRows]);
 
+  const visibleJoinableRooms = useMemo(() => {
+    const joinedIds = new Set(
+      roomRows.filter((room) => room.kind === "channel").map((room) => room.id),
+    );
+    return joinableRooms.filter((room) => !joinedIds.has(room.id));
+  }, [joinableRooms, roomRows]);
+
   return (
     <SidebarGroup className="w-full">
       <SidebarGroupContent className="space-y-2">
@@ -468,7 +542,27 @@ export function OrganizationChatList({
                   onRoomUpdated={handleRoomUpdated}
                 />
               ))}
-              {namedChannels.length === 0 ? (
+              {visibleJoinableRooms.map((room) => {
+                const isJoining = joiningRoomId === room.id;
+                return (
+                  <SidebarMenuItem key={`joinable-${room.id}`}>
+                    <SidebarMenuButton
+                      type="button"
+                      disabled={joiningRoomId !== null}
+                      aria-busy={isJoining}
+                      aria-label={tBrowse("joinAria", { name: room.name })}
+                      onClick={() => {
+                        handleJoinChannel(room);
+                      }}
+                    >
+                      <Plus className="size-4 shrink-0" aria-hidden />
+                      <span className="truncate">{room.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+              {namedChannels.length === 0 &&
+              visibleJoinableRooms.length === 0 ? (
                 <SidebarMenuItem>
                   <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
                     {hasOrganization

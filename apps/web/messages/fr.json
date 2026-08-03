@@ -4753,6 +4753,7 @@
         "loading": "Chargement des canaux…",
         "empty": "Aucun canal public à rejoindre.",
         "join": "Rejoindre",
+        "joinAria": "Rejoindre {name}",
         "joinSuccess": "Vous avez rejoint {name}.",
         "joinError": "Impossible de rejoindre le canal.",
         "loadError": "Impossible de charger les canaux.",

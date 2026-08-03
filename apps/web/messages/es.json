@@ -4753,6 +4753,7 @@
         "loading": "Cargando canales…",
         "empty": "No hay canales públicos a los que unirse.",
         "join": "Unirse",
+        "joinAria": "Unirse a {name}",
         "joinSuccess": "Te uniste a {name}.",
         "joinError": "No se pudo unir al canal.",
         "loadError": "No se pudieron cargar los canales.",

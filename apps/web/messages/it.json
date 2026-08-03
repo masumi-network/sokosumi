@@ -4753,6 +4753,7 @@
         "loading": "Caricamento canali…",
         "empty": "Nessun canale pubblico a cui unirsi.",
         "join": "Unisciti",
+        "joinAria": "Unisciti a {name}",
         "joinSuccess": "Ti sei unito a {name}.",
         "joinError": "Impossibile unirsi al canale.",
         "loadError": "Impossibile caricare i canali.",

@@ -4753,6 +4753,7 @@
         "loading": "A carregar canais…",
         "empty": "Não há canais públicos para aderir.",
         "join": "Aderir",
+        "joinAria": "Aderir a {name}",
         "joinSuccess": "Aderiu a {name}.",
         "joinError": "Não foi possível aderir ao canal.",
         "loadError": "Não foi possível carregar os canais.",

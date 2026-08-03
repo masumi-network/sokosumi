@@ -4872,6 +4872,7 @@
         "loading": "Loading channels…",
         "empty": "No public channels to join.",
         "join": "Join",
+        "joinAria": "Join {name}",
         "joinSuccess": "You joined {name}.",
         "joinError": "Could not join channel.",
         "loadError": "Could not load channels.",

@@ -220,6 +220,38 @@ describe("chatRoomService.listBrowsableChannels", () => {
       q: "launch",
     });
   });
+
+  it("stops after maxPages for sidebar suggestions", async () => {
+    getBrowsableChatRoomsMock.mockResolvedValue({
+      data: [
+        {
+          id: "room-1",
+          name: "Alpha",
+          slug: "alpha",
+          topic: null,
+          visibility: "public",
+          memberCount: 3,
+          createdByUserId: "user-1",
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      ],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 100,
+          total: 2,
+          nextCursor: "room-1",
+        },
+      },
+    });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const rooms = await chatRoomService.listBrowsableChannels({ maxPages: 1 });
+
+    expect(rooms.map((item) => item.id)).toEqual(["room-1"]);
+    expect(getBrowsableChatRoomsMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("chatRoomService.listArchivedRooms", () => {

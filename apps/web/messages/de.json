@@ -4753,6 +4753,7 @@
         "loading": "Kanäle werden geladen…",
         "empty": "Keine öffentlichen Kanäle zum Beitreten.",
         "join": "Beitreten",
+        "joinAria": "{name} beitreten",
         "joinSuccess": "Du bist {name} beigetreten.",
         "joinError": "Kanalbeitritt fehlgeschlagen.",
         "loadError": "Kanäle konnten nicht geladen werden.",
