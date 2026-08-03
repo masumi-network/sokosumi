@@ -320,6 +320,21 @@ export async function restoreRoomAction(
   }
 }
 
+export async function deleteRoomAction(
+  roomId: string,
+): Promise<RoomActionResult<{ id: string }>> {
+  try {
+    await chatRoomService.deleteRoom(roomId);
+    revalidatePath("/chat");
+    return { ok: true, data: { id: roomId } };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not delete channel."),
+    };
+  }
+}
+
 export async function leaveRoomAction(
   roomId: string,
 ): Promise<RoomActionResult<{ id: string }>> {

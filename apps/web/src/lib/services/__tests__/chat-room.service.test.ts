@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 const getChatRoomsMock = vi.fn();
 const archiveChatRoomMock = vi.fn();
+const deleteChatRoomMock = vi.fn();
 const leaveChatRoomMock = vi.fn();
 const restoreChatRoomMock = vi.fn();
 
@@ -18,6 +19,7 @@ vi.mock("@/lib/clients/core.client", () => ({
   coreClient: {
     getChatRooms: (...args: unknown[]) => getChatRoomsMock(...args),
     archiveChatRoom: (...args: unknown[]) => archiveChatRoomMock(...args),
+    deleteChatRoom: (...args: unknown[]) => deleteChatRoomMock(...args),
     leaveChatRoom: (...args: unknown[]) => leaveChatRoomMock(...args),
     restoreChatRoom: (...args: unknown[]) => restoreChatRoomMock(...args),
   },
@@ -192,5 +194,14 @@ describe("chatRoomService lifecycle wrappers", () => {
 
     expect(restoreChatRoomMock).toHaveBeenCalledWith("room-1");
     expect(result).toEqual(room("room-1"));
+  });
+
+  it("deleteRoom calls Core permanent delete", async () => {
+    deleteChatRoomMock.mockResolvedValue(undefined);
+
+    const { chatRoomService } = await import("../chat-room.service");
+    await chatRoomService.deleteRoom("room-1");
+
+    expect(deleteChatRoomMock).toHaveBeenCalledWith("room-1");
   });
 });
