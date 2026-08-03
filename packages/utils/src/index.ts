@@ -86,6 +86,8 @@ export {
   withPreservedDesignMdMetadata,
 } from "./design-md-metadata-guard.js";
 export {
+  buildAdHocDesignMdPathname,
+  buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
   buildOrganizationDesignMdPrefix,
   buildUserDesignMdPathname,

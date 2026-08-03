@@ -14,7 +14,10 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { coreClient } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import type { DesignMdOwnerSchemaType } from "@/lib/schemas/design-md";
+import type {
+  DesignMdOwnerSchemaType,
+  ManageableDesignMdOwnerSchemaType,
+} from "@/lib/schemas/design-md";
 import {
   createDesignMdJobToken,
   verifyDesignMdJobToken,
@@ -47,9 +50,14 @@ export interface PersistedDesignMd {
   url: string;
 }
 
+export type EffectiveDesignMdOwner =
+  | { type: "organization"; name: string; logo: string | null }
+  | { type: "user" };
+
 export interface EffectiveDesignMdAttachment {
   label: string;
   url: string;
+  owner: EffectiveDesignMdOwner;
 }
 
 export type StartDesignMdGenerationResult =
@@ -147,7 +155,11 @@ function createJobToken(
 async function assertCanManageOwner(
   owner: DesignMdOwnerSchemaType,
 ): Promise<void> {
-  if (owner.type === "user") return;
+  // Ad hoc generation is never persisted anywhere the rest of the
+  // organization or the user's own profile can see it, so it carries none of
+  // the risk that gates the persisted-profile writes below — any
+  // authenticated caller may generate one, matching the Core endpoint's gate.
+  if (owner.type === "user" || owner.type === "adhoc") return;
 
   const member = await coreClient.getMyMemberInOrganization(
     owner.organizationId,
@@ -162,7 +174,7 @@ async function assertCanManageOwner(
 }
 
 async function persistDesignMdToProfile(
-  owner: DesignMdOwnerSchemaType,
+  owner: ManageableDesignMdOwnerSchemaType,
   designMd: { extractionId?: null | string; content?: null | string },
 ): Promise<PersistedDesignMd | null> {
   await assertCanManageOwner(owner);
@@ -188,10 +200,40 @@ async function persistDesignMdToProfile(
   };
 }
 
+/**
+ * Stores a DESIGN.md generated for one-off, ad hoc use — never attached to
+ * any user's or organization's profile, so unlike {@link persistDesignMdToProfile}
+ * there is nothing to authorize beyond being signed in.
+ */
+async function storeAdHocDesignMd(designMd: {
+  extractionId?: null | string;
+  content: string;
+}): Promise<PersistedDesignMd> {
+  const { data } = await coreClient.storeAdHocDesignMd({
+    content: designMd.content,
+    extractionId: designMd.extractionId ?? null,
+  });
+
+  const { extractionId, url } = data.designMd;
+
+  return {
+    extractionId,
+    previewUrl: extractionId ? getDesignMdPreviewUrl(extractionId) : null,
+    url,
+  };
+}
+
 async function persistDonePayload(
   owner: DesignMdOwnerSchemaType,
   donePayload: DesignMdDonePayload,
 ): Promise<PersistedDesignMd> {
+  if (owner.type === "adhoc") {
+    return storeAdHocDesignMd({
+      extractionId: String(donePayload.extractionId),
+      content: donePayload.designMd,
+    });
+  }
+
   const persisted = await persistDesignMdToProfile(owner, {
     extractionId: String(donePayload.extractionId),
     content: donePayload.designMd,
@@ -288,7 +330,7 @@ export const designMdService = (() => {
   }
 
   async function persistUploadedDesignMd(
-    owner: DesignMdOwnerSchemaType,
+    owner: ManageableDesignMdOwnerSchemaType,
     content: string,
   ): Promise<PersistedDesignMd> {
     const persisted = await persistDesignMdToProfile(owner, {
@@ -305,7 +347,9 @@ export const designMdService = (() => {
     return persisted;
   }
 
-  async function removeDesignMd(owner: DesignMdOwnerSchemaType): Promise<void> {
+  async function removeDesignMd(
+    owner: ManageableDesignMdOwnerSchemaType,
+  ): Promise<void> {
     await persistDesignMdToProfile(owner, {
       extractionId: null,
       content: null,
@@ -320,13 +364,18 @@ export const designMdService = (() => {
     },
   );
 
-  async function appendDesignMdToDescription(
+  /**
+   * Prepends a DESIGN.md attachment link to a task description, idempotently
+   * (a no-op if the link is already present). Shared by the default
+   * (organization/personal) attachment path and by a task's explicit choice
+   * of a different, ad hoc DESIGN.md — both end up as the same plain markdown
+   * link in the description, which is all the agent actually reads.
+   */
+  function withDesignMdAttachment(
     description: string,
-  ): Promise<string> {
-    const designMd = await resolveEffectiveDesignMd();
-
+    designMd: { label: string; url: string },
+  ): string {
     if (
-      !designMd ||
       descriptionIncludesTaskAttachmentLink(
         description,
         designMd.label,
@@ -347,6 +396,16 @@ export const designMdService = (() => {
       : attachment;
   }
 
+  async function appendDesignMdToDescription(
+    description: string,
+  ): Promise<string> {
+    const designMd = await resolveEffectiveDesignMd();
+
+    return designMd
+      ? withDesignMdAttachment(description, designMd)
+      : description;
+  }
+
   return {
     appendDesignMdToDescription,
     finalizeAndPersistDesignMd,
@@ -356,5 +415,6 @@ export const designMdService = (() => {
     removeDesignMd,
     resolveEffectiveDesignMd,
     startDesignMdGeneration,
+    withDesignMdAttachment,
   };
 })();

@@ -85,6 +85,25 @@ function userMessage(
   };
 }
 
+function coworkerMessage(
+  overrides: Partial<ChatRoomMessage> = {},
+): ChatRoomMessage {
+  return {
+    ...userMessage(overrides),
+    sender: {
+      type: "coworker",
+      coworker: {
+        id: "cow-1",
+        name: "Jamal",
+        slug: "jamal",
+        caption: null,
+        image: null,
+        presence: "online",
+      },
+    },
+  };
+}
+
 function renderRow({
   message = userMessage(),
   isContinuation = false,
@@ -334,6 +353,116 @@ describe("ChatMessageRow", () => {
       });
 
       expect(screen.getByRole("dialog")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      matchMediaSpy.mockRestore();
+    }
+  });
+
+  it("shows who reacted in the message actions sheet when hover is unavailable", async () => {
+    const matchMediaSpy = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+    try {
+      vi.useFakeTimers();
+      renderRow({
+        onQuote: vi.fn(),
+        message: userMessage({
+          reactions: [
+            {
+              emoji: "👍",
+              count: 2,
+              reactedByCurrentUser: true,
+              reactors: [
+                { id: "user-1", name: "Ada" },
+                { id: "user-2", name: "Bob" },
+              ],
+            },
+          ],
+        }),
+      });
+      const article = screen.getByRole("article");
+
+      await act(async () => {
+        article.dispatchEvent(
+          new PointerEvent("pointerdown", {
+            bubbles: true,
+            button: 0,
+            clientX: 10,
+            clientY: 10,
+          }),
+        );
+        await vi.advanceTimersByTimeAsync(500);
+      });
+
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).getByRole("list", { name: "Reactions.whoReactedList" }),
+      ).toBeInTheDocument();
+      expect(within(dialog).getByText("Ada, Bob")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      matchMediaSpy.mockRestore();
+    }
+  });
+
+  it("clears native text selection when long-press opens message actions", async () => {
+    const matchMediaSpy = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+    try {
+      vi.useFakeTimers();
+      renderRow({
+        message: userMessage({ content: "Selectable chat body" }),
+        onQuote: vi.fn(),
+      });
+      const article = screen.getByRole("article");
+
+      const range = document.createRange();
+      range.selectNodeContents(article);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      expect(selection?.rangeCount).toBeGreaterThan(0);
+
+      await act(async () => {
+        article.dispatchEvent(
+          new PointerEvent("pointerdown", {
+            bubbles: true,
+            button: 0,
+            clientX: 10,
+            clientY: 10,
+          }),
+        );
+        await vi.advanceTimersByTimeAsync(500);
+      });
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(window.getSelection()?.rangeCount ?? 0).toBe(0);
+      expect(article.className).toContain("[@media(hover:none)]:select-none");
+      expect(article.className).toContain(
+        "[@media(hover:none)]:[-webkit-touch-callout:none]",
+      );
     } finally {
       vi.useRealTimers();
       matchMediaSpy.mockRestore();
@@ -831,6 +960,21 @@ describe("ChatMessageRow", () => {
         coworkersById={new Map()}
         coworkersBySlug={new Map()}
         currentUserId="other-user"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit.action" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={coworkerMessage()}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="user-1"
         onToggleReaction={vi.fn()}
         onStartEdit={onStartEdit}
       />,

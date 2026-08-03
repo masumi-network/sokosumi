@@ -767,7 +767,12 @@
       "retry": "再試行",
       "dismiss": "閉じる",
       "view": "表示",
-      "dismissNotification": "通知を閉じる"
+      "dismissNotification": "通知を閉じる",
+      "browserNotificationTitle": "Sokosumi",
+      "browserPermissionTitle": "別のタブにいるときもアラートを受け取る",
+      "browserPermissionDescription": "Sokosumiが開いているがフォーカスされていない間も、ジョブ・タスク・請求・システム・チャットのブラウザ通知を許可します。",
+      "browserPermissionEnable": "ブラウザ通知を有効にする",
+      "browserPermissionRequesting": "許可を待機中…"
     },
     "HashValue": {
       "copy": "コピー",
@@ -1809,6 +1814,18 @@
         "files": "ファイル"
       },
       "NewTask": {
+        "DesignMdAttachment": {
+          "organizationLabel": "{organization} のブランドデザイン",
+          "personalLabel": "あなたのブランドデザイン",
+          "customLabel": "{hostname} のブランドデザイン",
+          "tooltip": "DESIGN.md は、オーナーが {organization} 用にすでに作成したブランドガイドです。ここに添付すると、このエージェントが自動的にあなたのブランドを適用します。",
+          "tooltipPersonal": "DESIGN.md は、あなたがすでに作成したブランドガイドです。ここに添付すると、このエージェントが自動的にあなたのブランドを適用します。",
+          "tooltipCustom": "{hostname} からこのタスク専用に生成された DESIGN.md です。ここに添付すると、このエージェントがそのブランドを適用します。プロフィールには保存されません。",
+          "learnMore": "DESIGN.md について詳しく",
+          "infoAria": "この添付について",
+          "useDifferentBranding": "別のブランドを使用",
+          "resetToDefault": "ブランドをリセット"
+        },
         "title": "新しいタスク",
         "details": "詳細",
         "detailsDescription": "実施するタスクを簡潔に説明してください",
@@ -4337,6 +4354,11 @@
       "allAgentsSubtitle": "Sokosumiのすべてのエージェントを、できること別に表示しています。"
     },
     "DesignMd": {
+      "adHocDialogTitle": "別のブランドを使用",
+      "adHocDialogDescription": "他社のウェブサイトを入力すると、Masumi がこのタスク専用の DESIGN.md ブランドガイドを生成します。プロフィールには何も保存されません。",
+      "adHocUrlLabel": "会社のウェブサイト",
+      "adHocUrlPlaceholder": "https://example.com",
+      "adHocMissingUrl": "先にウェブサイトの URL を入力してください。",
       "title": "DESIGN.md",
       "statusReady": "準備完了",
       "statusEmpty": "未設定",
@@ -4707,7 +4729,8 @@
         "add": "Add reaction",
         "toggle": "React with {emoji}",
         "whoReacted": "{names}{more, plural, =0 {} other {、他#人}}",
-        "andMore": "他{count}人"
+        "andMore": "他{count}人",
+        "whoReactedList": "リアクションした人"
       },
       "Presence": {
         "online": "Online",

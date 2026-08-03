@@ -767,7 +767,12 @@
       "retry": "Intentar de nuevo",
       "dismiss": "Descartar",
       "view": "Ver",
-      "dismissNotification": "Descartar notificación"
+      "dismissNotification": "Descartar notificación",
+      "browserNotificationTitle": "Sokosumi",
+      "browserPermissionTitle": "Recibe alertas cuando estés en otra pestaña",
+      "browserPermissionDescription": "Permite notificaciones del navegador para trabajos, tareas, facturación, sistema y chat mientras Sokosumi esté abierto pero no enfocado.",
+      "browserPermissionEnable": "Activar notificaciones del navegador",
+      "browserPermissionRequesting": "Esperando permiso…"
     },
     "HashValue": {
       "copy": "Copiar",
@@ -1809,6 +1814,18 @@
         "files": "Archivos"
       },
       "NewTask": {
+        "DesignMdAttachment": {
+          "organizationLabel": "Diseño de marca de {organization}",
+          "personalLabel": "Tu diseño de marca",
+          "customLabel": "Diseño de marca de {hostname}",
+          "tooltip": "DESIGN.md es una guía de marca ya creada para {organization} por su propietario. Adjuntarla aquí ayuda a que este agente aplique tu marca automáticamente.",
+          "tooltipPersonal": "DESIGN.md es una guía de marca que ya creaste. Adjuntarla aquí ayuda a que este agente aplique tu marca automáticamente.",
+          "tooltipCustom": "DESIGN.md generado desde {hostname} solo para esta tarea. Adjuntarlo aquí ayuda a que este agente aplique esa marca. No se guarda nada en tu perfil.",
+          "learnMore": "Más información sobre DESIGN.md",
+          "infoAria": "Sobre este adjunto",
+          "useDifferentBranding": "Usar otra marca",
+          "resetToDefault": "Restablecer marca"
+        },
         "title": "Nuevo Task",
         "details": "Detalles",
         "detailsDescription": "Describe brevemente la tarea a realizar",
@@ -4337,6 +4354,11 @@
       }
     },
     "DesignMd": {
+      "adHocDialogTitle": "Usar una marca diferente",
+      "adHocDialogDescription": "Introduce el sitio web de otra empresa y Masumi generará una guía de marca DESIGN.md solo para esta tarea. No se guarda nada en tu perfil.",
+      "adHocUrlLabel": "Sitio web de la empresa",
+      "adHocUrlPlaceholder": "https://ejemplo.com",
+      "adHocMissingUrl": "Introduce primero una URL de sitio web.",
       "title": "DESIGN.md",
       "statusReady": "Listo",
       "statusEmpty": "Sin configurar",
@@ -4707,7 +4729,8 @@
         "add": "Add reaction",
         "toggle": "React with {emoji}",
         "whoReacted": "{names}{more, plural, =0 {} other { y # más}}",
-        "andMore": "y {count} más"
+        "andMore": "y {count} más",
+        "whoReactedList": "Quién reaccionó"
       },
       "Presence": {
         "online": "Online",

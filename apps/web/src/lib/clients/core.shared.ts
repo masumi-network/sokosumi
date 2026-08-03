@@ -70,6 +70,7 @@ import type {
   PostUsersByIdFilesData,
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
+  PostWorkspacesDesignMdAdhocData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutTaskScheduleRequest,
@@ -270,6 +271,7 @@ import {
   postUsersByIdVendorGrantsByGrantIdRevoke as corePostUsersByIdVendorGrantsByGrantIdRevoke,
   postVendorsByIdFiles as corePostVendorsByIdFiles,
   postVendorsByIdFilesCleanup as corePostVendorsByIdFilesCleanup,
+  postWorkspacesDesignMdAdhoc as corePostWorkspacesDesignMdAdhoc,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -2784,6 +2786,25 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  /**
+   * Stores a DESIGN.md for one-off, ad hoc use — content generated for a
+   * single task's branding, never attached to the caller's user or
+   * organization profile. Any authenticated user may call this.
+   */
+  async function storeAdHocDesignMd(
+    body: NonNullable<PostWorkspacesDesignMdAdhocData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostWorkspacesDesignMdAdhoc({
+          client,
+          body,
+        }),
+      "Failed to store ad hoc DESIGN.md",
+    );
+  }
+
   async function getWorkspaceOrganizationId(workspaceId: string) {
     return executeOperation(
       getClient,
@@ -3883,6 +3904,7 @@ export function createCoreClient(getClient: GetClient) {
     setMyDesignMd,
     setMyPreferredOrganization,
     setOrganizationDesignMd,
+    storeAdHocDesignMd,
     createOrganizationInviteLink,
     revokeOrganizationInviteLink,
     resolveOrganizationInviteLink,

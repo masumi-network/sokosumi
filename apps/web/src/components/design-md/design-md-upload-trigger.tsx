@@ -20,7 +20,10 @@ import { saveDesignMdUpload } from "@/lib/actions/design-md";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
-import { DESIGN_MD_TRANSLATION_NAMESPACE, type DesignMdOwner } from "./types";
+import {
+  DESIGN_MD_TRANSLATION_NAMESPACE,
+  type ManageableDesignMdOwner,
+} from "./types";
 
 const DESIGN_MD_ACCEPT = ".md,.markdown,text/markdown,text/plain";
 const DESIGN_MD_MAX_SIZE_BYTES = 1024 * 1024;
@@ -28,7 +31,7 @@ const DESIGN_MD_MAX_SIZE_BYTES = 1024 * 1024;
 interface DesignMdUploadTriggerProps {
   disabled?: boolean;
   onSaved?: (designMd: PersistedDesignMd) => void;
-  owner: DesignMdOwner;
+  owner: ManageableDesignMdOwner;
   variant?: "compact" | "default";
 }
 

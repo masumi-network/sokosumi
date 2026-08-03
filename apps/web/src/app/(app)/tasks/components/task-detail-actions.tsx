@@ -77,7 +77,11 @@ import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
-import { TaskForm, type TaskFormLabels } from "./task-form";
+import {
+  TaskForm,
+  type TaskFormInitialDesignMdAttachment,
+  type TaskFormLabels,
+} from "./task-form";
 import { TaskFormModal } from "./task-form-modal";
 import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
 import {
@@ -122,6 +126,8 @@ interface TaskDetailActionsProps {
   coworkerOptions: CoworkerOption[];
   agentNameById: Map<string, string>;
   defaultAssigneeId?: string | null;
+  /** Resolved DESIGN.md for create-related flow (same picker as new task). */
+  initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
   actionsMenuLabel: string;
   labels: TaskDetailActionsLabels;
   currentOrganizationId?: string | null;
@@ -144,6 +150,7 @@ export function TaskDetailActions({
   coworkerOptions,
   agentNameById,
   defaultAssigneeId,
+  initialDesignMdAttachment = null,
   actionsMenuLabel,
   labels,
   currentOrganizationId,
@@ -938,6 +945,7 @@ export function TaskDetailActions({
             labels={createTaskLabels}
             coworkerOptions={coworkerOptions}
             agentNameById={agentNameById}
+            initialDesignMdAttachment={initialDesignMdAttachment}
             initialValues={
               defaultAssigneeId ? { assigneeId: defaultAssigneeId } : undefined
             }
@@ -947,6 +955,8 @@ export function TaskDetailActions({
               projectId,
               status,
               schedule,
+              skipDesignMdAttachment,
+              designMdAttachmentOverride,
             }) => {
               const result = await createTaskAndLink({
                 taskId,
@@ -955,6 +965,8 @@ export function TaskDetailActions({
                 projectId,
                 status,
                 schedule,
+                skipDesignMdAttachment,
+                designMdAttachmentOverride,
                 relation: selectedCreateRelatedOption.relation,
               });
 

@@ -34,6 +34,7 @@ import { getSession } from "@/lib/auth/auth.server";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { designMdService } from "@/lib/services/design-md.service";
 import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
@@ -441,6 +442,9 @@ async function TaskDetailActionsSlot({
       getTranslations("App.Tasks.Detail"),
       getTranslations("Components.MembersTable.Header"),
     ]);
+  const initialDesignMdAttachment = session?.user.id
+    ? await designMdService.resolveEffectiveDesignMd()
+    : null;
   const {
     task: taskWithCoworker,
     agentNameById,
@@ -482,6 +486,7 @@ async function TaskDetailActionsSlot({
       coworkerOptions={coworkerOptions}
       agentNameById={agentNameById}
       defaultAssigneeId={task.assigneeId}
+      initialDesignMdAttachment={initialDesignMdAttachment}
       currentOrganizationId={task.workspace.organizationId ?? null}
       organizations={members}
       personalWorkspaceLabel={personalWorkspaceMoveLabel}

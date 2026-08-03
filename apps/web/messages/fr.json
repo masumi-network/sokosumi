@@ -767,7 +767,12 @@
       "retry": "Réessayer",
       "dismiss": "Ignorer",
       "view": "Voir",
-      "dismissNotification": "Ignorer la notification"
+      "dismissNotification": "Ignorer la notification",
+      "browserNotificationTitle": "Sokosumi",
+      "browserPermissionTitle": "Recevez des alertes lorsque vous êtes dans un autre onglet",
+      "browserPermissionDescription": "Autorisez les notifications du navigateur pour les jobs, tâches, facturation, système et chat pendant que Sokosumi est ouvert mais non focalisé.",
+      "browserPermissionEnable": "Activer les notifications du navigateur",
+      "browserPermissionRequesting": "En attente de l’autorisation…"
     },
     "HashValue": {
       "copy": "Copier",
@@ -1809,6 +1814,18 @@
         "files": "Fichiers"
       },
       "NewTask": {
+        "DesignMdAttachment": {
+          "organizationLabel": "Charte de marque de {organization}",
+          "personalLabel": "Votre charte de marque",
+          "customLabel": "Charte de marque de {hostname}",
+          "tooltip": "DESIGN.md est une charte de marque déjà créée pour {organization} par son propriétaire. La joindre ici aide cet agent à appliquer automatiquement votre marque.",
+          "tooltipPersonal": "DESIGN.md est une charte de marque que vous avez déjà créée. La joindre ici aide cet agent à appliquer automatiquement votre marque.",
+          "tooltipCustom": "DESIGN.md généré à partir de {hostname} pour cette tâche uniquement. La joindre ici aide cet agent à appliquer cette marque. Rien n'est enregistré dans votre profil.",
+          "learnMore": "En savoir plus sur DESIGN.md",
+          "infoAria": "À propos de cette pièce jointe",
+          "useDifferentBranding": "Utiliser une autre marque",
+          "resetToDefault": "Réinitialiser la marque"
+        },
         "title": "Nouvelle tâche",
         "details": "Détails",
         "detailsDescription": "Expliquez brièvement la tâche à effectuer",
@@ -4337,6 +4354,11 @@
       "allAgentsSubtitle": "Tous les agents sur Sokosumi, regroupés par domaine."
     },
     "DesignMd": {
+      "adHocDialogTitle": "Utiliser une marque différente",
+      "adHocDialogDescription": "Saisissez le site web d'une autre entreprise et Masumi générera une charte de marque DESIGN.md pour cette tâche uniquement. Rien n'est enregistré dans votre profil.",
+      "adHocUrlLabel": "Site web de l'entreprise",
+      "adHocUrlPlaceholder": "https://exemple.com",
+      "adHocMissingUrl": "Saisissez d'abord une URL de site web.",
       "title": "DESIGN.md",
       "statusReady": "Prêt",
       "statusEmpty": "Non défini",
@@ -4707,7 +4729,8 @@
         "add": "Add reaction",
         "toggle": "React with {emoji}",
         "whoReacted": "{names}{more, plural, =0 {} other { et # de plus}}",
-        "andMore": "et {count} de plus"
+        "andMore": "et {count} de plus",
+        "whoReactedList": "Qui a réagi"
       },
       "Presence": {
         "online": "Online",

@@ -83,6 +83,34 @@ describe("uploadDesignMdContent", () => {
     );
   });
 
+  it("puts under design-md/adhoc/{userId}/ for an ad hoc, non-persisted store", async () => {
+    const content = "# Ad hoc Brand";
+    const hash = crypto.createHash("sha256").update(content).digest("hex");
+    putMock.mockResolvedValueOnce({
+      url: `https://blob.example/design-md/adhoc/user_123/${hash}.md`,
+    });
+
+    const url = await uploadDesignMdContent({
+      content,
+      owner: { kind: "adhoc", id: "user_123" },
+    });
+
+    expect(putMock).toHaveBeenCalledWith(
+      `design-md/adhoc/user_123/${hash}.md`,
+      content,
+      expect.objectContaining({
+        access: "public",
+        contentType: "text/markdown; charset=utf-8",
+        allowOverwrite: true,
+        addRandomSuffix: false,
+        token: "blob_token",
+      }),
+    );
+    expect(url).toBe(
+      `https://blob.example/design-md/adhoc/user_123/${hash}.md`,
+    );
+  });
+
   it("returns null when put fails", async () => {
     putMock.mockRejectedValueOnce(new Error("blob down"));
 

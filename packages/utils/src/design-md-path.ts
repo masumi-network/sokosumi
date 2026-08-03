@@ -1,6 +1,7 @@
 const DESIGN_MD_DIR = "design-md";
 const USERS_SEGMENT = "users";
 const ORGANIZATIONS_SEGMENT = "organizations";
+const AD_HOC_SEGMENT = "adhoc";
 
 /**
  * Prefix for user-owned DESIGN.md blobs.
@@ -42,4 +43,27 @@ export function buildOrganizationDesignMdPathname(
   fileName: string,
 ): string {
   return `${buildOrganizationDesignMdPrefix(organizationId)}${fileName}`;
+}
+
+/**
+ * Prefix for ad hoc, task-scoped DESIGN.md blobs — generated for one task's
+ * use and never attached to the requesting user's or an organization's
+ * profile. Namespaced by the requesting user so blobs stay attributable, but
+ * this is not the user's own DESIGN.md.
+ * Example: `design-md/adhoc/{userId}/`
+ */
+export function buildAdHocDesignMdPrefix(userId: string): string {
+  return `${DESIGN_MD_DIR}/${AD_HOC_SEGMENT}/${userId}/`;
+}
+
+/**
+ * Content-hash pathname for an ad hoc DESIGN.md store (no random suffix).
+ * `fileName` is already a safe hash (optional extractionId prefix + sha256 + `.md`).
+ * Example: `design-md/adhoc/{userId}/{extractionId-}{sha256}.md`
+ */
+export function buildAdHocDesignMdPathname(
+  userId: string,
+  fileName: string,
+): string {
+  return `${buildAdHocDesignMdPrefix(userId)}${fileName}`;
 }
