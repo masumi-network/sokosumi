@@ -4787,6 +4787,15 @@
         "groupDirectNoCoworkersError": "Group direct messages cannot include coworkers.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1."
       },
+      "RoomSearch": {
+        "open": "Search in this chat",
+        "placeholder": "Search messages…",
+        "idle": "Type to search messages in this chat.",
+        "empty": "No messages match your search.",
+        "loading": "Searching…",
+        "error": "Could not search messages. Try again.",
+        "replyBadge": "Thread reply"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

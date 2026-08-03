@@ -159,4 +159,44 @@ describe("GET /chats/rooms/{id}/messages", () => {
     expect(messageFindManyMock).not.toHaveBeenCalled();
     expect(messageCountMock).not.toHaveBeenCalled();
   });
+
+  it("filters by content when q is set and searches all thread depths", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages?q=Hello&parentMessageId=${MESSAGE_ID}`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(messageFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          roomId: ROOM_ID,
+          deletedAt: null,
+          content: { contains: "Hello", mode: "insensitive" },
+        },
+      }),
+    );
+    expect(listStaleSentChatRoomMentionIdsMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects blank q", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages?q=%20%20`,
+    );
+
+    expect(response.status).toBe(422);
+    expect(messageFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("reclaims stale mentions on the timeline path without q", async () => {
+    listStaleSentChatRoomMentionIdsMock.mockResolvedValue([
+      "550e8400-e29b-41d4-a716-446655440099",
+    ]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(listStaleSentChatRoomMentionIdsMock).toHaveBeenCalledWith(ROOM_ID);
+  });
 });

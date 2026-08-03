@@ -4668,6 +4668,15 @@
         "groupDirectNoCoworkersError": "群组私信不能包含同事。",
         "coworkerDirectOneToOneOnly": "与同事的私信仅支持一对一。"
       },
+      "RoomSearch": {
+        "open": "在此聊天中搜索",
+        "placeholder": "搜索消息…",
+        "idle": "输入以搜索此聊天中的消息。",
+        "empty": "没有匹配的消息。",
+        "loading": "正在搜索…",
+        "error": "无法搜索消息。请重试。",
+        "replyBadge": "帖子回复"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
