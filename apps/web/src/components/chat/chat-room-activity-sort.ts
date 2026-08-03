@@ -3,6 +3,7 @@ export interface ChatRoomActivitySortKey {
   updatedAt: string | Date;
   pinnedAt?: string | Date | null;
   mutedAt?: string | Date | null;
+  discoverability?: "public" | "private" | null;
 }
 
 function isPinned(value: string | Date | null | undefined): boolean {
@@ -20,9 +21,16 @@ function mutedRank(value: string | Date | null | undefined): number {
   return value == null ? 0 : 1;
 }
 
+/** Public / null (directs) before private. */
+function discoverabilityRank(
+  value: "public" | "private" | null | undefined,
+): number {
+  return value === "private" ? 1 : 0;
+}
+
 /**
  * Unmuted before muted; within bucket pinned before unpinned;
- * among pins oldest pinnedAt first (first pin stays top);
+ * then public before private; among pins oldest pinnedAt first;
  * then newest activity; stable id tie-break.
  */
 export function compareChatRoomsByRecentActivity(
@@ -38,6 +46,13 @@ export function compareChatRoomsByRecentActivity(
   const bPinned = isPinned(b.pinnedAt);
   if (aPinned !== bPinned) {
     return aPinned ? -1 : 1;
+  }
+
+  const byDiscoverability =
+    discoverabilityRank(a.discoverability) -
+    discoverabilityRank(b.discoverability);
+  if (byDiscoverability !== 0) {
+    return byDiscoverability;
   }
 
   if (aPinned) {
