@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
+import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import {
@@ -130,6 +131,7 @@ export function NotificationDropdownContent({
     return (
       <>
         {accountNoticeSection}
+        <NotificationBrowserPermissionPrimer className="mx-2 mt-2" />
         {notice === null ? (
           <div className="flex flex-col items-center justify-center py-8">
             <p className="text-muted-foreground text-sm">{t("emptyState")}</p>
@@ -161,6 +163,7 @@ export function NotificationDropdownContent({
         ) : null}
       </div>
       <DropdownMenuSeparator />
+      <NotificationBrowserPermissionPrimer className="mx-2 my-2" />
       <div className="max-h-96 overflow-y-auto">
         {notifications.map((notification) => (
           <NotificationItem

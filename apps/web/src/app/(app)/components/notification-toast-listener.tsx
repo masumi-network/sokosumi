@@ -10,6 +10,12 @@ import { useNotifications } from "@/contexts/notification-provider";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { authClient } from "@/lib/auth/auth.client";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
+import {
+  getBrowserNotificationPermission,
+  shouldShowBrowserNotification,
+  shouldShowInAppNotificationToast,
+  showBrowserNotification,
+} from "@/lib/utils/browser-notification";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 
@@ -52,56 +58,85 @@ export function NotificationToastListener({
   useNotificationRealtime({
     userId,
     onNotification: (notification) => {
-      if (!notification.isRead) {
-        const message = formatMessage(
-          notification.messageKey,
-          notification.messageParams ?? {},
-        );
+      const documentHidden =
+        typeof document !== "undefined" ? document.hidden : false;
+      const message = formatMessage(
+        notification.messageKey,
+        notification.messageParams ?? {},
+      );
 
-        toast(
-          () => (
-            <NotificationToastBody
-              message={message}
-              onOpen={() => {
-                toast.dismiss(notification.id);
+      const openNotification = () => {
+        void (async () => {
+          if (!notification.isRead) {
+            void markRead(notification.id).catch(() => {
+              // Still open the link when mark-read fails.
+            });
+          }
 
-                void (async () => {
-                  if (!notification.isRead) {
-                    void markRead(notification.id).catch(() => {
-                      // Still open the link when mark-read fails.
-                    });
-                  }
+          const sessionResponse = await authClient.getSession();
+          const activeOrganizationId =
+            sessionResponse.data?.session.activeOrganizationId ?? null;
 
-                  const sessionResponse = await authClient.getSession();
-                  const activeOrganizationId =
-                    sessionResponse.data?.session.activeOrganizationId ?? null;
+          await handleNotificationNavigation(
+            notification,
+            activeOrganizationId,
+            router,
+            handleSelectWorkspace,
+            tDetail,
+          );
+        })();
+      };
 
-                  await handleNotificationNavigation(
-                    notification,
-                    activeOrganizationId,
-                    router,
-                    handleSelectWorkspace,
-                    tDetail,
-                  );
-                })();
-              }}
-            />
-          ),
-          {
-            id: notification.id,
-            toasterId: NOTIFICATION_TOASTER_ID,
-            duration: 10_000,
-            dismissible: true,
-            icon: <Bell className="text-primary size-5 shrink-0" />,
-            action: {
-              label: t("dismiss"),
-              onClick: () => {
-                toast.dismiss(notification.id);
-              },
+      if (
+        shouldShowBrowserNotification({
+          permission: getBrowserNotificationPermission(),
+          documentHidden,
+          isRead: notification.isRead,
+        })
+      ) {
+        showBrowserNotification({
+          id: notification.id,
+          title: t("browserNotificationTitle"),
+          body: message,
+          icon: "/images/app-icons/apple-icon-180.png",
+          onClick: openNotification,
+        });
+        return;
+      }
+
+      if (
+        !shouldShowInAppNotificationToast({
+          documentHidden,
+          isRead: notification.isRead,
+        })
+      ) {
+        return;
+      }
+
+      toast(
+        () => (
+          <NotificationToastBody
+            message={message}
+            onOpen={() => {
+              toast.dismiss(notification.id);
+              openNotification();
+            }}
+          />
+        ),
+        {
+          id: notification.id,
+          toasterId: NOTIFICATION_TOASTER_ID,
+          duration: 10_000,
+          dismissible: true,
+          icon: <Bell className="text-primary size-5 shrink-0" />,
+          action: {
+            label: t("dismiss"),
+            onClick: () => {
+              toast.dismiss(notification.id);
             },
           },
-        );
-      }
+        },
+      );
     },
     onError: (error) => {
       console.error("Notification toast error:", error);
