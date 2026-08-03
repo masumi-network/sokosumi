@@ -94,13 +94,19 @@ export function NotificationToastListener({
           isRead: notification.isRead,
         })
       ) {
-        showBrowserNotification({
+        const browserNotification = showBrowserNotification({
           id: notification.id,
           title: t("browserNotificationTitle"),
           body: message,
           icon: "/images/app-icons/apple-icon-180.png",
           onClick: openNotification,
         });
+        if (browserNotification == null) {
+          console.error(
+            "Browser notification gate passed but OS notification was not shown",
+            { id: notification.id },
+          );
+        }
         return;
       }
 
