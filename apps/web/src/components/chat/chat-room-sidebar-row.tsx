@@ -1,6 +1,13 @@
 "use client";
 
-import { BellOff, Ellipsis, Pin } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  Ellipsis,
+  MessageSquare,
+  Pin,
+  PinOff,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useTransition } from "react";
@@ -164,6 +171,7 @@ export function ChatRoomSidebarRow({
               });
             }}
           >
+            <MessageSquare className="size-4" aria-hidden />
             {tActions("markUnread")}
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -182,6 +190,11 @@ export function ChatRoomSidebarRow({
               });
             }}
           >
+            {isPinned ? (
+              <PinOff className="size-4" aria-hidden />
+            ) : (
+              <Pin className="size-4" aria-hidden />
+            )}
             {isPinned ? tActions("unpin") : tActions("pin")}
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -200,6 +213,11 @@ export function ChatRoomSidebarRow({
               });
             }}
           >
+            {isMuted ? (
+              <Bell className="size-4" aria-hidden />
+            ) : (
+              <BellOff className="size-4" aria-hidden />
+            )}
             {isMuted ? tActions("unmute") : tActions("mute")}
           </DropdownMenuItem>
         </DropdownMenuContent>
