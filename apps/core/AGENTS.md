@@ -53,7 +53,7 @@ src/
 │   ├── masumi-payment.client.ts
 │   ├── masumi-registry.client.ts
 │   ├── openrouter.client.ts
-│   ├── postmark.client.ts
+│   ├── email.client.ts
 │   ├── stripe.client.ts
 │   └── webhook.client.ts
 ├── config/              # Configuration

@@ -13,6 +13,8 @@ import { jobSyncService } from "./job-sync.service";
 const {
   captureExceptionMock,
   captureMessageMock,
+  setExtrasMock,
+  withScopeMock,
   createJobEventForJobIdMock,
   createNotificationMock,
   createJobPurchaseMock,
@@ -33,30 +35,38 @@ const {
   updateJobPurchaseByJobIdMock,
   refundJobMock,
   prismaTransactionMock,
-} = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
-  captureMessageMock: vi.fn(),
-  createJobEventForJobIdMock: vi.fn(),
-  createNotificationMock: vi.fn(),
-  createJobPurchaseMock: vi.fn(),
-  fetchAgentJobStatusMock: vi.fn(),
-  getJobByIdMock: vi.fn(),
-  getLatestJobEventByJobIdMock: vi.fn(),
-  publishJobStatusDataMock: vi.fn(),
-  prismaJobFindManyMock: vi.fn(),
-  renderJobFailureNotificationEmailMock: vi.fn(),
-  renderJobFinalStatusEmailMock: vi.fn(),
-  renderJobInputRequiredEmailMock: vi.fn(),
-  requestFetchMock: vi.fn(),
-  sendEmailMock: vi.fn(),
-  sourceImportEnqueueMock: vi.fn(),
-  paymentClientFactoryMock: vi.fn(),
-  getPurchaseByBlockchainIdentifierMock: vi.fn(),
-  getPurchaseByIdMock: vi.fn(),
-  updateJobPurchaseByJobIdMock: vi.fn(),
-  refundJobMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
-}));
+} = vi.hoisted(() => {
+  const setExtrasMock = vi.fn();
+  const withScopeMock = vi.fn((callback: (scope: unknown) => void) => {
+    callback({ setExtras: setExtrasMock });
+  });
+  return {
+    captureExceptionMock: vi.fn(),
+    captureMessageMock: vi.fn(),
+    setExtrasMock,
+    withScopeMock,
+    createJobEventForJobIdMock: vi.fn(),
+    createNotificationMock: vi.fn(),
+    createJobPurchaseMock: vi.fn(),
+    fetchAgentJobStatusMock: vi.fn(),
+    getJobByIdMock: vi.fn(),
+    getLatestJobEventByJobIdMock: vi.fn(),
+    publishJobStatusDataMock: vi.fn(),
+    prismaJobFindManyMock: vi.fn(),
+    renderJobFailureNotificationEmailMock: vi.fn(),
+    renderJobFinalStatusEmailMock: vi.fn(),
+    renderJobInputRequiredEmailMock: vi.fn(),
+    requestFetchMock: vi.fn(),
+    sendEmailMock: vi.fn(),
+    sourceImportEnqueueMock: vi.fn(),
+    paymentClientFactoryMock: vi.fn(),
+    getPurchaseByBlockchainIdentifierMock: vi.fn(),
+    getPurchaseByIdMock: vi.fn(),
+    updateJobPurchaseByJobIdMock: vi.fn(),
+    refundJobMock: vi.fn(),
+    prismaTransactionMock: vi.fn(),
+  };
+});
 
 vi.mock("@vercel/related-projects", () => ({
   withRelatedProject: (opts: { defaultHost: string }) => opts.defaultHost,
@@ -65,6 +75,7 @@ vi.mock("@vercel/related-projects", () => ({
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
   captureMessage: captureMessageMock,
+  withScope: withScopeMock,
 }));
 
 vi.mock("@sokosumi/database/helpers", async () => {
@@ -106,10 +117,8 @@ vi.mock("@/clients/masumi-payment.client", () => ({
   paymentClient: paymentClientFactoryMock,
 }));
 
-vi.mock("@/clients/postmark.client", () => ({
-  postmarkClient: {
-    sendEmail: sendEmailMock,
-  },
+vi.mock("@/clients/email.client", () => ({
+  sendEmail: sendEmailMock,
 }));
 
 vi.mock("@/config/env", () => ({
@@ -121,7 +130,7 @@ vi.mock("@/config/env", () => ({
     ],
     JOB_FAILURE_WEBHOOK_URL: "https://hooks.example.com/job-failure",
     NETWORK: "Preprod",
-    POSTMARK_FROM_EMAIL: "no-reply@example.com",
+    RESEND_FROM_EMAIL: "no-reply@example.com",
   }),
   getWebAppBaseUrl: () => "https://app.sokosumi.test",
 }));
@@ -275,6 +284,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     for (const mock of [
       captureExceptionMock,
       captureMessageMock,
+      setExtrasMock,
+      withScopeMock,
       createJobEventForJobIdMock,
       createNotificationMock,
       createJobPurchaseMock,
@@ -873,9 +884,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     expect(sendEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        To: "user@example.com",
-        From: "no-reply@example.com",
-        Tag: "job-final-status",
+        to: "user@example.com",
+        tag: "job-final-status",
       }),
     );
     expect(publishJobStatusDataMock).toHaveBeenCalledWith({
@@ -954,9 +964,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     expect(sendEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        To: "author@example.com",
-        Bcc: "stakeholder1@example.com,stakeholder2@example.com",
-        Tag: "job-failure-notification",
+        to: ["author@example.com"],
+        bcc: ["stakeholder1@example.com", "stakeholder2@example.com"],
+        tag: "job-failure-notification",
       }),
     );
     expect(requestFetchMock).toHaveBeenCalledTimes(1);
@@ -1679,8 +1689,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     expect(sendEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        To: "user@example.com",
-        Tag: "job-input-required",
+        to: "user@example.com",
+        tag: "job-input-required",
       }),
     );
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
@@ -1841,11 +1851,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 2,
       }),
     );
-    expect(captureExceptionMock).toHaveBeenCalledWith(syncError, {
-      extra: {
-        jobId: "job_1",
-      },
-    });
+    expect(withScopeMock).toHaveBeenCalled();
+    expect(setExtrasMock).toHaveBeenCalledWith({ jobId: "job_1" });
+    expect(captureExceptionMock).toHaveBeenCalledWith(syncError, undefined);
   });
 
   it("stops processing when already canceled before work starts", async () => {
@@ -1923,7 +1931,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
-  it("still counts the job as processed when Postmark delivery fails transiently", async () => {
+  it("still counts the job as processed when email delivery fails transiently", async () => {
     const initialJob = createJob({ status: SokosumiJobStatus.PROCESSING });
     const completedJob = createJob({
       status: SokosumiJobStatus.COMPLETED,
@@ -1947,7 +1955,15 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
     getJobByIdMock.mockResolvedValueOnce(completedJob);
-    sendEmailMock.mockRejectedValue(new Error("socket hang up"));
+    sendEmailMock.mockRejectedValue(
+      Object.assign(
+        new Error("Unable to fetch data. The request could not be resolved."),
+        {
+          name: "application_error",
+          statusCode: null,
+        },
+      ),
+    );
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),
@@ -2049,11 +2065,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
 
     expect(result).toEqual(expect.objectContaining({ processed: 0 }));
+    expect(withScopeMock).toHaveBeenCalled();
+    expect(setExtrasMock).toHaveBeenCalledWith({ jobId: "job_1" });
     expect(captureExceptionMock).toHaveBeenCalledWith(
       unexpectedError,
-      expect.objectContaining({
-        extra: expect.objectContaining({ jobId: "job_1" }),
-      }),
+      undefined,
     );
   });
 });

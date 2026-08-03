@@ -37,7 +37,7 @@ const {
   getMemberByUserIdAndOrganizationIdMock,
   getMembersByOrganizationIdMock,
   passkeyPluginMock,
-  postmarkSendEmailMock,
+  sendEmailMock,
   prismaAdapterMock,
   prismaMock,
   prismaTransactionMock,
@@ -99,7 +99,7 @@ const {
     getMemberByUserIdAndOrganizationIdMock: vi.fn(),
     getMembersByOrganizationIdMock: vi.fn(),
     passkeyPluginMock: vi.fn(),
-    postmarkSendEmailMock: vi.fn(),
+    sendEmailMock: vi.fn(),
     prismaAdapterMock: vi.fn(),
     prismaMock,
     prismaTransactionMock,
@@ -142,8 +142,8 @@ function getDefaultEnv() {
     MICROSOFT_CLIENT_SECRET: "microsoft-client-secret",
     NETWORK: "Preprod",
     NODE_ENV: "production",
-    POSTMARK_FROM_EMAIL: "no-reply@example.com",
-    POSTMARK_SERVER_ID: "postmark-server-id",
+    RESEND_FROM_EMAIL: "no-reply@example.com",
+    RESEND_API_KEY: "re_test_key",
     STRIPE_SECRET_KEY: "sk_test_123",
     STRIPE_WEBHOOK_SECRET: "whsec_test_123",
     SIGNUP_BONUS_CREDITS: 3000,
@@ -239,10 +239,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
   },
 }));
 
-vi.mock("@/clients/postmark.client", () => ({
-  postmarkClient: {
-    sendEmail: (...args: unknown[]) => postmarkSendEmailMock(...args),
-  },
+vi.mock("@/clients/email.client", () => ({
+  sendEmail: (...args: unknown[]) => sendEmailMock(...args),
 }));
 
 vi.mock("@/clients/stripe.client", () => ({
@@ -360,7 +358,7 @@ describe("core auth config", () => {
     organizationPluginMock.mockReturnValue("organization-plugin");
     passkeyPluginMock.mockReturnValue("passkey-plugin");
     reconcileActiveStripeBackedSubscriptionMock.mockResolvedValue(undefined);
-    postmarkSendEmailMock.mockResolvedValue({ MessageID: "message_123" });
+    sendEmailMock.mockResolvedValue({ id: "email_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
     renderMagicLinkEmailMock.mockResolvedValue({
       html: "<html>magic link</html>",
@@ -1307,13 +1305,11 @@ describe("core auth config", () => {
       magicLink: "https://example.com/auth/magic-link/verify?token=secret",
       name: "Andreas",
     });
-    expect(postmarkSendEmailMock).toHaveBeenCalledWith({
-      From: "no-reply@example.com",
-      To: "andreas@example.com",
-      Tag: "magic-link",
-      Subject: "Sokosumi - Sign in to your account",
-      HtmlBody: "<html>magic link</html>",
-      MessageStream: "authentications",
+    expect(sendEmailMock).toHaveBeenCalledWith({
+      to: "andreas@example.com",
+      tag: "magic-link",
+      subject: "Sokosumi - Sign in to your account",
+      html: "<html>magic link</html>",
     });
   });
 
