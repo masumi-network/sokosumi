@@ -1,11 +1,29 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  captureExternalServiceError,
   isSchemaDriftPrismaError,
   isTransientFetchError,
   isTransientPrismaError,
   shouldSuppressSentryForExternalError,
 } from "@/lib/external-service-errors";
+
+const { captureExceptionMock, setExtrasMock, withScopeMock } = vi.hoisted(
+  () => {
+    const setExtrasMock = vi.fn();
+    const captureExceptionMock = vi.fn();
+    const withScopeMock = vi.fn((callback: (scope: unknown) => void) => {
+      callback({ setExtras: setExtrasMock });
+    });
+    return { captureExceptionMock, setExtrasMock, withScopeMock };
+  },
+);
+
+vi.mock("@sentry/node", () => ({
+  captureException: (error: unknown, hint?: unknown) =>
+    captureExceptionMock(error, hint),
+  withScope: (callback: (scope: unknown) => void) => withScopeMock(callback),
+}));
 
 describe("isTransientFetchError", () => {
   it("treats fetch timeouts as transient", () => {
@@ -188,5 +206,58 @@ describe("shouldSuppressSentryForExternalError", () => {
         ),
       ),
     ).toBe(true);
+  });
+});
+
+describe("captureExternalServiceError", () => {
+  beforeEach(() => {
+    captureExceptionMock.mockClear();
+    setExtrasMock.mockClear();
+    withScopeMock.mockClear();
+  });
+
+  it("applies top-level extra via scope and keeps sentry tags", () => {
+    const error = new Error("permanent failure");
+
+    captureExternalServiceError(error, {
+      label: "reset_password_email",
+      sentry: {
+        tags: { context: "reset_password_email" },
+      },
+      extra: { userId: "user_1" },
+    });
+
+    expect(withScopeMock).toHaveBeenCalledOnce();
+    expect(setExtrasMock).toHaveBeenCalledWith({ userId: "user_1" });
+    expect(captureExceptionMock).toHaveBeenCalledWith(error, {
+      tags: { context: "reset_password_email" },
+    });
+  });
+
+  it("uses top-level extra for suppressed log context", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = new Error("socket hang up");
+
+    try {
+      captureExternalServiceError(error, {
+        label: "job-final-status",
+        extra: {
+          jobId: "job_1",
+          notificationType: "job-final-status",
+        },
+      });
+
+      expect(captureExceptionMock).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[job-final-status] suppressed external failure",
+        {
+          error: "socket hang up",
+          jobId: "job_1",
+          notificationType: "job-final-status",
+        },
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

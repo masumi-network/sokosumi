@@ -252,13 +252,6 @@ async function dispatchFinalStatusNotification(
     }).catch((error) => {
       captureExternalServiceError(error, {
         label: "job-final-status",
-        sentry: {
-          extra: {
-            jobId: job.id,
-            userId: job.ownerId,
-            notificationType: "job-final-status",
-          },
-        },
         extra: {
           jobId: job.id,
           userId: job.ownerId,
@@ -304,13 +297,6 @@ async function dispatchInputRequiredNotification(
     }).catch((error) => {
       captureExternalServiceError(error, {
         label: "job-input-required",
-        sentry: {
-          extra: {
-            jobId: job.id,
-            userId: job.ownerId,
-            notificationType: "job-input-required",
-          },
-        },
         extra: {
           jobId: job.id,
           userId: job.ownerId,
@@ -399,13 +385,6 @@ async function dispatchJobFailureNotification(
     }).catch((error) => {
       captureExternalServiceError(error, {
         label: "job-failure-email",
-        sentry: {
-          extra: {
-            jobId: job.id,
-            userId: job.ownerId,
-            notificationType: "job-failure-email",
-          },
-        },
         extra: {
           jobId: job.id,
           userId: job.ownerId,
@@ -865,11 +844,6 @@ async function runSyncPhase(
         logJobSyncError(kind, job.id, error);
         captureExternalServiceError(error, {
           label: `[sync/jobs/${kind}]`,
-          sentry: {
-            extra: {
-              jobId: job.id,
-            },
-          },
           extra: {
             jobId: job.id,
           },

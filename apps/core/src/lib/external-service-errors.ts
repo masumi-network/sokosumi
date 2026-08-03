@@ -135,6 +135,10 @@ export function logSuppressedExternalError(
   console.warn(`[${label}] suppressed external failure`, payload);
 }
 
+/**
+ * Pass context once via `extra`. Optional `sentry` holds tags/level only.
+ * `extra` feeds suppressed-log context and Sentry extras.
+ */
 export function captureExternalServiceError(
   error: unknown,
   options: {
@@ -148,5 +152,13 @@ export function captureExternalServiceError(
     return;
   }
 
-  Sentry.captureException(error, options.sentry);
+  if (!options.extra) {
+    Sentry.captureException(error, options.sentry);
+    return;
+  }
+
+  Sentry.withScope((scope) => {
+    scope.setExtras(options.extra!);
+    Sentry.captureException(error, options.sentry);
+  });
 }

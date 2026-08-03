@@ -531,9 +531,6 @@ export const auth = betterAuth({
             tags: {
               context: "reset_password_email",
             },
-            extra: {
-              userId: user.id,
-            },
           },
           extra: {
             userId: user.id,
@@ -561,9 +558,6 @@ export const auth = betterAuth({
           sentry: {
             tags: {
               context: "verification_email",
-            },
-            extra: {
-              userId: user.id,
             },
           },
           extra: {
@@ -615,9 +609,6 @@ export const auth = betterAuth({
             sentry: {
               tags: {
                 context: "magic_link_email",
-              },
-              extra: {
-                email,
               },
             },
             extra: {
@@ -722,10 +713,6 @@ export const auth = betterAuth({
             sentry: {
               tags: {
                 context: "organization_invitation_email",
-              },
-              extra: {
-                invitationId: data.id,
-                organizationId: data.organization.id,
               },
             },
             extra: {

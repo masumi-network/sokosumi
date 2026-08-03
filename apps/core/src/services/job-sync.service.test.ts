@@ -13,6 +13,8 @@ import { jobSyncService } from "./job-sync.service";
 const {
   captureExceptionMock,
   captureMessageMock,
+  setExtrasMock,
+  withScopeMock,
   createJobEventForJobIdMock,
   createNotificationMock,
   createJobPurchaseMock,
@@ -33,30 +35,38 @@ const {
   updateJobPurchaseByJobIdMock,
   refundJobMock,
   prismaTransactionMock,
-} = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
-  captureMessageMock: vi.fn(),
-  createJobEventForJobIdMock: vi.fn(),
-  createNotificationMock: vi.fn(),
-  createJobPurchaseMock: vi.fn(),
-  fetchAgentJobStatusMock: vi.fn(),
-  getJobByIdMock: vi.fn(),
-  getLatestJobEventByJobIdMock: vi.fn(),
-  publishJobStatusDataMock: vi.fn(),
-  prismaJobFindManyMock: vi.fn(),
-  renderJobFailureNotificationEmailMock: vi.fn(),
-  renderJobFinalStatusEmailMock: vi.fn(),
-  renderJobInputRequiredEmailMock: vi.fn(),
-  requestFetchMock: vi.fn(),
-  sendEmailMock: vi.fn(),
-  sourceImportEnqueueMock: vi.fn(),
-  paymentClientFactoryMock: vi.fn(),
-  getPurchaseByBlockchainIdentifierMock: vi.fn(),
-  getPurchaseByIdMock: vi.fn(),
-  updateJobPurchaseByJobIdMock: vi.fn(),
-  refundJobMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
-}));
+} = vi.hoisted(() => {
+  const setExtrasMock = vi.fn();
+  const withScopeMock = vi.fn((callback: (scope: unknown) => void) => {
+    callback({ setExtras: setExtrasMock });
+  });
+  return {
+    captureExceptionMock: vi.fn(),
+    captureMessageMock: vi.fn(),
+    setExtrasMock,
+    withScopeMock,
+    createJobEventForJobIdMock: vi.fn(),
+    createNotificationMock: vi.fn(),
+    createJobPurchaseMock: vi.fn(),
+    fetchAgentJobStatusMock: vi.fn(),
+    getJobByIdMock: vi.fn(),
+    getLatestJobEventByJobIdMock: vi.fn(),
+    publishJobStatusDataMock: vi.fn(),
+    prismaJobFindManyMock: vi.fn(),
+    renderJobFailureNotificationEmailMock: vi.fn(),
+    renderJobFinalStatusEmailMock: vi.fn(),
+    renderJobInputRequiredEmailMock: vi.fn(),
+    requestFetchMock: vi.fn(),
+    sendEmailMock: vi.fn(),
+    sourceImportEnqueueMock: vi.fn(),
+    paymentClientFactoryMock: vi.fn(),
+    getPurchaseByBlockchainIdentifierMock: vi.fn(),
+    getPurchaseByIdMock: vi.fn(),
+    updateJobPurchaseByJobIdMock: vi.fn(),
+    refundJobMock: vi.fn(),
+    prismaTransactionMock: vi.fn(),
+  };
+});
 
 vi.mock("@vercel/related-projects", () => ({
   withRelatedProject: (opts: { defaultHost: string }) => opts.defaultHost,
@@ -65,6 +75,7 @@ vi.mock("@vercel/related-projects", () => ({
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
   captureMessage: captureMessageMock,
+  withScope: withScopeMock,
 }));
 
 vi.mock("@sokosumi/database/helpers", async () => {
@@ -273,6 +284,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     for (const mock of [
       captureExceptionMock,
       captureMessageMock,
+      setExtrasMock,
+      withScopeMock,
       createJobEventForJobIdMock,
       createNotificationMock,
       createJobPurchaseMock,
@@ -1838,11 +1851,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 2,
       }),
     );
-    expect(captureExceptionMock).toHaveBeenCalledWith(syncError, {
-      extra: {
-        jobId: "job_1",
-      },
-    });
+    expect(withScopeMock).toHaveBeenCalled();
+    expect(setExtrasMock).toHaveBeenCalledWith({ jobId: "job_1" });
+    expect(captureExceptionMock).toHaveBeenCalledWith(syncError, undefined);
   });
 
   it("stops processing when already canceled before work starts", async () => {
@@ -2054,11 +2065,11 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
 
     expect(result).toEqual(expect.objectContaining({ processed: 0 }));
+    expect(withScopeMock).toHaveBeenCalled();
+    expect(setExtrasMock).toHaveBeenCalledWith({ jobId: "job_1" });
     expect(captureExceptionMock).toHaveBeenCalledWith(
       unexpectedError,
-      expect.objectContaining({
-        extra: expect.objectContaining({ jobId: "job_1" }),
-      }),
+      undefined,
     );
   });
 });
