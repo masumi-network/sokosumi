@@ -1,7 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
+import { emitChatDirectMessageNotifications } from "@/helpers/chat-direct-message-notifications";
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
+import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -117,6 +119,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return message;
       });
 
+      await publishChatRoomMessageRealtime(message);
+
       return created(
         c,
         chatRoomMessageSchema.parse(mapChatRoomMessage(message)),
@@ -163,6 +167,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 id: room.id,
                 name: room.name,
                 organizationId: room.organizationId,
+                kind: room.kind,
+                memberUserIds: room.userMembers.map((member) => member.userId),
               },
               didCreate: false,
             };
@@ -289,6 +295,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             id: room.id,
             name: room.name,
             organizationId: room.organizationId,
+            kind: room.kind,
+            memberUserIds: room.userMembers.map((member) => member.userId),
           },
           didCreate: true,
         };
@@ -315,6 +323,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           "clientMessageId already used by another sender in this room",
         );
       }
+      await publishChatRoomMessageRealtime(raced);
+
       return created(
         c,
         chatRoomMessageSchema.parse(
@@ -344,7 +354,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }),
         );
       }
+
+      if (room.kind === "direct") {
+        const mentionedUserIdSet = new Set(mentionedUserIds);
+        const recipientUserIds = room.memberUserIds.filter(
+          (userId) =>
+            userId !== userContext.userId && !mentionedUserIdSet.has(userId),
+        );
+        if (recipientUserIds.length > 0) {
+          waitUntil(
+            emitChatDirectMessageNotifications({
+              roomId: room.id,
+              roomName: room.name,
+              organizationId: room.organizationId,
+              messageId: message.id,
+              authorUserId: userContext.userId,
+              authorName: message.senderUser?.name ?? "Someone",
+              recipientUserIds,
+            }),
+          );
+        }
+      }
     }
+
+    await publishChatRoomMessageRealtime(message);
 
     return created(
       c,

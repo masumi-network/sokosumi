@@ -2,6 +2,7 @@ import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
 import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import { streamText } from "ai";
 
+import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import prisma from "@/lib/db/prisma";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
@@ -370,7 +371,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
-  await prisma.$transaction(async (tx) => {
+  const publishedMessageIds = await prisma.$transaction(async (tx) => {
     // Re-check membership after the provider call: eviction during streamText
     // must not land a reply in a room the coworker left.
     const stillMember = await tx.chatRoomCoworkerMember.findUnique({
@@ -393,7 +394,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           error: "Coworker is no longer a member of this room",
         },
       });
-      return;
+      return null;
     }
 
     // Soft-delete during streamText cancels the mention to `failed` and
@@ -413,7 +414,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           error: "Source message was deleted",
         },
       });
-      return;
+      return null;
     }
 
     // Persist the reply first, then claim the mention transition. If another
@@ -444,12 +445,26 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
 
     if (finalized.count !== 1) {
       await tx.chatRoomMessage.delete({ where: { id: responseMessage.id } });
-      return;
+      return null;
     }
 
     await tx.chatRoom.update({
       where: { id: mention.message.roomId },
       data: { updatedAt: new Date() },
     });
+
+    return {
+      responseMessageId: responseMessage.id,
+      sourceMessageId: mention.message.id,
+    };
   });
+
+  if (publishedMessageIds) {
+    await publishChatRoomMessageRealtimeById(
+      publishedMessageIds.responseMessageId,
+    );
+    await publishChatRoomMessageRealtimeById(
+      publishedMessageIds.sourceMessageId,
+    );
+  }
 }

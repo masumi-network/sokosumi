@@ -6,18 +6,20 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { useNotifications } from "@/contexts/notification-provider";
+import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { authClient } from "@/lib/auth/auth.client";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import {
   getBrowserNotificationPermission,
   shouldShowBrowserNotification,
-  shouldShowInAppNotificationToast,
   showBrowserNotification,
 } from "@/lib/utils/browser-notification";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
+import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
 
 interface NotificationToastListenerProps {
   userId: string;
@@ -45,6 +47,37 @@ function NotificationToastBody({
   );
 }
 
+interface VendorGrantNotificationToastProps {
+  notification: NotificationEventData;
+  message: string;
+  onOpen: () => void;
+}
+
+function VendorGrantNotificationToast({
+  notification,
+  message,
+  onOpen,
+}: VendorGrantNotificationToastProps) {
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-1">
+      <NotificationToastBody
+        message={message}
+        onOpen={() => {
+          toast.dismiss(notification.id);
+          onOpen();
+        }}
+      />
+      <VendorGrantNotificationActions
+        notification={notification}
+        layout="toast"
+        onDismissed={() => {
+          toast.dismiss(notification.id);
+        }}
+      />
+    </div>
+  );
+}
+
 export function NotificationToastListener({
   userId,
 }: NotificationToastListenerProps) {
@@ -58,20 +91,20 @@ export function NotificationToastListener({
   useNotificationRealtime({
     userId,
     onNotification: (notification) => {
-      const documentHidden =
-        typeof document !== "undefined" ? document.hidden : false;
+      const isDocumentFocused =
+        typeof document !== "undefined" ? document.hasFocus() : true;
       const permission = getBrowserNotificationPermission();
       const showBrowser = shouldShowBrowserNotification({
         permission,
-        documentHidden,
+        isDocumentFocused,
         isRead: notification.isRead,
       });
-      const showToast = shouldShowInAppNotificationToast({
-        documentHidden,
-        isRead: notification.isRead,
-      });
+      const showVendorGrantToast =
+        isDocumentFocused &&
+        !notification.isRead &&
+        isPendingVendorGrantNotification(notification);
 
-      if (!showBrowser && !showToast) {
+      if (!showBrowser && !showVendorGrantToast) {
         return;
       }
 
@@ -124,12 +157,10 @@ export function NotificationToastListener({
 
       toast(
         () => (
-          <NotificationToastBody
+          <VendorGrantNotificationToast
+            notification={notification}
             message={message}
-            onOpen={() => {
-              toast.dismiss(notification.id);
-              openNotification();
-            }}
+            onOpen={openNotification}
           />
         ),
         {
@@ -138,17 +169,11 @@ export function NotificationToastListener({
           duration: 10_000,
           dismissible: true,
           icon: <Bell className="text-primary size-5 shrink-0" />,
-          action: {
-            label: t("dismiss"),
-            onClick: () => {
-              toast.dismiss(notification.id);
-            },
-          },
         },
       );
     },
     onError: (error) => {
-      console.error("Notification toast error:", error);
+      console.error("Notification browser alert error:", error);
     },
   });
 
