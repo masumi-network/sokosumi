@@ -1306,7 +1306,6 @@ describe("core auth config", () => {
       name: "Andreas",
     });
     expect(sendEmailMock).toHaveBeenCalledWith({
-      from: "no-reply@example.com",
       to: "andreas@example.com",
       tag: "magic-link",
       subject: "Sokosumi - Sign in to your account",

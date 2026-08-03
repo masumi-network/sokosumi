@@ -19,6 +19,7 @@ vi.mock("resend", () => ({
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     RESEND_API_KEY: "re_test_key",
+    RESEND_FROM_EMAIL: "no-reply@example.com",
   }),
 }));
 
@@ -28,7 +29,7 @@ describe("sendEmail", () => {
     vi.clearAllMocks();
   });
 
-  it("constructs Resend send with category tags and returns id", async () => {
+  it("sends from RESEND_FROM_EMAIL with category tags and returns id", async () => {
     emailsSendMock.mockResolvedValue({
       data: { id: "email_123" },
       error: null,
@@ -38,7 +39,6 @@ describe("sendEmail", () => {
 
     await expect(
       sendEmail({
-        from: "no-reply@example.com",
         to: "user@example.com",
         subject: "Hello",
         html: "<p>Hi</p>",
@@ -70,7 +70,6 @@ describe("sendEmail", () => {
 
     await expect(
       sendEmail({
-        from: "no-reply@example.com",
         to: "user@example.com",
         subject: "Hello",
         html: "<p>Hi</p>",

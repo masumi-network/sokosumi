@@ -245,7 +245,6 @@ async function dispatchFinalStatusNotification(
     });
 
     await sendEmail({
-      from: getEnv().RESEND_FROM_EMAIL,
       to: job.owner.email,
       tag: "job-final-status",
       subject: email.subject,
@@ -298,7 +297,6 @@ async function dispatchInputRequiredNotification(
     });
 
     await sendEmail({
-      from: getEnv().RESEND_FROM_EMAIL,
       to: job.owner.email,
       tag: "job-input-required",
       subject: email.subject,
@@ -391,7 +389,6 @@ async function dispatchJobFailureNotification(
     });
 
     await sendEmail({
-      from: getEnv().RESEND_FROM_EMAIL,
       to: toRecipients,
       ...(bccRecipients && bccRecipients.length > 0
         ? { bcc: bccRecipients }

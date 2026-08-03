@@ -31,7 +31,6 @@ function throwIfResendError(error: unknown): never {
 }
 
 export async function sendEmail(input: {
-  from: string;
   to: string | string[];
   subject: string;
   html: string;
@@ -39,7 +38,7 @@ export async function sendEmail(input: {
   bcc?: string | string[];
 }): Promise<{ id: string }> {
   const { data, error } = await resend.emails.send({
-    from: input.from,
+    from: getEnv().RESEND_FROM_EMAIL,
     to: input.to,
     subject: input.subject,
     html: input.html,

@@ -520,7 +520,6 @@ export const auth = betterAuth({
       });
 
       void sendEmail({
-        from: env.RESEND_FROM_EMAIL,
         to: user.email,
         tag: "reset-password",
         subject: email.subject,
@@ -552,7 +551,6 @@ export const auth = betterAuth({
       });
 
       void sendEmail({
-        from: env.RESEND_FROM_EMAIL,
         to: user.email,
         tag: "verification-email",
         subject: email.subject,
@@ -607,7 +605,6 @@ export const auth = betterAuth({
         });
 
         void sendEmail({
-          from: env.RESEND_FROM_EMAIL,
           to: email,
           tag: "magic-link",
           subject: renderedEmail.subject,
@@ -715,7 +712,6 @@ export const auth = betterAuth({
         });
 
         void sendEmail({
-          from: env.RESEND_FROM_EMAIL,
           to: data.email,
           tag: "invitation-email",
           subject: email.subject,

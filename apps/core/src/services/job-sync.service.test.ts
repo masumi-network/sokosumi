@@ -872,7 +872,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(sendEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
         to: "user@example.com",
-        from: "no-reply@example.com",
         tag: "job-final-status",
       }),
     );
