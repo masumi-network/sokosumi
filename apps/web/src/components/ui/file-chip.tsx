@@ -142,6 +142,7 @@ export function FileChip(props: FileChipProps) {
           onOpenChange={setIsDocumentViewerOpen}
           url={url}
           fileName={fileName}
+          kind={documentKind}
         />
       </>
     );

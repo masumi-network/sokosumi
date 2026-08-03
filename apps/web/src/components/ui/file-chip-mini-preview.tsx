@@ -180,6 +180,7 @@ function FileChipMiniPreviewShell({
           onOpenChange={setIsDocumentViewerOpen}
           url={url}
           fileName={resolvedFileName}
+          kind={documentKind}
           mediaType={mediaType}
         />
       ) : null}

@@ -16,7 +16,7 @@ import { DocumentTextPreview } from "@/components/ui/document-text-preview";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
-  getDocumentPreviewKind,
+  type DocumentPreviewKind,
   officeExtensionFromMediaType,
   officeViewerUrl,
   pdfEmbedUrl,
@@ -27,6 +27,14 @@ interface DocumentViewerProps {
   onOpenChange: (open: boolean) => void;
   url: string;
   fileName: string;
+  /**
+   * Already decided by the caller's `classifyFilePreview` call — re-deriving
+   * it here from `url` alone would disagree with that decision whenever the
+   * caller only recognized the file via a `fileName` fallback (e.g. an
+   * extensionless URL), leaving the body empty for a dialog that already
+   * committed to opening.
+   */
+  kind: DocumentPreviewKind;
   mediaType?: string | null;
   className?: string;
 }
@@ -92,14 +100,14 @@ function DocumentTextBody({
 function DocumentViewerBody({
   url,
   fileName,
+  kind,
   mediaType,
 }: {
   url: string;
   fileName: string;
+  kind: DocumentPreviewKind;
   mediaType?: string | null;
 }) {
-  const kind = getDocumentPreviewKind(url, mediaType);
-
   if (kind === "office") {
     const extensionHint =
       getExtensionFromUrl(fileName) || officeExtensionFromMediaType(mediaType);
@@ -132,10 +140,12 @@ function DocumentViewerBody({
 function DocumentViewerContent({
   url,
   fileName,
+  kind,
   mediaType,
 }: {
   url: string;
   fileName: string;
+  kind: DocumentPreviewKind;
   mediaType?: string | null;
 }) {
   const t = useTranslations("Components.DocumentViewer");
@@ -173,6 +183,7 @@ function DocumentViewerContent({
           key={url}
           url={url}
           fileName={fileName}
+          kind={kind}
           mediaType={mediaType}
         />
       </div>
@@ -190,6 +201,7 @@ export function DocumentViewer({
   onOpenChange,
   url,
   fileName,
+  kind,
   mediaType,
   className,
 }: DocumentViewerProps) {
@@ -206,6 +218,7 @@ export function DocumentViewer({
           key={url}
           url={url}
           fileName={fileName}
+          kind={kind}
           mediaType={mediaType}
         />
       </DialogContent>

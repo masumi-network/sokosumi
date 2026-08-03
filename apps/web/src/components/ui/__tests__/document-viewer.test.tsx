@@ -31,6 +31,7 @@ describe("DocumentViewer", () => {
         onOpenChange={vi.fn()}
         url="https://blob.example.com/report.pdf"
         fileName="report.pdf"
+        kind="pdf"
       />,
     );
 
@@ -44,6 +45,7 @@ describe("DocumentViewer", () => {
         onOpenChange={vi.fn()}
         url="https://blob.example.com/report.pdf"
         fileName="report.pdf"
+        kind="pdf"
         mediaType="application/pdf"
       />,
     );
@@ -60,6 +62,7 @@ describe("DocumentViewer", () => {
         onOpenChange={vi.fn()}
         url="https://blob.example.com/report.pdf"
         fileName="report.pdf"
+        kind="pdf"
         mediaType="application/pdf"
       />,
     );
@@ -91,6 +94,7 @@ describe("DocumentViewer", () => {
         onOpenChange={vi.fn()}
         url="https://blob.example.com/report.pdf"
         fileName="report.pdf"
+        kind="pdf"
         mediaType="application/pdf"
       />,
     );
@@ -109,6 +113,7 @@ describe("DocumentViewer", () => {
         onOpenChange={vi.fn()}
         url="https://blob.example.com/brief.docx"
         fileName="brief.docx"
+        kind="office"
       />,
     );
 
@@ -117,6 +122,69 @@ describe("DocumentViewer", () => {
       "src",
       "https://view.officeapps.live.com/op/embed.aspx?src=https%3A%2F%2Fblob.example.com%2Fbrief.docx",
     );
+  });
+
+  describe("extensionless URL, kind decided by the caller from the filename", () => {
+    // Regression coverage: the chip components fall back to `fileName` when
+    // `url` itself has no recognizable extension (classifyFilePreview), and
+    // pass the resulting `kind` down explicitly — DocumentViewer must render
+    // from that prop rather than re-deriving `kind` from `url` alone, or it
+    // renders an empty body for a dialog that already committed to opening.
+
+    it("still embeds the PDF viewer when the URL has no extension", () => {
+      render(
+        <DocumentViewer
+          open
+          onOpenChange={vi.fn()}
+          url="https://blob.example.com/report"
+          fileName="report.pdf"
+          kind="pdf"
+        />,
+      );
+
+      expect(screen.getByTitle("report.pdf")).toHaveAttribute(
+        "src",
+        "https://blob.example.com/report#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+      );
+    });
+
+    it("still routes to the Office viewer when the URL has no extension", () => {
+      render(
+        <DocumentViewer
+          open
+          onOpenChange={vi.fn()}
+          url="https://blob.example.com/report"
+          fileName="report.docx"
+          kind="office"
+        />,
+      );
+
+      expect(screen.getByTitle("report.docx")).toHaveAttribute(
+        "src",
+        "https://view.officeapps.live.com/op/embed.aspx?src=https%3A%2F%2Fblob.example.com%2Freport%3Ffilename%3Dfile.docx",
+      );
+    });
+
+    it("still fetches and renders text content when the URL has no extension", async () => {
+      const originalFetch = global.fetch;
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve("Plain notes"),
+      } as Response);
+
+      render(
+        <DocumentViewer
+          open
+          onOpenChange={vi.fn()}
+          url="https://blob.example.com/report"
+          fileName="notes.txt"
+          kind="text"
+        />,
+      );
+
+      expect(await screen.findByText(/Plain notes/)).toBeInTheDocument();
+      global.fetch = originalFetch;
+    });
   });
 
   describe("text/markdown files", () => {
@@ -143,6 +211,7 @@ describe("DocumentViewer", () => {
           onOpenChange={vi.fn()}
           url="https://blob.example.com/notes.md"
           fileName="notes.md"
+          kind="text"
         />,
       );
 
@@ -164,6 +233,7 @@ describe("DocumentViewer", () => {
           onOpenChange={vi.fn()}
           url="https://blob.example.com/notes.md"
           fileName="notes.md"
+          kind="text"
         />,
       );
 

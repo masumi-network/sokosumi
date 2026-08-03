@@ -73,6 +73,27 @@ describe("FileChip", () => {
     ).toHaveAttribute("href", "https://blob.example.com/uploads/brief.docx");
   });
 
+  it("actually previews an extensionless URL recognized only via the filename fallback", () => {
+    // Regression: FileChip decides to open the viewer via classifyFilePreview's
+    // fileName fallback (the URL alone has no extension) — the opened
+    // DocumentViewer must render real preview content from that same
+    // decision, not a blank body.
+    render(
+      <FileChip
+        url="https://blob.example.com/uploads/report"
+        fileName="report.pdf"
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: /report\.pdf/i });
+    fireEvent.click(trigger);
+
+    expect(screen.getByTitle("report.pdf")).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/report#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+    );
+  });
+
   it("keeps a plain download/open link for unsupported file types", () => {
     render(
       <FileChip
