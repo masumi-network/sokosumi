@@ -60,14 +60,23 @@ function setScrollerMetrics(
 }
 
 function Harness({ resetKey }: { resetKey: string | null }) {
-  const { scrollerRef, contentRef, scrollToBottomIfPinned } = useStickToBottom({
-    resetKey,
-  });
+  const { scrollerRef, contentRef, scrollToBottomIfPinned, contentMinHeight } =
+    useStickToBottom({
+      resetKey,
+    });
 
   return (
     <div>
       <div ref={scrollerRef} data-testid="scroller">
-        <div ref={contentRef} data-testid="content" />
+        <div
+          ref={contentRef}
+          data-testid="content"
+          style={
+            contentMinHeight != null
+              ? { minHeight: contentMinHeight }
+              : undefined
+          }
+        />
       </div>
       <button type="button" onClick={scrollToBottomIfPinned}>
         pin-scroll
@@ -171,6 +180,23 @@ describe("useStickToBottom", () => {
     });
 
     expect(scroller.scrollTop).toBe(50);
+  });
+
+  it("mirrors scroller clientHeight onto content minHeight for short transcripts", () => {
+    render(<Harness resetKey="room-1" />);
+    const scroller = screen.getByTestId("scroller");
+    const content = screen.getByTestId("content");
+    setScrollerMetrics(scroller, {
+      scrollHeight: 200,
+      clientHeight: 565,
+      scrollTop: 0,
+    });
+
+    act(() => {
+      fireResize();
+    });
+
+    expect(content.style.minHeight).toBe("565px");
   });
 
   it("re-pins on resetKey change", async () => {
