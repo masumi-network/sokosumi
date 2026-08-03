@@ -767,7 +767,12 @@
       "retry": "Intentar de nuevo",
       "dismiss": "Descartar",
       "view": "Ver",
-      "dismissNotification": "Descartar notificación"
+      "dismissNotification": "Descartar notificación",
+      "browserNotificationTitle": "Sokosumi",
+      "browserPermissionTitle": "Recibe alertas cuando estés en otra pestaña",
+      "browserPermissionDescription": "Permite notificaciones del navegador para trabajos, tareas, facturación, sistema y chat mientras Sokosumi esté abierto pero no enfocado.",
+      "browserPermissionEnable": "Activar notificaciones del navegador",
+      "browserPermissionRequesting": "Esperando permiso…"
     },
     "HashValue": {
       "copy": "Copiar",
@@ -4709,7 +4714,8 @@
         "add": "Add reaction",
         "toggle": "React with {emoji}",
         "whoReacted": "{names}{more, plural, =0 {} other { y # más}}",
-        "andMore": "y {count} más"
+        "andMore": "y {count} más",
+        "whoReactedList": "Quién reaccionó"
       },
       "Presence": {
         "online": "Online",

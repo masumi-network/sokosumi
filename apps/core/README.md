@@ -49,7 +49,8 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | `BETTER_AUTH_SECRET` | Shared secret with the web app’s Better Auth config |
 | `BETTER_AUTH_URL` | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview |
 | `BETTER_AUTH_COOKIE_DOMAIN` | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies |
-| `POSTMARK_SERVER_ID`, `POSTMARK_FROM_EMAIL` | Transactional email |
+| `RESEND_API_KEY` | Resend API key for transactional email |
+| `RESEND_FROM_EMAIL` | From-address for transactional email (default `noreply@sokosumi.com`) |
 | `PAYMENT_API_URL`, `PAYMENT_API_KEY` | Masumi payment API |
 | `REGISTRY_API_URL`, `REGISTRY_API_KEY` | Masumi registry API |
 | `STRIPE_SECRET_KEY` | Stripe server secret |
