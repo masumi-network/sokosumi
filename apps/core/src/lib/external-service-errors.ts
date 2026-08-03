@@ -20,6 +20,21 @@ export function getErrorName(error: unknown): string {
   return "";
 }
 
+function getErrorStatusCode(error: unknown): number | null | undefined {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) {
+    return undefined;
+  }
+
+  const statusCode = (error as { statusCode: unknown }).statusCode;
+  if (statusCode === null) {
+    return null;
+  }
+  if (typeof statusCode === "number") {
+    return statusCode;
+  }
+  return undefined;
+}
+
 export function getPrismaErrorCode(error: unknown): string | null {
   if (error === null || typeof error !== "object" || !("code" in error)) {
     return null;
@@ -36,6 +51,7 @@ export function getPrismaErrorCode(error: unknown): string | null {
 export function isTransientFetchError(error: unknown): boolean {
   const message = getErrorMessage(error);
   const name = getErrorName(error);
+  const statusCode = getErrorStatusCode(error);
 
   return (
     /timeout of \d+ms exceeded/i.test(message) ||
@@ -45,7 +61,10 @@ export function isTransientFetchError(error: unknown): boolean {
     name === "AbortError" ||
     /socket hang up/i.test(message) ||
     /connection terminated unexpectedly/i.test(message) ||
-    /\b(ECONNRESET|ECONNABORTED|ETIMEDOUT)\b/.test(message)
+    /\b(ECONNRESET|ECONNABORTED|ETIMEDOUT)\b/.test(message) ||
+    // Resend wraps unresolved fetch as Result error, not a thrown transport error.
+    (name === "application_error" && statusCode === null) ||
+    /Unable to fetch data\. The request could not be resolved\./i.test(message)
   );
 }
 

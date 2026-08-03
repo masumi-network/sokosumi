@@ -1920,7 +1920,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
-  it("still counts the job as processed when Postmark delivery fails transiently", async () => {
+  it("still counts the job as processed when email delivery fails transiently", async () => {
     const initialJob = createJob({ status: SokosumiJobStatus.PROCESSING });
     const completedJob = createJob({
       status: SokosumiJobStatus.COMPLETED,
@@ -1944,7 +1944,15 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
     getJobByIdMock.mockResolvedValueOnce(completedJob);
-    sendEmailMock.mockRejectedValue(new Error("socket hang up"));
+    sendEmailMock.mockRejectedValue(
+      Object.assign(
+        new Error("Unable to fetch data. The request could not be resolved."),
+        {
+          name: "application_error",
+          statusCode: null,
+        },
+      ),
+    );
 
     const result = await jobSyncService.syncUnfinishedJobs(
       createExecutionOptions(),

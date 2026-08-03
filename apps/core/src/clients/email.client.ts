@@ -4,32 +4,6 @@ import { getEnv } from "@/config/env";
 
 const resend = new Resend(getEnv().RESEND_API_KEY);
 
-function toCategoryTags(tag: string): { name: string; value: string }[] {
-  return [{ name: "category", value: tag }];
-}
-
-function throwIfResendError(error: unknown): never {
-  if (error instanceof Error) {
-    throw error;
-  }
-
-  if (
-    error !== null &&
-    typeof error === "object" &&
-    "message" in error &&
-    typeof (error as { message: unknown }).message === "string"
-  ) {
-    const message = (error as { message: string }).message;
-    const name =
-      "name" in error && typeof (error as { name: unknown }).name === "string"
-        ? (error as { name: string }).name
-        : "ResendError";
-    throw Object.assign(new Error(message), { name, cause: error });
-  }
-
-  throw new Error("Resend email send failed");
-}
-
 export async function sendEmail(input: {
   to: string | string[];
   subject: string;
@@ -43,11 +17,15 @@ export async function sendEmail(input: {
     subject: input.subject,
     html: input.html,
     ...(input.bcc !== undefined ? { bcc: input.bcc } : {}),
-    tags: toCategoryTags(input.tag),
+    tags: [{ name: "category", value: input.tag }],
   });
 
   if (error) {
-    throwIfResendError(error);
+    throw Object.assign(new Error(error.message), {
+      name: error.name,
+      statusCode: error.statusCode,
+      cause: error,
+    });
   }
 
   if (!data?.id) {

@@ -46,6 +46,31 @@ describe("isTransientFetchError", () => {
     expect(isTransientFetchError(new Error("socket hang up"))).toBe(true);
   });
 
+  it("treats Resend unresolved-fetch Result errors as transient", () => {
+    expect(
+      isTransientFetchError(
+        Object.assign(
+          new Error("Unable to fetch data. The request could not be resolved."),
+          {
+            name: "application_error",
+            statusCode: null,
+          },
+        ),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not treat Resend API errors with HTTP status as transient", () => {
+    expect(
+      isTransientFetchError(
+        Object.assign(new Error("Invalid API key"), {
+          name: "invalid_api_key",
+          statusCode: 401,
+        }),
+      ),
+    ).toBe(false);
+  });
+
   it("does not treat unrelated errors as transient", () => {
     expect(isTransientFetchError(new Error("invalid API token"))).toBe(false);
   });

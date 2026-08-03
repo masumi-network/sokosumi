@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { shouldSuppressSentryForExternalError } from "@/lib/external-service-errors";
+
 const { emailsSendMock, resendConstructorMock } = vi.hoisted(() => ({
   emailsSendMock: vi.fn(),
   resendConstructorMock: vi.fn(),
@@ -56,7 +58,33 @@ describe("sendEmail", () => {
     });
   });
 
-  it("throws Error when Resend returns a plain-object error", async () => {
+  it("passes bcc through to Resend", async () => {
+    emailsSendMock.mockResolvedValue({
+      data: { id: "email_bcc" },
+      error: null,
+    });
+
+    const { sendEmail } = await import("./email.client");
+
+    await sendEmail({
+      to: ["author@example.com"],
+      bcc: ["ops@example.com"],
+      subject: "Failure",
+      html: "<p>Failed</p>",
+      tag: "job-failure-notification",
+    });
+
+    expect(emailsSendMock).toHaveBeenCalledWith({
+      from: "no-reply@example.com",
+      to: ["author@example.com"],
+      bcc: ["ops@example.com"],
+      subject: "Failure",
+      html: "<p>Failed</p>",
+      tags: [{ name: "category", value: "job-failure-notification" }],
+    });
+  });
+
+  it("throws ErrorResponse fields when Resend returns an API error", async () => {
     emailsSendMock.mockResolvedValue({
       data: null,
       error: {
@@ -75,11 +103,58 @@ describe("sendEmail", () => {
         html: "<p>Hi</p>",
         tag: "magic-link",
       }),
-    ).rejects.toSatisfy((error: unknown) => {
-      expect(error).toBeInstanceOf(Error);
-      expect((error as Error).message).toBe("Invalid API key");
-      expect((error as Error).name).toBe("invalid_api_key");
-      return true;
+    ).rejects.toMatchObject({
+      message: "Invalid API key",
+      name: "invalid_api_key",
+      statusCode: 401,
     });
+  });
+
+  it("throws a transient-classified error for Resend unresolved fetch", async () => {
+    emailsSendMock.mockResolvedValue({
+      data: null,
+      error: {
+        name: "application_error",
+        statusCode: null,
+        message: "Unable to fetch data. The request could not be resolved.",
+      },
+    });
+
+    const { sendEmail } = await import("./email.client");
+
+    try {
+      await sendEmail({
+        to: "user@example.com",
+        subject: "Hello",
+        html: "<p>Hi</p>",
+        tag: "reset-password",
+      });
+      expect.unreachable("sendEmail should have thrown");
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: "Unable to fetch data. The request could not be resolved.",
+        name: "application_error",
+        statusCode: null,
+      });
+      expect(shouldSuppressSentryForExternalError(error)).toBe(true);
+    }
+  });
+
+  it("throws when Resend returns no id", async () => {
+    emailsSendMock.mockResolvedValue({
+      data: {},
+      error: null,
+    });
+
+    const { sendEmail } = await import("./email.client");
+
+    await expect(
+      sendEmail({
+        to: "user@example.com",
+        subject: "Hello",
+        html: "<p>Hi</p>",
+        tag: "reset-password",
+      }),
+    ).rejects.toThrow("Resend email send returned no id");
   });
 });
