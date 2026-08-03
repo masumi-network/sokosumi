@@ -6,6 +6,7 @@ import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -105,6 +106,19 @@ export function ThreadPanel({
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
   const threadBottomRef = useRef<HTMLDivElement | null>(null);
 
+  useMountEffect(() => {
+    requestAnimationFrame(() => {
+      threadComposerRef.current?.focus();
+    });
+  });
+
+  function handleQuote(message: ChatRoomMessage) {
+    onQuote?.(message);
+    requestAnimationFrame(() => {
+      threadComposerRef.current?.focus();
+    });
+  }
+
   function editPropsFor(messageId: string) {
     const isEditing = editSession?.messageId === messageId;
     return {
@@ -169,7 +183,7 @@ export function ThreadPanel({
               onOpenDirectMessage={onOpenDirectMessage}
               openingDirectParticipantKey={openingDirectParticipantKey}
               onToggleReaction={onToggleReaction}
-              onQuote={onQuote}
+              onQuote={onQuote ? handleQuote : undefined}
               showThreadButton={false}
               {...editPropsFor(parentMessage.id)}
             />
@@ -217,7 +231,7 @@ export function ThreadPanel({
                           openingDirectParticipantKey
                         }
                         onToggleReaction={onToggleReaction}
-                        onQuote={onQuote}
+                        onQuote={onQuote ? handleQuote : undefined}
                         showThreadButton={false}
                         isContinuation={isMessageContinuation(
                           replies[index - 1],
