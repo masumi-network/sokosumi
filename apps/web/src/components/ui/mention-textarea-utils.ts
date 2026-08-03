@@ -15,6 +15,22 @@ export interface NormalizedMention<TData = unknown> {
   data?: TData;
 }
 
+export function filterNormalizedMentions<TData = unknown>(
+  items: readonly NormalizedMention<TData>[],
+  query: string,
+): NormalizedMention<TData>[] {
+  const q = query.toLowerCase();
+  if (q.length === 0) {
+    return [...items];
+  }
+
+  return items.filter((mention) => {
+    const value = mention.value.toLowerCase();
+    const slug = mention.slug.toLowerCase();
+    return value.includes(q) || slug.includes(q);
+  });
+}
+
 /** Optional sectioned mention picker groups (e.g. People / Coworkers). */
 export interface MentionSuggestionGroup<TData = unknown> {
   id: string;

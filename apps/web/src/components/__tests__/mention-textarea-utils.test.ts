@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildMentionToken,
+  filterNormalizedMentions,
   getActiveEmojiTrigger,
   getActiveTrigger,
   getPopupPositionFromRect,
+  type NormalizedMention,
   POPUP_HEIGHT_PX,
   serializeEditorText,
   setEditorFromRaw,
@@ -143,6 +145,91 @@ describe("mention-textarea utils", () => {
       );
 
       expect(position.side).toBe("bottom");
+    });
+  });
+
+  describe("filterNormalizedMentions", () => {
+    const sandro: NormalizedMention = {
+      key: "sandro",
+      value: "Sandro",
+      slug: "sandro",
+    };
+    const andreas: NormalizedMention = {
+      key: "andreas",
+      value: "Andreas Osberghaus",
+      slug: "andreas-osberghaus",
+    };
+    const allMention: NormalizedMention = {
+      key: "all",
+      value: "all",
+      slug: "all",
+    };
+    const alice: NormalizedMention = {
+      key: "alice",
+      value: "Alice",
+      slug: "alice",
+    };
+    const bob: NormalizedMention = {
+      key: "bob",
+      value: "Bob",
+      slug: "bob",
+    };
+
+    it("preserves input order for empty query including @all pin", () => {
+      const items = [allMention, sandro, andreas];
+      expect(filterNormalizedMentions(items, "").map((m) => m.key)).toEqual([
+        "all",
+        "sandro",
+        "andreas",
+      ]);
+    });
+
+    it("ranks prefix matches before substring includes for andr", () => {
+      const items = [sandro, andreas];
+      const result = filterNormalizedMentions(items, "andr");
+      expect(result.map((m) => m.key)).toEqual(["andreas", "sandro"]);
+    });
+
+    it("still returns includes-only matches when no prefix peer", () => {
+      expect(
+        filterNormalizedMentions([sandro, andreas], "ndr").map((m) => m.key),
+      ).toEqual(["sandro", "andreas"]);
+    });
+
+    it("keeps within-tier input order for multiple prefix matches", () => {
+      const items = [alice, bob];
+      expect(filterNormalizedMentions(items, "a").map((m) => m.key)).toEqual([
+        "alice",
+      ]);
+      const prefixPeers: NormalizedMention[] = [
+        { key: "anna", value: "Anna", slug: "anna" },
+        { key: "andrew", value: "Andrew", slug: "andrew" },
+      ];
+      expect(
+        filterNormalizedMentions(prefixPeers, "an").map((m) => m.key),
+      ).toEqual(["anna", "andrew"]);
+    });
+
+    it("matches slug when value does not contain query", () => {
+      const bySlug: NormalizedMention = {
+        key: "u1",
+        value: "Display Name",
+        slug: "andreas-osberghaus",
+      };
+      expect(
+        filterNormalizedMentions([sandro, bySlug], "andr").map((m) => m.key),
+      ).toEqual(["u1", "sandro"]);
+    });
+
+    it("returns empty when nothing matches", () => {
+      expect(filterNormalizedMentions([sandro, andreas], "zzz")).toEqual([]);
+    });
+
+    it("does not mutate the input array", () => {
+      const items = [sandro, andreas];
+      const before = [...items];
+      filterNormalizedMentions(items, "andr");
+      expect(items).toEqual(before);
     });
   });
 });
