@@ -415,12 +415,18 @@ function ChannelMessageBody({
 const QUICK_MESSAGE_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀"] as const;
 const LONG_PRESS_DELAY_MS = 450;
 const LONG_PRESS_MOVE_TOLERANCE_PX = 12;
+const TOUCH_MESSAGE_SELECT_NONE_CLASS =
+  "[@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]";
 
 function devicePrefersHover(): boolean {
   if (typeof window === "undefined") {
     return true;
   }
   return window.matchMedia("(hover: hover)").matches;
+}
+
+function clearDomTextSelection() {
+  window.getSelection()?.removeAllRanges();
 }
 
 function useLongPress(onLongPress: () => void): {
@@ -454,6 +460,7 @@ function useLongPress(onLongPress: () => void): {
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         startRef.current = null;
+        clearDomTextSelection();
         onLongPress();
       }, LONG_PRESS_DELAY_MS);
     },
@@ -1187,6 +1194,7 @@ export function ChatMessageRow({
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
         "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
+        showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation ? "min-h-0 py-0.5" : "mt-3 min-h-0 pt-1 pb-0.5",
       )}
       {...(showActions ? longPress : {})}
