@@ -120,9 +120,13 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/components/expandable-markdown", () => ({
-  ExpandableMarkdown: ({ content }: { content: string }) => (
-    <div>{content}</div>
-  ),
+  ExpandableMarkdown: ({
+    content,
+    defaultOpen,
+  }: {
+    content: string;
+    defaultOpen?: boolean;
+  }) => <div data-default-open={String(Boolean(defaultOpen))}>{content}</div>,
 }));
 
 vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
@@ -407,6 +411,40 @@ describe("TaskActivitySection", () => {
     expect(row).toBeInTheDocument();
   });
 
+  it("expands a completed comment's markdown by default", () => {
+    const events: TaskEvent[] = [
+      createEvent("completed-with-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.COMPLETED,
+        comment: "Task finished successfully.",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("Task finished successfully.")).toHaveAttribute(
+      "data-default-open",
+      "true",
+    );
+  });
+
+  it("does not force-expand a non-completed comment's markdown", () => {
+    const events: TaskEvent[] = [
+      createEvent("running-with-comment", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.RUNNING,
+        comment: "Still working on it.",
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("Still working on it.")).toHaveAttribute(
+      "data-default-open",
+      "false",
+    );
+  });
+
   it("does not highlight completed status-only events", () => {
     const events: TaskEvent[] = [
       createEvent("completed-status-only", {
@@ -539,10 +577,12 @@ describe("TaskActivitySection", () => {
 
     render(<TaskActivitySection {...baseProps} events={events} />);
 
-    expect(screen.getByRole("link", { name: /report\.pdf/i })).toHaveAttribute(
-      "href",
-      "https://example.com/report.pdf",
-    );
+    // report.pdf is now previewable, so it renders as a button that opens
+    // the DocumentViewer rather than a plain link — see file-chip.test.tsx
+    // for the click-to-preview behavior itself.
+    expect(
+      screen.getByRole("button", { name: /report\.pdf/i }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /docs\.example\.com/i }),
     ).toHaveAttribute("href", "https://docs.example.com/article");

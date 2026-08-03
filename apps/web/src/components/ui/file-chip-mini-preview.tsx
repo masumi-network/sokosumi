@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 
+import { DocumentViewer } from "@/components/ui/document-viewer";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import {
@@ -15,6 +16,18 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
+import { getDocumentPreviewKind } from "@/lib/utils/file-preview";
+
+function resolveDocumentPreviewKind(
+  url: string,
+  fileName?: string | null,
+  mediaType?: string | null,
+) {
+  return (
+    getDocumentPreviewKind(url, mediaType) ??
+    (fileName ? getDocumentPreviewKind(fileName, mediaType) : null)
+  );
+}
 
 export interface FileChipMiniPreviewProps {
   url: string;
@@ -36,19 +49,25 @@ function FileChipMiniPreviewTrigger({
   mediaType,
   sizeClass,
   onOpenImage,
+  onOpenDocument,
 }: {
   url: string;
   fileName?: string | null;
   mediaType?: string | null;
   sizeClass: string;
   onOpenImage: () => void;
+  onOpenDocument: () => void;
 }) {
   const t = useTranslations("Components.ImageViewer");
+  const tDocument = useTranslations("Components.DocumentViewer");
   const resolvedFileName = fileName ?? url.split("/").pop() ?? url;
   const isImage =
     mediaType?.toLowerCase().startsWith("image/") ||
     isImageUrl(url) ||
     (fileName ? isImageUrl(fileName) : false);
+  const documentKind = !isImage
+    ? resolveDocumentPreviewKind(url, fileName, mediaType)
+    : null;
   const extension = getExtensionFromUrl(fileName ?? url);
 
   if (isImage) {
@@ -67,6 +86,23 @@ function FileChipMiniPreviewTrigger({
             sizes="96px"
             className="object-cover object-center"
           />
+        </div>
+      </button>
+    );
+  }
+
+  if (documentKind) {
+    return (
+      <button
+        type="button"
+        aria-label={tDocument("viewDocument", { fileName: resolvedFileName })}
+        className={cn(previewTriggerClassName, sizeClass)}
+        onClick={onOpenDocument}
+      >
+        <div className="text-muted-foreground flex size-full items-center justify-center">
+          <div className="flex size-8 items-center justify-center rounded-md">
+            <FileTypeIcon extension={extension || "file"} />
+          </div>
         </div>
       </button>
     );
@@ -101,11 +137,15 @@ function FileChipMiniPreviewShell({
   wrapTrigger?: (trigger: ReactNode) => ReactNode;
 }) {
   const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
   const resolvedFileName = fileName ?? url.split("/").pop() ?? url;
   const isImage =
     mediaType?.toLowerCase().startsWith("image/") ||
     isImageUrl(url) ||
     (fileName ? isImageUrl(fileName) : false);
+  const documentKind = !isImage
+    ? resolveDocumentPreviewKind(url, fileName, mediaType)
+    : null;
 
   const trigger = (
     <FileChipMiniPreviewTrigger
@@ -115,6 +155,9 @@ function FileChipMiniPreviewShell({
       sizeClass={sizeClass}
       onOpenImage={() => {
         setIsViewerOpen(true);
+      }}
+      onOpenDocument={() => {
+        setIsDocumentViewerOpen(true);
       }}
     />
   );
@@ -144,6 +187,15 @@ function FileChipMiniPreviewShell({
           src={url}
           alt={resolvedFileName}
           downloadFilename={resolvedFileName}
+        />
+      ) : null}
+      {documentKind ? (
+        <DocumentViewer
+          open={isDocumentViewerOpen}
+          onOpenChange={setIsDocumentViewerOpen}
+          url={url}
+          fileName={resolvedFileName}
+          mediaType={mediaType}
         />
       ) : null}
     </div>

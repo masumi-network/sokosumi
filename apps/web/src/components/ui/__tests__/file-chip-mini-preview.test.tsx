@@ -21,21 +21,33 @@ vi.mock("next/image", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
-    if (key === "viewImage") {
-      return `View image ${values?.fileName ?? ""}`;
-    }
-    if (key === "title") {
-      return "Image";
-    }
-    if (key === "download") {
-      return "Download image";
-    }
-    if (key === "close") {
-      return "Close";
-    }
-    return key;
-  },
+  useTranslations:
+    (namespace?: string) => (key: string, values?: Record<string, unknown>) => {
+      if (namespace === "Components.DocumentViewer") {
+        const documentLabels: Record<string, string> = {
+          title: "Document",
+          viewDocument: `View document ${values?.fileName ?? ""}`,
+          download: "Download document",
+          close: "Close",
+          openInNewTab: "Open in new tab",
+          fetchError: "This document couldn't be loaded.",
+        };
+        return documentLabels[key] ?? key;
+      }
+      if (key === "viewImage") {
+        return `View image ${values?.fileName ?? ""}`;
+      }
+      if (key === "title") {
+        return "Image";
+      }
+      if (key === "download") {
+        return "Download image";
+      }
+      if (key === "close") {
+        return "Close";
+      }
+      return key;
+    },
 }));
 
 vi.mock("@/components/ui/tooltip", () => ({
@@ -87,7 +99,7 @@ describe("FileChipMiniPreviewFrame", () => {
     ).toHaveAttribute("href", "https://blob.example.com/uploads/photo.png");
   });
 
-  it("keeps a download/open link for non-image files", () => {
+  it("opens a document viewer instead of navigating away for previewable documents", () => {
     render(
       <FileChipMiniPreviewFrame
         url="https://blob.example.com/uploads/notes.pdf"
@@ -96,14 +108,40 @@ describe("FileChipMiniPreviewFrame", () => {
       />,
     );
 
+    expect(
+      screen.queryByRole("link", { name: /notes\.pdf/i }),
+    ).not.toBeInTheDocument();
+
+    const documentButton = screen.getByRole("button", {
+      name: "View document notes.pdf",
+    });
+    expect(documentButton).toHaveClass("cursor-pointer");
+    fireEvent.click(documentButton);
+
+    expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Download document" }),
+    ).toHaveAttribute("href", "https://blob.example.com/uploads/notes.pdf");
+  });
+
+  it("keeps a download/open link for unsupported file types", () => {
+    render(
+      <FileChipMiniPreviewFrame
+        url="https://blob.example.com/uploads/archive.zip"
+        fileName="archive.zip"
+        mediaType="application/zip"
+      />,
+    );
+
     const link = screen.getByRole("link");
     expect(link).toHaveClass("cursor-pointer");
     expect(link).toHaveAttribute(
       "href",
-      "https://blob.example.com/uploads/notes.pdf",
+      "https://blob.example.com/uploads/archive.zip",
     );
     expect(link).toHaveAttribute("target", "_blank");
     expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("document-viewer")).not.toBeInTheDocument();
   });
 });
 
@@ -162,7 +200,7 @@ describe("FileChipMiniPreview", () => {
     ).toHaveAttribute("href", "https://blob.example.com/uploads/photo.png");
   });
 
-  it("keeps a download/open link for non-image files", () => {
+  it("opens a document viewer instead of navigating away for previewable documents", () => {
     render(
       <FileChipMiniPreview
         url="https://blob.example.com/uploads/notes.pdf"
@@ -171,13 +209,39 @@ describe("FileChipMiniPreview", () => {
       />,
     );
 
+    expect(
+      screen.queryByRole("link", { name: /notes\.pdf/i }),
+    ).not.toBeInTheDocument();
+
+    const documentButton = screen.getByRole("button", {
+      name: "View document notes.pdf",
+    });
+    expect(documentButton).toHaveClass("cursor-pointer");
+    fireEvent.click(documentButton);
+
+    expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Download document" }),
+    ).toHaveAttribute("href", "https://blob.example.com/uploads/notes.pdf");
+  });
+
+  it("keeps a download/open link for unsupported file types", () => {
+    render(
+      <FileChipMiniPreview
+        url="https://blob.example.com/uploads/archive.zip"
+        fileName="archive.zip"
+        mediaType="application/zip"
+      />,
+    );
+
     const link = screen.getByRole("link");
     expect(link).toHaveClass("cursor-pointer");
     expect(link).toHaveAttribute(
       "href",
-      "https://blob.example.com/uploads/notes.pdf",
+      "https://blob.example.com/uploads/archive.zip",
     );
     expect(link).toHaveAttribute("target", "_blank");
     expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("document-viewer")).not.toBeInTheDocument();
   });
 });

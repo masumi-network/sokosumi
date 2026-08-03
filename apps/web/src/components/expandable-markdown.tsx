@@ -28,6 +28,9 @@ interface ExpandableMarkdownProps {
   collapseLabel: string;
   fadeClassName?: string;
   highlightTerm?: string;
+  /** Starts already expanded — e.g. a Completed event's summary should be
+   * readable without an extra click. */
+  defaultOpen?: boolean;
 }
 
 export function ExpandableMarkdown({
@@ -38,8 +41,9 @@ export function ExpandableMarkdown({
   collapseLabel,
   fadeClassName,
   highlightTerm,
+  defaultOpen = false,
 }: ExpandableMarkdownProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [isExpandable, setIsExpandable] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const effectiveLineClamp = LINE_CLAMP_CLASSES[lineClamp] ? lineClamp : 5;

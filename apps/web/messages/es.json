@@ -801,6 +801,14 @@
       "more": "Más opciones",
       "openInNewTab": "Abrir en una pestaña nueva",
       "copyImage": "Copiar imagen"
+    },
+    "DocumentViewer": {
+      "title": "Documento",
+      "viewDocument": "Ver documento {fileName}",
+      "download": "Descargar documento",
+      "close": "Cerrar",
+      "openInNewTab": "Abrir en una pestaña nueva",
+      "fetchError": "No se pudo cargar este documento."
     }
   },
   "Join": {

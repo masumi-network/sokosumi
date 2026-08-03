@@ -801,6 +801,14 @@
       "more": "その他のオプション",
       "openInNewTab": "新しいタブで開く",
       "copyImage": "画像をコピー"
+    },
+    "DocumentViewer": {
+      "title": "ドキュメント",
+      "viewDocument": "ドキュメントを表示 {fileName}",
+      "download": "ドキュメントをダウンロード",
+      "close": "閉じる",
+      "openInNewTab": "新しいタブで開く",
+      "fetchError": "このドキュメントを読み込めませんでした。"
     }
   },
   "Join": {

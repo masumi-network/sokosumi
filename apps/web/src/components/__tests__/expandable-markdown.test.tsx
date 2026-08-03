@@ -78,6 +78,22 @@ describe("ExpandableMarkdown", () => {
     expect(collapsedContainer).toHaveStyle({ maxHeight: "3lh" });
   });
 
+  it("starts expanded with no expand control when defaultOpen is true", () => {
+    const { container } = render(
+      <ExpandableMarkdown
+        content={"Some markdown content"}
+        expandLabel="Expand"
+        collapseLabel="Collapse"
+        defaultOpen
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Expand" }),
+    ).not.toBeInTheDocument();
+    expect(container.querySelector(".line-clamp-5")).not.toBeInTheDocument();
+  });
+
   it("toggles the expanded state when the controls are clicked", async () => {
     const user = userEvent.setup();
 

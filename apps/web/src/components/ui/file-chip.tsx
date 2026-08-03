@@ -1,10 +1,16 @@
-import Image from "next/image";
+"use client";
 
-import { cn } from "@/lib/utils";
-import { formatBytes } from "@/lib/utils/format-bytes";
-import {getExtensionFromUrl, isImageUrl} from "@sokosumi/utils";
-import { FileTypeIcon } from "@/components/ui/file-icon";
+import { getExtensionFromUrl, isImageUrl } from "@sokosumi/utils";
+import Image from "next/image";
+import { useState } from "react";
+
 import { canUseNextImageSrc } from "@/config/next-image";
+import { DocumentViewer } from "@/components/ui/document-viewer";
+import { FileTypeIcon } from "@/components/ui/file-icon";
+import { ImageViewer } from "@/components/ui/image-viewer";
+import { cn } from "@/lib/utils";
+import { getDocumentPreviewKind } from "@/lib/utils/file-preview";
+import { formatBytes } from "@/lib/utils/format-bytes";
 
 export interface FileChipProps extends React.ComponentPropsWithoutRef<"a"> {
   url: string;
@@ -33,6 +39,10 @@ export function FileChip(props: FileChipProps) {
   } = props;
   const fileName = fileNameProp ?? url.split("/").pop() ?? url;
   const isImage = isImageUrl(url);
+  const documentKind = !isImage
+    ? (getDocumentPreviewKind(url) ??
+      (fileNameProp ? getDocumentPreviewKind(fileNameProp) : null))
+    : null;
   const canUseNextImage = canUseNextImageSrc(url);
   const prettySize = formatBytes(size);
   const containerSizeClass = sizeClass;
@@ -41,18 +51,16 @@ export function FileChip(props: FileChipProps) {
     const numeric = match ? Number(match[1]) : NaN;
     return Number.isFinite(numeric) && numeric > 6;
   })();
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
 
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer noopener"
-      {...anchorProps}
-      className={cn(
-        "hover:bg-accent focus-visible:ring-ring inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition outline-none",
-        className,
-      )}
-    >
+  const chipClassName = cn(
+    "hover:bg-accent focus-visible:ring-ring inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition outline-none",
+    className,
+  );
+
+  const content = (
+    <>
       <div
         className={cn(
           "bg-accent/50 relative shrink-0 rounded",
@@ -96,6 +104,59 @@ export function FileChip(props: FileChipProps) {
           </div>
         )}
       </div>
+    </>
+  );
+
+  if (isImage) {
+    return (
+      <>
+        <button
+          type="button"
+          className={chipClassName}
+          onClick={() => setIsImageViewerOpen(true)}
+        >
+          {content}
+        </button>
+        <ImageViewer
+          open={isImageViewerOpen}
+          onOpenChange={setIsImageViewerOpen}
+          src={url}
+          alt={fileName}
+          downloadFilename={fileName}
+        />
+      </>
+    );
+  }
+
+  if (documentKind) {
+    return (
+      <>
+        <button
+          type="button"
+          className={chipClassName}
+          onClick={() => setIsDocumentViewerOpen(true)}
+        >
+          {content}
+        </button>
+        <DocumentViewer
+          open={isDocumentViewerOpen}
+          onOpenChange={setIsDocumentViewerOpen}
+          url={url}
+          fileName={fileName}
+        />
+      </>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      {...anchorProps}
+      className={chipClassName}
+    >
+      {content}
     </a>
   );
 }

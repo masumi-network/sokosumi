@@ -801,6 +801,14 @@
       "more": "更多选项",
       "openInNewTab": "在新标签页中打开",
       "copyImage": "复制图片"
+    },
+    "DocumentViewer": {
+      "title": "文档",
+      "viewDocument": "查看文档 {fileName}",
+      "download": "下载文档",
+      "close": "关闭",
+      "openInNewTab": "在新标签页中打开",
+      "fetchError": "无法加载此文档。"
     }
   },
   "Join": {
