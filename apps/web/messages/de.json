@@ -4732,7 +4732,9 @@
       "Message": {
         "delete": "Löschen",
         "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
-        "deleted": "Diese Nachricht wurde gelöscht"
+        "deleted": "Diese Nachricht wurde gelöscht",
+        "showMore": "Mehr anzeigen",
+        "showLess": "Weniger anzeigen"
       },
       "MentionAll": {
         "label": "Alle"
