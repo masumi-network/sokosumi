@@ -6,14 +6,25 @@ interface ChannelDiscoverabilityIconProps {
   className?: string;
 }
 
-/** Slack-like: `#` for public, lock for private. */
+/**
+ * Slack-like: `#` for public, lock for private.
+ * Wrapped so sidebar `[&>svg]:size-4` cannot override; size-3.5 matches text-sm.
+ */
 export function ChannelDiscoverabilityIcon({
   discoverability,
   className,
 }: ChannelDiscoverabilityIconProps) {
-  if (discoverability === "private") {
-    return <Lock className={cn("size-4 shrink-0", className)} aria-hidden />;
-  }
+  const Icon = discoverability === "private" ? Lock : Hash;
 
-  return <Hash className={cn("size-4 shrink-0", className)} aria-hidden />;
+  return (
+    <span
+      className={cn(
+        "inline-flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5",
+        className,
+      )}
+      aria-hidden
+    >
+      <Icon />
+    </span>
+  );
 }
