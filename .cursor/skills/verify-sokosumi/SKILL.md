@@ -23,7 +23,7 @@ Preconditions before launch:
 - Node **24.x** on `PATH` (`node -v`)
 - `pnpm install` already done
 - Workspace packages built at least once (`pnpm packages:build`) — Core imports compiled `@sokosumi/utils` / `@sokosumi/database` exports
-- `apps/web/.env` and `apps/core/.env` present (copy from `.env.example` if missing). **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see AGENTS.md cloud notes): `POSTMARK_FROM_EMAIL` = valid email; `HERMES_ORCH_BASE_URL` = valid URL; Ably keys any non-empty string; Blob/Postmark/OAuth secrets any non-empty dummy
+- `apps/web/.env` and `apps/core/.env` present (copy from `.env.example` if missing). **Do not leave angle-bracket placeholders** (`<your-…>`) — Zod rejects them. Use non-empty dummies that pass validation (see AGENTS.md cloud notes): `POSTMARK_FROM_EMAIL` = valid email; `HERMES_ORCH_BASE_URL` = valid URL; Ably keys any non-empty string; Blob/Postmark/OAuth secrets any non-empty dummy. **Optional URL fields** (`AGENT_HIRED_WEBHOOK`, Sentry DSN, etc.) must be omitted/commented out or set to a real URL — a bare `dummy` string fails `z.url()` and crashes Web after Ready.
 - **`COMPOSIO_API_KEY`**: Core Zod allows omitting it, but if set it **must start with `ak_`**. A dummy like `dummy-composio-api-key` fails boot (`Invalid string: must start with "ak_"`). Use `ak_…` dummy or comment/remove the key
 - `APP_SIGNING_SECRET` (web) equals `BETTER_AUTH_SECRET` (core)
 - **`BETTER_AUTH_COOKIE_DOMAIN` must be unset / commented out for localhost.** Core `.env.example` sets `BETTER_AUTH_COOKIE_DOMAIN="sokosumi.com"` for production-shaped deploys — if that value is copied into local `.env`, session cookies are scoped to `.sokosumi.com` and **email/password login appears to succeed but the browser never keeps a session on `localhost`**. `doctor` fails when this trap is present
@@ -154,6 +154,7 @@ Default ports **3000** (web) and **8787** (core) are shared. Second concurrent v
 - Ambient `DATABASE_URL` can override `.env` — use `with-db.mjs` when `.cursor/cloud-agent-db.env` exists
 - **`BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com` (or any production domain) on localhost** → cookies never stick; disable it before blaming the form
 - Copying `.env.example` without replacing `<…>` placeholders → Core/Web fail Zod at boot (“missing env”)
+- Optional URL env vars (`AGENT_HIRED_WEBHOOK`, Sentry DSN) set to non-URL dummies → Web crashes after Ready (`z.url()`); omit or use a real URL
 - `COMPOSIO_API_KEY` set without an `ak_` prefix → Core refuses to start (optional key; omit or use `ak_…`)
 - Empty local catalog: `/agents` soft-empty (“No agents available”) or Core 500 until `credit_cost` rows exist
 - Ably placeholders break realtime chat UI
