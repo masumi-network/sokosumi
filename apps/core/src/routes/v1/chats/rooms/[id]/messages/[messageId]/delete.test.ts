@@ -14,6 +14,7 @@ const {
   messageFindFirstMock,
   messageUpdateMock,
   messageFindUniqueOrThrowMock,
+  mentionUpdateManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -22,6 +23,7 @@ const {
   messageFindFirstMock: vi.fn(),
   messageUpdateMock: vi.fn(),
   messageFindUniqueOrThrowMock: vi.fn(),
+  mentionUpdateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -50,6 +52,9 @@ const tx = {
     findFirst: messageFindFirstMock,
     update: messageUpdateMock,
     findUniqueOrThrow: messageFindUniqueOrThrowMock,
+  },
+  chatRoomMention: {
+    updateMany: mentionUpdateManyMock,
   },
 };
 
@@ -130,6 +135,7 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     });
     messageUpdateMock.mockResolvedValue(tombstone);
     messageFindUniqueOrThrowMock.mockResolvedValue(tombstone);
+    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
   });
 
   it("soft-deletes the author message and returns a tombstone", async () => {
@@ -152,6 +158,16 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
         }),
       }),
     );
+    expect(mentionUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        messageId: MESSAGE_ID,
+        status: { in: ["pending", "sent"] },
+      },
+      data: {
+        status: "failed",
+        error: "Source message was deleted",
+      },
+    });
   });
 
   it("returns 403 when a different member tries to delete", async () => {
@@ -184,6 +200,16 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
 
     expect(response.status).toBe(200);
     expect(messageUpdateMock).not.toHaveBeenCalled();
+    expect(mentionUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        messageId: MESSAGE_ID,
+        status: { in: ["pending", "sent"] },
+      },
+      data: {
+        status: "failed",
+        error: "Source message was deleted",
+      },
+    });
     const body = await response.json();
     expect(body.data.deletedAt).toBeTruthy();
     expect(body.data.content).toBe("");
