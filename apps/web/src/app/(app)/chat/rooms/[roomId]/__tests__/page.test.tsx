@@ -87,6 +87,7 @@ function room(
     unreadCount: 0,
     unreadMentionCount: 0,
     pinnedAt: null,
+    mutedAt: null,
     markedUnread: false,
   };
 }

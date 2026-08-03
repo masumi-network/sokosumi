@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  findMarkdownLinks,
-  getExtensionFromUrl,
-  isFileLikeUrl,
-  unescapeMarkdownLinkUrl,
-} from "@sokosumi/utils";
+import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
   CheckCircle2,
   Loader2,
@@ -17,7 +12,6 @@ import {
 import { useTranslations } from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
-  type ReactNode,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
@@ -26,8 +20,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { segmentRoomMessageContent } from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
-import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
 import {
   AlertDialog,
@@ -42,6 +36,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import {
   Sheet,
@@ -81,34 +76,81 @@ type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
 type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
-function MessageQuoteAttachmentChip({
+/** Collapsed preview height for primary message bodies (taller than quotes). */
+const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+function useClampedOverflow(resetKey: string) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    setExpanded(false);
+  }, [resetKey]);
+
+  useLayoutEffect(() => {
+    const node = contentRef.current;
+    if (!node || expanded) {
+      return;
+    }
+
+    function measureOverflow() {
+      const el = contentRef.current;
+      if (!el) {
+        return;
+      }
+      setOverflows(el.scrollHeight > el.clientHeight + 1);
+    }
+
+    measureOverflow();
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [expanded, resetKey]);
+
+  return { expanded, setExpanded, overflows, contentRef };
+}
+
+function MessageQuoteAttachmentThumb({
   attachment,
 }: {
   attachment: RoomQuoteAttachment;
 }) {
-  const extension =
-    getExtensionFromUrl(attachment.fileName) ||
-    getExtensionFromUrl(attachment.url) ||
-    "file";
+  const thumbClassName =
+    "bg-accent/30 mt-1 size-10 shrink-0 overflow-hidden rounded-xl border";
 
-  return (
-    <a
-      href={attachment.url}
-      target="_blank"
-      rel="noreferrer noopener"
-      className="bg-accent/30 hover:bg-accent/50 text-muted-foreground focus-visible:ring-ring mt-1 inline-flex max-w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-xs outline-none transition focus-visible:ring-2"
-      onClick={(event) => {
-        event.stopPropagation();
-      }}
-    >
-      <span className="size-3.5 shrink-0" aria-hidden>
-        <FileTypeIcon extension={extension} />
-      </span>
-      <span className="text-foreground truncate font-medium">
-        {attachment.fileName}
-      </span>
-    </a>
-  );
+  switch (attachment.mediaKind) {
+    case "image":
+      return (
+        <div className={thumbClassName} aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={attachment.url}
+            alt=""
+            className="size-full object-cover object-center"
+          />
+        </div>
+      );
+    case "file": {
+      const extension =
+        getExtensionFromUrl(attachment.fileName) ||
+        getExtensionFromUrl(attachment.url) ||
+        "file";
+      return (
+        <div className={thumbClassName} aria-hidden>
+          <div className="text-muted-foreground flex size-full items-center justify-center">
+            <div className="flex size-6 items-center justify-center">
+              <FileTypeIcon extension={extension} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+    default: {
+      const _exhaustive: never = attachment.mediaKind;
+      return _exhaustive;
+    }
+  }
 }
 
 function formatWhoReactedLabel(
@@ -142,33 +184,9 @@ function MessageQuoteBlock({
   usersBySlug?: Map<string, UserMentionLookup>;
 }) {
   const t = useTranslations("App.Channels.Quote");
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  const snippetRef = useRef<HTMLDivElement | null>(null);
-
-  useLayoutEffect(() => {
-    setExpanded(false);
-  }, [quote.messageId, quote.snippet]);
-
-  useLayoutEffect(() => {
-    const node = snippetRef.current;
-    if (!node || expanded) {
-      return;
-    }
-
-    function measureOverflow() {
-      const el = snippetRef.current;
-      if (!el) {
-        return;
-      }
-      setOverflows(el.scrollHeight > el.clientHeight + 1);
-    }
-
-    measureOverflow();
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [expanded, quote.snippet]);
+  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
+    `${quote.messageId}\0${quote.snippet}`,
+  );
 
   const attachment = quote.attachment ?? null;
 
@@ -187,7 +205,7 @@ function MessageQuoteBlock({
         </div>
         {quote.snippet.trim() ? (
           <div
-            ref={snippetRef}
+            ref={contentRef}
             className={cn(
               "text-muted-foreground text-xs leading-5",
               expanded ? null : "line-clamp-4",
@@ -204,10 +222,10 @@ function MessageQuoteBlock({
             </Markdown>
           </div>
         ) : null}
+        {attachment ? (
+          <MessageQuoteAttachmentThumb attachment={attachment} />
+        ) : null}
       </button>
-      {attachment ? (
-        <MessageQuoteAttachmentChip attachment={attachment} />
-      ) : null}
       {expanded || overflows ? (
         <button
           type="button"
@@ -266,17 +284,12 @@ function ChannelMessageText({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
 }) {
-  const fileLinks = findMarkdownLinks(content)
-    .map((link) => ({
-      ...link,
-      url: unescapeMarkdownLinkUrl(link.rawUrl),
-    }))
-    .filter((link) => isFileLikeUrl(link.url));
+  const segments = segmentRoomMessageContent(content);
 
-  if (fileLinks.length === 0) {
+  if (segments.length === 1 && segments[0].kind === "text") {
     return (
       <ChannelMarkdownSegment
-        content={content}
+        content={segments[0].content}
         coworkersById={coworkersById}
         coworkersBySlug={coworkersBySlug}
         usersById={usersById}
@@ -285,46 +298,96 @@ function ChannelMessageText({
     );
   }
 
-  const nodes: ReactNode[] = [];
-  let lastIndex = 0;
-  fileLinks.forEach((link, index) => {
-    if (link.index > lastIndex) {
-      nodes.push(
-        <ChannelMarkdownSegment
-          key={`message-${index}-before`}
-          content={content.slice(lastIndex, link.index)}
+  return (
+    <>
+      {segments.map((segment, i) => {
+        switch (segment.kind) {
+          case "text":
+            return (
+              <ChannelMarkdownSegment
+                key={`text-${i}-${segment.start}`}
+                content={segment.content}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+              />
+            );
+          case "files":
+            return (
+              <div
+                key={`files-${i}-${segment.links[0].index}`}
+                className="my-2 flex flex-wrap gap-2"
+                data-testid="room-message-attachment-row"
+              >
+                {segment.links.map((link) => (
+                  <FileChipMiniPreviewFrame
+                    key={`${link.index}-${link.url}`}
+                    url={link.url}
+                    fileName={link.fileName}
+                    sizeClass="size-16"
+                  />
+                ))}
+              </div>
+            );
+          default: {
+            const _exhaustive: never = segment;
+            return _exhaustive;
+          }
+        }
+      })}
+    </>
+  );
+}
+
+function ChannelMessageBody({
+  messageId,
+  content,
+  coworkersById,
+  coworkersBySlug,
+  usersById,
+  usersBySlug,
+}: {
+  messageId: string;
+  content: string;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
+}) {
+  const t = useTranslations("App.Channels.Message");
+  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
+    `${messageId}\0${content}`,
+  );
+
+  return (
+    <div>
+      <div
+        ref={contentRef}
+        data-testid="room-message-body"
+        className={cn(expanded ? null : MESSAGE_BODY_CLAMP_CLASS)}
+      >
+        <ChannelMessageText
+          content={content}
           coworkersById={coworkersById}
           coworkersBySlug={coworkersBySlug}
           usersById={usersById}
           usersBySlug={usersBySlug}
-        />,
-      );
-    }
-    nodes.push(
-      <div key={`${link.index}-${link.url}`} className="my-2 flex">
-        <FileChipMiniPreviewWithMetadata
-          url={link.url}
-          fileName={link.text}
-          sizeClass="size-16"
         />
-      </div>,
-    );
-    lastIndex = link.index + link.match.length;
-  });
-  if (lastIndex < content.length) {
-    nodes.push(
-      <ChannelMarkdownSegment
-        key="message-after"
-        content={content.slice(lastIndex)}
-        coworkersById={coworkersById}
-        coworkersBySlug={coworkersBySlug}
-        usersById={usersById}
-        usersBySlug={usersBySlug}
-      />,
-    );
-  }
-
-  return <>{nodes}</>;
+      </div>
+      {expanded || overflows ? (
+        <button
+          type="button"
+          className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"
+          onClick={() => {
+            setExpanded((current) => !current);
+          }}
+        >
+          {expanded ? t("showLess") : t("showMore")}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 const QUICK_MESSAGE_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀"] as const;
@@ -1210,7 +1273,8 @@ export function ChatMessageRow({
                 </span>
               ) : (
                 <>
-                  <ChannelMessageText
+                  <ChannelMessageBody
+                    messageId={message.id}
                     content={message.content}
                     coworkersById={coworkersById}
                     coworkersBySlug={coworkersBySlug}

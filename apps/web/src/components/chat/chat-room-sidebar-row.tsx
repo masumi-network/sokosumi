@@ -1,13 +1,22 @@
 "use client";
 
-import { Ellipsis, Pin } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  Ellipsis,
+  MessageSquare,
+  Pin,
+  PinOff,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useTransition } from "react";
 import { toast } from "sonner";
 import {
   markOrganizationChatRoomUnreadAction,
+  muteOrganizationChatRoomAction,
   pinOrganizationChatRoomAction,
+  unmuteOrganizationChatRoomAction,
   unpinOrganizationChatRoomAction,
 } from "@/components/chat/organization-chat-list.actions";
 import { resolveRoomAttention } from "@/components/chat/room-attention";
@@ -23,7 +32,7 @@ import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
-/** Same absolute slot for pin (rest) and overflow menu (hover) so icons never jump. */
+/** Same absolute slot for pin/mute (rest) and overflow menu (hover) so icons never jump. */
 const TRAILING_CONTROL_CLASS =
   "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center";
 
@@ -64,10 +73,12 @@ export function ChatRoomSidebarRow({
   const tActions = useTranslations("App.Channels.Actions");
   const [isPending, startTransition] = useTransition();
   const isPinned = room.pinnedAt != null;
+  const isMuted = room.mutedAt != null;
   const { bold, badgeCount } = resolveRoomAttention({
     unreadCount: room.unreadCount,
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
+    isMuted,
     isActive,
   });
 
@@ -97,7 +108,10 @@ export function ChatRoomSidebarRow({
         <SheetClose asChild>
           <Link
             aria-current={isActive ? "page" : undefined}
-            className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3"
+            className={cn(
+              "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3",
+              isMuted && !isActive && "opacity-60",
+            )}
             href={href}
           >
             {leading}
@@ -105,6 +119,7 @@ export function ChatRoomSidebarRow({
               className={cn(
                 "min-w-0 flex-1 truncate",
                 bold && "font-semibold text-foreground",
+                isMuted && !isActive && "text-muted-foreground",
               )}
             >
               {label}
@@ -114,7 +129,7 @@ export function ChatRoomSidebarRow({
           </Link>
         </SheetClose>
       </SidebarMenuButton>
-      {isPinned ? (
+      {isMuted || isPinned ? (
         <span
           className={cn(
             TRAILING_CONTROL_CLASS,
@@ -123,7 +138,11 @@ export function ChatRoomSidebarRow({
           )}
           aria-hidden
         >
-          <Pin className="size-3.5" />
+          {isMuted ? (
+            <BellOff className="size-3.5" />
+          ) : (
+            <Pin className="size-3.5" />
+          )}
         </span>
       ) : null}
       <DropdownMenu>
@@ -144,7 +163,7 @@ export function ChatRoomSidebarRow({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem
-            disabled={isActive || isPending}
+            disabled={isActive || isPending || isMuted}
             onSelect={() => {
               runRoomAction(markOrganizationChatRoomUnreadAction, {
                 ...room,
@@ -152,10 +171,11 @@ export function ChatRoomSidebarRow({
               });
             }}
           >
+            <MessageSquare className="size-4" aria-hidden />
             {tActions("markUnread")}
           </DropdownMenuItem>
           <DropdownMenuItem
-            disabled={isPending}
+            disabled={isPending || isMuted}
             onSelect={() => {
               if (isPinned) {
                 runRoomAction(unpinOrganizationChatRoomAction, {
@@ -170,7 +190,35 @@ export function ChatRoomSidebarRow({
               });
             }}
           >
+            {isPinned ? (
+              <PinOff className="size-4" aria-hidden />
+            ) : (
+              <Pin className="size-4" aria-hidden />
+            )}
             {isPinned ? tActions("unpin") : tActions("pin")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={isPending || isPinned}
+            onSelect={() => {
+              if (isMuted) {
+                runRoomAction(unmuteOrganizationChatRoomAction, {
+                  ...room,
+                  mutedAt: null,
+                });
+                return;
+              }
+              runRoomAction(muteOrganizationChatRoomAction, {
+                ...room,
+                mutedAt: new Date(),
+              });
+            }}
+          >
+            {isMuted ? (
+              <Bell className="size-4" aria-hidden />
+            ) : (
+              <BellOff className="size-4" aria-hidden />
+            )}
+            {isMuted ? tActions("unmute") : tActions("mute")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

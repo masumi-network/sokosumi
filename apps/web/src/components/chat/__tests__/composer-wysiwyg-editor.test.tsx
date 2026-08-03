@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -110,5 +110,129 @@ describe("ComposerWysiwygEditor", () => {
       metaKey: true,
     });
     expect(onLinkShortcut).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears editor DOM when parent value is cleared while focused after typing", () => {
+    function Harness() {
+      const [value, setValue] = useState("typing indicators please");
+      return (
+        <>
+          <button type="button" onClick={() => setValue("")}>
+            clear
+          </button>
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+        </>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    expect(editor).toHaveFocus();
+    expect(editor.textContent).toContain("typing indicators please");
+
+    fireEvent.click(screen.getByRole("button", { name: "clear" }));
+
+    expect(editor.textContent ?? "").toBe("");
+  });
+
+  it("clears editor DOM after internal input then external clear in the same focused session", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button type="button" onClick={() => setValue("")}>
+            clear
+          </button>
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+        </>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.innerHTML = "typing indicators please";
+    fireEvent.input(editor);
+    expect(editor.textContent).toContain("typing indicators please");
+
+    fireEvent.click(screen.getByRole("button", { name: "clear" }));
+
+    expect(editor.textContent ?? "").toBe("");
+  });
+
+  it("clears editor when parent clears in the same act as an internal input", () => {
+    function Harness() {
+      const [value, setValue] = useState("typing indicators please");
+      return (
+        <>
+          <button type="button" onClick={() => setValue("")}>
+            clear-only
+          </button>
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+        </>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    expect(editor.textContent).toContain("typing indicators please");
+
+    // Internal input marks isInternalChange; clear in the same act before the
+    // value-sync effect can reset that flag. Value must change (text → "") so
+    // React commits and the sync effect runs.
+    act(() => {
+      fireEvent.input(editor);
+      fireEvent.click(screen.getByRole("button", { name: "clear-only" }));
+    });
+
+    expect(editor.textContent ?? "").toBe("");
+  });
+
+  it("restores editor text while focused after an external clear", () => {
+    function Harness() {
+      const [value, setValue] = useState("typing indicators please");
+      return (
+        <>
+          <button type="button" onClick={() => setValue("")}>
+            clear
+          </button>
+          <button
+            type="button"
+            onClick={() => setValue("typing indicators please")}
+          >
+            restore
+          </button>
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+        </>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+
+    fireEvent.click(screen.getByRole("button", { name: "clear" }));
+    expect(editor.textContent ?? "").toBe("");
+
+    fireEvent.click(screen.getByRole("button", { name: "restore" }));
+    expect(editor.textContent).toContain("typing indicators please");
   });
 });

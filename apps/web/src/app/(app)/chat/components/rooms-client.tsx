@@ -21,6 +21,7 @@ import {
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
+import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
@@ -33,8 +34,10 @@ import {
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
+import { rememberRoomRead } from "@/components/chat/room-read-overlay";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
@@ -244,9 +247,10 @@ export function RoomsClient({
   }
 
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
-  const { scrollerRef, contentRef, scrollToBottomIfPinned } = useStickToBottom({
-    resetKey: selectedRoomId,
-  });
+  const { scrollerRef, contentRef, contentMinHeight, scrollToBottomIfPinned } =
+    useStickToBottom({
+      resetKey: selectedRoomId,
+    });
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
@@ -632,7 +636,14 @@ export function RoomsClient({
 
     let cancelled = false;
     markOrganizationChatRoomReadAction(selectedRoomReadId).then((result) => {
-      if (cancelled || !result.ok) {
+      if (!result.ok) {
+        return;
+      }
+      // Persist before the cancelled check: mobile Sheet unmounts the sidebar
+      // list so the event below often has no listener, and remount would
+      // otherwise rehydrate unread from stale RSC props.
+      rememberRoomRead(result.data);
+      if (cancelled) {
         return;
       }
       window.dispatchEvent(
@@ -1045,6 +1056,9 @@ export function RoomsClient({
 
   function handleQuoteMessage(message: ChatRoomMessage) {
     setPendingQuote(pendingQuoteFromMessage(message));
+    requestAnimationFrame(() => {
+      roomComposerRef.current?.focus();
+    });
   }
 
   function handleQuoteThreadMessage(message: ChatRoomMessage) {
@@ -1224,13 +1238,31 @@ export function RoomsClient({
                   {isDirectRoom ? (
                     <MessageCircle className="text-muted-foreground size-4 shrink-0" />
                   ) : (
-                    <Hash className="text-muted-foreground size-4 shrink-0" />
+                    <ChannelDiscoverabilityIcon
+                      className="text-muted-foreground"
+                      discoverability={selectedRoom.discoverability}
+                    />
                   )}
                   <p className="text-muted-foreground truncate text-sm">
                     {selectedRoomDisplayName}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
+                  <RoomSearchPanel
+                    key={selectedRoom.id}
+                    roomId={selectedRoom.id}
+                    loadedMessages={messagesState}
+                    onOpenThread={loadThreadMessages}
+                    labels={{
+                      open: t("RoomSearch.open"),
+                      placeholder: t("RoomSearch.placeholder"),
+                      idle: t("RoomSearch.idle"),
+                      empty: t("RoomSearch.empty"),
+                      loading: t("RoomSearch.loading"),
+                      error: t("RoomSearch.error"),
+                      replyBadge: t("RoomSearch.replyBadge"),
+                    }}
+                  />
                   <RoomParticipantStack
                     room={selectedRoom}
                     currentUserId={currentUserId}
@@ -1254,7 +1286,12 @@ export function RoomsClient({
               <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
                 <div
                   ref={contentRef}
-                  className="flex w-full flex-col px-5 pt-6 pb-3"
+                  className="flex w-full flex-col justify-end px-5 pt-6 pb-3"
+                  style={
+                    contentMinHeight != null
+                      ? { minHeight: contentMinHeight }
+                      : undefined
+                  }
                 >
                   {messageLoadFailed ? (
                     <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">

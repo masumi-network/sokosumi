@@ -24,6 +24,8 @@ const {
   coworkerMemberDeleteManyMock,
   coworkerMemberCreateManyMock,
   mentionUpdateManyMock,
+  membershipFindManyMock,
+  readStateFindManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -40,12 +42,20 @@ const {
   coworkerMemberDeleteManyMock: vi.fn(),
   coworkerMemberCreateManyMock: vi.fn(),
   mentionUpdateManyMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+  readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    chatRoomUserMember: {
+      findMany: membershipFindManyMock,
+    },
+    chatRoomReadState: {
+      findMany: readStateFindManyMock,
+    },
   },
 }));
 
@@ -122,6 +132,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     kind: "channel",
     directKey: null,
     topic: null,
+    discoverability: "private",
     createdByUserId: USER_ID,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -148,6 +159,7 @@ function directRoom() {
     slug: "bob",
     kind: "direct",
     directKey: `${USER_ID}:${OTHER_USER_ID}`,
+    discoverability: null,
   });
 }
 
@@ -162,6 +174,8 @@ beforeEach(() => {
       where.userId.in.map((userId) => ({ userId })),
   );
   coworkerFindManyMock.mockResolvedValue([]);
+  membershipFindManyMock.mockResolvedValue([]);
+  readStateFindManyMock.mockResolvedValue([]);
 });
 
 describe("PATCH /chats/rooms/{id}", () => {
@@ -198,6 +212,32 @@ describe("PATCH /chats/rooms/{id}", () => {
           slug: "ship-room",
           topic: "Go live checklist",
         },
+      }),
+    );
+  });
+
+  it("updates channel discoverability when the caller can manage the room", async () => {
+    const existing = channelRoom({ discoverability: "private" });
+    const updated = channelRoom({ discoverability: "public" });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        discoverability: "public",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.discoverability).toBe("public");
+    expect(roomUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: ROOM_ID },
+        data: { discoverability: "public" },
       }),
     );
   });

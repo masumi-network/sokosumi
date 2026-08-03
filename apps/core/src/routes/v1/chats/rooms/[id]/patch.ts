@@ -20,7 +20,7 @@ import {
 import {
   buildUniqueRoomSlug,
   chatRoomInclude,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
   slugifyRoomName,
   validateChatCoworkerIds,
@@ -117,6 +117,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name?: string;
           slug?: string;
           topic?: string | null;
+          discoverability?: "public" | "private";
         } = {};
 
         if (body.name !== undefined) {
@@ -134,6 +135,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (body.topic !== undefined) {
           updateData.topic = body.topic?.trim() || null;
+        }
+
+        if (body.discoverability !== undefined) {
+          updateData.discoverability = body.discoverability;
         }
 
         if (body.memberUserIds !== undefined) {
@@ -204,7 +209,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       });
 
-      return ok(c, chatRoomSchema.parse(mapChatRoom(room, userContext.userId)));
+      return ok(
+        c,
+        chatRoomSchema.parse(
+          await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma),
+        ),
+      );
     } catch (error) {
       if (isSlugUniqueConstraintError(error)) {
         throw conflict("Room already exists");

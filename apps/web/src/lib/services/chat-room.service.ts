@@ -8,6 +8,7 @@ import type {
   ChatRoomMessage,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
+  DiscoverableChatRoom,
   UpdateChatRoomRequest,
 } from "@/lib/clients/generated/core";
 
@@ -47,6 +48,36 @@ export const chatRoomService = (() => {
 
     return rooms;
   });
+
+  async function listDiscoverableChannels(options?: {
+    q?: string;
+    /** Cap Core pagination walks. Sidebar suggestions use 1 page. */
+    maxPages?: number;
+  }): Promise<DiscoverableChatRoom[]> {
+    const rooms: DiscoverableChatRoom[] = [];
+    let cursor: string | undefined;
+    const q = options?.q?.trim();
+    const maxPages = Math.min(
+      Math.max(options?.maxPages ?? ROOM_LIST_MAX_PAGES, 1),
+      ROOM_LIST_MAX_PAGES,
+    );
+
+    for (let page = 0; page < maxPages; page += 1) {
+      const response = await coreClient.getDiscoverableChatRooms({
+        limit: ROOM_LIST_PAGE_LIMIT,
+        ...(q ? { q } : {}),
+        ...(cursor ? { cursor } : {}),
+      });
+      rooms.push(...response.data);
+      const nextCursor = response.meta?.pagination?.nextCursor ?? null;
+      if (!nextCursor) {
+        return rooms;
+      }
+      cursor = nextCursor;
+    }
+
+    return rooms;
+  }
 
   const listArchivedRooms = cache(async function listArchivedRooms(): Promise<
     ChatRoom[]
@@ -94,8 +125,17 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function deleteRoom(id: string): Promise<void> {
+    await coreClient.deleteChatRoom(id);
+  }
+
   async function leaveRoom(id: string) {
     const response = await coreClient.leaveChatRoom(id);
+    return response.data;
+  }
+
+  async function joinRoom(id: string): Promise<ChatRoom> {
+    const response = await coreClient.joinChatRoom(id);
     return response.data;
   }
 
@@ -111,6 +151,16 @@ export const chatRoomService = (() => {
 
   async function unpinRoom(id: string): Promise<ChatRoom> {
     const response = await coreClient.unpinChatRoom(id);
+    return response.data;
+  }
+
+  async function muteRoom(id: string): Promise<ChatRoom> {
+    const response = await coreClient.muteChatRoom(id);
+    return response.data;
+  }
+
+  async function unmuteRoom(id: string): Promise<ChatRoom> {
+    const response = await coreClient.unmuteChatRoom(id);
     return response.data;
   }
 
@@ -193,9 +243,12 @@ export const chatRoomService = (() => {
     archiveRoom,
     createRoom,
     deleteMessage,
+    deleteRoom,
     editMessage,
     getRoom,
+    joinRoom,
     listArchivedRooms,
+    listDiscoverableChannels,
     listMessages,
     listRooms,
     listThreadMessages,
@@ -205,6 +258,8 @@ export const chatRoomService = (() => {
     pinRoom,
     restoreRoom,
     unpinRoom,
+    muteRoom,
+    unmuteRoom,
     sendMessage,
     toggleReaction,
     updateRoom,

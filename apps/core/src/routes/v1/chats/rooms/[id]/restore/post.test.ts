@@ -14,6 +14,8 @@ const {
   queryRawMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
+  membershipFindManyMock,
+  readStateFindManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -21,6 +23,8 @@ const {
   queryRawMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+  readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -36,6 +40,8 @@ const tx = {
   chatRoom: { findFirst: roomFindFirstMock, updateMany: roomUpdateManyMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
+  chatRoomUserMember: { findMany: membershipFindManyMock },
+  chatRoomReadState: { findMany: readStateFindManyMock },
   $queryRaw: queryRawMock,
 };
 
@@ -108,6 +114,8 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
   roomUpdateManyMock.mockResolvedValue({ count: 1 });
+  membershipFindManyMock.mockResolvedValue([]);
+  readStateFindManyMock.mockResolvedValue([]);
 });
 
 describe("POST /chats/rooms/{id}/restore", () => {

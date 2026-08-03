@@ -111,7 +111,7 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   readStateUpsertMock.mockResolvedValue({});
-  membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null });
+  membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null, mutedAt: null });
   unreadQueryMock.mockResolvedValue([]);
   mentionGroupByMock.mockResolvedValue([]);
 });

@@ -4573,9 +4573,17 @@
         "archiveSuccess": "{name} foi arquivado.",
         "restore": "Restaurar",
         "restoreSuccess": "{name} foi restaurado.",
+        "delete": "Eliminar",
+        "deleteConfirmTitle": "Eliminar {name} permanentemente?",
+        "deleteConfirmDescription": "Isto elimina permanentemente o canal e as suas mensagens para todos. Não pode ser anulado.",
+        "deleteConfirm": "Eliminar permanentemente",
+        "deleteSuccess": "{name} foi eliminado permanentemente.",
+        "deleteError": "Não foi possível eliminar o canal.",
         "markUnread": "Marcar como não lida",
         "pin": "Afixar",
         "unpin": "Desafixar",
+        "mute": "Silenciar",
+        "unmute": "Ativar notificações",
         "roomMenu": "Ações do chat para {name}",
         "actionFailed": "Não foi possível atualizar este chat. Tente novamente."
       },
@@ -4660,6 +4668,15 @@
         "groupDirectNoCoworkersError": "As mensagens diretas de grupo não podem incluir coworkers.",
         "coworkerDirectOneToOneOnly": "As mensagens diretas com coworkers são 1:1."
       },
+      "RoomSearch": {
+        "open": "Pesquisar neste chat",
+        "placeholder": "Pesquisar mensagens…",
+        "idle": "Escreva para pesquisar mensagens neste chat.",
+        "empty": "Nenhuma mensagem corresponde à pesquisa.",
+        "loading": "A pesquisar…",
+        "error": "Não foi possível pesquisar as mensagens. Tente novamente.",
+        "replyBadge": "Resposta do tópico"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4730,7 +4747,9 @@
       "Message": {
         "delete": "Eliminar",
         "deleteConfirm": "Eliminar esta mensagem? Os outros verão que foi eliminada.",
-        "deleted": "Esta mensagem foi eliminada"
+        "deleted": "Esta mensagem foi eliminada",
+        "showMore": "Mostrar mais",
+        "showLess": "Mostrar menos"
       },
       "MentionAll": {
         "label": "Todos"
@@ -4744,6 +4763,27 @@
         "save": "Guardar",
         "cancel": "Cancelar",
         "edited": "Editado"
+      },
+      "Browse": {
+        "trigger": "Explorar canais",
+        "title": "Explorar canais",
+        "description": "Encontre canais públicos da organização aos quais ainda não aderiu.",
+        "searchPlaceholder": "Pesquisar canais",
+        "loading": "A carregar canais…",
+        "empty": "Não há canais públicos para aderir.",
+        "join": "Aderir",
+        "joinAria": "Aderir a {name}",
+        "joinSuccess": "Aderiu a {name}.",
+        "joinError": "Não foi possível aderir ao canal.",
+        "loadError": "Não foi possível carregar os canais.",
+        "memberCount": "{count, plural, one {# membro} other {# membros}}"
+      },
+      "Visibility": {
+        "label": "Visibilidade",
+        "public": "Público",
+        "private": "Privado",
+        "publicHelp": "Qualquer pessoa na organização pode encontrar e aderir a este canal.",
+        "privateHelp": "Apenas os membros convidados podem ver este canal."
       }
     }
   },

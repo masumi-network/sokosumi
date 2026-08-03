@@ -354,15 +354,36 @@ export function ComposerWysiwygEditor<TData = unknown>({
   }, []);
 
   useEffect(() => {
-    if (editorRef.current && !isInternalChange.current) {
-      const currentHtml = editorRef.current.innerHTML;
-      const newHtml = markdownToHtml(value, resolveMentionDisplay);
-      const isFocused = editorRef.current.contains(document.activeElement);
-      const isExternalClear = value.trim().length === 0;
+    const editor = editorRef.current;
+    if (!editor) {
+      isInternalChange.current = false;
+      return;
+    }
 
-      if (currentHtml !== newHtml && (!isFocused || isExternalClear)) {
-        editorRef.current.innerHTML = newHtml || "";
-      }
+    const isExternalClear = value.trim().length === 0;
+    // Clears must win over isInternalChange: a same-turn clear after input
+    // otherwise leaves stale DOM because this effect will not re-run for "".
+    if (isInternalChange.current && !isExternalClear) {
+      isInternalChange.current = false;
+      return;
+    }
+
+    const currentHtml = editor.innerHTML;
+    const newHtml = markdownToHtml(value, resolveMentionDisplay);
+    const isFocused = editor.contains(document.activeElement);
+    const editorLooksEmpty =
+      currentHtml === "" ||
+      currentHtml === "<br>" ||
+      currentHtml === "<div><br></div>" ||
+      currentHtml === "<p><br></p>";
+
+    // Focused non-clear updates skip to keep the caret; still apply into an
+    // empty editor (restore after failed send cleared DOM first).
+    if (
+      currentHtml !== newHtml &&
+      (!isFocused || isExternalClear || editorLooksEmpty)
+    ) {
+      editor.innerHTML = newHtml || "";
     }
     isInternalChange.current = false;
   }, [value, resolveMentionDisplay]);

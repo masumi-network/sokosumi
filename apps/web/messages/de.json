@@ -4573,9 +4573,17 @@
         "archiveSuccess": "{name} wurde archiviert.",
         "restore": "Wiederherstellen",
         "restoreSuccess": "{name} wurde wiederhergestellt.",
+        "delete": "Löschen",
+        "deleteConfirmTitle": "{name} dauerhaft löschen?",
+        "deleteConfirmDescription": "Der Kanal und seine Nachrichten werden für alle dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
+        "deleteConfirm": "Dauerhaft löschen",
+        "deleteSuccess": "{name} wurde dauerhaft gelöscht.",
+        "deleteError": "Kanal konnte nicht gelöscht werden.",
         "markUnread": "Als ungelesen markieren",
         "pin": "Anheften",
         "unpin": "Lösen",
+        "mute": "Stummschalten",
+        "unmute": "Stummschaltung aufheben",
         "roomMenu": "Chat-Aktionen für {name}",
         "actionFailed": "Dieser Chat konnte nicht aktualisiert werden. Bitte erneut versuchen."
       },
@@ -4660,6 +4668,15 @@
         "groupDirectNoCoworkersError": "Gruppendirektnachrichten können keine Coworker enthalten.",
         "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1."
       },
+      "RoomSearch": {
+        "open": "In diesem Chat suchen",
+        "placeholder": "Nachrichten suchen…",
+        "idle": "Tippe, um Nachrichten in diesem Chat zu suchen.",
+        "empty": "Keine Nachrichten passen zu deiner Suche.",
+        "loading": "Suche…",
+        "error": "Nachrichten konnten nicht gesucht werden. Versuch es erneut.",
+        "replyBadge": "Thread-Antwort"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4730,7 +4747,9 @@
       "Message": {
         "delete": "Löschen",
         "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
-        "deleted": "Diese Nachricht wurde gelöscht"
+        "deleted": "Diese Nachricht wurde gelöscht",
+        "showMore": "Mehr anzeigen",
+        "showLess": "Weniger anzeigen"
       },
       "MentionAll": {
         "label": "Alle"
@@ -4744,6 +4763,27 @@
         "save": "Speichern",
         "cancel": "Abbrechen",
         "edited": "Bearbeitet"
+      },
+      "Browse": {
+        "trigger": "Kanäle durchsuchen",
+        "title": "Kanäle durchsuchen",
+        "description": "Finde öffentliche Organisationskanäle, denen du noch nicht beigetreten bist.",
+        "searchPlaceholder": "Kanäle suchen",
+        "loading": "Kanäle werden geladen…",
+        "empty": "Keine öffentlichen Kanäle zum Beitreten.",
+        "join": "Beitreten",
+        "joinAria": "{name} beitreten",
+        "joinSuccess": "Du bist {name} beigetreten.",
+        "joinError": "Kanalbeitritt fehlgeschlagen.",
+        "loadError": "Kanäle konnten nicht geladen werden.",
+        "memberCount": "{count, plural, one {# Mitglied} other {# Mitglieder}}"
+      },
+      "Visibility": {
+        "label": "Sichtbarkeit",
+        "public": "Öffentlich",
+        "private": "Privat",
+        "publicHelp": "Alle in der Organisation können diesen Kanal finden und beitreten.",
+        "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen."
       }
     }
   },

@@ -8,25 +8,27 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import { ChatMessageRow } from "../room-message-row";
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
-    if (key === "Reactions.whoReacted" && values) {
-      const names = String(values.names ?? "");
-      const more = Number(values.more ?? 0);
-      return more > 0 ? `${names}, and ${more} more` : names;
-    }
-    if (key === "Reactions.andMore" && values) {
-      return `and ${values.count} more`;
-    }
-    if (key === "jump" && values) {
-      return `Jump to message from ${values.author}`;
-    }
-    if (key === "showMore") {
-      return "More";
-    }
-    if (key === "showLess") {
-      return "Less";
-    }
-    return key;
+  useTranslations: (namespace?: string) => {
+    return (key: string, values?: Record<string, unknown>) => {
+      if (key === "Reactions.whoReacted" && values) {
+        const names = String(values.names ?? "");
+        const more = Number(values.more ?? 0);
+        return more > 0 ? `${names}, and ${more} more` : names;
+      }
+      if (key === "Reactions.andMore" && values) {
+        return `and ${values.count} more`;
+      }
+      if (key === "jump" && values) {
+        return `Jump to message from ${values.author}`;
+      }
+      if (key === "showMore") {
+        return namespace === "App.Channels.Message" ? "Show more" : "More";
+      }
+      if (key === "showLess") {
+        return namespace === "App.Channels.Message" ? "Show less" : "Less";
+      }
+      return key;
+    };
   },
 }));
 
@@ -34,8 +36,14 @@ vi.mock("@/components/markdown", () => ({
   default: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 
-vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
-  FileChipMiniPreviewWithMetadata: () => null,
+vi.mock("@/components/ui/file-chip-mini-preview", () => ({
+  FileChipMiniPreviewFrame: ({
+    fileName,
+  }: {
+    fileName: string;
+    url: string;
+    sizeClass?: string;
+  }) => <span data-testid="chip">{fileName}</span>,
 }));
 
 vi.mock("@/components/ui/tooltip", () => ({
@@ -365,7 +373,7 @@ describe("ChatMessageRow", () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
-  it("shows quote image attachment as filename chip, not re-embedded image", () => {
+  it("shows quote image attachment as inert thumbnail, not a link", () => {
     renderRow({
       message: userMessage({
         content: "Reply body",
@@ -382,15 +390,21 @@ describe("ChatMessageRow", () => {
       }),
     });
 
-    const chip = screen.getByRole("link", { name: /launch\.png/i });
-    expect(chip).toHaveAttribute("href", "https://blob.example/launch.png");
-    expect(screen.getByText("check this shot")).toBeInTheDocument();
+    const jumpButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    const thumb = jumpButton.querySelector(
+      'img[src="https://blob.example/launch.png"]',
+    );
+    expect(thumb).toBeInTheDocument();
+    expect(thumb).toHaveAttribute("alt", "");
     expect(
-      screen.queryByRole("img", { name: "launch.png" }),
+      screen.queryByRole("link", { name: /launch\.png/i }),
     ).not.toBeInTheDocument();
+    expect(screen.getByText("check this shot")).toBeInTheDocument();
   });
 
-  it("shows quote file attachment as filename chip", () => {
+  it("shows quote file attachment as inert icon thumb, not a link", () => {
     renderRow({
       message: userMessage({
         content: "Reply body",
@@ -407,10 +421,54 @@ describe("ChatMessageRow", () => {
       }),
     });
 
-    expect(screen.getByRole("link", { name: /brief\.pdf/i })).toHaveAttribute(
-      "href",
-      "https://blob.example/brief.pdf",
-    );
+    const jumpButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    expect(
+      screen.queryByRole("link", { name: /brief\.pdf/i }),
+    ).not.toBeInTheDocument();
+    expect(jumpButton.querySelector("svg")).not.toBeNull();
+    expect(screen.queryByText("brief.pdf")).not.toBeInTheDocument();
+  });
+
+  it("jumps to original message when quote attachment thumb is clicked", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    const original = document.createElement("article");
+    original.setAttribute("data-message-id", "original-with-thumb");
+    document.body.appendChild(original);
+
+    try {
+      renderRow({
+        message: userMessage({
+          content: "Reply body",
+          quote: {
+            messageId: "original-with-thumb",
+            authorName: "Bob",
+            snippet: "check this shot",
+            attachment: {
+              fileName: "launch.png",
+              url: "https://blob.example/launch.png",
+              mediaKind: "image",
+            },
+          },
+        }),
+      });
+
+      const jumpButton = screen.getByRole("button", {
+        name: "Jump to message from Bob",
+      });
+      const thumb = jumpButton.querySelector(
+        'img[src="https://blob.example/launch.png"]',
+      );
+      expect(thumb).toBeTruthy();
+      await user.click(thumb!);
+      expect(scrollIntoView).toHaveBeenCalled();
+    } finally {
+      original.remove();
+    }
   });
 
   it("keeps legacy quotes without attachment text-only", () => {
@@ -427,6 +485,19 @@ describe("ChatMessageRow", () => {
 
     expect(screen.getByText("old text-only quote")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("wraps consecutive file attachments in one horizontal row", () => {
+    renderRow({
+      message: userMessage({
+        content:
+          "[a.png](https://cdn.example/a.png)\n[b.png](https://cdn.example/b.png)\n",
+      }),
+    });
+
+    const rows = screen.getAllByTestId("room-message-attachment-row");
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]).getAllByTestId("chip")).toHaveLength(2);
   });
 
   it("styles @all mention tokens in quote snippets", () => {
@@ -577,6 +648,125 @@ describe("ChatMessageRow", () => {
       expect(
         screen.getByRole("button", { name: "Jump to message from Phil" }),
       ).toBeInTheDocument();
+    } finally {
+      if (scrollDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollDescriptor,
+        );
+      }
+      if (clientDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientHeight",
+          clientDescriptor,
+        );
+      }
+    }
+  });
+
+  it("clamps long message bodies and expands with Show more/Show less", async () => {
+    const user = userEvent.setup();
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    const clientDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 400;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return 80;
+      },
+    });
+
+    try {
+      const longBody = Array.from(
+        { length: 20 },
+        (_, i) => `Line ${i + 1} of a very long chat message.`,
+      ).join("\n");
+
+      renderRow({
+        message: userMessage({ content: longBody }),
+      });
+
+      const body = screen.getByTestId("room-message-body");
+      expect(body.className).toContain("line-clamp-[16]");
+      expect(
+        screen.getByRole("button", { name: "Show more" }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Show more" }));
+      expect(body.className).not.toContain("line-clamp-[16]");
+      expect(
+        screen.getByRole("button", { name: "Show less" }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Show less" }));
+      expect(body.className).toContain("line-clamp-[16]");
+      expect(
+        screen.getByRole("button", { name: "Show more" }),
+      ).toBeInTheDocument();
+    } finally {
+      if (scrollDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollDescriptor,
+        );
+      }
+      if (clientDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientHeight",
+          clientDescriptor,
+        );
+      }
+    }
+  });
+
+  it("hides Show more when the message body does not overflow", () => {
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    const clientDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 40;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return 40;
+      },
+    });
+
+    try {
+      renderRow({
+        message: userMessage({ content: "Short message" }),
+      });
+
+      expect(screen.getByTestId("room-message-body").className).toContain(
+        "line-clamp-[16]",
+      );
+      expect(
+        screen.queryByRole("button", { name: "Show more" }),
+      ).not.toBeInTheDocument();
     } finally {
       if (scrollDescriptor) {
         Object.defineProperty(

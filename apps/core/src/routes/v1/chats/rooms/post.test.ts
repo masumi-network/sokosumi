@@ -16,6 +16,8 @@ const {
   memberFindManyMock,
   userFindManyMock,
   coworkerFindManyMock,
+  membershipFindManyMock,
+  readStateFindManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -26,6 +28,8 @@ const {
   memberFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+  readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -34,6 +38,12 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
     chatRoom: {
       findFirst: roomFindFirstMock,
+    },
+    chatRoomUserMember: {
+      findMany: membershipFindManyMock,
+    },
+    chatRoomReadState: {
+      findMany: readStateFindManyMock,
     },
   },
 }));
@@ -99,6 +109,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     kind: "channel",
     directKey: null,
     topic: null,
+    discoverability: "public",
     createdByUserId: USER_ID,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -125,6 +136,7 @@ function directRoom(overrides: Record<string, unknown> = {}) {
     slug: "bob",
     kind: "direct",
     directKey: DIRECT_KEY,
+    discoverability: null,
     userMembers: [
       {
         user: {
@@ -163,6 +175,8 @@ beforeEach(() => {
   userFindManyMock.mockResolvedValue([
     { id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" },
   ]);
+  membershipFindManyMock.mockResolvedValue([]);
+  readStateFindManyMock.mockResolvedValue([]);
 });
 
 describe("POST /chats/rooms", () => {
@@ -184,15 +198,61 @@ describe("POST /chats/rooms", () => {
     expect(body.data.kind).toBe("channel");
     expect(body.data.name).toBe("Launch Room");
     expect(body.data.slug).toBe("launch-room");
+    expect(body.data.discoverability).toBe("public");
     expect(roomCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           organizationId: ORG_ID,
           name: "Launch Room",
           slug: "launch-room",
+          discoverability: "public",
         }),
       }),
     );
+  });
+
+  it("persists explicit private discoverability on channel create", async () => {
+    roomCreateMock.mockResolvedValue(
+      channelRoom({ discoverability: "private" }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Launch Room",
+        discoverability: "private",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.discoverability).toBe("private");
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          discoverability: "private",
+        }),
+      }),
+    );
+  });
+
+  it("rejects discoverability on direct create", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "direct",
+        memberUserIds: [OTHER_USER_ID],
+        discoverability: "public",
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(roomCreateMock).not.toHaveBeenCalled();
   });
 
   it("creates a direct room with 201, then returns existing with 200", async () => {

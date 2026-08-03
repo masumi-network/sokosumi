@@ -84,6 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
           pinnedAt: null,
+          mutedAt: flags?.mutedAt ?? null,
           markedUnread: flags?.markedUnread ?? false,
         }),
       ),

@@ -4573,9 +4573,17 @@
         "archiveSuccess": "{name} è stato archiviato.",
         "restore": "Ripristina",
         "restoreSuccess": "{name} è stato ripristinato.",
+        "delete": "Elimina",
+        "deleteConfirmTitle": "Eliminare definitivamente {name}?",
+        "deleteConfirmDescription": "Questo elimina definitivamente il canale e i suoi messaggi per tutti. L’azione non può essere annullata.",
+        "deleteConfirm": "Elimina definitivamente",
+        "deleteSuccess": "{name} è stato eliminato definitivamente.",
+        "deleteError": "Impossibile eliminare il canale.",
         "markUnread": "Segna come non letto",
         "pin": "Fissa",
         "unpin": "Togli",
+        "mute": "Silenzia",
+        "unmute": "Riattiva notifiche",
         "roomMenu": "Azioni chat per {name}",
         "actionFailed": "Impossibile aggiornare questa chat. Riprova."
       },
@@ -4660,6 +4668,15 @@
         "groupDirectNoCoworkersError": "I messaggi diretti di gruppo non possono includere coworker.",
         "coworkerDirectOneToOneOnly": "I messaggi diretti con coworker sono 1:1."
       },
+      "RoomSearch": {
+        "open": "Cerca in questa chat",
+        "placeholder": "Cerca messaggi…",
+        "idle": "Digita per cercare messaggi in questa chat.",
+        "empty": "Nessun messaggio corrisponde alla ricerca.",
+        "loading": "Ricerca…",
+        "error": "Impossibile cercare i messaggi. Riprova.",
+        "replyBadge": "Risposta del thread"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4730,7 +4747,9 @@
       "Message": {
         "delete": "Elimina",
         "deleteConfirm": "Eliminare questo messaggio? Gli altri vedranno che è stato eliminato.",
-        "deleted": "Questo messaggio è stato eliminato"
+        "deleted": "Questo messaggio è stato eliminato",
+        "showMore": "Mostra di più",
+        "showLess": "Mostra meno"
       },
       "MentionAll": {
         "label": "Tutti"
@@ -4744,6 +4763,27 @@
         "save": "Salva",
         "cancel": "Annulla",
         "edited": "Modificato"
+      },
+      "Browse": {
+        "trigger": "Sfoglia canali",
+        "title": "Sfoglia canali",
+        "description": "Trova i canali pubblici dell'organizzazione a cui non hai ancora aderito.",
+        "searchPlaceholder": "Cerca canali",
+        "loading": "Caricamento canali…",
+        "empty": "Nessun canale pubblico a cui unirsi.",
+        "join": "Unisciti",
+        "joinAria": "Unisciti a {name}",
+        "joinSuccess": "Ti sei unito a {name}.",
+        "joinError": "Impossibile unirsi al canale.",
+        "loadError": "Impossibile caricare i canali.",
+        "memberCount": "{count, plural, one {# membro} other {# membri}}"
+      },
+      "Visibility": {
+        "label": "Visibilità",
+        "public": "Pubblico",
+        "private": "Privato",
+        "publicHelp": "Chiunque nell'organizzazione può trovare e unirsi a questo canale.",
+        "privateHelp": "Solo i membri invitati possono vedere questo canale."
       }
     }
   },

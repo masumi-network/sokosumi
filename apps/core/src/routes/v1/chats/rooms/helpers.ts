@@ -220,6 +220,7 @@ export interface MapChatRoomAttentionOptions {
   /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
   lastActivityAt?: Date | null;
   pinnedAt?: Date | null;
+  mutedAt?: Date | null;
   markedUnread?: boolean;
 }
 
@@ -233,6 +234,7 @@ export function mapChatRoom(
     unreadMentionCount = 0,
     lastActivityAt,
     pinnedAt = null,
+    mutedAt = null,
     markedUnread = false,
   } = attention;
 
@@ -244,12 +246,17 @@ export function mapChatRoom(
     kind: room.kind as "channel" | "direct",
     directKey: room.directKey,
     topic: room.topic,
+    discoverability: mapChatRoomDiscoverability(
+      room.kind,
+      room.discoverability,
+    ),
     createdByUserId: room.createdByUserId,
     createdAt: room.createdAt,
     updatedAt: lastActivityAt ?? room.updatedAt,
     unreadCount,
     unreadMentionCount,
     pinnedAt,
+    mutedAt,
     markedUnread,
     userMembers: room.userMembers.map(({ user }) => ({
       id: user.id,
@@ -269,12 +276,23 @@ export function mapChatRoom(
   };
 }
 
+function mapChatRoomDiscoverability(
+  kind: string,
+  discoverability: string | null,
+): "public" | "private" | null {
+  if (kind === "direct") {
+    return null;
+  }
+  return discoverability === "public" ? "public" : "private";
+}
+
 export interface ChatRoomSidebarFlags {
   pinnedAt: Date | null;
+  mutedAt: Date | null;
   markedUnread: boolean;
 }
 
-/** Batch-load per-user pin + forced-unread flags for sidebar mapping. */
+/** Batch-load per-user pin + mute + forced-unread flags for sidebar mapping. */
 export async function getChatRoomSidebarFlags(
   roomIds: readonly string[],
   userId: string,
@@ -294,6 +312,7 @@ export async function getChatRoomSidebarFlags(
       select: {
         roomId: true,
         pinnedAt: true,
+        mutedAt: true,
       },
     }),
     tx.chatRoomReadState.findMany({
@@ -311,7 +330,7 @@ export async function getChatRoomSidebarFlags(
   const flagged = new Map<string, ChatRoomSidebarFlags>(
     uniqueRoomIds.map((roomId) => [
       roomId,
-      { pinnedAt: null, markedUnread: false },
+      { pinnedAt: null, mutedAt: null, markedUnread: false },
     ]),
   );
 
@@ -319,6 +338,7 @@ export async function getChatRoomSidebarFlags(
     const current = flagged.get(membership.roomId);
     if (current) {
       current.pinnedAt = membership.pinnedAt;
+      current.mutedAt = membership.mutedAt;
     }
   }
 
@@ -330,6 +350,31 @@ export async function getChatRoomSidebarFlags(
   }
 
   return flagged;
+}
+
+/** mapChatRoom with per-user pin/mute/markedUnread loaded for the viewer. */
+export async function mapChatRoomWithSidebarFlags(
+  room: ChatRoomWithMembers,
+  userId: string,
+  tx: Prisma.TransactionClient,
+  attention: {
+    unreadCount?: number;
+    unreadMentionCount?: number;
+    lastActivityAt?: Date | null;
+  } = {},
+) {
+  const flags = (await getChatRoomSidebarFlags([room.id], userId, tx)).get(
+    room.id,
+  );
+
+  return mapChatRoom(room, userId, {
+    unreadCount: attention.unreadCount ?? 0,
+    unreadMentionCount: attention.unreadMentionCount ?? 0,
+    lastActivityAt: attention.lastActivityAt,
+    pinnedAt: flags?.pinnedAt ?? null,
+    mutedAt: flags?.mutedAt ?? null,
+    markedUnread: flags?.markedUnread ?? false,
+  });
 }
 
 export function mapChatRoomMessage(
@@ -693,6 +738,16 @@ export function canManageChatRoomLifecycle(options: {
   );
 }
 
+/**
+ * Permanent delete removes the room and cascaded children for everyone.
+ * Organization owner/admin only — room creator membership is not enough.
+ */
+export function canPermanentlyDeleteChatRoom(options: {
+  role: string;
+}): boolean {
+  return options.role === MemberRole.OWNER || options.role === MemberRole.ADMIN;
+}
+
 export async function requireChatRoomUserAccess(
   roomId: string,
   userId: string,
@@ -714,6 +769,40 @@ export async function requireChatRoomUserAccess(
   }
 
   await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+
+  return room;
+}
+
+/**
+ * Active public org channel the caller may self-join. Does not require
+ * membership. Unknown, private, wrong-org, direct, or archived → 404.
+ */
+export async function requireJoinablePublicOrgChannel(
+  roomId: string,
+  userId: string,
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+): Promise<ChatRoomWithMembers> {
+  await resolveMemberOrganizationById({
+    id: organizationId,
+    userId,
+    tx,
+  });
+
+  const room = await tx.chatRoom.findFirst({
+    where: {
+      id: roomId,
+      organizationId,
+      kind: "channel",
+      discoverability: "public",
+      archivedAt: null,
+    },
+    include: chatRoomInclude,
+  });
+
+  if (!room) {
+    throw notFound("Room not found");
+  }
 
   return room;
 }

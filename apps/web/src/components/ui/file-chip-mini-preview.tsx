@@ -4,7 +4,7 @@ import { getExtensionFromUrl, isImageUrl } from "@sokosumi/utils";
 import { X } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
@@ -28,75 +28,100 @@ export interface FileChipMiniPreviewProps {
 }
 
 const previewTriggerClassName =
-  "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 overflow-hidden rounded-xl border outline-none transition";
+  "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
 
-export function FileChipMiniPreview({
+function FileChipMiniPreviewTrigger({
   url,
   fileName,
   mediaType,
-  size,
-  className,
-  sizeClass = "size-20",
-  onRemove,
-  removeLabel = "Remove file",
-}: FileChipMiniPreviewProps) {
+  sizeClass,
+  onOpenImage,
+}: {
+  url: string;
+  fileName?: string | null;
+  mediaType?: string | null;
+  sizeClass: string;
+  onOpenImage: () => void;
+}) {
   const t = useTranslations("Components.ImageViewer");
-  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const resolvedFileName = fileName ?? url.split("/").pop() ?? url;
   const isImage =
     mediaType?.toLowerCase().startsWith("image/") ||
     isImageUrl(url) ||
     (fileName ? isImageUrl(fileName) : false);
   const extension = getExtensionFromUrl(fileName ?? url);
-  const prettySize = formatBytes(size);
+
+  if (isImage) {
+    return (
+      <button
+        type="button"
+        aria-label={t("viewImage", { fileName: resolvedFileName })}
+        className={cn(previewTriggerClassName, sizeClass)}
+        onClick={onOpenImage}
+      >
+        <div className="relative size-full overflow-hidden">
+          <Image
+            src={url}
+            alt={resolvedFileName}
+            fill
+            sizes="96px"
+            className="object-cover object-center"
+          />
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      className={cn(previewTriggerClassName, sizeClass)}
+    >
+      <div className="text-muted-foreground flex size-full items-center justify-center">
+        <div className="flex size-8 items-center justify-center rounded-md">
+          <FileTypeIcon extension={extension || "file"} />
+        </div>
+      </div>
+    </a>
+  );
+}
+
+function FileChipMiniPreviewShell({
+  url,
+  fileName,
+  mediaType,
+  className,
+  sizeClass = "size-20",
+  onRemove,
+  removeLabel = "Remove file",
+  wrapTrigger,
+}: FileChipMiniPreviewProps & {
+  wrapTrigger?: (trigger: ReactNode) => ReactNode;
+}) {
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
+  const resolvedFileName = fileName ?? url.split("/").pop() ?? url;
+  const isImage =
+    mediaType?.toLowerCase().startsWith("image/") ||
+    isImageUrl(url) ||
+    (fileName ? isImageUrl(fileName) : false);
+
+  const trigger = (
+    <FileChipMiniPreviewTrigger
+      url={url}
+      fileName={fileName}
+      mediaType={mediaType}
+      sizeClass={sizeClass}
+      onOpenImage={() => {
+        setIsViewerOpen(true);
+      }}
+    />
+  );
 
   return (
     <div className={cn("not-prose relative inline-flex", className)}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {isImage ? (
-            <button
-              type="button"
-              aria-label={t("viewImage", { fileName: resolvedFileName })}
-              className={cn(previewTriggerClassName, sizeClass)}
-              onClick={() => {
-                setIsViewerOpen(true);
-              }}
-            >
-              <div className="relative size-full overflow-hidden">
-                <Image
-                  src={url}
-                  alt={resolvedFileName}
-                  fill
-                  sizes="96px"
-                  className="object-cover object-center"
-                />
-              </div>
-            </button>
-          ) : (
-            <a
-              href={url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className={cn(previewTriggerClassName, sizeClass)}
-            >
-              <div className="text-muted-foreground flex size-full items-center justify-center">
-                <div className="flex size-8 items-center justify-center rounded-md">
-                  <FileTypeIcon extension={extension || "file"} />
-                </div>
-              </div>
-            </a>
-          )}
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-64">
-          <div className="flex flex-col">
-            <span className="truncate">{resolvedFileName}</span>
-            {prettySize ? (
-              <span className="text-primary-foreground/80">{prettySize}</span>
-            ) : null}
-          </div>
-        </TooltipContent>
-      </Tooltip>
+      {wrapTrigger ? wrapTrigger(trigger) : trigger}
       {onRemove ? (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -122,5 +147,34 @@ export function FileChipMiniPreview({
         />
       ) : null}
     </div>
+  );
+}
+
+export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewProps) {
+  return <FileChipMiniPreviewShell {...props} />;
+}
+
+export function FileChipMiniPreview(props: FileChipMiniPreviewProps) {
+  const resolvedFileName =
+    props.fileName ?? props.url.split("/").pop() ?? props.url;
+  const prettySize = formatBytes(props.size);
+
+  return (
+    <FileChipMiniPreviewShell
+      {...props}
+      wrapTrigger={(trigger) => (
+        <Tooltip>
+          <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+          <TooltipContent side="top" className="max-w-64">
+            <div className="flex flex-col">
+              <span className="truncate">{resolvedFileName}</span>
+              {prettySize ? (
+                <span className="text-primary-foreground/80">{prettySize}</span>
+              ) : null}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      )}
+    />
   );
 }

@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -32,7 +33,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/pin",
-    description: "Pin an organization chat room for the current user.",
+    description:
+      "Pin an organization chat room for the current user. Cannot pin a muted room.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -42,6 +44,7 @@ const route = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -56,15 +59,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const room = await prisma.$transaction(async (tx) => {
       const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
 
-      await tx.chatRoomUserMember.update({
+      const updated = await tx.chatRoomUserMember.updateMany({
         where: {
-          roomId_userId: {
-            roomId: room.id,
-            userId: userContext.userId,
-          },
+          roomId: room.id,
+          userId: userContext.userId,
+          mutedAt: null,
         },
         data: { pinnedAt },
       });
+      if (updated.count === 0) {
+        const membership = await tx.chatRoomUserMember.findUnique({
+          where: {
+            roomId_userId: {
+              roomId: room.id,
+              userId: userContext.userId,
+            },
+          },
+          select: { mutedAt: true },
+        });
+        if (membership?.mutedAt != null) {
+          throw unprocessableEntity(
+            "Cannot pin a muted room. Unmute it first.",
+          );
+        }
+        throw notFound("Room not found");
+      }
 
       return room;
     });
@@ -85,6 +104,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
           pinnedAt: flags?.pinnedAt ?? pinnedAt,
+          mutedAt: flags?.mutedAt ?? null,
           markedUnread: flags?.markedUnread ?? false,
         }),
       ),
