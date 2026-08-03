@@ -54,7 +54,7 @@ import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
-import { DraftChannel } from "./draft-channel";
+import { CreateChannelDialog } from "./create-channel-dialog";
 import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
 import {
@@ -477,7 +477,7 @@ export function RoomsClient({
           : isCreateChannelRequested
             ? [
                 {
-                  label: t("Dialog.createTitle"),
+                  label: t("CreateWizard.title"),
                   href: "/chat?create=channel",
                 },
               ]
@@ -1210,12 +1210,27 @@ export function RoomsClient({
       <main className="relative flex min-h-0 flex-1">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
           {isCreateChannelRequested ? (
-            <DraftChannel
-              members={organizationMembers}
-              coworkers={coworkers}
-              currentUserId={currentUserId}
-              membersLoadFailed={membersLoadFailed}
-            />
+            <>
+              <div className="flex flex-1 items-center justify-center p-6">
+                <div className="border-border/70 bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">
+                  <Hash className="text-muted-foreground mx-auto size-8" />
+                  <h2 className="mt-4 text-lg font-semibold">
+                    {t("Empty.noChannelTitle")}
+                  </h2>
+                  <p className="text-muted-foreground mt-2 text-sm">
+                    {t("Empty.noChannelDescription")}
+                  </p>
+                </div>
+              </div>
+              <CreateChannelDialog
+                key="create-channel"
+                open={isCreateChannelRequested}
+                members={organizationMembers}
+                coworkers={coworkers}
+                organizationName={activeOrganization?.name ?? ""}
+                membersLoadFailed={membersLoadFailed}
+              />
+            </>
           ) : isNewDirectMessage ? (
             <DraftDirectMessage
               members={organizationMembers}

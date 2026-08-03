@@ -5,7 +5,6 @@ import {
   isBareNetworkError,
   isBareTransientNetworkFailure,
   isThirdPartyAnalyticsFetchFailure,
-  isThirdPartyDynamicImportFailure,
   isTransientFirstPartyApiFetchFailure,
   thirdPartyAnalyticsIgnoreErrors,
   thirdPartyScriptDenyUrls,
@@ -92,16 +91,6 @@ describe("isBareTransientNetworkFailure", () => {
         "TypeError: Load failed (api.sokosumi.com)",
       ),
     ).toBe(false);
-  });
-});
-
-describe("isThirdPartyDynamicImportFailure", () => {
-  it("returns true for Usercentrics chunk import failures", () => {
-    expect(
-      isThirdPartyDynamicImportFailure(
-        "TypeError: Failed to fetch dynamically imported module: https://web.cmp.usercentrics.eu/ui/v/4.3.0/WebSdk.lib.44b003b5.js. Error: undefined",
-      ),
-    ).toBe(true);
   });
 });
 

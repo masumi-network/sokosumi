@@ -4566,7 +4566,7 @@
         "archive": "チャンネルをアーカイブ",
         "cancel": "キャンセル",
         "leaveConfirmTitle": "{name} から退出しますか？",
-        "leaveConfirmDescription": "このチャンネルのメッセージは届かなくなり、一覧から消えます。他のメンバーのアクセスはそのままで、後から再度追加してもらうこともできます。",
+        "leaveConfirmDescription": "このチャンネルのメッセージは届かなくなり、一覧から消えます。",
         "leaveConfirm": "退出する",
         "leaveSuccess": "{name} から退出しました。",
         "archiveConfirmTitle": "{name} をアーカイブしますか？",
@@ -4622,7 +4622,7 @@
         "membersLoadFailedDescription": "組織のメンバーを一時的に取得できません。しばらくしてからもう一度お試しください。",
         "membersLoadFailedRetry": "再試行",
         "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+        "noChannelDescription": "チャンネルはトピックごとの会話の場です。作成して始めましょう。"
       },
       "Dialog": {
         "createTitle": "Create channel",
@@ -4786,6 +4786,26 @@
         "private": "非公開",
         "publicHelp": "組織内の誰でもこのチャンネルを見つけて参加できます。",
         "privateHelp": "招待されたメンバーだけがこのチャンネルを見られます。"
+      },
+      "CreateWizard": {
+        "title": "チャンネルを作成",
+        "nameLabel": "名前",
+        "namePlaceholder": "例: #welcome",
+        "nameHelp": "チャンネルはトピックごとの会話の場です。みんなが分かるわかりやすい名前を付けましょう。",
+        "nameRequired": "チャンネル名は必須です。",
+        "next": "次へ",
+        "back": "戻る",
+        "create": "作成",
+        "stepOf": "ステップ {current} / {total}",
+        "visibilitySubtitle": "# {name}",
+        "addPeopleTitle": "#{name} にメンバーを追加",
+        "addAll": "{organization} の全 {count} 人のメンバーを追加",
+        "addSpecific": "特定の人を追加",
+        "addSpecificHelp": "このチャンネルに追加する人と AI コワーカーを選択します。",
+        "add": "追加",
+        "skip": "今はスキップ",
+        "creating": "作成中…",
+        "adding": "追加中…"
       }
     }
   },
