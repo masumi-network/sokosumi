@@ -734,6 +734,27 @@ describe("ChatMessageRow", () => {
     }
   });
 
+  it("renders emoji-only messages as jumbo", () => {
+    renderRow({
+      message: userMessage({ content: "👍" }),
+    });
+
+    const body = screen.getByTestId("room-message-body");
+    expect(body).toHaveAttribute("data-jumbo-emoji", "1");
+    expect(body.className).toContain("text-5xl");
+    expect(body.className).not.toContain("line-clamp-[16]");
+  });
+
+  it("keeps mixed text+emoji at normal size", () => {
+    renderRow({
+      message: userMessage({ content: "foobar 👍" }),
+    });
+
+    const body = screen.getByTestId("room-message-body");
+    expect(body).not.toHaveAttribute("data-jumbo-emoji");
+    expect(body.className).not.toContain("text-5xl");
+  });
+
   it("hides Show more when the message body does not overflow", () => {
     const scrollDescriptor = Object.getOwnPropertyDescriptor(
       HTMLElement.prototype,

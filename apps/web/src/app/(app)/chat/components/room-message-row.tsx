@@ -20,6 +20,10 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  getJumboEmojiCount,
+  jumboEmojiClassName,
+} from "@/app/chat/utils/jumbo-emoji";
 import { segmentRoomMessageContent } from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import Markdown from "@/components/markdown";
@@ -247,19 +251,27 @@ function ChannelMarkdownSegment({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  isJumboEmoji = false,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  isJumboEmoji?: boolean;
 }) {
   if (!content.trim()) {
     return null;
   }
 
   return (
-    <Markdown className="prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
+    <Markdown
+      className={
+        isJumboEmoji
+          ? "prose-p:my-0 prose-p:leading-none"
+          : "prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2"
+      }
+    >
       {formatRoomMarkdownMentions({
         content,
         coworkersById,
@@ -277,12 +289,14 @@ function ChannelMessageText({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  isJumboEmoji = false,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  isJumboEmoji?: boolean;
 }) {
   const segments = segmentRoomMessageContent(content);
 
@@ -294,6 +308,7 @@ function ChannelMessageText({
         coworkersBySlug={coworkersBySlug}
         usersById={usersById}
         usersBySlug={usersBySlug}
+        isJumboEmoji={isJumboEmoji}
       />
     );
   }
@@ -311,6 +326,7 @@ function ChannelMessageText({
                 coworkersBySlug={coworkersBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
+                isJumboEmoji={isJumboEmoji}
               />
             );
           case "files":
@@ -356,6 +372,8 @@ function ChannelMessageBody({
   usersBySlug?: Map<string, UserMentionLookup>;
 }) {
   const t = useTranslations("App.Channels.Message");
+  const jumboEmojiCount = getJumboEmojiCount(content);
+  const isJumboEmoji = jumboEmojiCount !== null;
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
     `${messageId}\0${content}`,
   );
@@ -365,7 +383,14 @@ function ChannelMessageBody({
       <div
         ref={contentRef}
         data-testid="room-message-body"
-        className={cn(expanded ? null : MESSAGE_BODY_CLAMP_CLASS)}
+        data-jumbo-emoji={isJumboEmoji ? String(jumboEmojiCount) : undefined}
+        className={cn(
+          isJumboEmoji
+            ? jumboEmojiClassName(jumboEmojiCount)
+            : expanded
+              ? null
+              : MESSAGE_BODY_CLAMP_CLASS,
+        )}
       >
         <ChannelMessageText
           content={content}
@@ -373,9 +398,10 @@ function ChannelMessageBody({
           coworkersBySlug={coworkersBySlug}
           usersById={usersById}
           usersBySlug={usersBySlug}
+          isJumboEmoji={isJumboEmoji}
         />
       </div>
-      {expanded || overflows ? (
+      {!isJumboEmoji && (expanded || overflows) ? (
         <button
           type="button"
           className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"
