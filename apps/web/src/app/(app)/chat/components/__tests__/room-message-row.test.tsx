@@ -373,7 +373,7 @@ describe("ChatMessageRow", () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
-  it("shows quote image attachment as filename chip, not re-embedded image", () => {
+  it("shows quote image attachment as inert thumbnail, not a link", () => {
     renderRow({
       message: userMessage({
         content: "Reply body",
@@ -390,15 +390,21 @@ describe("ChatMessageRow", () => {
       }),
     });
 
-    const chip = screen.getByRole("link", { name: /launch\.png/i });
-    expect(chip).toHaveAttribute("href", "https://blob.example/launch.png");
-    expect(screen.getByText("check this shot")).toBeInTheDocument();
+    const jumpButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    const thumb = jumpButton.querySelector(
+      'img[src="https://blob.example/launch.png"]',
+    );
+    expect(thumb).toBeInTheDocument();
+    expect(thumb).toHaveAttribute("alt", "");
     expect(
-      screen.queryByRole("img", { name: "launch.png" }),
+      screen.queryByRole("link", { name: /launch\.png/i }),
     ).not.toBeInTheDocument();
+    expect(screen.getByText("check this shot")).toBeInTheDocument();
   });
 
-  it("shows quote file attachment as filename chip", () => {
+  it("shows quote file attachment as inert icon thumb, not a link", () => {
     renderRow({
       message: userMessage({
         content: "Reply body",
@@ -415,10 +421,54 @@ describe("ChatMessageRow", () => {
       }),
     });
 
-    expect(screen.getByRole("link", { name: /brief\.pdf/i })).toHaveAttribute(
-      "href",
-      "https://blob.example/brief.pdf",
-    );
+    const jumpButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    expect(
+      screen.queryByRole("link", { name: /brief\.pdf/i }),
+    ).not.toBeInTheDocument();
+    expect(jumpButton.querySelector("svg")).not.toBeNull();
+    expect(screen.queryByText("brief.pdf")).not.toBeInTheDocument();
+  });
+
+  it("jumps to original message when quote attachment thumb is clicked", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    const original = document.createElement("article");
+    original.setAttribute("data-message-id", "original-with-thumb");
+    document.body.appendChild(original);
+
+    try {
+      renderRow({
+        message: userMessage({
+          content: "Reply body",
+          quote: {
+            messageId: "original-with-thumb",
+            authorName: "Bob",
+            snippet: "check this shot",
+            attachment: {
+              fileName: "launch.png",
+              url: "https://blob.example/launch.png",
+              mediaKind: "image",
+            },
+          },
+        }),
+      });
+
+      const jumpButton = screen.getByRole("button", {
+        name: "Jump to message from Bob",
+      });
+      const thumb = jumpButton.querySelector(
+        'img[src="https://blob.example/launch.png"]',
+      );
+      expect(thumb).toBeTruthy();
+      await user.click(thumb!);
+      expect(scrollIntoView).toHaveBeenCalled();
+    } finally {
+      original.remove();
+    }
   });
 
   it("keeps legacy quotes without attachment text-only", () => {
