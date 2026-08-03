@@ -31,7 +31,7 @@ export function getPrismaErrorCode(error: unknown): string | null {
 
 /**
  * Network timeouts and dropped connections from outbound HTTP/fetch calls.
- * Shared by Postmark, skills.sh, coworker retrieve, and similar integrations.
+ * Shared by Resend, skills.sh, coworker retrieve, and similar integrations.
  */
 export function isTransientFetchError(error: unknown): boolean {
   const message = getErrorMessage(error);
@@ -47,14 +47,6 @@ export function isTransientFetchError(error: unknown): boolean {
     /connection terminated unexpectedly/i.test(message) ||
     /\b(ECONNRESET|ECONNABORTED|ETIMEDOUT)\b/.test(message)
   );
-}
-
-/**
- * Postmark (and similar HTTP email providers) can time out or drop connections
- * during upstream outages. Invites and notifications are already fire-and-forget.
- */
-export function isTransientPostmarkError(error: unknown): boolean {
-  return isTransientFetchError(error);
 }
 
 /**

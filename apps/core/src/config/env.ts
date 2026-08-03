@@ -65,8 +65,8 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   MICROSOFT_CLIENT_ID: z.string().min(1),
   MICROSOFT_CLIENT_SECRET: z.string().min(1),
-  POSTMARK_SERVER_ID: z.string().min(1),
-  POSTMARK_FROM_EMAIL: z.email(),
+  RESEND_API_KEY: z.string().min(1),
+  RESEND_FROM_EMAIL: z.email(),
 
   // Sentry
   SENTRY_DSN: z.url().optional(),

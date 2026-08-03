@@ -24,8 +24,6 @@ overrides:
   # ws GHSA-96hv-2xvq-fx4p (memory exhaustion DoS) — react-email > socket.io still
   # resolves ws@8.20.x. Force all ws 8.x below 8.21.0 to the patched line.
   "ws@>=8.0.0 <8.21.0": "8.21.0"
-  # form-data GHSA-hmw2-7cc7-3qxx (CRLF injection) — postmark > axios > form-data@4.0.5.
-  "form-data@>=4.0.0 <4.0.6": "4.0.6"
   # js-yaml GHSA-52cp-r559-cp3m (quadratic CPU via merge-key chains) — @hey-api/openapi-ts dev chain.
   "js-yaml@<4.3.0": "4.3.0"
   # brace-expansion GHSA-3jxr-9vmj-r5cp (DoS via {} groups) — lighthouse > @sentry/node > minimatch.

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   isSchemaDriftPrismaError,
   isTransientFetchError,
-  isTransientPostmarkError,
   isTransientPrismaError,
   shouldSuppressSentryForExternalError,
 } from "@/lib/external-service-errors";
@@ -32,37 +31,23 @@ describe("isTransientFetchError", () => {
       isTransientFetchError(new Error("Connection terminated unexpectedly")),
     ).toBe(true);
   });
-});
 
-describe("isTransientPostmarkError", () => {
-  it("treats axios-era Postmark timeouts as transient", () => {
+  it("treats axios-era timeout messages as transient", () => {
     expect(
-      isTransientPostmarkError(
+      isTransientFetchError(
         Object.assign(new Error("timeout of 180000ms exceeded"), {
-          name: "PostmarkError",
-        }),
-      ),
-    ).toBe(true);
-  });
-
-  it("treats fetch-era Postmark timeouts as transient", () => {
-    expect(
-      isTransientPostmarkError(
-        Object.assign(new Error("The operation was aborted due to timeout"), {
-          name: "TimeoutError",
+          name: "Error",
         }),
       ),
     ).toBe(true);
   });
 
   it("treats socket hang up as transient", () => {
-    expect(isTransientPostmarkError(new Error("socket hang up"))).toBe(true);
+    expect(isTransientFetchError(new Error("socket hang up"))).toBe(true);
   });
 
   it("does not treat unrelated errors as transient", () => {
-    expect(isTransientPostmarkError(new Error("invalid API token"))).toBe(
-      false,
-    );
+    expect(isTransientFetchError(new Error("invalid API token"))).toBe(false);
   });
 });
 

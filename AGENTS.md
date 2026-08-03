@@ -381,7 +381,7 @@ When Neon secrets are absent, provision skips and local Postgres remains the fal
 
 ### `.env` files (gitignored, snapshot-persisted)
 
-`apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost` (overwritten by agent DB provision when Neon secrets are present); `POSTMARK_FROM_EMAIL` and `HERMES_ORCH_BASE_URL` set to valid dummy values; invalid placeholders removed (`COMPOSIO_API_KEY`, `AGENT_HIRED_WEBHOOK`); `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`; web `APP_SIGNING_SECRET` set equal to Core `BETTER_AUTH_SECRET` (required to match).
+`apps/core/.env` and `apps/web/.env` were created from `.env.example` with local fixes so the apps boot past their Zod env validation. Non-obvious edits: DB host `sokosumi`→`localhost` (overwritten by agent DB provision when Neon secrets are present); `RESEND_FROM_EMAIL` and `HERMES_ORCH_BASE_URL` set to valid dummy values; invalid placeholders removed (`COMPOSIO_API_KEY`, `AGENT_HIRED_WEBHOOK`); `BETTER_AUTH_COOKIE_DOMAIN` disabled so session cookies work on `localhost`; web `APP_SIGNING_SECRET` set equal to Core `BETTER_AUTH_SECRET` (required to match).
 
 ### Running & known local gotchas
 

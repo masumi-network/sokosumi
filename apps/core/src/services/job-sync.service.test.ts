@@ -106,10 +106,8 @@ vi.mock("@/clients/masumi-payment.client", () => ({
   paymentClient: paymentClientFactoryMock,
 }));
 
-vi.mock("@/clients/postmark.client", () => ({
-  postmarkClient: {
-    sendEmail: sendEmailMock,
-  },
+vi.mock("@/clients/email.client", () => ({
+  sendEmail: sendEmailMock,
 }));
 
 vi.mock("@/config/env", () => ({
@@ -121,7 +119,7 @@ vi.mock("@/config/env", () => ({
     ],
     JOB_FAILURE_WEBHOOK_URL: "https://hooks.example.com/job-failure",
     NETWORK: "Preprod",
-    POSTMARK_FROM_EMAIL: "no-reply@example.com",
+    RESEND_FROM_EMAIL: "no-reply@example.com",
   }),
   getWebAppBaseUrl: () => "https://app.sokosumi.test",
 }));
@@ -873,9 +871,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     expect(sendEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        To: "user@example.com",
-        From: "no-reply@example.com",
-        Tag: "job-final-status",
+        to: "user@example.com",
+        from: "no-reply@example.com",
+        tag: "job-final-status",
       }),
     );
     expect(publishJobStatusDataMock).toHaveBeenCalledWith({
@@ -954,9 +952,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     expect(sendEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        To: "author@example.com",
-        Bcc: "stakeholder1@example.com,stakeholder2@example.com",
-        Tag: "job-failure-notification",
+        to: ["author@example.com"],
+        bcc: ["stakeholder1@example.com", "stakeholder2@example.com"],
+        tag: "job-failure-notification",
       }),
     );
     expect(requestFetchMock).toHaveBeenCalledTimes(1);
@@ -1679,8 +1677,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     expect(sendEmailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        To: "user@example.com",
-        Tag: "job-input-required",
+        to: "user@example.com",
+        tag: "job-input-required",
       }),
     );
     expect(createNotificationMock).toHaveBeenCalledTimes(1);
