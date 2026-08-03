@@ -4572,7 +4572,12 @@
         "archiveConfirm": "Archiver le canal",
         "archiveSuccess": "{name} a été archivé.",
         "restore": "Restaurer",
-        "restoreSuccess": "{name} a été restauré."
+        "restoreSuccess": "{name} a été restauré.",
+        "markUnread": "Marquer comme non lu",
+        "pin": "Épingler",
+        "unpin": "Désépingler",
+        "roomMenu": "Actions du chat pour {name}",
+        "actionFailed": "Impossible de mettre à jour ce chat. Réessayez."
       },
       "Metadata": {
         "title": "Chat",

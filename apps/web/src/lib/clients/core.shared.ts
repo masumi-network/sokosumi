@@ -89,6 +89,7 @@ import {
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
+  deleteChatsRoomsByIdPin as coreDeleteChatsRoomsByIdPin,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
@@ -218,8 +219,10 @@ import {
   postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
+  postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
+  postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -631,6 +634,42 @@ export function createCoreClient(getClient: GetClient) {
           path: { id },
         }),
       "Failed to mark chat room read",
+    );
+  }
+
+  async function pinChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdPin({
+          client,
+          path: { id },
+        }),
+      "Failed to pin chat room",
+    );
+  }
+
+  async function unpinChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdPin({
+          client,
+          path: { id },
+        }),
+      "Failed to unpin chat room",
+    );
+  }
+
+  async function markChatRoomUnread(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdUnread({
+          client,
+          path: { id },
+        }),
+      "Failed to mark chat room unread",
     );
   }
 
@@ -3637,6 +3676,9 @@ export function createCoreClient(getClient: GetClient) {
     getChatRoomMessages,
     getChatRooms,
     markChatRoomRead,
+    pinChatRoom,
+    unpinChatRoom,
+    markChatRoomUnread,
     deleteChatRoomMessage,
     toggleChatRoomMessageReaction,
     getHermesInstance,

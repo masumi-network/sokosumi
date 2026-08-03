@@ -1,10 +1,11 @@
 /**
  * Sidebar attention chrome for a room row.
- * Bold = unread activity; badge = unread @mentions only.
+ * Bold = unread activity or forced unread; badge = unread @mentions only.
  */
 export function resolveRoomAttention(options: {
   unreadCount: number;
   unreadMentionCount: number;
+  markedUnread?: boolean;
   isActive: boolean;
 }): { bold: boolean; badgeCount: number } {
   if (options.isActive) {
@@ -12,7 +13,7 @@ export function resolveRoomAttention(options: {
   }
 
   return {
-    bold: options.unreadCount > 0,
+    bold: options.unreadCount > 0 || options.markedUnread === true,
     badgeCount: options.unreadMentionCount,
   };
 }

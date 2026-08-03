@@ -4572,7 +4572,12 @@
         "archiveConfirm": "归档频道",
         "archiveSuccess": "{name} 已归档。",
         "restore": "恢复",
-        "restoreSuccess": "已恢复 {name}。"
+        "restoreSuccess": "已恢复 {name}。",
+        "markUnread": "标为未读",
+        "pin": "置顶",
+        "unpin": "取消置顶",
+        "roomMenu": "{name} 的聊天操作",
+        "actionFailed": "无法更新此聊天。请重试。"
       },
       "Metadata": {
         "title": "聊天",
