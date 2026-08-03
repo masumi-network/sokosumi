@@ -80,6 +80,38 @@ export async function unpinOrganizationChatRoomAction(
   }
 }
 
+export async function muteOrganizationChatRoomAction(
+  roomId: string,
+): Promise<OrganizationChatRoomMutationResult> {
+  const cleanRoomId = roomId.trim();
+  if (!cleanRoomId) {
+    return { ok: false };
+  }
+
+  try {
+    const room = await chatRoomService.muteRoom(cleanRoomId);
+    return { ok: true, data: room };
+  } catch {
+    return { ok: false };
+  }
+}
+
+export async function unmuteOrganizationChatRoomAction(
+  roomId: string,
+): Promise<OrganizationChatRoomMutationResult> {
+  const cleanRoomId = roomId.trim();
+  if (!cleanRoomId) {
+    return { ok: false };
+  }
+
+  try {
+    const room = await chatRoomService.unmuteRoom(cleanRoomId);
+    return { ok: true, data: room };
+  } catch {
+    return { ok: false };
+  }
+}
+
 export async function markOrganizationChatRoomUnreadAction(
   roomId: string,
 ): Promise<OrganizationChatRoomMutationResult> {

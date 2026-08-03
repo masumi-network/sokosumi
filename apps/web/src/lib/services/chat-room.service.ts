@@ -114,6 +114,16 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function muteRoom(id: string): Promise<ChatRoom> {
+    const response = await coreClient.muteChatRoom(id);
+    return response.data;
+  }
+
+  async function unmuteRoom(id: string): Promise<ChatRoom> {
+    const response = await coreClient.unmuteChatRoom(id);
+    return response.data;
+  }
+
   async function markUnread(id: string): Promise<ChatRoom> {
     const response = await coreClient.markChatRoomUnread(id);
     return response.data;
@@ -205,6 +215,8 @@ export const chatRoomService = (() => {
     pinRoom,
     restoreRoom,
     unpinRoom,
+    muteRoom,
+    unmuteRoom,
     sendMessage,
     toggleReaction,
     updateRoom,

@@ -4576,6 +4576,8 @@
         "markUnread": "未読にする",
         "pin": "ピン留め",
         "unpin": "ピン留めを解除",
+        "mute": "Mute",
+        "unmute": "Unmute",
         "roomMenu": "{name} のチャット操作",
         "actionFailed": "このチャットを更新できませんでした。もう一度お試しください。"
       },
