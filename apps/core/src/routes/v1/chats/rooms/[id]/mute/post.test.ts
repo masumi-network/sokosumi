@@ -15,6 +15,7 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   membershipUpdateManyMock,
+  membershipFindUniqueMock,
   unreadQueryMock,
   mentionGroupByMock,
   membershipFindManyMock,
@@ -25,6 +26,7 @@ const {
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   membershipUpdateManyMock: vi.fn(),
+  membershipFindUniqueMock: vi.fn(),
   unreadQueryMock: vi.fn(),
   mentionGroupByMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
@@ -52,6 +54,7 @@ const tx = {
   member: { findUnique: memberFindUniqueMock },
   chatRoomUserMember: {
     updateMany: membershipUpdateManyMock,
+    findUnique: membershipFindUniqueMock,
   },
 };
 
@@ -157,6 +160,9 @@ describe("POST /chats/rooms/{id}/mute", () => {
 
   it("rejects mute when the room is pinned", async () => {
     membershipUpdateManyMock.mockResolvedValue({ count: 0 });
+    membershipFindUniqueMock.mockResolvedValue({
+      pinnedAt: new Date("2026-08-03T10:00:00.000Z"),
+    });
 
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/mute`,
@@ -164,5 +170,21 @@ describe("POST /chats/rooms/{id}/mute", () => {
     );
 
     expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.message).toBe("Cannot mute a pinned room. Unpin it first.");
+  });
+
+  it("404s when membership disappears after access check", async () => {
+    membershipUpdateManyMock.mockResolvedValue({ count: 0 });
+    membershipFindUniqueMock.mockResolvedValue(null);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/mute`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(404);
+    const body = await response.json();
+    expect(body.message).toBe("Room not found");
   });
 });

@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { unprocessableEntity } from "@/helpers/error";
+import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -68,7 +68,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         data: { mutedAt },
       });
       if (updated.count === 0) {
-        throw unprocessableEntity("Cannot mute a pinned room. Unpin it first.");
+        const membership = await tx.chatRoomUserMember.findUnique({
+          where: {
+            roomId_userId: {
+              roomId: room.id,
+              userId: userContext.userId,
+            },
+          },
+          select: { pinnedAt: true },
+        });
+        if (membership?.pinnedAt != null) {
+          throw unprocessableEntity(
+            "Cannot mute a pinned room. Unpin it first.",
+          );
+        }
+        throw notFound("Room not found");
       }
 
       return room;
