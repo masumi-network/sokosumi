@@ -338,6 +338,31 @@ export async function getChatRoomSidebarFlags(
   return flagged;
 }
 
+/** mapChatRoom with per-user pin/mute/markedUnread loaded for the viewer. */
+export async function mapChatRoomWithSidebarFlags(
+  room: ChatRoomWithMembers,
+  userId: string,
+  tx: Prisma.TransactionClient,
+  attention: {
+    unreadCount?: number;
+    unreadMentionCount?: number;
+    lastActivityAt?: Date | null;
+  } = {},
+) {
+  const flags = (await getChatRoomSidebarFlags([room.id], userId, tx)).get(
+    room.id,
+  );
+
+  return mapChatRoom(room, userId, {
+    unreadCount: attention.unreadCount ?? 0,
+    unreadMentionCount: attention.unreadMentionCount ?? 0,
+    lastActivityAt: attention.lastActivityAt,
+    pinnedAt: flags?.pinnedAt ?? null,
+    mutedAt: flags?.mutedAt ?? null,
+    markedUnread: flags?.markedUnread ?? false,
+  });
+}
+
 export function mapChatRoomMessage(
   message: ChatRoomMessageWithSender,
   currentUserId?: string,

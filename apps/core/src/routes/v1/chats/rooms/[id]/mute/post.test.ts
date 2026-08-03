@@ -14,8 +14,7 @@ const {
   roomFindFirstMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
-  membershipFindUniqueMock,
-  membershipUpdateMock,
+  membershipUpdateManyMock,
   unreadQueryMock,
   mentionGroupByMock,
   membershipFindManyMock,
@@ -25,8 +24,7 @@ const {
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
-  membershipFindUniqueMock: vi.fn(),
-  membershipUpdateMock: vi.fn(),
+  membershipUpdateManyMock: vi.fn(),
   unreadQueryMock: vi.fn(),
   mentionGroupByMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
@@ -53,8 +51,7 @@ const tx = {
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   chatRoomUserMember: {
-    findUnique: membershipFindUniqueMock,
-    update: membershipUpdateMock,
+    updateMany: membershipUpdateManyMock,
   },
 };
 
@@ -118,8 +115,7 @@ beforeEach(() => {
   roomFindFirstMock.mockResolvedValue(room());
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
-  membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null });
-  membershipUpdateMock.mockResolvedValue({});
+  membershipUpdateManyMock.mockResolvedValue({ count: 1 });
   unreadQueryMock.mockResolvedValue([]);
   mentionGroupByMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([
@@ -140,10 +136,12 @@ describe("POST /chats/rooms/{id}/mute", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(membershipUpdateMock).toHaveBeenCalledWith(
+    expect(membershipUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          roomId_userId: { roomId: ROOM_ID, userId: USER_ID },
+          roomId: ROOM_ID,
+          userId: USER_ID,
+          pinnedAt: null,
         },
         data: { mutedAt: expect.any(Date) },
       }),
@@ -158,9 +156,7 @@ describe("POST /chats/rooms/{id}/mute", () => {
   });
 
   it("rejects mute when the room is pinned", async () => {
-    membershipFindUniqueMock.mockResolvedValue({
-      pinnedAt: new Date("2026-08-03T10:00:00.000Z"),
-    });
+    membershipUpdateManyMock.mockResolvedValue({ count: 0 });
 
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/mute`,
@@ -168,6 +164,5 @@ describe("POST /chats/rooms/{id}/mute", () => {
     );
 
     expect(response.status).toBe(422);
-    expect(membershipUpdateMock).not.toHaveBeenCalled();
   });
 });

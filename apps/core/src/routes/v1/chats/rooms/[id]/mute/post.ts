@@ -59,28 +59,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const room = await prisma.$transaction(async (tx) => {
       const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
 
-      const membership = await tx.chatRoomUserMember.findUnique({
+      const updated = await tx.chatRoomUserMember.updateMany({
         where: {
-          roomId_userId: {
-            roomId: room.id,
-            userId: userContext.userId,
-          },
-        },
-        select: { pinnedAt: true },
-      });
-      if (membership?.pinnedAt != null) {
-        throw unprocessableEntity("Cannot mute a pinned room. Unpin it first.");
-      }
-
-      await tx.chatRoomUserMember.update({
-        where: {
-          roomId_userId: {
-            roomId: room.id,
-            userId: userContext.userId,
-          },
+          roomId: room.id,
+          userId: userContext.userId,
+          pinnedAt: null,
         },
         data: { mutedAt },
       });
+      if (updated.count === 0) {
+        throw unprocessableEntity("Cannot mute a pinned room. Unpin it first.");
+      }
 
       return room;
     });
