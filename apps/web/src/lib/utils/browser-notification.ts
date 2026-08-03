@@ -48,20 +48,6 @@ export function shouldShowBrowserNotification({
   return !isDocumentFocused;
 }
 
-export function shouldShowInAppNotificationToast({
-  isDocumentFocused,
-  isRead,
-}: {
-  isDocumentFocused: boolean;
-  isRead: boolean;
-}): boolean {
-  if (isRead) {
-    return false;
-  }
-
-  return isDocumentFocused;
-}
-
 export async function requestBrowserNotificationPermission(): Promise<BrowserNotificationPermission> {
   if (!isNotificationApiAvailable()) {
     return "unsupported";
