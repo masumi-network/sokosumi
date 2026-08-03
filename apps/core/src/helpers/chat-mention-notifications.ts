@@ -30,6 +30,25 @@ export async function emitChatMentionNotifications(
     return;
   }
 
+  const mutedMemberships = await prisma.chatRoomUserMember.findMany({
+    where: {
+      roomId: params.roomId,
+      userId: { in: recipientUserIds },
+      mutedAt: { not: null },
+    },
+    select: { userId: true },
+  });
+  const mutedUserIds = new Set(
+    mutedMemberships.map((membership) => membership.userId),
+  );
+  const notifyUserIds = recipientUserIds.filter(
+    (userId) => !mutedUserIds.has(userId),
+  );
+
+  if (notifyUserIds.length === 0) {
+    return;
+  }
+
   let workspaceId: string | null = null;
   if (params.organizationId) {
     const workspace = await prisma.workspace.findUnique({
@@ -39,7 +58,7 @@ export async function emitChatMentionNotifications(
     workspaceId = workspace?.id ?? null;
   }
 
-  for (const userId of recipientUserIds) {
+  for (const userId of notifyUserIds) {
     try {
       await createNotification({
         userId,
