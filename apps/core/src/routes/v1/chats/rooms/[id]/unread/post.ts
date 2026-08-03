@@ -53,39 +53,49 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const markedUnreadAt = new Date();
 
-    const { room, pinnedAt } = await prisma.$transaction(async (tx) => {
-      const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
+    const { room, pinnedAt, mutedAt } = await prisma.$transaction(
+      async (tx) => {
+        const room = await requireChatRoomUserAccess(
+          id,
+          userContext.userId,
+          tx,
+        );
 
-      // Keep existing lastReadAt when present; on create use now so we do not
-      // invent a rewind that would flood unreadCount from room history.
-      await tx.chatRoomReadState.upsert({
-        where: {
-          roomId_userId: {
+        // Keep existing lastReadAt when present; on create use now so we do not
+        // invent a rewind that would flood unreadCount from room history.
+        await tx.chatRoomReadState.upsert({
+          where: {
+            roomId_userId: {
+              roomId: room.id,
+              userId: userContext.userId,
+            },
+          },
+          update: { markedUnreadAt },
+          create: {
             roomId: room.id,
             userId: userContext.userId,
+            lastReadAt: markedUnreadAt,
+            markedUnreadAt,
           },
-        },
-        update: { markedUnreadAt },
-        create: {
-          roomId: room.id,
-          userId: userContext.userId,
-          lastReadAt: markedUnreadAt,
-          markedUnreadAt,
-        },
-      });
+        });
 
-      const membership = await tx.chatRoomUserMember.findUnique({
-        where: {
-          roomId_userId: {
-            roomId: room.id,
-            userId: userContext.userId,
+        const membership = await tx.chatRoomUserMember.findUnique({
+          where: {
+            roomId_userId: {
+              roomId: room.id,
+              userId: userContext.userId,
+            },
           },
-        },
-        select: { pinnedAt: true },
-      });
+          select: { pinnedAt: true, mutedAt: true },
+        });
 
-      return { room, pinnedAt: membership?.pinnedAt ?? null };
-    });
+        return {
+          room,
+          pinnedAt: membership?.pinnedAt ?? null,
+          mutedAt: membership?.mutedAt ?? null,
+        };
+      },
+    );
 
     const [unreadCounts, unreadMentionCounts] = await Promise.all([
       getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
@@ -99,6 +109,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
           pinnedAt,
+          mutedAt,
           markedUnread: true,
         }),
       ),

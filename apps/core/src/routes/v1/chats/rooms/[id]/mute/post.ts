@@ -30,15 +30,15 @@ const paramsSchema = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-    method: "delete",
-    path: "/{id}/pin",
-    description: "Unpin an organization chat room for the current user.",
+    method: "post",
+    path: "/{id}/mute",
+    description: "Mute an organization chat room for the current user.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(chatRoomSchema, "Chat room unpinned"),
+      200: jsonSuccessResponse(chatRoomSchema, "Chat room muted"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
@@ -51,6 +51,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
+    const mutedAt = new Date();
 
     const room = await prisma.$transaction(async (tx) => {
       const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
@@ -62,7 +63,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
           },
         },
-        data: { pinnedAt: null },
+        data: { mutedAt },
       });
 
       return room;
@@ -83,8 +84,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         mapChatRoom(room, userContext.userId, {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          pinnedAt: null,
-          mutedAt: flags?.mutedAt ?? null,
+          pinnedAt: flags?.pinnedAt ?? null,
+          mutedAt: flags?.mutedAt ?? mutedAt,
           markedUnread: flags?.markedUnread ?? false,
         }),
       ),

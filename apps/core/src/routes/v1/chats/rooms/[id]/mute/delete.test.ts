@@ -8,25 +8,27 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountMarkChatRoomUnread from "./post";
+import mountUnmuteChatRoom from "./delete";
 
 const {
   roomFindFirstMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
-  readStateUpsertMock,
-  membershipFindUniqueMock,
+  membershipUpdateMock,
   unreadQueryMock,
   mentionGroupByMock,
+  membershipFindManyMock,
+  readStateFindManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
-  readStateUpsertMock: vi.fn(),
-  membershipFindUniqueMock: vi.fn(),
+  membershipUpdateMock: vi.fn(),
   unreadQueryMock: vi.fn(),
   mentionGroupByMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+  readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -35,6 +37,8 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
     $queryRawUnsafe: unreadQueryMock,
     notification: { groupBy: mentionGroupByMock },
+    chatRoomUserMember: { findMany: membershipFindManyMock },
+    chatRoomReadState: { findMany: readStateFindManyMock },
   },
 }));
 
@@ -46,8 +50,7 @@ const tx = {
   chatRoom: { findFirst: roomFindFirstMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
-  chatRoomReadState: { upsert: readStateUpsertMock },
-  chatRoomUserMember: { findUnique: membershipFindUniqueMock },
+  chatRoomUserMember: { update: membershipUpdateMock },
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
@@ -58,14 +61,14 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.use("*", async (c, next) => {
-    c.set("requestId", "req_mark_chat_room_unread");
+    c.set("requestId", "req_unmute_chat_room");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
 
   app.onError(errorHandler);
-  mountMarkChatRoomUnread(app as unknown as OpenAPIHonoWithAuth);
+  mountUnmuteChatRoom(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
@@ -110,40 +113,37 @@ beforeEach(() => {
   roomFindFirstMock.mockResolvedValue(room());
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
-  readStateUpsertMock.mockResolvedValue({});
-  membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null, mutedAt: null });
+  membershipUpdateMock.mockResolvedValue({});
   unreadQueryMock.mockResolvedValue([]);
   mentionGroupByMock.mockResolvedValue([]);
+  membershipFindManyMock.mockResolvedValue([
+    { roomId: ROOM_ID, pinnedAt: null, mutedAt: null },
+  ]);
+  readStateFindManyMock.mockResolvedValue([]);
 });
 
-describe("POST /chats/rooms/{id}/unread", () => {
-  it("upserts markedUnreadAt without rewinding lastReadAt on update", async () => {
+describe("DELETE /chats/rooms/{id}/mute", () => {
+  it("clears membership mutedAt and returns unmuted room", async () => {
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/unread`,
-      { method: "POST" },
+      `/${ROOM_ID}/mute`,
+      { method: "DELETE" },
     );
 
     expect(response.status).toBe(200);
-    expect(readStateUpsertMock).toHaveBeenCalledWith(
+    expect(membershipUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           roomId_userId: { roomId: ROOM_ID, userId: USER_ID },
         },
-        update: { markedUnreadAt: expect.any(Date) },
-        create: expect.objectContaining({
-          roomId: ROOM_ID,
-          userId: USER_ID,
-          lastReadAt: expect.any(Date),
-          markedUnreadAt: expect.any(Date),
-        }),
+        data: { mutedAt: null },
       }),
     );
 
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: ROOM_ID,
-      markedUnread: true,
-      pinnedAt: null,
+      mutedAt: null,
+      markedUnread: false,
     });
   });
 });
