@@ -781,6 +781,7 @@
       "markAllReadError": "Failed to mark all notifications as read",
       "fetchError": "Could not load notifications",
       "retry": "Try again",
+      "accept": "Accept",
       "dismiss": "Dismiss",
       "view": "View",
       "dismissNotification": "Dismiss notification",
@@ -788,7 +789,11 @@
       "browserPermissionTitle": "Get alerts when you're in another tab",
       "browserPermissionDescription": "Allow browser notifications for jobs, tasks, billing, system, and chat updates while Sokosumi is open but not focused.",
       "browserPermissionEnable": "Enable browser notifications",
-      "browserPermissionRequesting": "Waiting for permission…"
+      "browserPermissionRequesting": "Waiting for permission…",
+      "browserPermissionDeniedTitle": "Browser notifications are blocked",
+      "browserPermissionDeniedDescription": "Notifications for this site are blocked in your browser. Open your browser’s notification settings for Sokosumi to allow them.",
+      "vendorGrantAcceptSuccess": "Vendor access approved",
+      "vendorGrantAcceptError": "Failed to approve vendor access"
     },
     "HashValue": {
       "copy": "Copy",
@@ -5169,7 +5174,8 @@
         "canceled": "{taskName} was canceled"
       },
       "Chat": {
-        "mentioned": "{authorName} mentioned you in {roomName}"
+        "mentioned": "{authorName} mentioned you in {roomName}",
+        "directMessage": "{authorName} sent you a message"
       }
     }
   },

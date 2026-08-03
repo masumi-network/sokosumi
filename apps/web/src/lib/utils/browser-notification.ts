@@ -4,7 +4,7 @@ export type BrowserNotificationPermission =
 
 export interface BrowserNotificationGateInput {
   permission: BrowserNotificationPermission;
-  documentHidden: boolean;
+  isDocumentFocused: boolean;
   isRead: boolean;
 }
 
@@ -34,7 +34,7 @@ export function getBrowserNotificationPermission(): BrowserNotificationPermissio
 
 export function shouldShowBrowserNotification({
   permission,
-  documentHidden,
+  isDocumentFocused,
   isRead,
 }: BrowserNotificationGateInput): boolean {
   if (isRead) {
@@ -45,21 +45,7 @@ export function shouldShowBrowserNotification({
     return false;
   }
 
-  return documentHidden;
-}
-
-export function shouldShowInAppNotificationToast({
-  documentHidden,
-  isRead,
-}: {
-  documentHidden: boolean;
-  isRead: boolean;
-}): boolean {
-  if (isRead) {
-    return false;
-  }
-
-  return !documentHidden;
+  return !isDocumentFocused;
 }
 
 export async function requestBrowserNotificationPermission(): Promise<BrowserNotificationPermission> {
@@ -72,6 +58,60 @@ export async function requestBrowserNotificationPermission(): Promise<BrowserNot
   } catch {
     return getBrowserNotificationPermission();
   }
+}
+
+/**
+ * Re-reads `Notification.permission` when the Permissions API reports a
+ * change (if available) and whenever the window gains focus. Never calls
+ * `requestPermission`.
+ */
+export function subscribeBrowserNotificationPermission(
+  onChange: (permission: BrowserNotificationPermission) => void,
+): () => void {
+  const notify = () => {
+    onChange(getBrowserNotificationPermission());
+  };
+
+  const handleFocus = () => {
+    notify();
+  };
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("focus", handleFocus);
+  }
+
+  let permissionStatus: PermissionStatus | null = null;
+  let cancelled = false;
+
+  const handlePermissionChange = () => {
+    notify();
+  };
+
+  if (
+    typeof navigator !== "undefined" &&
+    typeof navigator.permissions?.query === "function"
+  ) {
+    void navigator.permissions
+      .query({ name: "notifications" as PermissionName })
+      .then((status) => {
+        if (cancelled) {
+          return;
+        }
+        permissionStatus = status;
+        status.addEventListener("change", handlePermissionChange);
+      })
+      .catch(() => {
+        // Permissions API missing/throws → focus re-read only.
+      });
+  }
+
+  return () => {
+    cancelled = true;
+    if (typeof window !== "undefined") {
+      window.removeEventListener("focus", handleFocus);
+    }
+    permissionStatus?.removeEventListener("change", handlePermissionChange);
+  };
 }
 
 /**

@@ -765,6 +765,7 @@
       "markAllReadError": "Impossible de marquer toutes les notifications comme lues",
       "fetchError": "Impossible de charger les notifications",
       "retry": "Réessayer",
+      "accept": "Accepter",
       "dismiss": "Ignorer",
       "view": "Voir",
       "dismissNotification": "Ignorer la notification",
@@ -772,7 +773,11 @@
       "browserPermissionTitle": "Recevez des alertes lorsque vous êtes dans un autre onglet",
       "browserPermissionDescription": "Autorisez les notifications du navigateur pour les jobs, tâches, facturation, système et chat pendant que Sokosumi est ouvert mais non focalisé.",
       "browserPermissionEnable": "Activer les notifications du navigateur",
-      "browserPermissionRequesting": "En attente de l’autorisation…"
+      "browserPermissionRequesting": "En attente de l’autorisation…",
+      "browserPermissionDeniedTitle": "Les notifications du navigateur sont bloquées",
+      "browserPermissionDeniedDescription": "Les notifications pour ce site sont bloquées dans votre navigateur. Ouvrez les paramètres de notification du navigateur pour Sokosumi afin de les autoriser.",
+      "vendorGrantAcceptSuccess": "Accès fournisseur approuvé",
+      "vendorGrantAcceptError": "Échec de l'approbation de l'accès fournisseur"
     },
     "HashValue": {
       "copy": "Copier",
@@ -5050,7 +5055,8 @@
         "canceled": "{taskName} a été annulé"
       },
       "Chat": {
-        "mentioned": "{authorName} vous a mentionné dans {roomName}"
+        "mentioned": "{authorName} vous a mentionné dans {roomName}",
+        "directMessage": "{authorName} vous a envoyé un message"
       }
     }
   },

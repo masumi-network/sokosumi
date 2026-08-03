@@ -1,13 +1,15 @@
 "use client";
 
 import { Bell } from "lucide-react";
+import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import type { NotificationItem } from "@/lib/clients/generated/core";
+import type { NotificationItem as NotificationItemType } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
+import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
 
 interface NotificationItemProps {
-  notification: NotificationItem;
+  notification: NotificationItemType;
   onClick: () => void;
   formatTime: (timestamp: string | Date) => string;
 }
@@ -22,6 +24,7 @@ export function NotificationItem({
     notification.messageKey,
     notification.messageParams ?? {},
   );
+  const showVendorGrantActions = isPendingVendorGrantNotification(notification);
 
   return (
     <DropdownMenuItem
@@ -45,6 +48,12 @@ export function NotificationItem({
           <p className="text-muted-foreground text-xs">
             {formatTime(notification.createdAt)}
           </p>
+          {showVendorGrantActions ? (
+            <VendorGrantNotificationActions
+              notification={notification}
+              layout="inline"
+            />
+          ) : null}
         </div>
       </div>
     </DropdownMenuItem>

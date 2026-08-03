@@ -80,6 +80,10 @@ vi.mock("ai", () => ({
   streamText: streamTextMock,
 }));
 
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtimeById: vi.fn().mockResolvedValue(undefined),
+}));
+
 import {
   buildRoomMentionPrompt,
   dispatchChatRoomMention,

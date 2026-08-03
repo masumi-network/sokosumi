@@ -51,6 +51,34 @@ export const MENTION_CLASSNAME =
   "text-primary cursor-pointer font-semibold hover:underline";
 export const UNKNOWN_MENTION_CLASSNAME = "opacity-80";
 
+export function filterNormalizedMentions<TData = unknown>(
+  items: readonly NormalizedMention<TData>[],
+  query: string,
+): NormalizedMention<TData>[] {
+  const q = query.toLowerCase();
+  if (q.length === 0) {
+    return [...items];
+  }
+
+  const prefixMatches: NormalizedMention<TData>[] = [];
+  const includesMatches: NormalizedMention<TData>[] = [];
+
+  for (const mention of items) {
+    const value = mention.value.toLowerCase();
+    const slug = mention.slug.toLowerCase();
+
+    if (value.startsWith(q) || slug.startsWith(q)) {
+      prefixMatches.push(mention);
+      continue;
+    }
+    if (value.includes(q) || slug.includes(q)) {
+      includesMatches.push(mention);
+    }
+  }
+
+  return [...prefixMatches, ...includesMatches];
+}
+
 export function isWhitespaceChar(char: string): boolean {
   return char.trim() === "";
 }
