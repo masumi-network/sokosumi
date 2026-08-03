@@ -24,7 +24,7 @@ Preconditions:
 - **Open form.** Run `agent-browser open http://localhost:3000/signup` then `agent-browser snapshot -i`. Google / Microsoft / Magic Link sit **above** the email form — ignore them (same trap as sign-in).
 - **Fill required fields.** Name, email, password textboxes (locale labels vary). Prefer refs from a **fresh** snapshot taken after open (stale refs fail after navigation). Optional marketing checkbox can stay unchecked.
 - **Accept terms.** Prefer `agent-browser check` on the terms checkbox (accessible name about Terms / Nutzungsbedingungen, or `#termsAccepted`). Submit stays **disabled** until terms are accepted.
-- **Submit.** When `Register` / `Registrieren` is enabled, click submit or press Enter. Wait for navigation away from `/signup` (often `/` then `/chat`).
+- **Submit.** When `Register` / `Registrieren` is enabled, **click** the submit button (prefer click over Enter — Enter can leave the form unchanged). Wait for navigation away from `/signup` (often `/` then `/chat`).
 - **Confirm session.** Open `/agents` or `/chat`; must not bounce to `/signin`.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-up` then screenshot + snapshot of the post-signup authenticated view. Record the email in `account.txt` (no password).
 
