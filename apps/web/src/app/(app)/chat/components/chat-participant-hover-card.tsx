@@ -68,7 +68,7 @@ function renderHoverTrigger({
     if (typeof child === "string" || typeof child === "number") {
       return String(child).trim().length > 0;
     }
-    return child != null && child !== false;
+    return true;
   });
   const singleChild =
     childItems.length === 1 && isValidElement<TriggerChildProps>(childItems[0])
