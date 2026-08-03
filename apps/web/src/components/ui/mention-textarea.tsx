@@ -18,6 +18,7 @@ import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
 import {
   createMentionSpan,
   deslugifyMentionSlug,
+  filterNormalizedMentions,
   findPositionForOffset,
   getActiveTrigger,
   getCaretOffset,
@@ -383,11 +384,8 @@ function MentionTextareaInner<TData = unknown>(
   );
 
   const filteredMentions = useMemo(() => {
-    if (query === null || query === "") return normalizedMentions;
-    const normalizedQuery = query.toLowerCase();
-    return normalizedMentions.filter((mention) =>
-      mention.value.toLowerCase().includes(normalizedQuery),
-    );
+    if (query === null) return normalizedMentions;
+    return filterNormalizedMentions(normalizedMentions, query);
   }, [normalizedMentions, query]);
 
   const selectedKeys = useMemo(() => {

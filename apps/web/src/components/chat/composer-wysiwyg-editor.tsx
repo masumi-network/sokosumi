@@ -18,6 +18,7 @@ import {
 import {
   createMentionSpan,
   deslugifyMentionSlug,
+  filterNormalizedMentions,
   findPositionForOffset,
   getActiveEmojiTrigger,
   getActiveTrigger,
@@ -233,13 +234,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
   const filteredMentions = useMemo(() => {
     if (mentionQuery === null) return [];
-    if (mentionQuery === "") return normalizedMentions;
-    const normalizedQuery = mentionQuery.toLowerCase();
-    return normalizedMentions.filter(
-      (mention) =>
-        mention.value.toLowerCase().includes(normalizedQuery) ||
-        mention.slug.toLowerCase().includes(normalizedQuery),
-    );
+    return filterNormalizedMentions(normalizedMentions, mentionQuery);
   }, [mentionQuery, normalizedMentions]);
 
   const mentionGroups = useMemo(() => {
@@ -739,15 +734,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
     const listLength =
       live.kind === "emoji"
         ? live.matches.length
-        : live.query === ""
-          ? normalizedMentions.length
-          : normalizedMentions.filter((mention) => {
-              const q = live.query.toLowerCase();
-              return (
-                mention.value.toLowerCase().includes(q) ||
-                mention.slug.toLowerCase().includes(q)
-              );
-            }).length;
+        : filterNormalizedMentions(normalizedMentions, live.query).length;
 
     if (listLength === 0) {
       closeSuggestions();
