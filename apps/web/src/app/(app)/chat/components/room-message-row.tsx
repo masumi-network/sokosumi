@@ -251,27 +251,19 @@ function ChannelMarkdownSegment({
   coworkersBySlug,
   usersById,
   usersBySlug,
-  isJumboEmoji = false,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
-  isJumboEmoji?: boolean;
 }) {
   if (!content.trim()) {
     return null;
   }
 
   return (
-    <Markdown
-      className={
-        isJumboEmoji
-          ? "prose-p:my-0 prose-p:leading-none"
-          : "prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2"
-      }
-    >
+    <Markdown className="prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
       {formatRoomMarkdownMentions({
         content,
         coworkersById,
@@ -289,14 +281,12 @@ function ChannelMessageText({
   coworkersBySlug,
   usersById,
   usersBySlug,
-  isJumboEmoji = false,
 }: {
   content: string;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
-  isJumboEmoji?: boolean;
 }) {
   const segments = segmentRoomMessageContent(content);
 
@@ -308,7 +298,6 @@ function ChannelMessageText({
         coworkersBySlug={coworkersBySlug}
         usersById={usersById}
         usersBySlug={usersBySlug}
-        isJumboEmoji={isJumboEmoji}
       />
     );
   }
@@ -326,7 +315,6 @@ function ChannelMessageText({
                 coworkersBySlug={coworkersBySlug}
                 usersById={usersById}
                 usersBySlug={usersBySlug}
-                isJumboEmoji={isJumboEmoji}
               />
             );
           case "files":
@@ -378,19 +366,28 @@ function ChannelMessageBody({
     `${messageId}\0${content}`,
   );
 
+  // Skip Markdown/prose for jumbo — prose-sm would crush the large font size.
+  if (isJumboEmoji) {
+    return (
+      <div
+        data-testid="room-message-body"
+        data-jumbo-emoji={String(jumboEmojiCount)}
+        className={cn(
+          "wrap-break-word whitespace-pre-wrap",
+          jumboEmojiClassName(jumboEmojiCount),
+        )}
+      >
+        {content.trim()}
+      </div>
+    );
+  }
+
   return (
     <div>
       <div
         ref={contentRef}
         data-testid="room-message-body"
-        data-jumbo-emoji={isJumboEmoji ? String(jumboEmojiCount) : undefined}
-        className={cn(
-          isJumboEmoji
-            ? jumboEmojiClassName(jumboEmojiCount)
-            : expanded
-              ? null
-              : MESSAGE_BODY_CLAMP_CLASS,
-        )}
+        className={cn(expanded ? null : MESSAGE_BODY_CLAMP_CLASS)}
       >
         <ChannelMessageText
           content={content}
@@ -398,10 +395,9 @@ function ChannelMessageBody({
           coworkersBySlug={coworkersBySlug}
           usersById={usersById}
           usersBySlug={usersBySlug}
-          isJumboEmoji={isJumboEmoji}
         />
       </div>
-      {!isJumboEmoji && (expanded || overflows) ? (
+      {expanded || overflows ? (
         <button
           type="button"
           className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"
