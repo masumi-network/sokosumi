@@ -4,7 +4,7 @@
   "buildCommand": "pnpm vercel-build",
   "functions": {
     "dist/index.js": {
-      "maxDuration": 120
+      "maxDuration": 300
     }
   },
   "relatedProjects": [
