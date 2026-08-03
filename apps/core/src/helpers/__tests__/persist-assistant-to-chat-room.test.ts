@@ -11,6 +11,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtimeById: vi.fn().mockResolvedValue(undefined),
+}));
+
 import prisma from "@/lib/db/prisma";
 import {
   persistAssistantToChatRoom,

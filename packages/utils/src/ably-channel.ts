@@ -18,3 +18,7 @@ export function makeUserTasksChannelName(userId: string): string {
 export function makeUserNotificationsChannelName(userId: string): string {
   return `notifications:all:user_${userId}`;
 }
+
+export function makeUserChatRoomsChannelName(userId: string): string {
+  return `chat_rooms:all:user_${userId}`;
+}

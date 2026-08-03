@@ -1,10 +1,13 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
   makeAgentJobsChannelName,
+  makeUserChatRoomsChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   SokosumiJobStatus,
 } from "@sokosumi/utils";
+
+import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
 
 import { getRestClient } from "./client";
 
@@ -84,4 +87,18 @@ export async function publishNotificationEvent({
   const client = getRestClient();
   const channel = client.channels.get(makeUserNotificationsChannelName(userId));
   await channel.publish("notification_created", notification);
+}
+
+interface PublishChatRoomMessageEventInput {
+  userId: string;
+  message: ChatRoomMessage;
+}
+
+export async function publishChatRoomMessageEvent({
+  userId,
+  message,
+}: PublishChatRoomMessageEventInput) {
+  const client = getRestClient();
+  const channel = client.channels.get(makeUserChatRoomsChannelName(userId));
+  await channel.publish("chat_room_message", { message });
 }
