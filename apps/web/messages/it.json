@@ -767,7 +767,12 @@
       "retry": "Riprova",
       "dismiss": "Ignora",
       "view": "Visualizza",
-      "dismissNotification": "Ignora notifica"
+      "dismissNotification": "Ignora notifica",
+      "browserNotificationTitle": "Sokosumi",
+      "browserPermissionTitle": "Ricevi avvisi quando sei in un’altra scheda",
+      "browserPermissionDescription": "Consenti le notifiche del browser per job, task, fatturazione, sistema e chat mentre Sokosumi è aperto ma non in primo piano.",
+      "browserPermissionEnable": "Attiva le notifiche del browser",
+      "browserPermissionRequesting": "In attesa del permesso…"
     },
     "HashValue": {
       "copy": "Copia",
