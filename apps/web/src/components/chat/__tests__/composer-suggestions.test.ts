@@ -46,13 +46,23 @@ describe("resolveComposerSuggestion", () => {
     }
   });
 
-  it("resolves bare colon to capped emoji list", () => {
-    const result = resolveComposerSuggestion(":", 1, {
+  it("does not resolve bare colon or single-char emoji query", () => {
+    expect(
+      resolveComposerSuggestion(":", 1, { mentionsAvailable: false }),
+    ).toBeNull();
+    expect(
+      resolveComposerSuggestion(":d", 2, { mentionsAvailable: false }),
+    ).toBeNull();
+  });
+
+  it("resolves two-char emoji query", () => {
+    const result = resolveComposerSuggestion(":da", 3, {
       mentionsAvailable: false,
     });
     expect(result?.kind).toBe("emoji");
     if (result?.kind === "emoji") {
-      expect(result.query).toBe("");
+      expect(result.query).toBe("da");
+      expect(result.triggerStart).toBe(0);
       expect(result.matches.length).toBeGreaterThan(0);
       expect(result.matches.length).toBeLessThanOrEqual(20);
     }
