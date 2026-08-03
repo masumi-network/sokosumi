@@ -112,7 +112,7 @@ export function ChatRoomSidebarRow({
               className={cn(
                 "min-w-0 flex-1 truncate",
                 bold && "font-semibold text-foreground",
-                isMuted && !isActive && !bold && "text-muted-foreground",
+                isMuted && !isActive && "text-muted-foreground",
               )}
             >
               {label}
@@ -156,7 +156,7 @@ export function ChatRoomSidebarRow({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">
           <DropdownMenuItem
-            disabled={isActive || isPending}
+            disabled={isActive || isPending || isMuted}
             onSelect={() => {
               runRoomAction(markOrganizationChatRoomUnreadAction, {
                 ...room,

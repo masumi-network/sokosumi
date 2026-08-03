@@ -4576,8 +4576,8 @@
         "markUnread": "Segna come non letto",
         "pin": "Fissa",
         "unpin": "Togli",
-        "mute": "Mute",
-        "unmute": "Unmute",
+        "mute": "Silenzia",
+        "unmute": "Riattiva notifiche",
         "roomMenu": "Azioni chat per {name}",
         "actionFailed": "Impossibile aggiornare questa chat. Riprova."
       },
