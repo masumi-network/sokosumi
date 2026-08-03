@@ -11,7 +11,7 @@ env:
   BETTER_AUTH_SECRET: "ci-build-better-auth-secret"
   APP_SIGNING_SECRET: "ci-build-better-auth-secret"
   RESEND_API_KEY: "ci-resend-api-key"
-  RESEND_FROM_EMAIL: "ci@sokosumi.com"
+  RESEND_FROM_EMAIL: "noreply@sokosumi.com"
   NEXT_PUBLIC_NETWORK: "Preprod"
   SOKOSUMI_API_URL: "https://api.sokosumi.com"
   PAYMENT_API_KEY: "ci-payment-api-key"

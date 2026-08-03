@@ -66,7 +66,7 @@ const envSchema = z.object({
   MICROSOFT_CLIENT_ID: z.string().min(1),
   MICROSOFT_CLIENT_SECRET: z.string().min(1),
   RESEND_API_KEY: z.string().min(1),
-  RESEND_FROM_EMAIL: z.email(),
+  RESEND_FROM_EMAIL: z.email().default("noreply@sokosumi.com"),
 
   // Sentry
   SENTRY_DSN: z.url().optional(),
