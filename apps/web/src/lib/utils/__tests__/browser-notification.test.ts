@@ -9,11 +9,22 @@ import {
 } from "@/lib/utils/browser-notification";
 
 describe("shouldShowBrowserNotification", () => {
-  it("shows only when granted, document hidden, and unread", () => {
+  it("shows only when granted, document unfocused, and unread", () => {
     expect(
       shouldShowBrowserNotification({
         permission: "granted",
-        documentHidden: true,
+        isDocumentFocused: false,
+        isRead: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("shows when the tab is visible but unfocused (other app has OS focus)", () => {
+    // Spec / product copy: "open but not focused" — not Page Visibility alone.
+    expect(
+      shouldShowBrowserNotification({
+        permission: "granted",
+        isDocumentFocused: false,
         isRead: false,
       }),
     ).toBe(true);
@@ -23,31 +34,31 @@ describe("shouldShowBrowserNotification", () => {
     expect(
       shouldShowBrowserNotification({
         permission: "default",
-        documentHidden: true,
+        isDocumentFocused: false,
         isRead: false,
       }),
     ).toBe(false);
     expect(
       shouldShowBrowserNotification({
         permission: "denied",
-        documentHidden: true,
+        isDocumentFocused: false,
         isRead: false,
       }),
     ).toBe(false);
   });
 
-  it("hides when the tab is visible or the notification is read", () => {
+  it("hides when the document is focused or the notification is read", () => {
     expect(
       shouldShowBrowserNotification({
         permission: "granted",
-        documentHidden: false,
+        isDocumentFocused: true,
         isRead: false,
       }),
     ).toBe(false);
     expect(
       shouldShowBrowserNotification({
         permission: "granted",
-        documentHidden: true,
+        isDocumentFocused: false,
         isRead: true,
       }),
     ).toBe(false);
@@ -57,7 +68,7 @@ describe("shouldShowBrowserNotification", () => {
     expect(
       shouldShowBrowserNotification({
         permission: "unsupported",
-        documentHidden: true,
+        isDocumentFocused: false,
         isRead: false,
       }),
     ).toBe(false);
@@ -65,22 +76,22 @@ describe("shouldShowBrowserNotification", () => {
 });
 
 describe("shouldShowInAppNotificationToast", () => {
-  it("shows unread toasts only while the tab is visible", () => {
+  it("shows unread toasts only while the document is focused", () => {
     expect(
       shouldShowInAppNotificationToast({
-        documentHidden: false,
+        isDocumentFocused: true,
         isRead: false,
       }),
     ).toBe(true);
     expect(
       shouldShowInAppNotificationToast({
-        documentHidden: true,
+        isDocumentFocused: false,
         isRead: false,
       }),
     ).toBe(false);
     expect(
       shouldShowInAppNotificationToast({
-        documentHidden: false,
+        isDocumentFocused: true,
         isRead: true,
       }),
     ).toBe(false);
