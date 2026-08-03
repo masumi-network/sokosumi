@@ -1223,10 +1223,10 @@ export function RoomsClient({
                 </div>
               </div>
               <CreateChannelDialog
+                key="create-channel"
                 open={isCreateChannelRequested}
                 members={organizationMembers}
                 coworkers={coworkers}
-                currentUserId={currentUserId}
                 organizationName={activeOrganization?.name ?? ""}
                 membersLoadFailed={membersLoadFailed}
               />

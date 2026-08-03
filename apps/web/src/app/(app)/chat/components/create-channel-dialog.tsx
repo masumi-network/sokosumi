@@ -3,7 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createChannelAction, updateRoomAction } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
@@ -40,7 +40,6 @@ interface CreateChannelDialogProps {
   open: boolean;
   members: Member[];
   coworkers: Coworker[];
-  currentUserId: string;
   organizationName: string;
   membersLoadFailed?: boolean;
 }
@@ -59,14 +58,7 @@ export function CreateChannelDialog({
     useState<CreateChannelWizard>(createInitialWizard);
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    if (open) {
-      setWizard(createInitialWizard());
-    }
-  }, [open]);
-
-  const stepNumber =
-    wizard.step === "name" ? 1 : wizard.step === "visibility" ? 2 : 3;
+  const createStepNumber = wizard.step === "visibility" ? 2 : 1;
   const orgMemberCount = members.length;
   const allMemberUserIds = members.map((member) => member.user.id);
 
@@ -186,11 +178,11 @@ export function CreateChannelDialog({
               ? t("addPeopleTitle", { name: wizard.roomName })
               : t("title")}
           </DialogTitle>
-          <DialogDescription>
-            {wizard.step === "visibility"
-              ? t("visibilitySubtitle", { name: wizard.name })
-              : t("stepOf", { current: stepNumber, total: 3 })}
-          </DialogDescription>
+          {wizard.step === "visibility" ? (
+            <DialogDescription>
+              {t("visibilitySubtitle", { name: wizard.name })}
+            </DialogDescription>
+          ) : null}
         </DialogHeader>
 
         {wizard.step === "name" ? (
@@ -231,7 +223,10 @@ export function CreateChannelDialog({
                 </span>
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="sm:justify-between">
+              <p className="text-muted-foreground text-sm">
+                {t("stepOf", { current: createStepNumber, total: 2 })}
+              </p>
               <Button
                 type="button"
                 variant="primary"
@@ -296,6 +291,9 @@ export function CreateChannelDialog({
               </RadioGroup>
             </div>
             <DialogFooter className="gap-2 sm:justify-between">
+              <p className="text-muted-foreground mr-auto self-center text-sm">
+                {t("stepOf", { current: createStepNumber, total: 2 })}
+              </p>
               <Button
                 type="button"
                 variant="ghost"
