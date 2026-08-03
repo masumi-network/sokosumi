@@ -2,6 +2,7 @@
 
 import {
   ChevronDown,
+  Ellipsis,
   Hash,
   MessageCircle,
   Plus,
@@ -38,6 +39,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -64,6 +71,10 @@ import {
 } from "./room-read-overlay";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
+
+/** Same absolute slot as live room rows so archived height matches Channels/DMs. */
+const ARCHIVED_TRAILING_CONTROL_CLASS =
+  "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center";
 
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
@@ -547,6 +558,7 @@ export function OrganizationChatList({
                   const isDeleting = deletingRoomId === room.id;
                   const actionBusy =
                     restoringRoomId !== null || deletingRoomId !== null;
+                  const showOverflowMenu = canDeleteArchivedRooms;
                   return (
                     <SidebarMenuItem
                       key={room.id}
@@ -560,28 +572,67 @@ export function OrganizationChatList({
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}
                         </span>
-                        <span
-                          className={cn(
-                            "shrink-0",
-                            canDeleteArchivedRooms ? "size-14" : "size-7",
-                          )}
-                          aria-hidden
-                        />
+                        <span className="size-7 shrink-0" aria-hidden />
                       </div>
-                      <div
-                        className={cn(
-                          "absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center gap-0.5",
-                          "group-data-[collapsible=icon]:hidden",
-                          isRestoring || isDeleting
-                            ? "opacity-100"
-                            : "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/room-row:opacity-100 [@media(hover:hover)]:group-focus-within/room-row:opacity-100",
-                        )}
-                      >
+                      {showOverflowMenu ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={actionBusy}
+                              className={cn(
+                                ARCHIVED_TRAILING_CONTROL_CLASS,
+                                "group-data-[collapsible=icon]:hidden text-muted-foreground",
+                                isRestoring || isDeleting
+                                  ? "opacity-100"
+                                  : "opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                              )}
+                              aria-label={tActions("roomMenu", {
+                                name: room.name,
+                              })}
+                            >
+                              <Ellipsis
+                                className={cn(
+                                  "size-4",
+                                  (isRestoring || isDeleting) &&
+                                    "animate-pulse",
+                                )}
+                                aria-hidden
+                              />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem
+                              disabled={actionBusy}
+                              onSelect={() => handleRestoreRoom(room)}
+                            >
+                              <RotateCcw className="size-4" aria-hidden />
+                              {tActions("restore")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={actionBusy}
+                              variant="destructive"
+                              onSelect={() => setPendingDeleteRoom(room)}
+                            >
+                              <Trash2 className="size-4" aria-hidden />
+                              {tActions("delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="flex size-7 items-center justify-center text-muted-foreground"
+                          className={cn(
+                            ARCHIVED_TRAILING_CONTROL_CLASS,
+                            "group-data-[collapsible=icon]:hidden text-muted-foreground",
+                            isRestoring
+                              ? "opacity-100"
+                              : "opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100",
+                          )}
                           disabled={actionBusy}
                           onClick={() => handleRestoreRoom(room)}
                           aria-label={`${tActions("restore")} ${room.name}`}
@@ -594,26 +645,7 @@ export function OrganizationChatList({
                             aria-hidden
                           />
                         </Button>
-                        {canDeleteArchivedRooms ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="flex size-7 items-center justify-center text-muted-foreground"
-                            disabled={actionBusy}
-                            onClick={() => setPendingDeleteRoom(room)}
-                            aria-label={`${tActions("delete")} ${room.name}`}
-                          >
-                            <Trash2
-                              className={cn(
-                                "size-3.5",
-                                isDeleting && "animate-pulse",
-                              )}
-                              aria-hidden
-                            />
-                          </Button>
-                        ) : null}
-                      </div>
+                      )}
                     </SidebarMenuItem>
                   );
                 })}
