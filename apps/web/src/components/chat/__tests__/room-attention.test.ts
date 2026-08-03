@@ -28,8 +28,20 @@ describe("resolveRoomAttention", () => {
       resolveRoomAttention({
         unreadCount: 5,
         unreadMentionCount: 2,
+        markedUnread: true,
         isActive: true,
       }),
     ).toEqual({ bold: false, badgeCount: 0 });
+  });
+
+  it("bolds forced-unread rooms even when unreadCount is 0", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: true,
+        isActive: false,
+      }),
+    ).toEqual({ bold: true, badgeCount: 0 });
   });
 });

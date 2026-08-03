@@ -4691,7 +4691,12 @@
         "archiveConfirm": "Archive channel",
         "archiveSuccess": "{name} was archived.",
         "restore": "Restore",
-        "restoreSuccess": "{name} was restored."
+        "restoreSuccess": "{name} was restored.",
+        "markUnread": "Mark as unread",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "roomMenu": "Chat actions for {name}",
+        "actionFailed": "Could not update this chat. Try again."
       },
       "Metadata": {
         "title": "Chat",

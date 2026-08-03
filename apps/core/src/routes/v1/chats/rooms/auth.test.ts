@@ -47,6 +47,12 @@ const {
         findMany: messageFindManyMock,
         count: messageCountMock,
       },
+      chatRoomUserMember: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      chatRoomReadState: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
       chatRoomMention: {
         findMany: vi.fn().mockResolvedValue([]),
       },

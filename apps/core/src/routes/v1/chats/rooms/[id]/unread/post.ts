@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { NotificationKind } from "@sokosumi/database";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -11,7 +10,12 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
-import { mapChatRoom, requireChatRoomUserAccess } from "../../helpers";
+import {
+  getChatRoomUnreadCounts,
+  getChatRoomUnreadMentionCounts,
+  mapChatRoom,
+  requireChatRoomUserAccess,
+} from "../../helpers";
 
 const paramsSchema = z.object({
   id: z
@@ -26,14 +30,15 @@ const paramsSchema = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
-    path: "/{id}/read",
-    description: "Mark an organization chat room as read for the current user.",
+    path: "/{id}/unread",
+    description:
+      "Mark an organization chat room as unread for the current user without rewinding lastReadAt.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(chatRoomSchema, "Chat room marked read"),
+      200: jsonSuccessResponse(chatRoomSchema, "Chat room marked unread"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
@@ -46,11 +51,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
-    const readAt = new Date();
+    const markedUnreadAt = new Date();
 
     const { room, pinnedAt } = await prisma.$transaction(async (tx) => {
       const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
 
+      // Keep existing lastReadAt when present; on create use now so we do not
+      // invent a rewind that would flood unreadCount from room history.
       await tx.chatRoomReadState.upsert({
         where: {
           roomId_userId: {
@@ -58,25 +65,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
           },
         },
-        update: { lastReadAt: readAt, markedUnreadAt: null },
+        update: { markedUnreadAt },
         create: {
           roomId: room.id,
           userId: userContext.userId,
-          lastReadAt: readAt,
-          markedUnreadAt: null,
-        },
-      });
-
-      await tx.notification.updateMany({
-        where: {
-          userId: userContext.userId,
-          kind: NotificationKind.CHAT,
-          referenceId: room.id,
-          isRead: false,
-        },
-        data: {
-          isRead: true,
-          readAt,
+          lastReadAt: markedUnreadAt,
+          markedUnreadAt,
         },
       });
 
@@ -93,14 +87,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return { room, pinnedAt: membership?.pinnedAt ?? null };
     });
 
+    const [unreadCounts, unreadMentionCounts] = await Promise.all([
+      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
+      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
+    ]);
+
     return ok(
       c,
       chatRoomSchema.parse(
         mapChatRoom(room, userContext.userId, {
-          unreadCount: 0,
-          unreadMentionCount: 0,
+          unreadCount: unreadCounts.get(room.id) ?? 0,
+          unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
           pinnedAt,
-          markedUnread: false,
+          markedUnread: true,
         }),
       ),
     );

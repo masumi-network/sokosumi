@@ -73,6 +73,16 @@ export const chatRoomSchema = z
         "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
       example: 1,
     }),
+    pinnedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When the current user pinned this room in their sidebar. Null when unpinned.",
+      example: "2026-08-02T12:00:00.000Z",
+    }),
+    markedUnread: z.boolean().openapi({
+      description:
+        "True when the current user marked this room unread. Cleared on mark-read.",
+      example: false,
+    }),
     userMembers: z.array(chatRoomUserParticipantSchema),
     coworkerMembers: z.array(chatRoomCoworkerParticipantSchema),
   })

@@ -4572,7 +4572,12 @@
         "archiveConfirm": "アーカイブする",
         "archiveSuccess": "{name} をアーカイブしました。",
         "restore": "復元",
-        "restoreSuccess": "{name} を復元しました。"
+        "restoreSuccess": "{name} を復元しました。",
+        "markUnread": "未読にする",
+        "pin": "ピン留め",
+        "unpin": "ピン留めを解除",
+        "roomMenu": "{name} のチャット操作",
+        "actionFailed": "このチャットを更新できませんでした。もう一度お試しください。"
       },
       "Metadata": {
         "title": "チャット",
