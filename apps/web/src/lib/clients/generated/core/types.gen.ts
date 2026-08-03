@@ -23430,6 +23430,20 @@ export type UpsertPushSubscriptionErrors = {
             method: string;
         };
     };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type UpsertPushSubscriptionError = UpsertPushSubscriptionErrors[keyof UpsertPushSubscriptionErrors];

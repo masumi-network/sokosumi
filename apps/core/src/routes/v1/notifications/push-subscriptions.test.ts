@@ -8,16 +8,24 @@ import mountDeletePushSubscription from "./push-subscriptions/delete";
 import mountUpsertPushSubscription from "./push-subscriptions/post";
 import mountGetPushVapidPublicKey from "./push-vapid-public-key/get";
 
-const { pushSubscriptionUpsertMock, pushSubscriptionDeleteManyMock } =
-  vi.hoisted(() => ({
-    pushSubscriptionUpsertMock: vi.fn(),
-    pushSubscriptionDeleteManyMock: vi.fn(),
-  }));
+const {
+  pushSubscriptionFindUniqueMock,
+  pushSubscriptionCreateMock,
+  pushSubscriptionUpdateMock,
+  pushSubscriptionDeleteManyMock,
+} = vi.hoisted(() => ({
+  pushSubscriptionFindUniqueMock: vi.fn(),
+  pushSubscriptionCreateMock: vi.fn(),
+  pushSubscriptionUpdateMock: vi.fn(),
+  pushSubscriptionDeleteManyMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     pushSubscription: {
-      upsert: pushSubscriptionUpsertMock,
+      findUnique: pushSubscriptionFindUniqueMock,
+      create: pushSubscriptionCreateMock,
+      update: pushSubscriptionUpdateMock,
       deleteMany: pushSubscriptionDeleteManyMock,
     },
   },
@@ -86,7 +94,7 @@ describe("POST /notifications/push-subscriptions", () => {
     vi.clearAllMocks();
   });
 
-  it("upserts a push subscription for the authenticated user", async () => {
+  it("creates a push subscription for the authenticated user", async () => {
     const row = {
       id: "sub_123",
       userId: "user_123",
@@ -96,7 +104,8 @@ describe("POST /notifications/push-subscriptions", () => {
       createdAt: new Date("2026-08-01T00:00:00.000Z"),
       updatedAt: new Date("2026-08-01T00:00:00.000Z"),
     };
-    pushSubscriptionUpsertMock.mockResolvedValue(row);
+    pushSubscriptionFindUniqueMock.mockResolvedValue(null);
+    pushSubscriptionCreateMock.mockResolvedValue(row);
 
     const app = createApp(mountUpsertPushSubscription);
     const response = await app.request("http://localhost/push-subscriptions", {
@@ -109,20 +118,15 @@ describe("POST /notifications/push-subscriptions", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(pushSubscriptionUpsertMock).toHaveBeenCalledWith({
-      where: { endpoint: "https://push.example/endpoint" },
-      create: {
+    expect(pushSubscriptionCreateMock).toHaveBeenCalledWith({
+      data: {
         userId: "user_123",
         endpoint: "https://push.example/endpoint",
         p256dh: "p256dh-key",
         auth: "auth-key",
       },
-      update: {
-        userId: "user_123",
-        p256dh: "p256dh-key",
-        auth: "auth-key",
-      },
     });
+    expect(pushSubscriptionUpdateMock).not.toHaveBeenCalled();
 
     const body = (await response.json()) as {
       data: { id: string; endpoint: string };
@@ -133,6 +137,72 @@ describe("POST /notifications/push-subscriptions", () => {
       createdAt: "2026-08-01T00:00:00.000Z",
       updatedAt: "2026-08-01T00:00:00.000Z",
     });
+  });
+
+  it("updates keys when the endpoint already belongs to the user", async () => {
+    const existing = {
+      id: "sub_123",
+      userId: "user_123",
+      endpoint: "https://push.example/endpoint",
+      p256dh: "old-p256dh",
+      auth: "old-auth",
+      createdAt: new Date("2026-08-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    };
+    const updated = {
+      ...existing,
+      p256dh: "p256dh-key",
+      auth: "auth-key",
+      updatedAt: new Date("2026-08-02T00:00:00.000Z"),
+    };
+    pushSubscriptionFindUniqueMock.mockResolvedValue(existing);
+    pushSubscriptionUpdateMock.mockResolvedValue(updated);
+
+    const app = createApp(mountUpsertPushSubscription);
+    const response = await app.request("http://localhost/push-subscriptions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        endpoint: "https://push.example/endpoint",
+        keys: { p256dh: "p256dh-key", auth: "auth-key" },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(pushSubscriptionUpdateMock).toHaveBeenCalledWith({
+      where: { id: "sub_123" },
+      data: {
+        p256dh: "p256dh-key",
+        auth: "auth-key",
+      },
+    });
+    expect(pushSubscriptionCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the endpoint belongs to another user", async () => {
+    pushSubscriptionFindUniqueMock.mockResolvedValue({
+      id: "sub_other",
+      userId: "user_other",
+      endpoint: "https://push.example/endpoint",
+      p256dh: "p256dh-key",
+      auth: "auth-key",
+      createdAt: new Date("2026-08-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+
+    const app = createApp(mountUpsertPushSubscription);
+    const response = await app.request("http://localhost/push-subscriptions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        endpoint: "https://push.example/endpoint",
+        keys: { p256dh: "p256dh-key", auth: "auth-key" },
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(pushSubscriptionCreateMock).not.toHaveBeenCalled();
+    expect(pushSubscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for coworker actors", async () => {
@@ -147,7 +217,7 @@ describe("POST /notifications/push-subscriptions", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(pushSubscriptionUpsertMock).not.toHaveBeenCalled();
+    expect(pushSubscriptionFindUniqueMock).not.toHaveBeenCalled();
   });
 });
 

@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -46,6 +47,7 @@ const route = createRoute({
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -54,20 +56,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userAuth = requireUserAuthContext(c.var.authContext);
     const body = c.req.valid("json");
 
-    const subscription = await prisma.pushSubscription.upsert({
+    const existing = await prisma.pushSubscription.findUnique({
       where: { endpoint: body.endpoint },
-      create: {
-        userId: userAuth.userId,
-        endpoint: body.endpoint,
-        p256dh: body.keys.p256dh,
-        auth: body.keys.auth,
-      },
-      update: {
-        userId: userAuth.userId,
-        p256dh: body.keys.p256dh,
-        auth: body.keys.auth,
-      },
     });
+
+    if (existing && existing.userId !== userAuth.userId) {
+      throw conflict("Push subscription belongs to another user");
+    }
+
+    const subscription = existing
+      ? await prisma.pushSubscription.update({
+          where: { id: existing.id },
+          data: {
+            p256dh: body.keys.p256dh,
+            auth: body.keys.auth,
+          },
+        })
+      : await prisma.pushSubscription.create({
+          data: {
+            userId: userAuth.userId,
+            endpoint: body.endpoint,
+            p256dh: body.keys.p256dh,
+            auth: body.keys.auth,
+          },
+        });
 
     return ok(
       c,
