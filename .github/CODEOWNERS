@@ -1,12 +1,12 @@
 # Global Owners
-* @mrgrauel @francisluz
+* @mrosberghaus @francisluz
 
 # Frontend
 apps/web/ @francisluz
 
 # Backend
-apps/core/ @mrgrauel
+apps/core/ @mrosberghaus
 
 # Packages
-packages/ @mrgrauel @francisluz
+packages/ @mrosberghaus @francisluz
 

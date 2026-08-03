@@ -186,6 +186,36 @@ const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER_ID = "user_123";
 const COWORKER_ID = "coworker_1";
 const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440099";
+const QUOTE_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440004";
+
+const quoteSnapshot = {
+  messageId: QUOTE_MESSAGE_ID,
+  authorName: "Alice",
+  snippet: "Earlier point about launch risk",
+  attachment: null,
+};
+
+const imageQuoteContent =
+  "see this [launch.png](https://blob.example/launch.png)";
+const imageQuoteSnapshot = {
+  messageId: QUOTE_MESSAGE_ID,
+  authorName: "Alice",
+  snippet: "see this",
+  attachment: {
+    fileName: "launch.png",
+    url: "https://blob.example/launch.png",
+    mediaKind: "image" as const,
+  },
+};
+
+function quotedSourceMessage(overrides: Partial<{ content: string }> = {}) {
+  return {
+    id: QUOTE_MESSAGE_ID,
+    content: overrides.content ?? "Earlier point about launch risk",
+    senderUser: { name: "Alice" },
+    senderCoworker: null,
+  };
+}
 
 const userAuthContext: AuthVariables["authContext"] = {
   actor: "user",
@@ -859,6 +889,121 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(setPendingResponseMirrorMock).toHaveBeenCalledWith(
         { roomId: ROOM_ID, parentMessageId: PARENT_MESSAGE_ID },
         "resp_thread",
+      );
+    });
+  });
+
+  describe("quote", () => {
+    it("persists quote snapshot in metadata on the user message", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      chatRoomMessageFindFirstMock.mockResolvedValue(quotedSourceMessage());
+
+      const response = await postStream({
+        messages: [
+          {
+            role: "user",
+            parts: [{ type: "text", text: "agreeing with that" }],
+          },
+        ],
+        quote: { messageId: QUOTE_MESSAGE_ID },
+      });
+
+      expect(response.status).toBe(200);
+      expect(persistUserMessageToChatRoomMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: ROOM_ID,
+          contentText: "agreeing with that",
+          parentMessageId: null,
+          metadata: { quote: quoteSnapshot },
+        }),
+      );
+      expect(streamTextMock).toHaveBeenCalledOnce();
+      expect(chatRoomMessageFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID, deletedAt: null },
+        }),
+      );
+    });
+
+    it("returns 400 when quoted message is missing or in another room", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      chatRoomMessageFindFirstMock.mockResolvedValue(null);
+
+      const response = await postStream({
+        messages: [
+          { role: "user", parts: [{ type: "text", text: "quoting ghost" }] },
+        ],
+        quote: { messageId: QUOTE_MESSAGE_ID },
+      });
+
+      expect(response.status).toBe(400);
+      expect(persistUserMessageToChatRoomMock).not.toHaveBeenCalled();
+      expect(streamTextMock).not.toHaveBeenCalled();
+      expect(acquireStreamLockMock).not.toHaveBeenCalled();
+    });
+
+    it("accepts quote and parentMessageId independently", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      chatRoomMessageFindFirstMock
+        .mockResolvedValueOnce({
+          id: PARENT_MESSAGE_ID,
+          parentMessageId: null,
+        })
+        .mockResolvedValueOnce(quotedSourceMessage());
+
+      const response = await postStream({
+        messages: [
+          {
+            role: "user",
+            parts: [{ type: "text", text: "thread reply that also quotes" }],
+          },
+        ],
+        parentMessageId: PARENT_MESSAGE_ID,
+        quote: { messageId: QUOTE_MESSAGE_ID },
+      });
+
+      expect(response.status).toBe(200);
+      expect(persistUserMessageToChatRoomMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: ROOM_ID,
+          contentText: "thread reply that also quotes",
+          parentMessageId: PARENT_MESSAGE_ID,
+          metadata: { quote: quoteSnapshot },
+        }),
+      );
+      expect(ensureThreadProviderConversationMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: ROOM_ID,
+          parentMessageId: PARENT_MESSAGE_ID,
+        }),
+      );
+      expect(streamTextMock).toHaveBeenCalledOnce();
+    });
+
+    it("persists image attachment cue when quoting a message with an image link", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      chatRoomMessageFindFirstMock.mockResolvedValue(
+        quotedSourceMessage({ content: imageQuoteContent }),
+      );
+
+      const response = await postStream({
+        messages: [
+          {
+            role: "user",
+            parts: [{ type: "text", text: "nice shot" }],
+          },
+        ],
+        quote: { messageId: QUOTE_MESSAGE_ID },
+      });
+
+      expect(response.status).toBe(200);
+      expect(persistUserMessageToChatRoomMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: ROOM_ID,
+          contentText: "nice shot",
+          parentMessageId: null,
+          metadata: { quote: imageQuoteSnapshot },
+        }),
       );
     });
   });

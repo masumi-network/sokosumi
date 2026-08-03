@@ -6,6 +6,6 @@ alwaysApply: true
 # Credits in the API (Core)
 
 - **Never expose cents in the API.** Request/response bodies and query parameters must use **credits** (user-facing decimal) only.
-- Convert at the boundary: use `convertCentsToCredits()` when returning data, `convertCreditsToCents()` when persisting user input. Import from `@sokosumi/database/helpers`.
+- Convert at the boundary: use `convertCentsToCredits()` when returning data, `convertCreditsToCents()` when persisting user input. Import from `@sokosumi/utils`.
 
 See [AGENTS.md](../AGENTS.md) (Credit Conversion, Credit Handling gotchas).

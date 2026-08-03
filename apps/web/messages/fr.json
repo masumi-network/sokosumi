@@ -26,6 +26,22 @@
       "description": "Nous rencontrons actuellement des problèmes d’exécution des jobs en raison de difficultés techniques chez l’un de nos fournisseurs tiers. Ne vous inquiétez pas, tout reviendra à la normale sous peu.",
       "confirm": "OK"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "Rechercher tous les emojis",
+      "frequentlyUsed": "Utilisés fréquemment",
+      "noResults": "Aucun emoji trouvé",
+      "categories": {
+        "smileysEmotion": "Smileys et émotions",
+        "peopleBody": "Personnes et corps",
+        "animalsNature": "Animaux et nature",
+        "foodDrink": "Nourriture et boissons",
+        "travelPlaces": "Voyages et lieux",
+        "activities": "Activités",
+        "objects": "Objets",
+        "symbols": "Symboles",
+        "flags": "Drapeaux"
+      }
+    },
     "ShareButton": {
       "linkCopied": "Lien copié dans le presse-papiers",
       "copyError": "Échec de la copie du lien"
@@ -762,6 +778,19 @@
       "placeholder": "Sélectionner une organisation",
       "search": "Rechercher des organisations…",
       "empty": "Aucune organisation trouvée."
+    },
+    "ImageViewer": {
+      "title": "Image",
+      "viewImage": "Voir l'image {fileName}",
+      "download": "Télécharger l'image",
+      "close": "Fermer",
+      "print": "Imprimer",
+      "zoomIn": "Zoom avant",
+      "zoomOut": "Zoom arrière",
+      "zoomReset": "Réinitialiser le zoom",
+      "more": "Plus d'options",
+      "openInNewTab": "Ouvrir dans un nouvel onglet",
+      "copyImage": "Copier l'image"
     }
   },
   "Join": {
@@ -4005,6 +4034,23 @@
         "clientSecretPlaceholder": "Saisissez le secret de votre client OAuth",
         "clientSecretHelp": "Votre secret client est requis pour les clients confidentiels. Pour les clients publics, laissez ce champ vide."
       },
+      "ProfileImage": {
+        "title": "Photo de profil",
+        "description": "Téléversez ou supprimez l'avatar utilisé pour votre compte.",
+        "imageDescription": "Téléversez une image jusqu'à {maxSize}. Supprimez-la pour revenir à Gravatar.",
+        "imageUpload": "Téléverser",
+        "imageReplace": "Remplacer",
+        "imageRemove": "Supprimer l'image",
+        "imagePreviewAlt": "Aperçu de la photo de profil",
+        "imageUploadSuccess": "Photo de profil mise à jour",
+        "imageUploadError": "Échec du téléversement de la photo de profil",
+        "imageSaveError": "Échec de l'enregistrement de la photo de profil",
+        "imageRemoveSuccess": "Photo de profil supprimée",
+        "imageRemoveError": "Échec de la suppression de la photo de profil",
+        "fileTooLarge": "Le fichier est trop volumineux",
+        "fileTypeNotAccepted": "Type de fichier non accepté",
+        "maxFilesExceeded": "Téléversez une seule image à la fois"
+      },
       "BrandProfile": {
         "title": "Profil de marque",
         "description": "Définissez les informations de marque utilisées pour créer votre DESIGN.md personnel.",
@@ -4512,6 +4558,7 @@
     },
     "Channels": {
       "Actions": {
+        "more": "Actions du message",
         "sectionTitle": "Gérer le canal",
         "leave": "Quitter le canal",
         "archive": "Archiver le canal",
@@ -4525,10 +4572,15 @@
         "archiveConfirm": "Archiver le canal",
         "archiveSuccess": "{name} a été archivé.",
         "restore": "Restaurer",
-        "restoreSuccess": "{name} a été restauré."
+        "restoreSuccess": "{name} a été restauré.",
+        "markUnread": "Marquer comme non lu",
+        "pin": "Épingler",
+        "unpin": "Désépingler",
+        "roomMenu": "Actions du chat pour {name}",
+        "actionFailed": "Impossible de mettre à jour ce chat. Réessayez."
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "Chat",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4537,6 +4589,8 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "humanBadge": "Humain",
+      "openDirectMessage": "Message",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
@@ -4601,26 +4655,42 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Ajoutez un destinataire pour commencer",
-        "oneToOneOnlyError": "Les messages directs sont en 1:1. Choisissez un membre ou un coworker.",
-        "searchPlaceholderReplace": "Remplacer le destinataire"
+        "searchPlaceholderReplace": "Remplacer le destinataire",
+        "groupDirectHumansOnly": "Les messages directs de groupe sont réservés aux humains.",
+        "groupDirectNoCoworkersError": "Les messages directs de groupe ne peuvent pas inclure de coworkers.",
+        "coworkerDirectOneToOneOnly": "Les messages directs avec un coworker sont en 1:1."
       },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
+        "dropToAttach": "Déposez des fichiers pour les joindre",
         "emoji": "Emoji",
-        "format": "Formatting",
-        "bold": "Bold",
+        "format": "Mise en forme",
+        "bold": "Gras",
+        "italic": "Italique",
+        "underline": "Souligner",
+        "strikethrough": "Barré",
+        "code": "Code",
+        "codeBlock": "Bloc de code",
+        "quote": "Citation",
+        "bulletList": "Liste à puces",
+        "numberedList": "Liste numérotée",
+        "link": "Lien",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "Téléversement de {fileName}",
         "uploadingFiles": "Téléversement de {count} fichiers",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
-        "attachmentFallback": "file"
+        "attachmentFallback": "file",
+        "showFormatting": "Afficher la mise en forme",
+        "hideFormatting": "Masquer la mise en forme"
       },
       "Reactions": {
         "add": "Add reaction",
-        "toggle": "React with {emoji}"
+        "toggle": "React with {emoji}",
+        "whoReacted": "{names}{more, plural, =0 {} other { et # de plus}}",
+        "andMore": "et {count} de plus"
       },
       "Presence": {
         "online": "Online",
@@ -4639,7 +4709,42 @@
       "loadOlder": "Charger les messages plus anciens",
       "loadingOlder": "Chargement des messages plus anciens…",
       "roomUnavailable": "Ce chat est indisponible ou vous n’y avez plus accès.",
-      "archivedChannels": "Archivés"
+      "archivedChannels": "Archivés",
+      "AddLink": {
+        "title": "Ajouter un lien",
+        "text": "Texte",
+        "textPlaceholder": "Texte affiché",
+        "link": "Lien",
+        "linkPlaceholder": "https://",
+        "cancel": "Annuler",
+        "save": "Enregistrer"
+      },
+      "Quote": {
+        "action": "Citer",
+        "dismiss": "Retirer la citation",
+        "previewLabel": "Citation de {author}",
+        "jump": "Aller au message de {author}",
+        "showMore": "Plus",
+        "showLess": "Moins"
+      },
+      "Message": {
+        "delete": "Supprimer",
+        "deleteConfirm": "Supprimer ce message ? Les autres verront qu’il a été supprimé.",
+        "deleted": "Ce message a été supprimé"
+      },
+      "MentionAll": {
+        "label": "Tout le monde"
+      },
+      "MentionSections": {
+        "people": "Personnes",
+        "coworkers": "Collègues"
+      },
+      "Edit": {
+        "action": "Modifier",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "edited": "Modifié"
+      }
     }
   },
   "Share": {
@@ -4860,6 +4965,9 @@
         "completed": "{coworkerName} a terminé {taskName}",
         "failed": "{coworkerName} n'a pas pu terminer {taskName}",
         "canceled": "{taskName} a été annulé"
+      },
+      "Chat": {
+        "mentioned": "{authorName} vous a mentionné dans {roomName}"
       }
     }
   },

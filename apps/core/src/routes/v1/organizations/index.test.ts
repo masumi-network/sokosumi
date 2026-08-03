@@ -57,7 +57,7 @@ describe("organizations routes OpenAPI contract", () => {
     expect(getOperation?.responses).toHaveProperty("404");
   });
 
-  it("does not expose the organization logo upload endpoint", () => {
+  it("does not expose the organization logo PUT endpoint", () => {
     const doc = organizationsRouter.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
@@ -69,5 +69,23 @@ describe("organizations routes OpenAPI contract", () => {
     const putOperation = doc.paths?.["/{id}/logo"]?.put;
 
     expect(putOperation).toBeUndefined();
+  });
+
+  it("exposes POST /{id}/files for organization logo mint", () => {
+    const doc = organizationsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Organizations API",
+        version: "1.0.0",
+      },
+    });
+
+    const postOperation = doc.paths?.["/{id}/files"]?.post;
+
+    expect(postOperation).toBeDefined();
+    expect(postOperation?.responses).toHaveProperty("201");
+    expect(postOperation?.responses).toHaveProperty("401");
+    expect(postOperation?.responses).toHaveProperty("403");
+    expect(postOperation?.responses).toHaveProperty("503");
   });
 });

@@ -1,6 +1,6 @@
 import { BlobStatus } from "@sokosumi/database";
 import { ssrfSafeFetch } from "@sokosumi/net";
-import { getUrlBasename } from "@sokosumi/utils";
+import { buildJobBlobPathname, getUrlBasename } from "@sokosumi/utils";
 import { head, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
@@ -12,11 +12,6 @@ interface ImportPendingResultBlobsOptions {
   abortSignal: AbortSignal;
   deadlineMs: number;
   shouldContinue: () => boolean;
-}
-
-/** Sanitize filename for blob storage path (matches web's uploadFileForBlob behavior). */
-function sanitizePathSegment(name: string): string {
-  return name.replace(/ /g, "_");
 }
 
 function parseContentDispositionFilename(
@@ -93,9 +88,27 @@ async function importBlob(
     return;
   }
 
-  const blob = await prisma.blob.findUnique({ where: { id: blobId } });
+  const blob = await prisma.blob.findUnique({
+    where: { id: blobId },
+    include: {
+      event: {
+        select: { jobId: true },
+      },
+    },
+  });
 
   if (!blob || blob.status !== BlobStatus.PENDING) {
+    return;
+  }
+
+  const jobId = blob.event?.jobId;
+  if (!jobId) {
+    await prisma.blob.update({
+      where: { id: blob.id },
+      data: {
+        status: BlobStatus.FAILED,
+      },
+    });
     return;
   }
 
@@ -133,17 +146,13 @@ async function importBlob(
       throw new Error("BLOB_READ_WRITE_TOKEN is not configured");
     }
 
-    const pathSegment = sanitizePathSegment(suggestedName);
-    const uploadResult = await put(
-      `blobs/${blob.id}/${pathSegment}`,
-      sourceFile,
-      {
-        access: "public",
-        addRandomSuffix: true,
-        abortSignal,
-        token: blobToken,
-      },
-    );
+    const pathname = buildJobBlobPathname(jobId, suggestedName);
+    const uploadResult = await put(pathname, sourceFile, {
+      access: "public",
+      addRandomSuffix: true,
+      abortSignal,
+      token: blobToken,
+    });
     const blobMetadata = await head(uploadResult.url, {
       abortSignal,
       token: blobToken,

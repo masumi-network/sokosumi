@@ -26,6 +26,22 @@
       "description": "由于某个第三方服务提供商的技术问题，我们目前在任务执行方面遇到了一些问题。请放心，稍后将恢复正常。",
       "confirm": "确定"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "搜索全部表情",
+      "frequentlyUsed": "常用表情",
+      "noResults": "未找到表情",
+      "categories": {
+        "smileysEmotion": "表情与情感",
+        "peopleBody": "人物与身体",
+        "animalsNature": "动物与自然",
+        "foodDrink": "食物与饮料",
+        "travelPlaces": "旅行与地点",
+        "activities": "活动",
+        "objects": "物品",
+        "symbols": "符号",
+        "flags": "旗帜"
+      }
+    },
     "ShareButton": {
       "linkCopied": "链接已复制到剪贴板",
       "copyError": "复制链接失败"
@@ -762,6 +778,19 @@
       "placeholder": "选择组织",
       "search": "搜索组织…",
       "empty": "未找到组织。"
+    },
+    "ImageViewer": {
+      "title": "图片",
+      "viewImage": "查看图片 {fileName}",
+      "download": "下载图片",
+      "close": "关闭",
+      "print": "打印",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "zoomReset": "重置缩放",
+      "more": "更多选项",
+      "openInNewTab": "在新标签页中打开",
+      "copyImage": "复制图片"
     }
   },
   "Join": {
@@ -4005,6 +4034,23 @@
         "clientSecretPlaceholder": "输入您的 OAuth 客户端密钥",
         "clientSecretHelp": "机密客户端需要客户端密钥。公开客户端请留空。"
       },
+      "ProfileImage": {
+        "title": "头像",
+        "description": "上传或移除用于你账户的头像。",
+        "imageDescription": "上传不超过 {maxSize} 的图片。移除后将回退到 Gravatar。",
+        "imageUpload": "上传",
+        "imageReplace": "替换",
+        "imageRemove": "移除图片",
+        "imagePreviewAlt": "头像预览",
+        "imageUploadSuccess": "头像已更新",
+        "imageUploadError": "上传头像失败",
+        "imageSaveError": "保存头像失败",
+        "imageRemoveSuccess": "头像已移除",
+        "imageRemoveError": "移除头像失败",
+        "fileTooLarge": "文件过大",
+        "fileTypeNotAccepted": "不支持的文件类型",
+        "maxFilesExceeded": "一次只能上传一张图片"
+      },
       "BrandProfile": {
         "title": "品牌资料",
         "description": "设置用于创建个人 DESIGN.md 的品牌信息。",
@@ -4512,6 +4558,7 @@
     },
     "Channels": {
       "Actions": {
+        "more": "消息操作",
         "sectionTitle": "管理频道",
         "leave": "退出频道",
         "archive": "归档频道",
@@ -4525,10 +4572,15 @@
         "archiveConfirm": "归档频道",
         "archiveSuccess": "{name} 已归档。",
         "restore": "恢复",
-        "restoreSuccess": "已恢复 {name}。"
+        "restoreSuccess": "已恢复 {name}。",
+        "markUnread": "标为未读",
+        "pin": "置顶",
+        "unpin": "取消置顶",
+        "roomMenu": "{name} 的聊天操作",
+        "actionFailed": "无法更新此聊天。请重试。"
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "聊天",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4537,6 +4589,8 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "humanBadge": "人类",
+      "openDirectMessage": "发消息",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
@@ -4601,26 +4655,42 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "添加收件人后开始",
-        "oneToOneOnlyError": "私信目前仅为一对一。请选择一位成员或一位同事。",
-        "searchPlaceholderReplace": "更换收件人"
+        "searchPlaceholderReplace": "更换收件人",
+        "groupDirectHumansOnly": "群组私信仅限真人成员。",
+        "groupDirectNoCoworkersError": "群组私信不能包含同事。",
+        "coworkerDirectOneToOneOnly": "与同事的私信仅支持一对一。"
       },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
+        "dropToAttach": "拖放文件以附加",
         "emoji": "Emoji",
-        "format": "Formatting",
-        "bold": "Bold",
+        "format": "格式",
+        "bold": "粗体",
+        "italic": "斜体",
+        "underline": "下划线",
+        "strikethrough": "删除线",
+        "code": "代码",
+        "codeBlock": "代码块",
+        "quote": "引用",
+        "bulletList": "项目符号列表",
+        "numberedList": "编号列表",
+        "link": "链接",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "正在上传 {fileName}",
         "uploadingFiles": "正在上传 {count} 个文件",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
-        "attachmentFallback": "file"
+        "attachmentFallback": "file",
+        "showFormatting": "显示格式",
+        "hideFormatting": "隐藏格式"
       },
       "Reactions": {
         "add": "Add reaction",
-        "toggle": "React with {emoji}"
+        "toggle": "React with {emoji}",
+        "whoReacted": "{names}{more, plural, =0 {} other { 以及其他 # 人}}",
+        "andMore": "以及其他 {count} 人"
       },
       "Presence": {
         "online": "Online",
@@ -4639,7 +4709,42 @@
       "loadOlder": "加载更早的消息",
       "loadingOlder": "正在加载更早的消息…",
       "roomUnavailable": "此聊天不可用，或你已没有访问权限。",
-      "archivedChannels": "已归档"
+      "archivedChannels": "已归档",
+      "AddLink": {
+        "title": "添加链接",
+        "text": "文本",
+        "textPlaceholder": "显示文本",
+        "link": "链接",
+        "linkPlaceholder": "https://",
+        "cancel": "取消",
+        "save": "保存"
+      },
+      "Quote": {
+        "action": "引用",
+        "dismiss": "移除引用",
+        "previewLabel": "正在引用 {author}",
+        "jump": "跳转到 {author} 的消息",
+        "showMore": "更多",
+        "showLess": "收起"
+      },
+      "Message": {
+        "delete": "删除",
+        "deleteConfirm": "删除这条消息？其他人会看到该消息已被删除。",
+        "deleted": "此消息已删除"
+      },
+      "MentionAll": {
+        "label": "所有人"
+      },
+      "MentionSections": {
+        "people": "成员",
+        "coworkers": "协作伙伴"
+      },
+      "Edit": {
+        "action": "编辑",
+        "save": "保存",
+        "cancel": "取消",
+        "edited": "已编辑"
+      }
     }
   },
   "Share": {
@@ -4860,6 +4965,9 @@
         "completed": "{coworkerName} 已完成 {taskName}",
         "failed": "{coworkerName} 未能完成 {taskName}",
         "canceled": "{taskName} 已取消"
+      },
+      "Chat": {
+        "mentioned": "{authorName}在{roomName}中提到了你"
       }
     }
   },

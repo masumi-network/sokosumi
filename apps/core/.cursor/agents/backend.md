@@ -159,10 +159,10 @@ Credits use base 10^10 for precision:
 import {
   convertCentsToCredits,
   convertCreditsToCents,
-} from "@/helpers/credits";
+} from "@sokosumi/utils";
 
-const credits = convertCentsToCredits(BigInt(1000000000000)); // 100.0
-const cents = convertCreditsToCents(1.0); // BigInt(10000000000)
+const credits = convertCentsToCredits(BigInt(1000000000000)); // 1.0
+const cents = convertCreditsToCents(1.0); // BigInt(1000000000000)
 ```
 
 ## Response Formats
@@ -219,6 +219,6 @@ const cents = convertCreditsToCents(1.0); // BigInt(10000000000)
 
 ❌ `return c.json({ error: "..." }, 403)` - Use error helpers
 ❌ `return c.json({ data: user })` - Use `ok(c, { user })`
-❌ Direct Prisma access from routes - Use repositories when available
+❌ New repository wrappers in routes - Prefer direct Prisma in new route handlers
 ❌ Manual auth middleware - Use HonoWithAuth/OpenAPIHonoWithAuth
 ❌ Hardcoded response formats - Use standardized helpers

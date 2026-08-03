@@ -26,6 +26,22 @@
       "description": "Wir haben derzeit Probleme mit der Ausführung von Jobs, die durch technische Störungen bei einem unserer Drittanbieter verursacht werden. Keine Sorge – alles wird in Kürze wieder normal funktionieren.",
       "confirm": "OK"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "Alle Emojis suchen",
+      "frequentlyUsed": "Häufig verwendet",
+      "noResults": "Keine Emojis gefunden",
+      "categories": {
+        "smileysEmotion": "Smileys & Emotionen",
+        "peopleBody": "Personen & Körper",
+        "animalsNature": "Tiere & Natur",
+        "foodDrink": "Essen & Trinken",
+        "travelPlaces": "Reisen & Orte",
+        "activities": "Aktivitäten",
+        "objects": "Objekte",
+        "symbols": "Symbole",
+        "flags": "Flaggen"
+      }
+    },
     "ShareButton": {
       "linkCopied": "Link in Zwischenablage kopiert",
       "copyError": "Link konnte nicht kopiert werden"
@@ -762,6 +778,19 @@
       "placeholder": "Organisation auswählen",
       "search": "Organisationen suchen…",
       "empty": "Keine Organisationen gefunden."
+    },
+    "ImageViewer": {
+      "title": "Bild",
+      "viewImage": "Bild ansehen {fileName}",
+      "download": "Bild herunterladen",
+      "close": "Schließen",
+      "print": "Drucken",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "zoomReset": "Zoom zurücksetzen",
+      "more": "Weitere Optionen",
+      "openInNewTab": "In neuem Tab öffnen",
+      "copyImage": "Bild kopieren"
     }
   },
   "Join": {
@@ -3974,6 +4003,23 @@
         "clientSecretPlaceholder": "Dein OAuth-Client-Secret eingeben",
         "clientSecretHelp": "Dein Client-Secret ist für vertrauliche Clients erforderlich. Bei öffentlichen Clients lass dieses Feld leer."
       },
+      "ProfileImage": {
+        "title": "Profilbild",
+        "description": "Lade den Avatar für dein Konto hoch oder entferne ihn.",
+        "imageDescription": "Lade ein Bild bis {maxSize} hoch. Entferne es, um auf Gravatar zurückzufallen.",
+        "imageUpload": "Hochladen",
+        "imageReplace": "Ersetzen",
+        "imageRemove": "Bild entfernen",
+        "imagePreviewAlt": "Vorschau des Profilbilds",
+        "imageUploadSuccess": "Profilbild aktualisiert",
+        "imageUploadError": "Profilbild konnte nicht hochgeladen werden",
+        "imageSaveError": "Profilbild konnte nicht gespeichert werden",
+        "imageRemoveSuccess": "Profilbild entfernt",
+        "imageRemoveError": "Profilbild konnte nicht entfernt werden",
+        "fileTooLarge": "Datei ist zu groß",
+        "fileTypeNotAccepted": "Dateityp wird nicht akzeptiert",
+        "maxFilesExceeded": "Lade jeweils nur ein Bild hoch"
+      },
       "BrandProfile": {
         "title": "Brand-Profil",
         "description": "Lege die Brand-Daten fest, die für deine persönliche DESIGN.md verwendet werden.",
@@ -4512,6 +4558,7 @@
     },
     "Channels": {
       "Actions": {
+        "more": "Nachrichtenaktionen",
         "sectionTitle": "Kanal verwalten",
         "leave": "Kanal verlassen",
         "archive": "Kanal archivieren",
@@ -4525,10 +4572,15 @@
         "archiveConfirm": "Kanal archivieren",
         "archiveSuccess": "{name} wurde archiviert.",
         "restore": "Wiederherstellen",
-        "restoreSuccess": "{name} wurde wiederhergestellt."
+        "restoreSuccess": "{name} wurde wiederhergestellt.",
+        "markUnread": "Als ungelesen markieren",
+        "pin": "Anheften",
+        "unpin": "Lösen",
+        "roomMenu": "Chat-Aktionen für {name}",
+        "actionFailed": "Dieser Chat konnte nicht aktualisiert werden. Bitte erneut versuchen."
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "Chat",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4537,6 +4589,8 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "humanBadge": "Mensch",
+      "openDirectMessage": "Nachricht",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
@@ -4601,26 +4655,42 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "Empfänger hinzufügen, um zu starten",
-        "oneToOneOnlyError": "Direktnachrichten sind 1:1. Wähle ein Mitglied oder einen Coworker.",
-        "searchPlaceholderReplace": "Empfänger ersetzen"
+        "searchPlaceholderReplace": "Empfänger ersetzen",
+        "groupDirectHumansOnly": "Gruppendirektnachrichten sind nur für Menschen.",
+        "groupDirectNoCoworkersError": "Gruppendirektnachrichten können keine Coworker enthalten.",
+        "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1."
       },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
+        "dropToAttach": "Dateien zum Anhängen ablegen",
         "emoji": "Emoji",
-        "format": "Formatting",
-        "bold": "Bold",
+        "format": "Formatierung",
+        "bold": "Fett",
+        "italic": "Kursiv",
+        "underline": "Unterstreichen",
+        "strikethrough": "Durchgestrichen",
+        "code": "Code",
+        "codeBlock": "Codeblock",
+        "quote": "Zitat",
+        "bulletList": "Aufzählungsliste",
+        "numberedList": "Nummerierte Liste",
+        "link": "Link",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "Hochladen von {fileName}",
         "uploadingFiles": "Hochladen von {count} Dateien",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
-        "attachmentFallback": "file"
+        "attachmentFallback": "file",
+        "showFormatting": "Formatierung anzeigen",
+        "hideFormatting": "Formatierung ausblenden"
       },
       "Reactions": {
         "add": "Add reaction",
-        "toggle": "React with {emoji}"
+        "toggle": "React with {emoji}",
+        "whoReacted": "{names}{more, plural, =0 {} other { und # weitere}}",
+        "andMore": "und {count} weitere"
       },
       "Presence": {
         "online": "Online",
@@ -4639,7 +4709,42 @@
       "loadOlder": "Ältere Nachrichten laden",
       "loadingOlder": "Ältere Nachrichten werden geladen…",
       "roomUnavailable": "Dieser Chat ist nicht verfügbar oder du hast keinen Zugriff mehr.",
-      "archivedChannels": "Archiviert"
+      "archivedChannels": "Archiviert",
+      "AddLink": {
+        "title": "Link hinzufügen",
+        "text": "Text",
+        "textPlaceholder": "Anzeigetext",
+        "link": "Link",
+        "linkPlaceholder": "https://",
+        "cancel": "Abbrechen",
+        "save": "Speichern"
+      },
+      "Quote": {
+        "action": "Zitieren",
+        "dismiss": "Zitat entfernen",
+        "previewLabel": "Zitiere {author}",
+        "jump": "Zur Nachricht von {author} springen",
+        "showMore": "Mehr",
+        "showLess": "Weniger"
+      },
+      "Message": {
+        "delete": "Löschen",
+        "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
+        "deleted": "Diese Nachricht wurde gelöscht"
+      },
+      "MentionAll": {
+        "label": "Alle"
+      },
+      "MentionSections": {
+        "people": "Personen",
+        "coworkers": "Coworkers"
+      },
+      "Edit": {
+        "action": "Bearbeiten",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "edited": "Bearbeitet"
+      }
     }
   },
   "Share": {
@@ -4860,6 +4965,9 @@
         "completed": "{coworkerName} hat {taskName} abgeschlossen",
         "failed": "{coworkerName} konnte {taskName} nicht abschließen",
         "canceled": "{taskName} wurde abgebrochen"
+      },
+      "Chat": {
+        "mentioned": "{authorName} hat dich in {roomName} erwähnt"
       }
     }
   },

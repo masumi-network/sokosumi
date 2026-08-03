@@ -40,6 +40,7 @@ import type {
   PaginationMetadata,
   PatchAdminVendorData,
   PatchChatsRoomsByIdData,
+  PatchChatsRoomsByIdMessagesByMessageIdData,
   PatchCoworkersByIdData,
   PatchCoworkersByIdWhitelistData,
   PatchEnterpriseContractRequest,
@@ -56,6 +57,8 @@ import type {
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
   PostJobsByIdInputsData,
+  PostOrganizationsByIdFilesCleanupData,
+  PostOrganizationsByIdFilesData,
   PostOrganizationsByIdInviteLinksData,
   PostProjectsByIdJobsData,
   PostProjectsByIdTasksData,
@@ -64,6 +67,8 @@ import type {
   PostTasksByIdLinksData,
   PostTasksData,
   PostUsersByIdFilesData,
+  PostVendorsByIdFilesCleanupData,
+  PostVendorsByIdFilesData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutTaskScheduleRequest,
@@ -83,6 +88,8 @@ import {
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
+  deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
+  deleteChatsRoomsByIdPin as coreDeleteChatsRoomsByIdPin,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
@@ -193,6 +200,7 @@ import {
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
   patchChatsRoomsById as corePatchChatsRoomsById,
+  patchChatsRoomsByIdMessagesByMessageId as corePatchChatsRoomsByIdMessagesByMessageId,
   patchCoworkersById as corePatchCoworkersById,
   patchCoworkersByIdWhitelist as corePatchCoworkersByIdWhitelist,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -211,8 +219,10 @@ import {
   postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
+  postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
+  postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -230,6 +240,8 @@ import {
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postOrganizationInviteLinksByTokenAccept as corePostOrganizationInviteLinksByTokenAccept,
+  postOrganizationsByIdFiles as corePostOrganizationsByIdFiles,
+  postOrganizationsByIdFilesCleanup as corePostOrganizationsByIdFilesCleanup,
   postOrganizationsByIdInviteLinks as corePostOrganizationsByIdInviteLinks,
   postOrganizationsByIdStripeCustomer as corePostOrganizationsByIdStripeCustomer,
   postOrganizationsByIdVendorGrants as corePostOrganizationsByIdVendorGrants,
@@ -250,6 +262,8 @@ import {
   postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
   postUsersByIdVendorGrantsByGrantIdDeny as corePostUsersByIdVendorGrantsByGrantIdDeny,
   postUsersByIdVendorGrantsByGrantIdRevoke as corePostUsersByIdVendorGrantsByGrantIdRevoke,
+  postVendorsByIdFiles as corePostVendorsByIdFiles,
+  postVendorsByIdFilesCleanup as corePostVendorsByIdFilesCleanup,
   putJobsByIdShare as corePutJobsByIdShare,
   putJobsByIdWorkspace as corePutJobsByIdWorkspace,
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
@@ -623,6 +637,42 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function pinChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdPin({
+          client,
+          path: { id },
+        }),
+      "Failed to pin chat room",
+    );
+  }
+
+  async function unpinChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdPin({
+          client,
+          path: { id },
+        }),
+      "Failed to unpin chat room",
+    );
+  }
+
+  async function markChatRoomUnread(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdUnread({
+          client,
+          path: { id },
+        }),
+      "Failed to mark chat room unread",
+    );
+  }
+
   async function getChatRoomMessages(
     id: string,
     query?: GetChatsRoomsByIdMessagesData["query"],
@@ -673,6 +723,35 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to update chat room message reaction",
+    );
+  }
+
+  async function deleteChatRoomMessage(id: string, messageId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMessagesByMessageId({
+          client,
+          path: { id, messageId },
+        }),
+      "Failed to delete chat room message",
+    );
+  }
+
+  async function updateChatRoomMessage(
+    id: string,
+    messageId: string,
+    body: NonNullable<PatchChatsRoomsByIdMessagesByMessageIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchChatsRoomsByIdMessagesByMessageId({
+          client,
+          path: { id, messageId },
+          body,
+        }),
+      "Failed to update chat room message",
     );
   }
 
@@ -2788,13 +2867,13 @@ export function createCoreClient(getClient: GetClient) {
    * organization-logo blob, returning its public URL (or null when no usable
    * icon was found). Core performs the SSRF-guarded fetch server-side.
    */
-  async function resolveSiteIcon(url: string) {
+  async function resolveSiteIcon(url: string, organizationId: string) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetToolsSiteIcon({
           client,
-          query: { url },
+          query: { url, organizationId },
           cache: "no-store",
         }),
       "Failed to resolve site icon",
@@ -3168,6 +3247,74 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function createOrganizationLogoUploadSession(
+    organizationId: string,
+    body: NonNullable<PostOrganizationsByIdFilesData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdFiles({
+          client,
+          path: { id: organizationId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create organization logo upload session",
+    );
+  }
+
+  async function cleanupOrganizationLogo(
+    organizationId: string,
+    body: NonNullable<PostOrganizationsByIdFilesCleanupData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdFilesCleanup({
+          client,
+          path: { id: organizationId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to cleanup organization logo",
+    );
+  }
+
+  async function createVendorLogoUploadSession(
+    vendorId: string,
+    body: NonNullable<PostVendorsByIdFilesData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostVendorsByIdFiles({
+          client,
+          path: { id: vendorId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create vendor logo upload session",
+    );
+  }
+
+  async function cleanupVendorLogo(
+    vendorId: string,
+    body: NonNullable<PostVendorsByIdFilesCleanupData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostVendorsByIdFilesCleanup({
+          client,
+          path: { id: vendorId },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to cleanup vendor logo",
+    );
+  }
+
   async function createTaskFileUploadSession(
     taskId: string,
     body: NonNullable<PostTasksByIdFilesData["body"]>,
@@ -3508,7 +3655,11 @@ export function createCoreClient(getClient: GetClient) {
     createChatRoom,
     createAgentJob,
     createChatRoomFileUploadSession,
+    cleanupOrganizationLogo,
+    cleanupVendorLogo,
     createMyFileUploadSession,
+    createOrganizationLogoUploadSession,
+    createVendorLogoUploadSession,
     createTask,
     createTaskFileUploadSession,
     createTaskLink,
@@ -3525,6 +3676,10 @@ export function createCoreClient(getClient: GetClient) {
     getChatRoomMessages,
     getChatRooms,
     markChatRoomRead,
+    pinChatRoom,
+    unpinChatRoom,
+    markChatRoomUnread,
+    deleteChatRoomMessage,
     toggleChatRoomMessageReaction,
     getHermesInstance,
     getHermesMessages,
@@ -3534,6 +3689,7 @@ export function createCoreClient(getClient: GetClient) {
     getNotifications,
     getNotificationsUnreadCount,
     updateChatRoom,
+    updateChatRoomMessage,
     patchNotificationRead,
     patchNotificationsReadAll,
     listHermesIntegrations,

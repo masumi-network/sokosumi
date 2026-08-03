@@ -38,6 +38,12 @@ export {
   isOwnedUserChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
 export {
+  buildQuoteSnippet,
+  buildRoomQuoteSnippetParts,
+  type ChatRoomQuoteAttachment,
+  type ChatRoomQuoteSnippetParts,
+} from "./chat-room-quote-snippet.js";
+export {
   CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
   CHAT_UI_NON_REASONING_PART_TYPES,
   isChatUiProviderReasoningPartType,
@@ -80,6 +86,12 @@ export {
   withPreservedDesignMdMetadata,
 } from "./design-md-metadata-guard.js";
 export {
+  buildOrganizationDesignMdPathname,
+  buildOrganizationDesignMdPrefix,
+  buildUserDesignMdPathname,
+  buildUserDesignMdPrefix,
+} from "./design-md-path.js";
+export {
   DESIGN_MD_BLOB_PATH_PREFIX,
   isDesignMdBlobUrl,
 } from "./design-md-url.js";
@@ -101,6 +113,10 @@ export {
   resolveIpfsOrHttpUrl,
   sanitizeOrganizationLogoForApi,
 } from "./ipfs-url.js";
+export {
+  buildJobBlobPathname,
+  buildJobBlobPrefix,
+} from "./job-blob-path.js";
 export {
   type AppLocale,
   DEFAULT_LOCALE,
@@ -173,6 +189,12 @@ export {
   type InviteLinkStatusFields,
 } from "./organization-invite-link.js";
 export {
+  buildOrganizationLogoContentHashPathname,
+  buildOrganizationLogoPathname,
+  buildOrganizationLogoPrefix,
+  isOwnedOrganizationLogoUrl,
+} from "./organization-logo-path.js";
+export {
   isOrganizationLogoAllowedContentType,
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
@@ -239,6 +261,12 @@ export {
   buildUserUploadPrefix,
   sanitizeUserUploadFilename,
 } from "./user-upload-path.js";
+export {
+  buildVendorLogoContentHashPathname,
+  buildVendorLogoPathname,
+  buildVendorLogoPrefix,
+  isOwnedVendorLogoUrl,
+} from "./vendor-logo-path.js";
 export {
   buildWebhookFailureContext,
   DEFAULT_WEBHOOK_TIMEOUT_MS,

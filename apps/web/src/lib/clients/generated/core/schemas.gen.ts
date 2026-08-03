@@ -4318,6 +4318,26 @@ export const ChatRoomSchema = {
             description: 'Messages sent by others after the current user\'s read marker.',
             example: 2
         },
+        unreadMentionCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.',
+            example: 1
+        },
+        pinnedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-08-02T12:00:00.000Z',
+            description: 'When the current user pinned this room in their sidebar. Null when unpinned.'
+        },
+        markedUnread: {
+            type: 'boolean',
+            description: 'True when the current user marked this room unread. Cleared on mark-read.',
+            example: false
+        },
         userMembers: {
             type: 'array',
             items: {
@@ -4343,6 +4363,9 @@ export const ChatRoomSchema = {
         'createdAt',
         'updatedAt',
         'unreadCount',
+        'unreadMentionCount',
+        'pinnedAt',
+        'markedUnread',
         'userMembers',
         'coworkerMembers'
     ]
@@ -4553,7 +4576,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'direct'
                     ],
-                    description: 'Creates or returns a 1:1 direct room (one organization member XOR one coworker) scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Group directs are not supported yet.'
+                    description: 'Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization.'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -4852,6 +4875,22 @@ export const ChatRoomMessageSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        deletedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        editedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         sender: {
             $ref: '#/components/schemas/ChatRoomMessageSender'
         },
@@ -4885,6 +4924,9 @@ export const ChatRoomMessageSchema = {
                 'null'
             ],
             additionalProperties: {}
+        },
+        quote: {
+            $ref: '#/components/schemas/ChatRoomMessageQuote'
         }
     },
     required: [
@@ -4893,12 +4935,15 @@ export const ChatRoomMessageSchema = {
         'parentMessageId',
         'content',
         'createdAt',
+        'deletedAt',
+        'editedAt',
         'sender',
         'mentions',
         'reactions',
         'threadReplyCount',
         'threadLastReplyAt',
-        'metadata'
+        'metadata',
+        'quote'
     ]
 } as const;
 
@@ -5013,12 +5058,105 @@ export const ChatRoomMessageReactionSchema = {
         reactedByCurrentUser: {
             type: 'boolean',
             example: true
+        },
+        reactors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageReactor'
+            },
+            maxItems: 20,
+            description: 'First reactors by createdAt ascending (capped). count may exceed reactors.length.',
+            example: [
+                {
+                    id: 'user_123',
+                    name: 'Jane Doe'
+                }
+            ]
         }
     },
     required: [
         'emoji',
         'count',
-        'reactedByCurrentUser'
+        'reactedByCurrentUser',
+        'reactors'
+    ]
+} as const;
+
+export const ChatRoomMessageReactorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const ChatRoomMessageQuoteSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        authorName: {
+            type: 'string',
+            example: 'Jane Doe'
+        },
+        snippet: {
+            type: 'string',
+            example: 'Can you summarize this launch risk?'
+        },
+        attachment: {
+            $ref: '#/components/schemas/ChatRoomMessageQuoteAttachment'
+        }
+    },
+    required: [
+        'messageId',
+        'authorName',
+        'snippet'
+    ]
+} as const;
+
+export const ChatRoomMessageQuoteAttachmentSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        fileName: {
+            type: 'string',
+            example: 'launch.png'
+        },
+        url: {
+            type: 'string',
+            example: 'https://blob.example/launch.png'
+        },
+        mediaKind: {
+            type: 'string',
+            enum: [
+                'image',
+                'file'
+            ],
+            example: 'image'
+        }
+    },
+    required: [
+        'fileName',
+        'url',
+        'mediaKind'
     ]
 } as const;
 
@@ -5057,6 +5195,42 @@ export const CreateChatRoomMessageRequestSchema = {
             format: 'uuid',
             description: 'Root message ID when posting a threaded reply.',
             example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        quote: {
+            type: 'object',
+            properties: {
+                messageId: {
+                    type: 'string',
+                    format: 'uuid',
+                    example: '550e8400-e29b-41d4-a716-446655440000'
+                }
+            },
+            required: [
+                'messageId'
+            ],
+            description: 'Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.'
+        },
+        clientMessageId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128,
+            description: 'Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).',
+            example: '019fbee7-676b-771f-ab7a-998f25f1f16b'
+        }
+    },
+    required: [
+        'content'
+    ]
+} as const;
+
+export const UpdateChatRoomMessageRequestSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000,
+            example: 'Fixed typo in the launch summary'
         }
     },
     required: [
@@ -9173,6 +9347,148 @@ export const UpdateOrganizationSubscriptionSeatsSchema = {
     ]
 } as const;
 
+export const OrganizationLogoCleanupResultSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
+export const OrganizationLogoCleanupRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://abc.public.blob.vercel-storage.com/organizations/org_123/logos/logo.png',
+            description: 'Public blob URL of a prior organization logo to delete if owned'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
+export const OrganizationLogoUploadSessionSchema = {
+    type: 'object',
+    properties: {
+        uploadUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/users/user_123/report.pdf?vercel-blob-delegation=…',
+            description: 'Presigned Blob PUT URL (time-scoped, path-scoped)'
+        },
+        pathname: {
+            type: 'string',
+            example: 'users/user_123/report.pdf',
+            description: 'Server-generated upload pathname (before random suffix)'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public',
+            description: 'Blob access level for the upload'
+        },
+        method: {
+            type: 'string',
+            enum: [
+                'PUT'
+            ],
+            example: 'PUT',
+            description: 'HTTP method for the client upload request'
+        },
+        headers: {
+            type: 'object',
+            properties: {
+                'Content-Type': {
+                    type: 'string',
+                    example: 'application/pdf'
+                }
+            },
+            required: [
+                'Content-Type'
+            ],
+            description: 'Headers the client must send on the PUT'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-07-30T12:15:00.000Z',
+            description: 'When the presigned upload URL expires (ISO-8601)'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 104857600,
+            description: 'Maximum supported file size for this upload policy'
+        },
+        addRandomSuffix: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether Blob appends a random suffix to the final pathname'
+        }
+    },
+    required: [
+        'uploadUrl',
+        'pathname',
+        'access',
+        'method',
+        'headers',
+        'expiresAt',
+        'maxSizeBytes',
+        'addRandomSuffix'
+    ]
+} as const;
+
+export const CreateOrganizationLogoUploadRequestSchema = {
+    type: 'object',
+    properties: {
+        filename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            example: 'logo.png',
+            description: 'Original file name supplied by the client'
+        },
+        contentType: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'image/png',
+            description: 'Declared logo MIME type from the client'
+        },
+        size: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            maximum: 2097152,
+            example: 48000,
+            description: 'File size in bytes'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            maximum: 2097152,
+            example: 2097152,
+            description: 'Optional per-upload size ceiling in bytes. Must not exceed the organization logo maximum.'
+        }
+    },
+    required: [
+        'filename',
+        'contentType',
+        'size'
+    ]
+} as const;
+
 export const ResolveOrganizationInviteLinkSchema = {
     type: 'object',
     properties: {
@@ -10361,7 +10677,8 @@ export const NotificationKindSchema = {
         'JOB',
         'TASK',
         'BILLING',
-        'SYSTEM'
+        'SYSTEM',
+        'CHAT'
     ],
     description: 'Notification source domain',
     example: 'JOB'
@@ -12402,6 +12719,148 @@ export const AssignCoworkerRequestSchema = {
             example: 'dev@example.com'
         }
     }
+} as const;
+
+export const VendorLogoCleanupResultSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean',
+            enum: [
+                true
+            ]
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
+export const VendorLogoCleanupRequestSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://abc.public.blob.vercel-storage.com/vendors/vendor_123/logos/logo.png',
+            description: 'Public blob URL of a prior vendor logo to delete if owned'
+        }
+    },
+    required: [
+        'url'
+    ]
+} as const;
+
+export const VendorLogoUploadSessionSchema = {
+    type: 'object',
+    properties: {
+        uploadUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/users/user_123/report.pdf?vercel-blob-delegation=…',
+            description: 'Presigned Blob PUT URL (time-scoped, path-scoped)'
+        },
+        pathname: {
+            type: 'string',
+            example: 'users/user_123/report.pdf',
+            description: 'Server-generated upload pathname (before random suffix)'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public',
+            description: 'Blob access level for the upload'
+        },
+        method: {
+            type: 'string',
+            enum: [
+                'PUT'
+            ],
+            example: 'PUT',
+            description: 'HTTP method for the client upload request'
+        },
+        headers: {
+            type: 'object',
+            properties: {
+                'Content-Type': {
+                    type: 'string',
+                    example: 'application/pdf'
+                }
+            },
+            required: [
+                'Content-Type'
+            ],
+            description: 'Headers the client must send on the PUT'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-07-30T12:15:00.000Z',
+            description: 'When the presigned upload URL expires (ISO-8601)'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 104857600,
+            description: 'Maximum supported file size for this upload policy'
+        },
+        addRandomSuffix: {
+            type: 'boolean',
+            example: true,
+            description: 'Whether Blob appends a random suffix to the final pathname'
+        }
+    },
+    required: [
+        'uploadUrl',
+        'pathname',
+        'access',
+        'method',
+        'headers',
+        'expiresAt',
+        'maxSizeBytes',
+        'addRandomSuffix'
+    ]
+} as const;
+
+export const CreateVendorLogoUploadRequestSchema = {
+    type: 'object',
+    properties: {
+        filename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 512,
+            example: 'logo.png',
+            description: 'Original file name supplied by the client'
+        },
+        contentType: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'image/png',
+            description: 'Declared logo MIME type from the client'
+        },
+        size: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            maximum: 2097152,
+            example: 48000,
+            description: 'File size in bytes'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            maximum: 2097152,
+            example: 2097152,
+            description: 'Optional per-upload size ceiling in bytes. Must not exceed the organization logo maximum.'
+        }
+    },
+    required: [
+        'filename',
+        'contentType',
+        'size'
+    ]
 } as const;
 
 export const EffectiveDesignMdSchema = {

@@ -104,6 +104,21 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function pinRoom(id: string): Promise<ChatRoom> {
+    const response = await coreClient.pinChatRoom(id);
+    return response.data;
+  }
+
+  async function unpinRoom(id: string): Promise<ChatRoom> {
+    const response = await coreClient.unpinChatRoom(id);
+    return response.data;
+  }
+
+  async function markUnread(id: string): Promise<ChatRoom> {
+    const response = await coreClient.markChatRoomUnread(id);
+    return response.data;
+  }
+
   const listMessages = cache(async function listMessages(
     roomId: string,
     options?: { cursor?: string; limit?: number },
@@ -155,9 +170,30 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function deleteMessage(
+    roomId: string,
+    messageId: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.deleteChatRoomMessage(roomId, messageId);
+    return response.data;
+  }
+
+  async function editMessage(
+    roomId: string,
+    messageId: string,
+    content: string,
+  ): Promise<ChatRoomMessage> {
+    const response = await coreClient.updateChatRoomMessage(roomId, messageId, {
+      content,
+    });
+    return response.data;
+  }
+
   return {
     archiveRoom,
     createRoom,
+    deleteMessage,
+    editMessage,
     getRoom,
     listArchivedRooms,
     listMessages,
@@ -165,7 +201,10 @@ export const chatRoomService = (() => {
     listThreadMessages,
     leaveRoom,
     markRead,
+    markUnread,
+    pinRoom,
     restoreRoom,
+    unpinRoom,
     sendMessage,
     toggleReaction,
     updateRoom,

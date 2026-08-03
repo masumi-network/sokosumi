@@ -142,6 +142,37 @@ function run_dev_web() {
   run_dev web
 }
 
+function cookie_domain_trap() {
+  # Fail doctor when Core local .env scopes cookies to a production host.
+  # Matches assigned values only; comments and empty assignments are OK.
+  local env_file="$REPO_ROOT/apps/core/.env"
+  if [[ ! -f "$env_file" ]]; then
+    echo "cookie_domain=unset (no apps/core/.env)"
+    return 0
+  fi
+  local line value
+  line="$(
+    grep -E '^[[:space:]]*BETTER_AUTH_COOKIE_DOMAIN=' "$env_file" | tail -n 1 || true
+  )"
+  if [[ -z "$line" ]]; then
+    echo "cookie_domain=unset"
+    return 0
+  fi
+  value="${line#*=}"
+  value="${value%\"}"
+  value="${value#\"}"
+  value="${value%\'}"
+  value="${value#\'}"
+  value="$(echo "$value" | tr -d '[:space:]')"
+  if [[ -z "$value" ]]; then
+    echo "cookie_domain=empty"
+    return 0
+  fi
+  echo "cookie_domain=$value"
+  echo "doctor fail: BETTER_AUTH_COOKIE_DOMAIN=$value breaks localhost sessions — comment it out in apps/core/.env and restart Core"
+  return 1
+}
+
 function doctor() {
   local ok=1
   local core_code web_code
@@ -158,6 +189,10 @@ function doctor() {
   fi
   if [[ ! "$web_code" =~ ^[23] ]]; then
     echo "doctor fail: Web /signin not healthy"
+    ok=0
+  fi
+
+  if ! cookie_domain_trap; then
     ok=0
   fi
 

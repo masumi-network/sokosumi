@@ -1,0 +1,56 @@
+import {
+  createDirectRoomAction,
+  ensureCoworkerDirectRoomAction,
+} from "@/app/chat/actions";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+
+import type { ChatParticipantHoverProfile } from "./room-helpers";
+
+export function participantDirectKey(
+  profile: ChatParticipantHoverProfile,
+): `${"human" | "coworker"}:${string}` {
+  return `${profile.kind}:${profile.id}`;
+}
+
+export function canShowOpenDirect(options: {
+  profile: ChatParticipantHoverProfile;
+  currentUserId: string | undefined;
+  canOpenHumanDirect: boolean;
+  onOpenDirect?: (profile: ChatParticipantHoverProfile) => void;
+}): boolean {
+  const { profile, currentUserId, canOpenHumanDirect, onOpenDirect } = options;
+  if (!onOpenDirect) return false;
+  if (profile.kind === "human") {
+    if (!canOpenHumanDirect) return false;
+    if (currentUserId && profile.id === currentUserId) return false;
+  }
+  return true;
+}
+
+export async function openDirectWithParticipant(options: {
+  profile: ChatParticipantHoverProfile;
+  selectedRoomId: string | null | undefined;
+  router: { push: (href: string) => void };
+  onError: (message: string) => void;
+}): Promise<{ ok: true; roomId: string } | { ok: false }> {
+  const { profile, selectedRoomId, router, onError } = options;
+  const result =
+    profile.kind === "coworker"
+      ? await ensureCoworkerDirectRoomAction(profile.id)
+      : await createDirectRoomAction({ memberUserId: profile.id });
+
+  if (!result.ok) {
+    onError(result.message);
+    return { ok: false };
+  }
+  if (!result.data) {
+    onError("Could not start direct message.");
+    return { ok: false };
+  }
+
+  notifyOrganizationChatRoomsChanged(result.data);
+  if (result.data.id !== selectedRoomId) {
+    router.push(`/chat/rooms/${result.data.id}`);
+  }
+  return { ok: true, roomId: result.data.id };
+}

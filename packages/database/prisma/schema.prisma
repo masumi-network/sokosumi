@@ -365,6 +365,7 @@ enum NotificationKind {
   TASK
   BILLING
   SYSTEM
+  CHAT
 }
 
 model Notification {
@@ -1812,10 +1813,13 @@ model ChatRoomUserMember {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
+  /// Null = unpinned. Set to now when the user pins the room in their sidebar.
+  pinnedAt  DateTime?
+  createdAt DateTime  @default(now())
 
   @@unique([roomId, userId])
   @@index([userId])
+  @@index([userId, pinnedAt])
   @@map("chat_room_user_member")
 }
 
@@ -1850,7 +1854,9 @@ model ChatRoomMessage {
 
   content   String
   metadata  Json?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  editedAt  DateTime?
 
   /// AI SDK / client message id for user stream-turn idempotency.
   /// Also mirrored in metadata.client_message_id for transcript consumers.
@@ -1872,6 +1878,7 @@ model ChatRoomMessage {
   @@index([parentMessageId, createdAt])
   @@index([senderUserId])
   @@index([senderCoworkerId])
+  @@index([deletedAt])
   @@map("chat_room_message")
 }
 
@@ -1901,8 +1908,10 @@ model ChatRoomReadState {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   lastReadAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  /// Null = not forced-unread. Cleared whenever mark-read runs.
+  markedUnreadAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([roomId, userId])
   @@index([userId])

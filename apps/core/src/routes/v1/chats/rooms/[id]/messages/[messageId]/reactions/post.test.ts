@@ -15,6 +15,7 @@ const {
   deleteManyMock,
   createManyMock,
   messageFindUniqueOrThrowMock,
+  messageFindFirstMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -24,6 +25,7 @@ const {
   deleteManyMock: vi.fn(),
   createManyMock: vi.fn(),
   messageFindUniqueOrThrowMock: vi.fn(),
+  messageFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -54,6 +56,7 @@ const tx = {
   },
   chatRoomMessage: {
     findUniqueOrThrow: messageFindUniqueOrThrowMock,
+    findFirst: messageFindFirstMock,
   },
 };
 
@@ -85,6 +88,8 @@ const mappedMessage = {
   parentMessageId: null,
   content: "hello",
   createdAt: new Date("2026-07-01T12:00:00.000Z"),
+  deletedAt: null,
+  editedAt: null,
   senderUserId: USER_ID,
   senderCoworkerId: null,
   metadata: null,
@@ -123,6 +128,7 @@ describe("POST /chat-rooms/:id/messages/:messageId/reactions", () => {
       role: "member",
     });
     queryRawMock.mockResolvedValue([{ id: MESSAGE_ID }]);
+    messageFindFirstMock.mockResolvedValue({ deletedAt: null });
     deleteManyMock.mockResolvedValue({ count: 0 });
     createManyMock.mockResolvedValue({ count: 1 });
     messageFindUniqueOrThrowMock.mockResolvedValue(mappedMessage);
@@ -201,5 +207,47 @@ describe("POST /chat-rooms/:id/messages/:messageId/reactions", () => {
 
     expect(response.status).toBe(404);
     expect(deleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns reactors with id and name after toggling on", async () => {
+    messageFindUniqueOrThrowMock.mockResolvedValue({
+      ...mappedMessage,
+      reactions: [
+        {
+          emoji: "👍",
+          userId: USER_ID,
+          user: { id: USER_ID, name: "Ada" },
+        },
+        {
+          emoji: "👍",
+          userId: "user_456",
+          user: { id: "user_456", name: "Bob" },
+        },
+      ],
+    });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(
+      `/${ROOM_ID}/messages/${MESSAGE_ID}/reactions`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji: "👍" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.reactions).toEqual([
+      {
+        emoji: "👍",
+        count: 2,
+        reactedByCurrentUser: true,
+        reactors: [
+          { id: USER_ID, name: "Ada" },
+          { id: "user_456", name: "Bob" },
+        ],
+      },
+    ]);
   });
 });

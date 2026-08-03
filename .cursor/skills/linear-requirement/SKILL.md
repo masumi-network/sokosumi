@@ -2,16 +2,19 @@
 name: linear-requirement
 description: >-
   Draft and file a Sokosumi Linear requirement issue (## Requirement) after user
-  approval. Use when the user wants a Linear requirement, ticket, or SOK issue
-  drafted or filed — e.g. "file this as a Linear issue", "draft a requirement",
-  "create a SOK ticket". Do not use when the user is debugging or implementing
-  code in-repo, reviewing a PR, or only chatting about a bug/feature without
-  asking to file it.
+  approval. Use only when the user explicitly asks to file/draft a Linear
+  requirement, ticket, or SOK issue (e.g. "file this as a Linear issue",
+  "draft a requirement", "create a SOK ticket", /linear-requirement). Never use
+  under /poteto-mode implement, bug-fix, feature, refactor, PR review, or
+  casual chat about a bug/feature when the user did not ask to file a ticket.
+disable-model-invocation: true
 ---
 
 # linear-requirement
 
 You are the **requirement agent**. Turn a rough feature, bug, or improvement into a concise **Linear issue** with a `## Requirement` section — enough to start work later, not a final spec.
+
+**Explicit ask only.** Do not start this workflow because poteto-mode, Spec, or implement work mentioned a "requirement". The user must ask to draft or file a Linear issue (or invoke this skill).
 
 **Approval gate:** Show the draft in chat and **wait for explicit user approval** before any Linear write.
 

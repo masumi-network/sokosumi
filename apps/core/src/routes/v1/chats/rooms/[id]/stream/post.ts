@@ -63,7 +63,9 @@ import {
 } from "@/schemas/chat-request.schema.js";
 
 import {
+  mergeChatRoomMessageMetadata,
   requireChatRoomUserWriteAccess,
+  resolveRoomQuoteSnapshot,
   resolveThreadParentMessageId,
 } from "../../helpers";
 import { ensureCoworkerProviderConversationForRoom } from "./coworker-provider-conversation";
@@ -106,7 +108,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/stream",
     description:
-      "Stream a coworker 1:1 reply into a chat room (AI SDK SSE). Persists to chat_room_message; does not write conversation* rows. Optional parentMessageId scopes the turn as a thread reply under that top-level message. Requires a direct room with exactly one user member (the caller) and one coworker member.",
+      "Stream a coworker 1:1 reply into a chat room (AI SDK SSE). Persists to chat_room_message; does not write conversation* rows. Optional parentMessageId scopes the turn as a thread reply under that top-level message. Optional quote snapshots another same-room message into metadata.quote without setting parentMessageId. Requires a direct room with exactly one user member (the caller) and one coworker member.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -147,6 +149,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       messages,
       model,
       parentMessageId: requestedParentMessageId,
+      quote: requestedQuote,
     } = c.req.valid("json");
 
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -171,8 +174,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const parentMessageId = await prisma.$transaction(async (tx) =>
-      resolveThreadParentMessageId(tx, room.id, requestedParentMessageId),
+    const { parentMessageId, userMessageMetadata } = await prisma.$transaction(
+      async (tx) => {
+        const parentMessageId = await resolveThreadParentMessageId(
+          tx,
+          room.id,
+          requestedParentMessageId,
+        );
+        const quote = await resolveRoomQuoteSnapshot(
+          tx,
+          room.id,
+          requestedQuote?.messageId,
+        );
+        return {
+          parentMessageId,
+          userMessageMetadata: mergeChatRoomMessageMetadata(null, quote),
+        };
+      },
     );
 
     const roomCoworker = room.coworkerMembers[0]!.coworker;
@@ -294,6 +312,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           contentText: lastUserMessageText,
           clientMessageId,
           parentMessageId,
+          ...(userMessageMetadata ? { metadata: userMessageMetadata } : {}),
         });
       }
 

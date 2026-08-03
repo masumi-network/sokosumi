@@ -28,7 +28,9 @@ import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
   chatRoomInclude,
   getChatRoomLastMessageAts,
+  getChatRoomSidebarFlags,
   getChatRoomUnreadCounts,
+  getChatRoomUnreadMentionCounts,
   mapChatRoom,
 } from "./helpers";
 
@@ -171,10 +173,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const hasMore = rows.length === takePlusOne;
     const rooms = rows.slice(0, take);
     const roomIds = rooms.map((room) => room.id);
-    const [unreadCounts, lastMessageAts] = await Promise.all([
-      getChatRoomUnreadCounts(roomIds, userContext.userId, prisma),
-      getChatRoomLastMessageAts(roomIds, prisma),
-    ]);
+    const [unreadCounts, unreadMentionCounts, lastMessageAts, sidebarFlags] =
+      await Promise.all([
+        getChatRoomUnreadCounts(roomIds, userContext.userId, prisma),
+        getChatRoomUnreadMentionCounts(roomIds, userContext.userId, prisma),
+        getChatRoomLastMessageAts(roomIds, prisma),
+        getChatRoomSidebarFlags(roomIds, userContext.userId, prisma),
+      ]);
 
     // Keep DB cursor order (`updatedAt` desc). Stream/message writes bump
     // room.updatedAt; do not re-sort by lastMessageAts after `take` — that
@@ -189,18 +194,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(
       c,
-      z
-        .array(chatRoomSchema)
-        .parse(
-          rooms.map((room) =>
-            mapChatRoom(
-              room,
-              userContext.userId,
-              unreadCounts.get(room.id) ?? 0,
-              lastMessageAts.get(room.id) ?? room.updatedAt,
-            ),
-          ),
-        ),
+      z.array(chatRoomSchema).parse(
+        rooms.map((room) => {
+          const flags = sidebarFlags.get(room.id);
+          return mapChatRoom(room, userContext.userId, {
+            unreadCount: unreadCounts.get(room.id) ?? 0,
+            unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
+            lastActivityAt: lastMessageAts.get(room.id) ?? room.updatedAt,
+            pinnedAt: flags?.pinnedAt ?? null,
+            markedUnread: flags?.markedUnread ?? false,
+          });
+        }),
+      ),
       paginationMeta,
     );
   });

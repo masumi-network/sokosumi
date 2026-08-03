@@ -26,6 +26,22 @@
       "description": "現在、外部プロバイダーの技術的な問題によりジョブの実行に不具合が発生しています。ご安心ください。まもなく通常どおりご利用いただけます。",
       "confirm": "OK"
     },
+    "EmojiPicker": {
+      "searchPlaceholder": "すべての絵文字を検索",
+      "frequentlyUsed": "よく使う絵文字",
+      "noResults": "絵文字が見つかりません",
+      "categories": {
+        "smileysEmotion": "笑顔と感情",
+        "peopleBody": "人と体",
+        "animalsNature": "動物と自然",
+        "foodDrink": "食べ物と飲み物",
+        "travelPlaces": "旅行と場所",
+        "activities": "アクティビティ",
+        "objects": "物",
+        "symbols": "記号",
+        "flags": "旗"
+      }
+    },
     "ShareButton": {
       "linkCopied": "リンクをクリップボードにコピーしました",
       "copyError": "リンクのコピーに失敗しました"
@@ -762,6 +778,19 @@
       "placeholder": "組織を選択",
       "search": "組織を検索…",
       "empty": "組織が見つかりません。"
+    },
+    "ImageViewer": {
+      "title": "画像",
+      "viewImage": "画像を表示 {fileName}",
+      "download": "画像をダウンロード",
+      "close": "閉じる",
+      "print": "印刷",
+      "zoomIn": "拡大",
+      "zoomOut": "縮小",
+      "zoomReset": "ズームをリセット",
+      "more": "その他のオプション",
+      "openInNewTab": "新しいタブで開く",
+      "copyImage": "画像をコピー"
     }
   },
   "Join": {
@@ -4005,6 +4034,23 @@
         "clientSecretPlaceholder": "OAuthクライアントシークレットを入力してください",
         "clientSecretHelp": "機密クライアントにはクライアントシークレットが必要です。公開クライアントの場合は空欄のままにしてください。"
       },
+      "ProfileImage": {
+        "title": "プロフィール画像",
+        "description": "アカウントで使うアバターをアップロードまたは削除します。",
+        "imageDescription": "{maxSize} までの画像をアップロードできます。削除すると Gravatar に戻ります。",
+        "imageUpload": "アップロード",
+        "imageReplace": "差し替え",
+        "imageRemove": "画像を削除",
+        "imagePreviewAlt": "プロフィール画像のプレビュー",
+        "imageUploadSuccess": "プロフィール画像を更新しました",
+        "imageUploadError": "プロフィール画像のアップロードに失敗しました",
+        "imageSaveError": "プロフィール画像の保存に失敗しました",
+        "imageRemoveSuccess": "プロフィール画像を削除しました",
+        "imageRemoveError": "プロフィール画像の削除に失敗しました",
+        "fileTooLarge": "ファイルが大きすぎます",
+        "fileTypeNotAccepted": "このファイル形式は受け付けられません",
+        "maxFilesExceeded": "一度にアップロードできる画像は1枚です"
+      },
       "BrandProfile": {
         "title": "ブランドプロフィール",
         "description": "個人用 DESIGN.md の作成に使うブランド情報を設定します。",
@@ -4512,6 +4558,7 @@
     },
     "Channels": {
       "Actions": {
+        "more": "メッセージ操作",
         "sectionTitle": "チャンネルの管理",
         "leave": "チャンネルから退出",
         "archive": "チャンネルをアーカイブ",
@@ -4525,10 +4572,15 @@
         "archiveConfirm": "アーカイブする",
         "archiveSuccess": "{name} をアーカイブしました。",
         "restore": "復元",
-        "restoreSuccess": "{name} を復元しました。"
+        "restoreSuccess": "{name} を復元しました。",
+        "markUnread": "未読にする",
+        "pin": "ピン留め",
+        "unpin": "ピン留めを解除",
+        "roomMenu": "{name} のチャット操作",
+        "actionFailed": "このチャットを更新できませんでした。もう一度お試しください。"
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "チャット",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4537,6 +4589,8 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "humanBadge": "人間",
+      "openDirectMessage": "メッセージ",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
@@ -4601,26 +4655,42 @@
         "removeRecipient": "Remove {name}",
         "composerPlaceholder": "Write the first message",
         "composerPlaceholderNoRecipients": "宛先を追加して開始",
-        "oneToOneOnlyError": "ダイレクトメッセージは1対1です。メンバーまたはコワーカーを1人選んでください。",
-        "searchPlaceholderReplace": "宛先を差し替え"
+        "searchPlaceholderReplace": "宛先を差し替え",
+        "groupDirectHumansOnly": "グループのダイレクトメッセージは人間のみです。",
+        "groupDirectNoCoworkersError": "グループのダイレクトメッセージにコワーカーは含められません。",
+        "coworkerDirectOneToOneOnly": "コワーカーとのダイレクトメッセージは1対1です。"
       },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
+        "dropToAttach": "ファイルをドロップして添付",
         "emoji": "Emoji",
-        "format": "Formatting",
-        "bold": "Bold",
+        "format": "書式設定",
+        "bold": "太字",
+        "italic": "斜体",
+        "underline": "下線",
+        "strikethrough": "取り消し線",
+        "code": "コード",
+        "codeBlock": "コードブロック",
+        "quote": "引用",
+        "bulletList": "箇条書き",
+        "numberedList": "番号付きリスト",
+        "link": "リンク",
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "{fileName} をアップロード中",
         "uploadingFiles": "{count} 件のファイルをアップロード中",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
-        "attachmentFallback": "file"
+        "attachmentFallback": "file",
+        "showFormatting": "書式設定を表示",
+        "hideFormatting": "書式設定を非表示"
       },
       "Reactions": {
         "add": "Add reaction",
-        "toggle": "React with {emoji}"
+        "toggle": "React with {emoji}",
+        "whoReacted": "{names}{more, plural, =0 {} other {、他#人}}",
+        "andMore": "他{count}人"
       },
       "Presence": {
         "online": "Online",
@@ -4639,7 +4709,42 @@
       "loadOlder": "以前のメッセージを読み込む",
       "loadingOlder": "以前のメッセージを読み込み中…",
       "roomUnavailable": "このチャットは利用できないか、アクセス権がありません。",
-      "archivedChannels": "アーカイブ"
+      "archivedChannels": "アーカイブ",
+      "AddLink": {
+        "title": "リンクを追加",
+        "text": "テキスト",
+        "textPlaceholder": "表示テキスト",
+        "link": "リンク",
+        "linkPlaceholder": "https://",
+        "cancel": "キャンセル",
+        "save": "保存"
+      },
+      "Quote": {
+        "action": "引用",
+        "dismiss": "引用を削除",
+        "previewLabel": "{author} を引用中",
+        "jump": "{author} のメッセージへ移動",
+        "showMore": "続きを表示",
+        "showLess": "折りたたむ"
+      },
+      "Message": {
+        "delete": "削除",
+        "deleteConfirm": "このメッセージを削除しますか？他の人には削除されたことが表示されます。",
+        "deleted": "このメッセージは削除されました"
+      },
+      "MentionAll": {
+        "label": "全員"
+      },
+      "MentionSections": {
+        "people": "メンバー",
+        "coworkers": "コワーカー"
+      },
+      "Edit": {
+        "action": "編集",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "edited": "編集済み"
+      }
     }
   },
   "Share": {
@@ -4860,6 +4965,9 @@
         "completed": "{coworkerName}が{taskName}を完了しました",
         "failed": "{coworkerName}は{taskName}を完了できませんでした",
         "canceled": "{taskName}はキャンセルされました"
+      },
+      "Chat": {
+        "mentioned": "{authorName}が{roomName}であなたにメンションしました"
       }
     }
   },

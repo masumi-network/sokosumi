@@ -15,6 +15,13 @@ export interface NormalizedMention<TData = unknown> {
   data?: TData;
 }
 
+/** Optional sectioned mention picker groups (e.g. People / Coworkers). */
+export interface MentionSuggestionGroup<TData = unknown> {
+  id: string;
+  label: string;
+  items: NormalizedMention<TData>[];
+}
+
 export interface TriggerPosition {
   top: number;
   left: number;
@@ -377,6 +384,38 @@ export function getActiveTrigger(
   return { query, triggerStart: tokenStart };
 }
 
+const EMOJI_SHORTCODE_QUERY_PATTERN = /^[a-z0-9_+-]*$/i;
+
+export const EMOJI_SHORTCODE_MIN_QUERY_LENGTH = 2;
+
+/**
+ * Detect in-progress emoji shortcode at caret.
+ * Token is start/whitespace-delimited, leading `:`, query = [a-z0-9_+-]*.
+ * Does not share logic with getActiveTrigger (mentions keep rejecting `:`).
+ */
+export function getActiveEmojiTrigger(
+  text: string,
+  caret: number,
+): { query: string; triggerStart: number } | null {
+  const clampedCaret = Math.max(0, Math.min(caret, text.length));
+  if (clampedCaret === 0) return null;
+
+  let tokenStart = clampedCaret;
+  while (tokenStart > 0 && !isWhitespaceChar(text[tokenStart - 1] ?? "")) {
+    tokenStart -= 1;
+  }
+
+  if (tokenStart === clampedCaret) return null;
+  if (text[tokenStart] !== ":") return null;
+
+  const query = text.slice(tokenStart + 1, clampedCaret);
+  if (query.includes("@") || query.includes(":")) return null;
+  if (!EMOJI_SHORTCODE_QUERY_PATTERN.test(query)) return null;
+  if (query.length < EMOJI_SHORTCODE_MIN_QUERY_LENGTH) return null;
+
+  return { query: query.toLowerCase(), triggerStart: tokenStart };
+}
+
 export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
   // Measure against the visual viewport so an open virtual keyboard counts as
   // unavailable space. `interactiveWidget: "resizes-content"` shrinks the
@@ -392,10 +431,11 @@ export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
   const viewportWidth = visual ? visual.width : window.innerWidth;
   const belowSpace = viewportBottom - rect.bottom - VIEWPORT_PADDING_PX;
   const aboveSpace = rect.top - viewportTop - VIEWPORT_PADDING_PX;
+  // Prefer above when the preferred popup height cannot fit below and there is
+  // more room above (bottom composers). Cap used to be min(240, 96), which kept
+  // lists growing into a thin strip under the caret with little scroll room.
   const side =
-    belowSpace < Math.min(POPUP_HEIGHT_PX, 96) && aboveSpace > belowSpace
-      ? "top"
-      : "bottom";
+    belowSpace < POPUP_HEIGHT_PX && aboveSpace > belowSpace ? "top" : "bottom";
   const maxHeight = Math.min(
     POPUP_HEIGHT_PX,
     Math.max(80, side === "top" ? aboveSpace - 4 : belowSpace - 4),

@@ -2,7 +2,7 @@
 description: Locale-safe number and date formatting in client components (hydration)
 globs:
   - "*.tsx"
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Locale-safe formatting (next-intl)

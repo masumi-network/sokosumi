@@ -1,11 +1,16 @@
-import { MemberRole, type Prisma } from "@sokosumi/database";
+import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
 import {
+  buildRoomQuoteSnippetParts,
   CHAT_PRESENCE_AFK_WINDOW_MS,
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "@sokosumi/utils";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import {
+  type ChatRoomMessageQuote,
+  MAX_LISTED_CHAT_REACTION_REACTORS,
+} from "@/schemas/chat-room.schema";
 
 export const chatRoomUserSelect = {
   id: true,
@@ -63,6 +68,7 @@ export const chatRoomMessageInclude = {
     select: {
       emoji: true,
       userId: true,
+      user: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "asc" },
   },
@@ -153,6 +159,36 @@ export async function getChatRoomUnreadCounts(
   return new Map(rows.map((row) => [row.roomId, Number(row.unreadCount)]));
 }
 
+/**
+ * Per-room count of unread CHAT notifications for the user.
+ * `referenceId` is the room id (see emitChatMentionNotifications).
+ */
+export async function getChatRoomUnreadMentionCounts(
+  roomIds: readonly string[],
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, number>> {
+  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
+  if (uniqueRoomIds.length === 0) {
+    return new Map();
+  }
+
+  const groups = await tx.notification.groupBy({
+    by: ["referenceId"],
+    where: {
+      userId,
+      kind: NotificationKind.CHAT,
+      isRead: false,
+      referenceId: { in: uniqueRoomIds },
+    },
+    _count: { _all: true },
+  });
+
+  return new Map(
+    groups.map((group) => [group.referenceId, group._count._all] as const),
+  );
+}
+
 /** Latest message time per room — used to order the sidebar by real activity. */
 export async function getChatRoomLastMessageAts(
   roomIds: readonly string[],
@@ -178,13 +214,28 @@ export async function getChatRoomLastMessageAts(
   );
 }
 
+export interface MapChatRoomAttentionOptions {
+  unreadCount?: number;
+  unreadMentionCount?: number;
+  /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
+  lastActivityAt?: Date | null;
+  pinnedAt?: Date | null;
+  markedUnread?: boolean;
+}
+
 export function mapChatRoom(
   room: ChatRoomWithMembers,
   currentUserId?: string,
-  unreadCount = 0,
-  /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
-  lastActivityAt?: Date | null,
+  attention: MapChatRoomAttentionOptions = {},
 ) {
+  const {
+    unreadCount = 0,
+    unreadMentionCount = 0,
+    lastActivityAt,
+    pinnedAt = null,
+    markedUnread = false,
+  } = attention;
+
   return {
     id: room.id,
     organizationId: room.organizationId,
@@ -197,6 +248,9 @@ export function mapChatRoom(
     createdAt: room.createdAt,
     updatedAt: lastActivityAt ?? room.updatedAt,
     unreadCount,
+    unreadMentionCount,
+    pinnedAt,
+    markedUnread,
     userMembers: room.userMembers.map(({ user }) => ({
       id: user.id,
       name: user.name,
@@ -213,6 +267,69 @@ export function mapChatRoom(
       presence: "online" as const,
     })),
   };
+}
+
+export interface ChatRoomSidebarFlags {
+  pinnedAt: Date | null;
+  markedUnread: boolean;
+}
+
+/** Batch-load per-user pin + forced-unread flags for sidebar mapping. */
+export async function getChatRoomSidebarFlags(
+  roomIds: readonly string[],
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, ChatRoomSidebarFlags>> {
+  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
+  if (uniqueRoomIds.length === 0) {
+    return new Map();
+  }
+
+  const [memberships, readStates] = await Promise.all([
+    tx.chatRoomUserMember.findMany({
+      where: {
+        userId,
+        roomId: { in: uniqueRoomIds },
+      },
+      select: {
+        roomId: true,
+        pinnedAt: true,
+      },
+    }),
+    tx.chatRoomReadState.findMany({
+      where: {
+        userId,
+        roomId: { in: uniqueRoomIds },
+      },
+      select: {
+        roomId: true,
+        markedUnreadAt: true,
+      },
+    }),
+  ]);
+
+  const flagged = new Map<string, ChatRoomSidebarFlags>(
+    uniqueRoomIds.map((roomId) => [
+      roomId,
+      { pinnedAt: null, markedUnread: false },
+    ]),
+  );
+
+  for (const membership of memberships) {
+    const current = flagged.get(membership.roomId);
+    if (current) {
+      current.pinnedAt = membership.pinnedAt;
+    }
+  }
+
+  for (const readState of readStates) {
+    const current = flagged.get(readState.roomId);
+    if (current) {
+      current.markedUnread = readState.markedUnreadAt != null;
+    }
+  }
+
+  return flagged;
 }
 
 export function mapChatRoomMessage(
@@ -252,42 +369,173 @@ export function mapChatRoomMessage(
 
   const reactionCounts = new Map<
     string,
-    { count: number; reactedByCurrentUser: boolean }
+    {
+      count: number;
+      reactedByCurrentUser: boolean;
+      reactors: Array<{ id: string; name: string }>;
+    }
   >();
   for (const reaction of message.reactions) {
     const current = reactionCounts.get(reaction.emoji) ?? {
       count: 0,
       reactedByCurrentUser: false,
+      reactors: [],
     };
     current.count += 1;
     current.reactedByCurrentUser =
       current.reactedByCurrentUser || reaction.userId === currentUserId;
+    if (current.reactors.length < MAX_LISTED_CHAT_REACTION_REACTORS) {
+      current.reactors.push({
+        id: reaction.user.id,
+        name: reaction.user.name,
+      });
+    }
     reactionCounts.set(reaction.emoji, current);
   }
+
+  const metadata = (message.metadata as Record<string, unknown> | null) ?? null;
+  const isDeleted = message.deletedAt != null;
 
   return {
     id: message.id,
     roomId: message.roomId,
     parentMessageId: message.parentMessageId,
-    content: message.content,
+    content: isDeleted ? "" : message.content,
     createdAt: message.createdAt,
+    deletedAt: message.deletedAt ?? null,
+    editedAt: isDeleted ? null : (message.editedAt ?? null),
     sender,
-    mentions: message.mentionsAsSource.map((mention) => ({
-      id: mention.id,
-      coworkerId: mention.coworkerId,
-      status: mention.status,
-      responseMessageId: mention.responseMessageId,
-    })),
-    reactions: Array.from(reactionCounts.entries()).map(
-      ([emoji, reaction]) => ({
-        emoji,
-        count: reaction.count,
-        reactedByCurrentUser: reaction.reactedByCurrentUser,
-      }),
-    ),
+    mentions: isDeleted
+      ? []
+      : message.mentionsAsSource.map((mention) => ({
+          id: mention.id,
+          coworkerId: mention.coworkerId,
+          status: mention.status,
+          responseMessageId: mention.responseMessageId,
+        })),
+    reactions: isDeleted
+      ? []
+      : Array.from(reactionCounts.entries()).map(([emoji, reaction]) => ({
+          emoji,
+          count: reaction.count,
+          reactedByCurrentUser: reaction.reactedByCurrentUser,
+          reactors: reaction.reactors,
+        })),
     threadReplyCount: message._count.replies,
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
-    metadata: (message.metadata as Record<string, unknown> | null) ?? null,
+    metadata: isDeleted ? null : metadata,
+    quote: isDeleted ? null : readQuoteFromMetadata(metadata),
+  };
+}
+
+export function mergeChatRoomMessageMetadata(
+  existing: unknown,
+  quote: ChatRoomMessageQuote | null,
+): Record<string, unknown> | null {
+  const base =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? { ...(existing as Record<string, unknown>) }
+      : {};
+
+  if (quote) {
+    base.quote = quote;
+  }
+
+  return Object.keys(base).length > 0 ? base : null;
+}
+
+function readQuoteAttachmentFromMetadata(
+  candidate: Record<string, unknown>,
+): ChatRoomMessageQuote["attachment"] {
+  if (!("attachment" in candidate)) {
+    return undefined;
+  }
+  const raw = candidate.attachment;
+  if (raw === null) {
+    return null;
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const attachment = raw as Record<string, unknown>;
+  if (
+    typeof attachment.fileName !== "string" ||
+    typeof attachment.url !== "string" ||
+    (attachment.mediaKind !== "image" && attachment.mediaKind !== "file")
+  ) {
+    return undefined;
+  }
+  return {
+    fileName: attachment.fileName,
+    url: attachment.url,
+    mediaKind: attachment.mediaKind,
+  };
+}
+
+function readQuoteFromMetadata(
+  metadata: Record<string, unknown> | null,
+): ChatRoomMessageQuote | null {
+  const raw = metadata?.quote;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const candidate = raw as Record<string, unknown>;
+  if (
+    typeof candidate.messageId !== "string" ||
+    typeof candidate.authorName !== "string" ||
+    typeof candidate.snippet !== "string"
+  ) {
+    return null;
+  }
+  const attachment = readQuoteAttachmentFromMetadata(candidate);
+  return {
+    messageId: candidate.messageId,
+    authorName: candidate.authorName,
+    snippet: candidate.snippet,
+    ...(attachment !== undefined ? { attachment } : {}),
+  };
+}
+
+/**
+ * Resolve a same-room quote target into a durable snapshot. Missing or
+ * cross-room ids are a client error (400), not a soft omit — the composer
+ * already chose a specific message.
+ */
+export async function resolveRoomQuoteSnapshot(
+  tx: Prisma.TransactionClient,
+  roomId: string,
+  quoteMessageId: string | undefined,
+): Promise<ChatRoomMessageQuote | null> {
+  if (!quoteMessageId) {
+    return null;
+  }
+
+  const quoted = await tx.chatRoomMessage.findFirst({
+    where: {
+      id: quoteMessageId,
+      roomId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      content: true,
+      senderUser: { select: { name: true } },
+      senderCoworker: { select: { name: true } },
+    },
+  });
+
+  if (!quoted) {
+    throw badRequest("Quoted message not found");
+  }
+
+  const { snippet, attachment } = buildRoomQuoteSnippetParts(quoted.content);
+
+  return {
+    messageId: quoted.id,
+    authorName:
+      quoted.senderUser?.name ?? quoted.senderCoworker?.name ?? "Someone",
+    snippet,
+    attachment,
   };
 }
 
@@ -499,10 +747,9 @@ export async function requireArchivedChatRoomUserAccess(
   return room;
 }
 
-// Write paths only need the room's identity plus the coworker roster used
-// for mention dispatch. Hydrating the full include here would pull every user
-// member, their user rows, and a session-presence lookup into the write
-// transaction — hundreds of unused rows per message on a large room.
+// Write paths need room identity, coworker roster for AI mention dispatch,
+// and human member names for resolveMentionedUserIds. Avoid the full include
+// (sessions / presence) — that would pull hundreds of unused rows per message.
 const chatRoomWriteSelect = {
   id: true,
   name: true,
@@ -513,6 +760,11 @@ const chatRoomWriteSelect = {
   userMembers: {
     select: {
       userId: true,
+      user: {
+        select: {
+          name: true,
+        },
+      },
     },
     orderBy: { createdAt: "asc" },
   },
@@ -751,11 +1003,43 @@ export function resolveMentionedCoworkerIds(params: {
   return [...mentionedIds].filter((coworkerId) => allowedIds.has(coworkerId));
 }
 
+/** Catalog / content sentinel for room-wide @all. Not a user UUID. */
+export const ROOM_MENTION_ALL_ID = "all" as const;
+
+/**
+ * Unwrap common inline markdown around @all tokens so composer bold/italic/code
+ * (`**@all:all**`, `_@all_`, `` `@all:all` ``) still notify. Case-sensitive.
+ */
+function unwrapRoomAllMentionMarkdown(content: string): string {
+  return content
+    .replace(/\*\*(@all:all|@all)\*\*/g, " $1 ")
+    .replace(/__(@all:all|@all)__/g, " $1 ")
+    .replace(/~~(@all:all|@all)~~/g, " $1 ")
+    .replace(/`(@all:all|@all)`/g, " $1 ")
+    .replace(/_(@all:all|@all)_/g, " $1 ");
+}
+
+/**
+ * True when content includes a room-all mention: persist token `@all:all` or
+ * bare `@all` at a word boundary. Must not match `@allison` or `@all:other`.
+ */
+export function contentIncludesRoomAllMention(content: string): boolean {
+  const normalized = unwrapRoomAllMentionMarkdown(content);
+  if (/(?:^|\s)@all:all(?=$|[\s.,!?;:])/.test(normalized)) {
+    return true;
+  }
+  // Bare form must not treat `@all:other` as a match (colon form handled above).
+  return /(?:^|\s)@all(?=$|[\s.,!?;])/.test(normalized);
+}
+
 /**
  * Resolve human @mentions for a room message. Candidates must already be room
  * members. The author is always excluded. Unlike coworkers, these IDs do not
  * create ChatRoomMention rows or trigger AI dispatch — they address humans via
- * content tokens only (v1 has no notify surface).
+ * content tokens; callers emit in-app notifications after the message commits.
+ *
+ * When content includes `@all` / `@all:all`, every room human except the author
+ * is included. Explicit id `"all"` is ignored (not a room user).
  */
 export function resolveMentionedUserIds(params: {
   content: string;
@@ -768,15 +1052,21 @@ export function resolveMentionedUserIds(params: {
     params.roomUsers.map((user) => user.id).filter((id) => id !== excluded),
   );
   const mentionedIds = new Set(
-    normalizeUniqueStrings(params.explicitUserIds ?? []).filter((id) =>
-      roomUserIds.has(id),
+    normalizeUniqueStrings(params.explicitUserIds ?? []).filter(
+      (id) => id !== ROOM_MENTION_ALL_ID && roomUserIds.has(id),
     ),
   );
+
+  if (contentIncludesRoomAllMention(params.content)) {
+    for (const userId of roomUserIds) {
+      mentionedIds.add(userId);
+    }
+  }
 
   const idTokenRegex = /@([^\s:]+):([^\s]+)/g;
   for (const match of params.content.matchAll(idTokenRegex)) {
     const id = match[1];
-    if (id && roomUserIds.has(id)) {
+    if (id && id !== ROOM_MENTION_ALL_ID && roomUserIds.has(id)) {
       mentionedIds.add(id);
     }
   }
@@ -787,6 +1077,10 @@ export function resolveMentionedUserIds(params: {
     }
     const aliases = new Set([slugifyRoomName(user.name)]);
     for (const alias of aliases) {
+      // Reserved `@all` is owned by contentIncludesRoomAllMention, not name alias.
+      if (alias === ROOM_MENTION_ALL_ID) {
+        continue;
+      }
       const aliasRegex = new RegExp(
         `(^|\\s)@${escapeRegExp(alias)}(?=$|[\\s.,!?;:])`,
         "i",

@@ -2,9 +2,11 @@
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import { Download, ImageOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ImageViewer } from "@/components/ui/image-viewer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -52,9 +54,12 @@ export function ChatGeneratedImageBubble({
   downloadLabel,
   src,
 }: ChatGeneratedImageBubbleProps) {
+  const t = useTranslations("Components.ImageViewer");
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const showSkeleton = !src || (!isLoaded && !hasError);
+  const canOpenViewer = Boolean(src) && !hasError && isLoaded;
 
   return (
     <figure className="not-prose my-3 w-full max-w-xl overflow-hidden rounded-xl border border-border bg-muted/20 shadow-sm">
@@ -67,21 +72,34 @@ export function ChatGeneratedImageBubble({
           </div>
         ) : null}
         {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            alt={alt}
+          <button
+            type="button"
             className={cn(
-              "size-full object-cover transition-opacity duration-300",
-              isLoaded && !hasError ? "opacity-100" : "opacity-0",
+              "absolute inset-0 block size-full disabled:cursor-default",
+              canOpenViewer ? "cursor-zoom-in" : null,
             )}
-            src={src}
-            onError={() => {
-              setHasError(true);
+            aria-label={t("viewImage", { fileName: alt })}
+            disabled={!canOpenViewer}
+            onClick={() => {
+              setIsViewerOpen(true);
             }}
-            onLoad={() => {
-              setIsLoaded(true);
-            }}
-          />
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              alt={alt}
+              className={cn(
+                "size-full object-cover transition-opacity duration-300",
+                isLoaded && !hasError ? "opacity-100" : "opacity-0",
+              )}
+              src={src}
+              onError={() => {
+                setHasError(true);
+              }}
+              onLoad={() => {
+                setIsLoaded(true);
+              }}
+            />
+          </button>
         ) : null}
         {hasError ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
@@ -105,6 +123,15 @@ export function ChatGeneratedImageBubble({
           </Button>
         ) : null}
       </div>
+      {src && !hasError ? (
+        <ImageViewer
+          open={isViewerOpen}
+          onOpenChange={setIsViewerOpen}
+          src={src}
+          alt={alt}
+          downloadFilename={getGeneratedImageDownloadFilename(src)}
+        />
+      ) : null}
     </figure>
   );
 }

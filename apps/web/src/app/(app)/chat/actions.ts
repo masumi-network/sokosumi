@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
@@ -63,22 +64,6 @@ function cleanIds(value: string[] | null | undefined): string[] {
   );
 }
 
-/** Direct rooms are 1:1 only until group DM ships. */
-function oneToOneDirectError(
-  memberUserIds: readonly string[],
-  coworkerIds: readonly string[],
-): string | null {
-  const isOneHuman = memberUserIds.length === 1 && coworkerIds.length === 0;
-  const isOneCoworker = memberUserIds.length === 0 && coworkerIds.length === 1;
-  if (isOneHuman || isOneCoworker) {
-    return null;
-  }
-  if (memberUserIds.length + coworkerIds.length === 0) {
-    return "Choose at least one direct message target.";
-  }
-  return "Direct messages are 1:1. Pick one member or one coworker.";
-}
-
 function actionErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof CoreApiRequestError) {
     return error.message;
@@ -134,14 +119,14 @@ export async function createDirectRoomAction(
     ...(input.coworkerIds ?? []),
   ]);
 
-  const oneToOneError = oneToOneDirectError(memberUserIds, coworkerIds);
-  if (oneToOneError) {
-    return { ok: false, message: oneToOneError };
+  const shapeError = directCreateShapeError(memberUserIds, coworkerIds);
+  if (shapeError) {
+    return { ok: false, message: shapeError };
   }
 
-  // Human 1:1 needs an org (teammate roster). Coworker 1:1 uses active org
-  // when set; Core stores null only with no active organization.
-  if (memberUserIds.length === 1) {
+  // Human directs (1:1 or group) need an org (teammate roster). Coworker 1:1
+  // uses active org when set; Core stores null only with no active organization.
+  if (memberUserIds.length >= 1) {
     const activeOrganization = await userService.getActiveOrganization();
     if (!activeOrganization) {
       return { ok: false, message: "Select an organization first." };
@@ -204,9 +189,9 @@ export async function sendNewDirectMessageAction(
 
   const memberUserIds = cleanIds(input.memberUserIds);
   const coworkerIds = cleanIds(input.coworkerIds);
-  const oneToOneError = oneToOneDirectError(memberUserIds, coworkerIds);
-  if (oneToOneError) {
-    return { ok: false, message: oneToOneError };
+  const shapeError = directCreateShapeError(memberUserIds, coworkerIds);
+  if (shapeError) {
+    return { ok: false, message: shapeError };
   }
 
   const cleanContent = cleanString(input.content);
@@ -357,6 +342,13 @@ export async function sendRoomMessageAction(
   options?: {
     mentionedUserIds?: string[];
     parentMessageId?: string;
+    /** Same-room quote target; does not set parentMessageId. */
+    quote?: { messageId: string };
+    /**
+     * Opaque client turn id. Retries of the same send reuse this so Core
+     * creates at most one row (unique on roomId + clientMessageId).
+     */
+    clientMessageId?: string;
   },
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
@@ -371,6 +363,12 @@ export async function sendRoomMessageAction(
       mentionedUserIds: cleanIds(options?.mentionedUserIds),
       ...(options?.parentMessageId && {
         parentMessageId: options.parentMessageId,
+      }),
+      ...(options?.quote?.messageId && {
+        quote: { messageId: options.quote.messageId },
+      }),
+      ...(options?.clientMessageId && {
+        clientMessageId: options.clientMessageId,
       }),
     });
     // No revalidatePath: client appends/merges the returned message. Revalidating
@@ -454,6 +452,48 @@ export async function toggleMessageReactionAction(
     return {
       ok: false,
       message: actionErrorMessage(error, "Could not update reaction."),
+    };
+  }
+}
+
+export async function deleteRoomMessageAction(
+  roomId: string,
+  messageId: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  try {
+    const message = await chatRoomService.deleteMessage(roomId, messageId);
+    return { ok: true, data: message };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not delete message."),
+    };
+  }
+}
+
+export async function editRoomMessageAction(
+  roomId: string,
+  messageId: string,
+  content: string,
+): Promise<RoomActionResult<ChatRoomMessage>> {
+  const cleanContent = cleanString(content);
+  if (!cleanContent) {
+    return { ok: false, message: "Message is required." };
+  }
+
+  try {
+    const message = await chatRoomService.editMessage(
+      roomId,
+      messageId,
+      cleanContent,
+    );
+    // No revalidatePath: the updated message is returned and merged client
+    // side, so a full RSC re-render of /chat would only duplicate work.
+    return { ok: true, data: message };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not edit message."),
     };
   }
 }

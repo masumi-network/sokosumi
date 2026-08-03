@@ -15,12 +15,18 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   queryRawUnsafeMock,
+  notificationGroupByMock,
+  membershipFindManyMock,
+  readStateFindManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
+  notificationGroupByMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+  readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -34,6 +40,15 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findUnique: memberFindUniqueMock,
+    },
+    notification: {
+      groupBy: notificationGroupByMock,
+    },
+    chatRoomUserMember: {
+      findMany: membershipFindManyMock,
+    },
+    chatRoomReadState: {
+      findMany: readStateFindManyMock,
     },
     $queryRawUnsafe: queryRawUnsafeMock,
     $transaction: prismaTransactionMock,
@@ -104,6 +119,11 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
+  notificationGroupByMock.mockResolvedValue([
+    { referenceId: ROOM_ID, _count: { _all: 1 } },
+  ]);
+  membershipFindManyMock.mockResolvedValue([]);
+  readStateFindManyMock.mockResolvedValue([]);
 });
 
 describe("GET /chats/rooms/{id}", () => {
@@ -116,12 +136,18 @@ describe("GET /chats/rooms/{id}", () => {
     expect(organizationFindUniqueMock).toHaveBeenCalledOnce();
     expect(memberFindUniqueMock).toHaveBeenCalledOnce();
     expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
+    expect(notificationGroupByMock).toHaveBeenCalledOnce();
+    expect(membershipFindManyMock).toHaveBeenCalledOnce();
+    expect(readStateFindManyMock).toHaveBeenCalledOnce();
 
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: ROOM_ID,
       name: "Launch Room",
       unreadCount: 2,
+      unreadMentionCount: 1,
+      pinnedAt: null,
+      markedUnread: false,
     });
   });
 

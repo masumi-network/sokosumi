@@ -202,6 +202,7 @@ async function fetchIconBytes(
  */
 export async function resolveSiteIconAsOrganizationLogo(
   rawUrl: string,
+  organizationId: string,
 ): Promise<string | null> {
   let pageUrl: URL;
   try {
@@ -248,6 +249,7 @@ export async function resolveSiteIconAsOrganizationLogo(
     const icon = await fetchIconBytes(candidate.url);
     if (!icon) continue;
     const url = await uploadOrganizationLogoBytes({
+      organizationId,
       bytes: icon.bytes,
       contentType: icon.contentType,
     });

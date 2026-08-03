@@ -1194,6 +1194,18 @@ export type ChatRoom = {
      * Messages sent by others after the current user's read marker.
      */
     unreadCount: number;
+    /**
+     * Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.
+     */
+    unreadMentionCount: number;
+    /**
+     * When the current user pinned this room in their sidebar. Null when unpinned.
+     */
+    pinnedAt: Date | null;
+    /**
+     * True when the current user marked this room unread. Cleared on mark-read.
+     */
+    markedUnread: boolean;
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
 };
@@ -1269,7 +1281,7 @@ export type CreateChatRoomRequest = {
     coworkerIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a 1:1 direct room (one organization member XOR one coworker) scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Group directs are not supported yet.
+     * Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization.
      */
     kind: 'direct';
     /**
@@ -1340,6 +1352,8 @@ export type ChatRoomMessage = {
     parentMessageId: string | null;
     content: string;
     createdAt: Date;
+    deletedAt: Date | null;
+    editedAt: Date | null;
     sender: ChatRoomMessageSender;
     mentions: Array<ChatRoomMessageMention>;
     reactions: Array<ChatRoomMessageReaction>;
@@ -1348,6 +1362,7 @@ export type ChatRoomMessage = {
     metadata: {
         [key: string]: unknown;
     } | null;
+    quote: ChatRoomMessageQuote;
 };
 
 export type ChatRoomMessageSender = {
@@ -1380,7 +1395,29 @@ export type ChatRoomMessageReaction = {
     emoji: string;
     count: number;
     reactedByCurrentUser: boolean;
+    /**
+     * First reactors by createdAt ascending (capped). count may exceed reactors.length.
+     */
+    reactors: Array<ChatRoomMessageReactor>;
 };
+
+export type ChatRoomMessageReactor = {
+    id: string;
+    name: string;
+};
+
+export type ChatRoomMessageQuote = {
+    messageId: string;
+    authorName: string;
+    snippet: string;
+    attachment?: ChatRoomMessageQuoteAttachment;
+} | null;
+
+export type ChatRoomMessageQuoteAttachment = {
+    fileName: string;
+    url: string;
+    mediaKind: 'image' | 'file';
+} | null;
 
 export type CreateChatRoomMessageRequest = {
     content: string;
@@ -1393,6 +1430,20 @@ export type CreateChatRoomMessageRequest = {
      * Root message ID when posting a threaded reply.
      */
     parentMessageId?: string;
+    /**
+     * Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.
+     */
+    quote?: {
+        messageId: string;
+    };
+    /**
+     * Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).
+     */
+    clientMessageId?: string;
+};
+
+export type UpdateChatRoomMessageRequest = {
+    content: string;
 };
 
 export type ReactToChatRoomMessageRequest = {
@@ -2730,6 +2781,73 @@ export type UpdateOrganizationSubscriptionSeats = {
     seats: number;
 };
 
+export type OrganizationLogoCleanupResult = {
+    ok: true;
+};
+
+export type OrganizationLogoCleanupRequest = {
+    /**
+     * Public blob URL of a prior organization logo to delete if owned
+     */
+    url: string;
+};
+
+export type OrganizationLogoUploadSession = {
+    /**
+     * Presigned Blob PUT URL (time-scoped, path-scoped)
+     */
+    uploadUrl: string;
+    /**
+     * Server-generated upload pathname (before random suffix)
+     */
+    pathname: string;
+    /**
+     * Blob access level for the upload
+     */
+    access: 'public';
+    /**
+     * HTTP method for the client upload request
+     */
+    method: 'PUT';
+    /**
+     * Headers the client must send on the PUT
+     */
+    headers: {
+        'Content-Type': string;
+    };
+    /**
+     * When the presigned upload URL expires (ISO-8601)
+     */
+    expiresAt: Date;
+    /**
+     * Maximum supported file size for this upload policy
+     */
+    maxSizeBytes: number;
+    /**
+     * Whether Blob appends a random suffix to the final pathname
+     */
+    addRandomSuffix: boolean;
+};
+
+export type CreateOrganizationLogoUploadRequest = {
+    /**
+     * Original file name supplied by the client
+     */
+    filename: string;
+    /**
+     * Declared logo MIME type from the client
+     */
+    contentType: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+    /**
+     * Optional per-upload size ceiling in bytes. Must not exceed the organization logo maximum.
+     */
+    maxSizeBytes?: number;
+};
+
 export type ResolveOrganizationInviteLink = {
     status: 'valid' | 'expired' | 'revoked' | 'depleted' | 'not_found';
     organization: {
@@ -3041,7 +3159,8 @@ export const NotificationKind = {
     JOB: 'JOB',
     TASK: 'TASK',
     BILLING: 'BILLING',
-    SYSTEM: 'SYSTEM'
+    SYSTEM: 'SYSTEM',
+    CHAT: 'CHAT'
 } as const;
 
 /**
@@ -3591,6 +3710,73 @@ export type CoworkerAssignment = {
 export type AssignCoworkerRequest = {
     userId?: string;
     email?: string;
+};
+
+export type VendorLogoCleanupResult = {
+    ok: true;
+};
+
+export type VendorLogoCleanupRequest = {
+    /**
+     * Public blob URL of a prior vendor logo to delete if owned
+     */
+    url: string;
+};
+
+export type VendorLogoUploadSession = {
+    /**
+     * Presigned Blob PUT URL (time-scoped, path-scoped)
+     */
+    uploadUrl: string;
+    /**
+     * Server-generated upload pathname (before random suffix)
+     */
+    pathname: string;
+    /**
+     * Blob access level for the upload
+     */
+    access: 'public';
+    /**
+     * HTTP method for the client upload request
+     */
+    method: 'PUT';
+    /**
+     * Headers the client must send on the PUT
+     */
+    headers: {
+        'Content-Type': string;
+    };
+    /**
+     * When the presigned upload URL expires (ISO-8601)
+     */
+    expiresAt: Date;
+    /**
+     * Maximum supported file size for this upload policy
+     */
+    maxSizeBytes: number;
+    /**
+     * Whether Blob appends a random suffix to the final pathname
+     */
+    addRandomSuffix: boolean;
+};
+
+export type CreateVendorLogoUploadRequest = {
+    /**
+     * Original file name supplied by the client
+     */
+    filename: string;
+    /**
+     * Declared logo MIME type from the client
+     */
+    contentType: string;
+    /**
+     * File size in bytes
+     */
+    size: number;
+    /**
+     * Optional per-upload size ceiling in bytes. Must not exceed the organization logo maximum.
+     */
+    maxSizeBytes?: number;
 };
 
 export type EffectiveDesignMd = {
@@ -9115,6 +9301,9 @@ export type PostChatsRoomsByIdStreamData = {
     } & {
         parentMessageId?: string;
         roomId?: string;
+        quote?: {
+            messageId: string;
+        };
     };
     headers?: {
         /**
@@ -9863,6 +10052,282 @@ export type PostChatsRoomsByIdReadResponses = {
 
 export type PostChatsRoomsByIdReadResponse = PostChatsRoomsByIdReadResponses[keyof PostChatsRoomsByIdReadResponses];
 
+export type PostChatsRoomsByIdUnreadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/unread';
+};
+
+export type PostChatsRoomsByIdUnreadErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdUnreadError = PostChatsRoomsByIdUnreadErrors[keyof PostChatsRoomsByIdUnreadErrors];
+
+export type PostChatsRoomsByIdUnreadResponses = {
+    /**
+     * Chat room marked unread
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdUnreadResponse = PostChatsRoomsByIdUnreadResponses[keyof PostChatsRoomsByIdUnreadResponses];
+
+export type DeleteChatsRoomsByIdPinData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/pin';
+};
+
+export type DeleteChatsRoomsByIdPinErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdPinError = DeleteChatsRoomsByIdPinErrors[keyof DeleteChatsRoomsByIdPinErrors];
+
+export type DeleteChatsRoomsByIdPinResponses = {
+    /**
+     * Chat room unpinned
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdPinResponse = DeleteChatsRoomsByIdPinResponses[keyof DeleteChatsRoomsByIdPinResponses];
+
+export type PostChatsRoomsByIdPinData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/pin';
+};
+
+export type PostChatsRoomsByIdPinErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdPinError = PostChatsRoomsByIdPinErrors[keyof PostChatsRoomsByIdPinErrors];
+
+export type PostChatsRoomsByIdPinResponses = {
+    /**
+     * Chat room pinned
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdPinResponse = PostChatsRoomsByIdPinResponses[keyof PostChatsRoomsByIdPinResponses];
+
 export type GetChatsRoomsByIdMessagesData = {
     body?: never;
     headers?: {
@@ -10041,6 +10506,20 @@ export type PostChatsRoomsByIdMessagesErrors = {
         };
     };
     /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -10073,6 +10552,206 @@ export type PostChatsRoomsByIdMessagesResponses = {
 };
 
 export type PostChatsRoomsByIdMessagesResponse = PostChatsRoomsByIdMessagesResponses[keyof PostChatsRoomsByIdMessagesResponses];
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}';
+};
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdError = DeleteChatsRoomsByIdMessagesByMessageIdErrors[keyof DeleteChatsRoomsByIdMessagesByMessageIdErrors];
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdResponses = {
+    /**
+     * Room message soft-deleted
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMessagesByMessageIdResponse = DeleteChatsRoomsByIdMessagesByMessageIdResponses[keyof DeleteChatsRoomsByIdMessagesByMessageIdResponses];
+
+export type PatchChatsRoomsByIdMessagesByMessageIdData = {
+    body?: UpdateChatRoomMessageRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}';
+};
+
+export type PatchChatsRoomsByIdMessagesByMessageIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchChatsRoomsByIdMessagesByMessageIdError = PatchChatsRoomsByIdMessagesByMessageIdErrors[keyof PatchChatsRoomsByIdMessagesByMessageIdErrors];
+
+export type PatchChatsRoomsByIdMessagesByMessageIdResponses = {
+    /**
+     * Room message updated
+     */
+    200: {
+        data: ChatRoomMessage;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchChatsRoomsByIdMessagesByMessageIdResponse = PatchChatsRoomsByIdMessagesByMessageIdResponses[keyof PatchChatsRoomsByIdMessagesByMessageIdResponses];
 
 export type PostChatsRoomsByIdMessagesByMessageIdReactionsData = {
     body?: ReactToChatRoomMessageRequest;
@@ -19367,6 +20046,254 @@ export type PutOrganizationsByIdDesignMdResponses = {
 
 export type PutOrganizationsByIdDesignMdResponse = PutOrganizationsByIdDesignMdResponses[keyof PutOrganizationsByIdDesignMdResponses];
 
+export type PostOrganizationsByIdFilesCleanupData = {
+    body: OrganizationLogoCleanupRequest;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/files/cleanup';
+};
+
+export type PostOrganizationsByIdFilesCleanupErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdFilesCleanupError = PostOrganizationsByIdFilesCleanupErrors[keyof PostOrganizationsByIdFilesCleanupErrors];
+
+export type PostOrganizationsByIdFilesCleanupResponses = {
+    /**
+     * Cleanup attempted (owned logos deleted; others ignored)
+     */
+    200: {
+        data: OrganizationLogoCleanupResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdFilesCleanupResponse = PostOrganizationsByIdFilesCleanupResponses[keyof PostOrganizationsByIdFilesCleanupResponses];
+
+export type PostOrganizationsByIdFilesData = {
+    body: CreateOrganizationLogoUploadRequest;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/files';
+};
+
+export type PostOrganizationsByIdFilesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be an organization owner or admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdFilesError = PostOrganizationsByIdFilesErrors[keyof PostOrganizationsByIdFilesErrors];
+
+export type PostOrganizationsByIdFilesResponses = {
+    /**
+     * Organization logo upload session created successfully
+     */
+    201: {
+        data: OrganizationLogoUploadSession;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdFilesResponse = PostOrganizationsByIdFilesResponses[keyof PostOrganizationsByIdFilesResponses];
+
 export type GetOrganizationInviteLinksByTokenData = {
     body?: never;
     path: {
@@ -26502,15 +27429,47 @@ export type GetToolsSiteIconData = {
          * Website URL to scrape a high-quality icon from.
          */
         url: string;
+        /**
+         * Organization that will own the scraped logo blob under organizations/{id}/logos/.
+         */
+        organizationId: string;
     };
     url: '/tools/site-icon';
 };
 
 export type GetToolsSiteIconErrors = {
     /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -27542,6 +28501,254 @@ export type UnassignCoworkerDeveloperResponses = {
 };
 
 export type UnassignCoworkerDeveloperResponse = UnassignCoworkerDeveloperResponses[keyof UnassignCoworkerDeveloperResponses];
+
+export type PostVendorsByIdFilesCleanupData = {
+    body: VendorLogoCleanupRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/files/cleanup';
+};
+
+export type PostVendorsByIdFilesCleanupErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be a vendor admin or platform admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostVendorsByIdFilesCleanupError = PostVendorsByIdFilesCleanupErrors[keyof PostVendorsByIdFilesCleanupErrors];
+
+export type PostVendorsByIdFilesCleanupResponses = {
+    /**
+     * Cleanup attempted (owned logos deleted; others ignored)
+     */
+    200: {
+        data: VendorLogoCleanupResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostVendorsByIdFilesCleanupResponse = PostVendorsByIdFilesCleanupResponses[keyof PostVendorsByIdFilesCleanupResponses];
+
+export type PostVendorsByIdFilesData = {
+    body: CreateVendorLogoUploadRequest;
+    path: {
+        /**
+         * Vendor ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/vendors/{id}/files';
+};
+
+export type PostVendorsByIdFilesErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - You must be a vendor admin or platform admin
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostVendorsByIdFilesError = PostVendorsByIdFilesErrors[keyof PostVendorsByIdFilesErrors];
+
+export type PostVendorsByIdFilesResponses = {
+    /**
+     * Vendor logo upload session created successfully
+     */
+    201: {
+        data: VendorLogoUploadSession;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostVendorsByIdFilesResponse = PostVendorsByIdFilesResponses[keyof PostVendorsByIdFilesResponses];
 
 export type PostWebhooksTasksFilesUploadedData = {
     body?: never;

@@ -1,10 +1,41 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
 import {
   buildMentionToken,
+  getActiveEmojiTrigger,
   getActiveTrigger,
+  getPopupPositionFromRect,
+  POPUP_HEIGHT_PX,
   serializeEditorText,
   setEditorFromRaw,
 } from "@/components/ui/mention-textarea-utils";
+
+function stubViewport(height: number) {
+  vi.stubGlobal("visualViewport", undefined);
+  vi.stubGlobal("innerHeight", height);
+  vi.stubGlobal("innerWidth", 1280);
+}
+
+function rectNearBottom(options: {
+  top: number;
+  bottom: number;
+  left?: number;
+}): DOMRect {
+  const left = options.left ?? 80;
+  return {
+    x: left,
+    y: options.top,
+    top: options.top,
+    bottom: options.bottom,
+    left,
+    right: left + 20,
+    width: 20,
+    height: options.bottom - options.top,
+    toJSON() {
+      return this;
+    },
+  };
+}
 
 describe("mention-textarea utils", () => {
   it("round-trips mention markup with friendly labels", () => {
@@ -56,6 +87,62 @@ describe("mention-textarea utils", () => {
     expect(getActiveTrigger("Hello @wr", 9)).toEqual({
       query: "wr",
       triggerStart: 6,
+    });
+  });
+
+  it("activates emoji trigger for in-progress shortcode queries", () => {
+    expect(getActiveEmojiTrigger("Hello :gri", 10)).toEqual({
+      query: "gri",
+      triggerStart: 6,
+    });
+    expect(getActiveEmojiTrigger(":da", 3)).toEqual({
+      query: "da",
+      triggerStart: 0,
+    });
+  });
+
+  it("does not activate emoji trigger for bare colon or single-char query", () => {
+    expect(getActiveEmojiTrigger(":", 1)).toBeNull();
+    expect(getActiveEmojiTrigger(":d", 2)).toBeNull();
+    expect(getActiveEmojiTrigger(":D", 2)).toBeNull();
+  });
+
+  it("does not activate emoji trigger on space, @, or mid-token colon", () => {
+    expect(getActiveEmojiTrigger(":gri ", 5)).toBeNull();
+    expect(getActiveEmojiTrigger(":@user", 6)).toBeNull();
+    expect(getActiveEmojiTrigger(":smile:", 7)).toBeNull();
+    expect(getActiveEmojiTrigger("a:smile", 7)).toBeNull();
+  });
+
+  it("keeps mention trigger rejecting queries that contain colon", () => {
+    const text = "@agent-1:writer-agent";
+    expect(getActiveTrigger(text, text.length)).toBeNull();
+  });
+
+  describe("getPopupPositionFromRect", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("opens above when below cannot fit preferred height and above has more room", () => {
+      stubViewport(800);
+      const position = getPopupPositionFromRect(
+        rectNearBottom({ top: 600, bottom: 620 }),
+      );
+
+      // belowSpace ≈ 172 (< 240 preferred), aboveSpace ≈ 592
+      expect(position.side).toBe("top");
+      expect(position.maxHeight).toBeGreaterThanOrEqual(80);
+      expect(position.maxHeight).toBeLessThanOrEqual(POPUP_HEIGHT_PX);
+    });
+
+    it("stays below when there is room for the preferred height", () => {
+      stubViewport(800);
+      const position = getPopupPositionFromRect(
+        rectNearBottom({ top: 200, bottom: 220 }),
+      );
+
+      expect(position.side).toBe("bottom");
     });
   });
 });

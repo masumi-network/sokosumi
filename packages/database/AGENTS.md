@@ -66,10 +66,10 @@ The package provides multiple entry points for different use cases:
 
 ### Main Export (`@sokosumi/database`)
 
-- **Purpose**: Browser-safe types and enums
+- **Purpose**: Prisma model types, enums, and shared types for server packages
 - **Includes**: Prisma namespace, model types, enums, shared types
-- **Excludes**: PrismaClient (Node.js only)
-- **Use in**: Client and server components for type annotations
+- **Excludes**: PrismaClient (use `@sokosumi/database/client`)
+- **Use in**: Core and server packages that own DB access. **Web must not import `@sokosumi/database`** — use generated Core DTOs instead.
 
 ```typescript
 import { Prisma, Agent, User, Job } from "@sokosumi/database";
@@ -89,8 +89,8 @@ const prisma = createPrismaClient(process.env.DATABASE_URL);
 
 ### Repositories Export (`@sokosumi/database/repositories`)
 
-- **Purpose**: All domain repositories
-- **Use in**: Server-side services and actions
+- **Purpose**: Domain repositories (legacy consumers)
+- **Use in**: Legacy Core services and other package consumers that still use the repository pattern. New Core routes prefer direct Prisma.
 
 ```typescript
 import {
@@ -103,8 +103,8 @@ const user = await userRepository.getUserById("user-id", prisma);
 
 ### Helpers Export (`@sokosumi/database/helpers`)
 
-- **Purpose**: Domain logic utilities
-- **Includes**: Job status computation, credit calculations
+- **Purpose**: Prisma-backed domain helpers (job status, credit buckets, billing plan resolution, etc.)
+- **Note**: Credit *conversion* (`convertCentsToCredits` / `convertCreditsToCents`) lives in `@sokosumi/utils`, not here.
 
 ```typescript
 import { computeJobStatus, mapJobWithStatus } from "@sokosumi/database/helpers";
@@ -133,7 +133,7 @@ export const userRepository = {
 
 - Leverage Prisma type inference when possible
 - Define custom types in `src/types/` for complex relationships
-- Export types from the main entry point for browser safety
+- Export types from the main entry point for Core and server packages
 
 ### Primary keys and UUIDs
 
@@ -164,10 +164,10 @@ export const userRepository = {
 
 ## Usage in Apps
 
-Each app creates its own Prisma client instance:
+**Only Core** creates a Prisma client (`apps/core/src/lib/db/prisma.ts`). Web must not import `@sokosumi/database` or create a client — it reaches data through the Core API.
 
 ```typescript
-// apps/web/src/lib/db/prisma.ts or apps/core/src/lib/db/prisma.ts
+// apps/core/src/lib/db/prisma.ts
 import { createPrismaClient } from "@sokosumi/database/client";
 
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
@@ -178,19 +178,18 @@ export default prisma;
 
 ### ✅ Do
 
-- Use repositories for all database access
-- Pass Prisma client explicitly to repository methods
-- Import types from the main export (`@sokosumi/database`)
-- Use helpers for domain logic (job status, credits)
-- Follow the three-layer pattern (repositories → services → actions)
+- Prefer direct Prisma in new Core route handlers (see [core AGENTS](../../apps/core/AGENTS.md) and [data-access](../../apps/core/.cursor/rules/data-access.mdc))
+- Keep repositories for package consumers / legacy Core services that still use them; pass Prisma client explicitly
+- Import types from the main export (`@sokosumi/database`) in Core and server packages
+- Use database helpers for Prisma-backed domain logic (job status, credit buckets); use `@sokosumi/utils` for credit conversion
 
 ### ❌ Don't
 
-- Import Prisma client directly in client components
-- Mix direct Prisma access with repositories
+- Import `@sokosumi/database` from the web app
 - Put business logic in repositories
 - Access generated files directly
 - Use default exports in repositories
+- Re-export `@sokosumi/utils` symbols from database helpers
 
 ## Troubleshooting
 

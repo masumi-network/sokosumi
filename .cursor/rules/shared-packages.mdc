@@ -17,7 +17,7 @@ When refactoring or adding features that touch logic used in more than one app:
 - **`packages/utils`** (`@sokosumi/utils`): Framework-agnostic helpers—URL/file utilities, markdown link extraction, string helpers, user-name helpers, billing plan name types/parsers, credit conversion, etc. No React, no Hono, no Prisma, no app-specific config.
 - **Other packages**: Use existing packages when the logic fits (e.g. `@sokosumi/database` for DB helpers, `@sokosumi/masumi` for agent protocol).
 
-For **client-safe vs database-backed** boundaries (when not to import `@sokosumi/database/helpers` from the web client), see [utils-vs-database.mdc](./utils-vs-database.mdc).
+For **client-safe vs database-backed** boundaries (web never imports `@sokosumi/database`), see [utils-vs-database.mdc](./utils-vs-database.mdc).
 
 ### How to consume shared code
 

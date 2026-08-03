@@ -1,3 +1,11 @@
+import {
+  buildRoomQuoteSnippetParts,
+  type ChatRoomQuoteAttachment,
+} from "@sokosumi/utils";
+import type {
+  MentionSuggestionGroup,
+  NormalizedMention,
+} from "@/components/ui/mention-textarea-utils";
 import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
@@ -16,21 +24,116 @@ export interface DirectParticipantPreview {
   kind: "human" | "coworker";
 }
 
-export interface RoomParticipantPreview {
-  id: string;
-  name: string;
-  image: string | null;
-  presence: ChatRoomPresence;
-  kind: "human" | "coworker";
+/** Shared hover / roster shape for humans vs AI coworkers in a room. */
+export type ChatParticipantHoverProfile =
+  | {
+      kind: "human";
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+      presence: ChatRoomPresence;
+    }
+  | {
+      kind: "coworker";
+      id: string;
+      name: string;
+      slug: string;
+      caption: string | null;
+      image: string | null;
+      presence: ChatRoomPresence;
+    };
+
+export type RoomParticipantPreview = ChatParticipantHoverProfile;
+
+export type MessageSenderProfile =
+  | ChatParticipantHoverProfile
+  | {
+      kind: "unknown";
+      name: string;
+      image: null;
+    };
+
+/** Catalog / chip key for room-wide @all. Not a user UUID. */
+export const ROOM_MENTION_ALL_ID = "all" as const;
+
+/** Slug half of the persist token `@all:all`. */
+export const ROOM_MENTION_ALL_SLUG = "all" as const;
+
+/** Persist form written by the wysiwyg serializer (`@key:slug`). */
+export const ROOM_MENTION_ALL_TOKEN = "@all:all" as const;
+
+export function isRoomMentionAllId(id: string): boolean {
+  return id === ROOM_MENTION_ALL_ID;
 }
 
-/** Shared mention-picker payload for humans and coworkers in room composers. */
+/** Shared mention-picker payload for humans, coworkers, and synthetic @all. */
 export interface RoomMentionParticipant {
-  kind: "human" | "coworker";
+  kind: "human" | "coworker" | "all";
   id: string;
   name: string;
   slug: string;
   image: string | null;
+}
+
+/**
+ * Synthetic catalog row for the @all picker entry.
+ * `label` is the localized display/search value (e.g. "Everyone"); key/slug stay `all`.
+ */
+export function buildRoomAllMentionRecord(label: string): {
+  value: string;
+  slug: string;
+  data: RoomMentionParticipant;
+} {
+  return {
+    value: label,
+    slug: ROOM_MENTION_ALL_SLUG,
+    data: {
+      kind: "all",
+      id: ROOM_MENTION_ALL_ID,
+      name: label,
+      slug: ROOM_MENTION_ALL_SLUG,
+      image: null,
+    },
+  };
+}
+
+/**
+ * Partition filtered room mention suggestions into People (humans + @all)
+ * and Coworkers. Omits empty sections. Preserves within-section filter order.
+ */
+export function partitionRoomMentionSuggestions(
+  filtered: NormalizedMention<RoomMentionParticipant>[],
+  labels: { peopleLabel: string; coworkersLabel: string },
+): MentionSuggestionGroup<RoomMentionParticipant>[] {
+  const people: NormalizedMention<RoomMentionParticipant>[] = [];
+  const coworkers: NormalizedMention<RoomMentionParticipant>[] = [];
+
+  for (const mention of filtered) {
+    if (mention.data?.kind === "coworker") {
+      coworkers.push(mention);
+    } else {
+      // human | all | missing kind → People (safe fallback for humans-shaped rows)
+      people.push(mention);
+    }
+  }
+
+  const groups: MentionSuggestionGroup<RoomMentionParticipant>[] = [];
+  if (people.length > 0) {
+    groups.push({
+      id: "people",
+      label: labels.peopleLabel,
+      items: people,
+    });
+  }
+  if (coworkers.length > 0) {
+    groups.push({
+      id: "coworkers",
+      label: labels.coworkersLabel,
+      items: coworkers,
+    });
+  }
+  return groups;
 }
 
 export function appendComposerBlock(value: string, block: string): string {
@@ -107,26 +210,122 @@ export function toggleId(
   return ids.filter((item) => item !== id);
 }
 
-export function messageSender(message: ChatRoomMessage) {
+/** Slack-like gap before a same-sender burst starts a new full header. */
+export const MESSAGE_GROUP_GAP_MS = 5 * 60 * 1000;
+
+/** Pending composer quote (author + snippet snapshot for the dismissible chip). */
+export interface PendingRoomQuote {
+  messageId: string;
+  authorName: string;
+  snippet: string;
+  attachment: ChatRoomQuoteAttachment | null;
+}
+
+export function pendingQuoteFromMessage(
+  message: ChatRoomMessage,
+): PendingRoomQuote {
+  const { snippet, attachment } = buildRoomQuoteSnippetParts(message.content);
+  return {
+    messageId: message.id,
+    authorName: messageSender(message).name,
+    snippet,
+    attachment,
+  };
+}
+
+/** Soft-fail scroll to a room message article when it is still in the DOM. */
+export function scrollToRoomMessageElement(messageId: string): boolean {
+  if (typeof document === "undefined") {
+    return false;
+  }
+  const target = document.querySelector<HTMLElement>(
+    `[data-message-id="${CSS.escape(messageId)}"]`,
+  );
+  if (!target) {
+    return false;
+  }
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  return true;
+}
+
+export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
   if (message.sender.type === "user") {
+    const user = message.sender.user;
     return {
-      name: message.sender.user.name,
-      image: message.sender.user.image,
-      kind: "human" as const,
+      kind: "human",
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      presence: user.presence,
     };
   }
   if (message.sender.type === "coworker") {
+    const coworker = message.sender.coworker;
     return {
-      name: message.sender.coworker.name,
-      image: message.sender.coworker.image,
-      kind: "coworker" as const,
+      kind: "coworker",
+      id: coworker.id,
+      name: coworker.name,
+      slug: coworker.slug,
+      caption: coworker.caption,
+      image: coworker.image,
+      presence: coworker.presence,
     };
   }
   return {
+    kind: "unknown",
     name: "Unknown",
     image: null,
-    kind: "unknown" as const,
   };
+}
+
+/** Stable sender identity for grouping; null when identity is unknown. */
+export function messageSenderKey(message: ChatRoomMessage): string | null {
+  if (message.sender.type === "user") {
+    return `user:${message.sender.user.id}`;
+  }
+  if (message.sender.type === "coworker") {
+    return `coworker:${message.sender.coworker.id}`;
+  }
+  return null;
+}
+
+/**
+ * True when `current` should render as a Slack-style continuation of `previous`
+ * (omit avatar / name / primary timestamp).
+ */
+export function isMessageContinuation(
+  previous: ChatRoomMessage | undefined,
+  current: ChatRoomMessage,
+  options?: { gapMs?: number },
+): boolean {
+  if (!previous) {
+    return false;
+  }
+
+  const previousKey = messageSenderKey(previous);
+  const currentKey = messageSenderKey(current);
+  if (!previousKey || !currentKey || previousKey !== currentKey) {
+    return false;
+  }
+
+  if (messageDayKey(previous.createdAt) !== messageDayKey(current.createdAt)) {
+    return false;
+  }
+
+  const gapMs = options?.gapMs ?? MESSAGE_GROUP_GAP_MS;
+  const previousTime = new Date(previous.createdAt).getTime();
+  const currentTime = new Date(current.createdAt).getTime();
+  if (
+    !Number.isFinite(previousTime) ||
+    !Number.isFinite(currentTime) ||
+    currentTime < previousTime ||
+    currentTime - previousTime >= gapMs
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 export function formatMessageTime(value: Date | string): string {
@@ -226,11 +425,33 @@ export function shouldShowChatRoomThreadButton(options: {
 }
 
 /** Direct rooms: @ only when the roster has more than two people (incl. you). */
-export function shouldShowRoomMentionShortcut(room: ChatRoom): boolean {
+export function shouldShowRoomMentionShortcut(room: {
+  kind: string;
+  userMembers: readonly unknown[];
+  coworkerMembers: readonly unknown[];
+}): boolean {
   if (room.kind !== "direct") {
     return true;
   }
   return room.userMembers.length + room.coworkerMembers.length > 2;
+}
+
+/**
+ * Offer @all when mentions already work and at least one other human can be
+ * notified (room humans excluding the author).
+ */
+export function shouldIncludeRoomAllMention(
+  room: {
+    kind: string;
+    userMembers: ReadonlyArray<{ id: string }>;
+    coworkerMembers: readonly unknown[];
+  },
+  currentUserId: string,
+): boolean {
+  if (!shouldShowRoomMentionShortcut(room)) {
+    return false;
+  }
+  return room.userMembers.some((member) => member.id !== currentUserId);
 }
 
 export function formatDirectParticipantNames(
@@ -266,20 +487,27 @@ export function getRoomParticipantPreviews(
   room: ChatRoom,
 ): RoomParticipantPreview[] {
   return [
-    ...room.userMembers.map((member) => ({
-      id: member.id,
-      name: member.name || member.email,
-      image: member.image,
-      presence: member.presence,
-      kind: "human" as const,
-    })),
-    ...room.coworkerMembers.map((coworker) => ({
-      id: coworker.id,
-      name: coworker.name,
-      image: coworker.image,
-      presence: coworker.presence,
-      kind: "coworker" as const,
-    })),
+    ...room.userMembers.map(
+      (member): ChatParticipantHoverProfile => ({
+        kind: "human",
+        id: member.id,
+        name: member.name || member.email,
+        email: member.email,
+        image: member.image,
+        presence: member.presence,
+      }),
+    ),
+    ...room.coworkerMembers.map(
+      (coworker): ChatParticipantHoverProfile => ({
+        kind: "coworker",
+        id: coworker.id,
+        name: coworker.name,
+        slug: coworker.slug,
+        caption: coworker.caption,
+        image: coworker.image,
+        presence: coworker.presence,
+      }),
+    ),
   ];
 }
 
@@ -324,18 +552,22 @@ export function formatRoomMarkdownMentions({
 
   let formatted = "";
   let lastIndex = 0;
-  matches.forEach((match) => {
+  for (const match of matches) {
     if (match.start > lastIndex) {
       formatted += content.slice(lastIndex, match.start);
     }
-    const coworker =
-      coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug);
-    const user =
-      usersById?.get(match.id) ?? usersBySlug?.get(match.slug) ?? undefined;
-    const displayName = coworker?.name ?? user?.name ?? match.id;
-    formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
+    const displayName = isRoomMentionAllId(match.id)
+      ? ROOM_MENTION_ALL_ID
+      : ((coworkersById.get(match.id) ?? coworkersBySlug.get(match.slug))
+          ?.name ??
+        (usersById?.get(match.id) ?? usersBySlug?.get(match.slug))?.name);
+    if (displayName) {
+      formatted += `<span class="text-primary font-medium">${escapeHtml(`@${displayName}`)}</span>`;
+    } else {
+      formatted += content.slice(match.start, match.end);
+    }
     lastIndex = match.end;
-  });
+  }
   if (lastIndex < content.length) {
     formatted += content.slice(lastIndex);
   }

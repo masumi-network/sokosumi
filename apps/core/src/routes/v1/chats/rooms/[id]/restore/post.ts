@@ -114,7 +114,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userContext.userId,
         tx,
       );
-      return mapChatRoom(live, userContext.userId, 0);
+      return mapChatRoom(live, userContext.userId, {
+        unreadCount: 0,
+        unreadMentionCount: 0,
+      });
     });
 
     return ok(c, restoredChatRoomSchema.parse(restored));

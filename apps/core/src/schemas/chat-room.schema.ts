@@ -68,6 +68,21 @@ export const chatRoomSchema = z
         "Messages sent by others after the current user's read marker.",
       example: 2,
     }),
+    unreadMentionCount: z.number().int().min(0).openapi({
+      description:
+        "Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.",
+      example: 1,
+    }),
+    pinnedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When the current user pinned this room in their sidebar. Null when unpinned.",
+      example: "2026-08-02T12:00:00.000Z",
+    }),
+    markedUnread: z.boolean().openapi({
+      description:
+        "True when the current user marked this room unread. Cleared on mark-read.",
+      example: false,
+    }),
     userMembers: z.array(chatRoomUserParticipantSchema),
     coworkerMembers: z.array(chatRoomCoworkerParticipantSchema),
   })
@@ -118,7 +133,7 @@ export const createChatRoomRequestSchema = z
     z.object({
       kind: z.literal("direct").openapi({
         description:
-          "Creates or returns a 1:1 direct room (one organization member XOR one coworker) scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Group directs are not supported yet.",
+          "Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization.",
       }),
       memberUserIds: roomMemberUserIdsSchema,
       coworkerIds: roomCoworkerIdsSchema,
@@ -180,13 +195,53 @@ export const chatRoomMessageSenderSchema = z
   ])
   .openapi("ChatRoomMessageSender");
 
+/** Cap on named reactors returned per emoji; `count` may still exceed this. */
+export const MAX_LISTED_CHAT_REACTION_REACTORS = 20;
+
+export const chatRoomMessageReactorSchema = z
+  .object({
+    id: z.string().openapi({ example: "user_123" }),
+    name: z.string().openapi({ example: "Jane Doe" }),
+  })
+  .openapi("ChatRoomMessageReactor");
+
 export const chatRoomMessageReactionSchema = z
   .object({
     emoji: z.string().min(1).max(24).openapi({ example: "👍" }),
     count: z.number().int().min(0).openapi({ example: 3 }),
     reactedByCurrentUser: z.boolean().openapi({ example: true }),
+    reactors: z
+      .array(chatRoomMessageReactorSchema)
+      .max(MAX_LISTED_CHAT_REACTION_REACTORS)
+      .openapi({
+        description:
+          "First reactors by createdAt ascending (capped). count may exceed reactors.length.",
+        example: [{ id: "user_123", name: "Jane Doe" }],
+      }),
   })
   .openapi("ChatRoomMessageReaction");
+
+export const chatRoomMessageQuoteAttachmentSchema = z
+  .object({
+    fileName: z.string().openapi({ example: "launch.png" }),
+    url: z.string().openapi({ example: "https://blob.example/launch.png" }),
+    mediaKind: z.enum(["image", "file"]).openapi({ example: "image" }),
+  })
+  .openapi("ChatRoomMessageQuoteAttachment");
+
+/** Snapshot of a quoted room message, stored under metadata.quote and promoted on the DTO. */
+export const chatRoomMessageQuoteSchema = z
+  .object({
+    messageId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    authorName: z.string().openapi({ example: "Jane Doe" }),
+    snippet: z.string().openapi({
+      example: "Can you summarize this launch risk?",
+    }),
+    attachment: chatRoomMessageQuoteAttachmentSchema.nullable().optional(),
+  })
+  .openapi("ChatRoomMessageQuote");
 
 export const chatRoomMessageSchema = z
   .object({
@@ -195,12 +250,15 @@ export const chatRoomMessageSchema = z
     parentMessageId: z.string().uuid().nullable(),
     content: z.string(),
     createdAt: dateTimeSchema,
+    deletedAt: dateTimeSchema.nullable(),
+    editedAt: dateTimeSchema.nullable(),
     sender: chatRoomMessageSenderSchema,
     mentions: z.array(chatRoomMessageMentionSchema),
     reactions: z.array(chatRoomMessageReactionSchema),
     threadReplyCount: z.number().int().min(0),
     threadLastReplyAt: dateTimeSchema.nullable(),
     metadata: z.record(z.string(), z.any()).nullable(),
+    quote: chatRoomMessageQuoteSchema.nullable(),
   })
   .openapi("ChatRoomMessage");
 
@@ -227,8 +285,32 @@ export const createChatRoomMessageRequestSchema = z
       description: "Root message ID when posting a threaded reply.",
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
+    quote: z
+      .object({
+        messageId: z.string().uuid().openapi({
+          example: "550e8400-e29b-41d4-a716-446655440000",
+        }),
+      })
+      .optional()
+      .openapi({
+        description:
+          "Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.",
+      }),
+    clientMessageId: z.string().trim().min(1).max(128).optional().openapi({
+      description:
+        "Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).",
+      example: "019fbee7-676b-771f-ab7a-998f25f1f16b",
+    }),
   })
   .openapi("CreateChatRoomMessageRequest");
+
+export const updateChatRoomMessageRequestSchema = z
+  .object({
+    content: z.string().trim().min(1).max(10_000).openapi({
+      example: "Fixed typo in the launch summary",
+    }),
+  })
+  .openapi("UpdateChatRoomMessageRequest");
 
 export const reactToChatRoomMessageRequestSchema = z
   .object({
@@ -271,3 +353,4 @@ export const restoredChatRoomSchema = chatRoomSchema;
 
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
+export type ChatRoomMessageQuote = z.infer<typeof chatRoomMessageQuoteSchema>;

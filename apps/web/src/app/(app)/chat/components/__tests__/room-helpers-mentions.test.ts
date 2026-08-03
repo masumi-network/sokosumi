@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest";
 
+import type { NormalizedMention } from "@/components/ui/mention-textarea-utils";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
-import { formatRoomMarkdownMentions } from "../room-helpers";
+import {
+  buildRoomAllMentionRecord,
+  formatRoomMarkdownMentions,
+  partitionRoomMentionSuggestions,
+  ROOM_MENTION_ALL_ID,
+  ROOM_MENTION_ALL_SLUG,
+  ROOM_MENTION_ALL_TOKEN,
+  type RoomMentionParticipant,
+  shouldIncludeRoomAllMention,
+} from "../room-helpers";
 
 const coworker: ChatRoomCoworkerParticipant = {
   id: "cow_1",
@@ -23,6 +33,19 @@ const human: ChatRoomUserParticipant = {
   presence: "online",
 };
 
+const LABELS = { peopleLabel: "People", coworkersLabel: "Coworkers" };
+
+function mention(
+  partial: Omit<NormalizedMention<RoomMentionParticipant>, "slug"> & {
+    slug?: string;
+  },
+): NormalizedMention<RoomMentionParticipant> {
+  return {
+    slug: partial.slug ?? partial.key,
+    ...partial,
+  };
+}
+
 describe("formatRoomMarkdownMentions", () => {
   it("renders coworker and human mention chips from tokens", () => {
     const content = `@${coworker.id}:${coworker.slug} please ping @${human.id}:alice-smith`;
@@ -39,7 +62,7 @@ describe("formatRoomMarkdownMentions", () => {
     expect(formatted).toContain('class="text-primary font-medium"');
   });
 
-  it("falls back to the raw id when the member is unknown", () => {
+  it("leaves unknown mention tokens unstyled", () => {
     const formatted = formatRoomMarkdownMentions({
       content: "@missing:ghost hey",
       coworkersById: new Map(),
@@ -48,6 +71,240 @@ describe("formatRoomMarkdownMentions", () => {
       usersBySlug: new Map(),
     });
 
-    expect(formatted).toContain("@missing");
+    expect(formatted).toBe("@missing:ghost hey");
+    expect(formatted).not.toContain("text-primary");
+  });
+
+  it("does not highlight bare @words or email local-parts", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: "ping @nobody and alice@example.com",
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+    });
+
+    expect(formatted).toBe("ping @nobody and alice@example.com");
+    expect(formatted).not.toContain("text-primary");
+  });
+
+  it("highlights only resolved mentions when mixed with bare @words", () => {
+    const content = `@${coworker.id}:${coworker.slug} and @nobody please`;
+    const formatted = formatRoomMarkdownMentions({
+      content,
+      coworkersById: new Map([[coworker.id, coworker]]),
+      coworkersBySlug: new Map([[coworker.slug, coworker]]),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+    });
+
+    expect(formatted).toContain(
+      '<span class="text-primary font-medium">@Elena</span>',
+    );
+    expect(formatted).toContain("and @nobody please");
+    expect(formatted.match(/text-primary/g)).toHaveLength(1);
+  });
+
+  it("renders @all:all as an @all chip without member lookup", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: `${ROOM_MENTION_ALL_TOKEN} please look`,
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+    });
+
+    expect(formatted).toContain(">@all</span>");
+    expect(formatted).not.toContain("@all:all");
+  });
+
+  it("renders bare @all as an @all chip", () => {
+    const formatted = formatRoomMarkdownMentions({
+      content: "@all please look",
+      coworkersById: new Map(),
+      coworkersBySlug: new Map(),
+      usersById: new Map(),
+      usersBySlug: new Map(),
+    });
+
+    expect(formatted).toContain(">@all</span>");
+  });
+});
+
+describe("buildRoomAllMentionRecord", () => {
+  it("builds a synthetic catalog entry keyed as all with localized label", () => {
+    const record = buildRoomAllMentionRecord("Everyone");
+    expect(record.value).toBe("Everyone");
+    expect(record.slug).toBe(ROOM_MENTION_ALL_SLUG);
+    expect(record.data).toEqual({
+      kind: "all",
+      id: ROOM_MENTION_ALL_ID,
+      name: "Everyone",
+      slug: ROOM_MENTION_ALL_SLUG,
+      image: null,
+    });
+  });
+});
+
+describe("shouldIncludeRoomAllMention", () => {
+  it("includes @all for channels with another human", () => {
+    expect(
+      shouldIncludeRoomAllMention(
+        {
+          kind: "channel",
+          userMembers: [{ id: "self" }, { id: "alice" }],
+          coworkerMembers: [],
+        },
+        "self",
+      ),
+    ).toBe(true);
+  });
+
+  it("hides @all when the author is the only human", () => {
+    expect(
+      shouldIncludeRoomAllMention(
+        {
+          kind: "channel",
+          userMembers: [{ id: "self" }],
+          coworkerMembers: [{ id: "cow_1" }],
+        },
+        "self",
+      ),
+    ).toBe(false);
+  });
+
+  it("hides @all for 1:1 directs even with another human", () => {
+    expect(
+      shouldIncludeRoomAllMention(
+        {
+          kind: "direct",
+          userMembers: [{ id: "self" }, { id: "alice" }],
+          coworkerMembers: [],
+        },
+        "self",
+      ),
+    ).toBe(false);
+  });
+
+  it("includes @all for group directs with another human", () => {
+    expect(
+      shouldIncludeRoomAllMention(
+        {
+          kind: "direct",
+          userMembers: [{ id: "self" }, { id: "alice" }, { id: "bob" }],
+          coworkerMembers: [],
+        },
+        "self",
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("partitionRoomMentionSuggestions", () => {
+  const allMention = mention({
+    key: ROOM_MENTION_ALL_ID,
+    value: "Everyone",
+    slug: ROOM_MENTION_ALL_SLUG,
+    data: {
+      kind: "all",
+      id: ROOM_MENTION_ALL_ID,
+      name: "Everyone",
+      slug: ROOM_MENTION_ALL_SLUG,
+      image: null,
+    },
+  });
+
+  const humanMention = mention({
+    key: human.id,
+    value: human.name,
+    slug: "alice-smith",
+    data: {
+      kind: "human",
+      id: human.id,
+      name: human.name,
+      slug: "alice-smith",
+      image: null,
+    },
+  });
+
+  const coworkerMention = mention({
+    key: coworker.id,
+    value: coworker.name,
+    slug: coworker.slug,
+    data: {
+      kind: "coworker",
+      id: coworker.id,
+      name: coworker.name,
+      slug: coworker.slug,
+      image: null,
+    },
+  });
+
+  it("puts @all and humans in People, coworkers in Coworkers", () => {
+    const groups = partitionRoomMentionSuggestions(
+      [allMention, humanMention, coworkerMention],
+      LABELS,
+    );
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({ id: "people", label: "People" });
+    expect(groups[0]?.items.map((item) => item.key)).toEqual([
+      ROOM_MENTION_ALL_ID,
+      human.id,
+    ]);
+    expect(groups[1]).toMatchObject({ id: "coworkers", label: "Coworkers" });
+    expect(groups[1]?.items.map((item) => item.key)).toEqual([coworker.id]);
+  });
+
+  it("omits empty sections after filter", () => {
+    expect(
+      partitionRoomMentionSuggestions([humanMention], LABELS).map((g) => g.id),
+    ).toEqual(["people"]);
+    expect(
+      partitionRoomMentionSuggestions([coworkerMention], LABELS).map(
+        (g) => g.id,
+      ),
+    ).toEqual(["coworkers"]);
+    expect(partitionRoomMentionSuggestions([], LABELS)).toEqual([]);
+  });
+
+  it("keeps People above Coworkers when both non-empty", () => {
+    const groups = partitionRoomMentionSuggestions(
+      [coworkerMention, humanMention],
+      LABELS,
+    );
+    expect(groups.map((g) => g.id)).toEqual(["people", "coworkers"]);
+  });
+
+  it("preserves within-People filter order (@all stays first when present)", () => {
+    const bob = mention({
+      key: "user_2",
+      value: "Bob",
+      slug: "bob",
+      data: {
+        kind: "human",
+        id: "user_2",
+        name: "Bob",
+        slug: "bob",
+        image: null,
+      },
+    });
+    const groups = partitionRoomMentionSuggestions(
+      [allMention, bob, humanMention, coworkerMention],
+      LABELS,
+    );
+    expect(groups[0]?.items.map((item) => item.key)).toEqual([
+      ROOM_MENTION_ALL_ID,
+      "user_2",
+      human.id,
+    ]);
+  });
+
+  it("treats mentions without data/kind as People (safe fallback)", () => {
+    const unknown = mention({ key: "x", value: "Unknown" });
+    const groups = partitionRoomMentionSuggestions([unknown], LABELS);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.id).toBe("people");
+    expect(groups[0]?.items).toEqual([unknown]);
   });
 });

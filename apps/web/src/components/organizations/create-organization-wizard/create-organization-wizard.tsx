@@ -80,13 +80,14 @@ import {
 } from "@/lib/constants/organization-logo";
 import { cn } from "@/lib/utils";
 import {
+  cleanupOrganizationLogoBestEffort,
+  getOrganizationLogoUploadErrorMessage,
+  uploadOrganizationLogoDirect,
+} from "@/lib/utils/organization-logo-upload.client";
+import {
   ClientTimeoutError,
   raceWithTimeout,
 } from "@/lib/utils/race-with-timeout";
-import {
-  getUserFileUploadErrorMessage,
-  uploadUserFileDirect,
-} from "@/lib/utils/user-file-upload.client";
 
 const TOTAL_STEPS = 4;
 /**
@@ -154,6 +155,8 @@ export function CreateOrganizationWizard({
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
 
   const [logoUrl, setLogoUrl] = useState("");
+  const logoUrlRef = useRef(logoUrl);
+  logoUrlRef.current = logoUrl;
   const [isResolvingLogo, setIsResolvingLogo] = useState(false);
   const [pendingLogoFiles, setPendingLogoFiles] = useState<File[]>([]);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -253,12 +256,15 @@ export function CreateOrganizationWizard({
   }, [open, resetAll]);
 
   const persistLogo = useCallback(
-    async (nextLogo: string) => {
+    async (nextLogo: string | null, previousLogo?: string) => {
       if (!organizationId) return;
       await authClient.organization.update({
         organizationId,
         data: { logo: nextLogo },
       });
+      if (previousLogo && previousLogo !== nextLogo) {
+        void cleanupOrganizationLogoBestEffort(organizationId, previousLogo);
+      }
     },
     [organizationId],
   );
@@ -267,13 +273,20 @@ export function CreateOrganizationWizard({
     async (orgId: string, url: string) => {
       setIsResolvingLogo(true);
       try {
-        const result = await resolveOrganizationSiteIcon({ url });
+        const result = await resolveOrganizationSiteIcon({
+          url,
+          organizationId: orgId,
+        });
         if (result.ok && result.data.url) {
+          const previousLogo = logoUrlRef.current;
           setLogoUrl(result.data.url);
           await authClient.organization.update({
             organizationId: orgId,
             data: { logo: result.data.url },
           });
+          if (previousLogo && previousLogo !== result.data.url) {
+            void cleanupOrganizationLogoBestEffort(orgId, previousLogo);
+          }
         }
       } catch (error) {
         console.error("Failed to resolve organization logo", error);
@@ -470,37 +483,42 @@ export function CreateOrganizationWizard({
   const handleLogoUpload = useCallback(
     async (files: File[]) => {
       const logoFile = files[0];
-      if (!logoFile) return;
+      if (!logoFile || !organizationId) return;
       setIsUploadingLogo(true);
+      const previousLogo = logoUrl;
       try {
         const uploaded = await raceWithTimeout(
-          uploadUserFileDirect(logoFile, {
+          uploadOrganizationLogoDirect(organizationId, logoFile, {
             allowedContentTypes: [...ORGANIZATION_LOGO_ALLOWED_MIME_TYPES],
             maxSizeBytes: ORGANIZATION_LOGO_MAX_SIZE_BYTES,
           }),
           ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
         );
         setLogoUrl(uploaded.publicUrl);
-        await persistLogo(uploaded.publicUrl);
+        await persistLogo(uploaded.publicUrl, previousLogo);
       } catch (error) {
         toast.error(
           error instanceof ClientTimeoutError
             ? t("Logo.uploadError")
-            : getUserFileUploadErrorMessage(error, t("Logo.uploadError")),
+            : getOrganizationLogoUploadErrorMessage(
+                error,
+                t("Logo.uploadError"),
+              ),
         );
       } finally {
         setPendingLogoFiles([]);
         setIsUploadingLogo(false);
       }
     },
-    [persistLogo, t],
+    [logoUrl, organizationId, persistLogo, t],
   );
 
   const handleRemoveLogo = useCallback(() => {
+    const previousLogo = logoUrl;
     setLogoUrl("");
     setPendingLogoFiles([]);
-    void persistLogo("");
-  }, [persistLogo]);
+    void persistLogo(null, previousLogo);
+  }, [logoUrl, persistLogo]);
 
   const handleCopyLink = useCallback(async () => {
     if (!inviteLink) return;

@@ -12,6 +12,11 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { sendNewChannelMessageAction } from "@/app/chat/actions";
+import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
+import {
+  type ComposeDraft,
+  composeDraftKey,
+} from "@/app/chat/utils/compose-draft-storage";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
@@ -20,7 +25,11 @@ import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
-import { RoomComposer, type RoomComposerAttachment } from "./room-composer";
+import {
+  RoomComposer,
+  type RoomComposerAttachment,
+  type RoomComposerHandle,
+} from "./room-composer";
 import {
   AiCoworkerIcon,
   buildDirectDraftTargets,
@@ -29,10 +38,14 @@ import {
   filterDraftTargets,
   MembersRosterLoadFailed,
 } from "./room-draft-shared";
+import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
+  buildRoomAllMentionRecord,
   buildRoomComposerMessageContent,
   isRoomComposerEmpty,
+  ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  shouldIncludeRoomAllMention,
 } from "./room-helpers";
 
 export function DraftChannel({
@@ -50,6 +63,7 @@ export function DraftChannel({
   const router = useRouter();
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const composerRef = useRef<RoomComposerHandle | null>(null);
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
   const [recipientQuery, setRecipientQuery] = useState("");
@@ -61,6 +75,31 @@ export function DraftChannel({
   >([]);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
   const [isCreating, startCreatingTransition] = useTransition();
+  const composeDraft = useMemo<ComposeDraft>(
+    () => ({
+      text: composerValue,
+      attachments: composerAttachments.map((attachment) => ({
+        url: attachment.url,
+        fileName: attachment.fileName,
+        ...(attachment.mediaType ? { mediaType: attachment.mediaType } : {}),
+      })),
+    }),
+    [composerValue, composerAttachments],
+  );
+  const { clearDraft } = usePersistComposeDraft({
+    key: composeDraftKey.draftChannel(),
+    draft: composeDraft,
+    onHydrate: (draft) => {
+      setComposerValue(draft.text);
+      setComposerAttachments(
+        draft.attachments.map((attachment) => ({
+          url: attachment.url,
+          fileName: attachment.fileName,
+          mediaType: attachment.mediaType ?? null,
+        })),
+      );
+    },
+  });
   const targets = useMemo(
     () => buildDirectDraftTargets(members, coworkers, currentUserId),
     [members, coworkers, currentUserId],
@@ -79,30 +118,47 @@ export function DraftChannel({
   const selectedMentionParticipants = useMemo<
     Record<string, MentionRecordEntry<RoomMentionParticipant>>
   >(() => {
-    return Object.fromEntries(
-      selectedTargets.map((target) => {
-        const slug =
-          target.kind === "coworker"
-            ? (target.slug ?? target.id)
-            : slugifyMentionValue(target.name);
-        const participant: RoomMentionParticipant = {
-          kind: target.kind,
-          id: target.id,
-          name: target.name,
+    const entries = selectedTargets.map((target) => {
+      const slug =
+        target.kind === "coworker"
+          ? (target.slug ?? target.id)
+          : slugifyMentionValue(target.name);
+      const participant: RoomMentionParticipant = {
+        kind: target.kind,
+        id: target.id,
+        name: target.name,
+        slug,
+        image: target.image,
+      };
+      return [
+        target.id,
+        {
+          value: target.name,
           slug,
-          image: target.image,
-        };
-        return [
-          target.id,
-          {
-            value: target.name,
-            slug,
-            data: participant,
-          },
-        ];
-      }),
-    );
-  }, [selectedTargets]);
+          data: participant,
+        },
+      ] as const;
+    });
+    const draftRoom = {
+      kind: "channel" as const,
+      userMembers: [
+        { id: currentUserId },
+        ...selectedTargets
+          .filter((target) => target.kind === "human")
+          .map((target) => ({ id: target.id })),
+      ],
+      coworkerMembers: selectedTargets.filter(
+        (target) => target.kind === "coworker",
+      ),
+    };
+    if (shouldIncludeRoomAllMention(draftRoom, currentUserId)) {
+      entries.unshift([
+        ROOM_MENTION_ALL_ID,
+        buildRoomAllMentionRecord(t("MentionAll.label")),
+      ]);
+    }
+    return Object.fromEntries(entries);
+  }, [currentUserId, selectedTargets, t]);
   const selectedMemberUserIds = selectedTargets
     .filter((target) => target.kind === "human")
     .map((target) => target.id);
@@ -176,13 +232,21 @@ export function DraftChannel({
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
+      clearDraft();
       notifyOrganizationChatRoomsChanged(result.data.room);
       router.replace(`/chat/rooms/${result.data.room.id}`);
     });
   }
 
   return (
-    <>
+    <RoomFileDropZone
+      enabled
+      onFiles={(files) => {
+        composerRef.current?.attachFiles(files);
+      }}
+      label={t("Toolbar.dropToAttach")}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <header className="min-h-14 shrink-0 border-b px-5 py-2">
         <div className="space-y-2">
           <div className="flex w-full items-start gap-2">
@@ -322,6 +386,7 @@ export function DraftChannel({
       </ScrollArea>
 
       <RoomComposer
+        ref={composerRef}
         value={composerValue}
         onValueChange={setComposerValue}
         mentions={selectedMentionParticipants}
@@ -340,6 +405,6 @@ export function DraftChannel({
           isRoomComposerEmpty(composerValue, composerAttachments)
         }
       />
-    </>
+    </RoomFileDropZone>
   );
 }
