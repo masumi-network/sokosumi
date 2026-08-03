@@ -415,12 +415,18 @@ function ChannelMessageBody({
 const QUICK_MESSAGE_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀"] as const;
 const LONG_PRESS_DELAY_MS = 450;
 const LONG_PRESS_MOVE_TOLERANCE_PX = 12;
+const TOUCH_MESSAGE_SELECT_NONE_CLASS =
+  "[@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]";
 
 function devicePrefersHover(): boolean {
   if (typeof window === "undefined") {
     return true;
   }
   return window.matchMedia("(hover: hover)").matches;
+}
+
+function clearDomTextSelection() {
+  window.getSelection()?.removeAllRanges();
 }
 
 function useLongPress(onLongPress: () => void): {
@@ -454,6 +460,7 @@ function useLongPress(onLongPress: () => void): {
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
         startRef.current = null;
+        clearDomTextSelection();
         onLongPress();
       }, LONG_PRESS_DELAY_MS);
     },
@@ -797,6 +804,13 @@ function TouchMessageActionsSheet({
   const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
     onOpenChange(false);
   });
+  const whoReactedRows = message.reactions.flatMap((reaction) => {
+    const whoReactedLabel = formatWhoReactedLabel(reaction, t);
+    if (!whoReactedLabel) {
+      return [];
+    }
+    return [{ emoji: reaction.emoji, whoReactedLabel }];
+  });
 
   function runAndClose(action: () => void) {
     action();
@@ -857,6 +871,23 @@ function TouchMessageActionsSheet({
             }}
           />
         </div>
+        {whoReactedRows.length > 0 ? (
+          <ul
+            aria-label={t("Reactions.whoReactedList")}
+            className="border-border space-y-2 border-t px-4 py-3"
+          >
+            {whoReactedRows.map((row) => (
+              <li key={row.emoji} className="flex items-start gap-2 text-sm">
+                <span className="text-base leading-none" aria-hidden>
+                  {row.emoji}
+                </span>
+                <span className="text-muted-foreground min-w-0 flex-1">
+                  {row.whoReactedLabel}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="border-border flex flex-col gap-1 border-t px-2 py-2">
           {showEditButton && onEdit ? (
             <Button
@@ -1187,6 +1218,7 @@ export function ChatMessageRow({
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
         "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
+        showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation ? "min-h-0 py-0.5" : "mt-3 min-h-0 pt-1 pb-0.5",
       )}
       {...(showActions ? longPress : {})}

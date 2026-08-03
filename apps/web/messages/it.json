@@ -4723,7 +4723,8 @@
         "add": "Add reaction",
         "toggle": "React with {emoji}",
         "whoReacted": "{names}{more, plural, =0 {} other { e altri #}}",
-        "andMore": "e altri {count}"
+        "andMore": "e altri {count}",
+        "whoReactedList": "Chi ha reagito"
       },
       "Presence": {
         "online": "Online",

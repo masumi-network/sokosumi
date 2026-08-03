@@ -746,7 +746,13 @@ export function RoomsClient({
       if (skipWhileStreaming && isCoworkerStreaming) {
         return;
       }
-      const result = await listRoomMessagesAction(roomId);
+      const threadParentId = threadParentMessageRef.current?.id;
+      const [result, threadResult] = await Promise.all([
+        listRoomMessagesAction(roomId),
+        threadParentId
+          ? listThreadMessagesAction(roomId, threadParentId)
+          : Promise.resolve(null),
+      ]);
       if (cancelled || !result.ok) {
         return;
       }
@@ -760,6 +766,11 @@ export function RoomsClient({
             ) ?? current)
           : current,
       );
+      if (threadResult?.ok) {
+        setThreadMessages((current) =>
+          mergeRoomMessages(current, threadResult.data.messages),
+        );
+      }
     };
 
     const intervalId = window.setInterval(refreshLatest, ROOM_LIVE_POLL_MS);
