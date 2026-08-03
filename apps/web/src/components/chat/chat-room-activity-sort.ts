@@ -16,23 +16,24 @@ function pinnedAtMs(value: string | Date | null | undefined): number {
   return new Date(value).getTime();
 }
 
-<<<<<<< HEAD
-/**
- * Pinned before unpinned; among pins oldest pinnedAt first (first pin stays top);
- * then newest activity; stable id tie-break.
- */
-=======
 function mutedRank(value: string | Date | null | undefined): number {
   return value == null ? 0 : 1;
 }
 
-/** Unmuted first; within bucket pinned first (pinnedAt desc), then activity, then id. */
->>>>>>> 7e4a24a4 (feat(web): mute chat rooms in sidebar)
+/**
+ * Unmuted before muted; within bucket pinned before unpinned;
+ * among pins oldest pinnedAt first (first pin stays top);
+ * then newest activity; stable id tie-break.
+ */
 export function compareChatRoomsByRecentActivity(
   a: ChatRoomActivitySortKey,
   b: ChatRoomActivitySortKey,
 ): number {
-<<<<<<< HEAD
+  const byMuted = mutedRank(a.mutedAt) - mutedRank(b.mutedAt);
+  if (byMuted !== 0) {
+    return byMuted;
+  }
+
   const aPinned = isPinned(a.pinnedAt);
   const bPinned = isPinned(b.pinnedAt);
   if (aPinned !== bPinned) {
@@ -44,16 +45,6 @@ export function compareChatRoomsByRecentActivity(
     if (byPinned !== 0) {
       return byPinned;
     }
-=======
-  const byMuted = mutedRank(a.mutedAt) - mutedRank(b.mutedAt);
-  if (byMuted !== 0) {
-    return byMuted;
-  }
-
-  const byPinned = pinnedAtMs(b.pinnedAt) - pinnedAtMs(a.pinnedAt);
-  if (byPinned !== 0) {
-    return byPinned;
->>>>>>> 7e4a24a4 (feat(web): mute chat rooms in sidebar)
   }
 
   const byActivity =
