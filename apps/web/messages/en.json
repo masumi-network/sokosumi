@@ -781,6 +781,7 @@
       "markAllReadError": "Failed to mark all notifications as read",
       "fetchError": "Could not load notifications",
       "retry": "Try again",
+      "accept": "Accept",
       "dismiss": "Dismiss",
       "view": "View",
       "dismissNotification": "Dismiss notification",
@@ -790,7 +791,9 @@
       "browserPermissionEnable": "Enable browser notifications",
       "browserPermissionRequesting": "Waiting for permission…",
       "browserPermissionDeniedTitle": "Browser notifications are blocked",
-      "browserPermissionDeniedDescription": "Notifications for this site are blocked in your browser. Open your browser’s notification settings for Sokosumi to allow them."
+      "browserPermissionDeniedDescription": "Notifications for this site are blocked in your browser. Open your browser’s notification settings for Sokosumi to allow them.",
+      "vendorGrantAcceptSuccess": "Vendor access approved",
+      "vendorGrantAcceptError": "Failed to approve vendor access"
     },
     "HashValue": {
       "copy": "Copy",

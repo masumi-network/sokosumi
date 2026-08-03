@@ -765,6 +765,7 @@
       "markAllReadError": "无法将所有通知标为已读",
       "fetchError": "无法加载通知",
       "retry": "重试",
+      "accept": "接受",
       "dismiss": "关闭",
       "view": "查看",
       "dismissNotification": "关闭通知",
@@ -774,7 +775,9 @@
       "browserPermissionEnable": "启用浏览器通知",
       "browserPermissionRequesting": "正在等待权限…",
       "browserPermissionDeniedTitle": "浏览器通知已被屏蔽",
-      "browserPermissionDeniedDescription": "此网站的通知已在浏览器中被屏蔽。请打开浏览器中 Sokosumi 的通知设置以允许通知。"
+      "browserPermissionDeniedDescription": "此网站的通知已在浏览器中被屏蔽。请打开浏览器中 Sokosumi 的通知设置以允许通知。",
+      "vendorGrantAcceptSuccess": "已批准供应商访问",
+      "vendorGrantAcceptError": "批准供应商访问失败"
     },
     "HashValue": {
       "copy": "复制",

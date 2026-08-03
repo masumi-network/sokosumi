@@ -765,6 +765,7 @@
       "markAllReadError": "すべての通知を既読にできませんでした",
       "fetchError": "通知を読み込めませんでした",
       "retry": "再試行",
+      "accept": "承認",
       "dismiss": "閉じる",
       "view": "表示",
       "dismissNotification": "通知を閉じる",
@@ -774,7 +775,9 @@
       "browserPermissionEnable": "ブラウザ通知を有効にする",
       "browserPermissionRequesting": "許可を待機中…",
       "browserPermissionDeniedTitle": "ブラウザ通知がブロックされています",
-      "browserPermissionDeniedDescription": "このサイトの通知はブラウザでブロックされています。Sokosumi のブラウザ通知設定を開いて許可してください。"
+      "browserPermissionDeniedDescription": "このサイトの通知はブラウザでブロックされています。Sokosumi のブラウザ通知設定を開いて許可してください。",
+      "vendorGrantAcceptSuccess": "ベンダーアクセスを承認しました",
+      "vendorGrantAcceptError": "ベンダーアクセスの承認に失敗しました"
     },
     "HashValue": {
       "copy": "コピー",

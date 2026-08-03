@@ -1,12 +1,17 @@
 "use client";
 
+import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { useNotifications } from "@/contexts/notification-provider";
+import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { authClient } from "@/lib/auth/auth.client";
+import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import {
   getBrowserNotificationPermission,
   shouldShowBrowserNotification,
@@ -14,9 +19,63 @@ import {
 } from "@/lib/utils/browser-notification";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
+import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
 
 interface NotificationToastListenerProps {
   userId: string;
+}
+
+interface NotificationToastBodyProps {
+  message: string;
+  onOpen: () => void;
+}
+
+function NotificationToastBody({
+  message,
+  onOpen,
+}: NotificationToastBodyProps) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="hover:bg-accent/50 -my-1 flex w-full min-w-0 cursor-pointer items-center gap-2 rounded-md py-1 text-left transition-colors"
+    >
+      <span className="min-w-0 flex-1 text-sm font-medium leading-snug">
+        {message}
+      </span>
+    </button>
+  );
+}
+
+interface VendorGrantNotificationToastProps {
+  notification: NotificationEventData;
+  message: string;
+  onOpen: () => void;
+}
+
+function VendorGrantNotificationToast({
+  notification,
+  message,
+  onOpen,
+}: VendorGrantNotificationToastProps) {
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-1">
+      <NotificationToastBody
+        message={message}
+        onOpen={() => {
+          toast.dismiss(notification.id);
+          onOpen();
+        }}
+      />
+      <VendorGrantNotificationActions
+        notification={notification}
+        layout="toast"
+        onDismissed={() => {
+          toast.dismiss(notification.id);
+        }}
+      />
+    </div>
+  );
 }
 
 export function NotificationToastListener({
@@ -40,8 +99,12 @@ export function NotificationToastListener({
         isDocumentFocused,
         isRead: notification.isRead,
       });
+      const showVendorGrantToast =
+        isDocumentFocused &&
+        !notification.isRead &&
+        isPendingVendorGrantNotification(notification);
 
-      if (!showBrowser) {
+      if (!showBrowser && !showVendorGrantToast) {
         return;
       }
 
@@ -72,22 +135,42 @@ export function NotificationToastListener({
         })();
       };
 
-      const browserNotification = showBrowserNotification({
-        id: notification.id,
-        title: t("browserNotificationTitle"),
-        body: message,
-        icon: new URL(
-          "/images/app-icons/apple-icon-180.png",
-          window.location.origin,
-        ).href,
-        onClick: openNotification,
-      });
-      if (browserNotification == null) {
-        console.error(
-          "Browser notification gate passed but OS notification was not shown",
-          { id: notification.id },
-        );
+      if (showBrowser) {
+        const browserNotification = showBrowserNotification({
+          id: notification.id,
+          title: t("browserNotificationTitle"),
+          body: message,
+          icon: new URL(
+            "/images/app-icons/apple-icon-180.png",
+            window.location.origin,
+          ).href,
+          onClick: openNotification,
+        });
+        if (browserNotification == null) {
+          console.error(
+            "Browser notification gate passed but OS notification was not shown",
+            { id: notification.id },
+          );
+        }
+        return;
       }
+
+      toast(
+        () => (
+          <VendorGrantNotificationToast
+            notification={notification}
+            message={message}
+            onOpen={openNotification}
+          />
+        ),
+        {
+          id: notification.id,
+          toasterId: NOTIFICATION_TOASTER_ID,
+          duration: 10_000,
+          dismissible: true,
+          icon: <Bell className="text-primary size-5 shrink-0" />,
+        },
+      );
     },
     onError: (error) => {
       console.error("Notification browser alert error:", error);

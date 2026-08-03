@@ -765,6 +765,7 @@
       "markAllReadError": "Impossible de marquer toutes les notifications comme lues",
       "fetchError": "Impossible de charger les notifications",
       "retry": "Réessayer",
+      "accept": "Accepter",
       "dismiss": "Ignorer",
       "view": "Voir",
       "dismissNotification": "Ignorer la notification",
@@ -774,7 +775,9 @@
       "browserPermissionEnable": "Activer les notifications du navigateur",
       "browserPermissionRequesting": "En attente de l’autorisation…",
       "browserPermissionDeniedTitle": "Les notifications du navigateur sont bloquées",
-      "browserPermissionDeniedDescription": "Les notifications pour ce site sont bloquées dans votre navigateur. Ouvrez les paramètres de notification du navigateur pour Sokosumi afin de les autoriser."
+      "browserPermissionDeniedDescription": "Les notifications pour ce site sont bloquées dans votre navigateur. Ouvrez les paramètres de notification du navigateur pour Sokosumi afin de les autoriser.",
+      "vendorGrantAcceptSuccess": "Accès fournisseur approuvé",
+      "vendorGrantAcceptError": "Échec de l'approbation de l'accès fournisseur"
     },
     "HashValue": {
       "copy": "Copier",
