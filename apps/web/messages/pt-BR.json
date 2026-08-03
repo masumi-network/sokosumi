@@ -772,7 +772,9 @@
       "browserPermissionTitle": "Receba alertas quando estiver em outra aba",
       "browserPermissionDescription": "Permita notificações do navegador para jobs, tarefas, cobrança, sistema e chat enquanto o Sokosumi estiver aberto, mas sem foco.",
       "browserPermissionEnable": "Ativar notificações do navegador",
-      "browserPermissionRequesting": "Aguardando permissão…"
+      "browserPermissionRequesting": "Aguardando permissão…",
+      "browserPermissionDeniedTitle": "As notificações do navegador estão bloqueadas",
+      "browserPermissionDeniedDescription": "As notificações deste site estão bloqueadas no navegador. Abra as configurações de notificações do navegador para o Sokosumi e permita-as."
     },
     "HashValue": {
       "copy": "Copiar",
