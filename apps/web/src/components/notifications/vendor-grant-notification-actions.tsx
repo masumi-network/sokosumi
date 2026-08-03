@@ -35,9 +35,10 @@ export function VendorGrantNotificationActions({
   const [loadingAction, setLoadingAction] = useState<
     "accept" | "dismiss" | null
   >(null);
+  const [accepted, setAccepted] = useState(false);
 
   const target = resolveVendorGrantNotificationTarget(notification);
-  if (!isPendingVendorGrantNotification(notification) || !target) {
+  if (accepted || !isPendingVendorGrantNotification(notification) || !target) {
     return null;
   }
 
@@ -71,6 +72,7 @@ export function VendorGrantNotificationActions({
         return;
       }
 
+      setAccepted(true);
       void markRead(notification.id).catch(() => {
         // Grant is approved; surface cleanup still proceeds.
       });
