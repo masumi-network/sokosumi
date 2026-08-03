@@ -85,6 +85,25 @@ function userMessage(
   };
 }
 
+function coworkerMessage(
+  overrides: Partial<ChatRoomMessage> = {},
+): ChatRoomMessage {
+  return {
+    ...userMessage(overrides),
+    sender: {
+      type: "coworker",
+      coworker: {
+        id: "cow-1",
+        name: "Jamal",
+        slug: "jamal",
+        caption: null,
+        image: null,
+        presence: "online",
+      },
+    },
+  };
+}
+
 function renderRow({
   message = userMessage(),
   isContinuation = false,
@@ -831,6 +850,21 @@ describe("ChatMessageRow", () => {
         coworkersById={new Map()}
         coworkersBySlug={new Map()}
         currentUserId="other-user"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit.action" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={coworkerMessage()}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="user-1"
         onToggleReaction={vi.fn()}
         onStartEdit={onStartEdit}
       />,

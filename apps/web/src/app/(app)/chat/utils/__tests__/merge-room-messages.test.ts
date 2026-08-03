@@ -77,6 +77,39 @@ describe("mergeRoomMessages", () => {
     expect(merged[2]?.content).toBe("updated");
   });
 
+  it("applies poll edit content and editedAt from incoming", () => {
+    const existing = message("m1", "2026-07-01T10:00:00.000Z", "original");
+    const editedAt = new Date("2026-07-01T10:05:00.000Z");
+    const incoming = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "edited body"),
+      editedAt,
+    };
+
+    const merged = mergeRoomMessages([existing], [incoming]);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.content).toBe("edited body");
+    expect(merged[0]?.editedAt).toEqual(editedAt);
+  });
+
+  it("keeps edited content and editedAt when poll returns the same edit", () => {
+    const editedAt = new Date("2026-07-01T10:05:00.000Z");
+    const alreadyEdited = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "edited body"),
+      editedAt,
+    };
+    const pollSameEdit = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "edited body"),
+      editedAt,
+    };
+
+    const merged = mergeRoomMessages([alreadyEdited], [pollSameEdit]);
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.content).toBe("edited body");
+    expect(merged[0]?.editedAt).toEqual(editedAt);
+  });
+
   it("prepends an older page without duplicating ids", () => {
     const older = message("m1", "2026-07-01T10:00:00.000Z");
     const mid = message("m2", "2026-07-01T11:00:00.000Z");
