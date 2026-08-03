@@ -1,5 +1,6 @@
 "use client";
 
+import { ChannelProvider } from "ably/react";
 import { Hash, Loader2, MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -43,6 +44,12 @@ import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
+import {
+  type ChatRoomMessageEventData,
+  makeUserChatRoomsChannelName,
+} from "@/lib/ably";
+import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
+import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -111,8 +118,23 @@ interface RoomsClientProps {
 const COWORKER_RESPONSE_POLL_MS = 2500;
 /** ~2.5 minutes of polling before we stop waiting for a coworker reply. */
 const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
-/** Match sidebar channel-list cadence for peer traffic while a room is open. */
-const ROOM_LIVE_POLL_MS = 15_000;
+
+function RoomMessageRealtimeBridge({
+  userId,
+  onMessage,
+}: {
+  userId: string;
+  onMessage: (event: ChatRoomMessageEventData) => void;
+}) {
+  useChatRoomRealtime({
+    userId,
+    onMessage,
+    onError: (error) => {
+      console.error("Ably chat room message error:", error);
+    },
+  });
+  return null;
+}
 
 function RoomParticipantStack({
   room,
@@ -380,6 +402,45 @@ export function RoomsClient({
     organizationSlug: activeOrganization?.slug ?? null,
     onStreamSettled: refreshRoomMessagesAfterStream,
   });
+
+  const isCoworkerStreamingRef = useRef(isCoworkerStreaming);
+  isCoworkerStreamingRef.current = isCoworkerStreaming;
+  const skipRealtimeWhileStreamingRef = useRef(isCoworkerStreamRoom);
+  skipRealtimeWhileStreamingRef.current = isCoworkerStreamRoom;
+  const threadParentMessageIdRef = useRef<string | null>(null);
+  threadParentMessageIdRef.current = threadParentMessage?.id ?? null;
+
+  const handleChatRoomRealtimeMessage = useCallback(
+    (event: ChatRoomMessageEventData) => {
+      const message = hydrateChatRoomMessageFromRealtime(event.message);
+      if (message.roomId !== selectedRoomIdRef.current) {
+        return;
+      }
+      if (
+        skipRealtimeWhileStreamingRef.current &&
+        isCoworkerStreamingRef.current
+      ) {
+        return;
+      }
+
+      setMessagesState((current) => mergeRoomMessages(current, [message]));
+      setThreadParentMessage((current) =>
+        current?.id === message.id ? message : current,
+      );
+
+      const openThreadParentId = threadParentMessageIdRef.current;
+      if (!openThreadParentId) {
+        return;
+      }
+      if (
+        message.id === openThreadParentId ||
+        message.parentMessageId === openThreadParentId
+      ) {
+        setThreadMessages((current) => mergeRoomMessages(current, [message]));
+      }
+    },
+    [],
+  );
 
   const topLevelStreamOverlayMessages = useMemo(
     () =>
@@ -727,9 +788,8 @@ export function RoomsClient({
     };
   }, [selectedRoom?.id, hasPendingRoomCoworkerMention]);
 
-  // Peer traffic while the room stays open: light poll + focus/visibility
-  // refetch. Merges into local state so previously loaded older pages survive.
-  // Skip ticks while a coworker DM stream is in flight (avoids duplicate overlay).
+  // Safety net when Ably is unavailable or a message was missed while hidden.
+  // Live peer traffic arrives via Ably Pub/Sub (RoomMessageRealtimeBridge).
   useEffect(() => {
     if (!selectedRoom) {
       return;
@@ -773,7 +833,6 @@ export function RoomsClient({
       }
     };
 
-    const intervalId = window.setInterval(refreshLatest, ROOM_LIVE_POLL_MS);
     window.addEventListener("focus", refreshLatest);
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -784,7 +843,6 @@ export function RoomsClient({
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshLatest);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
@@ -1217,6 +1275,16 @@ export function RoomsClient({
 
   return (
     <div className="-m-4 flex h-[calc(100svh-64px)] min-h-0 flex-col overflow-hidden bg-background">
+      {currentUserId ? (
+        <ChannelProvider
+          channelName={makeUserChatRoomsChannelName(currentUserId)}
+        >
+          <RoomMessageRealtimeBridge
+            userId={currentUserId}
+            onMessage={handleChatRoomRealtimeMessage}
+          />
+        </ChannelProvider>
+      ) : null}
       {/* `relative` anchors the thread panel's mobile full-screen takeover. */}
       <main className="relative flex min-h-0 flex-1">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
