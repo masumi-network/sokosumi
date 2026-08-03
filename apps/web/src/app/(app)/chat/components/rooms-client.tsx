@@ -1055,6 +1055,9 @@ export function RoomsClient({
 
   function handleQuoteMessage(message: ChatRoomMessage) {
     setPendingQuote(pendingQuoteFromMessage(message));
+    requestAnimationFrame(() => {
+      roomComposerRef.current?.focus();
+    });
   }
 
   function handleQuoteThreadMessage(message: ChatRoomMessage) {
