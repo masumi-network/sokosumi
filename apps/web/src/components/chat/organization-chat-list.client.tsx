@@ -3,7 +3,6 @@
 import {
   ChevronDown,
   Ellipsis,
-  Hash,
   MessageCircle,
   Plus,
   RotateCcw,
@@ -21,6 +20,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { deleteRoomAction, restoreRoomAction } from "@/app/chat/actions";
+import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import {
   AlertDialog,
@@ -56,6 +56,7 @@ import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-tit
 import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
 import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
@@ -80,7 +81,7 @@ interface OrganizationChatListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
   currentUserId: string;
-  hasOrganization: boolean;
+  organizationId: string | null;
   canDeleteArchivedRooms?: boolean;
 }
 
@@ -214,15 +215,26 @@ function SectionHeader({
   href,
   isOpen,
   label,
+  secondaryAction,
 }: {
   children: ReactNode;
   href?: string;
   isOpen: boolean;
   label?: string;
+  secondaryAction?: ReactNode;
 }) {
+  const hasTrailing = Boolean(secondaryAction) || Boolean(href && label);
+  const trailingCount = (secondaryAction ? 1 : 0) + (href && label ? 1 : 0);
+
   return (
     <div className="group-data-[collapsible=icon]:hidden relative flex h-8 items-center gap-1 px-3">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-xs font-medium transition-colors">
+      <CollapsibleTrigger
+        className={cn(
+          "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-xs font-medium transition-colors",
+          trailingCount === 1 && "pr-8",
+          trailingCount >= 2 && "pr-14",
+        )}
+      >
         <ChevronDown
           aria-hidden
           className={cn(
@@ -232,21 +244,21 @@ function SectionHeader({
         />
         <span className="truncate">{children}</span>
       </CollapsibleTrigger>
-      {href && label ? (
-        <>
-          {/* Match room row trailing CTA slot (pin / …). */}
-          <span className="size-7 shrink-0" aria-hidden />
-          <SheetClose asChild>
-            <Link
-              aria-label={label}
-              // Widen touch hit area without shifting the visual size-7 slot.
-              className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground absolute top-1/2 right-1 flex size-7 -translate-y-1/2 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
-              href={href}
-            >
-              <Plus className="size-3.5" aria-hidden />
-            </Link>
-          </SheetClose>
-        </>
+      {hasTrailing ? (
+        <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
+          {secondaryAction}
+          {href && label ? (
+            <SheetClose asChild>
+              <Link
+                aria-label={label}
+                className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
+                href={href}
+              >
+                <Plus className="size-3.5" aria-hidden />
+              </Link>
+            </SheetClose>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -265,13 +277,14 @@ export function OrganizationChatList({
   rooms,
   archivedRooms,
   currentUserId,
-  hasOrganization,
+  organizationId,
   canDeleteArchivedRooms = false,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
   const pathname = usePathname();
   const router = useRouter();
+  const hasOrganization = Boolean(organizationId);
   const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
@@ -334,7 +347,7 @@ export function OrganizationChatList({
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshRooms);
     };
-  }, [hasOrganization]);
+  }, [hasOrganization, organizationId]);
 
   useEffect(() => {
     const handleRoomRead = (event: Event) => {
@@ -490,7 +503,7 @@ export function OrganizationChatList({
       }
     }
 
-    // Unmuted first, then muted; within each bucket pin then recent activity.
+    // Unmuted → pinned → public → private → muted; activity within bucket.
     namedChannels.sort(compareChatRoomsByRecentActivity);
     directMessages.sort(compareChatRoomsByRecentActivity);
 
@@ -514,6 +527,9 @@ export function OrganizationChatList({
             href={hasOrganization ? "/chat?create=channel" : undefined}
             isOpen={channelSectionOpen}
             label={t("createChannel")}
+            secondaryAction={
+              hasOrganization ? <BrowseChannelsDialog /> : undefined
+            }
           >
             {t("title")}
           </SectionHeader>
@@ -526,7 +542,11 @@ export function OrganizationChatList({
                   href={`/chat/rooms/${room.id}`}
                   label={room.name}
                   isActive={activeRoomId === room.id}
-                  leading={<Hash className="size-4 shrink-0" aria-hidden />}
+                  leading={
+                    <ChannelDiscoverabilityIcon
+                      discoverability={room.discoverability}
+                    />
+                  }
                   onRoomUpdated={handleRoomUpdated}
                 />
               ))}
@@ -565,9 +585,9 @@ export function OrganizationChatList({
                       className="group/room-row relative"
                     >
                       <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-center gap-2 px-3 py-1.5">
-                        <Hash
-                          className="size-4 shrink-0 opacity-60"
-                          aria-hidden
+                        <ChannelDiscoverabilityIcon
+                          className="opacity-60"
+                          discoverability={room.discoverability}
                         />
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}

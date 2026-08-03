@@ -4763,6 +4763,27 @@
         "save": "保存",
         "cancel": "キャンセル",
         "edited": "編集済み"
+      },
+      "Browse": {
+        "trigger": "チャンネルを探す",
+        "title": "チャンネルを探す",
+        "description": "まだ参加していない公開組織チャンネルを見つけます。",
+        "searchPlaceholder": "チャンネルを検索",
+        "loading": "チャンネルを読み込み中…",
+        "empty": "参加できる公開チャンネルはありません。",
+        "join": "参加",
+        "joinAria": "{name} に参加",
+        "joinSuccess": "{name} に参加しました。",
+        "joinError": "チャンネルに参加できませんでした。",
+        "loadError": "チャンネルを読み込めませんでした。",
+        "memberCount": "{count, plural, other {# 人のメンバー}}"
+      },
+      "Visibility": {
+        "label": "公開範囲",
+        "public": "公開",
+        "private": "非公開",
+        "publicHelp": "組織内の誰でもこのチャンネルを見つけて参加できます。",
+        "privateHelp": "招待されたメンバーだけがこのチャンネルを見られます。"
       }
     }
   },

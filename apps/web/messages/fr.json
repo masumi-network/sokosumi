@@ -4763,6 +4763,27 @@
         "save": "Enregistrer",
         "cancel": "Annuler",
         "edited": "Modifié"
+      },
+      "Browse": {
+        "trigger": "Parcourir les canaux",
+        "title": "Parcourir les canaux",
+        "description": "Trouvez les canaux publics de l'organisation que vous n'avez pas encore rejoints.",
+        "searchPlaceholder": "Rechercher des canaux",
+        "loading": "Chargement des canaux…",
+        "empty": "Aucun canal public à rejoindre.",
+        "join": "Rejoindre",
+        "joinAria": "Rejoindre {name}",
+        "joinSuccess": "Vous avez rejoint {name}.",
+        "joinError": "Impossible de rejoindre le canal.",
+        "loadError": "Impossible de charger les canaux.",
+        "memberCount": "{count, plural, one {# membre} other {# membres}}"
+      },
+      "Visibility": {
+        "label": "Visibilité",
+        "public": "Public",
+        "private": "Privé",
+        "publicHelp": "Toute personne de l'organisation peut trouver et rejoindre ce canal.",
+        "privateHelp": "Seuls les membres invités peuvent voir ce canal."
       }
     }
   },

@@ -246,6 +246,10 @@ export function mapChatRoom(
     kind: room.kind as "channel" | "direct",
     directKey: room.directKey,
     topic: room.topic,
+    discoverability: mapChatRoomDiscoverability(
+      room.kind,
+      room.discoverability,
+    ),
     createdByUserId: room.createdByUserId,
     createdAt: room.createdAt,
     updatedAt: lastActivityAt ?? room.updatedAt,
@@ -270,6 +274,16 @@ export function mapChatRoom(
       presence: "online" as const,
     })),
   };
+}
+
+function mapChatRoomDiscoverability(
+  kind: string,
+  discoverability: string | null,
+): "public" | "private" | null {
+  if (kind === "direct") {
+    return null;
+  }
+  return discoverability === "public" ? "public" : "private";
 }
 
 export interface ChatRoomSidebarFlags {
@@ -755,6 +769,40 @@ export async function requireChatRoomUserAccess(
   }
 
   await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+
+  return room;
+}
+
+/**
+ * Active public org channel the caller may self-join. Does not require
+ * membership. Unknown, private, wrong-org, direct, or archived → 404.
+ */
+export async function requireJoinablePublicOrgChannel(
+  roomId: string,
+  userId: string,
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+): Promise<ChatRoomWithMembers> {
+  await resolveMemberOrganizationById({
+    id: organizationId,
+    userId,
+    tx,
+  });
+
+  const room = await tx.chatRoom.findFirst({
+    where: {
+      id: roomId,
+      organizationId,
+      kind: "channel",
+      discoverability: "public",
+      archivedAt: null,
+    },
+    include: chatRoomInclude,
+  });
+
+  if (!room) {
+    throw notFound("Room not found");
+  }
 
   return room;
 }

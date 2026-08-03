@@ -4763,6 +4763,27 @@
         "save": "Salva",
         "cancel": "Annulla",
         "edited": "Modificato"
+      },
+      "Browse": {
+        "trigger": "Sfoglia canali",
+        "title": "Sfoglia canali",
+        "description": "Trova i canali pubblici dell'organizzazione a cui non hai ancora aderito.",
+        "searchPlaceholder": "Cerca canali",
+        "loading": "Caricamento canali…",
+        "empty": "Nessun canale pubblico a cui unirsi.",
+        "join": "Unisciti",
+        "joinAria": "Unisciti a {name}",
+        "joinSuccess": "Ti sei unito a {name}.",
+        "joinError": "Impossibile unirsi al canale.",
+        "loadError": "Impossibile caricare i canali.",
+        "memberCount": "{count, plural, one {# membro} other {# membri}}"
+      },
+      "Visibility": {
+        "label": "Visibilità",
+        "public": "Pubblico",
+        "private": "Privato",
+        "publicHelp": "Chiunque nell'organizzazione può trovare e unirsi a questo canale.",
+        "privateHelp": "Solo i membri invitati possono vedere questo canale."
       }
     }
   },

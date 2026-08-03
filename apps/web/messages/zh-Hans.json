@@ -4763,6 +4763,27 @@
         "save": "保存",
         "cancel": "取消",
         "edited": "已编辑"
+      },
+      "Browse": {
+        "trigger": "浏览频道",
+        "title": "浏览频道",
+        "description": "查找你尚未加入的公开组织频道。",
+        "searchPlaceholder": "搜索频道",
+        "loading": "正在加载频道…",
+        "empty": "没有可加入的公开频道。",
+        "join": "加入",
+        "joinAria": "加入 {name}",
+        "joinSuccess": "你已加入 {name}。",
+        "joinError": "无法加入频道。",
+        "loadError": "无法加载频道。",
+        "memberCount": "{count, plural, other {# 位成员}}"
+      },
+      "Visibility": {
+        "label": "可见性",
+        "public": "公开",
+        "private": "私密",
+        "publicHelp": "组织中的任何人都可以发现并加入此频道。",
+        "privateHelp": "只有受邀成员可以看到此频道。"
       }
     }
   },

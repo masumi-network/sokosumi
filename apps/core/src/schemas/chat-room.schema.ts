@@ -14,6 +14,10 @@ export const chatRoomPresenceSchema = z
   .enum(["online", "afk", "offline"])
   .openapi("ChatRoomPresence");
 
+export const chatRoomDiscoverabilitySchema = z
+  .enum(["public", "private"])
+  .openapi("ChatRoomDiscoverability");
+
 export const chatRoomUserParticipantSchema = z
   .object({
     id: z.string().openapi({ example: "user_123" }),
@@ -60,6 +64,11 @@ export const chatRoomSchema = z
       example: "user_123:user_456",
     }),
     topic: z.string().nullable().openapi({ example: "Weekly launch planning" }),
+    discoverability: chatRoomDiscoverabilitySchema.nullable().openapi({
+      description:
+        'Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.',
+      example: "public",
+    }),
     createdByUserId: z.string().openapi({ example: "user_123" }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
@@ -124,7 +133,7 @@ export const createChatRoomRequestSchema = z
     z.object({
       kind: z.literal("channel").openapi({
         description:
-          "Creates a named room for the invited members and coworkers (membership is explicit, not org-wide).",
+          "Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.",
       }),
       name: z.string().trim().min(1).max(80).openapi({
         example: "Launch Room",
@@ -132,17 +141,27 @@ export const createChatRoomRequestSchema = z
       topic: z.string().trim().max(200).optional().openapi({
         example: "Launch planning with design and AI research partners",
       }),
+      discoverability: chatRoomDiscoverabilitySchema
+        .default("public")
+        .optional()
+        .openapi({
+          description:
+            'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.',
+          example: "public",
+        }),
       memberUserIds: roomMemberUserIdsSchema,
       coworkerIds: roomCoworkerIdsSchema,
     }),
-    z.object({
-      kind: z.literal("direct").openapi({
-        description:
-          "Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization.",
-      }),
-      memberUserIds: roomMemberUserIdsSchema,
-      coworkerIds: roomCoworkerIdsSchema,
-    }),
+    z
+      .object({
+        kind: z.literal("direct").openapi({
+          description:
+            "Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Discoverability is not allowed on directs.",
+        }),
+        memberUserIds: roomMemberUserIdsSchema,
+        coworkerIds: roomCoworkerIdsSchema,
+      })
+      .strict(),
   ])
   .openapi("CreateChatRoomRequest");
 
@@ -153,6 +172,11 @@ export const updateChatRoomRequestSchema = z
     }),
     topic: z.string().trim().max(200).nullable().optional().openapi({
       example: "Launch planning with design and AI research partners",
+    }),
+    discoverability: chatRoomDiscoverabilitySchema.optional().openapi({
+      description:
+        'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable; `"private"` hides it from the discoverable listing.',
+      example: "private",
     }),
     memberUserIds: z
       .array(z.string().min(1))
@@ -170,6 +194,22 @@ export const updateChatRoomRequestSchema = z
       }),
   })
   .openapi("UpdateChatRoomRequest");
+
+export const discoverableChatRoomSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    name: z.string().openapi({ example: "Launch Room" }),
+    slug: z.string().openapi({ example: "launch-room" }),
+    topic: z.string().nullable().openapi({ example: "Weekly launch planning" }),
+    discoverability: z.literal("public").openapi({ example: "public" }),
+    memberCount: z.number().int().min(0).openapi({ example: 12 }),
+    createdByUserId: z.string().openapi({ example: "user_123" }),
+    createdAt: dateTimeSchema,
+    updatedAt: dateTimeSchema,
+  })
+  .openapi("DiscoverableChatRoom");
 
 export const chatRoomMentionStatusSchema = z
   .enum(["pending", "sent", "responded", "failed"])
@@ -357,5 +397,6 @@ export const leftChatRoomSchema = z
 export const restoredChatRoomSchema = chatRoomSchema;
 
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
+export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
 export type ChatRoomMessageQuote = z.infer<typeof chatRoomMessageQuoteSchema>;

@@ -34,6 +34,7 @@ import {
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { rememberRoomRead } from "@/components/chat/room-read-overlay";
@@ -1237,7 +1238,10 @@ export function RoomsClient({
                   {isDirectRoom ? (
                     <MessageCircle className="text-muted-foreground size-4 shrink-0" />
                   ) : (
-                    <Hash className="text-muted-foreground size-4 shrink-0" />
+                    <ChannelDiscoverabilityIcon
+                      className="text-muted-foreground"
+                      discoverability={selectedRoom.discoverability}
+                    />
                   )}
                   <p className="text-muted-foreground truncate text-sm">
                     {selectedRoomDisplayName}

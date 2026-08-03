@@ -4763,6 +4763,27 @@
         "save": "Speichern",
         "cancel": "Abbrechen",
         "edited": "Bearbeitet"
+      },
+      "Browse": {
+        "trigger": "Kanäle durchsuchen",
+        "title": "Kanäle durchsuchen",
+        "description": "Finde öffentliche Organisationskanäle, denen du noch nicht beigetreten bist.",
+        "searchPlaceholder": "Kanäle suchen",
+        "loading": "Kanäle werden geladen…",
+        "empty": "Keine öffentlichen Kanäle zum Beitreten.",
+        "join": "Beitreten",
+        "joinAria": "{name} beitreten",
+        "joinSuccess": "Du bist {name} beigetreten.",
+        "joinError": "Kanalbeitritt fehlgeschlagen.",
+        "loadError": "Kanäle konnten nicht geladen werden.",
+        "memberCount": "{count, plural, one {# Mitglied} other {# Mitglieder}}"
+      },
+      "Visibility": {
+        "label": "Sichtbarkeit",
+        "public": "Öffentlich",
+        "private": "Privat",
+        "publicHelp": "Alle in der Organisation können diesen Kanal finden und beitreten.",
+        "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen."
       }
     }
   },

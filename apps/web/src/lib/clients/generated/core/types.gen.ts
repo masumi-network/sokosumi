@@ -1161,6 +1161,7 @@ export type ChatRoom = {
      */
     directKey: string | null;
     topic: string | null;
+    discoverability: ChatRoomDiscoverability;
     createdByUserId: string;
     createdAt: Date;
     updatedAt: Date;
@@ -1187,6 +1188,20 @@ export type ChatRoom = {
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
 };
+
+/**
+ * Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
+ */
+export const ChatRoomDiscoverability = {
+    PUBLIC: 'public',
+    PRIVATE: 'private',
+    NULL: null
+} as const;
+
+/**
+ * Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
+ */
+export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
 
 export type ChatRoomUserParticipant = {
     id: string;
@@ -1244,11 +1259,15 @@ export type ChatRoomSuccessResponse = {
 
 export type CreateChatRoomRequest = {
     /**
-     * Creates a named room for the invited members and coworkers (membership is explicit, not org-wide).
+     * Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.
      */
     kind: 'channel';
     name: string;
     topic?: string;
+    /**
+     * Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.
+     */
+    discoverability?: 'public' | 'private';
     /**
      * Organization member user IDs to add to the room.
      */
@@ -1259,7 +1278,7 @@ export type CreateChatRoomRequest = {
     coworkerIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization.
+     * Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -1270,6 +1289,18 @@ export type CreateChatRoomRequest = {
      * AI coworker IDs to add to the room.
      */
     coworkerIds?: Array<string>;
+};
+
+export type DiscoverableChatRoom = {
+    id: string;
+    name: string;
+    slug: string;
+    topic: string | null;
+    discoverability: 'public';
+    memberCount: number;
+    createdByUserId: string;
+    createdAt: Date;
+    updatedAt: Date;
 };
 
 export type GetChatUiMessagesResponseData = {
@@ -1307,6 +1338,7 @@ export type ChatUiMessage = {
 export type UpdateChatRoomRequest = {
     name?: string;
     topic?: string | null;
+    discoverability?: ChatRoomDiscoverability & unknown;
     memberUserIds?: Array<string>;
     coworkerIds?: Array<string>;
 };
@@ -8973,6 +9005,123 @@ export type PostChatsRoomsResponses = {
 
 export type PostChatsRoomsResponse = PostChatsRoomsResponses[keyof PostChatsRoomsResponses];
 
+export type GetChatsRoomsDiscoverableData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * Filter by channel name or slug (case-insensitive contains).
+         */
+        q?: string;
+    };
+    url: '/chats/rooms/discoverable';
+};
+
+export type GetChatsRoomsDiscoverableErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Organization not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsDiscoverableError = GetChatsRoomsDiscoverableErrors[keyof GetChatsRoomsDiscoverableErrors];
+
+export type GetChatsRoomsDiscoverableResponses = {
+    /**
+     * Discoverable public channels
+     */
+    200: {
+        data: Array<DiscoverableChatRoom>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsDiscoverableResponse = GetChatsRoomsDiscoverableResponses[keyof GetChatsRoomsDiscoverableResponses];
+
 export type GetChatsRoomsByIdStreamMessagesData = {
     body?: never;
     headers?: {
@@ -10034,6 +10183,112 @@ export type DeleteChatsRoomsByIdMembersMeResponses = {
 };
 
 export type DeleteChatsRoomsByIdMembersMeResponse = DeleteChatsRoomsByIdMembersMeResponses[keyof DeleteChatsRoomsByIdMembersMeResponses];
+
+export type PostChatsRoomsByIdMembersMeData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/members/me';
+};
+
+export type PostChatsRoomsByIdMembersMeErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMembersMeError = PostChatsRoomsByIdMembersMeErrors[keyof PostChatsRoomsByIdMembersMeErrors];
+
+export type PostChatsRoomsByIdMembersMeResponses = {
+    /**
+     * Joined the room
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMembersMeResponse = PostChatsRoomsByIdMembersMeResponses[keyof PostChatsRoomsByIdMembersMeResponses];
 
 export type PostChatsRoomsByIdReadData = {
     body?: never;

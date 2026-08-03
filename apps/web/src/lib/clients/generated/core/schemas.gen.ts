@@ -4237,6 +4237,9 @@ export const ChatRoomSchema = {
             ],
             example: 'Weekly launch planning'
         },
+        discoverability: {
+            $ref: '#/components/schemas/ChatRoomDiscoverability'
+        },
         createdByUserId: {
             type: 'string',
             example: 'user_123'
@@ -4307,6 +4310,7 @@ export const ChatRoomSchema = {
         'kind',
         'directKey',
         'topic',
+        'discoverability',
         'createdByUserId',
         'createdAt',
         'updatedAt',
@@ -4318,6 +4322,20 @@ export const ChatRoomSchema = {
         'userMembers',
         'coworkerMembers'
     ]
+} as const;
+
+export const ChatRoomDiscoverabilitySchema = {
+    type: [
+        'string',
+        'null'
+    ],
+    enum: [
+        'public',
+        'private',
+        null
+    ],
+    description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.',
+    example: 'public'
 } as const;
 
 export const ChatRoomUserParticipantSchema = {
@@ -4473,7 +4491,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'channel'
                     ],
-                    description: 'Creates a named room for the invited members and coworkers (membership is explicit, not org-wide).'
+                    description: 'Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.'
                 },
                 name: {
                     type: 'string',
@@ -4485,6 +4503,16 @@ export const CreateChatRoomRequestSchema = {
                     type: 'string',
                     maxLength: 200,
                     example: 'Launch planning with design and AI research partners'
+                },
+                discoverability: {
+                    type: 'string',
+                    enum: [
+                        'public',
+                        'private'
+                    ],
+                    default: 'public',
+                    description: 'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.',
+                    example: 'public'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -4525,7 +4553,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'direct'
                     ],
-                    description: 'Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization.'
+                    description: 'Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Discoverability is not allowed on directs.'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -4555,8 +4583,72 @@ export const CreateChatRoomRequestSchema = {
             },
             required: [
                 'kind'
-            ]
+            ],
+            additionalProperties: false
         }
+    ]
+} as const;
+
+export const DiscoverableChatRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            example: 'Launch Room'
+        },
+        slug: {
+            type: 'string',
+            example: 'launch-room'
+        },
+        topic: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Weekly launch planning'
+        },
+        discoverability: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public'
+        },
+        memberCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 12
+        },
+        createdByUserId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'topic',
+        'discoverability',
+        'memberCount',
+        'createdByUserId',
+        'createdAt',
+        'updatedAt'
     ]
 } as const;
 
@@ -4730,6 +4822,17 @@ export const UpdateChatRoomRequestSchema = {
             ],
             maxLength: 200,
             example: 'Launch planning with design and AI research partners'
+        },
+        discoverability: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/ChatRoomDiscoverability'
+                },
+                {
+                    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable; `"private"` hides it from the discoverable listing.',
+                    example: 'private'
+                }
+            ]
         },
         memberUserIds: {
             type: 'array',

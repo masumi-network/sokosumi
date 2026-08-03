@@ -4763,6 +4763,27 @@
         "save": "Guardar",
         "cancel": "Cancelar",
         "edited": "Editado"
+      },
+      "Browse": {
+        "trigger": "Explorar canais",
+        "title": "Explorar canais",
+        "description": "Encontre canais públicos da organização aos quais ainda não aderiu.",
+        "searchPlaceholder": "Pesquisar canais",
+        "loading": "A carregar canais…",
+        "empty": "Não há canais públicos para aderir.",
+        "join": "Aderir",
+        "joinAria": "Aderir a {name}",
+        "joinSuccess": "Aderiu a {name}.",
+        "joinError": "Não foi possível aderir ao canal.",
+        "loadError": "Não foi possível carregar os canais.",
+        "memberCount": "{count, plural, one {# membro} other {# membros}}"
+      },
+      "Visibility": {
+        "label": "Visibilidade",
+        "public": "Público",
+        "private": "Privado",
+        "publicHelp": "Qualquer pessoa na organização pode encontrar e aderir a este canal.",
+        "privateHelp": "Apenas os membros convidados podem ver este canal."
       }
     }
   },

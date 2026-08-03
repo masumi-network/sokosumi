@@ -4763,6 +4763,27 @@
         "save": "Guardar",
         "cancel": "Cancelar",
         "edited": "Editado"
+      },
+      "Browse": {
+        "trigger": "Explorar canales",
+        "title": "Explorar canales",
+        "description": "Encuentra canales públicos de la organización a los que aún no te has unido.",
+        "searchPlaceholder": "Buscar canales",
+        "loading": "Cargando canales…",
+        "empty": "No hay canales públicos a los que unirse.",
+        "join": "Unirse",
+        "joinAria": "Unirse a {name}",
+        "joinSuccess": "Te uniste a {name}.",
+        "joinError": "No se pudo unir al canal.",
+        "loadError": "No se pudieron cargar los canales.",
+        "memberCount": "{count, plural, one {# miembro} other {# miembros}}"
+      },
+      "Visibility": {
+        "label": "Visibilidad",
+        "public": "Público",
+        "private": "Privado",
+        "publicHelp": "Cualquiera en la organización puede encontrar y unirse a este canal.",
+        "privateHelp": "Solo los miembros invitados pueden ver este canal."
       }
     }
   },
