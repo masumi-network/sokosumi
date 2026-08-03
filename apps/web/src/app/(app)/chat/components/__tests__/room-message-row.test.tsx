@@ -35,7 +35,13 @@ vi.mock("@/components/markdown", () => ({
 }));
 
 vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
-  FileChipMiniPreviewWithMetadata: () => null,
+  FileChipMiniPreviewWithMetadata: ({
+    fileName,
+  }: {
+    fileName: string;
+    url: string;
+    sizeClass?: string;
+  }) => <span data-testid="chip">{fileName}</span>,
 }));
 
 vi.mock("@/components/ui/tooltip", () => ({
@@ -427,6 +433,19 @@ describe("ChatMessageRow", () => {
 
     expect(screen.getByText("old text-only quote")).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("wraps consecutive file attachments in one horizontal row", () => {
+    renderRow({
+      message: userMessage({
+        content:
+          "[a.png](https://cdn.example/a.png)\n[b.png](https://cdn.example/b.png)\n",
+      }),
+    });
+
+    const rows = screen.getAllByTestId("room-message-attachment-row");
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]).getAllByTestId("chip")).toHaveLength(2);
   });
 
   it("styles @all mention tokens in quote snippets", () => {

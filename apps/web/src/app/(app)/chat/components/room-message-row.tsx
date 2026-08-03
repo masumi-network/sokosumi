@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  findMarkdownLinks,
-  getExtensionFromUrl,
-  isFileLikeUrl,
-  unescapeMarkdownLinkUrl,
-} from "@sokosumi/utils";
+import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
   CheckCircle2,
   Loader2,
@@ -17,7 +12,6 @@ import {
 import { useTranslations } from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
-  type ReactNode,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
@@ -26,6 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { segmentRoomMessageContent } from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
@@ -266,17 +261,12 @@ function ChannelMessageText({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
 }) {
-  const fileLinks = findMarkdownLinks(content)
-    .map((link) => ({
-      ...link,
-      url: unescapeMarkdownLinkUrl(link.rawUrl),
-    }))
-    .filter((link) => isFileLikeUrl(link.url));
+  const segments = segmentRoomMessageContent(content);
 
-  if (fileLinks.length === 0) {
+  if (segments.length === 1 && segments[0].kind === "text") {
     return (
       <ChannelMarkdownSegment
-        content={content}
+        content={segments[0].content}
         coworkersById={coworkersById}
         coworkersBySlug={coworkersBySlug}
         usersById={usersById}
@@ -285,46 +275,46 @@ function ChannelMessageText({
     );
   }
 
-  const nodes: ReactNode[] = [];
-  let lastIndex = 0;
-  fileLinks.forEach((link, index) => {
-    if (link.index > lastIndex) {
-      nodes.push(
-        <ChannelMarkdownSegment
-          key={`message-${index}-before`}
-          content={content.slice(lastIndex, link.index)}
-          coworkersById={coworkersById}
-          coworkersBySlug={coworkersBySlug}
-          usersById={usersById}
-          usersBySlug={usersBySlug}
-        />,
-      );
-    }
-    nodes.push(
-      <div key={`${link.index}-${link.url}`} className="my-2 flex">
-        <FileChipMiniPreviewWithMetadata
-          url={link.url}
-          fileName={link.text}
-          sizeClass="size-16"
-        />
-      </div>,
-    );
-    lastIndex = link.index + link.match.length;
-  });
-  if (lastIndex < content.length) {
-    nodes.push(
-      <ChannelMarkdownSegment
-        key="message-after"
-        content={content.slice(lastIndex)}
-        coworkersById={coworkersById}
-        coworkersBySlug={coworkersBySlug}
-        usersById={usersById}
-        usersBySlug={usersBySlug}
-      />,
-    );
-  }
-
-  return <>{nodes}</>;
+  return (
+    <>
+      {segments.map((segment, i) => {
+        switch (segment.kind) {
+          case "text":
+            return (
+              <ChannelMarkdownSegment
+                key={`text-${i}-${segment.start}`}
+                content={segment.content}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+              />
+            );
+          case "files":
+            return (
+              <div
+                key={`files-${i}-${segment.links[0].index}`}
+                className="my-2 flex flex-wrap gap-2"
+                data-testid="room-message-attachment-row"
+              >
+                {segment.links.map((link) => (
+                  <FileChipMiniPreviewWithMetadata
+                    key={`${link.index}-${link.url}`}
+                    url={link.url}
+                    fileName={link.fileName}
+                    sizeClass="size-16"
+                  />
+                ))}
+              </div>
+            );
+          default: {
+            const _exhaustive: never = segment;
+            return _exhaustive;
+          }
+        }
+      })}
+    </>
+  );
 }
 
 const QUICK_MESSAGE_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀"] as const;
