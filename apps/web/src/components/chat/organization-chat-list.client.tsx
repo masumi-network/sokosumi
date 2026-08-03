@@ -30,6 +30,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
 import type {
   BrowsableChatRoom,
   ChatRoom,
@@ -40,6 +41,7 @@ import { getInitials } from "@/lib/utils/text";
 import { ChannelVisibilityIcon } from "./channel-visibility-icon";
 import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
+import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
 import {
   notifyOrganizationChatRoomsChanged,
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
@@ -274,6 +276,10 @@ export function OrganizationChatList({
   const [_isRestoring, startRestoreTransition] = useTransition();
   const [_isJoining, startJoinTransition] = useTransition();
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
+  const unreadRoomCount = countChatRoomsWithUnreadAttention(roomRows, {
+    activeRoomId,
+  });
+  useChatUnreadDocumentTitle(unreadRoomCount);
 
   useEffect(() => {
     setRoomRows(applyRoomReadOverlays(rooms));

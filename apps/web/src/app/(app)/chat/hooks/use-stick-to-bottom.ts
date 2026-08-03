@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Within this distance of the bottom, content resizes still pin the viewport.
@@ -23,6 +23,9 @@ export function useStickToBottom({
   // Sticky flag measured on scroll *before* growth. Measuring after a
   // ResizeObserver jump can make a pinned user look scrolled-up for a frame.
   const stickToBottomRef = useRef(true);
+  // Pixel min-height so short transcripts can justify-end inside Radix's
+  // display:table viewport wrapper (percentage min-height does not resolve).
+  const [contentMinHeight, setContentMinHeight] = useState<number>();
 
   const scrollToBottom = useCallback(() => {
     const el = scrollerRef.current;
@@ -66,6 +69,26 @@ export function useStickToBottom({
 
   useEffect(() => {
     const scroller = scrollerRef.current;
+    if (!scroller || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    function syncMinHeight() {
+      const node = scrollerRef.current;
+      if (!node) {
+        return;
+      }
+      setContentMinHeight(node.clientHeight);
+    }
+
+    syncMinHeight();
+    const observer = new ResizeObserver(syncMinHeight);
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, [resetKey]);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
     if (!scroller) {
       return;
     }
@@ -88,6 +111,7 @@ export function useStickToBottom({
   return {
     scrollerRef,
     contentRef,
+    contentMinHeight,
     scrollToBottom,
     scrollToBottomIfPinned,
   };
