@@ -135,4 +135,69 @@ describe("compareChatRoomsByRecentActivity", () => {
       "muted-older",
     ]);
   });
+
+  it("keeps private below public in pinned, normal, and muted buckets", () => {
+    const mutedPrivate = {
+      id: "muted-private",
+      updatedAt: "2026-08-03T23:00:00.000Z",
+      mutedAt: "2026-08-03T12:00:00.000Z",
+      pinnedAt: null,
+      discoverability: "private" as const,
+    };
+    const mutedPublic = {
+      id: "muted-public",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      mutedAt: "2026-08-03T11:00:00.000Z",
+      pinnedAt: null,
+      discoverability: "public" as const,
+    };
+    const normalPrivate = {
+      id: "normal-private",
+      updatedAt: "2026-08-03T22:00:00.000Z",
+      mutedAt: null,
+      pinnedAt: null,
+      discoverability: "private" as const,
+    };
+    const normalPublic = {
+      id: "normal-public",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      mutedAt: null,
+      pinnedAt: null,
+      discoverability: "public" as const,
+    };
+    const pinnedPrivate = {
+      id: "pinned-private",
+      updatedAt: "2026-08-03T21:00:00.000Z",
+      mutedAt: null,
+      pinnedAt: "2026-08-03T08:00:00.000Z",
+      discoverability: "private" as const,
+    };
+    const pinnedPublic = {
+      id: "pinned-public",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      mutedAt: null,
+      pinnedAt: "2026-08-03T10:00:00.000Z",
+      discoverability: "public" as const,
+    };
+
+    expect(
+      [
+        mutedPrivate,
+        normalPrivate,
+        mutedPublic,
+        pinnedPrivate,
+        normalPublic,
+        pinnedPublic,
+      ]
+        .sort(compareChatRoomsByRecentActivity)
+        .map((r) => r.id),
+    ).toEqual([
+      "pinned-public",
+      "pinned-private",
+      "normal-public",
+      "normal-private",
+      "muted-public",
+      "muted-private",
+    ]);
+  });
 });
