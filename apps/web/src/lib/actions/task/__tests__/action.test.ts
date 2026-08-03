@@ -260,13 +260,15 @@ describe("task link actions", () => {
     taskServiceMock.createTask.mockResolvedValue(buildTask());
 
     const { createTask } = await import("../action");
+    const overrideUrl =
+      "https://blob.example/design-md/adhoc/user-1/42-hash.md";
 
     await createTask({
       description: "Created related task",
       assigneeId: null,
       designMdAttachmentOverride: {
         label: "DESIGN.md",
-        url: "https://blob.example/adhoc/design.md",
+        url: overrideUrl,
       },
       status: TaskStatus.READY,
     });
@@ -274,14 +276,73 @@ describe("task link actions", () => {
     expect(appendDesignMdToDescriptionMock).not.toHaveBeenCalled();
     expect(withDesignMdAttachmentMock).toHaveBeenCalledWith(
       "Created related task",
-      { label: "DESIGN.md", url: "https://blob.example/adhoc/design.md" },
+      { label: "DESIGN.md", url: overrideUrl },
     );
     expect(taskServiceMock.createTask).toHaveBeenCalledWith(
       expect.objectContaining({
-        description:
-          "[DESIGN.md](https://blob.example/adhoc/design.md)\n\nCreated related task",
+        description: `[DESIGN.md](${overrideUrl})\n\nCreated related task`,
       }),
     );
+  });
+
+  it("sanitizes override labels and rejects non-adhoc or non-https URLs", async () => {
+    taskServiceMock.createTask.mockResolvedValue(buildTask());
+
+    const { createTask } = await import("../action");
+
+    await createTask({
+      description: "Created related task",
+      assigneeId: null,
+      designMdAttachmentOverride: {
+        label: "Acme [Brand]",
+        url: "https://blob.example/design-md/adhoc/user-1/42-hash.md",
+      },
+      status: TaskStatus.READY,
+    });
+
+    expect(withDesignMdAttachmentMock).toHaveBeenCalledWith(
+      "Created related task",
+      {
+        label: "Acme Brand",
+        url: "https://blob.example/design-md/adhoc/user-1/42-hash.md",
+      },
+    );
+
+    await expect(
+      createTask({
+        description: "Created related task",
+        assigneeId: null,
+        designMdAttachmentOverride: {
+          label: "DESIGN.md",
+          url: "http://blob.example/design-md/adhoc/user-1/42-hash.md",
+        },
+        status: TaskStatus.READY,
+      }),
+    ).rejects.toThrow("DESIGN.md attachment URL must use https");
+
+    await expect(
+      createTask({
+        description: "Created related task",
+        assigneeId: null,
+        designMdAttachmentOverride: {
+          label: "DESIGN.md",
+          url: "https://blob.example/design-md/adhoc/other-user/42-hash.md",
+        },
+        status: TaskStatus.READY,
+      }),
+    ).rejects.toThrow("DESIGN.md attachment URL is not valid for this user");
+
+    await expect(
+      createTask({
+        description: "Created related task",
+        assigneeId: null,
+        designMdAttachmentOverride: {
+          label: "DESIGN.md",
+          url: "https://evil.example/not-design.md",
+        },
+        status: TaskStatus.READY,
+      }),
+    ).rejects.toThrow("DESIGN.md attachment URL is not valid for this user");
   });
 
   it("skips the override when skipDesignMdAttachment also is set", async () => {
@@ -295,7 +356,7 @@ describe("task link actions", () => {
       skipDesignMdAttachment: true,
       designMdAttachmentOverride: {
         label: "DESIGN.md",
-        url: "https://blob.example/adhoc/design.md",
+        url: "https://blob.example/design-md/adhoc/user-1/42-hash.md",
       },
       status: TaskStatus.READY,
     });

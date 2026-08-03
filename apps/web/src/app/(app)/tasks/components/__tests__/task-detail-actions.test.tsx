@@ -367,19 +367,32 @@ vi.mock("@/app/tasks/components/task-share-button", () => ({
 vi.mock("@/app/tasks/components/task-form", () => ({
   TaskForm: ({
     initialValues,
+    initialDesignMdAttachment,
     onCreateTask,
     onSuccess,
   }: {
     initialValues?: { assigneeId?: string | null };
+    initialDesignMdAttachment?: {
+      label: string;
+      url: string;
+      owner: { type: "organization"; name: string; logo: string | null };
+    } | null;
     onCreateTask?: (input: {
       description: string;
       assigneeId: string | null;
       status: TaskStatus;
+      skipDesignMdAttachment?: boolean;
+      designMdAttachmentOverride?: { label: string; url: string };
     }) => Promise<{ taskId: string }>;
     onSuccess?: (taskId: string) => void;
   }) => (
     <div>
       <span>{initialValues?.assigneeId ?? "no-coworker"}</span>
+      {initialDesignMdAttachment ? (
+        <span data-testid="design-md-picker">
+          {initialDesignMdAttachment.label}
+        </span>
+      ) : null}
       <button
         type="button"
         onClick={async () => {
@@ -388,6 +401,10 @@ vi.mock("@/app/tasks/components/task-form", () => ({
             description: "Created related task",
             assigneeId: initialValues?.assigneeId ?? null,
             status: TaskStatus.READY,
+            skipDesignMdAttachment: initialDesignMdAttachment
+              ? false
+              : undefined,
+            designMdAttachmentOverride: undefined,
           });
           onSuccess?.(result.taskId);
         }}
@@ -1312,10 +1329,57 @@ describe("TaskDetailActions", () => {
         assigneeId: "coworker-1",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
+        skipDesignMdAttachment: undefined,
+        designMdAttachmentOverride: undefined,
       });
     });
 
     expect(pushMock).toHaveBeenCalledWith("/tasks/task-created");
+  });
+
+  it("passes the DESIGN.md picker into create-related and forwards skip false", async () => {
+    const user = userEvent.setup();
+    const createTaskAndLinkMock = vi.mocked(createTaskAndLink);
+    createTaskAndLinkMock.mockResolvedValue({
+      taskId: "task-1",
+      createdTaskId: "task-created",
+      linkId: "link-created",
+      name: "Created related task",
+    });
+
+    renderActions({
+      initialDesignMdAttachment: {
+        label: "DESIGN.md",
+        url: "https://blob.example/design.md",
+        owner: { type: "organization", name: "Acme Inc", logo: null },
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: "Create related" }));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Add sub-task" }),
+    );
+
+    expect(screen.getByTestId("design-md-picker")).toHaveTextContent(
+      "DESIGN.md",
+    );
+
+    await user.click(
+      await screen.findByRole("button", { name: "Submit related task" }),
+    );
+
+    await waitFor(() => {
+      expect(createTaskAndLinkMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        description: "Created related task",
+        assigneeId: "coworker-1",
+        status: TaskStatus.READY,
+        relation: TaskLinkRelation.PARENT,
+        skipDesignMdAttachment: false,
+        designMdAttachmentOverride: undefined,
+      });
+    });
   });
 
   it("shows remove parent when the task has a parent link", async () => {
@@ -1604,6 +1668,8 @@ describe("TaskDetailActions", () => {
         assigneeId: "coworker-1",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.PARENT,
+        skipDesignMdAttachment: undefined,
+        designMdAttachmentOverride: undefined,
       });
     });
 

@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  buildAdHocDesignMdPrefix,
   hasActiveTaskSchedule,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
@@ -22,6 +23,7 @@ import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
+import { sanitizeTaskAttachmentLabel } from "@/lib/utils/task-attachments";
 import {
   hasTaskScheduleChanged,
   selectionToApiBody,
@@ -207,10 +209,43 @@ function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
   }
 }
 
+/**
+ * Ad hoc overrides are the only client-supplied DESIGN.md attach path.
+ * Description text is already freeform, but this gate still keeps the
+ * privileged prepend limited to https blobs under this user's ad hoc prefix
+ * and strips markdown-breaking brackets from the label.
+ */
+function resolveDesignMdAttachmentOverride(
+  override: { label: string; url: string },
+  userId: string,
+): { label: string; url: string } {
+  let parsed: URL;
+  try {
+    parsed = new URL(override.url.trim());
+  } catch {
+    throw new Error("Invalid DESIGN.md attachment URL");
+  }
+
+  if (parsed.protocol !== "https:") {
+    throw new Error("DESIGN.md attachment URL must use https");
+  }
+
+  const expectedPathPrefix = `/${buildAdHocDesignMdPrefix(userId)}`;
+  if (!parsed.pathname.startsWith(expectedPathPrefix)) {
+    throw new Error("DESIGN.md attachment URL is not valid for this user");
+  }
+
+  return {
+    label: sanitizeTaskAttachmentLabel(override.label, "DESIGN.md"),
+    url: parsed.href,
+  };
+}
+
 async function createTaskFromDescription(input: {
   description: string;
   assigneeId: string | null;
   projectId?: string | null;
+  userId: string;
   skipDesignMdAttachment?: boolean;
   designMdAttachmentOverride?: { label: string; url: string };
   status: Extract<TaskStatus, "DRAFT" | "READY">;
@@ -227,7 +262,10 @@ async function createTaskFromDescription(input: {
     : input.designMdAttachmentOverride
       ? designMdService.withDesignMdAttachment(
           trimmedDescription,
-          input.designMdAttachmentOverride,
+          resolveDesignMdAttachmentOverride(
+            input.designMdAttachmentOverride,
+            input.userId,
+          ),
         )
       : await designMdService.appendDesignMdToDescription(trimmedDescription);
 
@@ -387,6 +425,7 @@ export const createTask = withSession<
         description,
         assigneeId,
         projectId,
+        userId: session.user.id,
         skipDesignMdAttachment,
         designMdAttachmentOverride,
         status,
@@ -735,6 +774,7 @@ export const createTaskAndLink = withSession<
         description,
         assigneeId,
         projectId,
+        userId: session.user.id,
         skipDesignMdAttachment,
         designMdAttachmentOverride,
         status,
