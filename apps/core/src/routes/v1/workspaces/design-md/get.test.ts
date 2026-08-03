@@ -95,6 +95,7 @@ describe("GET /workspaces/design-md", () => {
     });
     organizationFindUniqueMock.mockResolvedValueOnce({
       metadata: JSON.stringify({ designMdUrl: "https://blob.example/org.md" }),
+      name: "Acme Inc",
     });
 
     const response = await createApp(USER_AUTH_WITH_ORG).request(
@@ -111,6 +112,7 @@ describe("GET /workspaces/design-md", () => {
     expect(body.data.designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/org.md",
+      owner: { type: "organization", name: "Acme Inc" },
     });
     expect(getUserByIdMock).not.toHaveBeenCalled();
   });
@@ -121,6 +123,7 @@ describe("GET /workspaces/design-md", () => {
     });
     organizationFindUniqueMock.mockResolvedValueOnce({
       metadata: JSON.stringify({}),
+      name: "Acme Inc",
     });
     getUserByIdMock.mockResolvedValueOnce({
       metadata: JSON.stringify({ designMdUrl: "https://blob.example/user.md" }),
@@ -135,6 +138,7 @@ describe("GET /workspaces/design-md", () => {
     expect(body.data.designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/user.md",
+      owner: { type: "user" },
     });
   });
 
@@ -154,6 +158,7 @@ describe("GET /workspaces/design-md", () => {
     expect(body.data.designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/user.md",
+      owner: { type: "user" },
     });
   });
 
@@ -170,6 +175,7 @@ describe("GET /workspaces/design-md", () => {
     expect(body.data.designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/user.md",
+      owner: { type: "user" },
     });
   });
 

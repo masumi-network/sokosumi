@@ -37,6 +37,10 @@ interface CreateTaskParameters extends AuthenticatedRequest {
   assigneeId: string | null;
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
+  /** Attach this DESIGN.md instead of resolving the caller's own effective
+   * one — e.g. a task-scoped "use a different company's branding" pick.
+   * Ignored when `skipDesignMdAttachment` is true. */
+  designMdAttachmentOverride?: { label: string; url: string };
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
 }
@@ -94,6 +98,7 @@ interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
   assigneeId: string | null;
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
+  designMdAttachmentOverride?: { label: string; url: string };
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
   relation: UserWritableTaskLinkRelation;
@@ -207,6 +212,7 @@ async function createTaskFromDescription(input: {
   assigneeId: string | null;
   projectId?: string | null;
   skipDesignMdAttachment?: boolean;
+  designMdAttachmentOverride?: { label: string; url: string };
   status: Extract<TaskStatus, "DRAFT" | "READY">;
   schedule?: TaskScheduleSelection;
 }): Promise<Task> {
@@ -218,7 +224,12 @@ async function createTaskFromDescription(input: {
   const normalizedProjectId = normalizeOptionalProjectId(input.projectId);
   const descriptionWithDesignMd = input.skipDesignMdAttachment
     ? trimmedDescription
-    : await designMdService.appendDesignMdToDescription(trimmedDescription);
+    : input.designMdAttachmentOverride
+      ? designMdService.withDesignMdAttachment(
+          trimmedDescription,
+          input.designMdAttachmentOverride,
+        )
+      : await designMdService.appendDesignMdToDescription(trimmedDescription);
 
   const task = await taskService.createTask({
     description: descriptionWithDesignMd,
@@ -367,6 +378,7 @@ export const createTask = withSession<
     projectId,
     session,
     skipDesignMdAttachment,
+    designMdAttachmentOverride,
     status,
     schedule,
   }) => {
@@ -376,6 +388,7 @@ export const createTask = withSession<
         assigneeId,
         projectId,
         skipDesignMdAttachment,
+        designMdAttachmentOverride,
         status,
         schedule,
       });
@@ -704,6 +717,7 @@ export const createTaskAndLink = withSession<
     session,
     status,
     skipDesignMdAttachment,
+    designMdAttachmentOverride,
     schedule,
     relation,
     note,
@@ -722,6 +736,7 @@ export const createTaskAndLink = withSession<
         assigneeId,
         projectId,
         skipDesignMdAttachment,
+        designMdAttachmentOverride,
         status,
         schedule,
       });

@@ -439,6 +439,7 @@ describe("loadCreateTaskModalData", () => {
     resolveEffectiveDesignMdMock.mockResolvedValue({
       label: "Design",
       url: "https://example.com/design.md",
+      owner: { type: "organization", name: "Acme Inc" },
     });
 
     const result = await loadCreateTaskModalData();
@@ -447,6 +448,7 @@ describe("loadCreateTaskModalData", () => {
     expect(result.designMdAttachment).toEqual({
       label: "Design",
       url: "https://example.com/design.md",
+      owner: { type: "organization", name: "Acme Inc" },
     });
   });
 

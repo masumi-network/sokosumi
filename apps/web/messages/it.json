@@ -1809,6 +1809,17 @@
         "files": "File"
       },
       "NewTask": {
+        "DesignMdAttachment": {
+          "organizationLabel": "Brand design di {organization}",
+          "personalLabel": "Il tuo brand design",
+          "customLabel": "Brand design di {hostname}",
+          "tooltip": "DESIGN.md è una guida al brand già creata per {organization} dal proprietario. Allegarla qui aiuta questo agente ad applicare automaticamente il tuo brand.",
+          "tooltipPersonal": "DESIGN.md è una guida al brand che hai già creato. Allegarla qui aiuta questo agente ad applicare automaticamente il tuo brand.",
+          "learnMore": "Scopri di più su DESIGN.md",
+          "infoAria": "Informazioni su questo allegato",
+          "useDifferentBranding": "Usa un brand diverso",
+          "resetToDefault": "Ripristina il brand"
+        },
         "title": "Nuovo task",
         "details": "Dettagli",
         "detailsDescription": "Descrivi brevemente il task da svolgere",
@@ -4337,6 +4348,11 @@
       "allAgentsSubtitle": "Tutti gli agenti su Sokosumi, raggruppati per competenza."
     },
     "DesignMd": {
+      "adHocDialogTitle": "Usa un brand diverso",
+      "adHocDialogDescription": "Inserisci il sito web di un'altra azienda: Masumi genererà una guida al brand DESIGN.md solo per questa attività. Non verrà salvato nulla nel tuo profilo.",
+      "adHocUrlLabel": "Sito web dell'azienda",
+      "adHocUrlPlaceholder": "https://esempio.com",
+      "adHocMissingUrl": "Inserisci prima un URL del sito web.",
       "title": "DESIGN.md",
       "statusReady": "Pronto",
       "statusEmpty": "Non impostato",

@@ -41,26 +41,24 @@ import { useOSDetection } from "@/hooks/use-os-detection";
 import { createTask, updateTask } from "@/lib/actions/task/action";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
+import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import { getScheduleIcon } from "@/lib/utils/schedule-icon";
 import {
-  createDesignMdDismissedState,
-  ensureDesignMdInDescription,
   extractTaskAttachmentUrls,
   formatTaskAttachmentMarkdown,
-  isDesignMdAttachmentSkipped,
-  markDesignMdDismissed,
   removeTaskAttachmentLinks,
-  seedTaskDescriptionWithDesignMd,
-  syncDesignMdDismissedState,
-  type TaskDesignMdAttachmentSeed,
 } from "@/lib/utils/task-attachments";
 import { metadataToSelection } from "@/lib/utils/task-schedule";
 import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { TaskCreatedCelebration } from "./task-created-celebration";
+import {
+  TaskDesignMdAttachmentField,
+  type TaskDesignMdSelection,
+} from "./task-design-md-attachment";
 import { TaskFormModalHeaderStart } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
 import { TaskScheduleModal } from "./task-schedule-modal";
@@ -138,7 +136,7 @@ interface TaskFormInitialValues {
   nextRunAt?: string | null;
 }
 
-export type TaskFormInitialDesignMdAttachment = TaskDesignMdAttachmentSeed;
+export type TaskFormInitialDesignMdAttachment = EffectiveDesignMdAttachment;
 
 interface TaskFormProps {
   mode: "create" | "edit";
@@ -161,6 +159,7 @@ interface TaskFormProps {
     assigneeId: string | null;
     projectId?: string | null;
     skipDesignMdAttachment?: boolean;
+    designMdAttachmentOverride?: { label: string; url: string };
     status: Extract<TaskStatus, "DRAFT" | "READY">;
     schedule?: TaskScheduleSelection;
   }) => Promise<{ taskId: string; name?: string }>;
@@ -196,16 +195,13 @@ export function TaskForm({
   const shouldShowProjectSelect = isModal && projectOptions !== undefined;
   const originalStatus = initialValues?.status ?? TaskStatus.DRAFT;
   const [name, setName] = useState(initialValues?.name ?? "");
-  const initialDescription = useMemo(
-    () =>
-      getInitialDescription({
-        attachment: initialDesignMdAttachment,
-        description: initialValues?.description,
-        mode,
-      }),
-    [initialDesignMdAttachment, initialValues?.description, mode],
-  );
+  const initialDescription = initialValues?.description ?? "";
   const [description, setDescription] = useState(initialDescription);
+  const [designMdSelection, setDesignMdSelection] =
+    useState<TaskDesignMdSelection>({
+      enabled: Boolean(initialDesignMdAttachment),
+      custom: null,
+    });
   const [projectId, setProjectId] = useState<string | null>(
     initialValues?.projectId ?? defaultProjectId ?? null,
   );
@@ -279,12 +275,6 @@ export function TaskForm({
   const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const activeUploadControllersRef = useRef(new Set<AbortController>());
-  const designMdStateRef = useRef(createDesignMdDismissedState());
-  syncDesignMdDismissedState(
-    description,
-    initialDesignMdAttachment,
-    designMdStateRef.current,
-  );
   const attachmentUrls = useMemo(
     () => extractTaskAttachmentUrls(description),
     [description],
@@ -422,9 +412,18 @@ export function TaskForm({
           const result = await createTaskHandler({
             description: trimmedDescription,
             assigneeId,
-            skipDesignMdAttachment: isDesignMdAttachmentSkipped(
-              designMdStateRef.current,
-            ),
+            // No default to skip in the first place when the workspace has no
+            // DESIGN.md — leave it undefined so the server's own (idempotent,
+            // always-fresh) resolution decides, same as before this field existed.
+            skipDesignMdAttachment: initialDesignMdAttachment
+              ? !designMdSelection.enabled
+              : undefined,
+            designMdAttachmentOverride: designMdSelection.custom
+              ? {
+                  label: designMdSelection.custom.label,
+                  url: designMdSelection.custom.url,
+                }
+              : undefined,
             ...(shouldShowProjectSelect ? { projectId } : {}),
             status: desiredStatus as Extract<TaskStatus, "DRAFT" | "READY">,
             schedule: scheduleSelection,
@@ -517,6 +516,8 @@ export function TaskForm({
       scheduleSelection,
       scheduleLabel,
       hadSchedule,
+      initialDesignMdAttachment,
+      designMdSelection,
       labels.statusDraft,
       labels.statusQueued,
       labels.statusReady,
@@ -586,15 +587,9 @@ export function TaskForm({
     [labels.uploadFileError, labels.uploadingFile, labels.uploadingFiles],
   );
 
-  const handleRemoveAttachment = useCallback(
-    (url: string) => {
-      if (initialDesignMdAttachment?.url === url) {
-        markDesignMdDismissed(designMdStateRef.current);
-      }
-      setDescription((prev) => removeTaskAttachmentLinks(prev, [url]));
-    },
-    [initialDesignMdAttachment?.url],
-  );
+  const handleRemoveAttachment = useCallback((url: string) => {
+    setDescription((prev) => removeTaskAttachmentLinks(prev, [url]));
+  }, []);
 
   const selectedOption = useMemo(
     () => coworkerOptions.find((option) => option.id === assigneeId),
@@ -721,12 +716,7 @@ export function TaskForm({
                 selectedId={assigneeId}
                 onSelect={handleCoworkerSelect}
                 onPickOffer={(offer) => {
-                  setDescription(
-                    ensureDesignMdInDescription(
-                      offer.prompt,
-                      initialDesignMdAttachment,
-                    ),
-                  );
+                  setDescription(offer.prompt);
                   setStep(2);
                 }}
                 onStartFromScratch={() => {
@@ -909,6 +899,13 @@ export function TaskForm({
                     </FileUploadTrigger>
                   </FileUploadDropzone>
                 </FileUpload>
+                {initialDesignMdAttachment ? (
+                  <TaskDesignMdAttachmentField
+                    defaultAttachment={initialDesignMdAttachment}
+                    selection={designMdSelection}
+                    onSelectionChange={setDesignMdSelection}
+                  />
+                ) : null}
                 {attachmentUrls.length > 0 ? (
                   <div className="flex flex-wrap gap-3">
                     {attachmentUrls.map((url) => (
@@ -1116,20 +1113,4 @@ export function TaskForm({
       </section>
     </div>
   );
-}
-
-function getInitialDescription({
-  attachment,
-  description,
-  mode,
-}: {
-  attachment?: TaskFormInitialDesignMdAttachment | null;
-  description?: string;
-  mode: "create" | "edit";
-}): string {
-  if (mode !== "create") {
-    return description ?? "";
-  }
-
-  return seedTaskDescriptionWithDesignMd(description ?? "", attachment);
 }

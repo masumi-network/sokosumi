@@ -32,6 +32,7 @@ const route = createRoute({
           designMd: {
             label: DESIGN_MD_ATTACHMENT_LABEL,
             url: "https://blob.example/design.md",
+            owner: { type: "organization", name: "Acme Inc" },
           },
         },
         meta: {
@@ -60,19 +61,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (member) {
         const organization = await prisma.organization.findUnique({
           where: { id: organizationId },
-          select: { metadata: true },
+          select: { metadata: true, name: true },
         });
         const organizationDesignMd = readOrganizationDesignMd(
           organization?.metadata,
         );
 
-        if (organizationDesignMd) {
+        if (organizationDesignMd && organization) {
           return ok(
             c,
             effectiveDesignMdSchema.parse({
               designMd: {
                 label: DESIGN_MD_ATTACHMENT_LABEL,
                 url: organizationDesignMd.url,
+                owner: { type: "organization", name: organization.name },
               },
             }),
           );
@@ -87,7 +89,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       effectiveDesignMdSchema.parse({
         designMd: userDesignMd
-          ? { label: DESIGN_MD_ATTACHMENT_LABEL, url: userDesignMd.url }
+          ? {
+              label: DESIGN_MD_ATTACHMENT_LABEL,
+              url: userDesignMd.url,
+              owner: { type: "user" },
+            }
           : null,
       }),
     );

@@ -7,7 +7,20 @@ import type { DesignMdOwnerSchemaType } from "@/lib/schemas/design-md";
 const JOB_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 function serializeOwner(owner: DesignMdOwnerSchemaType): string {
-  return owner.type === "user" ? "user" : `org:${owner.organizationId}`;
+  switch (owner.type) {
+    case "user":
+      return "user";
+    case "adhoc":
+      return "adhoc";
+    case "organization":
+      return `org:${owner.organizationId}`;
+    default: {
+      const _exhaustive: never = owner;
+      throw new Error(
+        `Unsupported DESIGN.md owner: ${JSON.stringify(_exhaustive)}`,
+      );
+    }
+  }
 }
 
 function signPayload(secret: string, payload: string): string {
