@@ -59,10 +59,6 @@ const transientFetchFailurePattern =
 const bareTransientNetworkFailurePattern =
   /^(?:TypeError: )?(?:Load failed|Failed to fetch)$/;
 
-/** Consent SDK chunk load failures from Usercentrics (SOKOSUMI-7V). */
-const thirdPartyDynamicImportFailurePattern =
-  /Failed to fetch dynamically imported module: https?:\/\/[^/]*usercentrics/i;
-
 /**
  * Firefox and some WebKit builds report offline or aborted fetches as a bare
  * `network error` with no hostname (SOKOSUMI-D6 on `/tasks/:taskId`).
@@ -140,10 +136,6 @@ export function isBareNetworkError(message: string): boolean {
   return bareNetworkErrorPattern.test(message);
 }
 
-export function isThirdPartyDynamicImportFailure(message: string): boolean {
-  return thirdPartyDynamicImportFailurePattern.test(message);
-}
-
 export function beforeSendClientEvent(
   event: ErrorEvent,
   hint: EventHint,
@@ -159,7 +151,6 @@ export function beforeSendClientEvent(
     isTransientFirstPartyApiFetchFailure(message) ||
     isBareTransientNetworkFailure(message) ||
     isBareNetworkError(message) ||
-    isThirdPartyDynamicImportFailure(message) ||
     isExpectedClientNoiseErrorMessage(message) ||
     isThirdPartyDomMutationError(message) ||
     isInAppBrowserEnvironmentError(message) ||

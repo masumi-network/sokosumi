@@ -23,13 +23,6 @@ const envSecretsSchema = z.object({
       "https://github.com/Sparticuz/chromium/releases/download/v149.0.0/chromium-v149.0.0-pack.x64.tar",
     ),
 
-  // Usercentrics
-  USER_CENTRICS_DATA_SETTINGS_ID: z.string().min(1).optional(),
-  DRAFT_USER_CENTRICS: z
-    .string()
-    .transform((val: string) => val.trim().toLowerCase() === "true")
-    .default(false),
-
   MAINTENANCE_MODE: z
     .string()
     .transform((val: string) => val.trim().toLowerCase() === "true")
