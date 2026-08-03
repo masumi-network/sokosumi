@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  ChevronDown,
-  Hash,
-  MessageCircle,
-  Plus,
-  RotateCcw,
-} from "lucide-react";
+import { ChevronDown, MessageCircle, Plus, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -43,6 +37,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { ChannelVisibilityIcon } from "./channel-visibility-icon";
 import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import {
@@ -558,7 +553,9 @@ export function OrganizationChatList({
                   href={`/chat/rooms/${room.id}`}
                   label={room.name}
                   isActive={activeRoomId === room.id}
-                  leading={<Hash className="size-4 shrink-0" aria-hidden />}
+                  leading={
+                    <ChannelVisibilityIcon visibility={room.visibility} />
+                  }
                   onRoomUpdated={handleRoomUpdated}
                 />
               ))}
@@ -610,9 +607,9 @@ export function OrganizationChatList({
                   return (
                     <SidebarMenuItem key={room.id}>
                       <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-center gap-2 px-3 py-1.5">
-                        <Hash
-                          className="size-4 shrink-0 opacity-60"
-                          aria-hidden
+                        <ChannelVisibilityIcon
+                          className="opacity-60"
+                          visibility={room.visibility}
                         />
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}

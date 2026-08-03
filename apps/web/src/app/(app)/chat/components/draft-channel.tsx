@@ -17,6 +17,7 @@ import {
   type ComposeDraft,
   composeDraftKey,
 } from "@/app/chat/utils/compose-draft-storage";
+import { ChannelVisibilityIcon } from "@/components/chat/channel-visibility-icon";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
@@ -255,9 +256,9 @@ export function DraftChannel({
       <header className="min-h-14 shrink-0 border-b px-5 py-2">
         <div className="space-y-2">
           <div className="flex w-full items-start gap-2">
-            <Hash
-              className="text-muted-foreground mt-2 size-4 shrink-0"
-              aria-hidden
+            <ChannelVisibilityIcon
+              className="text-muted-foreground mt-2"
+              visibility={visibility}
             />
             <div className="min-w-0 flex-1">
               <input
