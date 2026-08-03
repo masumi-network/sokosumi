@@ -1,6 +1,6 @@
 "use client";
 
-import { Ellipsis } from "lucide-react";
+import { Ellipsis, Pin } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useTransition } from "react";
@@ -22,6 +22,10 @@ import { SheetClose } from "@/components/ui/sheet";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+
+/** Same absolute slot for pin (rest) and overflow menu (hover) so icons never jump. */
+const TRAILING_CONTROL_CLASS =
+  "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center";
 
 interface ChatRoomSidebarRowProps {
   room: ChatRoom;
@@ -106,15 +110,22 @@ export function ChatRoomSidebarRow({
               {label}
             </span>
             <MentionBadge count={badgeCount} />
-            {/* Reserve trailing slot; pinned rooms show … at rest, menu on hover. */}
-            <span className="relative size-7 shrink-0" aria-hidden>
-              {isPinned ? (
-                <Ellipsis className="text-muted-foreground absolute inset-0 m-auto size-4 group-hover/room-row:opacity-0 group-focus-within/room-row:opacity-0" />
-              ) : null}
-            </span>
+            <span className="size-7 shrink-0" aria-hidden />
           </Link>
         </SheetClose>
       </SidebarMenuButton>
+      {isPinned ? (
+        <span
+          className={cn(
+            TRAILING_CONTROL_CLASS,
+            "text-muted-foreground pointer-events-none",
+            "group-hover/room-row:opacity-0 group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
+          )}
+          aria-hidden
+        >
+          <Pin className="size-3.5" />
+        </span>
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -122,7 +133,10 @@ export function ChatRoomSidebarRow({
             variant="ghost"
             size="icon"
             disabled={isPending}
-            className="text-muted-foreground absolute top-1/2 right-1 z-10 size-7 -translate-y-1/2 opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100"
+            className={cn(
+              TRAILING_CONTROL_CLASS,
+              "text-muted-foreground opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+            )}
             aria-label={tActions("roomMenu", { name: label })}
           >
             <Ellipsis className="size-4" aria-hidden />
