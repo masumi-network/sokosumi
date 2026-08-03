@@ -1,53 +1,53 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  countChatRoomsWithUnreadAttention,
   formatChatUnreadDocumentTitle,
   stripChatUnreadTitlePrefix,
-  sumChatRoomsUnreadAttention,
 } from "../chat-unread-document-title";
 
-describe("sumChatRoomsUnreadAttention", () => {
-  it("sums unreadCount across rooms", () => {
+describe("countChatRoomsWithUnreadAttention", () => {
+  it("counts rooms with unread, not message totals", () => {
     expect(
-      sumChatRoomsUnreadAttention([
+      countChatRoomsWithUnreadAttention([
         { id: "a", unreadCount: 2 },
         { id: "b", unreadCount: 3 },
       ]),
-    ).toBe(5);
+    ).toBe(2);
   });
 
   it("skips the active room", () => {
     expect(
-      sumChatRoomsUnreadAttention(
+      countChatRoomsWithUnreadAttention(
         [
           { id: "a", unreadCount: 2 },
           { id: "b", unreadCount: 3 },
         ],
         { activeRoomId: "a" },
       ),
-    ).toBe(3);
+    ).toBe(1);
   });
 
-  it("counts forced-unread rooms with unreadCount 0 as 1", () => {
+  it("counts forced-unread rooms with unreadCount 0 as one room", () => {
     expect(
-      sumChatRoomsUnreadAttention([
+      countChatRoomsWithUnreadAttention([
         { id: "a", unreadCount: 0, markedUnread: true },
         { id: "b", unreadCount: 2 },
       ]),
-    ).toBe(3);
+    ).toBe(2);
   });
 
   it("does not double-count markedUnread when unreadCount is already > 0", () => {
     expect(
-      sumChatRoomsUnreadAttention([
+      countChatRoomsWithUnreadAttention([
         { id: "a", unreadCount: 4, markedUnread: true },
       ]),
-    ).toBe(4);
+    ).toBe(1);
   });
 
   it("skips an active forced-unread room", () => {
     expect(
-      sumChatRoomsUnreadAttention(
+      countChatRoomsWithUnreadAttention(
         [
           { id: "a", unreadCount: 0, markedUnread: true },
           { id: "b", unreadCount: 1 },
@@ -55,6 +55,25 @@ describe("sumChatRoomsUnreadAttention", () => {
         { activeRoomId: "a" },
       ),
     ).toBe(1);
+  });
+
+  it("skips muted rooms even when they have unread", () => {
+    expect(
+      countChatRoomsWithUnreadAttention([
+        { id: "a", unreadCount: 5, mutedAt: "2026-08-03T12:00:00.000Z" },
+        { id: "b", unreadCount: 1 },
+        { id: "c", unreadCount: 0, markedUnread: true, mutedAt: new Date() },
+      ]),
+    ).toBe(1);
+  });
+
+  it("ignores rooms with no unread and not marked unread", () => {
+    expect(
+      countChatRoomsWithUnreadAttention([
+        { id: "a", unreadCount: 0 },
+        { id: "b", unreadCount: 0, mutedAt: null },
+      ]),
+    ).toBe(0);
   });
 });
 

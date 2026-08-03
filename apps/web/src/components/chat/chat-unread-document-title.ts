@@ -2,15 +2,20 @@ interface ChatRoomUnreadAttention {
   id: string;
   unreadCount: number;
   markedUnread?: boolean;
+  mutedAt?: string | Date | null;
 }
 
-interface SumChatRoomsUnreadAttentionOptions {
+interface CountChatRoomsWithUnreadAttentionOptions {
   activeRoomId?: string | null;
 }
 
-export function sumChatRoomsUnreadAttention(
+/**
+ * Count rooms that would show sidebar attention (bold), for the tab title.
+ * One per room — not a sum of unread messages. Skips active and muted rooms.
+ */
+export function countChatRoomsWithUnreadAttention(
   rooms: ChatRoomUnreadAttention[],
-  options: SumChatRoomsUnreadAttentionOptions = {},
+  options: CountChatRoomsWithUnreadAttentionOptions = {},
 ): number {
   let total = 0;
 
@@ -19,12 +24,13 @@ export function sumChatRoomsUnreadAttention(
       continue;
     }
 
-    if (room.markedUnread === true && room.unreadCount === 0) {
-      total += 1;
+    if (room.mutedAt != null) {
       continue;
     }
 
-    total += room.unreadCount;
+    if (room.unreadCount > 0 || room.markedUnread === true) {
+      total += 1;
+    }
   }
 
   return total;

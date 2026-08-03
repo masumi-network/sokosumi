@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
-import { sumChatRoomsUnreadAttention } from "./chat-unread-document-title";
+import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
 import {
   listOrganizationArchivedChatRoomsAction,
@@ -256,8 +256,10 @@ export function OrganizationChatList({
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [_isRestoring, startRestoreTransition] = useTransition();
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
-  const unreadTotal = sumChatRoomsUnreadAttention(roomRows, { activeRoomId });
-  useChatUnreadDocumentTitle(unreadTotal);
+  const unreadRoomCount = countChatRoomsWithUnreadAttention(roomRows, {
+    activeRoomId,
+  });
+  useChatUnreadDocumentTitle(unreadRoomCount);
 
   useEffect(() => {
     setRoomRows(applyRoomReadOverlays(rooms));
