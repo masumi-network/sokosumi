@@ -4730,7 +4730,9 @@
       "Message": {
         "delete": "Supprimer",
         "deleteConfirm": "Supprimer ce message ? Les autres verront qu’il a été supprimé.",
-        "deleted": "Ce message a été supprimé"
+        "deleted": "Ce message a été supprimé",
+        "showMore": "Afficher plus",
+        "showLess": "Afficher moins"
       },
       "MentionAll": {
         "label": "Tout le monde"

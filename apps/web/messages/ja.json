@@ -4730,7 +4730,9 @@
       "Message": {
         "delete": "削除",
         "deleteConfirm": "このメッセージを削除しますか？他の人には削除されたことが表示されます。",
-        "deleted": "このメッセージは削除されました"
+        "deleted": "このメッセージは削除されました",
+        "showMore": "続きを表示",
+        "showLess": "折りたたむ"
       },
       "MentionAll": {
         "label": "全員"
