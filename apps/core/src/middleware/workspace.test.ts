@@ -259,13 +259,13 @@ describe("workspaceMiddleware", () => {
       {
         label: "workspace_context_resolution",
         sentry: {
-          extra: {
-            activeOrganizationId: "org_existing",
-            userId: "user_123",
-          },
           tags: {
             context: "workspace_context_resolution",
           },
+        },
+        extra: {
+          activeOrganizationId: "org_existing",
+          userId: "user_123",
         },
       },
     );

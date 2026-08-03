@@ -109,10 +109,10 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
           tags: {
             context: "workspace_context_resolution",
           },
-          extra: {
-            activeOrganizationId: workspaceOwnerContext.organizationId,
-            userId: workspaceOwnerContext.userId,
-          },
+        },
+        extra: {
+          activeOrganizationId: workspaceOwnerContext.organizationId,
+          userId: workspaceOwnerContext.userId,
         },
       });
       c.set("workspaceContext", null);

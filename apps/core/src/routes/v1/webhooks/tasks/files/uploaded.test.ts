@@ -10,9 +10,9 @@ const {
   registerTaskFileFromUploadCompletedMock,
 } = vi.hoisted(() => {
   const defaultEnv = {
-    // Pulled at import time via `@/lib/hono` → auth → prisma/postmark.
+    // Pulled at import time via `@/lib/hono` → auth → prisma/email.
     DATABASE_URL: "postgresql://test:test@localhost:5432/test",
-    POSTMARK_SERVER_ID: "test-postmark-token",
+    RESEND_API_KEY: "test-resend-api-key",
     BLOB_WEBHOOK_PUBLIC_KEY:
       "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----",
     BLOB_READ_WRITE_TOKEN: "blob-token",
@@ -28,11 +28,11 @@ vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
 }));
 
-vi.mock("@/clients/postmark.client", () => ({
-  postmarkClient: { sendEmail: vi.fn() },
+vi.mock("@/clients/email.client", () => ({
+  sendEmail: vi.fn(),
 }));
 
-// `@/lib/hono` → auth → stripe/postmark at import time.
+// `@/lib/hono` → auth → stripe/email at import time.
 vi.mock("@/lib/auth", () => ({
   auth: {
     api: {
@@ -80,7 +80,7 @@ describe("POST /webhooks/tasks/files/uploaded", () => {
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({
       DATABASE_URL: "postgresql://test:test@localhost:5432/test",
-      POSTMARK_SERVER_ID: "test-postmark-token",
+      RESEND_API_KEY: "test-resend-api-key",
       BLOB_WEBHOOK_PUBLIC_KEY:
         "-----BEGIN PUBLIC KEY-----\ntest\n-----END PUBLIC KEY-----",
       BLOB_READ_WRITE_TOKEN: "blob-token",
@@ -139,7 +139,7 @@ describe("POST /webhooks/tasks/files/uploaded", () => {
   it("returns 503 when webhook public key is missing", async () => {
     getEnvMock.mockReturnValue({
       DATABASE_URL: "postgresql://test:test@localhost:5432/test",
-      POSTMARK_SERVER_ID: "test-postmark-token",
+      RESEND_API_KEY: "test-resend-api-key",
       BLOB_READ_WRITE_TOKEN: "blob-token",
       BLOB_WEBHOOK_PUBLIC_KEY: undefined,
     } as unknown as ReturnType<typeof getEnvMock>);
