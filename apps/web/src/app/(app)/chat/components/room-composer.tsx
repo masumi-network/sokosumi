@@ -69,9 +69,10 @@ export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
 }
 
-/** Shell drop zones call this to reuse the paperclip upload path. */
+/** Shell drop zones + Quote/Thread callers reuse this surface. */
 export interface RoomComposerHandle {
   attachFiles: (files: FileList | File[] | null) => void;
+  focus: () => void;
 }
 
 function RoomMentionSuggestion({
@@ -394,6 +395,9 @@ export function RoomComposer({
     () => ({
       attachFiles: (files) => {
         void handleFilesSelected(files);
+      },
+      focus: () => {
+        editorRef.current?.focus();
       },
     }),
     [handleFilesSelected],
