@@ -9,6 +9,7 @@ const {
   findManyMock,
   createMock,
   deleteMock,
+  messageFindUniqueMock,
   generateTextMock,
   createCoworkerConversationMock,
   getSokosumiProviderMock,
@@ -23,6 +24,7 @@ const {
   findManyMock: vi.fn(),
   createMock: vi.fn(),
   deleteMock: vi.fn(),
+  messageFindUniqueMock: vi.fn(),
   generateTextMock: vi.fn(),
   createCoworkerConversationMock: vi.fn(),
   getSokosumiProviderMock: vi.fn(),
@@ -41,6 +43,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     chatRoomMessage: {
       findMany: findManyMock,
+      findUnique: messageFindUniqueMock,
       create: createMock,
       delete: deleteMock,
     },
@@ -52,7 +55,11 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
-        chatRoomMessage: { create: createMock, delete: deleteMock },
+        chatRoomMessage: {
+          create: createMock,
+          delete: deleteMock,
+          findUnique: messageFindUniqueMock,
+        },
         chatRoomMention: { updateMany: transactionUpdateManyMock },
         chatRoomCoworkerMember: { findUnique: coworkerMemberFindUniqueMock },
         chatRoom: { update: vi.fn() },
@@ -103,6 +110,7 @@ function pendingMention() {
       content: "@hannah hi",
       parentMessageId: null,
       senderUserId: "user_1",
+      deletedAt: null,
       createdAt: new Date("2025-01-01T00:00:00.000Z"),
       senderUser: { id: "user_1", name: "Patrick" },
       room: {
@@ -122,6 +130,7 @@ beforeEach(() => {
   generateTextMock.mockResolvedValue({ text: "Hello back" });
   createMock.mockResolvedValue({ id: "reply_1" });
   deleteMock.mockResolvedValue({ id: "reply_1" });
+  messageFindUniqueMock.mockResolvedValue({ deletedAt: null });
   updateMock.mockResolvedValue({});
   updateManyMock.mockResolvedValue({ count: 1 });
   transactionUpdateManyMock.mockResolvedValue({ count: 1 });
@@ -336,6 +345,52 @@ describe("dispatchChatRoomMention claim", () => {
       data: {
         status: "failed",
         error: "Coworker is no longer a member of this room",
+      },
+    });
+  });
+
+  it("fails closed before claim when the source message is soft-deleted", async () => {
+    findUniqueMock.mockResolvedValue({
+      ...pendingMention(),
+      message: {
+        ...pendingMention().message,
+        content: "",
+        deletedAt: new Date("2026-08-02T00:00:00.000Z"),
+      },
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID, status: { not: "responded" } },
+      data: {
+        status: "failed",
+        error: "Source message was deleted",
+      },
+    });
+    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("discards the reply when the source message is soft-deleted during generateText", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    messageFindUniqueMock.mockResolvedValue({
+      deletedAt: new Date("2026-08-02T00:00:00.000Z"),
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(generateTextMock).toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+    expect(transactionUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        id: MENTION_ID,
+        status: { in: ["pending", "sent"] },
+      },
+      data: {
+        status: "failed",
+        error: "Source message was deleted",
       },
     });
   });

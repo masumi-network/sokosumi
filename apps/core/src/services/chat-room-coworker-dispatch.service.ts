@@ -196,6 +196,14 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
+  // Soft-delete wipes content and cancels pending/sent mentions, but a
+  // waitUntil already in flight may still reach here — fail closed before
+  // claiming so we do not burn credits or post under a tombstone.
+  if (mention.message.deletedAt != null) {
+    await markMentionFailed(mentionId, "Source message was deleted");
+    return;
+  }
+
   const coworker = mention.coworker;
   if (
     coworker.archivedAt ||
@@ -303,6 +311,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     where: {
       roomId: mention.message.roomId,
       id: { not: mention.message.id },
+      deletedAt: null,
       createdAt: { lte: mention.message.createdAt },
       ...(threadRootId
         ? { OR: [{ id: threadRootId }, { parentMessageId: threadRootId }] }
@@ -376,6 +385,26 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         data: {
           status: "failed",
           error: "Coworker is no longer a member of this room",
+        },
+      });
+      return;
+    }
+
+    // Soft-delete during generateText cancels the mention to `failed` and
+    // wipes content; do not post a reply under a tombstone.
+    const sourceMessage = await tx.chatRoomMessage.findUnique({
+      where: { id: mention.message.id },
+      select: { deletedAt: true },
+    });
+    if (!sourceMessage || sourceMessage.deletedAt != null) {
+      await tx.chatRoomMention.updateMany({
+        where: {
+          id: mention.id,
+          status: { in: ["pending", "sent"] },
+        },
+        data: {
+          status: "failed",
+          error: "Source message was deleted",
         },
       });
       return;

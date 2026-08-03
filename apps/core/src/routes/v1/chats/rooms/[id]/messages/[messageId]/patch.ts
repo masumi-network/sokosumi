@@ -93,6 +93,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw forbidden("You can only edit your own messages");
       }
 
+      if (existing.deletedAt != null) {
+        throw forbidden("Deleted messages cannot be edited");
+      }
+
       if (existing.content === body.content) {
         return existing;
       }

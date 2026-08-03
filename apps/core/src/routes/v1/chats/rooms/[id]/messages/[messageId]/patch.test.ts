@@ -240,6 +240,20 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     expect(messageUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("returns 403 when the message is soft-deleted", async () => {
+    messageFindFirstMock.mockResolvedValue({
+      ...mappedMessage,
+      content: "",
+      deletedAt: new Date("2026-08-02T00:00:00.000Z"),
+      metadata: null,
+    });
+
+    const response = await patchMessage({ content: "hello resurrected" });
+
+    expect(response.status).toBe(403);
+    expect(messageUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("returns 404 when the message is missing from the room", async () => {
     messageFindFirstMock.mockResolvedValue(null);
 

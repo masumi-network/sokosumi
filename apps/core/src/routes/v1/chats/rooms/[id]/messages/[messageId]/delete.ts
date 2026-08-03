@@ -78,10 +78,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (existing.deletedAt != null) {
+        // Already tombstoned — still cancel any non-terminal coworker
+        // mentions so a late waitUntil cannot revive work against it.
+        await tx.chatRoomMention.updateMany({
+          where: {
+            messageId,
+            status: { in: ["pending", "sent"] },
+          },
+          data: {
+            status: "failed",
+            error: "Source message was deleted",
+          },
+        });
         return existing;
       }
 
-      return tx.chatRoomMessage.update({
+      const updated = await tx.chatRoomMessage.update({
         where: { id: messageId },
         data: {
           deletedAt: new Date(),
@@ -90,6 +102,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         include: chatRoomMessageInclude,
       });
+
+      // Soft-delete must stop coworker dispatch: otherwise waitUntil still
+      // burns credits and can post a reply under a wiped tombstone.
+      await tx.chatRoomMention.updateMany({
+        where: {
+          messageId,
+          status: { in: ["pending", "sent"] },
+        },
+        data: {
+          status: "failed",
+          error: "Source message was deleted",
+        },
+      });
+
+      return updated;
     });
 
     return ok(
