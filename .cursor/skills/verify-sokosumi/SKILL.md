@@ -96,7 +96,7 @@ Artifacts land under `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.
 
 Harness: **agent-browser** (see `.agents/skills/agent-browser/SKILL.md` and `apps/web/AGENTS.md` Browser Automation). No Playwright/Cypress in this repo.
 
-Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply**. Prefer agent-browser / `verify-sokosumi sign-in`; computer-use is more likely to mis-click OAuth/passkey chrome at the top of `/signin`.
+Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply**. Prefer agent-browser / `verify-sokosumi sign-in`. Computer-use pitfalls (live-proved): Magic Link’s email field sits above the password form; JS `value=` does not satisfy react-hook-form (type keys); Chrome “Save password?” after login steals clicks — dismiss it. Full recipe in [sign-in.md](./features/sign-in.md).
 
 Session reuse:
 
