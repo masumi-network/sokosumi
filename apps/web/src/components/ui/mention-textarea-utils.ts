@@ -24,11 +24,23 @@ export function filterNormalizedMentions<TData = unknown>(
     return [...items];
   }
 
-  return items.filter((mention) => {
+  const prefixMatches: NormalizedMention<TData>[] = [];
+  const includesMatches: NormalizedMention<TData>[] = [];
+
+  for (const mention of items) {
     const value = mention.value.toLowerCase();
     const slug = mention.slug.toLowerCase();
-    return value.includes(q) || slug.includes(q);
-  });
+
+    if (value.startsWith(q) || slug.startsWith(q)) {
+      prefixMatches.push(mention);
+      continue;
+    }
+    if (value.includes(q) || slug.includes(q)) {
+      includesMatches.push(mention);
+    }
+  }
+
+  return [...prefixMatches, ...includesMatches];
 }
 
 /** Optional sectioned mention picker groups (e.g. People / Coworkers). */
