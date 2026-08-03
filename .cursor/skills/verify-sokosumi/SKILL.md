@@ -69,17 +69,34 @@ For Cursor background shells, kill those shell PIDs (or stop the terminal jobs) 
 
 Require `doctor ok`. If `owned_by_verify=no`, do **read-only** checks only — never mutate a foreign instance. If ports already answer before `launch`, the helper refuses (no double-drive).
 
+Doctor also prints `fixture_auth=ok|fail` (Core `POST /auth/sign-in/email` for `alice@sokosumi.test`) and whether `agent-browser` is on `PATH`. Fixture failure is a **warn** (local DB may lack seeds) — not a doctor fail. On cloud-agent Neon branches, expect `fixture_auth=ok` before driving.
+
 Optional Core-only smoke:
 
 ```bash
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi core-smoke
 ```
 
+## Sign-in (cloud agents: use the harness)
+
+Prefer the helper over hand-rolled browser clicks. It probes fixtures, drives UI Enter-submit, and falls back to Core cookie bootstrap (parses `Set-Cookie` from `POST /auth/sign-in/email`, then `agent-browser cookies set` with `HttpOnly` + `SameSite=Lax` on `localhost` — raw `cookies set --curl` often hits CDP “Invalid cookie fields” on Better Auth cookies):
+
+```bash
+export AGENT_BROWSER_SESSION_NAME=sokosumi
+.cursor/skills/verify-sokosumi/bin/verify-sokosumi doctor   # require doctor ok + fixture_auth=ok on agent DBs
+.cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in  # alice@sokosumi.test / Password123!
+# or: … sign-in --admin
+# or: … sign-in --method cookie   # skip flaky UI; unlock rest of map
+# or: … sign-in --method ui       # UI-only (no cookie fallback)
+```
+
+Artifacts land under `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `account.txt`, `method.txt`). Cookie-only unlocks later features — for `signin-submit` proof, require `--method ui` (or `auto` that succeeded with `method=ui`).
+
 ## Drive
 
 Harness: **agent-browser** (see `.agents/skills/agent-browser/SKILL.md` and `apps/web/AGENTS.md` Browser Automation). No Playwright/Cypress in this repo.
 
-Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply**. Prefer agent-browser; computer-use is more likely to mis-click OAuth/passkey chrome at the top of `/signin`.
+Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply**. Prefer agent-browser / `verify-sokosumi sign-in`; computer-use is more likely to mis-click OAuth/passkey chrome at the top of `/signin`.
 
 Session reuse:
 
@@ -89,9 +106,9 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 
 Stable auth selectors: `[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`, `[data-testid="auth-submit"]`.
 
-**Login rule:** fill email/password fields only, then **press Enter** — do not click submit, Google, Microsoft, Passkey, or Magic Link. react-hook-form can race a programmatic click; social/passkey controls sit **above** the password form and steal automation focus.
+**Login rule (manual drive):** fill email/password fields only, then **press Enter** — do not click submit, Google, Microsoft, Passkey, or Magic Link. react-hook-form can race a programmatic click; social/passkey controls sit **above** the password form and steal automation focus.
 
-If UI login leaves you on `/signin` or bounces back after a “success” (classic `BETTER_AUTH_COOKIE_DOMAIN` trap, or passkey/OAuth interference), fix env first, then use the Core cookie bootstrap in [sign-in.md](./features/sign-in.md). API bootstrap alone is not UI proof — reopen a protected page in the browser after injecting cookies.
+If UI login leaves you on `/signin` or bounces back after a “success” (classic `BETTER_AUTH_COOKIE_DOMAIN` trap, or passkey/OAuth interference), fix env first, then `verify-sokosumi sign-in --method cookie` (see [sign-in.md](./features/sign-in.md)). API bootstrap alone is not UI proof — reopen a protected page in the browser after injecting cookies.
 
 Credentials (pick one):
 
@@ -139,11 +156,12 @@ Executable: `.cursor/skills/verify-sokosumi/bin/verify-sokosumi`
 ```bash
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi launch
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi doctor
+.cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi core-smoke
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi cleanup
 ```
 
-Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL`, `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`.
+Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL`, `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`.
 
 ## Isolate
 
