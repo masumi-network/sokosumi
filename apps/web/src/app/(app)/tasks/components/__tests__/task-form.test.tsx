@@ -130,6 +130,63 @@ vi.mock("../markdown-editor", () => ({
   }),
 }));
 
+vi.mock("../task-design-md-attachment", () => ({
+  TaskDesignMdAttachmentField: ({
+    defaultAttachment,
+    selection,
+    onSelectionChange,
+  }: {
+    defaultAttachment: {
+      owner:
+        | { type: "organization"; name: string; logo: string | null }
+        | { type: "user" };
+    };
+    selection: {
+      enabled: boolean;
+      custom: null | { label: string; url: string; sourceUrl: string };
+    };
+    onSelectionChange: (next: {
+      enabled: boolean;
+      custom: null | { label: string; url: string; sourceUrl: string };
+    }) => void;
+  }) => (
+    <div>
+      <label>
+        <input
+          type="checkbox"
+          aria-label={
+            defaultAttachment.owner.type === "organization"
+              ? "organizationLabel"
+              : "personalLabel"
+          }
+          checked={selection.enabled}
+          onChange={(event) =>
+            onSelectionChange({
+              enabled: event.target.checked,
+              custom: selection.custom,
+            })
+          }
+        />
+      </label>
+      <button
+        type="button"
+        onClick={() =>
+          onSelectionChange({
+            enabled: true,
+            custom: {
+              label: "DESIGN.md",
+              url: "https://blob.example/design-md/adhoc/user-1/hash.md",
+              sourceUrl: "https://competitor.com",
+            },
+          })
+        }
+      >
+        set-custom-branding
+      </button>
+    </div>
+  ),
+}));
+
 const baseLabels = {
   details: "Details",
   detailsDescription: "Describe the task",
@@ -273,6 +330,7 @@ describe("TaskForm", () => {
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
+          owner: { type: "user" },
         }}
         onSuccess={vi.fn()}
       />,
@@ -701,7 +759,7 @@ describe("TaskForm", () => {
     );
   });
 
-  it("seeds empty create descriptions with the initial design.md attachment", () => {
+  it("shows the DESIGN.md attachment field without seeding it into the description", () => {
     render(
       <TaskForm
         variant="modal"
@@ -713,20 +771,21 @@ describe("TaskForm", () => {
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
         }}
         onSuccess={vi.fn()}
       />,
     );
 
-    expect(screen.getByTestId("markdown-editor")).toHaveValue(
-      "[DESIGN.md](https://blob.example/design.md)\n",
-    );
+    // The description stays exactly what the user sees — the attachment is
+    // a separate control now, not text prepended into the editor.
+    expect(screen.getByTestId("markdown-editor")).toHaveValue("");
     expect(
-      screen.getByText("https://blob.example/design.md"),
-    ).toBeInTheDocument();
+      screen.getByRole("checkbox", { name: "organizationLabel" }),
+    ).toBeChecked();
   });
 
-  it("does not seed design.md over an existing create description", () => {
+  it("does not touch an existing create description either", () => {
     render(
       <TaskForm
         variant="modal"
@@ -738,6 +797,7 @@ describe("TaskForm", () => {
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
         }}
         onSuccess={vi.fn()}
       />,
@@ -746,7 +806,7 @@ describe("TaskForm", () => {
     expect(screen.getByTestId("markdown-editor")).toHaveValue("Write docs");
   });
 
-  it("skips design.md attachment when the prefilled link is removed in the editor", async () => {
+  it("attaches the resolved DESIGN.md by default when creating a task", async () => {
     const user = userEvent.setup();
     const createTaskMock = vi.mocked(createTask);
     createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
@@ -762,12 +822,56 @@ describe("TaskForm", () => {
         initialDesignMdAttachment={{
           label: "DESIGN.md",
           url: "https://blob.example/design.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
         }}
         onSuccess={vi.fn()}
       />,
     );
 
-    await user.clear(screen.getByTestId("markdown-editor"));
+    await user.type(
+      screen.getByTestId("markdown-editor"),
+      "Build landing page",
+    );
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith({
+      description: "Build landing page",
+      assigneeId: "coworker-2",
+      status: TaskStatus.READY,
+      skipDesignMdAttachment: false,
+      designMdAttachmentOverride: undefined,
+      schedule: {
+        mode: "none",
+        timezone: expect.any(String),
+      },
+    });
+  });
+
+  it("skips the DESIGN.md attachment once its checkbox is unchecked", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "organizationLabel" }),
+    );
     await user.type(
       screen.getByTestId("markdown-editor"),
       "Build landing page",
@@ -779,6 +883,54 @@ describe("TaskForm", () => {
       assigneeId: "coworker-2",
       status: TaskStatus.READY,
       skipDesignMdAttachment: true,
+      designMdAttachmentOverride: undefined,
+      schedule: {
+        mode: "none",
+        timezone: expect.any(String),
+      },
+    });
+  });
+
+  it("passes a custom DESIGN.md override when branding is swapped", async () => {
+    const user = userEvent.setup();
+    const createTaskMock = vi.mocked(createTask);
+    createTaskMock.mockResolvedValue({ taskId: "task-1", name: "Task one" });
+
+    render(
+      <TaskForm
+        variant="modal"
+        mode="create"
+        showCancel={false}
+        labels={baseLabels}
+        coworkerOptions={coworkerOptions}
+        initialValues={{ assigneeId: "coworker-2" }}
+        initialDesignMdAttachment={{
+          label: "DESIGN.md",
+          url: "https://blob.example/design.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
+        }}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "set-custom-branding" }),
+    );
+    await user.type(
+      screen.getByTestId("markdown-editor"),
+      "Build landing page",
+    );
+    await user.click(screen.getByRole("button", { name: "Create Task" }));
+
+    expect(createTaskMock).toHaveBeenCalledWith({
+      description: "Build landing page",
+      assigneeId: "coworker-2",
+      status: TaskStatus.READY,
+      skipDesignMdAttachment: false,
+      designMdAttachmentOverride: {
+        label: "DESIGN.md",
+        url: "https://blob.example/design-md/adhoc/user-1/hash.md",
+      },
       schedule: {
         mode: "none",
         timezone: expect.any(String),
@@ -1349,7 +1501,8 @@ describe("TaskForm", () => {
       description: "Write docs",
       assigneeId: "coworker-2",
       status: TaskStatus.READY,
-      skipDesignMdAttachment: false,
+      skipDesignMdAttachment: undefined,
+      designMdAttachmentOverride: undefined,
       schedule: {
         mode: "none",
         timezone: expect.any(String),

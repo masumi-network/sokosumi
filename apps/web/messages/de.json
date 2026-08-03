@@ -1814,6 +1814,18 @@
         "files": "Dateien"
       },
       "NewTask": {
+        "DesignMdAttachment": {
+          "organizationLabel": "{organization} Markendesign",
+          "personalLabel": "Dein Markendesign",
+          "customLabel": "{hostname} Markendesign",
+          "tooltip": "DESIGN.md ist ein Markenleitfaden, der vom Inhaber bereits für {organization} erstellt wurde. Mit dieser Anlage wendet der Agent deine Marke automatisch an.",
+          "tooltipPersonal": "DESIGN.md ist ein Markenleitfaden, den du bereits erstellt hast. Mit dieser Anlage wendet der Agent deine Marke automatisch an.",
+          "tooltipCustom": "DESIGN.md, erzeugt von {hostname}, nur für diese Aufgabe. Mit dieser Anlage wendet der Agent dieses Branding an. Es wird nichts in deinem Profil gespeichert.",
+          "learnMore": "Mehr über DESIGN.md erfahren",
+          "infoAria": "Über diese Anlage",
+          "useDifferentBranding": "Anderes Branding verwenden",
+          "resetToDefault": "Branding zurücksetzen"
+        },
         "title": "Neuer Task",
         "details": "Details",
         "detailsDescription": "Beschreibe kurz die zu erledigende Aufgabe",
@@ -4344,6 +4356,11 @@
       }
     },
     "DesignMd": {
+      "adHocDialogTitle": "Eine andere Marke verwenden",
+      "adHocDialogDescription": "Gib die Website eines anderen Unternehmens ein — Masumi erstellt daraus einen DESIGN.md-Markenleitfaden nur für diese Aufgabe. Es wird nichts in deinem Profil gespeichert.",
+      "adHocUrlLabel": "Unternehmens-Website",
+      "adHocUrlPlaceholder": "https://beispiel.de",
+      "adHocMissingUrl": "Gib zuerst eine Website-URL ein.",
       "title": "DESIGN.md",
       "statusReady": "Bereit",
       "statusEmpty": "Nicht festgelegt",

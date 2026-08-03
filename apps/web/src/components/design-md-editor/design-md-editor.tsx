@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
-import type { DesignMdOwner } from "@/components/design-md/types";
+import type { ManageableDesignMdOwner } from "@/components/design-md/types";
 import { DESIGN_MD_TRANSLATION_NAMESPACE } from "@/components/design-md/types";
 import { saveDesignMdUpload } from "@/lib/actions/design-md";
 
@@ -16,7 +16,7 @@ import {
 
 interface DesignMdEditorProps {
   initialMarkdown: string;
-  owner: DesignMdOwner;
+  owner: ManageableDesignMdOwner;
   returnHref: string;
 }
 

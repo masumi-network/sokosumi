@@ -1825,6 +1825,18 @@
         "files": "Files"
       },
       "NewTask": {
+        "DesignMdAttachment": {
+          "organizationLabel": "{organization} Brand Design",
+          "personalLabel": "Your Brand Design",
+          "customLabel": "{hostname} Brand Design",
+          "tooltip": "DESIGN.md is a brand guide already created for {organization} by its owner. Attaching it here helps this agent apply your branding automatically.",
+          "tooltipPersonal": "DESIGN.md is a brand guide you already created. Attaching it here helps this agent apply your branding automatically.",
+          "tooltipCustom": "DESIGN.md generated from {hostname} for this task only. Attaching it here helps this agent apply that branding. Nothing is saved to your profile.",
+          "learnMore": "Learn more about DESIGN.md",
+          "infoAria": "About this attachment",
+          "useDifferentBranding": "Use different branding",
+          "resetToDefault": "Reset branding"
+        },
         "title": "New Task",
         "details": "Details",
         "detailsDescription": "Briefly explain the task that needs to be done",
@@ -4463,6 +4475,11 @@
       "allAgentsSubtitle": "Every agent on Sokosumi, grouped by what they do."
     },
     "DesignMd": {
+      "adHocDialogTitle": "Use a different brand",
+      "adHocDialogDescription": "Enter another company's website and Masumi will generate a DESIGN.md brand guide for this task only. Nothing is saved to your profile.",
+      "adHocUrlLabel": "Company website",
+      "adHocUrlPlaceholder": "https://example.com",
+      "adHocMissingUrl": "Enter a website URL first.",
       "title": "DESIGN.md",
       "statusReady": "Ready",
       "statusEmpty": "Not set",

@@ -3787,6 +3787,30 @@ export type CreateVendorLogoUploadRequest = {
     maxSizeBytes?: number;
 };
 
+export type AdHocDesignMd = {
+    designMd: {
+        /**
+         * Public blob URL of the stored DESIGN.md
+         */
+        url: string;
+        /**
+         * Extraction id of the stored DESIGN.md, when known
+         */
+        extractionId: string | null;
+    };
+};
+
+export type AdHocDesignMdWrite = {
+    /**
+     * DESIGN.md markdown to store
+     */
+    content: string;
+    /**
+     * Extraction id of the generated DESIGN.md, when known
+     */
+    extractionId: string | null;
+};
+
 export type EffectiveDesignMd = {
     /**
      * The effective DESIGN.md, or null when none
@@ -3800,7 +3824,16 @@ export type EffectiveDesignMd = {
          * Public blob URL of the DESIGN.md attachment
          */
         url: string;
+        owner: DesignMdOwnerInfo;
     } | null;
+};
+
+export type DesignMdOwnerInfo = {
+    type: 'organization';
+    name: string;
+    logo: string | null;
+} | {
+    type: 'user';
 };
 
 export type WorkspaceOrganization = {
@@ -29362,6 +29395,90 @@ export type PostWebhooksTasksFilesUploadedResponses = {
 };
 
 export type PostWebhooksTasksFilesUploadedResponse = PostWebhooksTasksFilesUploadedResponses[keyof PostWebhooksTasksFilesUploadedResponses];
+
+export type PostWorkspacesDesignMdAdhocData = {
+    body?: AdHocDesignMdWrite;
+    path?: never;
+    query?: never;
+    url: '/workspaces/design-md/adhoc';
+};
+
+export type PostWorkspacesDesignMdAdhocErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - DESIGN.md storage failed
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostWorkspacesDesignMdAdhocError = PostWorkspacesDesignMdAdhocErrors[keyof PostWorkspacesDesignMdAdhocErrors];
+
+export type PostWorkspacesDesignMdAdhocResponses = {
+    /**
+     * The stored ad hoc DESIGN.md
+     */
+    200: {
+        data: AdHocDesignMd;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostWorkspacesDesignMdAdhocResponse = PostWorkspacesDesignMdAdhocResponses[keyof PostWorkspacesDesignMdAdhocResponses];
 
 export type GetWorkspacesDesignMdData = {
     body?: never;
