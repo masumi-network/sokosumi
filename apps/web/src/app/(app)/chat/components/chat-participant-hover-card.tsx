@@ -79,7 +79,7 @@ export function ChatParticipantHoverCard({
           style={style}
           aria-label={profile.name}
           className={cn(
-            "relative inline-flex max-w-full cursor-pointer rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "relative inline-flex max-w-full cursor-pointer self-start rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
             className,
           )}
         >
