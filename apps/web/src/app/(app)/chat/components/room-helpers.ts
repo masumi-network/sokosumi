@@ -1,4 +1,7 @@
-import { buildQuoteSnippet } from "@sokosumi/utils";
+import {
+  buildRoomQuoteSnippetParts,
+  type ChatRoomQuoteAttachment,
+} from "@sokosumi/utils";
 import type {
   MentionSuggestionGroup,
   NormalizedMention,
@@ -21,13 +24,35 @@ export interface DirectParticipantPreview {
   kind: "human" | "coworker";
 }
 
-export interface RoomParticipantPreview {
-  id: string;
-  name: string;
-  image: string | null;
-  presence: ChatRoomPresence;
-  kind: "human" | "coworker";
-}
+/** Shared hover / roster shape for humans vs AI coworkers in a room. */
+export type ChatParticipantHoverProfile =
+  | {
+      kind: "human";
+      id: string;
+      name: string;
+      email: string;
+      image: string | null;
+      presence: ChatRoomPresence;
+    }
+  | {
+      kind: "coworker";
+      id: string;
+      name: string;
+      slug: string;
+      caption: string | null;
+      image: string | null;
+      presence: ChatRoomPresence;
+    };
+
+export type RoomParticipantPreview = ChatParticipantHoverProfile;
+
+export type MessageSenderProfile =
+  | ChatParticipantHoverProfile
+  | {
+      kind: "unknown";
+      name: string;
+      image: null;
+    };
 
 /** Catalog / chip key for room-wide @all. Not a user UUID. */
 export const ROOM_MENTION_ALL_ID = "all" as const;
@@ -193,15 +218,18 @@ export interface PendingRoomQuote {
   messageId: string;
   authorName: string;
   snippet: string;
+  attachment: ChatRoomQuoteAttachment | null;
 }
 
 export function pendingQuoteFromMessage(
   message: ChatRoomMessage,
 ): PendingRoomQuote {
+  const { snippet, attachment } = buildRoomQuoteSnippetParts(message.content);
   return {
     messageId: message.id,
     authorName: messageSender(message).name,
-    snippet: buildQuoteSnippet(message.content),
+    snippet,
+    attachment,
   };
 }
 
@@ -220,25 +248,34 @@ export function scrollToRoomMessageElement(messageId: string): boolean {
   return true;
 }
 
-export function messageSender(message: ChatRoomMessage) {
+export function messageSender(message: ChatRoomMessage): MessageSenderProfile {
   if (message.sender.type === "user") {
+    const user = message.sender.user;
     return {
-      name: message.sender.user.name,
-      image: message.sender.user.image,
-      kind: "human" as const,
+      kind: "human",
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      presence: user.presence,
     };
   }
   if (message.sender.type === "coworker") {
+    const coworker = message.sender.coworker;
     return {
-      name: message.sender.coworker.name,
-      image: message.sender.coworker.image,
-      kind: "coworker" as const,
+      kind: "coworker",
+      id: coworker.id,
+      name: coworker.name,
+      slug: coworker.slug,
+      caption: coworker.caption,
+      image: coworker.image,
+      presence: coworker.presence,
     };
   }
   return {
+    kind: "unknown",
     name: "Unknown",
     image: null,
-    kind: "unknown" as const,
   };
 }
 
@@ -450,20 +487,27 @@ export function getRoomParticipantPreviews(
   room: ChatRoom,
 ): RoomParticipantPreview[] {
   return [
-    ...room.userMembers.map((member) => ({
-      id: member.id,
-      name: member.name || member.email,
-      image: member.image,
-      presence: member.presence,
-      kind: "human" as const,
-    })),
-    ...room.coworkerMembers.map((coworker) => ({
-      id: coworker.id,
-      name: coworker.name,
-      image: coworker.image,
-      presence: coworker.presence,
-      kind: "coworker" as const,
-    })),
+    ...room.userMembers.map(
+      (member): ChatParticipantHoverProfile => ({
+        kind: "human",
+        id: member.id,
+        name: member.name || member.email,
+        email: member.email,
+        image: member.image,
+        presence: member.presence,
+      }),
+    ),
+    ...room.coworkerMembers.map(
+      (coworker): ChatParticipantHoverProfile => ({
+        kind: "coworker",
+        id: coworker.id,
+        name: coworker.name,
+        slug: coworker.slug,
+        caption: coworker.caption,
+        image: coworker.image,
+        presence: coworker.presence,
+      }),
+    ),
   ];
 }
 

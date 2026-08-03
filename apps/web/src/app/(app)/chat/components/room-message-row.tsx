@@ -1,15 +1,17 @@
 "use client";
 
+import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
-  findMarkdownLinks,
-  isFileLikeUrl,
-  unescapeMarkdownLinkUrl,
-} from "@sokosumi/utils";
-import { CheckCircle2, Loader2, MessageCircle, Quote } from "lucide-react";
+  CheckCircle2,
+  Loader2,
+  MessageCircle,
+  Pencil,
+  Quote,
+  Trash2,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type MouseEvent as ReactMouseEvent,
-  type ReactNode,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
@@ -18,12 +20,24 @@ import {
   useRef,
   useState,
 } from "react";
+import { segmentRoomMessageContent } from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
-import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
+import { FileTypeIcon } from "@/components/ui/file-icon";
 import {
   Sheet,
   SheetContent,
@@ -31,6 +45,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -40,13 +55,17 @@ import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
   ChatRoomMessageQuote,
+  ChatRoomMessageQuoteAttachment,
   ChatRoomMessageReaction,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
+import { participantDirectKey } from "./open-direct-with-participant";
 import { AiCoworkerIcon } from "./room-draft-shared";
 import {
+  type ChatParticipantHoverProfile,
   formatMessageTime,
   formatRoomMarkdownMentions,
   messageSender,
@@ -55,6 +74,84 @@ import {
 
 type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
+type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
+
+/** Collapsed preview height for primary message bodies (taller than quotes). */
+const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+function useClampedOverflow(resetKey: string) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    setExpanded(false);
+  }, [resetKey]);
+
+  useLayoutEffect(() => {
+    const node = contentRef.current;
+    if (!node || expanded) {
+      return;
+    }
+
+    function measureOverflow() {
+      const el = contentRef.current;
+      if (!el) {
+        return;
+      }
+      setOverflows(el.scrollHeight > el.clientHeight + 1);
+    }
+
+    measureOverflow();
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [expanded, resetKey]);
+
+  return { expanded, setExpanded, overflows, contentRef };
+}
+
+function MessageQuoteAttachmentThumb({
+  attachment,
+}: {
+  attachment: RoomQuoteAttachment;
+}) {
+  const thumbClassName =
+    "bg-accent/30 mt-1 size-10 shrink-0 overflow-hidden rounded-xl border";
+
+  switch (attachment.mediaKind) {
+    case "image":
+      return (
+        <div className={thumbClassName} aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={attachment.url}
+            alt=""
+            className="size-full object-cover object-center"
+          />
+        </div>
+      );
+    case "file": {
+      const extension =
+        getExtensionFromUrl(attachment.fileName) ||
+        getExtensionFromUrl(attachment.url) ||
+        "file";
+      return (
+        <div className={thumbClassName} aria-hidden>
+          <div className="text-muted-foreground flex size-full items-center justify-center">
+            <div className="flex size-6 items-center justify-center">
+              <FileTypeIcon extension={extension} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+    default: {
+      const _exhaustive: never = attachment.mediaKind;
+      return _exhaustive;
+    }
+  }
+}
 
 function formatWhoReactedLabel(
   reaction: ChatRoomMessageReaction,
@@ -87,33 +184,11 @@ function MessageQuoteBlock({
   usersBySlug?: Map<string, UserMentionLookup>;
 }) {
   const t = useTranslations("App.Channels.Quote");
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  const snippetRef = useRef<HTMLDivElement | null>(null);
+  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
+    `${quote.messageId}\0${quote.snippet}`,
+  );
 
-  useLayoutEffect(() => {
-    setExpanded(false);
-  }, [quote.messageId, quote.snippet]);
-
-  useLayoutEffect(() => {
-    const node = snippetRef.current;
-    if (!node || expanded) {
-      return;
-    }
-
-    function measureOverflow() {
-      const el = snippetRef.current;
-      if (!el) {
-        return;
-      }
-      setOverflows(el.scrollHeight > el.clientHeight + 1);
-    }
-
-    measureOverflow();
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [expanded, quote.snippet]);
+  const attachment = quote.attachment ?? null;
 
   return (
     <div className="border-border bg-muted/40 mb-1.5 w-full rounded-md border-l-2 border-l-primary/60 px-2.5 py-1.5">
@@ -128,23 +203,28 @@ function MessageQuoteBlock({
         <div className="text-foreground truncate text-xs font-semibold">
           {quote.authorName}
         </div>
-        <div
-          ref={snippetRef}
-          className={cn(
-            "text-muted-foreground text-xs leading-5",
-            expanded ? null : "line-clamp-4",
-          )}
-        >
-          <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
-            {formatRoomMarkdownMentions({
-              content: quote.snippet,
-              coworkersById,
-              coworkersBySlug,
-              usersById,
-              usersBySlug,
-            })}
-          </Markdown>
-        </div>
+        {quote.snippet.trim() ? (
+          <div
+            ref={contentRef}
+            className={cn(
+              "text-muted-foreground text-xs leading-5",
+              expanded ? null : "line-clamp-4",
+            )}
+          >
+            <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+              {formatRoomMarkdownMentions({
+                content: quote.snippet,
+                coworkersById,
+                coworkersBySlug,
+                usersById,
+                usersBySlug,
+              })}
+            </Markdown>
+          </div>
+        ) : null}
+        {attachment ? (
+          <MessageQuoteAttachmentThumb attachment={attachment} />
+        ) : null}
       </button>
       {expanded || overflows ? (
         <button
@@ -204,17 +284,12 @@ function ChannelMessageText({
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
 }) {
-  const fileLinks = findMarkdownLinks(content)
-    .map((link) => ({
-      ...link,
-      url: unescapeMarkdownLinkUrl(link.rawUrl),
-    }))
-    .filter((link) => isFileLikeUrl(link.url));
+  const segments = segmentRoomMessageContent(content);
 
-  if (fileLinks.length === 0) {
+  if (segments.length === 1 && segments[0].kind === "text") {
     return (
       <ChannelMarkdownSegment
-        content={content}
+        content={segments[0].content}
         coworkersById={coworkersById}
         coworkersBySlug={coworkersBySlug}
         usersById={usersById}
@@ -223,46 +298,96 @@ function ChannelMessageText({
     );
   }
 
-  const nodes: ReactNode[] = [];
-  let lastIndex = 0;
-  fileLinks.forEach((link, index) => {
-    if (link.index > lastIndex) {
-      nodes.push(
-        <ChannelMarkdownSegment
-          key={`message-${index}-before`}
-          content={content.slice(lastIndex, link.index)}
+  return (
+    <>
+      {segments.map((segment, i) => {
+        switch (segment.kind) {
+          case "text":
+            return (
+              <ChannelMarkdownSegment
+                key={`text-${i}-${segment.start}`}
+                content={segment.content}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+              />
+            );
+          case "files":
+            return (
+              <div
+                key={`files-${i}-${segment.links[0].index}`}
+                className="my-2 flex flex-wrap gap-2"
+                data-testid="room-message-attachment-row"
+              >
+                {segment.links.map((link) => (
+                  <FileChipMiniPreviewFrame
+                    key={`${link.index}-${link.url}`}
+                    url={link.url}
+                    fileName={link.fileName}
+                    sizeClass="size-16"
+                  />
+                ))}
+              </div>
+            );
+          default: {
+            const _exhaustive: never = segment;
+            return _exhaustive;
+          }
+        }
+      })}
+    </>
+  );
+}
+
+function ChannelMessageBody({
+  messageId,
+  content,
+  coworkersById,
+  coworkersBySlug,
+  usersById,
+  usersBySlug,
+}: {
+  messageId: string;
+  content: string;
+  coworkersById: Map<string, ChatRoomCoworkerParticipant>;
+  coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
+  usersById?: Map<string, UserMentionLookup>;
+  usersBySlug?: Map<string, UserMentionLookup>;
+}) {
+  const t = useTranslations("App.Channels.Message");
+  const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
+    `${messageId}\0${content}`,
+  );
+
+  return (
+    <div>
+      <div
+        ref={contentRef}
+        data-testid="room-message-body"
+        className={cn(expanded ? null : MESSAGE_BODY_CLAMP_CLASS)}
+      >
+        <ChannelMessageText
+          content={content}
           coworkersById={coworkersById}
           coworkersBySlug={coworkersBySlug}
           usersById={usersById}
           usersBySlug={usersBySlug}
-        />,
-      );
-    }
-    nodes.push(
-      <div key={`${link.index}-${link.url}`} className="my-2 flex">
-        <FileChipMiniPreviewWithMetadata
-          url={link.url}
-          fileName={link.text}
-          sizeClass="size-16"
         />
-      </div>,
-    );
-    lastIndex = link.index + link.match.length;
-  });
-  if (lastIndex < content.length) {
-    nodes.push(
-      <ChannelMarkdownSegment
-        key="message-after"
-        content={content.slice(lastIndex)}
-        coworkersById={coworkersById}
-        coworkersBySlug={coworkersBySlug}
-        usersById={usersById}
-        usersBySlug={usersBySlug}
-      />,
-    );
-  }
-
-  return <>{nodes}</>;
+      </div>
+      {expanded || overflows ? (
+        <button
+          type="button"
+          className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"
+          onClick={() => {
+            setExpanded((current) => !current);
+          }}
+        >
+          {expanded ? t("showLess") : t("showMore")}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 const QUICK_MESSAGE_REACTIONS = ["👍", "❤️", "😂", "🎉", "👀"] as const;
@@ -342,16 +467,24 @@ function MessageActionControls({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onEdit,
+  onDelete,
   showThreadButton,
   showQuoteButton,
+  showEditButton,
+  showDeleteButton,
   onAfterAction,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onEdit?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showEditButton: boolean;
+  showDeleteButton: boolean;
   onAfterAction?: () => void;
 }) {
   const t = useTranslations("App.Channels");
@@ -368,6 +501,22 @@ function MessageActionControls({
           onAfterAction?.();
         }}
       />
+      {showEditButton && onEdit ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={t("Edit.action")}
+          aria-label={t("Edit.action")}
+          onClick={() => {
+            onEdit(message);
+            onAfterAction?.();
+          }}
+        >
+          <Pencil className="size-4" aria-hidden />
+        </Button>
+      ) : null}
       {showQuoteButton && onQuote ? (
         <Button
           type="button"
@@ -400,6 +549,22 @@ function MessageActionControls({
           <MessageCircle className="size-4" aria-hidden />
         </Button>
       ) : null}
+      {showDeleteButton && onDelete ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="text-destructive hover:text-destructive size-9 rounded-full sm:size-7"
+          title={t("Message.delete")}
+          aria-label={t("Message.delete")}
+          onClick={() => {
+            onDelete(message);
+            onAfterAction?.();
+          }}
+        >
+          <Trash2 className="size-4" aria-hidden />
+        </Button>
+      ) : null}
     </>
   );
 }
@@ -412,15 +577,23 @@ function MessageActions({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onEdit,
+  onDelete,
   showThreadButton,
   showQuoteButton,
+  showEditButton,
+  showDeleteButton,
 }: {
   message: ChatRoomMessage;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onEdit?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showEditButton: boolean;
+  showDeleteButton: boolean;
 }) {
   return (
     <div
@@ -435,8 +608,12 @@ function MessageActions({
         onToggleReaction={onToggleReaction}
         onOpenThread={onOpenThread}
         onQuote={onQuote}
+        onEdit={onEdit}
+        onDelete={onDelete}
         showThreadButton={showThreadButton}
         showQuoteButton={showQuoteButton}
+        showEditButton={showEditButton}
+        showDeleteButton={showDeleteButton}
       />
     </div>
   );
@@ -574,8 +751,12 @@ function TouchMessageActionsSheet({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onEdit,
+  onDelete,
   showThreadButton,
   showQuoteButton,
+  showEditButton,
+  showDeleteButton,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -583,8 +764,12 @@ function TouchMessageActionsSheet({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onEdit?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showEditButton: boolean;
+  showDeleteButton: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
@@ -651,6 +836,21 @@ function TouchMessageActionsSheet({
           />
         </div>
         <div className="border-border flex flex-col gap-1 border-t px-2 py-2">
+          {showEditButton && onEdit ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(() => {
+                  onEdit(message);
+                });
+              }}
+            >
+              <Pencil className="size-4 shrink-0" aria-hidden />
+              {t("Edit.action")}
+            </Button>
+          ) : null}
           {showQuoteButton && onQuote ? (
             <Button
               type="button"
@@ -681,9 +881,87 @@ function TouchMessageActionsSheet({
               {t("Thread.open")}
             </Button>
           ) : null}
+          {showDeleteButton && onDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive hover:text-destructive h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(() => {
+                  onDelete(message);
+                });
+              }}
+            >
+              <Trash2 className="size-4 shrink-0" aria-hidden />
+              {t("Message.delete")}
+            </Button>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function MessageEditComposer({
+  value,
+  originalContent,
+  onChange,
+  onSave,
+  onCancel,
+  isSaving,
+}: {
+  value: string;
+  originalContent: string;
+  onChange: (value: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const t = useTranslations("App.Channels");
+  const trimmed = value.trim();
+  const canSave =
+    trimmed.length > 0 && trimmed !== originalContent.trim() && !isSaving;
+
+  return (
+    <div className="space-y-2 pt-0.5">
+      <Textarea
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+        disabled={isSaving}
+        className="min-h-20"
+        autoFocus
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            if (!isSaving) onCancel();
+            return;
+          }
+          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+            event.preventDefault();
+            if (canSave) onSave();
+          }
+        }}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" size="sm" disabled={!canSave} onClick={onSave}>
+          {isSaving ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : null}
+          {t("Edit.save")}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={isSaving}
+          onClick={onCancel}
+        >
+          {t("Edit.cancel")}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -693,18 +971,20 @@ function MessageMetaFooter({
   onToggleReaction,
   onOpenThread,
   showThreadButton,
+  isDeleted,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
+  isDeleted: boolean;
 }) {
   const t = useTranslations("App.Channels");
 
   return (
     <>
-      {message.reactions.length > 0 ? (
+      {!isDeleted && message.reactions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1">
           {message.reactions.map((reaction) => {
             const whoReactedLabel = formatWhoReactedLabel(reaction, t);
@@ -749,7 +1029,7 @@ function MessageMetaFooter({
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
       ) : null}
-      {message.mentions.length > 0 ? (
+      {!isDeleted && message.mentions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1.5">
           {message.mentions.map((mention) => {
             const name =
@@ -783,9 +1063,21 @@ export function ChatMessageRow({
   coworkersBySlug,
   usersById,
   usersBySlug,
+  currentUserId,
+  canOpenHumanDirect = false,
+  onOpenDirectMessage,
+  openingDirectParticipantKey = null,
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onStartEdit,
+  onDelete,
+  isEditing = false,
+  editDraft = "",
+  onEditDraftChange,
+  onCancelEdit,
+  onSaveEdit,
+  isSavingEdit = false,
   showThreadButton = true,
   showQuoteButton = true,
   isContinuation = false,
@@ -795,9 +1087,21 @@ export function ChatMessageRow({
   coworkersBySlug: Map<string, ChatRoomCoworkerParticipant>;
   usersById?: Map<string, UserMentionLookup>;
   usersBySlug?: Map<string, UserMentionLookup>;
+  currentUserId?: string;
+  canOpenHumanDirect?: boolean;
+  onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectParticipantKey?: string | null;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onStartEdit?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
+  isEditing?: boolean;
+  editDraft?: string;
+  onEditDraftChange?: (value: string) => void;
+  onCancelEdit?: () => void;
+  onSaveEdit?: () => void;
+  isSavingEdit?: boolean;
   showThreadButton?: boolean;
   showQuoteButton?: boolean;
   /** Slack-style continuation: omit avatar / name / primary timestamp. */
@@ -806,19 +1110,53 @@ export function ChatMessageRow({
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
   const sender = messageSender(message);
+  const hoverProfile = sender.kind === "unknown" ? null : sender;
+  const isOpeningDirect = hoverProfile
+    ? openingDirectParticipantKey === participantDirectKey(hoverProfile)
+    : false;
+  const isDirectActionBusy = openingDirectParticipantKey != null;
   const isStreamOverlay = message.id.startsWith("stream:");
+  const isDeleted = message.deletedAt != null;
   const isThinking =
     isStreamOverlay &&
     message.sender.type === "coworker" &&
     message.content.trim().length === 0;
   const formattedTime = formatMessageTime(message.createdAt);
   const createdAtIso = new Date(message.createdAt).toISOString();
-  const canQuote = showQuoteButton && Boolean(onQuote) && !isStreamOverlay;
+  const canQuote =
+    showQuoteButton && Boolean(onQuote) && !isStreamOverlay && !isDeleted;
+  const canEdit =
+    Boolean(onStartEdit) &&
+    Boolean(currentUserId) &&
+    message.sender.type === "user" &&
+    message.sender.user.id === currentUserId &&
+    !isStreamOverlay &&
+    !isDeleted;
+  const canDelete =
+    Boolean(onDelete) &&
+    Boolean(currentUserId) &&
+    !isDeleted &&
+    !isStreamOverlay &&
+    message.sender.type === "user" &&
+    message.sender.user.id === currentUserId;
+  const showEdited = !isDeleted && message.editedAt != null;
   const quote = message.quote;
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const longPress = useLongPress(() => {
     setSheetOpen(true);
   });
+  const showActions = !isThinking && !isDeleted && !isEditing;
+
+  function requestDelete(_message: ChatRoomMessage) {
+    setSheetOpen(false);
+    setDeleteDialogOpen(true);
+  }
+
+  function confirmDelete() {
+    onDelete?.(message);
+    setDeleteDialogOpen(false);
+  }
 
   return (
     <article
@@ -829,7 +1167,7 @@ export function ChatMessageRow({
         "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
         isContinuation ? "min-h-0 py-0.5" : "mt-3 min-h-0 pt-1 pb-0.5",
       )}
-      {...(isThinking ? {} : longPress)}
+      {...(showActions ? longPress : {})}
     >
       {isContinuation ? (
         <div className="flex w-8 shrink-0 justify-center pt-0.5">
@@ -843,12 +1181,24 @@ export function ChatMessageRow({
           </time>
         </div>
       ) : (
-        <Avatar className="mt-0.5 size-8 shrink-0">
-          <AvatarImage src={sender.image ?? undefined} alt="" />
-          <AvatarFallback className="text-xs">
-            {getInitials(sender.name)}
-          </AvatarFallback>
-        </Avatar>
+        <ChatParticipantHoverCard
+          profile={hoverProfile}
+          side="top"
+          align="start"
+          className="mt-0.5 shrink-0"
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirect={onOpenDirectMessage}
+          isOpeningDirect={isOpeningDirect}
+          isDirectActionBusy={isDirectActionBusy}
+        >
+          <Avatar className="size-8">
+            <AvatarImage src={sender.image ?? undefined} alt="" />
+            <AvatarFallback className="text-xs">
+              {getInitials(sender.name)}
+            </AvatarFallback>
+          </Avatar>
+        </ChatParticipantHoverCard>
       )}
       <div
         className={cn(
@@ -858,9 +1208,21 @@ export function ChatMessageRow({
       >
         {isContinuation ? null : (
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <span className="truncate text-sm font-semibold">
-              {sender.name}
-            </span>
+            <ChatParticipantHoverCard
+              profile={hoverProfile}
+              side="top"
+              align="start"
+              className="w-fit min-w-0 max-w-full"
+              currentUserId={currentUserId}
+              canOpenHumanDirect={canOpenHumanDirect}
+              onOpenDirect={onOpenDirectMessage}
+              isOpeningDirect={isOpeningDirect}
+              isDirectActionBusy={isDirectActionBusy}
+            >
+              <span className="truncate text-sm font-semibold">
+                {sender.name}
+              </span>
+            </ChatParticipantHoverCard>
             {sender.kind === "coworker" ? <AiCoworkerIcon /> : null}
             <time
               dateTime={createdAtIso}
@@ -869,53 +1231,90 @@ export function ChatMessageRow({
             >
               {formattedTime}
             </time>
+            {showEdited ? (
+              <span className="text-muted-foreground text-xs">
+                {tChannels("Edit.edited")}
+              </span>
+            ) : null}
           </div>
         )}
         <div className="text-foreground wrap-break-word text-sm leading-6">
-          {quote ? (
-            <MessageQuoteBlock
-              quote={quote}
-              coworkersById={coworkersById}
-              coworkersBySlug={coworkersBySlug}
-              usersById={usersById}
-              usersBySlug={usersBySlug}
-            />
-          ) : null}
-          {isThinking ? (
-            <span
-              className="reasoning-text-shine text-sm leading-5"
-              role="status"
-              aria-live="polite"
-            >
-              {tChat("reasoning.thinking")}
-            </span>
+          {isDeleted ? (
+            <p className="text-muted-foreground italic">
+              {tChannels("Message.deleted")}
+            </p>
           ) : (
-            <ChannelMessageText
-              content={message.content}
-              coworkersById={coworkersById}
-              coworkersBySlug={coworkersBySlug}
-              usersById={usersById}
-              usersBySlug={usersBySlug}
-            />
+            <>
+              {quote ? (
+                <MessageQuoteBlock
+                  quote={quote}
+                  coworkersById={coworkersById}
+                  coworkersBySlug={coworkersBySlug}
+                  usersById={usersById}
+                  usersBySlug={usersBySlug}
+                />
+              ) : null}
+              {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
+                <MessageEditComposer
+                  value={editDraft}
+                  originalContent={message.content}
+                  onChange={onEditDraftChange}
+                  onSave={onSaveEdit}
+                  onCancel={onCancelEdit}
+                  isSaving={isSavingEdit}
+                />
+              ) : isThinking ? (
+                <span
+                  className="reasoning-text-shine text-sm leading-5"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {tChat("reasoning.thinking")}
+                </span>
+              ) : (
+                <>
+                  <ChannelMessageBody
+                    messageId={message.id}
+                    content={message.content}
+                    coworkersById={coworkersById}
+                    coworkersBySlug={coworkersBySlug}
+                    usersById={usersById}
+                    usersBySlug={usersBySlug}
+                  />
+                  {isContinuation && showEdited ? (
+                    <span className="text-muted-foreground ml-1.5 text-xs">
+                      {tChannels("Edit.edited")}
+                    </span>
+                  ) : null}
+                </>
+              )}
+            </>
           )}
         </div>
-        <MessageMetaFooter
-          message={message}
-          coworkersById={coworkersById}
-          onToggleReaction={onToggleReaction}
-          onOpenThread={onOpenThread}
-          showThreadButton={showThreadButton}
-        />
+        {!isEditing ? (
+          <MessageMetaFooter
+            message={message}
+            coworkersById={coworkersById}
+            onToggleReaction={onToggleReaction}
+            onOpenThread={onOpenThread}
+            showThreadButton={showThreadButton}
+            isDeleted={isDeleted}
+          />
+        ) : null}
       </div>
-      {!isThinking ? (
+      {showActions ? (
         <>
           <MessageActions
             message={message}
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onEdit={onStartEdit}
+            onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showEditButton={canEdit}
+            showDeleteButton={canDelete}
           />
           <button
             type="button"
@@ -933,10 +1332,37 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onEdit={onStartEdit}
+            onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showEditButton={canEdit}
+            showDeleteButton={canDelete}
           />
         </>
+      ) : null}
+      {canDelete ? (
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{tChannels("Message.delete")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {tChannels("Message.deleteConfirm")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>
+                {tChannels("Actions.cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className={buttonVariants({ variant: "destructive" })}
+                onClick={confirmDelete}
+              >
+                {tChannels("Message.delete")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       ) : null}
     </article>
   );

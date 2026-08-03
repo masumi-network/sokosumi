@@ -24,6 +24,7 @@ import {
   leaveRoomAction,
   updateRoomAction,
 } from "@/app/chat/actions";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +49,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
@@ -281,6 +283,9 @@ export function EditChannelDialog({
   const [isExiting, setIsExiting] = useState(false);
   const [name, setName] = useState(channel.name);
   const [topic, setTopic] = useState(channel.topic ?? "");
+  const [discoverability, setDiscoverability] = useState<"public" | "private">(
+    channel.discoverability === "private" ? "private" : "public",
+  );
   const [memberIds, setMemberIds] = useState<string[]>(
     channel.userMembers.map((member) => member.id),
   );
@@ -293,6 +298,9 @@ export function EditChannelDialog({
     if (!open) return;
     setName(channel.name);
     setTopic(channel.topic ?? "");
+    setDiscoverability(
+      channel.discoverability === "private" ? "private" : "public",
+    );
     setMemberIds(channel.userMembers.map((member) => member.id));
     setCoworkerIds(channel.coworkerMembers.map((coworker) => coworker.id));
   }, [channel, open]);
@@ -303,6 +311,7 @@ export function EditChannelDialog({
       const result = await updateRoomAction(channel.id, {
         name,
         topic,
+        ...(canArchive ? { discoverability } : {}),
         memberUserIds: memberIds,
         coworkerIds,
       });
@@ -337,6 +346,8 @@ export function EditChannelDialog({
     );
     setPendingKind(null);
     setOpen(false);
+    // Empty detail forces a full sidebar refresh (member list + joinables).
+    notifyOrganizationChatRoomsChanged();
     // The room is gone for this user either way, so land them back on the
     // room list rather than a view they can no longer read.
     router.replace("/chat");
@@ -397,6 +408,47 @@ export function EditChannelDialog({
                   rows={3}
                 />
               </div>
+              {canArchive ? (
+                <div className="space-y-2">
+                  <Label>{t("Visibility.label")}</Label>
+                  <RadioGroup
+                    value={discoverability}
+                    onValueChange={(value) => {
+                      if (value === "public" || value === "private") {
+                        setDiscoverability(value);
+                      }
+                    }}
+                    className="flex flex-wrap gap-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="public" id="edit-channel-public" />
+                      <Label
+                        htmlFor="edit-channel-public"
+                        className="cursor-pointer font-normal"
+                      >
+                        {t("Visibility.public")}
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem
+                        value="private"
+                        id="edit-channel-private"
+                      />
+                      <Label
+                        htmlFor="edit-channel-private"
+                        className="cursor-pointer font-normal"
+                      >
+                        {t("Visibility.private")}
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                  <p className="text-muted-foreground text-xs">
+                    {discoverability === "public"
+                      ? t("Visibility.publicHelp")
+                      : t("Visibility.privateHelp")}
+                  </p>
+                </div>
+              ) : null}
               <ParticipantCheckboxes
                 members={members}
                 coworkers={coworkers}

@@ -18,6 +18,7 @@ import type {
   GetCategoriesData,
   GetChatsRoomsByIdMessagesData,
   GetChatsRoomsData,
+  GetChatsRoomsDiscoverableData,
   GetCoworkersData,
   GetEnterpriseContractsData,
   GetHermesMeMessagesData,
@@ -40,6 +41,7 @@ import type {
   PaginationMetadata,
   PatchAdminVendorData,
   PatchChatsRoomsByIdData,
+  PatchChatsRoomsByIdMessagesByMessageIdData,
   PatchCoworkersByIdData,
   PatchCoworkersByIdWhitelistData,
   PatchEnterpriseContractRequest,
@@ -86,7 +88,11 @@ import {
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
+  deleteChatsRoomsById as coreDeleteChatsRoomsById,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
+  deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
+  deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
+  deleteChatsRoomsByIdPin as coreDeleteChatsRoomsByIdPin,
   deleteCoworkersById as coreDeleteCoworkersById,
   deleteCoworkersByIdImage as coreDeleteCoworkersByIdImage,
   deleteHermesMeInstance as coreDeleteHermesMeInstance,
@@ -118,6 +124,7 @@ import {
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
+  getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
@@ -197,6 +204,7 @@ import {
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
   patchChatsRoomsById as corePatchChatsRoomsById,
+  patchChatsRoomsByIdMessagesByMessageId as corePatchChatsRoomsByIdMessagesByMessageId,
   patchCoworkersById as corePatchCoworkersById,
   patchCoworkersByIdWhitelist as corePatchCoworkersByIdWhitelist,
   patchEnterpriseContractsById as corePatchEnterpriseContractsById,
@@ -213,10 +221,14 @@ import {
   postChatsRooms as corePostChatsRooms,
   postChatsRoomsByIdArchive as corePostChatsRoomsByIdArchive,
   postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
+  postChatsRoomsByIdMembersMe as corePostChatsRoomsByIdMembersMe,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
+  postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
+  postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
+  postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -536,6 +548,21 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getDiscoverableChatRooms(
+    query?: GetChatsRoomsDiscoverableData["query"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsDiscoverable({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch discoverable chat rooms",
+    );
+  }
+
   /**
    * Creates a chat room. A `direct` room is create-or-get: Core returns the
    * existing room for the same participant set instead of a duplicate.
@@ -607,6 +634,18 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function deleteChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsById({
+          client,
+          path: { id },
+        }),
+      "Failed to permanently delete chat room",
+    );
+  }
+
   async function leaveChatRoom(id: string) {
     return executeOperation(
       getClient,
@@ -619,6 +658,18 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function joinChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMembersMe({
+          client,
+          path: { id },
+        }),
+      "Failed to join chat room",
+    );
+  }
+
   async function markChatRoomRead(id: string) {
     return executeOperation(
       getClient,
@@ -628,6 +679,66 @@ export function createCoreClient(getClient: GetClient) {
           path: { id },
         }),
       "Failed to mark chat room read",
+    );
+  }
+
+  async function pinChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdPin({
+          client,
+          path: { id },
+        }),
+      "Failed to pin chat room",
+    );
+  }
+
+  async function unpinChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdPin({
+          client,
+          path: { id },
+        }),
+      "Failed to unpin chat room",
+    );
+  }
+
+  async function muteChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMute({
+          client,
+          path: { id },
+        }),
+      "Failed to mute chat room",
+    );
+  }
+
+  async function unmuteChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMute({
+          client,
+          path: { id },
+        }),
+      "Failed to unmute chat room",
+    );
+  }
+
+  async function markChatRoomUnread(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdUnread({
+          client,
+          path: { id },
+        }),
+      "Failed to mark chat room unread",
     );
   }
 
@@ -681,6 +792,35 @@ export function createCoreClient(getClient: GetClient) {
           body,
         }),
       "Failed to update chat room message reaction",
+    );
+  }
+
+  async function deleteChatRoomMessage(id: string, messageId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMessagesByMessageId({
+          client,
+          path: { id, messageId },
+        }),
+      "Failed to delete chat room message",
+    );
+  }
+
+  async function updateChatRoomMessage(
+    id: string,
+    messageId: string,
+    body: NonNullable<PatchChatsRoomsByIdMessagesByMessageIdData["body"]>,
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePatchChatsRoomsByIdMessagesByMessageId({
+          client,
+          path: { id, messageId },
+          body,
+        }),
+      "Failed to update chat room message",
     );
   }
 
@@ -3578,8 +3718,10 @@ export function createCoreClient(getClient: GetClient) {
     acknowledgeNotice,
     addChatRoomMessage,
     archiveChatRoom,
+    deleteChatRoom,
     restoreChatRoom,
     leaveChatRoom,
+    joinChatRoom,
     assignOrganizationSeat,
     createChatRoom,
     createAgentJob,
@@ -3604,7 +3746,14 @@ export function createCoreClient(getClient: GetClient) {
     getChatRoom,
     getChatRoomMessages,
     getChatRooms,
+    getDiscoverableChatRooms,
     markChatRoomRead,
+    pinChatRoom,
+    unpinChatRoom,
+    muteChatRoom,
+    unmuteChatRoom,
+    markChatRoomUnread,
+    deleteChatRoomMessage,
     toggleChatRoomMessageReaction,
     getHermesInstance,
     getHermesMessages,
@@ -3614,6 +3763,7 @@ export function createCoreClient(getClient: GetClient) {
     getNotifications,
     getNotificationsUnreadCount,
     updateChatRoom,
+    updateChatRoomMessage,
     patchNotificationRead,
     patchNotificationsReadAll,
     listHermesIntegrations,

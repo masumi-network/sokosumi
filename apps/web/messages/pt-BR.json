@@ -783,7 +783,14 @@
       "title": "Imagem",
       "viewImage": "Ver imagem {fileName}",
       "download": "Baixar imagem",
-      "close": "Fechar"
+      "close": "Fechar",
+      "print": "Imprimir",
+      "zoomIn": "Aumentar zoom",
+      "zoomOut": "Diminuir zoom",
+      "zoomReset": "Redefinir zoom",
+      "more": "Mais opções",
+      "openInNewTab": "Abrir em nova aba",
+      "copyImage": "Copiar imagem"
     }
   },
   "Join": {
@@ -4567,10 +4574,23 @@
         "archiveConfirm": "Arquivar canal",
         "archiveSuccess": "{name} foi arquivado.",
         "restore": "Restaurar",
-        "restoreSuccess": "{name} foi restaurado."
+        "restoreSuccess": "{name} foi restaurado.",
+        "delete": "Excluir",
+        "deleteConfirmTitle": "Excluir {name} permanentemente?",
+        "deleteConfirmDescription": "Isso exclui permanentemente o canal e suas mensagens para todos. Não é possível desfazer.",
+        "deleteConfirm": "Excluir permanentemente",
+        "deleteSuccess": "{name} foi excluído permanentemente.",
+        "deleteError": "Não foi possível excluir o canal.",
+        "markUnread": "Marcar como não lida",
+        "pin": "Fixar",
+        "unpin": "Desafixar",
+        "mute": "Silenciar",
+        "unmute": "Ativar notificações",
+        "roomMenu": "Ações do chat para {name}",
+        "actionFailed": "Não foi possível atualizar este chat. Tente novamente."
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "Chat",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4579,6 +4599,8 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "humanBadge": "Humano",
+      "openDirectMessage": "Mensagem",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
@@ -4648,6 +4670,15 @@
         "groupDirectNoCoworkersError": "Mensagens diretas em grupo não podem incluir coworkers.",
         "coworkerDirectOneToOneOnly": "Mensagens diretas com coworkers são 1:1."
       },
+      "RoomSearch": {
+        "open": "Pesquisar neste chat",
+        "placeholder": "Pesquisar mensagens…",
+        "idle": "Digite para pesquisar mensagens neste chat.",
+        "empty": "Nenhuma mensagem corresponde à sua pesquisa.",
+        "loading": "Pesquisando…",
+        "error": "Não foi possível pesquisar as mensagens. Tente novamente.",
+        "replyBadge": "Resposta do tópico"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4715,12 +4746,46 @@
         "showMore": "Mais",
         "showLess": "Menos"
       },
+      "Message": {
+        "delete": "Excluir",
+        "deleteConfirm": "Excluir esta mensagem? Os outros verão que ela foi excluída.",
+        "deleted": "Esta mensagem foi excluída",
+        "showMore": "Mostrar mais",
+        "showLess": "Mostrar menos"
+      },
       "MentionAll": {
         "label": "Todos"
       },
       "MentionSections": {
         "people": "Pessoas",
         "coworkers": "Coworkers"
+      },
+      "Edit": {
+        "action": "Editar",
+        "save": "Salvar",
+        "cancel": "Cancelar",
+        "edited": "Editado"
+      },
+      "Browse": {
+        "trigger": "Explorar canais",
+        "title": "Explorar canais",
+        "description": "Encontre canais públicos da organização aos quais você ainda não entrou.",
+        "searchPlaceholder": "Buscar canais",
+        "loading": "Carregando canais…",
+        "empty": "Nenhum canal público para entrar.",
+        "join": "Entrar",
+        "joinAria": "Entrar em {name}",
+        "joinSuccess": "Você entrou em {name}.",
+        "joinError": "Não foi possível entrar no canal.",
+        "loadError": "Não foi possível carregar os canais.",
+        "memberCount": "{count, plural, one {# membro} other {# membros}}"
+      },
+      "Visibility": {
+        "label": "Visibilidade",
+        "public": "Público",
+        "private": "Privado",
+        "publicHelp": "Qualquer pessoa na organização pode encontrar e entrar neste canal.",
+        "privateHelp": "Somente membros convidados podem ver este canal."
       }
     }
   },

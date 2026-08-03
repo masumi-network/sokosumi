@@ -38,6 +38,7 @@ import {
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
   type MentionRecordEntry,
   type NormalizedMention,
@@ -68,9 +69,10 @@ export interface RoomComposerAttachment extends RoomMessageComposerAttachment {
   mediaType: string | null;
 }
 
-/** Shell drop zones call this to reuse the paperclip upload path. */
+/** Shell drop zones + Quote/Thread callers reuse this surface. */
 export interface RoomComposerHandle {
   attachFiles: (files: FileList | File[] | null) => void;
+  focus: () => void;
 }
 
 function RoomMentionSuggestion({
@@ -165,6 +167,8 @@ function PendingQuotePreview({
   const { coworkersById, coworkersBySlug, usersById, usersBySlug } =
     mentionLookupMapsFromCatalog(mentions);
 
+  const attachment = quote.attachment;
+
   return (
     <div
       className="border-border bg-muted/30 flex items-start gap-2 border-b px-3 py-2"
@@ -175,16 +179,28 @@ function PendingQuotePreview({
         <div className="text-foreground truncate text-xs font-semibold">
           {quote.authorName}
         </div>
-        <div className="text-muted-foreground line-clamp-4 text-xs leading-5">
-          <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
-            {formatRoomMarkdownMentions({
-              content: quote.snippet,
-              coworkersById,
-              coworkersBySlug,
-              usersById,
-              usersBySlug,
-            })}
-          </Markdown>
+        <div className="flex items-start gap-2">
+          {attachment ? (
+            <FileChipMiniPreview
+              url={attachment.url}
+              fileName={attachment.fileName}
+              sizeClass="size-10"
+              className="shrink-0"
+            />
+          ) : null}
+          {quote.snippet.trim() ? (
+            <div className="text-muted-foreground line-clamp-4 min-w-0 flex-1 text-xs leading-5">
+              <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+                {formatRoomMarkdownMentions({
+                  content: quote.snippet,
+                  coworkersById,
+                  coworkersBySlug,
+                  usersById,
+                  usersBySlug,
+                })}
+              </Markdown>
+            </div>
+          ) : null}
         </div>
       </div>
       <Button
@@ -379,6 +395,9 @@ export function RoomComposer({
     () => ({
       attachFiles: (files) => {
         void handleFilesSelected(files);
+      },
+      focus: () => {
+        editorRef.current?.focus();
       },
     }),
     [handleFilesSelected],

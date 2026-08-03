@@ -90,6 +90,7 @@ export function createResumePendingCoworkerShell({
     parentMessageId,
     content: "",
     createdAt,
+    editedAt: null,
     sender: { type: "coworker", coworker },
     mentions: [],
     reactions: [],
@@ -97,6 +98,7 @@ export function createResumePendingCoworkerShell({
     threadLastReplyAt: null,
     metadata: { streaming: true },
     quote: null,
+    deletedAt: null,
   };
 }
 
@@ -125,6 +127,7 @@ function uiMessageToTransientRoomMessage({
       parentMessageId,
       content,
       createdAt,
+      editedAt: null,
       sender: currentUser
         ? { type: "user", user: currentUser }
         : { type: "unknown" },
@@ -134,6 +137,7 @@ function uiMessageToTransientRoomMessage({
       threadLastReplyAt: null,
       metadata: { streaming: true },
       quote: null,
+      deletedAt: null,
     };
   }
 
@@ -143,6 +147,7 @@ function uiMessageToTransientRoomMessage({
     parentMessageId,
     content,
     createdAt,
+    editedAt: null,
     sender: coworker ? { type: "coworker", coworker } : { type: "unknown" },
     mentions: [],
     reactions: [],
@@ -150,6 +155,7 @@ function uiMessageToTransientRoomMessage({
     threadLastReplyAt: null,
     metadata: { streaming: true },
     quote: null,
+    deletedAt: null,
   };
 }
 

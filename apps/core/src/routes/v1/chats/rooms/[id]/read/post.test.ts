@@ -16,6 +16,7 @@ const {
   memberFindUniqueMock,
   readStateUpsertMock,
   notificationUpdateManyMock,
+  membershipFindUniqueMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -23,6 +24,7 @@ const {
   memberFindUniqueMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
+  membershipFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -42,6 +44,7 @@ const tx = {
   member: { findUnique: memberFindUniqueMock },
   chatRoomReadState: { upsert: readStateUpsertMock },
   notification: { updateMany: notificationUpdateManyMock },
+  chatRoomUserMember: { findUnique: membershipFindUniqueMock },
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
@@ -106,10 +109,11 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   readStateUpsertMock.mockResolvedValue({});
   notificationUpdateManyMock.mockResolvedValue({ count: 2 });
+  membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null, mutedAt: null });
 });
 
 describe("POST /chats/rooms/{id}/read", () => {
-  it("upserts lastReadAt and marks unread CHAT notifications for the room", async () => {
+  it("upserts lastReadAt, clears markedUnreadAt, and marks unread CHAT notifications for the room", async () => {
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/read`,
       { method: "POST" },
@@ -121,6 +125,14 @@ describe("POST /chats/rooms/{id}/read", () => {
         where: {
           roomId_userId: { roomId: ROOM_ID, userId: USER_ID },
         },
+        update: expect.objectContaining({
+          lastReadAt: expect.any(Date),
+          markedUnreadAt: null,
+        }),
+        create: expect.objectContaining({
+          lastReadAt: expect.any(Date),
+          markedUnreadAt: null,
+        }),
       }),
     );
     expect(notificationUpdateManyMock).toHaveBeenCalledWith({
@@ -141,6 +153,8 @@ describe("POST /chats/rooms/{id}/read", () => {
       id: ROOM_ID,
       unreadCount: 0,
       unreadMentionCount: 0,
+      markedUnread: false,
+      pinnedAt: null,
     });
   });
 });

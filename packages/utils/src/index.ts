@@ -37,7 +37,12 @@ export {
   isOwnedCoworkerChatRoomFileUrl,
   isOwnedUserChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
-export { buildQuoteSnippet } from "./chat-room-quote-snippet.js";
+export {
+  buildQuoteSnippet,
+  buildRoomQuoteSnippetParts,
+  type ChatRoomQuoteAttachment,
+  type ChatRoomQuoteSnippetParts,
+} from "./chat-room-quote-snippet.js";
 export {
   CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
   CHAT_UI_NON_REASONING_PART_TYPES,
@@ -81,6 +86,12 @@ export {
   withPreservedDesignMdMetadata,
 } from "./design-md-metadata-guard.js";
 export {
+  buildOrganizationDesignMdPathname,
+  buildOrganizationDesignMdPrefix,
+  buildUserDesignMdPathname,
+  buildUserDesignMdPrefix,
+} from "./design-md-path.js";
+export {
   DESIGN_MD_BLOB_PATH_PREFIX,
   isDesignMdBlobUrl,
 } from "./design-md-url.js";
@@ -102,6 +113,10 @@ export {
   resolveIpfsOrHttpUrl,
   sanitizeOrganizationLogoForApi,
 } from "./ipfs-url.js";
+export {
+  buildJobBlobPathname,
+  buildJobBlobPrefix,
+} from "./job-blob-path.js";
 export {
   type AppLocale,
   DEFAULT_LOCALE,

@@ -154,7 +154,7 @@ const app = new OpenAPIHonoWithAuth();
 
 ### Response Handling
 
-**CRITICAL**: Always use standardized response helpers. See [`.cursor/rules/responses.mdc`](.cursor/rules/responses.mdc) for details.
+**CRITICAL**: Always use standardized response helpers.
 
 #### Success Responses
 
@@ -298,7 +298,7 @@ Use the credit helpers for converting between cents (stored) and credits (user-f
 import {
   convertCentsToCredits,
   convertCreditsToCents,
-} from "@/helpers/credits";
+} from "@sokosumi/utils";
 
 // Convert stored BigInt cents to user-facing decimal
 const credits = convertCentsToCredits(BigInt(1000000000000)); // 1.0
@@ -648,11 +648,11 @@ const userLinks = await prisma.link.findMany({
 const flattenedUserLinks = userLinks.map(flattenLinkJobId);
 ```
 
-**Note**: The core API uses the `@sokosumi/database` package for Prisma queries. Repository pattern has been removed in favor of direct Prisma queries with type-safe includes and flatten helpers.
+**Note**: New Core routes use direct Prisma (`@/lib/db/prisma` or `@sokosumi/database/client`) with type-safe includes and flatten helpers. Repositories may still appear in legacy services — do not introduce new repository usage in routes.
 
 **Shared Packages**:
 
-- `@sokosumi/database` - Database layer with Prisma client and repositories
+- `@sokosumi/database` - Database layer with Prisma client, helpers, and (legacy) repositories
 - `@sokosumi/masumi` - Masumi protocol utilities (hash, agent client, schemas)
 
 **Path Aliases**: The codebase uses `@/` path aliases configured in `tsconfig.json`:
@@ -691,7 +691,7 @@ Environment variables required by Vitest (or by code under test) must be set in 
 ### Credit Handling
 
 - Credits are stored as BigInt cents (base 10^10)
-- **Never expose cents in the API**: request/response and query params use credits only; convert at the boundary with `convertCentsToCredits()` / `convertCreditsToCents()` from `@sokosumi/database/helpers`
+- **Never expose cents in the API**: request/response and query params use credits only; convert at the boundary with `convertCentsToCredits()` / `convertCreditsToCents()` from `@sokosumi/utils`
 - Always use `convertCentsToCredits()` when returning credit values to users
 - Use `convertCreditsToCents()` when storing user-provided credit values
 - Take absolute value when displaying credits: `Math.abs(convertCentsToCredits(amount))`
@@ -716,8 +716,7 @@ Environment variables required by Vitest (or by code under test) must be set in 
 - [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import from the canonical package; no passthrough re-export modules
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – shared pure helpers in `@sokosumi/utils`; Prisma-backed logic in `@sokosumi/database`
 - [Credits API](.cursor/rules/credits-api.mdc) – expose credits only, never cents
-- [Data Access](.cursor/rules/data-access.mdc) – direct Prisma, no repository pattern
-- [Responses](.cursor/rules/responses.mdc)
+- [Data Access](.cursor/rules/data-access.mdc) – direct Prisma for new routes; repositories only in legacy services
 
 ## Coworker integrators
 

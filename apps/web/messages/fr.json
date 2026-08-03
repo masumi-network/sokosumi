@@ -783,7 +783,14 @@
       "title": "Image",
       "viewImage": "Voir l'image {fileName}",
       "download": "Télécharger l'image",
-      "close": "Fermer"
+      "close": "Fermer",
+      "print": "Imprimer",
+      "zoomIn": "Zoom avant",
+      "zoomOut": "Zoom arrière",
+      "zoomReset": "Réinitialiser le zoom",
+      "more": "Plus d'options",
+      "openInNewTab": "Ouvrir dans un nouvel onglet",
+      "copyImage": "Copier l'image"
     }
   },
   "Join": {
@@ -4567,10 +4574,23 @@
         "archiveConfirm": "Archiver le canal",
         "archiveSuccess": "{name} a été archivé.",
         "restore": "Restaurer",
-        "restoreSuccess": "{name} a été restauré."
+        "restoreSuccess": "{name} a été restauré.",
+        "delete": "Supprimer",
+        "deleteConfirmTitle": "Supprimer définitivement {name} ?",
+        "deleteConfirmDescription": "Cela supprime définitivement le canal et ses messages pour tout le monde. Cette action est irréversible.",
+        "deleteConfirm": "Supprimer définitivement",
+        "deleteSuccess": "{name} a été définitivement supprimé.",
+        "deleteError": "Impossible de supprimer le canal.",
+        "markUnread": "Marquer comme non lu",
+        "pin": "Épingler",
+        "unpin": "Désépingler",
+        "mute": "Mettre en sourdine",
+        "unmute": "Réactiver les notifications",
+        "roomMenu": "Actions du chat pour {name}",
+        "actionFailed": "Impossible de mettre à jour ce chat. Réessayez."
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "Chat",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4579,6 +4599,8 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "humanBadge": "Humain",
+      "openDirectMessage": "Message",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
@@ -4648,6 +4670,15 @@
         "groupDirectNoCoworkersError": "Les messages directs de groupe ne peuvent pas inclure de coworkers.",
         "coworkerDirectOneToOneOnly": "Les messages directs avec un coworker sont en 1:1."
       },
+      "RoomSearch": {
+        "open": "Rechercher dans ce chat",
+        "placeholder": "Rechercher des messages…",
+        "idle": "Saisissez du texte pour rechercher des messages dans ce chat.",
+        "empty": "Aucun message ne correspond à votre recherche.",
+        "loading": "Recherche…",
+        "error": "Impossible de rechercher les messages. Réessayez.",
+        "replyBadge": "Réponse du fil"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4715,12 +4746,46 @@
         "showMore": "Plus",
         "showLess": "Moins"
       },
+      "Message": {
+        "delete": "Supprimer",
+        "deleteConfirm": "Supprimer ce message ? Les autres verront qu’il a été supprimé.",
+        "deleted": "Ce message a été supprimé",
+        "showMore": "Afficher plus",
+        "showLess": "Afficher moins"
+      },
       "MentionAll": {
         "label": "Tout le monde"
       },
       "MentionSections": {
         "people": "Personnes",
         "coworkers": "Collègues"
+      },
+      "Edit": {
+        "action": "Modifier",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "edited": "Modifié"
+      },
+      "Browse": {
+        "trigger": "Parcourir les canaux",
+        "title": "Parcourir les canaux",
+        "description": "Trouvez les canaux publics de l'organisation que vous n'avez pas encore rejoints.",
+        "searchPlaceholder": "Rechercher des canaux",
+        "loading": "Chargement des canaux…",
+        "empty": "Aucun canal public à rejoindre.",
+        "join": "Rejoindre",
+        "joinAria": "Rejoindre {name}",
+        "joinSuccess": "Vous avez rejoint {name}.",
+        "joinError": "Impossible de rejoindre le canal.",
+        "loadError": "Impossible de charger les canaux.",
+        "memberCount": "{count, plural, one {# membre} other {# membres}}"
+      },
+      "Visibility": {
+        "label": "Visibilité",
+        "public": "Public",
+        "private": "Privé",
+        "publicHelp": "Toute personne de l'organisation peut trouver et rejoindre ce canal.",
+        "privateHelp": "Seuls les membres invités peuvent voir ce canal."
       }
     }
   },

@@ -783,7 +783,14 @@
       "title": "图片",
       "viewImage": "查看图片 {fileName}",
       "download": "下载图片",
-      "close": "关闭"
+      "close": "关闭",
+      "print": "打印",
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "zoomReset": "重置缩放",
+      "more": "更多选项",
+      "openInNewTab": "在新标签页中打开",
+      "copyImage": "复制图片"
     }
   },
   "Join": {
@@ -4567,10 +4574,23 @@
         "archiveConfirm": "归档频道",
         "archiveSuccess": "{name} 已归档。",
         "restore": "恢复",
-        "restoreSuccess": "已恢复 {name}。"
+        "restoreSuccess": "已恢复 {name}。",
+        "delete": "删除",
+        "deleteConfirmTitle": "永久删除 {name}？",
+        "deleteConfirmDescription": "这将为所有人永久删除该频道及其消息。此操作无法撤销。",
+        "deleteConfirm": "永久删除",
+        "deleteSuccess": "已永久删除 {name}。",
+        "deleteError": "无法删除频道。",
+        "markUnread": "标为未读",
+        "pin": "置顶",
+        "unpin": "取消置顶",
+        "mute": "静音",
+        "unmute": "取消静音",
+        "roomMenu": "{name} 的聊天操作",
+        "actionFailed": "无法更新此聊天。请重试。"
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "聊天",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4579,6 +4599,8 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "humanBadge": "人类",
+      "openDirectMessage": "发消息",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
@@ -4648,6 +4670,15 @@
         "groupDirectNoCoworkersError": "群组私信不能包含同事。",
         "coworkerDirectOneToOneOnly": "与同事的私信仅支持一对一。"
       },
+      "RoomSearch": {
+        "open": "在此聊天中搜索",
+        "placeholder": "搜索消息…",
+        "idle": "输入以搜索此聊天中的消息。",
+        "empty": "没有匹配的消息。",
+        "loading": "正在搜索…",
+        "error": "无法搜索消息。请重试。",
+        "replyBadge": "帖子回复"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4715,12 +4746,46 @@
         "showMore": "更多",
         "showLess": "收起"
       },
+      "Message": {
+        "delete": "删除",
+        "deleteConfirm": "删除这条消息？其他人会看到该消息已被删除。",
+        "deleted": "此消息已删除",
+        "showMore": "显示更多",
+        "showLess": "收起"
+      },
       "MentionAll": {
         "label": "所有人"
       },
       "MentionSections": {
         "people": "成员",
         "coworkers": "协作伙伴"
+      },
+      "Edit": {
+        "action": "编辑",
+        "save": "保存",
+        "cancel": "取消",
+        "edited": "已编辑"
+      },
+      "Browse": {
+        "trigger": "浏览频道",
+        "title": "浏览频道",
+        "description": "查找你尚未加入的公开组织频道。",
+        "searchPlaceholder": "搜索频道",
+        "loading": "正在加载频道…",
+        "empty": "没有可加入的公开频道。",
+        "join": "加入",
+        "joinAria": "加入 {name}",
+        "joinSuccess": "你已加入 {name}。",
+        "joinError": "无法加入频道。",
+        "loadError": "无法加载频道。",
+        "memberCount": "{count, plural, other {# 位成员}}"
+      },
+      "Visibility": {
+        "label": "可见性",
+        "public": "公开",
+        "private": "私密",
+        "publicHelp": "组织中的任何人都可以发现并加入此频道。",
+        "privateHelp": "只有受邀成员可以看到此频道。"
       }
     }
   },

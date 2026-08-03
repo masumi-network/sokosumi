@@ -2,10 +2,11 @@
 
 import {
   ChevronDown,
-  Hash,
+  Ellipsis,
   MessageCircle,
   Plus,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -18,8 +19,19 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { restoreRoomAction } from "@/app/chat/actions";
+import { deleteRoomAction, restoreRoomAction } from "@/app/chat/actions";
+import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { PresenceDot } from "@/components/chat/presence-dot";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,32 +39,50 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
 import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
+import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
 import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
+import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
+import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
 import {
   listOrganizationArchivedChatRoomsAction,
   listOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
-import { resolveRoomAttention } from "./room-attention";
+import {
+  applyRoomReadOverlays,
+  forgetRoomRead,
+  rememberRoomRead,
+} from "./room-read-overlay";
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
+
+/** Same absolute slot as live room rows so archived height matches Channels/DMs. */
+const ARCHIVED_TRAILING_CONTROL_CLASS =
+  "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center";
 
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
   currentUserId: string;
-  hasOrganization: boolean;
+  organizationId: string | null;
+  canDeleteArchivedRooms?: boolean;
 }
 
 interface DirectParticipant {
@@ -180,37 +210,31 @@ function DirectAvatarStack({
   );
 }
 
-function MentionBadge({ count }: { count: number }) {
-  if (count <= 0) {
-    return null;
-  }
-
-  const label = count > 99 ? "99+" : String(count);
-
-  return (
-    <span
-      aria-label={`${label} mentions`}
-      className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
-    >
-      {label}
-    </span>
-  );
-}
-
 function SectionHeader({
   children,
   href,
   isOpen,
   label,
+  secondaryAction,
 }: {
   children: ReactNode;
   href?: string;
   isOpen: boolean;
   label?: string;
+  secondaryAction?: ReactNode;
 }) {
+  const hasTrailing = Boolean(secondaryAction) || Boolean(href && label);
+  const trailingCount = (secondaryAction ? 1 : 0) + (href && label ? 1 : 0);
+
   return (
-    <div className="group-data-[collapsible=icon]:hidden flex h-8 items-center gap-1 px-2">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-xs font-medium transition-colors">
+    <div className="group-data-[collapsible=icon]:hidden relative flex h-8 items-center gap-1 px-3">
+      <CollapsibleTrigger
+        className={cn(
+          "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-xs font-medium transition-colors",
+          trailingCount === 1 && "pr-8",
+          trailingCount >= 2 && "pr-14",
+        )}
+      >
         <ChevronDown
           aria-hidden
           className={cn(
@@ -220,19 +244,21 @@ function SectionHeader({
         />
         <span className="truncate">{children}</span>
       </CollapsibleTrigger>
-      {href && label ? (
-        <SheetClose asChild>
-          <Link
-            aria-label={label}
-            // The only entry point for creating a channel or DM. 24px is well
-            // under a comfortable tap target, so widen the hit area on touch with
-            // an invisible inset rather than changing how the row looks.
-            className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-6 shrink-0 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
-            href={href}
-          >
-            <Plus className="size-3.5" aria-hidden />
-          </Link>
-        </SheetClose>
+      {hasTrailing ? (
+        <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
+          {secondaryAction}
+          {href && label ? (
+            <SheetClose asChild>
+              <Link
+                aria-label={label}
+                className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
+                href={href}
+              >
+                <Plus className="size-3.5" aria-hidden />
+              </Link>
+            </SheetClose>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -251,23 +277,34 @@ export function OrganizationChatList({
   rooms,
   archivedRooms,
   currentUserId,
-  hasOrganization,
+  organizationId,
+  canDeleteArchivedRooms = false,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
   const pathname = usePathname();
   const router = useRouter();
-  const [roomRows, setRoomRows] = useState(rooms);
+  const hasOrganization = Boolean(organizationId);
+  const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
+  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
+    null,
+  );
   const [_isRestoring, startRestoreTransition] = useTransition();
+  const [_isDeleting, startDeleteTransition] = useTransition();
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
+  const unreadRoomCount = countChatRoomsWithUnreadAttention(roomRows, {
+    activeRoomId,
+  });
+  useChatUnreadDocumentTitle(unreadRoomCount);
 
   useEffect(() => {
-    setRoomRows(rooms);
+    setRoomRows(applyRoomReadOverlays(rooms));
   }, [rooms]);
 
   useEffect(() => {
@@ -288,12 +325,16 @@ export function OrganizationChatList({
         return;
       }
       if (activeResult.ok) {
-        setRoomRows(activeResult.data);
+        setRoomRows(applyRoomReadOverlays(activeResult.data));
       }
       if (archivedResult.ok) {
         setArchivedRows(archivedResult.data);
       }
     };
+
+    // Mobile sheet remounts the list with stale RSC props; refresh immediately
+    // so overlays can drop once Core confirms the mark-read.
+    void refreshRooms();
 
     const intervalId = window.setInterval(
       refreshRooms,
@@ -306,7 +347,7 @@ export function OrganizationChatList({
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshRooms);
     };
-  }, [hasOrganization]);
+  }, [hasOrganization, organizationId]);
 
   useEffect(() => {
     const handleRoomRead = (event: Event) => {
@@ -317,15 +358,22 @@ export function OrganizationChatList({
         return;
       }
 
+      if (detail.room) {
+        rememberRoomRead(detail.room);
+      }
+
       setRoomRows((current) =>
-        current.map((room) =>
-          room.id === detail.roomId
-            ? (detail.room ?? {
-                ...room,
-                unreadCount: 0,
-                unreadMentionCount: 0,
-              })
-            : room,
+        applyRoomReadOverlays(
+          current.map((room) =>
+            room.id === detail.roomId
+              ? (detail.room ?? {
+                  ...room,
+                  unreadCount: 0,
+                  unreadMentionCount: 0,
+                  markedUnread: false,
+                })
+              : room,
+          ),
         ),
       );
     };
@@ -345,7 +393,7 @@ export function OrganizationChatList({
       if (room) {
         setRoomRows((current) => {
           const without = current.filter((row) => row.id !== room.id);
-          return [room, ...without];
+          return applyRoomReadOverlays([room, ...without]);
         });
         setArchivedRows((current) =>
           current.filter((row) => row.id !== room.id),
@@ -363,7 +411,7 @@ export function OrganizationChatList({
           return;
         }
         if (activeResult.ok) {
-          setRoomRows(activeResult.data);
+          setRoomRows(applyRoomReadOverlays(activeResult.data));
         }
         if (archivedResult.ok) {
           setArchivedRows(archivedResult.data);
@@ -385,7 +433,7 @@ export function OrganizationChatList({
   }, [hasOrganization]);
 
   function handleRestoreRoom(room: ChatRoom) {
-    if (restoringRoomId) {
+    if (restoringRoomId || deletingRoomId) {
       return;
     }
     setRestoringRoomId(room.id);
@@ -400,11 +448,44 @@ export function OrganizationChatList({
       setArchivedRows((current) => current.filter((row) => row.id !== room.id));
       setRoomRows((current) => {
         const without = current.filter((row) => row.id !== result.data.id);
-        return [result.data, ...without];
+        return applyRoomReadOverlays([result.data, ...without]);
       });
       router.push(`/chat/rooms/${result.data.id}`);
       router.refresh();
     });
+  }
+
+  function handleConfirmDeleteRoom() {
+    const room = pendingDeleteRoom;
+    if (!room || restoringRoomId || deletingRoomId) {
+      return;
+    }
+    setDeletingRoomId(room.id);
+    startDeleteTransition(async () => {
+      const result = await deleteRoomAction(room.id);
+      setDeletingRoomId(null);
+      setPendingDeleteRoom(null);
+      if (!result.ok) {
+        toast.error(result.message || tActions("deleteError"));
+        return;
+      }
+      toast.success(tActions("deleteSuccess", { name: room.name }));
+      setArchivedRows((current) => current.filter((row) => row.id !== room.id));
+      router.refresh();
+    });
+  }
+
+  function handleRoomUpdated(updated: ChatRoom) {
+    if (updated.markedUnread) {
+      forgetRoomRead(updated.id);
+    } else if (updated.unreadCount === 0 && updated.unreadMentionCount === 0) {
+      rememberRoomRead(updated);
+    }
+    setRoomRows((current) =>
+      applyRoomReadOverlays(
+        current.map((room) => (room.id === updated.id ? updated : room)),
+      ),
+    );
   }
 
   const { directMessages, namedChannels } = useMemo(() => {
@@ -422,7 +503,7 @@ export function OrganizationChatList({
       }
     }
 
-    // Active channels and DMs: most recent activity first (`updatedAt` bumps on send).
+    // Unmuted → pinned → public → private → muted; activity within bucket.
     namedChannels.sort(compareChatRoomsByRecentActivity);
     directMessages.sort(compareChatRoomsByRecentActivity);
 
@@ -446,44 +527,29 @@ export function OrganizationChatList({
             href={hasOrganization ? "/chat?create=channel" : undefined}
             isOpen={channelSectionOpen}
             label={t("createChannel")}
+            secondaryAction={
+              hasOrganization ? <BrowseChannelsDialog /> : undefined
+            }
           >
             {t("title")}
           </SectionHeader>
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
-              {namedChannels.map((room) => {
-                const isActive = activeRoomId === room.id;
-                const { bold, badgeCount } = resolveRoomAttention({
-                  unreadCount: room.unreadCount,
-                  unreadMentionCount: room.unreadMentionCount,
-                  isActive,
-                });
-
-                return (
-                  <SidebarMenuItem key={room.id}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <SheetClose asChild>
-                        <Link
-                          aria-current={isActive ? "page" : undefined}
-                          className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3"
-                          href={`/chat/rooms/${room.id}`}
-                        >
-                          <Hash className="size-4 shrink-0" aria-hidden />
-                          <span
-                            className={cn(
-                              "flex-1 truncate",
-                              bold && "font-semibold text-foreground",
-                            )}
-                          >
-                            {room.name}
-                          </span>
-                          <MentionBadge count={badgeCount} />
-                        </Link>
-                      </SheetClose>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {namedChannels.map((room) => (
+                <ChatRoomSidebarRow
+                  key={room.id}
+                  room={room}
+                  href={`/chat/rooms/${room.id}`}
+                  label={room.name}
+                  isActive={activeRoomId === room.id}
+                  leading={
+                    <ChannelDiscoverabilityIcon
+                      discoverability={room.discoverability}
+                    />
+                  }
+                  onRoomUpdated={handleRoomUpdated}
+                />
+              ))}
               {namedChannels.length === 0 ? (
                 <SidebarMenuItem>
                   <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
@@ -509,35 +575,97 @@ export function OrganizationChatList({
               <SidebarMenu className="gap-0">
                 {sortedArchivedChannels.map((room) => {
                   const isRestoring = restoringRoomId === room.id;
+                  const isDeleting = deletingRoomId === room.id;
+                  const actionBusy =
+                    restoringRoomId !== null || deletingRoomId !== null;
+                  const showOverflowMenu = canDeleteArchivedRooms;
                   return (
-                    <SidebarMenuItem key={room.id}>
+                    <SidebarMenuItem
+                      key={room.id}
+                      className="group/room-row relative"
+                    >
                       <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-center gap-2 px-3 py-1.5">
-                        <Hash
-                          className="size-4 shrink-0 opacity-60"
-                          aria-hidden
+                        <ChannelDiscoverabilityIcon
+                          className="opacity-60"
+                          discoverability={room.discoverability}
                         />
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}
                         </span>
+                        <span className="size-7 shrink-0" aria-hidden />
+                      </div>
+                      {showOverflowMenu ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              disabled={actionBusy}
+                              className={cn(
+                                ARCHIVED_TRAILING_CONTROL_CLASS,
+                                "group-data-[collapsible=icon]:hidden text-muted-foreground",
+                                isRestoring || isDeleting
+                                  ? "opacity-100"
+                                  : "opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                              )}
+                              aria-label={tActions("roomMenu", {
+                                name: room.name,
+                              })}
+                            >
+                              <Ellipsis
+                                className={cn(
+                                  "size-4",
+                                  (isRestoring || isDeleting) &&
+                                    "animate-pulse",
+                                )}
+                                aria-hidden
+                              />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem
+                              disabled={actionBusy}
+                              onSelect={() => handleRestoreRoom(room)}
+                            >
+                              <RotateCcw className="size-4" aria-hidden />
+                              {tActions("restore")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={actionBusy}
+                              variant="destructive"
+                              onSelect={() => setPendingDeleteRoom(room)}
+                            >
+                              <Trash2 className="size-4" aria-hidden />
+                              {tActions("delete")}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
-                          className="group-data-[collapsible=icon]:hidden h-7 shrink-0 gap-1 px-2 text-xs"
-                          disabled={isRestoring || restoringRoomId !== null}
+                          size="icon"
+                          className={cn(
+                            ARCHIVED_TRAILING_CONTROL_CLASS,
+                            "group-data-[collapsible=icon]:hidden text-muted-foreground",
+                            isRestoring
+                              ? "opacity-100"
+                              : "opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100",
+                          )}
+                          disabled={actionBusy}
                           onClick={() => handleRestoreRoom(room)}
                           aria-label={`${tActions("restore")} ${room.name}`}
                         >
                           <RotateCcw
                             className={cn(
-                              "size-3",
+                              "size-3.5",
                               isRestoring && "animate-spin",
                             )}
                             aria-hidden
                           />
-                          {tActions("restore")}
                         </Button>
-                      </div>
+                      )}
                     </SidebarMenuItem>
                   );
                 })}
@@ -545,6 +673,48 @@ export function OrganizationChatList({
             </CollapsibleContent>
           </Collapsible>
         ) : null}
+
+        <AlertDialog
+          open={pendingDeleteRoom !== null}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen && deletingRoomId === null) {
+              setPendingDeleteRoom(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {pendingDeleteRoom
+                  ? tActions("deleteConfirmTitle", {
+                      name: pendingDeleteRoom.name,
+                    })
+                  : null}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingDeleteRoom
+                  ? tActions("deleteConfirmDescription", {
+                      name: pendingDeleteRoom.name,
+                    })
+                  : null}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deletingRoomId !== null}>
+                {tActions("cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                disabled={deletingRoomId !== null}
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleConfirmDeleteRoom();
+                }}
+              >
+                {tActions("deleteConfirm")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
           {/*
@@ -562,42 +732,22 @@ export function OrganizationChatList({
           </SectionHeader>
           <CollapsibleContent>
             <SidebarMenu className="gap-0">
-              {directMessages.map((room) => {
-                const isActive = activeRoomId === room.id;
-                const label = getDirectRoomDisplayName(room, currentUserId);
-                const { bold, badgeCount } = resolveRoomAttention({
-                  unreadCount: room.unreadCount,
-                  unreadMentionCount: room.unreadMentionCount,
-                  isActive,
-                });
-                return (
-                  <SidebarMenuItem key={room.id}>
-                    <SidebarMenuButton asChild isActive={isActive}>
-                      <SheetClose asChild>
-                        <Link
-                          aria-current={isActive ? "page" : undefined}
-                          className="text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3"
-                          href={`/chat/rooms/${room.id}`}
-                        >
-                          <DirectAvatarStack
-                            room={room}
-                            currentUserId={currentUserId}
-                          />
-                          <span
-                            className={cn(
-                              "min-w-0 flex-1 truncate",
-                              bold && "font-semibold text-foreground",
-                            )}
-                          >
-                            {label}
-                          </span>
-                          <MentionBadge count={badgeCount} />
-                        </Link>
-                      </SheetClose>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {directMessages.map((room) => (
+                <ChatRoomSidebarRow
+                  key={room.id}
+                  room={room}
+                  href={`/chat/rooms/${room.id}`}
+                  label={getDirectRoomDisplayName(room, currentUserId)}
+                  isActive={activeRoomId === room.id}
+                  leading={
+                    <DirectAvatarStack
+                      room={room}
+                      currentUserId={currentUserId}
+                    />
+                  }
+                  onRoomUpdated={handleRoomUpdated}
+                />
+              ))}
               {directMessages.length === 0 ? (
                 <SidebarMenuItem>
                   <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">

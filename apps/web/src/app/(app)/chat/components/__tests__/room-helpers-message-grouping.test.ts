@@ -5,6 +5,7 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import {
   isMessageContinuation,
   MESSAGE_GROUP_GAP_MS,
+  messageSender,
   messageSenderKey,
 } from "../room-helpers";
 
@@ -16,12 +17,14 @@ function baseMessage(
     roomId: "room-1",
     parentMessageId: null,
     content: "hi",
+    editedAt: null,
     mentions: [],
     reactions: [],
     threadReplyCount: 0,
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
+    deletedAt: null,
     ...overrides,
   };
 }
@@ -34,6 +37,7 @@ function userMessage(
   return baseMessage({
     id,
     createdAt: new Date(createdAt),
+    editedAt: null,
     sender: {
       type: "user",
       user: {
@@ -55,6 +59,7 @@ function coworkerMessage(
   return baseMessage({
     id,
     createdAt: new Date(createdAt),
+    editedAt: null,
     sender: {
       type: "coworker",
       coworker: {
@@ -73,6 +78,7 @@ function unknownMessage(id: string, createdAt: string): ChatRoomMessage {
   return baseMessage({
     id,
     createdAt: new Date(createdAt),
+    editedAt: null,
     sender: { type: "unknown" },
   });
 }
@@ -91,6 +97,35 @@ describe("messageSenderKey", () => {
     expect(
       messageSenderKey(unknownMessage("m3", "2026-07-01T12:00:00.000Z")),
     ).toBeNull();
+  });
+});
+
+describe("messageSender", () => {
+  it("returns human profile with email and presence", () => {
+    expect(
+      messageSender(userMessage("m1", "2026-07-01T12:00:00.000Z")),
+    ).toEqual({
+      kind: "human",
+      id: "user-1",
+      name: "Ada",
+      email: "ada@example.com",
+      image: null,
+      presence: "offline",
+    });
+  });
+
+  it("returns coworker profile with slug, caption, and presence", () => {
+    expect(
+      messageSender(coworkerMessage("m2", "2026-07-01T12:00:00.000Z")),
+    ).toEqual({
+      kind: "coworker",
+      id: "cow-1",
+      name: "Jamal",
+      slug: "jamal",
+      caption: null,
+      image: null,
+      presence: "online",
+    });
   });
 });
 

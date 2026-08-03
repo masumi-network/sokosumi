@@ -5,100 +5,24 @@ alwaysApply: true
 
 ## Result Type Convention
 
-When you need to use a Result type for error handling, **always use `neverthrow`** instead of creating custom Result types.
-
-### Why neverthrow?
-
-- **Standardized**: Consistent error handling pattern across the codebase
-- **Type-safe**: Full TypeScript support with proper type inference
-- **Composable**: Rich API for chaining and combining results
-- **Well-tested**: Battle-tested library used throughout the monorepo
-
-### Usage
-
-**Import from neverthrow**:
+When you need a Result type for error handling, **always use `neverthrow`**. Do not invent custom Result types.
 
 ```typescript
 import { ok, err, type Result } from "neverthrow";
 ```
 
-**Creating Results**:
-
-```typescript
-// Success case
-function getValue(): Result<string, string> {
-  return ok("success value");
-}
-
-// Error case
-function getError(): Result<string, string> {
-  return err("error message");
-}
-```
-
-**Checking Results**:
-
-```typescript
-const result = await someAsyncOperation();
-
-if (result.isOk()) {
-  // TypeScript knows result.value exists here
-  console.log(result.value);
-} else {
-  // TypeScript knows result.error exists here
-  console.error(result.error);
-}
-```
-
-**Alternative: Using match**:
-
-```typescript
-result.match(
-  (value) => {
-    // Handle success
-    console.log(value);
-  },
-  (error) => {
-    // Handle error
-    console.error(error);
-  },
-);
-```
-
-### Common Patterns
-
-**Chaining Results**:
-
-```typescript
-const result = await firstOperation()
-  .andThen((value) => secondOperation(value))
-  .map((value) => transform(value));
-```
-
-**Combining Results**:
-
-```typescript
-import { Result, combine } from "neverthrow";
-
-const results = [result1, result2, result3];
-const combined = combine(results);
-```
-
-### ❌ Don't
+### Don't
 
 - Create custom `Result<T, E>` types
 - Use `{ ok: boolean, value?: T, error?: E }` patterns
-- Import Result types from other packages (unless they're re-exporting neverthrow)
+- Import Result types from other packages (unless they re-export neverthrow)
 
-### ✅ Do
+### Do
 
-- Always import `Result`, `ok`, and `err` from `neverthrow`
+- Import `Result`, `ok`, and `err` from `neverthrow`
 - Use `isOk()` / `isErr()` for type-safe checks
-- Use `.match()` for exhaustive handling
 - Use `.map()`, `.mapErr()`, `.andThen()` for transformations
-- Chain operations with `.andThen()` for sequential operations
 
 ## References
 
 - [neverthrow Documentation](https://github.com/supermacro/neverthrow)
-- [neverthrow API Reference](https://github.com/supermacro/neverthrow#api-documentation)

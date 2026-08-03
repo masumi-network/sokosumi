@@ -25,7 +25,7 @@ import {
   buildDirectRoomName,
   buildUniqueRoomSlug,
   chatRoomInclude,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   normalizeUniqueStrings,
   requireActiveOrganizationId,
   validateChatCoworkerIds,
@@ -125,6 +125,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             name: body.name,
             slug,
             topic: body.topic?.trim() || null,
+            discoverability: body.discoverability,
             userMembers: {
               create: memberUserIds.map((userId) => ({ userId })),
             },
@@ -141,7 +142,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return created(
         c,
-        chatRoomSchema.parse(mapChatRoom(room, userContext.userId)),
+        chatRoomSchema.parse(
+          await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma),
+        ),
       );
     } catch (error) {
       if (isSlugUniqueConstraintError(error)) {
@@ -357,7 +360,9 @@ async function createOrGetDirectRoom(params: {
       });
 
       return {
-        room: chatRoomSchema.parse(mapChatRoom(result.room, currentUserId)),
+        room: chatRoomSchema.parse(
+          await mapChatRoomWithSidebarFlags(result.room, currentUserId, prisma),
+        ),
         created: result.created,
       };
     } catch (error) {
@@ -374,7 +379,13 @@ async function createOrGetDirectRoom(params: {
 
         if (existing) {
           return {
-            room: chatRoomSchema.parse(mapChatRoom(existing, currentUserId)),
+            room: chatRoomSchema.parse(
+              await mapChatRoomWithSidebarFlags(
+                existing,
+                currentUserId,
+                prisma,
+              ),
+            ),
             created: false,
           };
         }

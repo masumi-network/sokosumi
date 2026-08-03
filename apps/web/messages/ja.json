@@ -783,7 +783,14 @@
       "title": "画像",
       "viewImage": "画像を表示 {fileName}",
       "download": "画像をダウンロード",
-      "close": "閉じる"
+      "close": "閉じる",
+      "print": "印刷",
+      "zoomIn": "拡大",
+      "zoomOut": "縮小",
+      "zoomReset": "ズームをリセット",
+      "more": "その他のオプション",
+      "openInNewTab": "新しいタブで開く",
+      "copyImage": "画像をコピー"
     }
   },
   "Join": {
@@ -4567,10 +4574,23 @@
         "archiveConfirm": "アーカイブする",
         "archiveSuccess": "{name} をアーカイブしました。",
         "restore": "復元",
-        "restoreSuccess": "{name} を復元しました。"
+        "restoreSuccess": "{name} を復元しました。",
+        "delete": "削除",
+        "deleteConfirmTitle": "{name} を完全に削除しますか？",
+        "deleteConfirmDescription": "チャンネルとそのメッセージが全員から完全に削除されます。この操作は元に戻せません。",
+        "deleteConfirm": "完全に削除",
+        "deleteSuccess": "{name} を完全に削除しました。",
+        "deleteError": "チャンネルを削除できませんでした。",
+        "markUnread": "未読にする",
+        "pin": "ピン留め",
+        "unpin": "ピン留めを解除",
+        "mute": "ミュート",
+        "unmute": "ミュート解除",
+        "roomMenu": "{name} のチャット操作",
+        "actionFailed": "このチャットを更新できませんでした。もう一度お試しください。"
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "チャット",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4579,6 +4599,8 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "humanBadge": "人間",
+      "openDirectMessage": "メッセージ",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
@@ -4648,6 +4670,15 @@
         "groupDirectNoCoworkersError": "グループのダイレクトメッセージにコワーカーは含められません。",
         "coworkerDirectOneToOneOnly": "コワーカーとのダイレクトメッセージは1対1です。"
       },
+      "RoomSearch": {
+        "open": "このチャット内を検索",
+        "placeholder": "メッセージを検索…",
+        "idle": "入力してこのチャット内のメッセージを検索します。",
+        "empty": "一致するメッセージはありません。",
+        "loading": "検索中…",
+        "error": "メッセージを検索できませんでした。もう一度お試しください。",
+        "replyBadge": "スレッド返信"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4715,12 +4746,46 @@
         "showMore": "続きを表示",
         "showLess": "折りたたむ"
       },
+      "Message": {
+        "delete": "削除",
+        "deleteConfirm": "このメッセージを削除しますか？他の人には削除されたことが表示されます。",
+        "deleted": "このメッセージは削除されました",
+        "showMore": "続きを表示",
+        "showLess": "折りたたむ"
+      },
       "MentionAll": {
         "label": "全員"
       },
       "MentionSections": {
         "people": "メンバー",
         "coworkers": "コワーカー"
+      },
+      "Edit": {
+        "action": "編集",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "edited": "編集済み"
+      },
+      "Browse": {
+        "trigger": "チャンネルを探す",
+        "title": "チャンネルを探す",
+        "description": "まだ参加していない公開組織チャンネルを見つけます。",
+        "searchPlaceholder": "チャンネルを検索",
+        "loading": "チャンネルを読み込み中…",
+        "empty": "参加できる公開チャンネルはありません。",
+        "join": "参加",
+        "joinAria": "{name} に参加",
+        "joinSuccess": "{name} に参加しました。",
+        "joinError": "チャンネルに参加できませんでした。",
+        "loadError": "チャンネルを読み込めませんでした。",
+        "memberCount": "{count, plural, other {# 人のメンバー}}"
+      },
+      "Visibility": {
+        "label": "公開範囲",
+        "public": "公開",
+        "private": "非公開",
+        "publicHelp": "組織内の誰でもこのチャンネルを見つけて参加できます。",
+        "privateHelp": "招待されたメンバーだけがこのチャンネルを見られます。"
       }
     }
   },

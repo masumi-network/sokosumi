@@ -103,7 +103,4 @@ export const STORAGE = {
 
   /** Root directory for user file uploads */
   USER_UPLOADS_DIR: "users",
-
-  /** Directory for stored DESIGN.md documents */
-  DESIGN_MD_UPLOAD_DIR: "design-md",
 } as const;

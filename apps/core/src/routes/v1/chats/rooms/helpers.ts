@@ -1,6 +1,6 @@
 import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
 import {
-  buildQuoteSnippet,
+  buildRoomQuoteSnippetParts,
   CHAT_PRESENCE_AFK_WINDOW_MS,
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "@sokosumi/utils";
@@ -219,6 +219,9 @@ export interface MapChatRoomAttentionOptions {
   unreadMentionCount?: number;
   /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
   lastActivityAt?: Date | null;
+  pinnedAt?: Date | null;
+  mutedAt?: Date | null;
+  markedUnread?: boolean;
 }
 
 export function mapChatRoom(
@@ -226,7 +229,14 @@ export function mapChatRoom(
   currentUserId?: string,
   attention: MapChatRoomAttentionOptions = {},
 ) {
-  const { unreadCount = 0, unreadMentionCount = 0, lastActivityAt } = attention;
+  const {
+    unreadCount = 0,
+    unreadMentionCount = 0,
+    lastActivityAt,
+    pinnedAt = null,
+    mutedAt = null,
+    markedUnread = false,
+  } = attention;
 
   return {
     id: room.id,
@@ -236,11 +246,18 @@ export function mapChatRoom(
     kind: room.kind as "channel" | "direct",
     directKey: room.directKey,
     topic: room.topic,
+    discoverability: mapChatRoomDiscoverability(
+      room.kind,
+      room.discoverability,
+    ),
     createdByUserId: room.createdByUserId,
     createdAt: room.createdAt,
     updatedAt: lastActivityAt ?? room.updatedAt,
     unreadCount,
     unreadMentionCount,
+    pinnedAt,
+    mutedAt,
+    markedUnread,
     userMembers: room.userMembers.map(({ user }) => ({
       id: user.id,
       name: user.name,
@@ -257,6 +274,107 @@ export function mapChatRoom(
       presence: "online" as const,
     })),
   };
+}
+
+function mapChatRoomDiscoverability(
+  kind: string,
+  discoverability: string | null,
+): "public" | "private" | null {
+  if (kind === "direct") {
+    return null;
+  }
+  return discoverability === "public" ? "public" : "private";
+}
+
+export interface ChatRoomSidebarFlags {
+  pinnedAt: Date | null;
+  mutedAt: Date | null;
+  markedUnread: boolean;
+}
+
+/** Batch-load per-user pin + mute + forced-unread flags for sidebar mapping. */
+export async function getChatRoomSidebarFlags(
+  roomIds: readonly string[],
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Map<string, ChatRoomSidebarFlags>> {
+  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
+  if (uniqueRoomIds.length === 0) {
+    return new Map();
+  }
+
+  const [memberships, readStates] = await Promise.all([
+    tx.chatRoomUserMember.findMany({
+      where: {
+        userId,
+        roomId: { in: uniqueRoomIds },
+      },
+      select: {
+        roomId: true,
+        pinnedAt: true,
+        mutedAt: true,
+      },
+    }),
+    tx.chatRoomReadState.findMany({
+      where: {
+        userId,
+        roomId: { in: uniqueRoomIds },
+      },
+      select: {
+        roomId: true,
+        markedUnreadAt: true,
+      },
+    }),
+  ]);
+
+  const flagged = new Map<string, ChatRoomSidebarFlags>(
+    uniqueRoomIds.map((roomId) => [
+      roomId,
+      { pinnedAt: null, mutedAt: null, markedUnread: false },
+    ]),
+  );
+
+  for (const membership of memberships) {
+    const current = flagged.get(membership.roomId);
+    if (current) {
+      current.pinnedAt = membership.pinnedAt;
+      current.mutedAt = membership.mutedAt;
+    }
+  }
+
+  for (const readState of readStates) {
+    const current = flagged.get(readState.roomId);
+    if (current) {
+      current.markedUnread = readState.markedUnreadAt != null;
+    }
+  }
+
+  return flagged;
+}
+
+/** mapChatRoom with per-user pin/mute/markedUnread loaded for the viewer. */
+export async function mapChatRoomWithSidebarFlags(
+  room: ChatRoomWithMembers,
+  userId: string,
+  tx: Prisma.TransactionClient,
+  attention: {
+    unreadCount?: number;
+    unreadMentionCount?: number;
+    lastActivityAt?: Date | null;
+  } = {},
+) {
+  const flags = (await getChatRoomSidebarFlags([room.id], userId, tx)).get(
+    room.id,
+  );
+
+  return mapChatRoom(room, userId, {
+    unreadCount: attention.unreadCount ?? 0,
+    unreadMentionCount: attention.unreadMentionCount ?? 0,
+    lastActivityAt: attention.lastActivityAt,
+    pinnedAt: flags?.pinnedAt ?? null,
+    mutedAt: flags?.mutedAt ?? null,
+    markedUnread: flags?.markedUnread ?? false,
+  });
 }
 
 export function mapChatRoomMessage(
@@ -321,32 +439,37 @@ export function mapChatRoomMessage(
   }
 
   const metadata = (message.metadata as Record<string, unknown> | null) ?? null;
+  const isDeleted = message.deletedAt != null;
 
   return {
     id: message.id,
     roomId: message.roomId,
     parentMessageId: message.parentMessageId,
-    content: message.content,
+    content: isDeleted ? "" : message.content,
     createdAt: message.createdAt,
+    deletedAt: message.deletedAt ?? null,
+    editedAt: isDeleted ? null : (message.editedAt ?? null),
     sender,
-    mentions: message.mentionsAsSource.map((mention) => ({
-      id: mention.id,
-      coworkerId: mention.coworkerId,
-      status: mention.status,
-      responseMessageId: mention.responseMessageId,
-    })),
-    reactions: Array.from(reactionCounts.entries()).map(
-      ([emoji, reaction]) => ({
-        emoji,
-        count: reaction.count,
-        reactedByCurrentUser: reaction.reactedByCurrentUser,
-        reactors: reaction.reactors,
-      }),
-    ),
+    mentions: isDeleted
+      ? []
+      : message.mentionsAsSource.map((mention) => ({
+          id: mention.id,
+          coworkerId: mention.coworkerId,
+          status: mention.status,
+          responseMessageId: mention.responseMessageId,
+        })),
+    reactions: isDeleted
+      ? []
+      : Array.from(reactionCounts.entries()).map(([emoji, reaction]) => ({
+          emoji,
+          count: reaction.count,
+          reactedByCurrentUser: reaction.reactedByCurrentUser,
+          reactors: reaction.reactors,
+        })),
     threadReplyCount: message._count.replies,
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
-    metadata,
-    quote: readQuoteFromMetadata(metadata),
+    metadata: isDeleted ? null : metadata,
+    quote: isDeleted ? null : readQuoteFromMetadata(metadata),
   };
 }
 
@@ -366,6 +489,34 @@ export function mergeChatRoomMessageMetadata(
   return Object.keys(base).length > 0 ? base : null;
 }
 
+function readQuoteAttachmentFromMetadata(
+  candidate: Record<string, unknown>,
+): ChatRoomMessageQuote["attachment"] {
+  if (!("attachment" in candidate)) {
+    return undefined;
+  }
+  const raw = candidate.attachment;
+  if (raw === null) {
+    return null;
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return undefined;
+  }
+  const attachment = raw as Record<string, unknown>;
+  if (
+    typeof attachment.fileName !== "string" ||
+    typeof attachment.url !== "string" ||
+    (attachment.mediaKind !== "image" && attachment.mediaKind !== "file")
+  ) {
+    return undefined;
+  }
+  return {
+    fileName: attachment.fileName,
+    url: attachment.url,
+    mediaKind: attachment.mediaKind,
+  };
+}
+
 function readQuoteFromMetadata(
   metadata: Record<string, unknown> | null,
 ): ChatRoomMessageQuote | null {
@@ -381,10 +532,12 @@ function readQuoteFromMetadata(
   ) {
     return null;
   }
+  const attachment = readQuoteAttachmentFromMetadata(candidate);
   return {
     messageId: candidate.messageId,
     authorName: candidate.authorName,
     snippet: candidate.snippet,
+    ...(attachment !== undefined ? { attachment } : {}),
   };
 }
 
@@ -406,6 +559,7 @@ export async function resolveRoomQuoteSnapshot(
     where: {
       id: quoteMessageId,
       roomId,
+      deletedAt: null,
     },
     select: {
       id: true,
@@ -419,11 +573,14 @@ export async function resolveRoomQuoteSnapshot(
     throw badRequest("Quoted message not found");
   }
 
+  const { snippet, attachment } = buildRoomQuoteSnippetParts(quoted.content);
+
   return {
     messageId: quoted.id,
     authorName:
       quoted.senderUser?.name ?? quoted.senderCoworker?.name ?? "Someone",
-    snippet: buildQuoteSnippet(quoted.content),
+    snippet,
+    attachment,
   };
 }
 
@@ -581,6 +738,16 @@ export function canManageChatRoomLifecycle(options: {
   );
 }
 
+/**
+ * Permanent delete removes the room and cascaded children for everyone.
+ * Organization owner/admin only — room creator membership is not enough.
+ */
+export function canPermanentlyDeleteChatRoom(options: {
+  role: string;
+}): boolean {
+  return options.role === MemberRole.OWNER || options.role === MemberRole.ADMIN;
+}
+
 export async function requireChatRoomUserAccess(
   roomId: string,
   userId: string,
@@ -602,6 +769,40 @@ export async function requireChatRoomUserAccess(
   }
 
   await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+
+  return room;
+}
+
+/**
+ * Active public org channel the caller may self-join. Does not require
+ * membership. Unknown, private, wrong-org, direct, or archived → 404.
+ */
+export async function requireJoinablePublicOrgChannel(
+  roomId: string,
+  userId: string,
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+): Promise<ChatRoomWithMembers> {
+  await resolveMemberOrganizationById({
+    id: organizationId,
+    userId,
+    tx,
+  });
+
+  const room = await tx.chatRoom.findFirst({
+    where: {
+      id: roomId,
+      organizationId,
+      kind: "channel",
+      discoverability: "public",
+      archivedAt: null,
+    },
+    include: chatRoomInclude,
+  });
+
+  if (!room) {
+    throw notFound("Room not found");
+  }
 
   return room;
 }

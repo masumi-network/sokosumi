@@ -4,7 +4,7 @@ globs:
   - "*.tsx"
   - "*.ts"
   - "messages/*.json"
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Translation Cleanup Rules

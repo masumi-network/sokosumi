@@ -8,25 +8,27 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import { ChatMessageRow } from "../room-message-row";
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
-    if (key === "Reactions.whoReacted" && values) {
-      const names = String(values.names ?? "");
-      const more = Number(values.more ?? 0);
-      return more > 0 ? `${names}, and ${more} more` : names;
-    }
-    if (key === "Reactions.andMore" && values) {
-      return `and ${values.count} more`;
-    }
-    if (key === "jump" && values) {
-      return `Jump to message from ${values.author}`;
-    }
-    if (key === "showMore") {
-      return "More";
-    }
-    if (key === "showLess") {
-      return "Less";
-    }
-    return key;
+  useTranslations: (namespace?: string) => {
+    return (key: string, values?: Record<string, unknown>) => {
+      if (key === "Reactions.whoReacted" && values) {
+        const names = String(values.names ?? "");
+        const more = Number(values.more ?? 0);
+        return more > 0 ? `${names}, and ${more} more` : names;
+      }
+      if (key === "Reactions.andMore" && values) {
+        return `and ${values.count} more`;
+      }
+      if (key === "jump" && values) {
+        return `Jump to message from ${values.author}`;
+      }
+      if (key === "showMore") {
+        return namespace === "App.Channels.Message" ? "Show more" : "More";
+      }
+      if (key === "showLess") {
+        return namespace === "App.Channels.Message" ? "Show less" : "Less";
+      }
+      return key;
+    };
   },
 }));
 
@@ -34,8 +36,14 @@ vi.mock("@/components/markdown", () => ({
   default: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 
-vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
-  FileChipMiniPreviewWithMetadata: () => null,
+vi.mock("@/components/ui/file-chip-mini-preview", () => ({
+  FileChipMiniPreviewFrame: ({
+    fileName,
+  }: {
+    fileName: string;
+    url: string;
+    sizeClass?: string;
+  }) => <span data-testid="chip">{fileName}</span>,
 }));
 
 vi.mock("@/components/ui/tooltip", () => ({
@@ -55,6 +63,8 @@ function userMessage(
     parentMessageId: null,
     content: "Hello",
     createdAt: new Date("2026-07-01T14:35:00.000Z"),
+    editedAt: null,
+    deletedAt: null,
     mentions: [],
     reactions: [],
     threadReplyCount: 0,
@@ -79,18 +89,45 @@ function renderRow({
   message = userMessage(),
   isContinuation = false,
   onQuote,
+  currentUserId,
+  onStartEdit,
+  onDelete,
+  isEditing = false,
+  editDraft = "",
+  onEditDraftChange,
+  onCancelEdit,
+  onSaveEdit,
+  isSavingEdit = false,
 }: {
   message?: ChatRoomMessage;
   isContinuation?: boolean;
   onQuote?: (message: ChatRoomMessage) => void;
+  currentUserId?: string;
+  onStartEdit?: (message: ChatRoomMessage) => void;
+  onDelete?: (message: ChatRoomMessage) => void;
+  isEditing?: boolean;
+  editDraft?: string;
+  onEditDraftChange?: (value: string) => void;
+  onCancelEdit?: () => void;
+  onSaveEdit?: () => void;
+  isSavingEdit?: boolean;
 } = {}) {
   render(
     <ChatMessageRow
       message={message}
       coworkersById={new Map()}
       coworkersBySlug={new Map()}
+      currentUserId={currentUserId}
       onToggleReaction={vi.fn()}
       onQuote={onQuote}
+      onStartEdit={onStartEdit}
+      onDelete={onDelete}
+      isEditing={isEditing}
+      editDraft={editDraft}
+      onEditDraftChange={onEditDraftChange}
+      onCancelEdit={onCancelEdit}
+      onSaveEdit={onSaveEdit}
+      isSavingEdit={isSavingEdit}
       isContinuation={isContinuation}
     />,
   );
@@ -336,6 +373,133 @@ describe("ChatMessageRow", () => {
     expect(scrollIntoView).not.toHaveBeenCalled();
   });
 
+  it("shows quote image attachment as inert thumbnail, not a link", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-image",
+          authorName: "Bob",
+          snippet: "check this shot",
+          attachment: {
+            fileName: "launch.png",
+            url: "https://blob.example/launch.png",
+            mediaKind: "image",
+          },
+        },
+      }),
+    });
+
+    const jumpButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    const thumb = jumpButton.querySelector(
+      'img[src="https://blob.example/launch.png"]',
+    );
+    expect(thumb).toBeInTheDocument();
+    expect(thumb).toHaveAttribute("alt", "");
+    expect(
+      screen.queryByRole("link", { name: /launch\.png/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("check this shot")).toBeInTheDocument();
+  });
+
+  it("shows quote file attachment as inert icon thumb, not a link", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "original-file",
+          authorName: "Bob",
+          snippet: "see the brief",
+          attachment: {
+            fileName: "brief.pdf",
+            url: "https://blob.example/brief.pdf",
+            mediaKind: "file",
+          },
+        },
+      }),
+    });
+
+    const jumpButton = screen.getByRole("button", {
+      name: "Jump to message from Bob",
+    });
+    expect(
+      screen.queryByRole("link", { name: /brief\.pdf/i }),
+    ).not.toBeInTheDocument();
+    expect(jumpButton.querySelector("svg")).not.toBeNull();
+    expect(screen.queryByText("brief.pdf")).not.toBeInTheDocument();
+  });
+
+  it("jumps to original message when quote attachment thumb is clicked", async () => {
+    const user = userEvent.setup();
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    const original = document.createElement("article");
+    original.setAttribute("data-message-id", "original-with-thumb");
+    document.body.appendChild(original);
+
+    try {
+      renderRow({
+        message: userMessage({
+          content: "Reply body",
+          quote: {
+            messageId: "original-with-thumb",
+            authorName: "Bob",
+            snippet: "check this shot",
+            attachment: {
+              fileName: "launch.png",
+              url: "https://blob.example/launch.png",
+              mediaKind: "image",
+            },
+          },
+        }),
+      });
+
+      const jumpButton = screen.getByRole("button", {
+        name: "Jump to message from Bob",
+      });
+      const thumb = jumpButton.querySelector(
+        'img[src="https://blob.example/launch.png"]',
+      );
+      expect(thumb).toBeTruthy();
+      await user.click(thumb!);
+      expect(scrollIntoView).toHaveBeenCalled();
+    } finally {
+      original.remove();
+    }
+  });
+
+  it("keeps legacy quotes without attachment text-only", () => {
+    renderRow({
+      message: userMessage({
+        content: "Reply body",
+        quote: {
+          messageId: "legacy-quote",
+          authorName: "Bob",
+          snippet: "old text-only quote",
+        },
+      }),
+    });
+
+    expect(screen.getByText("old text-only quote")).toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("wraps consecutive file attachments in one horizontal row", () => {
+    renderRow({
+      message: userMessage({
+        content:
+          "[a.png](https://cdn.example/a.png)\n[b.png](https://cdn.example/b.png)\n",
+      }),
+    });
+
+    const rows = screen.getAllByTestId("room-message-attachment-row");
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]).getAllByTestId("chip")).toHaveLength(2);
+  });
+
   it("styles @all mention tokens in quote snippets", () => {
     renderRow({
       message: userMessage({
@@ -500,5 +664,321 @@ describe("ChatMessageRow", () => {
         );
       }
     }
+  });
+
+  it("clamps long message bodies and expands with Show more/Show less", async () => {
+    const user = userEvent.setup();
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    const clientDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 400;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return 80;
+      },
+    });
+
+    try {
+      const longBody = Array.from(
+        { length: 20 },
+        (_, i) => `Line ${i + 1} of a very long chat message.`,
+      ).join("\n");
+
+      renderRow({
+        message: userMessage({ content: longBody }),
+      });
+
+      const body = screen.getByTestId("room-message-body");
+      expect(body.className).toContain("line-clamp-[16]");
+      expect(
+        screen.getByRole("button", { name: "Show more" }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Show more" }));
+      expect(body.className).not.toContain("line-clamp-[16]");
+      expect(
+        screen.getByRole("button", { name: "Show less" }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Show less" }));
+      expect(body.className).toContain("line-clamp-[16]");
+      expect(
+        screen.getByRole("button", { name: "Show more" }),
+      ).toBeInTheDocument();
+    } finally {
+      if (scrollDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollDescriptor,
+        );
+      }
+      if (clientDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientHeight",
+          clientDescriptor,
+        );
+      }
+    }
+  });
+
+  it("hides Show more when the message body does not overflow", () => {
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    const clientDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 40;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return 40;
+      },
+    });
+
+    try {
+      renderRow({
+        message: userMessage({ content: "Short message" }),
+      });
+
+      expect(screen.getByTestId("room-message-body").className).toContain(
+        "line-clamp-[16]",
+      );
+      expect(
+        screen.queryByRole("button", { name: "Show more" }),
+      ).not.toBeInTheDocument();
+    } finally {
+      if (scrollDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollDescriptor,
+        );
+      }
+      if (clientDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientHeight",
+          clientDescriptor,
+        );
+      }
+    }
+  });
+
+  it("shows Edit for own user messages and hides for others", async () => {
+    const user = userEvent.setup();
+    const onStartEdit = vi.fn();
+
+    const { rerender } = render(
+      <ChatMessageRow
+        message={userMessage()}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="user-1"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Edit.action" }),
+    ).toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={userMessage()}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="other-user"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit.action" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={userMessage({ id: "stream:temp" })}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="user-1"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit.action" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={userMessage()}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="user-1"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Edit.action" }));
+    expect(onStartEdit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "message-1" }),
+    );
+  });
+
+  it("shows Edited when editedAt is set", () => {
+    renderRow({
+      message: userMessage({
+        editedAt: new Date("2026-07-01T15:00:00.000Z"),
+      }),
+    });
+
+    expect(screen.getByText("Edit.edited")).toBeInTheDocument();
+  });
+
+  it("renders inline editor when isEditing", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+    const onCancelEdit = vi.fn();
+    const onEditDraftChange = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange,
+      onCancelEdit,
+      onSaveEdit,
+    });
+
+    expect(screen.getByDisplayValue("Original fixed")).toBeInTheDocument();
+    expect(screen.queryByText("Original")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Edit.save" }));
+    expect(onSaveEdit).toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Edit.cancel" }));
+    expect(onCancelEdit).toHaveBeenCalled();
+  });
+
+  it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn();
+
+    renderRow({
+      currentUserId: "user-1",
+      onDelete,
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Message.delete",
+      }),
+    );
+
+    const confirmDialog = await screen.findByRole("alertdialog");
+    expect(
+      within(confirmDialog).getByText("Message.deleteConfirm"),
+    ).toBeInTheDocument();
+
+    await user.click(
+      within(confirmDialog).getByRole("button", { name: "Message.delete" }),
+    );
+
+    expect(onDelete).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "message-1" }),
+    );
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("cancels delete without calling onDelete", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn();
+
+    renderRow({
+      currentUserId: "user-1",
+      onDelete,
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Message.delete",
+      }),
+    );
+
+    const confirmDialog = await screen.findByRole("alertdialog");
+    await user.click(
+      within(confirmDialog).getByRole("button", { name: "Actions.cancel" }),
+    );
+
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("does not show Delete for other authors", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      currentUserId: "user-2",
+      onDelete: vi.fn(),
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", {
+        name: "Message.delete",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a tombstone and hides message actions when deleted", () => {
+    renderRow({
+      currentUserId: "user-1",
+      onDelete: vi.fn(),
+      onQuote: vi.fn(),
+      message: userMessage({
+        content: "",
+        deletedAt: new Date("2026-07-02T10:00:00.000Z"),
+      }),
+    });
+
+    expect(screen.getByText("Message.deleted")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Actions.more" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Message.delete" }),
+    ).not.toBeInTheDocument();
   });
 });

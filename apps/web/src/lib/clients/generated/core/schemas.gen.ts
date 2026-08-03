@@ -4237,6 +4237,9 @@ export const ChatRoomSchema = {
             ],
             example: 'Weekly launch planning'
         },
+        discoverability: {
+            $ref: '#/components/schemas/ChatRoomDiscoverability'
+        },
         createdByUserId: {
             type: 'string',
             example: 'user_123'
@@ -4263,6 +4266,29 @@ export const ChatRoomSchema = {
             description: 'Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.',
             example: 1
         },
+        pinnedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-08-02T12:00:00.000Z',
+            description: 'When the current user pinned this room in their sidebar. Null when unpinned.'
+        },
+        mutedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-08-03T12:00:00.000Z',
+            description: 'When the current user muted this room. Null when unmuted. Muted rooms sort last, hide sidebar attention chrome, and skip CHAT mention notifications.'
+        },
+        markedUnread: {
+            type: 'boolean',
+            description: 'True when the current user marked this room unread. Cleared on mark-read.',
+            example: false
+        },
         userMembers: {
             type: 'array',
             items: {
@@ -4284,14 +4310,32 @@ export const ChatRoomSchema = {
         'kind',
         'directKey',
         'topic',
+        'discoverability',
         'createdByUserId',
         'createdAt',
         'updatedAt',
         'unreadCount',
         'unreadMentionCount',
+        'pinnedAt',
+        'mutedAt',
+        'markedUnread',
         'userMembers',
         'coworkerMembers'
     ]
+} as const;
+
+export const ChatRoomDiscoverabilitySchema = {
+    type: [
+        'string',
+        'null'
+    ],
+    enum: [
+        'public',
+        'private',
+        null
+    ],
+    description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.',
+    example: 'public'
 } as const;
 
 export const ChatRoomUserParticipantSchema = {
@@ -4447,7 +4491,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'channel'
                     ],
-                    description: 'Creates a named room for the invited members and coworkers (membership is explicit, not org-wide).'
+                    description: 'Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.'
                 },
                 name: {
                     type: 'string',
@@ -4459,6 +4503,16 @@ export const CreateChatRoomRequestSchema = {
                     type: 'string',
                     maxLength: 200,
                     example: 'Launch planning with design and AI research partners'
+                },
+                discoverability: {
+                    type: 'string',
+                    enum: [
+                        'public',
+                        'private'
+                    ],
+                    default: 'public',
+                    description: 'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.',
+                    example: 'public'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -4499,7 +4553,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'direct'
                     ],
-                    description: 'Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization.'
+                    description: 'Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Discoverability is not allowed on directs.'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -4529,8 +4583,72 @@ export const CreateChatRoomRequestSchema = {
             },
             required: [
                 'kind'
-            ]
+            ],
+            additionalProperties: false
         }
+    ]
+} as const;
+
+export const DiscoverableChatRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            example: 'Launch Room'
+        },
+        slug: {
+            type: 'string',
+            example: 'launch-room'
+        },
+        topic: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Weekly launch planning'
+        },
+        discoverability: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public'
+        },
+        memberCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 12
+        },
+        createdByUserId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'topic',
+        'discoverability',
+        'memberCount',
+        'createdByUserId',
+        'createdAt',
+        'updatedAt'
     ]
 } as const;
 
@@ -4705,6 +4823,17 @@ export const UpdateChatRoomRequestSchema = {
             maxLength: 200,
             example: 'Launch planning with design and AI research partners'
         },
+        discoverability: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/ChatRoomDiscoverability'
+                },
+                {
+                    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable; `"private"` hides it from the discoverable listing.',
+                    example: 'private'
+                }
+            ]
+        },
         memberUserIds: {
             type: 'array',
             items: {
@@ -4798,6 +4927,22 @@ export const ChatRoomMessageSchema = {
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
+        deletedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        editedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
         sender: {
             $ref: '#/components/schemas/ChatRoomMessageSender'
         },
@@ -4842,6 +4987,8 @@ export const ChatRoomMessageSchema = {
         'parentMessageId',
         'content',
         'createdAt',
+        'deletedAt',
+        'editedAt',
         'sender',
         'mentions',
         'reactions',
@@ -5023,12 +5170,45 @@ export const ChatRoomMessageQuoteSchema = {
         snippet: {
             type: 'string',
             example: 'Can you summarize this launch risk?'
+        },
+        attachment: {
+            $ref: '#/components/schemas/ChatRoomMessageQuoteAttachment'
         }
     },
     required: [
         'messageId',
         'authorName',
         'snippet'
+    ]
+} as const;
+
+export const ChatRoomMessageQuoteAttachmentSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        fileName: {
+            type: 'string',
+            example: 'launch.png'
+        },
+        url: {
+            type: 'string',
+            example: 'https://blob.example/launch.png'
+        },
+        mediaKind: {
+            type: 'string',
+            enum: [
+                'image',
+                'file'
+            ],
+            example: 'image'
+        }
+    },
+    required: [
+        'fileName',
+        'url',
+        'mediaKind'
     ]
 } as const;
 
@@ -5081,6 +5261,28 @@ export const CreateChatRoomMessageRequestSchema = {
                 'messageId'
             ],
             description: 'Quote another message in the same room. Snapshot is stored in metadata.quote; does not set parentMessageId.'
+        },
+        clientMessageId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 128,
+            description: 'Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).',
+            example: '019fbee7-676b-771f-ab7a-998f25f1f16b'
+        }
+    },
+    required: [
+        'content'
+    ]
+} as const;
+
+export const UpdateChatRoomMessageRequestSchema = {
+    type: 'object',
+    properties: {
+        content: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 10000,
+            example: 'Fixed typo in the launch summary'
         }
     },
     required: [

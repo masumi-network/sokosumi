@@ -794,7 +794,14 @@
       "title": "Image",
       "viewImage": "View image {fileName}",
       "download": "Download image",
-      "close": "Close"
+      "close": "Close",
+      "print": "Print",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "zoomReset": "Reset zoom",
+      "more": "More options",
+      "openInNewTab": "Open in new tab",
+      "copyImage": "Copy image"
     }
   },
   "Join": {
@@ -4686,10 +4693,23 @@
         "archiveConfirm": "Archive channel",
         "archiveSuccess": "{name} was archived.",
         "restore": "Restore",
-        "restoreSuccess": "{name} was restored."
+        "restoreSuccess": "{name} was restored.",
+        "delete": "Delete",
+        "deleteConfirmTitle": "Permanently delete {name}?",
+        "deleteConfirmDescription": "This permanently deletes the channel and its messages for everyone. This cannot be undone.",
+        "deleteConfirm": "Delete permanently",
+        "deleteSuccess": "{name} was permanently deleted.",
+        "deleteError": "Could not delete channel.",
+        "markUnread": "Mark as unread",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "mute": "Mute",
+        "unmute": "Unmute",
+        "roomMenu": "Chat actions for {name}",
+        "actionFailed": "Could not update this chat. Try again."
       },
       "Metadata": {
-        "title": "Channels",
+        "title": "Chat",
         "description": "Organization chat channels for humans and AI coworkers."
       },
       "title": "Channels",
@@ -4698,6 +4718,8 @@
       "send": "Send message",
       "noTopic": "No topic set.",
       "coworkerBadge": "AI coworker",
+      "humanBadge": "Human",
+      "openDirectMessage": "Message",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
@@ -4767,6 +4789,15 @@
         "groupDirectNoCoworkersError": "Group direct messages cannot include coworkers.",
         "coworkerDirectOneToOneOnly": "Coworker direct messages are 1:1."
       },
+      "RoomSearch": {
+        "open": "Search in this chat",
+        "placeholder": "Search messages…",
+        "idle": "Type to search messages in this chat.",
+        "empty": "No messages match your search.",
+        "loading": "Searching…",
+        "error": "Could not search messages. Try again.",
+        "replyBadge": "Thread reply"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4834,12 +4865,46 @@
         "showMore": "More",
         "showLess": "Less"
       },
+      "Message": {
+        "delete": "Delete",
+        "deleteConfirm": "Delete this message? Others will see that it was deleted.",
+        "deleted": "This message was deleted",
+        "showMore": "Show more",
+        "showLess": "Show less"
+      },
+      "Edit": {
+        "action": "Edit",
+        "save": "Save",
+        "cancel": "Cancel",
+        "edited": "Edited"
+      },
       "MentionAll": {
         "label": "Everyone"
       },
       "MentionSections": {
         "people": "People",
         "coworkers": "Coworkers"
+      },
+      "Browse": {
+        "trigger": "Browse channels",
+        "title": "Browse channels",
+        "description": "Find public organization channels you have not joined yet.",
+        "searchPlaceholder": "Search channels",
+        "loading": "Loading channels…",
+        "empty": "No public channels to join.",
+        "join": "Join",
+        "joinAria": "Join {name}",
+        "joinSuccess": "You joined {name}.",
+        "joinError": "Could not join channel.",
+        "loadError": "Could not load channels.",
+        "memberCount": "{count, plural, one {# member} other {# members}}"
+      },
+      "Visibility": {
+        "label": "Visibility",
+        "public": "Public",
+        "private": "Private",
+        "publicHelp": "Anyone in the organization can find and join this channel.",
+        "privateHelp": "Only invited members can see this channel."
       }
     }
   },

@@ -16,6 +16,8 @@ const {
   memberFindUniqueMock,
   queryRawUnsafeMock,
   notificationGroupByMock,
+  membershipFindManyMock,
+  readStateFindManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -23,6 +25,8 @@ const {
   memberFindUniqueMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
   notificationGroupByMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+  readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -39,6 +43,12 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     notification: {
       groupBy: notificationGroupByMock,
+    },
+    chatRoomUserMember: {
+      findMany: membershipFindManyMock,
+    },
+    chatRoomReadState: {
+      findMany: readStateFindManyMock,
     },
     $queryRawUnsafe: queryRawUnsafeMock,
     $transaction: prismaTransactionMock,
@@ -112,6 +122,8 @@ beforeEach(() => {
   notificationGroupByMock.mockResolvedValue([
     { referenceId: ROOM_ID, _count: { _all: 1 } },
   ]);
+  membershipFindManyMock.mockResolvedValue([]);
+  readStateFindManyMock.mockResolvedValue([]);
 });
 
 describe("GET /chats/rooms/{id}", () => {
@@ -125,6 +137,8 @@ describe("GET /chats/rooms/{id}", () => {
     expect(memberFindUniqueMock).toHaveBeenCalledOnce();
     expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
     expect(notificationGroupByMock).toHaveBeenCalledOnce();
+    expect(membershipFindManyMock).toHaveBeenCalledOnce();
+    expect(readStateFindManyMock).toHaveBeenCalledOnce();
 
     const body = await response.json();
     expect(body.data).toMatchObject({
@@ -132,6 +146,8 @@ describe("GET /chats/rooms/{id}", () => {
       name: "Launch Room",
       unreadCount: 2,
       unreadMentionCount: 1,
+      pinnedAt: null,
+      markedUnread: false,
     });
   });
 

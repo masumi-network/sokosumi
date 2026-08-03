@@ -129,9 +129,6 @@ export function ChatGeneratedImageBubble({
           onOpenChange={setIsViewerOpen}
           src={src}
           alt={alt}
-          title={t("title")}
-          downloadLabel={downloadLabel}
-          closeLabel={t("close")}
           downloadFilename={getGeneratedImageDownloadFilename(src)}
         />
       ) : null}

@@ -1656,6 +1656,8 @@ model ChatRoom {
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
   providerConversationId String?
   topic      String?
+  /// Channels: `"public"` | `"private"` (org browse / self-join). Directs: null.
+  discoverability String?
   archivedAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -1673,6 +1675,7 @@ model ChatRoom {
   // express WHERE organizationId IS NOT NULL / IS NULL partial uniques.
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])
+  @@index([organizationId, kind, discoverability, archivedAt])
   @@index([createdByUserId, kind, updatedAt])
   @@map("chat_room")
 }
@@ -1685,10 +1688,18 @@ model ChatRoomUserMember {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
+  /// Null = unpinned. Set to now when the user pins the room in their sidebar.
+  /// Mutually exclusive with mutedAt (enforced by DB check + API updateMany).
+  pinnedAt  DateTime?
+  /// Null = unmuted. Set to now when the user mutes the room in their sidebar.
+  /// Mutually exclusive with pinnedAt (enforced by DB check + API updateMany).
+  mutedAt   DateTime?
+  createdAt DateTime  @default(now())
 
   @@unique([roomId, userId])
   @@index([userId])
+  @@index([userId, pinnedAt])
+  @@index([userId, mutedAt])
   @@map("chat_room_user_member")
 }
 
@@ -1723,7 +1734,9 @@ model ChatRoomMessage {
 
   content   String
   metadata  Json?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  editedAt  DateTime?
 
   /// AI SDK / client message id for user stream-turn idempotency.
   /// Also mirrored in metadata.client_message_id for transcript consumers.
@@ -1745,6 +1758,7 @@ model ChatRoomMessage {
   @@index([parentMessageId, createdAt])
   @@index([senderUserId])
   @@index([senderCoworkerId])
+  @@index([deletedAt])
   @@map("chat_room_message")
 }
 
@@ -1774,8 +1788,10 @@ model ChatRoomReadState {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   lastReadAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  /// Null = not forced-unread. Cleared whenever mark-read runs.
+  markedUnreadAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([roomId, userId])
   @@index([userId])

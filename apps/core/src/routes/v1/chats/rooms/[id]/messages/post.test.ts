@@ -11,6 +11,7 @@ const {
   roomFindFirstMock,
   roomUpdateMock,
   messageFindFirstMock,
+  messageFindUniqueMock,
   messageFindManyMock,
   messageCreateMock,
   readStateUpsertMock,
@@ -24,6 +25,7 @@ const {
   roomFindFirstMock: vi.fn(),
   roomUpdateMock: vi.fn(),
   messageFindFirstMock: vi.fn(),
+  messageFindUniqueMock: vi.fn(),
   messageFindManyMock: vi.fn(),
   messageCreateMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
@@ -38,6 +40,12 @@ const {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    chatRoom: {
+      findFirst: roomFindFirstMock,
+    },
+    chatRoomMessage: {
+      findUnique: messageFindUniqueMock,
+    },
   },
 }));
 
@@ -67,6 +75,20 @@ const quoteSnapshot = {
   messageId: QUOTE_MESSAGE_ID,
   authorName: "Alice",
   snippet: "Earlier point about launch risk",
+  attachment: null,
+};
+
+const imageQuoteContent =
+  "see this [launch.png](https://blob.example/launch.png)";
+const imageQuoteSnapshot = {
+  messageId: QUOTE_MESSAGE_ID,
+  authorName: "Alice",
+  snippet: "see this",
+  attachment: {
+    fileName: "launch.png",
+    url: "https://blob.example/launch.png",
+    mediaKind: "image" as const,
+  },
 };
 
 const tx = {
@@ -76,6 +98,7 @@ const tx = {
   },
   chatRoomMessage: {
     findFirst: messageFindFirstMock,
+    findUnique: messageFindUniqueMock,
     findMany: messageFindManyMock,
     create: messageCreateMock,
   },
@@ -202,6 +225,7 @@ function createdMessage(
     content: "hello",
     metadata: overrides.metadata ?? null,
     createdAt: new Date("2025-01-02T00:00:00.000Z"),
+    editedAt: null,
     senderUser: overrides.senderUserId
       ? {
           id: overrides.senderUserId,
@@ -258,6 +282,7 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   roomUpdateMock.mockResolvedValue({});
   readStateUpsertMock.mockResolvedValue({});
+  messageFindUniqueMock.mockResolvedValue(null);
   emitChatMentionNotificationsMock.mockResolvedValue(undefined);
   waitUntilMock.mockImplementation(() => {});
 });
@@ -574,6 +599,129 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
   });
 
+  describe("clientMessageId idempotency", () => {
+    const CLIENT_MESSAGE_ID = "client-msg-dedup-1";
+
+    it("includes clientMessageId on create when provided", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindUniqueMock.mockResolvedValue(null);
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderUserId: USER_ID }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "hello once",
+          clientMessageId: CLIENT_MESSAGE_ID,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            clientMessageId: CLIENT_MESSAGE_ID,
+            metadata: expect.objectContaining({
+              client_message_id: CLIENT_MESSAGE_ID,
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("returns the existing message for the same clientMessageId without recreating or re-dispatching", async () => {
+      const existing = createdMessage({
+        senderUserId: USER_ID,
+        mentionsAsSource: [
+          {
+            id: MENTION_ID,
+            coworkerId: COWORKER_ID,
+            status: "pending",
+            responseMessageId: null,
+          },
+        ],
+      });
+
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindUniqueMock
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(existing);
+      messageCreateMock.mockResolvedValue(existing);
+
+      const app = createApp(userAuthContext);
+      const first = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: `@${COWORKER_ID}:hannah hello`,
+          mentionedCoworkerIds: [COWORKER_ID],
+          clientMessageId: CLIENT_MESSAGE_ID,
+        }),
+      });
+      expect(first.status).toBe(201);
+      expect(messageCreateMock).toHaveBeenCalledTimes(1);
+      expect(dispatchMock).toHaveBeenCalledTimes(1);
+
+      const second = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: `@${COWORKER_ID}:hannah hello`,
+          mentionedCoworkerIds: [COWORKER_ID],
+          clientMessageId: CLIENT_MESSAGE_ID,
+        }),
+      });
+      expect(second.status).toBe(201);
+      const secondBody = await second.json();
+      expect(secondBody.data.id).toBe(MESSAGE_ID);
+      expect(messageCreateMock).toHaveBeenCalledTimes(1);
+      expect(dispatchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns the raced message when create hits clientMessageId unique (P2002)", async () => {
+      const existing = createdMessage({ senderUserId: USER_ID });
+
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      // Soft-find miss in the aborted tx, then root re-read after P2002.
+      messageFindUniqueMock
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(existing);
+      messageCreateMock.mockRejectedValue({
+        code: "P2002",
+        meta: { target: ["roomId", "clientMessageId"] },
+      });
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "hello once",
+          clientMessageId: CLIENT_MESSAGE_ID,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.id).toBe(MESSAGE_ID);
+      expect(messageCreateMock).toHaveBeenCalledTimes(1);
+      expect(dispatchMock).not.toHaveBeenCalled();
+      expect(messageFindUniqueMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            roomId_clientMessageId: {
+              roomId: ROOM_ID,
+              clientMessageId: CLIENT_MESSAGE_ID,
+            },
+          },
+        }),
+      );
+    });
+  });
+
   describe("quote", () => {
     it("persists quote snapshot in metadata and returns typed quote", async () => {
       roomFindFirstMock.mockResolvedValue(roomWithMembers());
@@ -603,7 +751,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
       expect(messageFindFirstMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID },
+          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID, deletedAt: null },
         }),
       );
       expect(messageCreateMock).toHaveBeenCalledWith(
@@ -715,6 +863,40 @@ describe("POST /chats/rooms/{id}/messages", () => {
           data: expect.objectContaining({
             parentMessageId: null,
             metadata: { quote: quoteSnapshot },
+          }),
+        }),
+      );
+    });
+
+    it("persists image attachment cue when quoting a message with an image link", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      messageFindFirstMock.mockResolvedValue(
+        quotedSourceMessage({ content: imageQuoteContent }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          senderUserId: USER_ID,
+          metadata: { quote: imageQuoteSnapshot },
+        }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "nice shot",
+          quote: { messageId: QUOTE_MESSAGE_ID },
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.quote).toEqual(imageQuoteSnapshot);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            metadata: { quote: imageQuoteSnapshot },
           }),
         }),
       );

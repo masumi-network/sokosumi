@@ -192,12 +192,26 @@ const quoteSnapshot = {
   messageId: QUOTE_MESSAGE_ID,
   authorName: "Alice",
   snippet: "Earlier point about launch risk",
+  attachment: null,
 };
 
-function quotedSourceMessage() {
+const imageQuoteContent =
+  "see this [launch.png](https://blob.example/launch.png)";
+const imageQuoteSnapshot = {
+  messageId: QUOTE_MESSAGE_ID,
+  authorName: "Alice",
+  snippet: "see this",
+  attachment: {
+    fileName: "launch.png",
+    url: "https://blob.example/launch.png",
+    mediaKind: "image" as const,
+  },
+};
+
+function quotedSourceMessage(overrides: Partial<{ content: string }> = {}) {
   return {
     id: QUOTE_MESSAGE_ID,
-    content: "Earlier point about launch risk",
+    content: overrides.content ?? "Earlier point about launch risk",
     senderUser: { name: "Alice" },
     senderCoworker: null,
   };
@@ -906,7 +920,7 @@ describe("POST /chats/rooms/{id}/stream", () => {
       expect(streamTextMock).toHaveBeenCalledOnce();
       expect(chatRoomMessageFindFirstMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID },
+          where: { id: QUOTE_MESSAGE_ID, roomId: ROOM_ID, deletedAt: null },
         }),
       );
     });
@@ -964,6 +978,33 @@ describe("POST /chats/rooms/{id}/stream", () => {
         }),
       );
       expect(streamTextMock).toHaveBeenCalledOnce();
+    });
+
+    it("persists image attachment cue when quoting a message with an image link", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithOneCoworker());
+      chatRoomMessageFindFirstMock.mockResolvedValue(
+        quotedSourceMessage({ content: imageQuoteContent }),
+      );
+
+      const response = await postStream({
+        messages: [
+          {
+            role: "user",
+            parts: [{ type: "text", text: "nice shot" }],
+          },
+        ],
+        quote: { messageId: QUOTE_MESSAGE_ID },
+      });
+
+      expect(response.status).toBe(200);
+      expect(persistUserMessageToChatRoomMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roomId: ROOM_ID,
+          contentText: "nice shot",
+          parentMessageId: null,
+          metadata: { quote: imageQuoteSnapshot },
+        }),
+      );
     });
   });
 
