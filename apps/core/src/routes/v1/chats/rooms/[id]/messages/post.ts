@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
+import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -116,6 +117,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         return message;
       });
+
+      await publishChatRoomMessageRealtime(message);
 
       return created(
         c,
@@ -315,6 +318,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           "clientMessageId already used by another sender in this room",
         );
       }
+      await publishChatRoomMessageRealtime(raced);
+
       return created(
         c,
         chatRoomMessageSchema.parse(
@@ -345,6 +350,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
     }
+
+    await publishChatRoomMessageRealtime(message);
 
     return created(
       c,

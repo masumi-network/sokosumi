@@ -774,6 +774,8 @@
       "browserPermissionDescription": "Permite notificaciones del navegador para trabajos, tareas, facturación, sistema y chat mientras Sokosumi esté abierto pero no enfocado.",
       "browserPermissionEnable": "Activar notificaciones del navegador",
       "browserPermissionRequesting": "Esperando permiso…",
+      "browserPermissionDeniedTitle": "Las notificaciones del navegador están bloqueadas",
+      "browserPermissionDeniedDescription": "Las notificaciones de este sitio están bloqueadas en tu navegador. Abre la configuración de notificaciones del navegador para Sokosumi y permítelas.",
       "vendorGrantAcceptSuccess": "Acceso de proveedor aprobado",
       "vendorGrantAcceptError": "No se pudo aprobar el acceso de proveedor"
     },

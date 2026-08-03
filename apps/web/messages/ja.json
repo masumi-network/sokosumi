@@ -774,6 +774,8 @@
       "browserPermissionDescription": "Sokosumiが開いているがフォーカスされていない間も、ジョブ・タスク・請求・システム・チャットのブラウザ通知を許可します。",
       "browserPermissionEnable": "ブラウザ通知を有効にする",
       "browserPermissionRequesting": "許可を待機中…",
+      "browserPermissionDeniedTitle": "ブラウザ通知がブロックされています",
+      "browserPermissionDeniedDescription": "このサイトの通知はブラウザでブロックされています。Sokosumi のブラウザ通知設定を開いて許可してください。",
       "vendorGrantAcceptSuccess": "ベンダーアクセスを承認しました",
       "vendorGrantAcceptError": "ベンダーアクセスの承認に失敗しました"
     },

@@ -774,6 +774,8 @@
       "browserPermissionDescription": "Erlaube Browser-Benachrichtigungen für Jobs, Tasks, Abrechnung, System und Chat, während Sokosumi geöffnet, aber nicht fokussiert ist.",
       "browserPermissionEnable": "Browser-Benachrichtigungen aktivieren",
       "browserPermissionRequesting": "Warte auf Berechtigung…",
+      "browserPermissionDeniedTitle": "Browser-Benachrichtigungen sind blockiert",
+      "browserPermissionDeniedDescription": "Benachrichtigungen für diese Website sind in deinem Browser blockiert. Öffne die Browser-Benachrichtigungseinstellungen für Sokosumi, um sie zuzulassen.",
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
       "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden"
     },

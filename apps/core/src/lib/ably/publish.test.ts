@@ -3,6 +3,7 @@ import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  publishChatRoomMessageEvent,
   publishJobStatusData,
   publishNotificationEvent,
   publishTaskEventData,
@@ -87,5 +88,43 @@ describe("publishNotificationEvent", () => {
       "notification_created",
       notification,
     );
+  });
+});
+
+describe("publishChatRoomMessageEvent", () => {
+  it("publishes chat room message event to the user channel", async () => {
+    const message = {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      content: "hello",
+      createdAt: "2026-08-03T12:00:00.000Z",
+      deletedAt: null,
+      editedAt: null,
+      sender: {
+        type: "user" as const,
+        user: {
+          id: "user_123",
+          name: "Alice",
+          email: "alice@example.com",
+          image: null,
+          presence: "online" as const,
+        },
+      },
+      mentions: [],
+      reactions: [],
+      threadReplyCount: 0,
+      threadLastReplyAt: null,
+      metadata: null,
+      quote: null,
+    };
+
+    await publishChatRoomMessageEvent({
+      userId: "user_123",
+      message,
+    });
+
+    expect(getMock).toHaveBeenCalledWith("chat_rooms:all:user_user_123");
+    expect(publishMock).toHaveBeenCalledWith("chat_room_message", { message });
   });
 });

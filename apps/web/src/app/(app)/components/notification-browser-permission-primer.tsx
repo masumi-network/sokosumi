@@ -11,6 +11,7 @@ import {
   type BrowserNotificationPermission,
   getBrowserNotificationPermission,
   requestBrowserNotificationPermission,
+  subscribeBrowserNotificationPermission,
 } from "@/lib/utils/browser-notification";
 
 interface NotificationBrowserPermissionPrimerProps {
@@ -29,10 +30,40 @@ export function NotificationBrowserPermissionPrimer({
 
   useMountEffect(() => {
     setPermission(getBrowserNotificationPermission());
+    return subscribeBrowserNotificationPermission(setPermission);
   });
 
-  if (permission !== "default") {
+  if (
+    permission === null ||
+    permission === "granted" ||
+    permission === "unsupported"
+  ) {
     return null;
+  }
+
+  if (permission === "denied") {
+    return (
+      <div
+        className={cn(
+          "border-border/60 bg-muted/30 flex flex-col gap-2 rounded-md border p-3",
+          variant === "page" &&
+            "sm:flex-row sm:items-center sm:justify-between",
+          className,
+        )}
+      >
+        <div className="flex min-w-0 items-start gap-2">
+          <BellRing className="text-primary mt-0.5 size-4 shrink-0" />
+          <div className="min-w-0 space-y-1">
+            <p className="text-sm leading-snug font-medium">
+              {t("browserPermissionDeniedTitle")}
+            </p>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              {t("browserPermissionDeniedDescription")}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const handleEnable = () => {

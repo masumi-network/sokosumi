@@ -12,6 +12,7 @@ export default async function createAuthTokenRequest(userId: string) {
       [`agent_jobs:*:user_${userId}`]: ["subscribe"],
       [`tasks:*:user_${userId}`]: ["subscribe"],
       [`notifications:*:user_${userId}`]: ["subscribe"],
+      [`chat_rooms:*:user_${userId}`]: ["subscribe"],
     },
   });
   return tokenRequest;

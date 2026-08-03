@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -118,6 +119,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       return updated;
     });
+
+    await publishChatRoomMessageRealtime(message);
 
     return ok(
       c,

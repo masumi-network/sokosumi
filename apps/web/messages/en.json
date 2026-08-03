@@ -790,6 +790,8 @@
       "browserPermissionDescription": "Allow browser notifications for jobs, tasks, billing, system, and chat updates while Sokosumi is open but not focused.",
       "browserPermissionEnable": "Enable browser notifications",
       "browserPermissionRequesting": "Waiting for permission…",
+      "browserPermissionDeniedTitle": "Browser notifications are blocked",
+      "browserPermissionDeniedDescription": "Notifications for this site are blocked in your browser. Open your browser’s notification settings for Sokosumi to allow them.",
       "vendorGrantAcceptSuccess": "Vendor access approved",
       "vendorGrantAcceptError": "Failed to approve vendor access"
     },
