@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import {
   createMentionSpan,
   deslugifyMentionSlug,
+  filterNormalizedMentions,
   findPositionForOffset,
   getActiveTrigger,
   getCaretRect,
@@ -158,11 +159,8 @@ export const MarkdownEditor = forwardRef<
   );
 
   const filteredMentions = useMemo(() => {
-    if (query === null || query === "") return normalizedMentions;
-    const normalizedQuery = query.toLowerCase();
-    return normalizedMentions.filter((mention) =>
-      mention.value.toLowerCase().includes(normalizedQuery),
-    );
+    if (query === null) return normalizedMentions;
+    return filterNormalizedMentions(normalizedMentions, query);
   }, [normalizedMentions, query]);
 
   const openSuggestions = useCallback(
