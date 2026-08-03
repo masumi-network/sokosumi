@@ -183,13 +183,35 @@ describe("ChatParticipantHoverCard", () => {
   it("names the avatar trigger with the participant name", () => {
     render(
       <ChatParticipantHoverCard profile={humanProfile}>
-        <span aria-hidden="true">avatar</span>
+        <span>avatar</span>
       </ChatParticipantHoverCard>,
     );
 
     expect(
       screen.getByRole("button", { name: "Ada Lovelace" }),
     ).toBeInTheDocument();
+  });
+
+  it("uses the child control itself as the hover trigger hit target", () => {
+    render(
+      <div className="flex" style={{ display: "flex", height: 400 }}>
+        <ChatParticipantHoverCard
+          profile={humanProfile}
+          className="mt-0.5 shrink-0"
+        >
+          <span
+            data-testid="avatar-hit-target"
+            className="size-8"
+            style={{ width: 32, height: 32, display: "block" }}
+          />
+        </ChatParticipantHoverCard>
+        <div style={{ flex: 1 }}>tall message body</div>
+      </div>,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Ada Lovelace" });
+    expect(trigger).toHaveAttribute("data-testid", "avatar-hit-target");
+    expect(trigger).toHaveClass("size-8");
   });
 
   it("renders children only when profile is missing", () => {

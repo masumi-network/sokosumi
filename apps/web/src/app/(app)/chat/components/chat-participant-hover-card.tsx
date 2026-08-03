@@ -2,7 +2,13 @@
 
 import { Loader2, MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { CSSProperties, ReactNode } from "react";
+import {
+  Children,
+  type CSSProperties,
+  cloneElement,
+  isValidElement,
+  type ReactNode,
+} from "react";
 
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,6 +42,68 @@ interface ChatParticipantHoverCardProps {
   isOpeningDirect?: boolean;
   /** True while any hover-card DM open is in flight (disables Message). */
   isDirectActionBusy?: boolean;
+}
+
+interface TriggerChildProps {
+  className?: string;
+  style?: CSSProperties;
+  role?: string;
+  tabIndex?: number;
+  "aria-label"?: string;
+  "aria-hidden"?: boolean | "true" | "false";
+}
+
+function renderHoverTrigger({
+  profileName,
+  children,
+  className,
+  style,
+}: {
+  profileName: string;
+  children: ReactNode;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  const childItems = Children.toArray(children).filter((child) => {
+    if (typeof child === "string" || typeof child === "number") {
+      return String(child).trim().length > 0;
+    }
+    return true;
+  });
+  const singleChild =
+    childItems.length === 1 && isValidElement<TriggerChildProps>(childItems[0])
+      ? childItems[0]
+      : null;
+
+  if (singleChild) {
+    return cloneElement(singleChild, {
+      role: singleChild.props.role ?? "button",
+      tabIndex: singleChild.props.tabIndex ?? 0,
+      "aria-label": singleChild.props["aria-label"] ?? profileName,
+      "aria-hidden": undefined,
+      style: { ...singleChild.props.style, ...style },
+      className: cn(
+        "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        singleChild.props.className,
+        className,
+      ),
+    });
+  }
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      aria-label={profileName}
+      style={style}
+      className={cn(
+        "relative inline-flex w-fit max-w-full cursor-pointer self-start p-0 leading-none outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
 }
 
 export function ChatParticipantHoverCard({
@@ -74,17 +142,12 @@ export function ChatParticipantHoverCard({
   return (
     <HoverCard openDelay={200} closeDelay={100}>
       <HoverCardTrigger asChild>
-        <button
-          type="button"
-          style={style}
-          aria-label={profile.name}
-          className={cn(
-            "relative inline-flex max-w-full cursor-pointer rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            className,
-          )}
-        >
-          {children}
-        </button>
+        {renderHoverTrigger({
+          profileName: profile.name,
+          children,
+          className,
+          style,
+        })}
       </HoverCardTrigger>
       <HoverCardContent
         side={side}
