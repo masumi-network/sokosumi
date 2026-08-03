@@ -167,163 +167,106 @@ export function CreateChannelDialog({
     });
   }
 
+  const isCreateStep = wizard.step === "name" || wizard.step === "visibility";
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={cn(
-          "max-h-[calc(100svh-2rem)] overflow-y-auto shadow-none sm:max-w-lg",
-          wizard.step === "visibility" && "gap-8",
-        )}
-        aria-describedby={undefined}
+        className="max-h-[calc(100svh-2rem)] gap-6 overflow-y-auto shadow-none sm:max-w-lg"
+        {...(wizard.step !== "visibility"
+          ? { "aria-describedby": undefined }
+          : {})}
       >
-        <DialogHeader
-          className={wizard.step === "visibility" ? "gap-1.5" : undefined}
-        >
+        <DialogHeader className={cn(isCreateStep && "gap-1.5")}>
           <DialogTitle>
             {wizard.step === "add-people"
               ? t("addPeopleTitle", { name: wizard.roomName })
               : t("title")}
           </DialogTitle>
           {wizard.step === "visibility" ? (
-            <DialogDescription className="text-muted-foreground text-xs font-normal tracking-normal">
+            <DialogDescription className="text-muted-foreground text-xs font-normal">
               {t("visibilitySubtitle", { name: wizard.name })}
             </DialogDescription>
           ) : null}
         </DialogHeader>
 
         {wizard.step === "name" ? (
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="create-channel-name">{t("nameLabel")}</Label>
-              <div className="relative">
-                <span
-                  className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
-                  aria-hidden
-                >
-                  #
-                </span>
-                <Input
-                  id="create-channel-name"
-                  value={wizard.name}
-                  onChange={(event) =>
-                    setWizard({
-                      step: "name",
-                      name: sanitizeChannelNameInput(event.target.value),
-                    })
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handleNameNext();
-                    }
-                  }}
-                  placeholder={t("namePlaceholder")}
-                  className="pr-10 pl-7"
-                  autoFocus
-                  maxLength={CHANNEL_NAME_MAX}
-                />
-                <span
-                  className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums"
-                  aria-hidden
-                >
-                  {remainingNameChars(wizard.name)}
-                </span>
-              </div>
-              <p className="text-muted-foreground text-xs">{t("nameHelp")}</p>
-            </div>
-            <DialogFooter className="sm:justify-between">
-              <p className="text-muted-foreground text-sm">
-                {t("stepOf", { current: createStepNumber, total: 2 })}
-              </p>
-              <Button
-                type="button"
-                variant="primary"
-                disabled={!canAdvanceFromName(wizard) || isPending}
-                onClick={handleNameNext}
+          <div className="space-y-2">
+            <Label htmlFor="create-channel-name">{t("nameLabel")}</Label>
+            <div className="relative">
+              <span
+                className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm"
+                aria-hidden
               >
-                {t("next")}
-              </Button>
-            </DialogFooter>
+                #
+              </span>
+              <Input
+                id="create-channel-name"
+                value={wizard.name}
+                onChange={(event) =>
+                  setWizard({
+                    step: "name",
+                    name: sanitizeChannelNameInput(event.target.value),
+                  })
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleNameNext();
+                  }
+                }}
+                placeholder={t("namePlaceholder")}
+                className="pr-10 pl-7"
+                autoFocus
+                maxLength={CHANNEL_NAME_MAX}
+              />
+              <span
+                className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums"
+                aria-hidden
+              >
+                {remainingNameChars(wizard.name)}
+              </span>
+            </div>
+            <p className="text-muted-foreground text-xs">{t("nameHelp")}</p>
           </div>
         ) : null}
 
         {wizard.step === "visibility" ? (
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <Label className="text-sm font-medium">
-                {tVisibility("label")}
-              </Label>
-              <RadioGroup
-                value={wizard.discoverability}
-                onValueChange={(value) => {
-                  if (value === "public" || value === "private") {
-                    setWizard(setDiscoverability(wizard, value));
-                  }
-                }}
-                className="space-y-5"
-              >
-                <div className="flex items-start gap-3">
-                  <RadioGroupItem
-                    value="public"
-                    id="create-channel-public"
-                    className="mt-0.5"
-                  />
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="create-channel-public"
-                      className="cursor-pointer font-normal"
-                    >
-                      {tVisibility("public")}
-                    </Label>
-                    <p className="text-muted-foreground text-xs leading-relaxed">
-                      {tVisibility("publicHelp")}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <RadioGroupItem
-                    value="private"
-                    id="create-channel-private"
-                    className="mt-0.5"
-                  />
-                  <div className="space-y-1.5">
-                    <Label
-                      htmlFor="create-channel-private"
-                      className="cursor-pointer font-normal"
-                    >
-                      {tVisibility("private")}
-                    </Label>
-                    <p className="text-muted-foreground text-xs leading-relaxed">
-                      {tVisibility("privateHelp")}
-                    </p>
-                  </div>
-                </div>
-              </RadioGroup>
-            </div>
-            <DialogFooter className="gap-2 sm:justify-between">
-              <p className="text-muted-foreground mr-auto self-center text-sm">
-                {t("stepOf", { current: createStepNumber, total: 2 })}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={isPending}
-                onClick={() => setWizard(backToName(wizard))}
-              >
-                {t("back")}
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                disabled={isPending}
-                onClick={handleCreate}
-              >
-                {isPending ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : null}
-                {isPending ? t("creating") : t("create")}
-              </Button>
-            </DialogFooter>
+          <div className="space-y-2">
+            <Label>{tVisibility("label")}</Label>
+            <RadioGroup
+              value={wizard.discoverability}
+              onValueChange={(value) => {
+                if (value === "public" || value === "private") {
+                  setWizard(setDiscoverability(wizard, value));
+                }
+              }}
+              className="flex flex-wrap gap-4"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="public" id="create-channel-public" />
+                <Label
+                  htmlFor="create-channel-public"
+                  className="cursor-pointer font-normal"
+                >
+                  {tVisibility("public")}
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="private" id="create-channel-private" />
+                <Label
+                  htmlFor="create-channel-private"
+                  className="cursor-pointer font-normal"
+                >
+                  {tVisibility("private")}
+                </Label>
+              </div>
+            </RadioGroup>
+            <p className="text-muted-foreground text-xs">
+              {wizard.discoverability === "public"
+                ? tVisibility("publicHelp")
+                : tVisibility("privateHelp")}
+            </p>
           </div>
         ) : null}
 
@@ -336,13 +279,13 @@ export function CreateChannelDialog({
                   setWizard(setAddPeopleMode(wizard, value));
                 }
               }}
-              className="space-y-3"
+              className="gap-4"
             >
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-3">
                 <RadioGroupItem
                   value="all"
                   id="create-channel-add-all"
-                  className="mt-1"
+                  className="mt-0.5"
                 />
                 <Label
                   htmlFor="create-channel-add-all"
@@ -354,11 +297,11 @@ export function CreateChannelDialog({
                   })}
                 </Label>
               </div>
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-3">
                 <RadioGroupItem
                   value="specific"
                   id="create-channel-add-specific"
-                  className="mt-1"
+                  className="mt-0.5"
                 />
                 <div className="min-w-0 flex-1 space-y-1">
                   <Label
@@ -399,29 +342,69 @@ export function CreateChannelDialog({
                 membersLoadFailed={membersLoadFailed}
               />
             ) : null}
+          </div>
+        ) : null}
 
-            <DialogFooter className="gap-2 sm:justify-between">
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={isPending}
-                onClick={handleSkip}
-              >
-                {t("skip")}
-              </Button>
+        {isCreateStep ? (
+          <DialogFooter className="gap-2 sm:justify-between">
+            <p className="text-muted-foreground self-center text-sm">
+              {t("stepOf", { current: createStepNumber, total: 2 })}
+            </p>
+            <div className="flex gap-2">
+              {wizard.step === "visibility" ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={isPending}
+                  onClick={() => setWizard(backToName(wizard))}
+                >
+                  {t("back")}
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="primary"
-                disabled={isPending}
-                onClick={handleAddPeople}
+                disabled={
+                  isPending ||
+                  (wizard.step === "name" && !canAdvanceFromName(wizard))
+                }
+                onClick={wizard.step === "name" ? handleNameNext : handleCreate}
               >
-                {isPending ? (
+                {wizard.step === "visibility" && isPending ? (
                   <Loader2 className="size-4 animate-spin" aria-hidden />
                 ) : null}
-                {isPending ? t("adding") : t("add")}
+                {wizard.step === "name"
+                  ? t("next")
+                  : isPending
+                    ? t("creating")
+                    : t("create")}
               </Button>
-            </DialogFooter>
-          </div>
+            </div>
+          </DialogFooter>
+        ) : null}
+
+        {wizard.step === "add-people" ? (
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={isPending}
+              onClick={handleSkip}
+            >
+              {t("skip")}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={isPending}
+              onClick={handleAddPeople}
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : null}
+              {isPending ? t("adding") : t("add")}
+            </Button>
+          </DialogFooter>
         ) : null}
       </DialogContent>
     </Dialog>
