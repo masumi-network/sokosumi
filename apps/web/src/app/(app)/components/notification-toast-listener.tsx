@@ -58,16 +58,16 @@ export function NotificationToastListener({
   useNotificationRealtime({
     userId,
     onNotification: (notification) => {
-      const documentHidden =
-        typeof document !== "undefined" ? document.hidden : false;
+      const isDocumentFocused =
+        typeof document !== "undefined" ? document.hasFocus() : true;
       const permission = getBrowserNotificationPermission();
       const showBrowser = shouldShowBrowserNotification({
         permission,
-        documentHidden,
+        isDocumentFocused,
         isRead: notification.isRead,
       });
       const showToast = shouldShowInAppNotificationToast({
-        documentHidden,
+        isDocumentFocused,
         isRead: notification.isRead,
       });
 
