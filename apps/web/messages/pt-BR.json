@@ -4620,7 +4620,7 @@
         "membersLoadFailedDescription": "Os membros da organização estão temporariamente indisponíveis. Tente novamente em instantes.",
         "membersLoadFailedRetry": "Tentar novamente",
         "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+        "noChannelDescription": "Canais são para conversas em torno de um tópico. Crie um para começar."
       },
       "Dialog": {
         "createTitle": "Create channel",
@@ -4784,6 +4784,26 @@
         "private": "Privado",
         "publicHelp": "Qualquer pessoa na organização pode encontrar e entrar neste canal.",
         "privateHelp": "Somente membros convidados podem ver este canal."
+      },
+      "CreateWizard": {
+        "title": "Criar um canal",
+        "nameLabel": "Nome",
+        "nameHelp": "Canais são espaços para conversas em torno de um tópico. Use um nome claro que as pessoas reconheçam.",
+        "nameRequired": "O nome do canal é obrigatório.",
+        "next": "Avançar",
+        "back": "Voltar",
+        "create": "Criar",
+        "stepOf": "Etapa {current} de {total}",
+        "visibilitySubtitle": "# {name}",
+        "addPeopleTitle": "Adicionar pessoas a #{name}",
+        "addAll": "Adicionar todos os {count} membros de {organization}",
+        "addSpecific": "Adicionar pessoas específicas",
+        "addSpecificHelp": "Selecione pessoas e colegas de IA para adicionar a este canal.",
+        "add": "Adicionar",
+        "skip": "Pular por enquanto",
+        "creating": "Criando…",
+        "adding": "Adicionando…",
+        "close": "Fechar"
       }
     }
   },

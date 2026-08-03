@@ -47,17 +47,6 @@ interface SendNewDirectMessageInput {
   mentionedUserIds?: string[];
 }
 
-interface SendNewChannelMessageInput {
-  name: string;
-  topic?: string;
-  discoverability?: ChannelDiscoverability;
-  memberUserIds?: string[];
-  coworkerIds?: string[];
-  content: string;
-  mentionedCoworkerIds?: string[];
-  mentionedUserIds?: string[];
-}
-
 interface SendNewDirectMessageResult {
   room: ChatRoom;
   message: ChatRoomMessage;
@@ -235,48 +224,6 @@ export async function sendNewDirectMessageAction(
     return {
       ok: false,
       message: actionErrorMessage(error, "Could not start direct message."),
-    };
-  }
-}
-
-export async function sendNewChannelMessageAction(
-  input: SendNewChannelMessageInput,
-): Promise<RoomActionResult<SendNewDirectMessageResult>> {
-  const activeOrganization = await userService.getActiveOrganization();
-  if (!activeOrganization) {
-    return { ok: false, message: "Select an organization first." };
-  }
-
-  const name = cleanString(input.name);
-  if (!name) {
-    return { ok: false, message: "Channel name is required." };
-  }
-
-  const cleanContent = cleanString(input.content);
-  if (!cleanContent) {
-    return { ok: false, message: "Message is required." };
-  }
-
-  try {
-    const room = await chatRoomService.createRoom({
-      kind: "channel",
-      name,
-      topic: cleanString(input.topic),
-      discoverability: cleanDiscoverability(input.discoverability) ?? "public",
-      memberUserIds: cleanIds(input.memberUserIds),
-      coworkerIds: cleanIds(input.coworkerIds),
-    });
-    const message = await chatRoomService.sendMessage(room.id, {
-      content: cleanContent,
-      mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
-      mentionedUserIds: cleanIds(input.mentionedUserIds),
-    });
-    revalidatePath("/chat");
-    return { ok: true, data: { room, message } };
-  } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not create channel."),
     };
   }
 }

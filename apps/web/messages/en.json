@@ -4739,7 +4739,7 @@
         "membersLoadFailedDescription": "Organization members are temporarily unavailable. Try again in a moment.",
         "membersLoadFailedRetry": "Retry",
         "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+        "noChannelDescription": "Channels are for conversations around a topic. Create one to get started."
       },
       "Dialog": {
         "createTitle": "Create channel",
@@ -4903,6 +4903,26 @@
         "private": "Private",
         "publicHelp": "Anyone in the organization can find and join this channel.",
         "privateHelp": "Only invited members can see this channel."
+      },
+      "CreateWizard": {
+        "title": "Create a channel",
+        "nameLabel": "Name",
+        "nameHelp": "Channels are where conversations happen around a topic. Use a clear name people will recognize.",
+        "nameRequired": "Channel name is required.",
+        "next": "Next",
+        "back": "Back",
+        "create": "Create",
+        "stepOf": "Step {current} of {total}",
+        "visibilitySubtitle": "# {name}",
+        "addPeopleTitle": "Add people to #{name}",
+        "addAll": "Add all {count} members of {organization}",
+        "addSpecific": "Add specific people",
+        "addSpecificHelp": "Select people and AI coworkers to add to this channel.",
+        "add": "Add",
+        "skip": "Skip for now",
+        "creating": "Creating…",
+        "adding": "Adding…",
+        "close": "Close"
       }
     }
   },
