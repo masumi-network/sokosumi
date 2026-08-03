@@ -1815,6 +1815,7 @@
           "customLabel": "Charte de marque de {hostname}",
           "tooltip": "DESIGN.md est une charte de marque déjà créée pour {organization} par son propriétaire. La joindre ici aide cet agent à appliquer automatiquement votre marque.",
           "tooltipPersonal": "DESIGN.md est une charte de marque que vous avez déjà créée. La joindre ici aide cet agent à appliquer automatiquement votre marque.",
+          "tooltipCustom": "DESIGN.md généré à partir de {hostname} pour cette tâche uniquement. La joindre ici aide cet agent à appliquer cette marque. Rien n'est enregistré dans votre profil.",
           "learnMore": "En savoir plus sur DESIGN.md",
           "infoAria": "À propos de cette pièce jointe",
           "useDifferentBranding": "Utiliser une autre marque",

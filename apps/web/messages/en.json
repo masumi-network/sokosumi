@@ -1826,6 +1826,7 @@
           "customLabel": "{hostname} Brand Design",
           "tooltip": "DESIGN.md is a brand guide already created for {organization} by its owner. Attaching it here helps this agent apply your branding automatically.",
           "tooltipPersonal": "DESIGN.md is a brand guide you already created. Attaching it here helps this agent apply your branding automatically.",
+          "tooltipCustom": "DESIGN.md generated from {hostname} for this task only. Attaching it here helps this agent apply that branding. Nothing is saved to your profile.",
           "learnMore": "Learn more about DESIGN.md",
           "infoAria": "About this attachment",
           "useDifferentBranding": "Use different branding",

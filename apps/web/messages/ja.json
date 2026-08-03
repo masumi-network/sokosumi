@@ -1815,6 +1815,7 @@
           "customLabel": "{hostname} のブランドデザイン",
           "tooltip": "DESIGN.md は、オーナーが {organization} 用にすでに作成したブランドガイドです。ここに添付すると、このエージェントが自動的にあなたのブランドを適用します。",
           "tooltipPersonal": "DESIGN.md は、あなたがすでに作成したブランドガイドです。ここに添付すると、このエージェントが自動的にあなたのブランドを適用します。",
+          "tooltipCustom": "{hostname} からこのタスク専用に生成された DESIGN.md です。ここに添付すると、このエージェントがそのブランドを適用します。プロフィールには保存されません。",
           "learnMore": "DESIGN.md について詳しく",
           "infoAria": "この添付について",
           "useDifferentBranding": "別のブランドを使用",

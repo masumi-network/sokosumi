@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildAdHocDesignMdPathname,
+  buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
   buildOrganizationDesignMdPrefix,
   buildUserDesignMdPathname,
@@ -51,6 +53,28 @@ describe("buildOrganizationDesignMdPathname", () => {
   it("keeps an extractionId-prefixed hash filename", () => {
     expect(buildOrganizationDesignMdPathname(ORG_ID, `55-${HASH}.md`)).toBe(
       `design-md/organizations/${ORG_ID}/55-${HASH}.md`,
+    );
+  });
+});
+
+describe("buildAdHocDesignMdPrefix", () => {
+  it("returns design-md/adhoc/{userId}/", () => {
+    expect(buildAdHocDesignMdPrefix(USER_ID)).toBe(
+      `design-md/adhoc/${USER_ID}/`,
+    );
+  });
+});
+
+describe("buildAdHocDesignMdPathname", () => {
+  it("appends the hash filename under the ad hoc design-md prefix", () => {
+    expect(buildAdHocDesignMdPathname(USER_ID, `${HASH}.md`)).toBe(
+      `design-md/adhoc/${USER_ID}/${HASH}.md`,
+    );
+  });
+
+  it("keeps an extractionId-prefixed hash filename", () => {
+    expect(buildAdHocDesignMdPathname(USER_ID, `99-${HASH}.md`)).toBe(
+      `design-md/adhoc/${USER_ID}/99-${HASH}.md`,
     );
   });
 });

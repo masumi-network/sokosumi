@@ -212,6 +212,34 @@ describe("TaskDesignMdAttachmentField", () => {
     expect(screen.getByText("resetToDefault")).toBeInTheDocument();
   });
 
+  it("explains the custom branding in the hover card, not the org default", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <TaskDesignMdAttachmentField
+        defaultAttachment={organizationAttachment}
+        selection={{
+          enabled: true,
+          custom: {
+            label: "DESIGN.md",
+            url: "https://blob.example/adhoc.md",
+            sourceUrl: "https://www.competitor.com",
+          },
+        }}
+        onSelectionChange={vi.fn()}
+      />,
+    );
+
+    await user.hover(screen.getByRole("button", { name: "infoAria" }));
+
+    expect(
+      await screen.findByText('tooltipCustom:{"hostname":"competitor.com"}'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('tooltip:{"organization":"Acme Inc"}'),
+    ).not.toBeInTheDocument();
+  });
+
   it("clears the custom attachment when reset is clicked, without reopening the dialog", async () => {
     const user = userEvent.setup();
     const onSelectionChange = vi.fn();
