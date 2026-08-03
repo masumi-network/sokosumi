@@ -1,6 +1,6 @@
 "use client";
 
-import { getExtensionFromUrl, isImageUrl } from "@sokosumi/utils";
+import { getExtensionFromUrl } from "@sokosumi/utils";
 import Image from "next/image";
 import { useState } from "react";
 
@@ -9,7 +9,7 @@ import { DocumentViewer } from "@/components/ui/document-viewer";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import { cn } from "@/lib/utils";
-import { getDocumentPreviewKind } from "@/lib/utils/file-preview";
+import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
 export interface FileChipProps extends React.ComponentPropsWithoutRef<"a"> {
@@ -35,14 +35,11 @@ export function FileChip(props: FileChipProps) {
     className,
     sizeClass = "size-10",
     iconPx = 40,
+    title,
     ...anchorProps
   } = props;
   const fileName = fileNameProp ?? url.split("/").pop() ?? url;
-  const isImage = isImageUrl(url);
-  const documentKind = !isImage
-    ? (getDocumentPreviewKind(url) ??
-      (fileNameProp ? getDocumentPreviewKind(fileNameProp) : null))
-    : null;
+  const { isImage, documentKind } = classifyFilePreview(url, fileNameProp);
   const canUseNextImage = canUseNextImageSrc(url);
   const prettySize = formatBytes(size);
   const containerSizeClass = sizeClass;
@@ -112,6 +109,7 @@ export function FileChip(props: FileChipProps) {
       <>
         <button
           type="button"
+          title={title}
           className={chipClassName}
           onClick={() => setIsImageViewerOpen(true)}
         >
@@ -133,6 +131,7 @@ export function FileChip(props: FileChipProps) {
       <>
         <button
           type="button"
+          title={title}
           className={chipClassName}
           onClick={() => setIsDocumentViewerOpen(true)}
         >
@@ -153,6 +152,7 @@ export function FileChip(props: FileChipProps) {
       href={url}
       target="_blank"
       rel="noreferrer noopener"
+      title={title}
       {...anchorProps}
       className={chipClassName}
     >

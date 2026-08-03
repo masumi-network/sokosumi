@@ -806,8 +806,8 @@
       "title": "ドキュメント",
       "viewDocument": "ドキュメントを表示 {fileName}",
       "download": "ドキュメントをダウンロード",
-      "close": "閉じる",
       "openInNewTab": "新しいタブで開く",
+      "loading": "ドキュメントを読み込み中…",
       "fetchError": "このドキュメントを読み込めませんでした。"
     }
   },

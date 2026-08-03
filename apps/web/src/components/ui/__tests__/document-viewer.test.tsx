@@ -15,8 +15,8 @@ vi.mock("next-intl", () => ({
     const labels: Record<string, string> = {
       title: "Document",
       download: "Download document",
-      close: "Close",
       openInNewTab: "Open in new tab",
+      loading: "Loading document…",
       fetchError: "This document couldn't be loaded.",
     };
     return labels[key] ?? key;
@@ -34,10 +34,10 @@ describe("DocumentViewer", () => {
       />,
     );
 
-    expect(screen.queryByTestId("document-viewer")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("embeds a PDF natively with the toolbar hidden, and keeps download/open-in-new-tab available", () => {
+  it("uses the standard themed dialog shell, not a full-screen lightbox", () => {
     render(
       <DocumentViewer
         open
@@ -48,11 +48,26 @@ describe("DocumentViewer", () => {
       />,
     );
 
-    const toolbar = screen.getByTestId("document-viewer-toolbar");
-    expect(toolbar).toHaveTextContent("report.pdf");
-    expect(toolbar).toContainElement(
-      screen.getByRole("button", { name: "Close" }),
+    const panel = screen.getByRole("dialog");
+    expect(panel).not.toHaveClass("bg-black");
+    expect(panel).not.toHaveClass("h-screen");
+  });
+
+  it("shows the filename, download, and open-in-new-tab controls, and keeps the default close button", () => {
+    render(
+      <DocumentViewer
+        open
+        onOpenChange={vi.fn()}
+        url="https://blob.example.com/report.pdf"
+        fileName="report.pdf"
+        mediaType="application/pdf"
+      />,
     );
+
+    expect(screen.getByText("report.pdf")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Close" }),
+    ).toBeInTheDocument();
 
     const download = screen.getByRole("link", { name: "Download document" });
     expect(download).toHaveAttribute(
@@ -67,6 +82,18 @@ describe("DocumentViewer", () => {
       "https://blob.example.com/report.pdf",
     );
     expect(openInNewTab).toHaveAttribute("target", "_blank");
+  });
+
+  it("embeds a PDF natively with the toolbar hidden", () => {
+    render(
+      <DocumentViewer
+        open
+        onOpenChange={vi.fn()}
+        url="https://blob.example.com/report.pdf"
+        fileName="report.pdf"
+        mediaType="application/pdf"
+      />,
+    );
 
     const iframe = screen.getByTitle("report.pdf");
     expect(iframe).toHaveAttribute(

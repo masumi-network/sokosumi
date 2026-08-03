@@ -806,8 +806,8 @@
       "title": "Document",
       "viewDocument": "Voir le document {fileName}",
       "download": "Télécharger le document",
-      "close": "Fermer",
       "openInNewTab": "Ouvrir dans un nouvel onglet",
+      "loading": "Chargement du document…",
       "fetchError": "Ce document n'a pas pu être chargé."
     }
   },

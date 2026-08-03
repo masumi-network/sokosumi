@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  classifyFilePreview,
   getDocumentPreviewKind,
   isOfficeFile,
   isOfficeMediaType,
@@ -151,5 +152,40 @@ describe("pdfEmbedUrl", () => {
     expect(pdfEmbedUrl("https://blob.example/report.pdf")).toBe(
       "https://blob.example/report.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
     );
+  });
+});
+
+describe("classifyFilePreview", () => {
+  it("classifies an image by URL extension", () => {
+    expect(classifyFilePreview("https://blob.example/photo.png")).toEqual({
+      isImage: true,
+      documentKind: null,
+    });
+  });
+
+  it("classifies an image by media type when the URL has no extension", () => {
+    expect(
+      classifyFilePreview("https://blob.example/photo", null, "image/png"),
+    ).toEqual({ isImage: true, documentKind: null });
+  });
+
+  it("classifies a document when it isn't an image", () => {
+    expect(classifyFilePreview("https://blob.example/report.pdf")).toEqual({
+      isImage: false,
+      documentKind: "pdf",
+    });
+  });
+
+  it("falls back to the filename when the URL has no extension", () => {
+    expect(
+      classifyFilePreview("https://blob.example/report", "report.docx"),
+    ).toEqual({ isImage: false, documentKind: "office" });
+  });
+
+  it("classifies unsupported file types as neither image nor document", () => {
+    expect(classifyFilePreview("https://blob.example/archive.zip")).toEqual({
+      isImage: false,
+      documentKind: null,
+    });
   });
 });

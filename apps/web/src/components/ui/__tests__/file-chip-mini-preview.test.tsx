@@ -28,8 +28,8 @@ vi.mock("next-intl", () => ({
           title: "Document",
           viewDocument: `View document ${values?.fileName ?? ""}`,
           download: "Download document",
-          close: "Close",
           openInNewTab: "Open in new tab",
+          loading: "Loading document…",
           fetchError: "This document couldn't be loaded.",
         };
         return documentLabels[key] ?? key;

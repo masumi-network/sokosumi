@@ -1,4 +1,4 @@
-import { getExtensionFromUrl } from "@sokosumi/utils";
+import { getExtensionFromUrl, isImageUrl } from "@sokosumi/utils";
 
 // Office files need the Microsoft viewer to embed; PDFs embed natively.
 const OFFICE_EXTENSIONS = new Set([
@@ -79,6 +79,35 @@ export function getDocumentPreviewKind(
   if (isPdfUrl(url) || isPdfMediaType(mediaType)) return "pdf";
   if (isTextPreviewUrl(url) || isTextPreviewMediaType(mediaType)) return "text";
   return null;
+}
+
+export interface FilePreviewClassification {
+  isImage: boolean;
+  documentKind: DocumentPreviewKind | null;
+}
+
+/**
+ * Classifies a file as an image, a previewable document, or neither — the
+ * single check every file-chip component needs to decide which viewer (if
+ * any) to open on click. Falls back to `fileName` when `url` itself has no
+ * useful extension (e.g. an extensionless blob key).
+ */
+export function classifyFilePreview(
+  url: string,
+  fileName?: string | null,
+  mediaType?: string | null,
+): FilePreviewClassification {
+  const isImage =
+    (mediaType?.toLowerCase().startsWith("image/") ?? false) ||
+    isImageUrl(url) ||
+    (fileName ? isImageUrl(fileName) : false);
+
+  const documentKind = isImage
+    ? null
+    : (getDocumentPreviewKind(url, mediaType) ??
+      (fileName ? getDocumentPreviewKind(fileName, mediaType) : null));
+
+  return { isImage, documentKind };
 }
 
 /**

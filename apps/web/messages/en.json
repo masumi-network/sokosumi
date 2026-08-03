@@ -817,8 +817,8 @@
       "title": "Document",
       "viewDocument": "View document {fileName}",
       "download": "Download document",
-      "close": "Close",
       "openInNewTab": "Open in new tab",
+      "loading": "Loading document…",
       "fetchError": "This document couldn't be loaded."
     }
   },

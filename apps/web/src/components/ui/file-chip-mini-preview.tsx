@@ -1,6 +1,6 @@
 "use client";
 
-import { getExtensionFromUrl, isImageUrl } from "@sokosumi/utils";
+import { getExtensionFromUrl } from "@sokosumi/utils";
 import { X } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -15,19 +15,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
-import { getDocumentPreviewKind } from "@/lib/utils/file-preview";
-
-function resolveDocumentPreviewKind(
-  url: string,
-  fileName?: string | null,
-  mediaType?: string | null,
-) {
-  return (
-    getDocumentPreviewKind(url, mediaType) ??
-    (fileName ? getDocumentPreviewKind(fileName, mediaType) : null)
-  );
-}
 
 export interface FileChipMiniPreviewProps {
   url: string;
@@ -61,13 +50,11 @@ function FileChipMiniPreviewTrigger({
   const t = useTranslations("Components.ImageViewer");
   const tDocument = useTranslations("Components.DocumentViewer");
   const resolvedFileName = fileName ?? url.split("/").pop() ?? url;
-  const isImage =
-    mediaType?.toLowerCase().startsWith("image/") ||
-    isImageUrl(url) ||
-    (fileName ? isImageUrl(fileName) : false);
-  const documentKind = !isImage
-    ? resolveDocumentPreviewKind(url, fileName, mediaType)
-    : null;
+  const { isImage, documentKind } = classifyFilePreview(
+    url,
+    fileName,
+    mediaType,
+  );
   const extension = getExtensionFromUrl(fileName ?? url);
 
   if (isImage) {
@@ -139,13 +126,11 @@ function FileChipMiniPreviewShell({
   const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
   const resolvedFileName = fileName ?? url.split("/").pop() ?? url;
-  const isImage =
-    mediaType?.toLowerCase().startsWith("image/") ||
-    isImageUrl(url) ||
-    (fileName ? isImageUrl(fileName) : false);
-  const documentKind = !isImage
-    ? resolveDocumentPreviewKind(url, fileName, mediaType)
-    : null;
+  const { isImage, documentKind } = classifyFilePreview(
+    url,
+    fileName,
+    mediaType,
+  );
 
   const trigger = (
     <FileChipMiniPreviewTrigger

@@ -806,8 +806,8 @@
       "title": "文档",
       "viewDocument": "查看文档 {fileName}",
       "download": "下载文档",
-      "close": "关闭",
       "openInNewTab": "在新标签页中打开",
+      "loading": "正在加载文档…",
       "fetchError": "无法加载此文档。"
     }
   },

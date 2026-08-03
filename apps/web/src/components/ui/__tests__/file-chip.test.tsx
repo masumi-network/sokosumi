@@ -17,17 +17,14 @@ vi.mock("next-intl", () => ({
         const documentLabels: Record<string, string> = {
           title: "Document",
           download: "Download document",
-          close: "Close",
           openInNewTab: "Open in new tab",
+          loading: "Loading document…",
           fetchError: "This document couldn't be loaded.",
         };
         return documentLabels[key] ?? key;
       }
       if (key === "download") {
         return "Download image";
-      }
-      if (key === "close") {
-        return "Close";
       }
       return key;
     },
@@ -105,5 +102,50 @@ describe("FileChip", () => {
 
     expect(screen.getByText("archive.zip")).toBeInTheDocument();
     expect(screen.getByText(/2(\.0)?\s*KB/i)).toBeInTheDocument();
+  });
+
+  it("preserves a title tooltip when the chip renders as an image-preview button", () => {
+    render(
+      <FileChip
+        url="https://blob.example.com/uploads/photo.png"
+        fileName="photo.png"
+        title="image/png"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /photo\.png/i })).toHaveAttribute(
+      "title",
+      "image/png",
+    );
+  });
+
+  it("preserves a title tooltip when the chip renders as a document-preview button", () => {
+    render(
+      <FileChip
+        url="https://blob.example.com/uploads/brief.docx"
+        fileName="brief.docx"
+        title="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /brief\.docx/i })).toHaveAttribute(
+      "title",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+  });
+
+  it("preserves a title tooltip for the plain-link fallback", () => {
+    render(
+      <FileChip
+        url="https://blob.example.com/uploads/archive.zip"
+        fileName="archive.zip"
+        title="application/zip"
+      />,
+    );
+
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "title",
+      "application/zip",
+    );
   });
 });

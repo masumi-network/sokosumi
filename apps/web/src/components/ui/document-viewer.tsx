@@ -1,13 +1,13 @@
 "use client";
 
-import { Download, ExternalLink, FileText, XIcon } from "lucide-react";
+import { getExtensionFromUrl } from "@sokosumi/utils";
+import { Download, ExternalLink, FileText } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -31,14 +31,6 @@ interface DocumentViewerProps {
   className?: string;
 }
 
-const toolbarButtonClassName =
-  "size-9 shrink-0 rounded-full text-white hover:bg-white/10 hover:text-white";
-
-function fileExtension(fileName: string): string | undefined {
-  const dotIndex = fileName.lastIndexOf(".");
-  return dotIndex >= 0 ? fileName.slice(dotIndex + 1) : undefined;
-}
-
 function DocumentTextBody({
   url,
   fileName,
@@ -52,6 +44,10 @@ function DocumentTextBody({
     content?: string;
   }>({ status: "loading" });
 
+  // Plain fetch + effect rather than a data-fetching library: this viewer
+  // also renders on the public /share pages, which don't mount a
+  // QueryClientProvider. Cleanup below avoids the race condition that
+  // exception normally guards against.
   useEffect(() => {
     const controller = new AbortController();
     setState({ status: "loading" });
@@ -71,15 +67,19 @@ function DocumentTextBody({
 
   if (state.status === "loading") {
     return (
-      <div className="bg-muted/40 flex h-full w-full items-center justify-center p-6">
-        <Skeleton className="h-full max-h-[80vh] w-full max-w-2xl rounded-xl" />
+      <div
+        className="flex h-full w-full items-center justify-center p-6"
+        role="status"
+        aria-label={t("loading")}
+      >
+        <Skeleton className="h-full w-full max-w-2xl rounded-xl" />
       </div>
     );
   }
 
   if (state.status === "error" || state.content === undefined) {
     return (
-      <div className="bg-muted/40 flex h-full w-full flex-col items-center justify-center gap-3 px-10 text-center">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-10 text-center">
         <FileText aria-hidden className="text-muted-foreground/50 size-9" />
         <p className="text-muted-foreground text-sm">{t("fetchError")}</p>
       </div>
@@ -89,7 +89,47 @@ function DocumentTextBody({
   return <DocumentTextPreview title={fileName} content={state.content} />;
 }
 
-function DocumentViewerChrome({
+function DocumentViewerBody({
+  url,
+  fileName,
+  mediaType,
+}: {
+  url: string;
+  fileName: string;
+  mediaType?: string | null;
+}) {
+  const kind = getDocumentPreviewKind(url, mediaType);
+
+  if (kind === "office") {
+    const extensionHint =
+      getExtensionFromUrl(fileName) || officeExtensionFromMediaType(mediaType);
+    return (
+      <iframe
+        src={officeViewerUrl(url, extensionHint)}
+        title={fileName}
+        className="bg-muted/40 h-full w-full"
+      />
+    );
+  }
+
+  if (kind === "pdf") {
+    return (
+      <iframe
+        src={pdfEmbedUrl(url)}
+        title={fileName}
+        className="bg-muted/40 h-full w-full"
+      />
+    );
+  }
+
+  if (kind === "text") {
+    return <DocumentTextBody url={url} fileName={fileName} />;
+  }
+
+  return null;
+}
+
+function DocumentViewerContent({
   url,
   fileName,
   mediaType,
@@ -99,92 +139,52 @@ function DocumentViewerChrome({
   mediaType?: string | null;
 }) {
   const t = useTranslations("Components.DocumentViewer");
-  const kind = getDocumentPreviewKind(url, mediaType);
 
   return (
     <>
-      <DialogTitle className="sr-only">{t("title")}</DialogTitle>
-      <DialogDescription className="sr-only">{fileName}</DialogDescription>
-      <div
-        className="flex items-center justify-between gap-3 bg-black/80 px-3 py-2 text-white"
-        data-testid="document-viewer-toolbar"
-        onClick={(event) => {
-          event.stopPropagation();
-        }}
-      >
-        <div className="flex min-w-0 items-center gap-1">
-          <DialogClose asChild>
-            <Button
-              type="button"
-              aria-label={t("close")}
-              className={toolbarButtonClassName}
-              size="icon"
-              variant="ghost"
-            >
-              <XIcon className="size-4" aria-hidden="true" />
-            </Button>
-          </DialogClose>
+      <div className="border-border/60 flex items-center justify-between gap-3 border-b py-4 pr-14 pl-6">
+        <div className="flex min-w-0 items-center gap-2">
           <FileText
-            className="size-4 shrink-0 opacity-80"
-            aria-hidden="true"
+            className="text-muted-foreground size-4 shrink-0"
+            aria-hidden
           />
-          <span className="truncate text-sm">{fileName}</span>
+          <DialogTitle className="truncate text-base font-medium">
+            {fileName}
+          </DialogTitle>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            asChild
-            className={toolbarButtonClassName}
-            size="icon"
-            variant="ghost"
-          >
-            <a
-              aria-label={t("openInNewTab")}
-              href={url}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              <ExternalLink className="size-4" aria-hidden="true" />
+        <div className="flex shrink-0 items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <a href={url} target="_blank" rel="noreferrer noopener">
+              {t("openInNewTab")}
+              <ExternalLink className="size-3.5" aria-hidden />
             </a>
           </Button>
-          <Button
-            asChild
-            className={toolbarButtonClassName}
-            size="icon"
-            variant="ghost"
-          >
-            <a aria-label={t("download")} download={fileName} href={url}>
-              <Download className="size-4" aria-hidden="true" />
+          <Button asChild variant="outline" size="sm">
+            <a download={fileName} href={url}>
+              {t("download")}
+              <Download className="size-3.5" aria-hidden />
             </a>
           </Button>
         </div>
       </div>
-      <div
-        className="relative flex min-h-0 flex-1 bg-black"
-        data-testid="document-viewer-stage"
-      >
-        {kind === "office" ? (
-          <iframe
-            src={officeViewerUrl(
-              url,
-              fileExtension(fileName) ?? officeExtensionFromMediaType(mediaType),
-            )}
-            title={fileName}
-            className="bg-muted/40 h-full w-full"
-          />
-        ) : kind === "pdf" ? (
-          <iframe
-            src={pdfEmbedUrl(url)}
-            title={fileName}
-            className="bg-muted/40 h-full w-full"
-          />
-        ) : kind === "text" ? (
-          <DocumentTextBody url={url} fileName={fileName} />
-        ) : null}
+      <DialogDescription className="sr-only">{t("title")}</DialogDescription>
+      <div className="h-[70vh] min-h-0">
+        <DocumentViewerBody
+          key={url}
+          url={url}
+          fileName={fileName}
+          mediaType={mediaType}
+        />
       </div>
     </>
   );
 }
 
+/**
+ * Popup preview for a task/chat file attachment — the same treatment as the
+ * Pre-Built Task output preview (`OfferDetailDialog`): a standard, theme-aware
+ * Dialog, not a full-screen lightbox.
+ */
 export function DocumentViewer({
   open,
   onOpenChange,
@@ -196,14 +196,13 @@ export function DocumentViewer({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        showCloseButton={false}
         className={cn(
-          "fixed inset-0 top-0 left-0 z-50 flex h-screen w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 bg-black p-0 shadow-none sm:max-w-none",
+          "flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl lg:max-w-6xl",
           className,
         )}
         data-testid="document-viewer"
       >
-        <DocumentViewerChrome
+        <DocumentViewerContent
           key={url}
           url={url}
           fileName={fileName}
