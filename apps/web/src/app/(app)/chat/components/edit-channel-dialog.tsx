@@ -24,6 +24,7 @@ import {
   leaveRoomAction,
   updateRoomAction,
 } from "@/app/chat/actions";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -343,6 +344,8 @@ export function EditChannelDialog({
     );
     setPendingKind(null);
     setOpen(false);
+    // Empty detail forces a full sidebar refresh (member list + joinables).
+    notifyOrganizationChatRoomsChanged();
     // The room is gone for this user either way, so land them back on the
     // room list rather than a view they can no longer read.
     router.replace("/chat");

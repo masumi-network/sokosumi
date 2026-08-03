@@ -63,7 +63,7 @@ interface OrganizationChatListProps {
   rooms: ChatRoom[];
   archivedRooms: ChatRoom[];
   currentUserId: string;
-  hasOrganization: boolean;
+  organizationId: string | null;
 }
 
 interface DirectParticipant {
@@ -258,13 +258,14 @@ export function OrganizationChatList({
   rooms,
   archivedRooms,
   currentUserId,
-  hasOrganization,
+  organizationId,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
   const tBrowse = useTranslations("App.Channels.Browse");
   const pathname = usePathname();
   const router = useRouter();
+  const hasOrganization = Boolean(organizationId);
   const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
   const [joinableRooms, setJoinableRooms] = useState<BrowsableChatRoom[]>([]);
@@ -290,10 +291,9 @@ export function OrganizationChatList({
   }, [archivedRooms]);
 
   useEffect(() => {
-    if (!hasOrganization) {
-      setJoinableRooms([]);
-    }
-  }, [hasOrganization]);
+    // Drop prior-org Plus rows immediately on org switch / personal workspace.
+    setJoinableRooms([]);
+  }, [organizationId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -340,7 +340,7 @@ export function OrganizationChatList({
       window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshRooms);
     };
-  }, [hasOrganization]);
+  }, [hasOrganization, organizationId]);
 
   useEffect(() => {
     const handleRoomRead = (event: Event) => {
@@ -435,7 +435,7 @@ export function OrganizationChatList({
         handleRoomsChanged,
       );
     };
-  }, [hasOrganization]);
+  }, [hasOrganization, organizationId]);
 
   function handleJoinChannel(room: BrowsableChatRoom) {
     if (joiningRoomId) {

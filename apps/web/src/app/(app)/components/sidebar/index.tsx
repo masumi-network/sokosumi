@@ -146,7 +146,7 @@ export default async function Sidebar({
               rooms={chatRooms}
               archivedRooms={archivedChatRooms}
               currentUserId={session.user.id}
-              hasOrganization={Boolean(activeOrganizationId)}
+              organizationId={activeOrganizationId}
             />
           </SidebarNav>
         </div>
