@@ -111,34 +111,46 @@ function useClampedOverflow(resetKey: string) {
   return { expanded, setExpanded, overflows, contentRef };
 }
 
-function MessageQuoteAttachmentChip({
+function MessageQuoteAttachmentThumb({
   attachment,
 }: {
   attachment: RoomQuoteAttachment;
 }) {
-  const extension =
-    getExtensionFromUrl(attachment.fileName) ||
-    getExtensionFromUrl(attachment.url) ||
-    "file";
+  const thumbClassName =
+    "bg-accent/30 mt-1 size-10 shrink-0 overflow-hidden rounded-xl border";
 
-  return (
-    <a
-      href={attachment.url}
-      target="_blank"
-      rel="noreferrer noopener"
-      className="bg-accent/30 hover:bg-accent/50 text-muted-foreground focus-visible:ring-ring mt-1 inline-flex max-w-full items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-xs outline-none transition focus-visible:ring-2"
-      onClick={(event) => {
-        event.stopPropagation();
-      }}
-    >
-      <span className="size-3.5 shrink-0" aria-hidden>
-        <FileTypeIcon extension={extension} />
-      </span>
-      <span className="text-foreground truncate font-medium">
-        {attachment.fileName}
-      </span>
-    </a>
-  );
+  switch (attachment.mediaKind) {
+    case "image":
+      return (
+        <div className={thumbClassName} aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={attachment.url}
+            alt=""
+            className="size-full object-cover object-center"
+          />
+        </div>
+      );
+    case "file": {
+      const extension =
+        getExtensionFromUrl(attachment.fileName) ||
+        getExtensionFromUrl(attachment.url) ||
+        "file";
+      return (
+        <div className={thumbClassName} aria-hidden>
+          <div className="text-muted-foreground flex size-full items-center justify-center">
+            <div className="flex size-6 items-center justify-center">
+              <FileTypeIcon extension={extension} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+    default: {
+      const _exhaustive: never = attachment.mediaKind;
+      return _exhaustive;
+    }
+  }
 }
 
 function formatWhoReactedLabel(
@@ -210,10 +222,10 @@ function MessageQuoteBlock({
             </Markdown>
           </div>
         ) : null}
+        {attachment ? (
+          <MessageQuoteAttachmentThumb attachment={attachment} />
+        ) : null}
       </button>
-      {attachment ? (
-        <MessageQuoteAttachmentChip attachment={attachment} />
-      ) : null}
       {expanded || overflows ? (
         <button
           type="button"
