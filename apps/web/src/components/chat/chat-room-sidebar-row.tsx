@@ -1,6 +1,6 @@
 "use client";
 
-import { Ellipsis, Pin } from "lucide-react";
+import { Ellipsis } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useTransition } from "react";
@@ -105,14 +105,13 @@ export function ChatRoomSidebarRow({
             >
               {label}
             </span>
-            {isPinned ? (
-              <Pin
-                className="text-muted-foreground size-3 shrink-0 fill-current"
-                aria-hidden
-              />
-            ) : null}
             <MentionBadge count={badgeCount} />
-            <span className="size-7 shrink-0" aria-hidden />
+            {/* Reserve trailing slot; pinned rooms show … at rest, menu on hover. */}
+            <span className="relative size-7 shrink-0" aria-hidden>
+              {isPinned ? (
+                <Ellipsis className="text-muted-foreground absolute inset-0 m-auto size-4 group-hover/room-row:opacity-0 group-focus-within/room-row:opacity-0" />
+              ) : null}
+            </span>
           </Link>
         </SheetClose>
       </SidebarMenuButton>
