@@ -20,6 +20,21 @@ export function getErrorName(error: unknown): string {
   return "";
 }
 
+function getErrorStatusCode(error: unknown): number | null | undefined {
+  if (error === null || typeof error !== "object" || !("statusCode" in error)) {
+    return undefined;
+  }
+
+  const statusCode = (error as { statusCode: unknown }).statusCode;
+  if (statusCode === null) {
+    return null;
+  }
+  if (typeof statusCode === "number") {
+    return statusCode;
+  }
+  return undefined;
+}
+
 export function getPrismaErrorCode(error: unknown): string | null {
   if (error === null || typeof error !== "object" || !("code" in error)) {
     return null;
@@ -31,11 +46,12 @@ export function getPrismaErrorCode(error: unknown): string | null {
 
 /**
  * Network timeouts and dropped connections from outbound HTTP/fetch calls.
- * Shared by Postmark, skills.sh, coworker retrieve, and similar integrations.
+ * Shared by Resend, skills.sh, coworker retrieve, and similar integrations.
  */
 export function isTransientFetchError(error: unknown): boolean {
   const message = getErrorMessage(error);
   const name = getErrorName(error);
+  const statusCode = getErrorStatusCode(error);
 
   return (
     /timeout of \d+ms exceeded/i.test(message) ||
@@ -45,16 +61,11 @@ export function isTransientFetchError(error: unknown): boolean {
     name === "AbortError" ||
     /socket hang up/i.test(message) ||
     /connection terminated unexpectedly/i.test(message) ||
-    /\b(ECONNRESET|ECONNABORTED|ETIMEDOUT)\b/.test(message)
+    /\b(ECONNRESET|ECONNABORTED|ETIMEDOUT)\b/.test(message) ||
+    // Resend wraps unresolved fetch as Result error, not a thrown transport error.
+    (name === "application_error" && statusCode === null) ||
+    /Unable to fetch data\. The request could not be resolved\./i.test(message)
   );
-}
-
-/**
- * Postmark (and similar HTTP email providers) can time out or drop connections
- * during upstream outages. Invites and notifications are already fire-and-forget.
- */
-export function isTransientPostmarkError(error: unknown): boolean {
-  return isTransientFetchError(error);
 }
 
 /**
@@ -124,6 +135,10 @@ export function logSuppressedExternalError(
   console.warn(`[${label}] suppressed external failure`, payload);
 }
 
+/**
+ * Pass context once via `extra`. Optional `sentry` holds tags/level only.
+ * `extra` feeds suppressed-log context and Sentry extras.
+ */
 export function captureExternalServiceError(
   error: unknown,
   options: {
@@ -137,5 +152,13 @@ export function captureExternalServiceError(
     return;
   }
 
-  Sentry.captureException(error, options.sentry);
+  if (!options.extra) {
+    Sentry.captureException(error, options.sentry);
+    return;
+  }
+
+  Sentry.withScope((scope) => {
+    scope.setExtras(options.extra!);
+    Sentry.captureException(error, options.sentry);
+  });
 }

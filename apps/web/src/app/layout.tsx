@@ -4,7 +4,6 @@ import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
@@ -15,7 +14,6 @@ import { GlobalModalsContextProvider } from "@/components/modals/global-modals-c
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { Toaster } from "@/components/ui/sonner";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { getEnvSecrets } from "@/config/env.secrets";
 import { ThemeProvider } from "@/contexts/theme-context";
 
 const inter = Inter({
@@ -48,34 +46,10 @@ export default async function RootLayout({
   const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
   const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
-  const ucDataSettingsId = getEnvSecrets().USER_CENTRICS_DATA_SETTINGS_ID;
-  const draftUserCentrics = getEnvSecrets().DRAFT_USER_CENTRICS;
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
       <head>
-        {ucDataSettingsId && (
-          <>
-            <Script
-              id="_before-gtm"
-              dangerouslySetInnerHTML={{
-                __html: `(function(w,l){
-                  w[l]=w[l]||[];
-                  w[l].push('consent','default',{'ad_personalization':'denied','ad_storage':'denied','ad_user_data':'denied','analytics_storage':'denied','wait_for_update':2000});
-                })(window,'dataLayer');`,
-              }}
-              strategy="beforeInteractive"
-            />
-            <Script
-              id="usercentrics-cmp"
-              src="https://web.cmp.usercentrics.eu/ui/loader.js"
-              {...(draftUserCentrics && { "data-draft": "true" })}
-              data-settings-id={ucDataSettingsId}
-              async
-              strategy="afterInteractive"
-            />
-          </>
-        )}
         <ApplePwaHead />
       </head>
       {gtmId && <GoogleTagManager gtmId={gtmId} />}

@@ -20,6 +20,10 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  getJumboEmojiCount,
+  jumboEmojiClassName,
+} from "@/app/chat/utils/jumbo-emoji";
 import { segmentRoomMessageContent } from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import Markdown from "@/components/markdown";
@@ -356,9 +360,27 @@ function ChannelMessageBody({
   usersBySlug?: Map<string, UserMentionLookup>;
 }) {
   const t = useTranslations("App.Channels.Message");
+  const jumboEmojiCount = getJumboEmojiCount(content);
+  const isJumboEmoji = jumboEmojiCount !== null;
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
     `${messageId}\0${content}`,
   );
+
+  // Skip Markdown/prose for jumbo — prose-sm would crush the large font size.
+  if (isJumboEmoji) {
+    return (
+      <div
+        data-testid="room-message-body"
+        data-jumbo-emoji={String(jumboEmojiCount)}
+        className={cn(
+          "wrap-break-word whitespace-pre-wrap",
+          jumboEmojiClassName(jumboEmojiCount),
+        )}
+      >
+        {content.trim()}
+      </div>
+    );
+  }
 
   return (
     <div>

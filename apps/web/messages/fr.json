@@ -4580,7 +4580,7 @@
         "archive": "Archiver le canal",
         "cancel": "Annuler",
         "leaveConfirmTitle": "Quitter {name} ?",
-        "leaveConfirmDescription": "Vous ne recevrez plus les messages de ce canal et il disparaîtra de votre liste. Les autres membres conservent leur accès et vous pourrez y être rajouté plus tard.",
+        "leaveConfirmDescription": "Vous ne recevrez plus les messages de ce canal et il disparaîtra de votre liste.",
         "leaveConfirm": "Quitter le canal",
         "leaveSuccess": "Vous avez quitté {name}.",
         "archiveConfirmTitle": "Archiver {name} ?",
@@ -4636,7 +4636,7 @@
         "membersLoadFailedDescription": "Les membres de l'organisation sont temporairement indisponibles. Réessayez dans un instant.",
         "membersLoadFailedRetry": "Réessayer",
         "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+        "noChannelDescription": "Les canaux servent aux discussions autour d’un sujet. Créez-en un pour commencer."
       },
       "Dialog": {
         "createTitle": "Create channel",
@@ -4800,6 +4800,26 @@
         "private": "Privé",
         "publicHelp": "Toute personne de l'organisation peut trouver et rejoindre ce canal.",
         "privateHelp": "Seuls les membres invités peuvent voir ce canal."
+      },
+      "CreateWizard": {
+        "title": "Créer un canal",
+        "nameLabel": "Nom",
+        "namePlaceholder": "p. ex. #welcome",
+        "nameHelp": "Les canaux sont des espaces de discussion autour d’un sujet. Choisissez un nom clair et reconnaissable.",
+        "nameRequired": "Le nom du canal est obligatoire.",
+        "next": "Suivant",
+        "back": "Retour",
+        "create": "Créer",
+        "stepOf": "Étape {current} sur {total}",
+        "visibilitySubtitle": "# {name}",
+        "addPeopleTitle": "Ajouter des personnes à #{name}",
+        "addAll": "Ajouter les {count} membres de {organization}",
+        "addSpecific": "Ajouter des personnes spécifiques",
+        "addSpecificHelp": "Sélectionnez des personnes et des collègues IA à ajouter à ce canal.",
+        "add": "Ajouter",
+        "skip": "Passer pour l’instant",
+        "creating": "Création…",
+        "adding": "Ajout…"
       }
     }
   },

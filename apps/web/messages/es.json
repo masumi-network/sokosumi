@@ -4580,7 +4580,7 @@
         "archive": "Archivar canal",
         "cancel": "Cancelar",
         "leaveConfirmTitle": "¿Salir de {name}?",
-        "leaveConfirmDescription": "Dejarás de recibir mensajes de este canal y desaparecerá de tu lista. Los demás miembros conservan su acceso y podrán volver a añadirte más adelante.",
+        "leaveConfirmDescription": "Dejarás de recibir mensajes de este canal y desaparecerá de tu lista.",
         "leaveConfirm": "Salir del canal",
         "leaveSuccess": "Saliste de {name}.",
         "archiveConfirmTitle": "¿Archivar {name}?",
@@ -4636,7 +4636,7 @@
         "membersLoadFailedDescription": "Los miembros de la organización no están disponibles temporalmente. Inténtalo de nuevo en un momento.",
         "membersLoadFailedRetry": "Reintentar",
         "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+        "noChannelDescription": "Los canales sirven para conversar sobre un tema. Crea uno para empezar."
       },
       "Dialog": {
         "createTitle": "Create channel",
@@ -4800,6 +4800,26 @@
         "private": "Privado",
         "publicHelp": "Cualquiera en la organización puede encontrar y unirse a este canal.",
         "privateHelp": "Solo los miembros invitados pueden ver este canal."
+      },
+      "CreateWizard": {
+        "title": "Crear un canal",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "p. ej. #welcome",
+        "nameHelp": "Los canales son lugares para conversar sobre un tema. Usa un nombre claro que todos reconozcan.",
+        "nameRequired": "El nombre del canal es obligatorio.",
+        "next": "Siguiente",
+        "back": "Atrás",
+        "create": "Crear",
+        "stepOf": "Paso {current} de {total}",
+        "visibilitySubtitle": "# {name}",
+        "addPeopleTitle": "Añadir personas a #{name}",
+        "addAll": "Añadir a los {count} miembros de {organization}",
+        "addSpecific": "Añadir personas concretas",
+        "addSpecificHelp": "Selecciona personas y compañeros de IA para añadir a este canal.",
+        "add": "Añadir",
+        "skip": "Omitir por ahora",
+        "creating": "Creando…",
+        "adding": "Añadiendo…"
       }
     }
   },

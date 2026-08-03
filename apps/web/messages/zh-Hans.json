@@ -4580,7 +4580,7 @@
         "archive": "归档频道",
         "cancel": "取消",
         "leaveConfirmTitle": "退出 {name}？",
-        "leaveConfirmDescription": "你将不再接收该频道的消息，它也会从你的列表中消失。其他成员的访问权限不变，之后仍可将你重新加入。",
+        "leaveConfirmDescription": "你将不再接收该频道的消息，它也会从你的列表中消失。",
         "leaveConfirm": "退出频道",
         "leaveSuccess": "你已退出 {name}。",
         "archiveConfirmTitle": "归档 {name}？",
@@ -4636,7 +4636,7 @@
         "membersLoadFailedDescription": "组织成员暂时不可用。请稍后再试。",
         "membersLoadFailedRetry": "重试",
         "noChannelTitle": "Create a channel",
-        "noChannelDescription": "Add teammates and AI coworkers, then mention coworkers when you need them."
+        "noChannelDescription": "频道用于围绕某个主题进行讨论。创建一个即可开始。"
       },
       "Dialog": {
         "createTitle": "Create channel",
@@ -4800,6 +4800,26 @@
         "private": "私密",
         "publicHelp": "组织中的任何人都可以发现并加入此频道。",
         "privateHelp": "只有受邀成员可以看到此频道。"
+      },
+      "CreateWizard": {
+        "title": "创建频道",
+        "nameLabel": "名称",
+        "namePlaceholder": "例如 #welcome",
+        "nameHelp": "频道用于围绕某个主题进行讨论。请使用大家都能识别的清晰名称。",
+        "nameRequired": "频道名称为必填项。",
+        "next": "下一步",
+        "back": "返回",
+        "create": "创建",
+        "stepOf": "第 {current} 步，共 {total} 步",
+        "visibilitySubtitle": "# {name}",
+        "addPeopleTitle": "向 #{name} 添加成员",
+        "addAll": "添加 {organization} 的全部 {count} 位成员",
+        "addSpecific": "添加特定人员",
+        "addSpecificHelp": "选择要添加到此频道的人员和 AI 同事。",
+        "add": "添加",
+        "skip": "暂时跳过",
+        "creating": "正在创建…",
+        "adding": "正在添加…"
       }
     }
   },

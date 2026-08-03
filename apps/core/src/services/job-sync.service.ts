@@ -33,9 +33,8 @@ import {
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 import pLimit from "p-limit";
-
+import { sendEmail } from "@/clients/email.client";
 import { paymentClient } from "@/clients/masumi-payment.client";
-import { postmarkClient } from "@/clients/postmark.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
@@ -245,32 +244,21 @@ async function dispatchFinalStatusNotification(
       locale: "en",
     });
 
-    await postmarkClient
-      .sendEmail({
-        From: getEnv().POSTMARK_FROM_EMAIL,
-        To: job.owner.email,
-        Tag: "job-final-status",
-        Subject: email.subject,
-        HtmlBody: email.html,
-        MessageStream: "outbound",
-      })
-      .catch((error) => {
-        captureExternalServiceError(error, {
-          label: "job-final-status",
-          sentry: {
-            extra: {
-              jobId: job.id,
-              userId: job.ownerId,
-              notificationType: "job-final-status",
-            },
-          },
-          extra: {
-            jobId: job.id,
-            userId: job.ownerId,
-            notificationType: "job-final-status",
-          },
-        });
+    await sendEmail({
+      to: job.owner.email,
+      tag: "job-final-status",
+      subject: email.subject,
+      html: email.html,
+    }).catch((error) => {
+      captureExternalServiceError(error, {
+        label: "job-final-status",
+        extra: {
+          jobId: job.id,
+          userId: job.ownerId,
+          notificationType: "job-final-status",
+        },
       });
+    });
   } catch (error) {
     Sentry.captureException(error, {
       extra: {
@@ -301,32 +289,21 @@ async function dispatchInputRequiredNotification(
       locale: "en",
     });
 
-    await postmarkClient
-      .sendEmail({
-        From: getEnv().POSTMARK_FROM_EMAIL,
-        To: job.owner.email,
-        Tag: "job-input-required",
-        Subject: email.subject,
-        HtmlBody: email.html,
-        MessageStream: "outbound",
-      })
-      .catch((error) => {
-        captureExternalServiceError(error, {
-          label: "job-input-required",
-          sentry: {
-            extra: {
-              jobId: job.id,
-              userId: job.ownerId,
-              notificationType: "job-input-required",
-            },
-          },
-          extra: {
-            jobId: job.id,
-            userId: job.ownerId,
-            notificationType: "job-input-required",
-          },
-        });
+    await sendEmail({
+      to: job.owner.email,
+      tag: "job-input-required",
+      subject: email.subject,
+      html: email.html,
+    }).catch((error) => {
+      captureExternalServiceError(error, {
+        label: "job-input-required",
+        extra: {
+          jobId: job.id,
+          userId: job.ownerId,
+          notificationType: "job-input-required",
+        },
       });
+    });
   } catch (error) {
     Sentry.captureException(error, {
       extra: {
@@ -397,33 +374,24 @@ async function dispatchJobFailureNotification(
       locale: "en",
     });
 
-    await postmarkClient
-      .sendEmail({
-        From: getEnv().POSTMARK_FROM_EMAIL,
-        To: toRecipients.join(","),
-        ...(bccRecipients && { Bcc: bccRecipients.join(",") }),
-        Tag: "job-failure-notification",
-        Subject: email.subject,
-        HtmlBody: email.html,
-        MessageStream: "outbound",
-      })
-      .catch((error) => {
-        captureExternalServiceError(error, {
-          label: "job-failure-email",
-          sentry: {
-            extra: {
-              jobId: job.id,
-              userId: job.ownerId,
-              notificationType: "job-failure-email",
-            },
-          },
-          extra: {
-            jobId: job.id,
-            userId: job.ownerId,
-            notificationType: "job-failure-email",
-          },
-        });
+    await sendEmail({
+      to: toRecipients,
+      ...(bccRecipients && bccRecipients.length > 0
+        ? { bcc: bccRecipients }
+        : {}),
+      tag: "job-failure-notification",
+      subject: email.subject,
+      html: email.html,
+    }).catch((error) => {
+      captureExternalServiceError(error, {
+        label: "job-failure-email",
+        extra: {
+          jobId: job.id,
+          userId: job.ownerId,
+          notificationType: "job-failure-email",
+        },
       });
+    });
   } catch (error) {
     Sentry.captureException(error, {
       extra: {
@@ -876,11 +844,6 @@ async function runSyncPhase(
         logJobSyncError(kind, job.id, error);
         captureExternalServiceError(error, {
           label: `[sync/jobs/${kind}]`,
-          sentry: {
-            extra: {
-              jobId: job.id,
-            },
-          },
           extra: {
             jobId: job.id,
           },

@@ -85,6 +85,25 @@ function userMessage(
   };
 }
 
+function coworkerMessage(
+  overrides: Partial<ChatRoomMessage> = {},
+): ChatRoomMessage {
+  return {
+    ...userMessage(overrides),
+    sender: {
+      type: "coworker",
+      coworker: {
+        id: "cow-1",
+        name: "Jamal",
+        slug: "jamal",
+        caption: null,
+        image: null,
+        presence: "online",
+      },
+    },
+  };
+}
+
 function renderRow({
   message = userMessage(),
   isContinuation = false,
@@ -734,6 +753,27 @@ describe("ChatMessageRow", () => {
     }
   });
 
+  it("renders emoji-only messages as jumbo", () => {
+    renderRow({
+      message: userMessage({ content: "👍" }),
+    });
+
+    const body = screen.getByTestId("room-message-body");
+    expect(body).toHaveAttribute("data-jumbo-emoji", "1");
+    expect(body.className).toContain("text-4xl");
+    expect(body.className).not.toContain("line-clamp-[16]");
+  });
+
+  it("keeps mixed text+emoji at normal size", () => {
+    renderRow({
+      message: userMessage({ content: "foobar 👍" }),
+    });
+
+    const body = screen.getByTestId("room-message-body");
+    expect(body).not.toHaveAttribute("data-jumbo-emoji");
+    expect(body.className).not.toContain("text-4xl");
+  });
+
   it("hides Show more when the message body does not overflow", () => {
     const scrollDescriptor = Object.getOwnPropertyDescriptor(
       HTMLElement.prototype,
@@ -810,6 +850,21 @@ describe("ChatMessageRow", () => {
         coworkersById={new Map()}
         coworkersBySlug={new Map()}
         currentUserId="other-user"
+        onToggleReaction={vi.fn()}
+        onStartEdit={onStartEdit}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Edit.action" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={coworkerMessage()}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        currentUserId="user-1"
         onToggleReaction={vi.fn()}
         onStartEdit={onStartEdit}
       />,

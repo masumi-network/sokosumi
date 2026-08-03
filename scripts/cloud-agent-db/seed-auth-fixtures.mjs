@@ -112,6 +112,58 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
 }
 
 /**
+ * Ensure each fixture user owns at least one organization (member role owner)
+ * plus an organization workspace. Idempotent on organization.slug.
+ *
+ * @param {import("pg").PoolClient | import("pg").Client} client
+ * @param {string} userId
+ * @param {{ name: string, slug: string }} organization
+ */
+async function upsertFixtureOrganization(client, userId, organization) {
+  const now = new Date();
+
+  const existing = await client.query(
+    `SELECT id FROM organization WHERE slug = $1 LIMIT 1`,
+    [organization.slug],
+  );
+
+  let organizationId;
+  if (existing.rowCount && existing.rows[0]?.id) {
+    organizationId = existing.rows[0].id;
+    await client.query(
+      `UPDATE organization
+       SET name = $2
+       WHERE id = $1`,
+      [organizationId, organization.name],
+    );
+  } else {
+    organizationId = randomUUID();
+    await client.query(
+      `INSERT INTO organization (id, name, slug, "createdAt")
+       VALUES ($1, $2, $3, $4)`,
+      [organizationId, organization.name, organization.slug, now],
+    );
+  }
+
+  await client.query(
+    `INSERT INTO member (id, "userId", "organizationId", role, "createdAt")
+     VALUES ($1, $2, $3, 'owner', $4)
+     ON CONFLICT ("userId", "organizationId") DO UPDATE
+       SET role = 'owner'`,
+    [randomUUID(), userId, organizationId, now],
+  );
+
+  await client.query(
+    `INSERT INTO workspace (id, "organizationId", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $3)
+     ON CONFLICT ("organizationId") DO NOTHING`,
+    [randomUUID(), organizationId, now],
+  );
+
+  return organizationId;
+}
+
+/**
  * @param {{
  *   databaseUrl?: string,
  *   branchName?: string | null,
@@ -153,8 +205,15 @@ export async function seedAuthFixtures(options = {}) {
   try {
     await client.query("BEGIN");
     for (const fixture of AUTH_FIXTURES) {
-      await upsertFixtureUser(client, fixture, passwordHash);
-      log(`Auth fixture ready: ${fixture.email}`);
+      const userId = await upsertFixtureUser(client, fixture, passwordHash);
+      const organizationId = await upsertFixtureOrganization(
+        client,
+        userId,
+        fixture.organization,
+      );
+      log(
+        `Auth fixture ready: ${fixture.email} (org ${fixture.organization.slug}=${organizationId})`,
+      );
     }
     await client.query("COMMIT");
     return { seeded: AUTH_FIXTURES.length, skipped: false };

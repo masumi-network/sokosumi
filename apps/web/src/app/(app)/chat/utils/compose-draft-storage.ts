@@ -30,9 +30,6 @@ export const composeDraftKey = {
   draftDm(): string {
     return `${DRAFT_KEY_PREFIX}draft-dm`;
   },
-  draftChannel(): string {
-    return `${DRAFT_KEY_PREFIX}draft-channel`;
-  },
 };
 
 function isComposeDraftAttachment(
