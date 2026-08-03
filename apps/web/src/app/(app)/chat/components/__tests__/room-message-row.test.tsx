@@ -359,6 +359,63 @@ describe("ChatMessageRow", () => {
     }
   });
 
+  it("shows who reacted in the message actions sheet when hover is unavailable", async () => {
+    const matchMediaSpy = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+    try {
+      vi.useFakeTimers();
+      renderRow({
+        onQuote: vi.fn(),
+        message: userMessage({
+          reactions: [
+            {
+              emoji: "👍",
+              count: 2,
+              reactedByCurrentUser: true,
+              reactors: [
+                { id: "user-1", name: "Ada" },
+                { id: "user-2", name: "Bob" },
+              ],
+            },
+          ],
+        }),
+      });
+      const article = screen.getByRole("article");
+
+      await act(async () => {
+        article.dispatchEvent(
+          new PointerEvent("pointerdown", {
+            bubbles: true,
+            button: 0,
+            clientX: 10,
+            clientY: 10,
+          }),
+        );
+        await vi.advanceTimersByTimeAsync(500);
+      });
+
+      const dialog = screen.getByRole("dialog");
+      expect(
+        within(dialog).getByRole("list", { name: "Reactions.whoReactedList" }),
+      ).toBeInTheDocument();
+      expect(within(dialog).getByText("Ada, Bob")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      matchMediaSpy.mockRestore();
+    }
+  });
+
   it("reserves hover-only right gutter on article", () => {
     renderRow();
 
