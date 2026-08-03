@@ -1177,6 +1177,10 @@ export type ChatRoom = {
      */
     pinnedAt: Date | null;
     /**
+     * When the current user muted this room in their sidebar. Null when unmuted.
+     */
+    mutedAt: Date | null;
+    /**
      * True when the current user marked this room unread. Cleared on mark-read.
      */
     markedUnread: boolean;
@@ -10299,6 +10303,190 @@ export type PostChatsRoomsByIdPinResponses = {
 };
 
 export type PostChatsRoomsByIdPinResponse = PostChatsRoomsByIdPinResponses[keyof PostChatsRoomsByIdPinResponses];
+
+export type DeleteChatsRoomsByIdMuteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/mute';
+};
+
+export type DeleteChatsRoomsByIdMuteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMuteError = DeleteChatsRoomsByIdMuteErrors[keyof DeleteChatsRoomsByIdMuteErrors];
+
+export type DeleteChatsRoomsByIdMuteResponses = {
+    /**
+     * Chat room unmuted
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMuteResponse = DeleteChatsRoomsByIdMuteResponses[keyof DeleteChatsRoomsByIdMuteResponses];
+
+export type PostChatsRoomsByIdMuteData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/mute';
+};
+
+export type PostChatsRoomsByIdMuteErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMuteError = PostChatsRoomsByIdMuteErrors[keyof PostChatsRoomsByIdMuteErrors];
+
+export type PostChatsRoomsByIdMuteResponses = {
+    /**
+     * Chat room muted
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMuteResponse = PostChatsRoomsByIdMuteResponses[keyof PostChatsRoomsByIdMuteResponses];
 
 export type GetChatsRoomsByIdMessagesData = {
     body?: never;

@@ -1686,12 +1686,17 @@ model ChatRoomUserMember {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   /// Null = unpinned. Set to now when the user pins the room in their sidebar.
+  /// Mutually exclusive with mutedAt (enforced by DB check + API updateMany).
   pinnedAt  DateTime?
+  /// Null = unmuted. Set to now when the user mutes the room in their sidebar.
+  /// Mutually exclusive with pinnedAt (enforced by DB check + API updateMany).
+  mutedAt   DateTime?
   createdAt DateTime  @default(now())
 
   @@unique([roomId, userId])
   @@index([userId])
   @@index([userId, pinnedAt])
+  @@index([userId, mutedAt])
   @@map("chat_room_user_member")
 }
 

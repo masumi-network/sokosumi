@@ -20,7 +20,7 @@ import {
 import {
   buildUniqueRoomSlug,
   chatRoomInclude,
-  mapChatRoom,
+  mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
   slugifyRoomName,
   validateChatCoworkerIds,
@@ -204,7 +204,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       });
 
-      return ok(c, chatRoomSchema.parse(mapChatRoom(room, userContext.userId)));
+      return ok(
+        c,
+        chatRoomSchema.parse(
+          await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma),
+        ),
+      );
     } catch (error) {
       if (isSlugUniqueConstraintError(error)) {
         throw conflict("Room already exists");

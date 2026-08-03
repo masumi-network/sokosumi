@@ -2,6 +2,7 @@ export interface ChatRoomActivitySortKey {
   id: string;
   updatedAt: string | Date;
   pinnedAt?: string | Date | null;
+  mutedAt?: string | Date | null;
 }
 
 function isPinned(value: string | Date | null | undefined): boolean {
@@ -15,14 +16,24 @@ function pinnedAtMs(value: string | Date | null | undefined): number {
   return new Date(value).getTime();
 }
 
+function mutedRank(value: string | Date | null | undefined): number {
+  return value == null ? 0 : 1;
+}
+
 /**
- * Pinned before unpinned; among pins oldest pinnedAt first (first pin stays top);
+ * Unmuted before muted; within bucket pinned before unpinned;
+ * among pins oldest pinnedAt first (first pin stays top);
  * then newest activity; stable id tie-break.
  */
 export function compareChatRoomsByRecentActivity(
   a: ChatRoomActivitySortKey,
   b: ChatRoomActivitySortKey,
 ): number {
+  const byMuted = mutedRank(a.mutedAt) - mutedRank(b.mutedAt);
+  if (byMuted !== 0) {
+    return byMuted;
+  }
+
   const aPinned = isPinned(a.pinnedAt);
   const bPinned = isPinned(b.pinnedAt);
   if (aPinned !== bPinned) {

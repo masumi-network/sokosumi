@@ -109,7 +109,7 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   readStateUpsertMock.mockResolvedValue({});
   notificationUpdateManyMock.mockResolvedValue({ count: 2 });
-  membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null });
+  membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null, mutedAt: null });
 });
 
 describe("POST /chats/rooms/{id}/read", () => {

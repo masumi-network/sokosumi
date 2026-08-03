@@ -8,25 +8,27 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import { ChatMessageRow } from "../room-message-row";
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
-    if (key === "Reactions.whoReacted" && values) {
-      const names = String(values.names ?? "");
-      const more = Number(values.more ?? 0);
-      return more > 0 ? `${names}, and ${more} more` : names;
-    }
-    if (key === "Reactions.andMore" && values) {
-      return `and ${values.count} more`;
-    }
-    if (key === "jump" && values) {
-      return `Jump to message from ${values.author}`;
-    }
-    if (key === "showMore") {
-      return "More";
-    }
-    if (key === "showLess") {
-      return "Less";
-    }
-    return key;
+  useTranslations: (namespace?: string) => {
+    return (key: string, values?: Record<string, unknown>) => {
+      if (key === "Reactions.whoReacted" && values) {
+        const names = String(values.names ?? "");
+        const more = Number(values.more ?? 0);
+        return more > 0 ? `${names}, and ${more} more` : names;
+      }
+      if (key === "Reactions.andMore" && values) {
+        return `and ${values.count} more`;
+      }
+      if (key === "jump" && values) {
+        return `Jump to message from ${values.author}`;
+      }
+      if (key === "showMore") {
+        return namespace === "App.Channels.Message" ? "Show more" : "More";
+      }
+      if (key === "showLess") {
+        return namespace === "App.Channels.Message" ? "Show less" : "Less";
+      }
+      return key;
+    };
   },
 }));
 
@@ -596,6 +598,125 @@ describe("ChatMessageRow", () => {
       expect(
         screen.getByRole("button", { name: "Jump to message from Phil" }),
       ).toBeInTheDocument();
+    } finally {
+      if (scrollDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollDescriptor,
+        );
+      }
+      if (clientDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientHeight",
+          clientDescriptor,
+        );
+      }
+    }
+  });
+
+  it("clamps long message bodies and expands with Show more/Show less", async () => {
+    const user = userEvent.setup();
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    const clientDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 400;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return 80;
+      },
+    });
+
+    try {
+      const longBody = Array.from(
+        { length: 20 },
+        (_, i) => `Line ${i + 1} of a very long chat message.`,
+      ).join("\n");
+
+      renderRow({
+        message: userMessage({ content: longBody }),
+      });
+
+      const body = screen.getByTestId("room-message-body");
+      expect(body.className).toContain("line-clamp-[16]");
+      expect(
+        screen.getByRole("button", { name: "Show more" }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Show more" }));
+      expect(body.className).not.toContain("line-clamp-[16]");
+      expect(
+        screen.getByRole("button", { name: "Show less" }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Show less" }));
+      expect(body.className).toContain("line-clamp-[16]");
+      expect(
+        screen.getByRole("button", { name: "Show more" }),
+      ).toBeInTheDocument();
+    } finally {
+      if (scrollDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "scrollHeight",
+          scrollDescriptor,
+        );
+      }
+      if (clientDescriptor) {
+        Object.defineProperty(
+          HTMLElement.prototype,
+          "clientHeight",
+          clientDescriptor,
+        );
+      }
+    }
+  });
+
+  it("hides Show more when the message body does not overflow", () => {
+    const scrollDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    const clientDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "clientHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 40;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get() {
+        return 40;
+      },
+    });
+
+    try {
+      renderRow({
+        message: userMessage({ content: "Short message" }),
+      });
+
+      expect(screen.getByTestId("room-message-body").className).toContain(
+        "line-clamp-[16]",
+      );
+      expect(
+        screen.queryByRole("button", { name: "Show more" }),
+      ).not.toBeInTheDocument();
     } finally {
       if (scrollDescriptor) {
         Object.defineProperty(
