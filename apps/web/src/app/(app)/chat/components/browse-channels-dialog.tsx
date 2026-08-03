@@ -1,7 +1,6 @@
 "use client";
 
 import { Compass, Hash, Loader2, Search } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -29,7 +28,6 @@ export function BrowseChannelsDialog({
   triggerClassName?: string;
 }) {
   const t = useTranslations("App.Channels.Browse");
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [rooms, setRooms] = useState<BrowsableChatRoom[]>([]);
@@ -88,7 +86,7 @@ export function BrowseChannelsDialog({
       toast.success(t("joinSuccess", { name: result.data.name }));
       notifyOrganizationChatRoomsChanged(result.data);
       setOpen(false);
-      router.push(`/chat/rooms/${result.data.id}`);
+      window.location.assign(`/chat/rooms/${result.data.id}`);
     });
   }
 
