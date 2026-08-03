@@ -10628,6 +10628,112 @@ export const Job_EventSchema = {
     ]
 } as const;
 
+export const PushVapidPublicKeySchema = {
+    type: 'object',
+    properties: {
+        publicKey: {
+            type: 'string',
+            minLength: 1,
+            description: 'VAPID public key for Web Push subscription',
+            example: 'BPxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+        }
+    },
+    required: [
+        'publicKey'
+    ]
+} as const;
+
+export const PushSubscriptionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Unique identifier for the push subscription',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        endpoint: {
+            type: 'string',
+            format: 'uri',
+            description: 'Push service endpoint URL',
+            example: 'https://fcm.googleapis.com/fcm/send/abc'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-01T00:00:00.000Z',
+            description: 'When the subscription was created'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-01T00:00:00.000Z',
+            description: 'When the subscription was last updated'
+        }
+    },
+    required: [
+        'id',
+        'endpoint',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const PushSubscriptionUpsertBodySchema = {
+    type: 'object',
+    properties: {
+        endpoint: {
+            type: 'string',
+            format: 'uri',
+            description: 'Push service endpoint URL',
+            example: 'https://fcm.googleapis.com/fcm/send/abc'
+        },
+        keys: {
+            $ref: '#/components/schemas/PushSubscriptionKeys'
+        }
+    },
+    required: [
+        'endpoint',
+        'keys'
+    ]
+} as const;
+
+export const PushSubscriptionKeysSchema = {
+    type: 'object',
+    properties: {
+        p256dh: {
+            type: 'string',
+            minLength: 1,
+            description: 'P-256 ECDH public key (base64url)',
+            example: 'BNcRdteraUr2rz74p7R...'
+        },
+        auth: {
+            type: 'string',
+            minLength: 1,
+            description: 'Authentication secret (base64url)',
+            example: 'tBHItJI5svbpez7KI4THag'
+        }
+    },
+    required: [
+        'p256dh',
+        'auth'
+    ]
+} as const;
+
+export const PushSubscriptionDeleteBodySchema = {
+    type: 'object',
+    properties: {
+        endpoint: {
+            type: 'string',
+            format: 'uri',
+            description: 'Push service endpoint URL to unsubscribe',
+            example: 'https://fcm.googleapis.com/fcm/send/abc'
+        }
+    },
+    required: [
+        'endpoint'
+    ]
+} as const;
+
 export const NotificationListSchema = {
     type: 'array',
     items: {

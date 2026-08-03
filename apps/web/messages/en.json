@@ -3804,8 +3804,8 @@
         "retry": "Retry"
       },
       "Notifications": {
-        "title": "Email notifications",
-        "description": "Choose which job updates we send to your inbox",
+        "title": "Notifications",
+        "description": "Choose how we notify you about jobs and activity",
         "jobStatusEmailsTitle": "Job notification emails",
         "jobStatusEmailsDescription": "Receive an email when a job changes to a significant status, such as completed, failed, or requires input.",
         "jobStatusEmailsAriaLabel": "Toggle job notification emails",
@@ -3816,6 +3816,13 @@
         "marketingEmailsAriaLabel": "Toggle marketing email notifications",
         "marketingEmailsEnabledSuccess": "Marketing emails enabled",
         "marketingEmailsDisabledSuccess": "Marketing emails disabled",
+        "pushTitle": "Push notifications",
+        "pushDescription": "Get alerts on this device when Sokosumi is closed, for jobs, tasks, billing, system, and chat updates.",
+        "pushAriaLabel": "Toggle push notifications",
+        "pushEnabledSuccess": "Push notifications enabled",
+        "pushDisabledSuccess": "Push notifications disabled",
+        "pushPermissionDenied": "Push notifications are blocked in your browser. Allow them for Sokosumi to enable this setting.",
+        "pushUnsupported": "Push notifications are not supported in this browser.",
         "loading": "Saving preference...",
         "error": "Failed to update notification preference"
       },

@@ -3710,8 +3710,8 @@
         "retry": "Erneut versuchen"
       },
       "Notifications": {
-        "title": "E-Mail-Benachrichtigungen",
-        "description": "Wähle, über welche Job-Updates wir dich per E-Mail informieren",
+        "title": "Benachrichtigungen",
+        "description": "Lege fest, wie wir dich über Jobs und Aktivität informieren",
         "jobStatusEmailsTitle": "Job-Benachrichtigungen per E-Mail",
         "jobStatusEmailsDescription": "Erhalte eine E-Mail, wenn ein Job einen wichtigen Status erreicht, z. B. abgeschlossen, fehlgeschlagen oder Input erforderlich.",
         "jobStatusEmailsAriaLabel": "Job-Benachrichtigungen per E-Mail umschalten",
@@ -3722,6 +3722,13 @@
         "marketingEmailsAriaLabel": "Marketing-E-Mail-Benachrichtigungen umschalten",
         "marketingEmailsEnabledSuccess": "Marketing-E-Mails aktiviert",
         "marketingEmailsDisabledSuccess": "Marketing-E-Mails deaktiviert",
+        "pushTitle": "Push-Benachrichtigungen",
+        "pushDescription": "Erhalte Hinweise auf diesem Gerät, wenn Sokosumi geschlossen ist — für Jobs, Tasks, Abrechnung, System und Chat.",
+        "pushAriaLabel": "Push-Benachrichtigungen umschalten",
+        "pushEnabledSuccess": "Push-Benachrichtigungen aktiviert",
+        "pushDisabledSuccess": "Push-Benachrichtigungen deaktiviert",
+        "pushPermissionDenied": "Push-Benachrichtigungen sind in deinem Browser blockiert. Erlaube sie für Sokosumi, um diese Einstellung zu aktivieren.",
+        "pushUnsupported": "Push-Benachrichtigungen werden in diesem Browser nicht unterstützt.",
         "loading": "Einstellung wird gespeichert...",
         "error": "Benachrichtigungseinstellung konnte nicht aktualisiert werden"
       },

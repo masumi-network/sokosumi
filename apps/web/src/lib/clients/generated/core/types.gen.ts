@@ -3112,6 +3112,58 @@ export type JobEvent = {
     links: Array<Link>;
 };
 
+export type PushVapidPublicKey = {
+    /**
+     * VAPID public key for Web Push subscription
+     */
+    publicKey: string;
+};
+
+export type PushSubscription = {
+    /**
+     * Unique identifier for the push subscription
+     */
+    id: string;
+    /**
+     * Push service endpoint URL
+     */
+    endpoint: string;
+    /**
+     * When the subscription was created
+     */
+    createdAt: Date;
+    /**
+     * When the subscription was last updated
+     */
+    updatedAt: Date;
+};
+
+export type PushSubscriptionUpsertBody = {
+    /**
+     * Push service endpoint URL
+     */
+    endpoint: string;
+    keys: PushSubscriptionKeys;
+};
+
+export type PushSubscriptionKeys = {
+    /**
+     * P-256 ECDH public key (base64url)
+     */
+    p256dh: string;
+    /**
+     * Authentication secret (base64url)
+     */
+    auth: string;
+};
+
+export type PushSubscriptionDeleteBody = {
+    /**
+     * Push service endpoint URL to unsubscribe
+     */
+    endpoint: string;
+};
+
 export type NotificationList = Array<NotificationItem>;
 
 export type NotificationItem = {
@@ -23208,6 +23260,195 @@ export type PutJobsByIdWorkspaceResponses = {
 };
 
 export type PutJobsByIdWorkspaceResponse = PutJobsByIdWorkspaceResponses[keyof PutJobsByIdWorkspaceResponses];
+
+export type GetPushVapidPublicKeyData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/notifications/push-vapid-public-key';
+};
+
+export type GetPushVapidPublicKeyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetPushVapidPublicKeyError = GetPushVapidPublicKeyErrors[keyof GetPushVapidPublicKeyErrors];
+
+export type GetPushVapidPublicKeyResponses = {
+    /**
+     * VAPID public key for Web Push
+     */
+    200: {
+        data: PushVapidPublicKey;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetPushVapidPublicKeyResponse = GetPushVapidPublicKeyResponses[keyof GetPushVapidPublicKeyResponses];
+
+export type DeletePushSubscriptionData = {
+    body?: PushSubscriptionDeleteBody;
+    path?: never;
+    query?: never;
+    url: '/notifications/push-subscriptions';
+};
+
+export type DeletePushSubscriptionErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeletePushSubscriptionError = DeletePushSubscriptionErrors[keyof DeletePushSubscriptionErrors];
+
+export type DeletePushSubscriptionResponses = {
+    /**
+     * Push subscription deleted (or already absent)
+     */
+    204: void;
+};
+
+export type DeletePushSubscriptionResponse = DeletePushSubscriptionResponses[keyof DeletePushSubscriptionResponses];
+
+export type UpsertPushSubscriptionData = {
+    body?: PushSubscriptionUpsertBody;
+    path?: never;
+    query?: never;
+    url: '/notifications/push-subscriptions';
+};
+
+export type UpsertPushSubscriptionErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpsertPushSubscriptionError = UpsertPushSubscriptionErrors[keyof UpsertPushSubscriptionErrors];
+
+export type UpsertPushSubscriptionResponses = {
+    /**
+     * Upserted Web Push subscription
+     */
+    200: {
+        data: PushSubscription;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpsertPushSubscriptionResponse = UpsertPushSubscriptionResponses[keyof UpsertPushSubscriptionResponses];
 
 export type GetNotificationsData = {
     body?: never;

@@ -3741,8 +3741,8 @@
         "retry": "Tentar novamente"
       },
       "Notifications": {
-        "title": "Notificações por e-mail",
-        "description": "Escolha quais atualizações de jobs vamos te enviar por e-mail",
+        "title": "Notificações",
+        "description": "Escolha como avisamos você sobre jobs e atividade",
         "jobStatusEmailsTitle": "E-mails de notificação de jobs",
         "jobStatusEmailsDescription": "Receba um e-mail quando um job mudar para um status importante, como concluído, falhou ou requer entrada.",
         "jobStatusEmailsAriaLabel": "Alternar e-mails de notificação de jobs",
@@ -3754,7 +3754,14 @@
         "marketingEmailsEnabledSuccess": "E-mails de marketing ativados",
         "marketingEmailsDisabledSuccess": "E-mails de marketing desativados",
         "loading": "Salvando preferência...",
-        "error": "Falha ao atualizar preferência de notificação"
+        "error": "Falha ao atualizar preferência de notificação",
+        "pushTitle": "Notificações push",
+        "pushDescription": "Receba alertas neste dispositivo quando o Sokosumi estiver fechado, sobre jobs, tasks, cobrança, sistema e chat.",
+        "pushAriaLabel": "Ativar/desativar notificações push",
+        "pushEnabledSuccess": "Notificações push ativadas",
+        "pushDisabledSuccess": "Notificações push desativadas",
+        "pushPermissionDenied": "As notificações push estão bloqueadas no seu navegador. Permita-as para o Sokosumi para ativar esta configuração.",
+        "pushUnsupported": "As notificações push não são suportadas neste navegador."
       },
       "BillingDetails": {
         "title": "Informações de faturamento",

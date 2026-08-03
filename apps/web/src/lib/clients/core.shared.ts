@@ -71,6 +71,8 @@ import type {
   PostVendorsByIdFilesCleanupData,
   PostVendorsByIdFilesData,
   PostWorkspacesDesignMdAdhocData,
+  PushSubscriptionDeleteBody,
+  PushSubscriptionUpsertBody,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
   PutTaskScheduleRequest,
@@ -105,6 +107,7 @@ import {
   deleteProjectsById as coreDeleteProjectsById,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdTasksByTaskId as coreDeleteProjectsByIdTasksByTaskId,
+  deletePushSubscription as coreDeletePushSubscription,
   deleteTasksById as coreDeleteTasksById,
   deleteTasksByIdLinksByLinkId as coreDeleteTasksByIdLinksByLinkId,
   deleteTasksByIdSchedule as coreDeleteTasksByIdSchedule,
@@ -169,6 +172,7 @@ import {
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsStats as coreGetProjectsStats,
+  getPushVapidPublicKey as coreGetPushVapidPublicKey,
   getShareByToken as coreGetShareByToken,
   getSubscriptionCatalog as coreGetSubscriptionCatalog,
   getTasks as coreGetTasks,
@@ -288,6 +292,7 @@ import {
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
+  upsertPushSubscription as coreUpsertPushSubscription,
   NoticeKind,
 } from "@/lib/clients/generated/core";
 import type { Client } from "@/lib/clients/generated/core/client";
@@ -905,6 +910,57 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to mark all notifications as read",
+    );
+  }
+
+  async function getPushVapidPublicKey() {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetPushVapidPublicKey({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch push VAPID public key",
+    );
+  }
+
+  async function upsertPushSubscription(body: PushSubscriptionUpsertBody) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreUpsertPushSubscription({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to upsert push subscription",
+    );
+  }
+
+  async function deletePushSubscription(body: PushSubscriptionDeleteBody) {
+    await executeOperation(
+      getClient,
+      async (client) => {
+        const result = await coreDeletePushSubscription({
+          client,
+          body,
+          cache: "no-store",
+        });
+        if (result.error) {
+          return {
+            data: undefined,
+            error: result.error,
+            response: result.response,
+          };
+        }
+        return {
+          data: true as const,
+          error: undefined,
+          response: result.response,
+        };
+      },
+      "Failed to delete push subscription",
     );
   }
 
@@ -3783,6 +3839,9 @@ export function createCoreClient(getClient: GetClient) {
     getHistory,
     getNotifications,
     getNotificationsUnreadCount,
+    getPushVapidPublicKey,
+    upsertPushSubscription,
+    deletePushSubscription,
     updateChatRoom,
     updateChatRoomMessage,
     patchNotificationRead,

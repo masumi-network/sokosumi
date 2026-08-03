@@ -25,6 +25,7 @@ import { LoginAccountNoticeToast } from "./components/login-account-notice-toast
 import { NoticeDialogProvider } from "./components/notice-dialog-context";
 import { NotificationToastListener } from "./components/notification-toast-listener";
 import { NotificationToaster } from "./components/notification-toaster.client";
+import { PushSubscriptionRegistrar } from "./components/push-subscription-registrar";
 
 /** Stable empties so client providers do not see a new [] reference each RSC pass. */
 const EMPTY_COWORKERS: Coworker[] = [];
@@ -73,6 +74,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
               >
                 <NotificationToaster />
                 <NotificationToastListener userId={session.user.id} />
+                <PushSubscriptionRegistrar />
                 <LoginAccountNoticeToast />
                 <SidebarProvider
                   defaultOpen={defaultOpen}

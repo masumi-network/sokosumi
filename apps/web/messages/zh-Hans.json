@@ -3741,8 +3741,8 @@
         "retry": "重试"
       },
       "Notifications": {
-        "title": "电子邮件通知",
-        "description": "选择我们向您的收件箱发送哪些任务更新",
+        "title": "通知",
+        "description": "选择我们如何就任务与动态向您发送通知",
         "jobStatusEmailsTitle": "任务通知邮件",
         "jobStatusEmailsDescription": "当任务变为重要状态（例如已完成、已失败或需要输入）时接收邮件通知。",
         "jobStatusEmailsAriaLabel": "切换任务通知邮件",
@@ -3754,7 +3754,14 @@
         "marketingEmailsEnabledSuccess": "已启用营销邮件",
         "marketingEmailsDisabledSuccess": "已停用营销邮件",
         "loading": "正在保存偏好设置...",
-        "error": "更新通知偏好失败"
+        "error": "更新通知偏好失败",
+        "pushTitle": "推送通知",
+        "pushDescription": "当 Sokosumi 关闭时，在此设备上接收关于 jobs、tasks、账单、系统和聊天的提醒。",
+        "pushAriaLabel": "切换推送通知",
+        "pushEnabledSuccess": "已启用推送通知",
+        "pushDisabledSuccess": "已关闭推送通知",
+        "pushPermissionDenied": "浏览器已阻止推送通知。请为 Sokosumi 允许通知以启用此设置。",
+        "pushUnsupported": "此浏览器不支持推送通知。"
       },
       "BillingDetails": {
         "title": "账单信息",

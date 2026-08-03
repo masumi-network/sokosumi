@@ -3741,8 +3741,8 @@
         "retry": "再試行"
       },
       "Notifications": {
-        "title": "メール通知",
-        "description": "受信するジョブ更新通知を選択します",
+        "title": "通知",
+        "description": "ジョブやアクティビティの通知方法を選択",
         "jobStatusEmailsTitle": "ジョブ通知メール",
         "jobStatusEmailsDescription": "完了、失敗、入力が必要など、ジョブが重要なステータスに変化した際にメールを受け取ります。",
         "jobStatusEmailsAriaLabel": "ジョブ通知メールを切り替え",
@@ -3754,7 +3754,14 @@
         "marketingEmailsEnabledSuccess": "マーケティングメールを有効にしました",
         "marketingEmailsDisabledSuccess": "マーケティングメールを無効にしました",
         "loading": "設定を保存しています...",
-        "error": "通知設定の更新に失敗しました"
+        "error": "通知設定の更新に失敗しました",
+        "pushTitle": "プッシュ通知",
+        "pushDescription": "Sokosumi が閉じているとき、この端末でジョブ、タスク、請求、システム、チャットの通知を受け取ります。",
+        "pushAriaLabel": "プッシュ通知の切り替え",
+        "pushEnabledSuccess": "プッシュ通知を有効にしました",
+        "pushDisabledSuccess": "プッシュ通知を無効にしました",
+        "pushPermissionDenied": "ブラウザでプッシュ通知がブロックされています。Sokosumi で許可すると、この設定を有効にできます。",
+        "pushUnsupported": "このブラウザではプッシュ通知に対応していません。"
       },
       "BillingDetails": {
         "title": "請求情報",
