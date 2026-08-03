@@ -4683,7 +4683,7 @@
         "archive": "Archive channel",
         "cancel": "Cancel",
         "leaveConfirmTitle": "Leave {name}?",
-        "leaveConfirmDescription": "You will stop receiving messages from this channel and it will disappear from your list. Other members keep their access, and you can be added back later.",
+        "leaveConfirmDescription": "You will stop receiving messages from this channel and it will disappear from your list.",
         "leaveConfirm": "Leave channel",
         "leaveSuccess": "You left {name}.",
         "archiveConfirmTitle": "Archive {name}?",
