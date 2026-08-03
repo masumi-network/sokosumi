@@ -5055,7 +5055,8 @@
         "canceled": "{taskName} 已取消"
       },
       "Chat": {
-        "mentioned": "{authorName}在{roomName}中提到了你"
+        "mentioned": "{authorName}在{roomName}中提到了你",
+        "directMessage": "{authorName} 给你发了一条消息"
       }
     }
   },

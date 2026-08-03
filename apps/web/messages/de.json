@@ -5055,7 +5055,8 @@
         "canceled": "{taskName} wurde abgebrochen"
       },
       "Chat": {
-        "mentioned": "{authorName} hat dich in {roomName} erwähnt"
+        "mentioned": "{authorName} hat dich in {roomName} erwähnt",
+        "directMessage": "{authorName} hat dir eine Nachricht gesendet"
       }
     }
   },

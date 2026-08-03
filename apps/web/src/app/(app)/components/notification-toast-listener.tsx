@@ -15,7 +15,6 @@ import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import {
   getBrowserNotificationPermission,
   shouldShowBrowserNotification,
-  shouldShowInAppNotificationToast,
   showBrowserNotification,
 } from "@/lib/utils/browser-notification";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
@@ -48,19 +47,17 @@ function NotificationToastBody({
   );
 }
 
-interface NotificationToastContentProps {
+interface VendorGrantNotificationToastProps {
   notification: NotificationEventData;
   message: string;
   onOpen: () => void;
-  showVendorGrantActions: boolean;
 }
 
-function NotificationToastContent({
+function VendorGrantNotificationToast({
   notification,
   message,
   onOpen,
-  showVendorGrantActions,
-}: NotificationToastContentProps) {
+}: VendorGrantNotificationToastProps) {
   return (
     <div className="flex w-full min-w-0 flex-col gap-1">
       <NotificationToastBody
@@ -70,15 +67,13 @@ function NotificationToastContent({
           onOpen();
         }}
       />
-      {showVendorGrantActions ? (
-        <VendorGrantNotificationActions
-          notification={notification}
-          layout="toast"
-          onDismissed={() => {
-            toast.dismiss(notification.id);
-          }}
-        />
-      ) : null}
+      <VendorGrantNotificationActions
+        notification={notification}
+        layout="toast"
+        onDismissed={() => {
+          toast.dismiss(notification.id);
+        }}
+      />
     </div>
   );
 }
@@ -104,12 +99,12 @@ export function NotificationToastListener({
         isDocumentFocused,
         isRead: notification.isRead,
       });
-      const showToast = shouldShowInAppNotificationToast({
-        isDocumentFocused,
-        isRead: notification.isRead,
-      });
+      const showVendorGrantToast =
+        isDocumentFocused &&
+        !notification.isRead &&
+        isPendingVendorGrantNotification(notification);
 
-      if (!showBrowser && !showToast) {
+      if (!showBrowser && !showVendorGrantToast) {
         return;
       }
 
@@ -117,8 +112,6 @@ export function NotificationToastListener({
         notification.messageKey,
         notification.messageParams ?? {},
       );
-      const showVendorGrantActions =
-        isPendingVendorGrantNotification(notification);
 
       const openNotification = () => {
         void (async () => {
@@ -164,11 +157,10 @@ export function NotificationToastListener({
 
       toast(
         () => (
-          <NotificationToastContent
+          <VendorGrantNotificationToast
             notification={notification}
             message={message}
             onOpen={openNotification}
-            showVendorGrantActions={showVendorGrantActions}
           />
         ),
         {
@@ -177,21 +169,11 @@ export function NotificationToastListener({
           duration: 10_000,
           dismissible: true,
           icon: <Bell className="text-primary size-5 shrink-0" />,
-          ...(showVendorGrantActions
-            ? {}
-            : {
-                action: {
-                  label: t("dismiss"),
-                  onClick: () => {
-                    toast.dismiss(notification.id);
-                  },
-                },
-              }),
         },
       );
     },
     onError: (error) => {
-      console.error("Notification toast error:", error);
+      console.error("Notification browser alert error:", error);
     },
   });
 

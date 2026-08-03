@@ -1,6 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
+import { emitChatDirectMessageNotifications } from "@/helpers/chat-direct-message-notifications";
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { conflict } from "@/helpers/error";
@@ -166,6 +167,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 id: room.id,
                 name: room.name,
                 organizationId: room.organizationId,
+                kind: room.kind,
+                memberUserIds: room.userMembers.map((member) => member.userId),
               },
               didCreate: false,
             };
@@ -292,6 +295,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             id: room.id,
             name: room.name,
             organizationId: room.organizationId,
+            kind: room.kind,
+            memberUserIds: room.userMembers.map((member) => member.userId),
           },
           didCreate: true,
         };
@@ -348,6 +353,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             mentionedUserIds,
           }),
         );
+      }
+
+      if (room.kind === "direct") {
+        const mentionedUserIdSet = new Set(mentionedUserIds);
+        const recipientUserIds = room.memberUserIds.filter(
+          (userId) =>
+            userId !== userContext.userId && !mentionedUserIdSet.has(userId),
+        );
+        if (recipientUserIds.length > 0) {
+          waitUntil(
+            emitChatDirectMessageNotifications({
+              roomId: room.id,
+              roomName: room.name,
+              organizationId: room.organizationId,
+              messageId: message.id,
+              authorUserId: userContext.userId,
+              authorName: message.senderUser?.name ?? "Someone",
+              recipientUserIds,
+            }),
+          );
+        }
       }
     }
 

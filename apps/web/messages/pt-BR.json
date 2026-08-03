@@ -5055,7 +5055,8 @@
         "canceled": "{taskName} foi cancelado"
       },
       "Chat": {
-        "mentioned": "{authorName} mencionou você em {roomName}"
+        "mentioned": "{authorName} mencionou você em {roomName}",
+        "directMessage": "{authorName} enviou uma mensagem para você"
       }
     }
   },
