@@ -19,7 +19,9 @@ import {
 } from "@/app/chat/utils/compose-draft-storage";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
@@ -66,6 +68,7 @@ export function DraftChannel({
   const composerRef = useRef<RoomComposerHandle | null>(null);
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [recipientQuery, setRecipientQuery] = useState("");
   const [isRecipientPickerOpen, setIsRecipientPickerOpen] = useState(true);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -216,6 +219,7 @@ export function DraftChannel({
       const result = await sendNewChannelMessageAction({
         name: trimmedName,
         topic,
+        visibility,
         memberUserIds: selectedMemberUserIds,
         coworkerIds: selectedCoworkerIds,
         content,
@@ -228,6 +232,7 @@ export function DraftChannel({
       }
       setName("");
       setTopic("");
+      setVisibility("public");
       setSelectedKeys([]);
       setComposerValue("");
       setComposerAttachments([]);
@@ -269,6 +274,45 @@ export function DraftChannel({
                 className="placeholder:text-muted-foreground/80 text-muted-foreground h-6 w-full bg-transparent text-base outline-none md:text-xs"
               />
             </div>
+          </div>
+
+          <div className="space-y-2 pl-6">
+            <p className="text-muted-foreground text-xs font-medium">
+              {t("Visibility.label")}
+            </p>
+            <RadioGroup
+              value={visibility}
+              onValueChange={(value) => {
+                if (value === "public" || value === "private") {
+                  setVisibility(value);
+                }
+              }}
+              className="flex flex-wrap gap-4"
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="public" id="draft-channel-public" />
+                <Label
+                  htmlFor="draft-channel-public"
+                  className="cursor-pointer font-normal"
+                >
+                  {t("Visibility.public")}
+                </Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="private" id="draft-channel-private" />
+                <Label
+                  htmlFor="draft-channel-private"
+                  className="cursor-pointer font-normal"
+                >
+                  {t("Visibility.private")}
+                </Label>
+              </div>
+            </RadioGroup>
+            <p className="text-muted-foreground text-xs">
+              {visibility === "public"
+                ? t("Visibility.publicHelp")
+                : t("Visibility.privateHelp")}
+            </p>
           </div>
 
           <div className="relative flex w-full items-start gap-2">

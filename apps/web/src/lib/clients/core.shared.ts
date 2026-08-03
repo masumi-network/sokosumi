@@ -16,6 +16,7 @@ import type {
   GetAgentsByIdReviewsData,
   GetAgentsData,
   GetCategoriesData,
+  GetChatsRoomsBrowseData,
   GetChatsRoomsByIdMessagesData,
   GetChatsRoomsData,
   GetCoworkersData,
@@ -119,6 +120,7 @@ import {
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
   getChatsRooms as coreGetChatsRooms,
+  getChatsRoomsBrowse as coreGetChatsRoomsBrowse,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
@@ -217,6 +219,7 @@ import {
   postChatsRooms as corePostChatsRooms,
   postChatsRoomsByIdArchive as corePostChatsRoomsByIdArchive,
   postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
+  postChatsRoomsByIdMembersMe as corePostChatsRoomsByIdMembersMe,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
   postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
@@ -542,6 +545,21 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
+  async function getBrowsableChatRooms(
+    query?: GetChatsRoomsBrowseData["query"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsBrowse({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch browsable chat rooms",
+    );
+  }
+
   /**
    * Creates a chat room. A `direct` room is create-or-get: Core returns the
    * existing room for the same participant set instead of a duplicate.
@@ -622,6 +640,18 @@ export function createCoreClient(getClient: GetClient) {
           path: { id },
         }),
       "Failed to leave chat room",
+    );
+  }
+
+  async function joinChatRoom(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMembersMe({
+          client,
+          path: { id },
+        }),
+      "Failed to join chat room",
     );
   }
 
@@ -3651,6 +3681,7 @@ export function createCoreClient(getClient: GetClient) {
     archiveChatRoom,
     restoreChatRoom,
     leaveChatRoom,
+    joinChatRoom,
     assignOrganizationSeat,
     createChatRoom,
     createAgentJob,
@@ -3675,6 +3706,7 @@ export function createCoreClient(getClient: GetClient) {
     getChatRoom,
     getChatRoomMessages,
     getChatRooms,
+    getBrowsableChatRooms,
     markChatRoomRead,
     pinChatRoom,
     unpinChatRoom,

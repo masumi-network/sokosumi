@@ -3,16 +3,23 @@
 import { revalidatePath } from "next/cache";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
+import type {
+  BrowsableChatRoom,
+  ChatRoom,
+  ChatRoomMessage,
+} from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
 
 export type RoomActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; message: string };
 
+type ChannelVisibility = "public" | "private";
+
 interface CreateChannelInput {
   name: string;
   topic?: string;
+  visibility?: ChannelVisibility;
   memberUserIds?: string[];
   coworkerIds?: string[];
 }
@@ -20,6 +27,7 @@ interface CreateChannelInput {
 interface UpdateRoomInput {
   name?: string;
   topic?: string | null;
+  visibility?: ChannelVisibility;
   memberUserIds?: string[];
   coworkerIds?: string[];
 }
@@ -42,6 +50,7 @@ interface SendNewDirectMessageInput {
 interface SendNewChannelMessageInput {
   name: string;
   topic?: string;
+  visibility?: ChannelVisibility;
   memberUserIds?: string[];
   coworkerIds?: string[];
   content: string;
@@ -62,6 +71,15 @@ function cleanIds(value: string[] | null | undefined): string[] {
   return Array.from(
     new Set((value ?? []).map((id) => id.trim()).filter(Boolean)),
   );
+}
+
+function cleanVisibility(
+  value: ChannelVisibility | null | undefined,
+): ChannelVisibility | undefined {
+  if (value === "public" || value === "private") {
+    return value;
+  }
+  return undefined;
 }
 
 function actionErrorMessage(error: unknown, fallback: string): string {
@@ -92,6 +110,7 @@ export async function createChannelAction(
       kind: "channel",
       name,
       topic: cleanString(input.topic),
+      visibility: cleanVisibility(input.visibility) ?? "public",
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
     });
@@ -243,6 +262,7 @@ export async function sendNewChannelMessageAction(
       kind: "channel",
       name,
       topic: cleanString(input.topic),
+      visibility: cleanVisibility(input.visibility) ?? "public",
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
     });
@@ -268,6 +288,9 @@ export async function updateRoomAction(
   const body = {
     ...(input.name !== undefined && { name: cleanString(input.name) }),
     ...(input.topic !== undefined && { topic: cleanString(input.topic) }),
+    ...(input.visibility !== undefined && {
+      visibility: cleanVisibility(input.visibility),
+    }),
     ...(input.memberUserIds !== undefined && {
       memberUserIds: cleanIds(input.memberUserIds),
     }),
@@ -331,6 +354,47 @@ export async function leaveRoomAction(
     return {
       ok: false,
       message: actionErrorMessage(error, "Could not leave channel."),
+    };
+  }
+}
+
+export async function joinRoomAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoom>> {
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return { ok: false, message: "Channel is required." };
+  }
+
+  try {
+    const room = await chatRoomService.joinRoom(cleanRoomId);
+    revalidatePath("/chat");
+    return { ok: true, data: room };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not join channel."),
+    };
+  }
+}
+
+export async function listBrowsableChannelsAction(options?: {
+  q?: string;
+}): Promise<RoomActionResult<BrowsableChatRoom[]>> {
+  const activeOrganization = await userService.getActiveOrganization();
+  if (!activeOrganization) {
+    return { ok: false, message: "Select an organization first." };
+  }
+
+  try {
+    const rooms = await chatRoomService.listBrowsableChannels({
+      q: options?.q,
+    });
+    return { ok: true, data: rooms };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not load channels."),
     };
   }
 }

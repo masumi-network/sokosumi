@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  BrowsableChatRoom,
   ChatRoom,
   ChatRoomKind,
   ChatRoomMessage,
@@ -47,6 +48,30 @@ export const chatRoomService = (() => {
 
     return rooms;
   });
+
+  async function listBrowsableChannels(options?: {
+    q?: string;
+  }): Promise<BrowsableChatRoom[]> {
+    const rooms: BrowsableChatRoom[] = [];
+    let cursor: string | undefined;
+    const q = options?.q?.trim();
+
+    for (let page = 0; page < ROOM_LIST_MAX_PAGES; page += 1) {
+      const response = await coreClient.getBrowsableChatRooms({
+        limit: ROOM_LIST_PAGE_LIMIT,
+        ...(q ? { q } : {}),
+        ...(cursor ? { cursor } : {}),
+      });
+      rooms.push(...response.data);
+      const nextCursor = response.meta?.pagination?.nextCursor ?? null;
+      if (!nextCursor) {
+        return rooms;
+      }
+      cursor = nextCursor;
+    }
+
+    return rooms;
+  }
 
   const listArchivedRooms = cache(async function listArchivedRooms(): Promise<
     ChatRoom[]
@@ -96,6 +121,11 @@ export const chatRoomService = (() => {
 
   async function leaveRoom(id: string) {
     const response = await coreClient.leaveChatRoom(id);
+    return response.data;
+  }
+
+  async function joinRoom(id: string): Promise<ChatRoom> {
+    const response = await coreClient.joinChatRoom(id);
     return response.data;
   }
 
@@ -195,7 +225,9 @@ export const chatRoomService = (() => {
     deleteMessage,
     editMessage,
     getRoom,
+    joinRoom,
     listArchivedRooms,
+    listBrowsableChannels,
     listMessages,
     listRooms,
     listThreadMessages,

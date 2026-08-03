@@ -19,6 +19,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { restoreRoomAction } from "@/app/chat/actions";
+import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -184,15 +185,26 @@ function SectionHeader({
   href,
   isOpen,
   label,
+  secondaryAction,
 }: {
   children: ReactNode;
   href?: string;
   isOpen: boolean;
   label?: string;
+  secondaryAction?: ReactNode;
 }) {
+  const hasTrailing = Boolean(secondaryAction) || Boolean(href && label);
+  const trailingCount = (secondaryAction ? 1 : 0) + (href && label ? 1 : 0);
+
   return (
     <div className="group-data-[collapsible=icon]:hidden relative flex h-8 items-center gap-1 px-3">
-      <CollapsibleTrigger className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-xs font-medium transition-colors">
+      <CollapsibleTrigger
+        className={cn(
+          "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-xs font-medium transition-colors",
+          trailingCount === 1 && "pr-8",
+          trailingCount >= 2 && "pr-14",
+        )}
+      >
         <ChevronDown
           aria-hidden
           className={cn(
@@ -202,21 +214,21 @@ function SectionHeader({
         />
         <span className="truncate">{children}</span>
       </CollapsibleTrigger>
-      {href && label ? (
-        <>
-          {/* Match room row trailing CTA slot (pin / …). */}
-          <span className="size-7 shrink-0" aria-hidden />
-          <SheetClose asChild>
-            <Link
-              aria-label={label}
-              // Widen touch hit area without shifting the visual size-7 slot.
-              className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground absolute top-1/2 right-1 flex size-7 -translate-y-1/2 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
-              href={href}
-            >
-              <Plus className="size-3.5" aria-hidden />
-            </Link>
-          </SheetClose>
-        </>
+      {hasTrailing ? (
+        <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
+          {secondaryAction}
+          {href && label ? (
+            <SheetClose asChild>
+              <Link
+                aria-label={label}
+                className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
+                href={href}
+              >
+                <Plus className="size-3.5" aria-hidden />
+              </Link>
+            </SheetClose>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
@@ -437,6 +449,9 @@ export function OrganizationChatList({
             href={hasOrganization ? "/chat?create=channel" : undefined}
             isOpen={channelSectionOpen}
             label={t("createChannel")}
+            secondaryAction={
+              hasOrganization ? <BrowseChannelsDialog /> : undefined
+            }
           >
             {t("title")}
           </SectionHeader>

@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const getChatRoomsMock = vi.fn();
+const getBrowsableChatRoomsMock = vi.fn();
 const archiveChatRoomMock = vi.fn();
 const leaveChatRoomMock = vi.fn();
+const joinChatRoomMock = vi.fn();
 const restoreChatRoomMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -17,8 +19,11 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
   coreClient: {
     getChatRooms: (...args: unknown[]) => getChatRoomsMock(...args),
+    getBrowsableChatRooms: (...args: unknown[]) =>
+      getBrowsableChatRoomsMock(...args),
     archiveChatRoom: (...args: unknown[]) => archiveChatRoomMock(...args),
     leaveChatRoom: (...args: unknown[]) => leaveChatRoomMock(...args),
+    joinChatRoom: (...args: unknown[]) => joinChatRoomMock(...args),
     restoreChatRoom: (...args: unknown[]) => restoreChatRoomMock(...args),
   },
 }));
@@ -125,6 +130,98 @@ describe("chatRoomService.listRooms", () => {
   });
 });
 
+describe("chatRoomService.listBrowsableChannels", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("walks nextCursor until exhausted", async () => {
+    getBrowsableChatRoomsMock
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "room-1",
+            name: "Alpha",
+            slug: "alpha",
+            topic: null,
+            visibility: "public",
+            memberCount: 3,
+            createdByUserId: "user-1",
+            createdAt: new Date("2026-01-01T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          },
+        ],
+        meta: {
+          pagination: {
+            cursor: null,
+            limit: 100,
+            total: 2,
+            nextCursor: "room-1",
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "room-2",
+            name: "Beta",
+            slug: "beta",
+            topic: "Planning",
+            visibility: "public",
+            memberCount: 5,
+            createdByUserId: "user-2",
+            createdAt: new Date("2026-01-02T00:00:00.000Z"),
+            updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+          },
+        ],
+        meta: {
+          pagination: {
+            cursor: "room-1",
+            limit: 100,
+            total: 2,
+            nextCursor: null,
+          },
+        },
+      });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const rooms = await chatRoomService.listBrowsableChannels();
+
+    expect(rooms.map((item) => item.id)).toEqual(["room-1", "room-2"]);
+    expect(getBrowsableChatRoomsMock).toHaveBeenCalledTimes(2);
+    expect(getBrowsableChatRoomsMock).toHaveBeenNthCalledWith(1, {
+      limit: 100,
+    });
+    expect(getBrowsableChatRoomsMock).toHaveBeenNthCalledWith(2, {
+      limit: 100,
+      cursor: "room-1",
+    });
+  });
+
+  it("passes q filter on every page", async () => {
+    getBrowsableChatRoomsMock.mockResolvedValue({
+      data: [],
+      meta: {
+        pagination: {
+          cursor: null,
+          limit: 100,
+          total: 0,
+          nextCursor: null,
+        },
+      },
+    });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    await chatRoomService.listBrowsableChannels({ q: " launch " });
+
+    expect(getBrowsableChatRoomsMock).toHaveBeenCalledWith({
+      limit: 100,
+      q: "launch",
+    });
+  });
+});
+
 describe("chatRoomService.listArchivedRooms", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -180,6 +277,18 @@ describe("chatRoomService lifecycle wrappers", () => {
 
     expect(leaveChatRoomMock).toHaveBeenCalledWith("room-1");
     expect(result).toEqual({ id: "room-1", remainingUserMemberCount: 2 });
+  });
+
+  it("joinRoom returns joined room", async () => {
+    joinChatRoomMock.mockResolvedValue({
+      data: room("room-1"),
+    });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const result = await chatRoomService.joinRoom("room-1");
+
+    expect(joinChatRoomMock).toHaveBeenCalledWith("room-1");
+    expect(result).toEqual(room("room-1"));
   });
 
   it("restoreRoom returns restored room", async () => {
