@@ -49,7 +49,7 @@ import {
 } from "better-auth/plugins";
 import pTimeout from "p-timeout";
 import Stripe from "stripe";
-import { postmarkClient } from "@/clients/postmark.client";
+import { sendEmail } from "@/clients/email.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
 import { LIMITS, TIME } from "@/config/constants";
@@ -519,31 +519,24 @@ export const auth = betterAuth({
         resetLink: url,
       });
 
-      void postmarkClient
-        .sendEmail({
-          From: env.POSTMARK_FROM_EMAIL,
-          To: user.email,
-          Tag: "reset-password",
-          Subject: email.subject,
-          HtmlBody: email.html,
-          MessageStream: "authentications",
-        })
-        .catch((error) => {
-          captureExternalServiceError(error, {
-            label: "reset_password_email",
-            sentry: {
-              tags: {
-                context: "reset_password_email",
-              },
-              extra: {
-                userId: user.id,
-              },
+      void sendEmail({
+        to: user.email,
+        tag: "reset-password",
+        subject: email.subject,
+        html: email.html,
+      }).catch((error) => {
+        captureExternalServiceError(error, {
+          label: "reset_password_email",
+          sentry: {
+            tags: {
+              context: "reset_password_email",
             },
-            extra: {
-              userId: user.id,
-            },
-          });
+          },
+          extra: {
+            userId: user.id,
+          },
         });
+      });
     },
   },
   emailVerification: {
@@ -554,31 +547,24 @@ export const auth = betterAuth({
         verificationLink: url,
       });
 
-      void postmarkClient
-        .sendEmail({
-          From: env.POSTMARK_FROM_EMAIL,
-          To: user.email,
-          Tag: "verification-email",
-          Subject: email.subject,
-          HtmlBody: email.html,
-          MessageStream: "authentications",
-        })
-        .catch((error) => {
-          captureExternalServiceError(error, {
-            label: "verification_email",
-            sentry: {
-              tags: {
-                context: "verification_email",
-              },
-              extra: {
-                userId: user.id,
-              },
+      void sendEmail({
+        to: user.email,
+        tag: "verification-email",
+        subject: email.subject,
+        html: email.html,
+      }).catch((error) => {
+        captureExternalServiceError(error, {
+          label: "verification_email",
+          sentry: {
+            tags: {
+              context: "verification_email",
             },
-            extra: {
-              userId: user.id,
-            },
-          });
+          },
+          extra: {
+            userId: user.id,
+          },
         });
+      });
     },
     sendOnSignUp: true,
     sendOnSignIn: true,
@@ -612,31 +598,24 @@ export const auth = betterAuth({
           name,
         });
 
-        void postmarkClient
-          .sendEmail({
-            From: env.POSTMARK_FROM_EMAIL,
-            To: email,
-            Tag: "magic-link",
-            Subject: renderedEmail.subject,
-            HtmlBody: renderedEmail.html,
-            MessageStream: "authentications",
-          })
-          .catch((error) => {
-            captureExternalServiceError(error, {
-              label: "magic_link_email",
-              sentry: {
-                tags: {
-                  context: "magic_link_email",
-                },
-                extra: {
-                  email,
-                },
+        void sendEmail({
+          to: email,
+          tag: "magic-link",
+          subject: renderedEmail.subject,
+          html: renderedEmail.html,
+        }).catch((error) => {
+          captureExternalServiceError(error, {
+            label: "magic_link_email",
+            sentry: {
+              tags: {
+                context: "magic_link_email",
               },
-              extra: {
-                email,
-              },
-            });
+            },
+            extra: {
+              email,
+            },
           });
+        });
       },
     }),
     i18n({
@@ -723,33 +702,25 @@ export const auth = betterAuth({
           organizationName: data.organization.name,
         });
 
-        void postmarkClient
-          .sendEmail({
-            From: env.POSTMARK_FROM_EMAIL,
-            To: data.email,
-            Tag: "invitation-email",
-            Subject: email.subject,
-            HtmlBody: email.html,
-            MessageStream: "organizations",
-          })
-          .catch((error) => {
-            captureExternalServiceError(error, {
-              label: "organization_invitation_email",
-              sentry: {
-                tags: {
-                  context: "organization_invitation_email",
-                },
-                extra: {
-                  invitationId: data.id,
-                  organizationId: data.organization.id,
-                },
+        void sendEmail({
+          to: data.email,
+          tag: "invitation-email",
+          subject: email.subject,
+          html: email.html,
+        }).catch((error) => {
+          captureExternalServiceError(error, {
+            label: "organization_invitation_email",
+            sentry: {
+              tags: {
+                context: "organization_invitation_email",
               },
-              extra: {
-                invitationId: data.id,
-                organizationId: data.organization.id,
-              },
-            });
+            },
+            extra: {
+              invitationId: data.id,
+              organizationId: data.organization.id,
+            },
           });
+        });
       },
       invitationLimit: LIMITS.ORGANIZATION_INVITATION_LIMIT,
       cancelPendingInvitationsOnReInvite: true,
