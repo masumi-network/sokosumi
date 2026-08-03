@@ -4564,7 +4564,7 @@
         "archive": "チャンネルをアーカイブ",
         "cancel": "キャンセル",
         "leaveConfirmTitle": "{name} から退出しますか？",
-        "leaveConfirmDescription": "このチャンネルのメッセージは届かなくなり、一覧から消えます。他のメンバーのアクセスはそのままで、後から再度追加してもらうこともできます。",
+        "leaveConfirmDescription": "このチャンネルのメッセージは届かなくなり、一覧から消えます。",
         "leaveConfirm": "退出する",
         "leaveSuccess": "{name} から退出しました。",
         "archiveConfirmTitle": "{name} をアーカイブしますか？",

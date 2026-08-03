@@ -155,4 +155,19 @@ describe("auth fixtures", () => {
     assert.equal(admins.length, 1);
     assert.equal(admins[0]?.email, "admin@sokosumi.test");
   });
+
+  it("gives each fixture user at least one organization", () => {
+    const slugs = new Set();
+    for (const fixture of AUTH_FIXTURES) {
+      assert.ok(fixture.organization, `${fixture.email} missing organization`);
+      assert.match(fixture.organization.slug, /^[a-z0-9-]+$/);
+      assert.ok(fixture.organization.name.length >= 1);
+      assert.equal(
+        slugs.has(fixture.organization.slug),
+        false,
+        `duplicate org slug: ${fixture.organization.slug}`,
+      );
+      slugs.add(fixture.organization.slug);
+    }
+  });
 });

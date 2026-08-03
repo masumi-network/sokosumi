@@ -4564,7 +4564,7 @@
         "archive": "Archivar canal",
         "cancel": "Cancelar",
         "leaveConfirmTitle": "¿Salir de {name}?",
-        "leaveConfirmDescription": "Dejarás de recibir mensajes de este canal y desaparecerá de tu lista. Los demás miembros conservan su acceso y podrán volver a añadirte más adelante.",
+        "leaveConfirmDescription": "Dejarás de recibir mensajes de este canal y desaparecerá de tu lista.",
         "leaveConfirm": "Salir del canal",
         "leaveSuccess": "Saliste de {name}.",
         "archiveConfirmTitle": "¿Archivar {name}?",

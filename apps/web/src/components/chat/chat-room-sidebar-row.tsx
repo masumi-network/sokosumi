@@ -4,14 +4,19 @@ import {
   Bell,
   BellOff,
   Ellipsis,
+  Loader2,
+  LogOut,
   MessageSquare,
   Pin,
   PinOff,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useTransition } from "react";
+import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { leaveRoomAction } from "@/app/chat/actions";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   markOrganizationChatRoomUnreadAction,
   muteOrganizationChatRoomAction,
@@ -20,11 +25,22 @@ import {
   unpinOrganizationChatRoomAction,
 } from "@/components/chat/organization-chat-list.actions";
 import { resolveRoomAttention } from "@/components/chat/room-attention";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SheetClose } from "@/components/ui/sheet";
@@ -71,9 +87,13 @@ export function ChatRoomSidebarRow({
   onRoomUpdated,
 }: ChatRoomSidebarRowProps) {
   const tActions = useTranslations("App.Channels.Actions");
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const isPinned = room.pinnedAt != null;
   const isMuted = room.mutedAt != null;
+  const canLeave = room.kind === "channel" && room.userMembers.length > 1;
   const { bold, badgeCount } = resolveRoomAttention({
     unreadCount: room.unreadCount,
     unreadMentionCount: room.unreadMentionCount,
@@ -100,6 +120,27 @@ export function ChatRoomSidebarRow({
       }
       onRoomUpdated(result.data);
     });
+  }
+
+  async function handleConfirmLeave() {
+    if (isLeaving) return;
+    setIsLeaving(true);
+    const result = await leaveRoomAction(room.id);
+    setIsLeaving(false);
+
+    if (!result.ok) {
+      toast.error(result.message);
+      setLeaveConfirmOpen(false);
+      return;
+    }
+
+    toast.success(tActions("leaveSuccess", { name: label }));
+    setLeaveConfirmOpen(false);
+    notifyOrganizationChatRoomsChanged();
+    if (isActive) {
+      router.replace("/chat");
+      router.refresh();
+    }
   }
 
   return (
@@ -220,8 +261,57 @@ export function ChatRoomSidebarRow({
             )}
             {isMuted ? tActions("unmute") : tActions("mute")}
           </DropdownMenuItem>
+          {canLeave ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={isPending || isLeaving}
+                onSelect={() => {
+                  setLeaveConfirmOpen(true);
+                }}
+              >
+                <LogOut className="size-4" aria-hidden />
+                {tActions("leave")}
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog
+        open={leaveConfirmOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !isLeaving) setLeaveConfirmOpen(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {tActions("leaveConfirmTitle", { name: label })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {tActions("leaveConfirmDescription", { name: label })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLeaving}>
+              {tActions("cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isLeaving}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmLeave();
+              }}
+            >
+              {isLeaving ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : null}
+              {tActions("leaveConfirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarMenuItem>
   );
 }
