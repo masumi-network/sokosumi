@@ -4788,6 +4788,7 @@
       "CreateWizard": {
         "title": "创建频道",
         "nameLabel": "名称",
+        "namePlaceholder": "例如 #welcome",
         "nameHelp": "频道用于围绕某个主题进行讨论。请使用大家都能识别的清晰名称。",
         "nameRequired": "频道名称为必填项。",
         "next": "下一步",

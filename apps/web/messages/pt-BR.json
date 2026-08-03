@@ -4788,6 +4788,7 @@
       "CreateWizard": {
         "title": "Criar um canal",
         "nameLabel": "Nome",
+        "namePlaceholder": "p.ex. #welcome",
         "nameHelp": "Canais são espaços para conversas em torno de um tópico. Use um nome claro que as pessoas reconheçam.",
         "nameRequired": "O nome do canal é obrigatório.",
         "next": "Avançar",

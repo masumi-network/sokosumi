@@ -211,17 +211,19 @@ export function CreateChannelDialog({
                       handleNameNext();
                     }
                   }}
-                  className="pl-7"
+                  placeholder={t("namePlaceholder")}
+                  className="pr-10 pl-7"
                   autoFocus
                   maxLength={CHANNEL_NAME_MAX}
                 />
-              </div>
-              <div className="text-muted-foreground flex items-center justify-between gap-3 text-xs">
-                <p>{t("nameHelp")}</p>
-                <span className="shrink-0 tabular-nums">
+                <span
+                  className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs tabular-nums"
+                  aria-hidden
+                >
                   {remainingNameChars(wizard.name)}
                 </span>
               </div>
+              <p className="text-muted-foreground text-xs">{t("nameHelp")}</p>
             </div>
             <DialogFooter className="sm:justify-between">
               <p className="text-muted-foreground text-sm">

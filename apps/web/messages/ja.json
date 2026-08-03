@@ -4788,6 +4788,7 @@
       "CreateWizard": {
         "title": "チャンネルを作成",
         "nameLabel": "名前",
+        "namePlaceholder": "例: #welcome",
         "nameHelp": "チャンネルはトピックごとの会話の場です。みんなが分かるわかりやすい名前を付けましょう。",
         "nameRequired": "チャンネル名は必須です。",
         "next": "次へ",
