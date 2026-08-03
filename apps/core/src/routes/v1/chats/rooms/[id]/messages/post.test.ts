@@ -20,6 +20,7 @@ const {
   prismaTransactionMock,
   dispatchMock,
   emitChatMentionNotificationsMock,
+  emitChatDirectMessageNotificationsMock,
   waitUntilMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -34,6 +35,7 @@ const {
   prismaTransactionMock: vi.fn(),
   dispatchMock: vi.fn(),
   emitChatMentionNotificationsMock: vi.fn(),
+  emitChatDirectMessageNotificationsMock: vi.fn(),
   waitUntilMock: vi.fn(),
 }));
 
@@ -60,6 +62,11 @@ vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
 vi.mock("@/helpers/chat-mention-notifications", () => ({
   emitChatMentionNotifications: (...args: unknown[]) =>
     emitChatMentionNotificationsMock(...args),
+}));
+
+vi.mock("@/helpers/chat-direct-message-notifications", () => ({
+  emitChatDirectMessageNotifications: (...args: unknown[]) =>
+    emitChatDirectMessageNotificationsMock(...args),
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
@@ -147,18 +154,29 @@ const coworkerAuthContext: AuthVariables["authContext"] = {
 
 function roomWithMembers(
   overrides: {
+    kind?: "channel" | "direct";
+    name?: string;
     userMembers?: Array<{
       userId: string;
       user: { name: string };
+    }>;
+    coworkerMembers?: Array<{
+      coworker: {
+        id: string;
+        name: string;
+        slug: string;
+        caption: string | null;
+        image: string | null;
+      };
     }>;
   } = {},
 ) {
   return {
     id: ROOM_ID,
     organizationId: "org_1",
-    name: "general",
+    name: overrides.name ?? "general",
     slug: "general",
-    kind: "channel",
+    kind: overrides.kind ?? "channel",
     directKey: null,
     topic: null,
     createdByUserId: USER_ID,
@@ -166,7 +184,7 @@ function roomWithMembers(
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
     archivedAt: null,
     userMembers: overrides.userMembers ?? [],
-    coworkerMembers: [
+    coworkerMembers: overrides.coworkerMembers ?? [
       {
         coworker: {
           id: COWORKER_ID,
@@ -541,6 +559,90 @@ describe("POST /chats/rooms/{id}/messages", () => {
 
       expect(response.status).toBe(201);
       expect(emitChatMentionNotificationsMock).not.toHaveBeenCalled();
+      expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
+    });
+
+    it("emits direct-message notifications to other humans in a direct room", async () => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          kind: "direct",
+          name: "Alice",
+          userMembers: [
+            {
+              userId: USER_ID,
+              user: { name: "Patrick" },
+            },
+            {
+              userId: ALICE_ID,
+              user: { name: "Alice" },
+            },
+          ],
+          coworkerMembers: [],
+        }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderUserId: USER_ID }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ content: "hey, are you free?" }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(emitChatMentionNotificationsMock).not.toHaveBeenCalled();
+      expect(emitChatDirectMessageNotificationsMock).toHaveBeenCalledWith({
+        roomId: ROOM_ID,
+        roomName: "Alice",
+        organizationId: "org_1",
+        messageId: MESSAGE_ID,
+        authorUserId: USER_ID,
+        authorName: "Patrick",
+        recipientUserIds: [ALICE_ID],
+      });
+    });
+
+    it("skips direct-message emit for humans already covered by mention notifications", async () => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          kind: "direct",
+          name: "Alice",
+          userMembers: [
+            {
+              userId: USER_ID,
+              user: { name: "Patrick" },
+            },
+            {
+              userId: ALICE_ID,
+              user: { name: "Alice" },
+            },
+          ],
+          coworkerMembers: [],
+        }),
+      );
+      messageCreateMock.mockResolvedValue(
+        createdMessage({ senderUserId: USER_ID }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "ping",
+          mentionedUserIds: [ALICE_ID],
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(emitChatMentionNotificationsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mentionedUserIds: [ALICE_ID],
+        }),
+      );
+      expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
     });
 
     it("expands @all:all from content to notify other humans without ChatRoomMention rows", async () => {

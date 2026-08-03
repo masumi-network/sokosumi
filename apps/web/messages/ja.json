@@ -5052,7 +5052,8 @@
         "canceled": "{taskName}はキャンセルされました"
       },
       "Chat": {
-        "mentioned": "{authorName}が{roomName}であなたにメンションしました"
+        "mentioned": "{authorName}が{roomName}であなたにメンションしました",
+        "directMessage": "{authorName} からメッセージが届きました"
       }
     }
   },

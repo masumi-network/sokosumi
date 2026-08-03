@@ -5171,7 +5171,8 @@
         "canceled": "{taskName} was canceled"
       },
       "Chat": {
-        "mentioned": "{authorName} mentioned you in {roomName}"
+        "mentioned": "{authorName} mentioned you in {roomName}",
+        "directMessage": "{authorName} sent you a message"
       }
     }
   },

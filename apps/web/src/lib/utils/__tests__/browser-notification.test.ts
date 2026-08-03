@@ -4,7 +4,6 @@ import {
   getBrowserNotificationPermission,
   requestBrowserNotificationPermission,
   shouldShowBrowserNotification,
-  shouldShowInAppNotificationToast,
   showBrowserNotification,
   subscribeBrowserNotificationPermission,
 } from "@/lib/utils/browser-notification";
@@ -60,29 +59,6 @@ describe("shouldShowBrowserNotification", () => {
         permission: "unsupported",
         isDocumentFocused: false,
         isRead: false,
-      }),
-    ).toBe(false);
-  });
-});
-
-describe("shouldShowInAppNotificationToast", () => {
-  it("shows unread toasts only while the document is focused", () => {
-    expect(
-      shouldShowInAppNotificationToast({
-        isDocumentFocused: true,
-        isRead: false,
-      }),
-    ).toBe(true);
-    expect(
-      shouldShowInAppNotificationToast({
-        isDocumentFocused: false,
-        isRead: false,
-      }),
-    ).toBe(false);
-    expect(
-      shouldShowInAppNotificationToast({
-        isDocumentFocused: true,
-        isRead: true,
       }),
     ).toBe(false);
   });
