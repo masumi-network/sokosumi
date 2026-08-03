@@ -17,7 +17,7 @@ import {
   type ComposeDraft,
   composeDraftKey,
 } from "@/app/chat/utils/compose-draft-storage";
-import { ChannelVisibilityIcon } from "@/components/chat/channel-visibility-icon";
+import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
@@ -69,7 +69,9 @@ export function DraftChannel({
   const composerRef = useRef<RoomComposerHandle | null>(null);
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "private">("public");
+  const [discoverability, setDiscoverability] = useState<"public" | "private">(
+    "public",
+  );
   const [recipientQuery, setRecipientQuery] = useState("");
   const [isRecipientPickerOpen, setIsRecipientPickerOpen] = useState(true);
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
@@ -220,7 +222,7 @@ export function DraftChannel({
       const result = await sendNewChannelMessageAction({
         name: trimmedName,
         topic,
-        visibility,
+        discoverability,
         memberUserIds: selectedMemberUserIds,
         coworkerIds: selectedCoworkerIds,
         content,
@@ -233,7 +235,7 @@ export function DraftChannel({
       }
       setName("");
       setTopic("");
-      setVisibility("public");
+      setDiscoverability("public");
       setSelectedKeys([]);
       setComposerValue("");
       setComposerAttachments([]);
@@ -256,9 +258,9 @@ export function DraftChannel({
       <header className="min-h-14 shrink-0 border-b px-5 py-2">
         <div className="space-y-2">
           <div className="flex w-full items-start gap-2">
-            <ChannelVisibilityIcon
+            <ChannelDiscoverabilityIcon
               className="text-muted-foreground mt-2"
-              visibility={visibility}
+              discoverability={discoverability}
             />
             <div className="min-w-0 flex-1">
               <input
@@ -282,10 +284,10 @@ export function DraftChannel({
               {t("Visibility.label")}
             </p>
             <RadioGroup
-              value={visibility}
+              value={discoverability}
               onValueChange={(value) => {
                 if (value === "public" || value === "private") {
-                  setVisibility(value);
+                  setDiscoverability(value);
                 }
               }}
               className="flex flex-wrap gap-4"
@@ -310,7 +312,7 @@ export function DraftChannel({
               </div>
             </RadioGroup>
             <p className="text-muted-foreground text-xs">
-              {visibility === "public"
+              {discoverability === "public"
                 ? t("Visibility.publicHelp")
                 : t("Visibility.privateHelp")}
             </p>

@@ -38,7 +38,7 @@ import type {
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
-import { ChannelVisibilityIcon } from "./channel-visibility-icon";
+import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
 import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
@@ -560,7 +560,9 @@ export function OrganizationChatList({
                   label={room.name}
                   isActive={activeRoomId === room.id}
                   leading={
-                    <ChannelVisibilityIcon visibility={room.visibility} />
+                    <ChannelDiscoverabilityIcon
+                      discoverability={room.discoverability}
+                    />
                   }
                   onRoomUpdated={handleRoomUpdated}
                 />
@@ -616,9 +618,9 @@ export function OrganizationChatList({
                       className="group/room-row relative"
                     >
                       <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-center gap-2 px-3 py-1.5">
-                        <ChannelVisibilityIcon
+                        <ChannelDiscoverabilityIcon
                           className="opacity-60"
-                          visibility={room.visibility}
+                          discoverability={room.discoverability}
                         />
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}

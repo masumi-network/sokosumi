@@ -132,7 +132,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     kind: "channel",
     directKey: null,
     topic: null,
-    visibility: "private",
+    discoverability: "private",
     createdByUserId: USER_ID,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -159,7 +159,7 @@ function directRoom() {
     slug: "bob",
     kind: "direct",
     directKey: `${USER_ID}:${OTHER_USER_ID}`,
-    visibility: null,
+    discoverability: null,
   });
 }
 
@@ -216,9 +216,9 @@ describe("PATCH /chats/rooms/{id}", () => {
     );
   });
 
-  it("updates channel visibility when the caller can manage the room", async () => {
-    const existing = channelRoom({ visibility: "private" });
-    const updated = channelRoom({ visibility: "public" });
+  it("updates channel discoverability when the caller can manage the room", async () => {
+    const existing = channelRoom({ discoverability: "private" });
+    const updated = channelRoom({ discoverability: "public" });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     roomUpdateMock.mockResolvedValueOnce(updated);
 
@@ -227,17 +227,17 @@ describe("PATCH /chats/rooms/{id}", () => {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        visibility: "public",
+        discoverability: "public",
       }),
     });
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data.visibility).toBe("public");
+    expect(body.data.discoverability).toBe("public");
     expect(roomUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: ROOM_ID },
-        data: { visibility: "public" },
+        data: { discoverability: "public" },
       }),
     );
   });

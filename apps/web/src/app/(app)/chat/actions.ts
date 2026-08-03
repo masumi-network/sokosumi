@@ -14,12 +14,12 @@ export type RoomActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; message: string };
 
-type ChannelVisibility = "public" | "private";
+type ChannelDiscoverability = "public" | "private";
 
 interface CreateChannelInput {
   name: string;
   topic?: string;
-  visibility?: ChannelVisibility;
+  discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
   coworkerIds?: string[];
 }
@@ -27,7 +27,7 @@ interface CreateChannelInput {
 interface UpdateRoomInput {
   name?: string;
   topic?: string | null;
-  visibility?: ChannelVisibility;
+  discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
   coworkerIds?: string[];
 }
@@ -50,7 +50,7 @@ interface SendNewDirectMessageInput {
 interface SendNewChannelMessageInput {
   name: string;
   topic?: string;
-  visibility?: ChannelVisibility;
+  discoverability?: ChannelDiscoverability;
   memberUserIds?: string[];
   coworkerIds?: string[];
   content: string;
@@ -73,9 +73,9 @@ function cleanIds(value: string[] | null | undefined): string[] {
   );
 }
 
-function cleanVisibility(
-  value: ChannelVisibility | null | undefined,
-): ChannelVisibility | undefined {
+function cleanDiscoverability(
+  value: ChannelDiscoverability | null | undefined,
+): ChannelDiscoverability | undefined {
   if (value === "public" || value === "private") {
     return value;
   }
@@ -110,7 +110,7 @@ export async function createChannelAction(
       kind: "channel",
       name,
       topic: cleanString(input.topic),
-      visibility: cleanVisibility(input.visibility) ?? "public",
+      discoverability: cleanDiscoverability(input.discoverability) ?? "public",
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
     });
@@ -262,7 +262,7 @@ export async function sendNewChannelMessageAction(
       kind: "channel",
       name,
       topic: cleanString(input.topic),
-      visibility: cleanVisibility(input.visibility) ?? "public",
+      discoverability: cleanDiscoverability(input.discoverability) ?? "public",
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
     });
@@ -288,8 +288,8 @@ export async function updateRoomAction(
   const body = {
     ...(input.name !== undefined && { name: cleanString(input.name) }),
     ...(input.topic !== undefined && { topic: cleanString(input.topic) }),
-    ...(input.visibility !== undefined && {
-      visibility: cleanVisibility(input.visibility),
+    ...(input.discoverability !== undefined && {
+      discoverability: cleanDiscoverability(input.discoverability),
     }),
     ...(input.memberUserIds !== undefined && {
       memberUserIds: cleanIds(input.memberUserIds),

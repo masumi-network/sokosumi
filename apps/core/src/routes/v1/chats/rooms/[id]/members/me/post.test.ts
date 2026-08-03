@@ -96,7 +96,7 @@ function publicChannel(overrides: Record<string, unknown> = {}) {
     kind: "channel",
     directKey: null,
     topic: null,
-    visibility: "public",
+    discoverability: "public",
     createdByUserId: OTHER_ID,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
@@ -120,7 +120,7 @@ beforeEach(() => {
     {
       id: ROOM_ID,
       kind: "channel",
-      visibility: "public",
+      discoverability: "public",
       archivedAt: null,
       organizationId: ORG_ID,
     },
@@ -142,7 +142,7 @@ describe("POST /chats/rooms/{id}/members/me", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.id).toBe(ROOM_ID);
-    expect(body.data.visibility).toBe("public");
+    expect(body.data.discoverability).toBe("public");
     expect(body.data.userMembers.map((m: { id: string }) => m.id)).toEqual([
       OTHER_ID,
       SELF_ID,
@@ -189,7 +189,7 @@ describe("POST /chats/rooms/{id}/members/me", () => {
       {
         id: ROOM_ID,
         kind: "channel",
-        visibility: "private",
+        discoverability: "private",
         archivedAt: null,
         organizationId: ORG_ID,
       },

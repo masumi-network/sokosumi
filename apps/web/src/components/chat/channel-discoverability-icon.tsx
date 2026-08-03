@@ -1,17 +1,17 @@
 import { Hash, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface ChannelVisibilityIconProps {
-  visibility?: "public" | "private" | null;
+interface ChannelDiscoverabilityIconProps {
+  discoverability?: "public" | "private" | null;
   className?: string;
 }
 
 /** Slack-like: `#` for public, lock for private. */
-export function ChannelVisibilityIcon({
-  visibility,
+export function ChannelDiscoverabilityIcon({
+  discoverability,
   className,
-}: ChannelVisibilityIconProps) {
-  if (visibility === "private") {
+}: ChannelDiscoverabilityIconProps) {
+  if (discoverability === "private") {
     return <Lock className={cn("size-4 shrink-0", className)} aria-hidden />;
   }
 

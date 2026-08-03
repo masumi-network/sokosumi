@@ -283,8 +283,8 @@ export function EditChannelDialog({
   const [isExiting, setIsExiting] = useState(false);
   const [name, setName] = useState(channel.name);
   const [topic, setTopic] = useState(channel.topic ?? "");
-  const [visibility, setVisibility] = useState<"public" | "private">(
-    channel.visibility === "private" ? "private" : "public",
+  const [discoverability, setDiscoverability] = useState<"public" | "private">(
+    channel.discoverability === "private" ? "private" : "public",
   );
   const [memberIds, setMemberIds] = useState<string[]>(
     channel.userMembers.map((member) => member.id),
@@ -298,7 +298,9 @@ export function EditChannelDialog({
     if (!open) return;
     setName(channel.name);
     setTopic(channel.topic ?? "");
-    setVisibility(channel.visibility === "private" ? "private" : "public");
+    setDiscoverability(
+      channel.discoverability === "private" ? "private" : "public",
+    );
     setMemberIds(channel.userMembers.map((member) => member.id));
     setCoworkerIds(channel.coworkerMembers.map((coworker) => coworker.id));
   }, [channel, open]);
@@ -309,7 +311,7 @@ export function EditChannelDialog({
       const result = await updateRoomAction(channel.id, {
         name,
         topic,
-        ...(canArchive ? { visibility } : {}),
+        ...(canArchive ? { discoverability } : {}),
         memberUserIds: memberIds,
         coworkerIds,
       });
@@ -410,10 +412,10 @@ export function EditChannelDialog({
                 <div className="space-y-2">
                   <Label>{t("Visibility.label")}</Label>
                   <RadioGroup
-                    value={visibility}
+                    value={discoverability}
                     onValueChange={(value) => {
                       if (value === "public" || value === "private") {
-                        setVisibility(value);
+                        setDiscoverability(value);
                       }
                     }}
                     className="flex flex-wrap gap-4"
@@ -441,7 +443,7 @@ export function EditChannelDialog({
                     </div>
                   </RadioGroup>
                   <p className="text-muted-foreground text-xs">
-                    {visibility === "public"
+                    {discoverability === "public"
                       ? t("Visibility.publicHelp")
                       : t("Visibility.privateHelp")}
                   </p>

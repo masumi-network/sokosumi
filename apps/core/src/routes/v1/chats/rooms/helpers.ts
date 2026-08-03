@@ -246,7 +246,10 @@ export function mapChatRoom(
     kind: room.kind as "channel" | "direct",
     directKey: room.directKey,
     topic: room.topic,
-    visibility: mapChatRoomVisibility(room.kind, room.visibility),
+    discoverability: mapChatRoomDiscoverability(
+      room.kind,
+      room.discoverability,
+    ),
     createdByUserId: room.createdByUserId,
     createdAt: room.createdAt,
     updatedAt: lastActivityAt ?? room.updatedAt,
@@ -273,14 +276,14 @@ export function mapChatRoom(
   };
 }
 
-function mapChatRoomVisibility(
+function mapChatRoomDiscoverability(
   kind: string,
-  visibility: string | null,
+  discoverability: string | null,
 ): "public" | "private" | null {
   if (kind === "direct") {
     return null;
   }
-  return visibility === "public" ? "public" : "private";
+  return discoverability === "public" ? "public" : "private";
 }
 
 export interface ChatRoomSidebarFlags {
@@ -781,7 +784,7 @@ export async function requireJoinablePublicOrgChannel(
       id: roomId,
       organizationId,
       kind: "channel",
-      visibility: "public",
+      discoverability: "public",
       archivedAt: null,
     },
     include: chatRoomInclude,

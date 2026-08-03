@@ -1161,7 +1161,7 @@ export type ChatRoom = {
      */
     directKey: string | null;
     topic: string | null;
-    visibility: ChatRoomVisibility;
+    discoverability: ChatRoomDiscoverability;
     createdByUserId: string;
     createdAt: Date;
     updatedAt: Date;
@@ -1192,7 +1192,7 @@ export type ChatRoom = {
 /**
  * Channel discoverability: `"public"` (org-browsable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
  */
-export const ChatRoomVisibility = {
+export const ChatRoomDiscoverability = {
     PUBLIC: 'public',
     PRIVATE: 'private',
     NULL: null
@@ -1201,7 +1201,7 @@ export const ChatRoomVisibility = {
 /**
  * Channel discoverability: `"public"` (org-browsable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
  */
-export type ChatRoomVisibility = typeof ChatRoomVisibility[keyof typeof ChatRoomVisibility];
+export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
 
 export type ChatRoomUserParticipant = {
     id: string;
@@ -1267,7 +1267,7 @@ export type CreateChatRoomRequest = {
     /**
      * Channel discoverability. Defaults to `"public"` (org-browsable / joinable). `"private"` keeps the channel roster-only.
      */
-    visibility?: 'public' | 'private';
+    discoverability?: 'public' | 'private';
     /**
      * Organization member user IDs to add to the room.
      */
@@ -1278,7 +1278,7 @@ export type CreateChatRoomRequest = {
     coworkerIds?: Array<string>;
 } | {
     /**
-     * Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Visibility is not allowed on directs.
+     * Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Discoverability is not allowed on directs.
      */
     kind: 'direct';
     /**
@@ -1296,7 +1296,7 @@ export type BrowsableChatRoom = {
     name: string;
     slug: string;
     topic: string | null;
-    visibility: 'public';
+    discoverability: 'public';
     memberCount: number;
     createdByUserId: string;
     createdAt: Date;
@@ -1338,7 +1338,7 @@ export type ChatUiMessage = {
 export type UpdateChatRoomRequest = {
     name?: string;
     topic?: string | null;
-    visibility?: ChatRoomVisibility & unknown;
+    discoverability?: ChatRoomDiscoverability & unknown;
     memberUserIds?: Array<string>;
     coworkerIds?: Array<string>;
 };

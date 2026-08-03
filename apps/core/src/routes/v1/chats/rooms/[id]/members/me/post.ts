@@ -52,7 +52,7 @@ const route = withGlobalHeaderParameters(
 interface LockedJoinableRoom {
   id: string;
   kind: string;
-  visibility: string | null;
+  discoverability: string | null;
   archivedAt: Date | null;
   organizationId: string | null;
 }
@@ -72,7 +72,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
 
       const lockedRooms = await tx.$queryRaw<LockedJoinableRoom[]>`
-        SELECT "id", "kind", "visibility", "archivedAt", "organizationId"
+        SELECT "id", "kind", "discoverability", "archivedAt", "organizationId"
         FROM "chat_room"
         WHERE "id" = ${existing.id}::uuid
         FOR UPDATE
@@ -86,7 +86,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         !locked ||
         locked.archivedAt !== null ||
         locked.kind !== "channel" ||
-        locked.visibility !== "public" ||
+        locked.discoverability !== "public" ||
         locked.organizationId !== organizationId
       ) {
         throw notFound("Room not found");

@@ -4237,8 +4237,8 @@ export const ChatRoomSchema = {
             ],
             example: 'Weekly launch planning'
         },
-        visibility: {
-            $ref: '#/components/schemas/ChatRoomVisibility'
+        discoverability: {
+            $ref: '#/components/schemas/ChatRoomDiscoverability'
         },
         createdByUserId: {
             type: 'string',
@@ -4310,7 +4310,7 @@ export const ChatRoomSchema = {
         'kind',
         'directKey',
         'topic',
-        'visibility',
+        'discoverability',
         'createdByUserId',
         'createdAt',
         'updatedAt',
@@ -4324,7 +4324,7 @@ export const ChatRoomSchema = {
     ]
 } as const;
 
-export const ChatRoomVisibilitySchema = {
+export const ChatRoomDiscoverabilitySchema = {
     type: [
         'string',
         'null'
@@ -4504,7 +4504,7 @@ export const CreateChatRoomRequestSchema = {
                     maxLength: 200,
                     example: 'Launch planning with design and AI research partners'
                 },
-                visibility: {
+                discoverability: {
                     type: 'string',
                     enum: [
                         'public',
@@ -4553,7 +4553,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'direct'
                     ],
-                    description: 'Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Visibility is not allowed on directs.'
+                    description: 'Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Discoverability is not allowed on directs.'
                 },
                 memberUserIds: {
                     type: 'array',
@@ -4612,7 +4612,7 @@ export const BrowsableChatRoomSchema = {
             ],
             example: 'Weekly launch planning'
         },
-        visibility: {
+        discoverability: {
             type: 'string',
             enum: [
                 'public'
@@ -4644,7 +4644,7 @@ export const BrowsableChatRoomSchema = {
         'name',
         'slug',
         'topic',
-        'visibility',
+        'discoverability',
         'memberCount',
         'createdByUserId',
         'createdAt',
@@ -4823,10 +4823,10 @@ export const UpdateChatRoomRequestSchema = {
             maxLength: 200,
             example: 'Launch planning with design and AI research partners'
         },
-        visibility: {
+        discoverability: {
             allOf: [
                 {
-                    $ref: '#/components/schemas/ChatRoomVisibility'
+                    $ref: '#/components/schemas/ChatRoomDiscoverability'
                 },
                 {
                     description: 'Update channel discoverability. `"public"` makes the channel org-browsable and self-joinable; `"private"` hides it from browse.',

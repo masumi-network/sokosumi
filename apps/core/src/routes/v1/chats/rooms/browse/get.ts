@@ -78,7 +78,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const where = {
       organizationId,
       kind: "channel" as const,
-      visibility: "public",
+      discoverability: "public",
       archivedAt: null,
       userMembers: {
         none: { userId: userContext.userId },
@@ -104,7 +104,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: true,
           slug: true,
           topic: true,
-          visibility: true,
+          discoverability: true,
           createdByUserId: true,
           createdAt: true,
           updatedAt: true,
@@ -135,7 +135,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: room.name,
           slug: room.slug,
           topic: room.topic,
-          visibility: "public" as const,
+          discoverability: "public" as const,
           memberCount: room._count.userMembers,
           createdByUserId: room.createdByUserId,
           createdAt: room.createdAt,

@@ -109,7 +109,7 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     kind: "channel",
     directKey: null,
     topic: null,
-    visibility: "public",
+    discoverability: "public",
     createdByUserId: USER_ID,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -136,7 +136,7 @@ function directRoom(overrides: Record<string, unknown> = {}) {
     slug: "bob",
     kind: "direct",
     directKey: DIRECT_KEY,
-    visibility: null,
+    discoverability: null,
     userMembers: [
       {
         user: {
@@ -198,21 +198,23 @@ describe("POST /chats/rooms", () => {
     expect(body.data.kind).toBe("channel");
     expect(body.data.name).toBe("Launch Room");
     expect(body.data.slug).toBe("launch-room");
-    expect(body.data.visibility).toBe("public");
+    expect(body.data.discoverability).toBe("public");
     expect(roomCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           organizationId: ORG_ID,
           name: "Launch Room",
           slug: "launch-room",
-          visibility: "public",
+          discoverability: "public",
         }),
       }),
     );
   });
 
-  it("persists explicit private visibility on channel create", async () => {
-    roomCreateMock.mockResolvedValue(channelRoom({ visibility: "private" }));
+  it("persists explicit private discoverability on channel create", async () => {
+    roomCreateMock.mockResolvedValue(
+      channelRoom({ discoverability: "private" }),
+    );
 
     const app = createApp(userAuthContext);
     const response = await app.request("/", {
@@ -221,23 +223,23 @@ describe("POST /chats/rooms", () => {
       body: JSON.stringify({
         kind: "channel",
         name: "Launch Room",
-        visibility: "private",
+        discoverability: "private",
       }),
     });
 
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.data.visibility).toBe("private");
+    expect(body.data.discoverability).toBe("private");
     expect(roomCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          visibility: "private",
+          discoverability: "private",
         }),
       }),
     );
   });
 
-  it("rejects visibility on direct create", async () => {
+  it("rejects discoverability on direct create", async () => {
     const app = createApp(userAuthContext);
     const response = await app.request("/", {
       method: "POST",
@@ -245,7 +247,7 @@ describe("POST /chats/rooms", () => {
       body: JSON.stringify({
         kind: "direct",
         memberUserIds: [OTHER_USER_ID],
-        visibility: "public",
+        discoverability: "public",
       }),
     });
 

@@ -14,9 +14,9 @@ export const chatRoomPresenceSchema = z
   .enum(["online", "afk", "offline"])
   .openapi("ChatRoomPresence");
 
-export const chatRoomVisibilitySchema = z
+export const chatRoomDiscoverabilitySchema = z
   .enum(["public", "private"])
-  .openapi("ChatRoomVisibility");
+  .openapi("ChatRoomDiscoverability");
 
 export const chatRoomUserParticipantSchema = z
   .object({
@@ -64,7 +64,7 @@ export const chatRoomSchema = z
       example: "user_123:user_456",
     }),
     topic: z.string().nullable().openapi({ example: "Weekly launch planning" }),
-    visibility: chatRoomVisibilitySchema.nullable().openapi({
+    discoverability: chatRoomDiscoverabilitySchema.nullable().openapi({
       description:
         'Channel discoverability: `"public"` (org-browsable and self-joinable) or `"private"` (roster-only). Null for direct rooms.',
       example: "public",
@@ -141,7 +141,7 @@ export const createChatRoomRequestSchema = z
       topic: z.string().trim().max(200).optional().openapi({
         example: "Launch planning with design and AI research partners",
       }),
-      visibility: chatRoomVisibilitySchema
+      discoverability: chatRoomDiscoverabilitySchema
         .default("public")
         .optional()
         .openapi({
@@ -156,7 +156,7 @@ export const createChatRoomRequestSchema = z
       .object({
         kind: z.literal("direct").openapi({
           description:
-            "Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Visibility is not allowed on directs.",
+            "Creates or returns a direct room: one or more organization members (1:1 or multi-human group), or exactly one coworker. Human and coworker targets cannot be mixed. Scoped to the active organization when set. Coworker DMs may be personal with no active org; human DMs require an active organization. Discoverability is not allowed on directs.",
         }),
         memberUserIds: roomMemberUserIdsSchema,
         coworkerIds: roomCoworkerIdsSchema,
@@ -173,7 +173,7 @@ export const updateChatRoomRequestSchema = z
     topic: z.string().trim().max(200).nullable().optional().openapi({
       example: "Launch planning with design and AI research partners",
     }),
-    visibility: chatRoomVisibilitySchema.optional().openapi({
+    discoverability: chatRoomDiscoverabilitySchema.optional().openapi({
       description:
         'Update channel discoverability. `"public"` makes the channel org-browsable and self-joinable; `"private"` hides it from browse.',
       example: "private",
@@ -203,7 +203,7 @@ export const browsableChatRoomSchema = z
     name: z.string().openapi({ example: "Launch Room" }),
     slug: z.string().openapi({ example: "launch-room" }),
     topic: z.string().nullable().openapi({ example: "Weekly launch planning" }),
-    visibility: z.literal("public").openapi({ example: "public" }),
+    discoverability: z.literal("public").openapi({ example: "public" }),
     memberCount: z.number().int().min(0).openapi({ example: 12 }),
     createdByUserId: z.string().openapi({ example: "user_123" }),
     createdAt: dateTimeSchema,
