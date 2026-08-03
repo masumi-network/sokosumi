@@ -804,6 +804,13 @@ function TouchMessageActionsSheet({
   const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
     onOpenChange(false);
   });
+  const whoReactedRows = message.reactions.flatMap((reaction) => {
+    const whoReactedLabel = formatWhoReactedLabel(reaction, t);
+    if (!whoReactedLabel) {
+      return [];
+    }
+    return [{ emoji: reaction.emoji, whoReactedLabel }];
+  });
 
   function runAndClose(action: () => void) {
     action();
@@ -864,6 +871,23 @@ function TouchMessageActionsSheet({
             }}
           />
         </div>
+        {whoReactedRows.length > 0 ? (
+          <ul
+            aria-label={t("Reactions.whoReactedList")}
+            className="border-border space-y-2 border-t px-4 py-3"
+          >
+            {whoReactedRows.map((row) => (
+              <li key={row.emoji} className="flex items-start gap-2 text-sm">
+                <span className="text-base leading-none" aria-hidden>
+                  {row.emoji}
+                </span>
+                <span className="text-muted-foreground min-w-0 flex-1">
+                  {row.whoReactedLabel}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="border-border flex flex-col gap-1 border-t px-2 py-2">
           {showEditButton && onEdit ? (
             <Button
