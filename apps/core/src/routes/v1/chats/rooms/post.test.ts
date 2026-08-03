@@ -16,6 +16,8 @@ const {
   memberFindManyMock,
   userFindManyMock,
   coworkerFindManyMock,
+  membershipFindManyMock,
+  readStateFindManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -26,6 +28,8 @@ const {
   memberFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+  readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -34,6 +38,12 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
     chatRoom: {
       findFirst: roomFindFirstMock,
+    },
+    chatRoomUserMember: {
+      findMany: membershipFindManyMock,
+    },
+    chatRoomReadState: {
+      findMany: readStateFindManyMock,
     },
   },
 }));
@@ -165,6 +175,8 @@ beforeEach(() => {
   userFindManyMock.mockResolvedValue([
     { id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" },
   ]);
+  membershipFindManyMock.mockResolvedValue([]);
+  readStateFindManyMock.mockResolvedValue([]);
 });
 
 describe("POST /chats/rooms", () => {

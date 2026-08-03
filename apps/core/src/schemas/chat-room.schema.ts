@@ -87,6 +87,11 @@ export const chatRoomSchema = z
         "When the current user pinned this room in their sidebar. Null when unpinned.",
       example: "2026-08-02T12:00:00.000Z",
     }),
+    mutedAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When the current user muted this room. Null when unmuted. Muted rooms sort last, hide sidebar attention chrome, and skip CHAT mention notifications.",
+      example: "2026-08-03T12:00:00.000Z",
+    }),
     markedUnread: z.boolean().openapi({
       description:
         "True when the current user marked this room unread. Cleared on mark-read.",

@@ -4576,6 +4576,8 @@
         "markUnread": "标为未读",
         "pin": "置顶",
         "unpin": "取消置顶",
+        "mute": "静音",
+        "unmute": "取消静音",
         "roomMenu": "{name} 的聊天操作",
         "actionFailed": "无法更新此聊天。请重试。"
       },
@@ -4730,7 +4732,9 @@
       "Message": {
         "delete": "删除",
         "deleteConfirm": "删除这条消息？其他人会看到该消息已被删除。",
-        "deleted": "此消息已删除"
+        "deleted": "此消息已删除",
+        "showMore": "显示更多",
+        "showLess": "收起"
       },
       "MentionAll": {
         "label": "所有人"

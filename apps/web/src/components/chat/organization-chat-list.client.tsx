@@ -507,7 +507,7 @@ export function OrganizationChatList({
       }
     }
 
-    // Pinned first, then most recent activity (`updatedAt` bumps on send).
+    // Unmuted first, then muted; within each bucket pin then recent activity.
     namedChannels.sort(compareChatRoomsByRecentActivity);
     directMessages.sort(compareChatRoomsByRecentActivity);
 

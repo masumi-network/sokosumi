@@ -24,6 +24,8 @@ const {
   coworkerMemberDeleteManyMock,
   coworkerMemberCreateManyMock,
   mentionUpdateManyMock,
+  membershipFindManyMock,
+  readStateFindManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -40,12 +42,20 @@ const {
   coworkerMemberDeleteManyMock: vi.fn(),
   coworkerMemberCreateManyMock: vi.fn(),
   mentionUpdateManyMock: vi.fn(),
+  membershipFindManyMock: vi.fn(),
+  readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    chatRoomUserMember: {
+      findMany: membershipFindManyMock,
+    },
+    chatRoomReadState: {
+      findMany: readStateFindManyMock,
+    },
   },
 }));
 
@@ -164,6 +174,8 @@ beforeEach(() => {
       where.userId.in.map((userId) => ({ userId })),
   );
   coworkerFindManyMock.mockResolvedValue([]);
+  membershipFindManyMock.mockResolvedValue([]);
+  readStateFindManyMock.mockResolvedValue([]);
 });
 
 describe("PATCH /chats/rooms/{id}", () => {

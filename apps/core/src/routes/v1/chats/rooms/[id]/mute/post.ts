@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -30,18 +31,20 @@ const paramsSchema = z.object({
 
 const route = withGlobalHeaderParameters(
   createRoute({
-    method: "delete",
-    path: "/{id}/pin",
-    description: "Unpin an organization chat room for the current user.",
+    method: "post",
+    path: "/{id}/mute",
+    description:
+      "Mute an organization chat room for the current user. Cannot mute a pinned room.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(chatRoomSchema, "Chat room unpinned"),
+      200: jsonSuccessResponse(chatRoomSchema, "Chat room muted"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -51,19 +54,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
+    const mutedAt = new Date();
 
     const room = await prisma.$transaction(async (tx) => {
       const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
 
-      await tx.chatRoomUserMember.update({
+      const updated = await tx.chatRoomUserMember.updateMany({
         where: {
-          roomId_userId: {
-            roomId: room.id,
-            userId: userContext.userId,
-          },
+          roomId: room.id,
+          userId: userContext.userId,
+          pinnedAt: null,
         },
-        data: { pinnedAt: null },
+        data: { mutedAt },
       });
+      if (updated.count === 0) {
+        const membership = await tx.chatRoomUserMember.findUnique({
+          where: {
+            roomId_userId: {
+              roomId: room.id,
+              userId: userContext.userId,
+            },
+          },
+          select: { pinnedAt: true },
+        });
+        if (membership?.pinnedAt != null) {
+          throw unprocessableEntity(
+            "Cannot mute a pinned room. Unpin it first.",
+          );
+        }
+        throw notFound("Room not found");
+      }
 
       return room;
     });
@@ -83,8 +103,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         mapChatRoom(room, userContext.userId, {
           unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          pinnedAt: null,
-          mutedAt: flags?.mutedAt ?? null,
+          pinnedAt: flags?.pinnedAt ?? null,
+          mutedAt: flags?.mutedAt ?? mutedAt,
           markedUnread: flags?.markedUnread ?? false,
         }),
       ),
