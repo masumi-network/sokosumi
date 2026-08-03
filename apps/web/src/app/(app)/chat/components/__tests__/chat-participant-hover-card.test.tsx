@@ -192,6 +192,21 @@ describe("ChatParticipantHoverCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps the trigger from stretching to tall flex-row message height", () => {
+    render(
+      <ChatParticipantHoverCard
+        profile={humanProfile}
+        className="mt-0.5 shrink-0"
+      >
+        <span aria-hidden="true">avatar</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    expect(screen.getByRole("button", { name: "Ada Lovelace" })).toHaveClass(
+      "self-start",
+    );
+  });
+
   it("renders children only when profile is missing", () => {
     render(
       <ChatParticipantHoverCard profile={null}>
