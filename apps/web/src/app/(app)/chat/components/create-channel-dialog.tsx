@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { Coworker, Member } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 import {
   advanceNameToVisibility,
   backToName,
@@ -169,17 +170,22 @@ export function CreateChannelDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="max-h-[calc(100svh-2rem)] overflow-y-auto shadow-none sm:max-w-lg"
+        className={cn(
+          "max-h-[calc(100svh-2rem)] overflow-y-auto shadow-none sm:max-w-lg",
+          wizard.step === "visibility" && "gap-8",
+        )}
         aria-describedby={undefined}
       >
-        <DialogHeader>
+        <DialogHeader
+          className={wizard.step === "visibility" ? "gap-1.5" : undefined}
+        >
           <DialogTitle>
             {wizard.step === "add-people"
               ? t("addPeopleTitle", { name: wizard.roomName })
               : t("title")}
           </DialogTitle>
           {wizard.step === "visibility" ? (
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground text-xs font-normal tracking-normal">
               {t("visibilitySubtitle", { name: wizard.name })}
             </DialogDescription>
           ) : null}
@@ -242,9 +248,11 @@ export function CreateChannelDialog({
         ) : null}
 
         {wizard.step === "visibility" ? (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>{tVisibility("label")}</Label>
+          <div className="space-y-8">
+            <div className="space-y-4">
+              <Label className="text-sm font-medium">
+                {tVisibility("label")}
+              </Label>
               <RadioGroup
                 value={wizard.discoverability}
                 onValueChange={(value) => {
@@ -252,40 +260,40 @@ export function CreateChannelDialog({
                     setWizard(setDiscoverability(wizard, value));
                   }
                 }}
-                className="space-y-3"
+                className="space-y-5"
               >
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-3">
                   <RadioGroupItem
                     value="public"
                     id="create-channel-public"
-                    className="mt-1"
+                    className="mt-0.5"
                   />
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <Label
                       htmlFor="create-channel-public"
                       className="cursor-pointer font-normal"
                     >
                       {tVisibility("public")}
                     </Label>
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-muted-foreground text-xs leading-relaxed">
                       {tVisibility("publicHelp")}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-3">
                   <RadioGroupItem
                     value="private"
                     id="create-channel-private"
-                    className="mt-1"
+                    className="mt-0.5"
                   />
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <Label
                       htmlFor="create-channel-private"
                       className="cursor-pointer font-normal"
                     >
                       {tVisibility("private")}
                     </Label>
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-muted-foreground text-xs leading-relaxed">
                       {tVisibility("privateHelp")}
                     </p>
                   </div>
