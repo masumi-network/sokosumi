@@ -503,7 +503,7 @@ export function OrganizationChatList({
       }
     }
 
-    // Unmuted → pinned → public → private → muted; activity within bucket.
+    // Unmuted first, then muted; within each bucket pin then recent activity.
     namedChannels.sort(compareChatRoomsByRecentActivity);
     directMessages.sort(compareChatRoomsByRecentActivity);
 
