@@ -4712,7 +4712,8 @@
         "add": "Add reaction",
         "toggle": "React with {emoji}",
         "whoReacted": "{names}{more, plural, =0 {} other { 以及其他 # 人}}",
-        "andMore": "以及其他 {count} 人"
+        "andMore": "以及其他 {count} 人",
+        "whoReactedList": "谁回应了"
       },
       "Presence": {
         "online": "Online",
