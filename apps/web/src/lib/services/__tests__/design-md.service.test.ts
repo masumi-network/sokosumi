@@ -393,6 +393,7 @@ describe("designMdService", () => {
         designMd: {
           label: "DESIGN.md",
           url: "https://blob.example/org-design.md",
+          owner: { type: "organization", name: "Acme Inc", logo: null },
         },
       },
     });
@@ -404,6 +405,7 @@ describe("designMdService", () => {
     expect(designMd).toEqual({
       label: "DESIGN.md",
       url: "https://blob.example/org-design.md",
+      owner: { type: "organization", name: "Acme Inc", logo: null },
     });
   });
 
@@ -424,6 +426,7 @@ describe("designMdService", () => {
         designMd: {
           label: "DESIGN.md",
           url: "https://blob.example/user-design.md",
+          owner: { type: "user" },
         },
       },
     });
@@ -443,7 +446,13 @@ describe("designMdService", () => {
   it("does not duplicate design.md links when the url needs markdown escaping", async () => {
     const designMdUrl = "https://blob.example/user-design).md";
     getWorkspaceDesignMdMock.mockResolvedValue({
-      data: { designMd: { label: "DESIGN.md", url: designMdUrl } },
+      data: {
+        designMd: {
+          label: "DESIGN.md",
+          url: designMdUrl,
+          owner: { type: "user" },
+        },
+      },
     });
 
     const { designMdService } = await import("../design-md.service");

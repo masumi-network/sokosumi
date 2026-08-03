@@ -66,10 +66,11 @@ export function TaskDesignMdAttachmentField({
     ? t("customLabel", { hostname: getHostname(selection.custom.sourceUrl) })
     : defaultLabel;
 
-  // The wording only makes sense pointed at a real, named owner — a custom
-  // ad hoc attachment describes itself well enough via its label already.
-  const tooltipText =
-    defaultAttachment.owner.type === "organization"
+  const tooltipText = selection.custom
+    ? t("tooltipCustom", {
+        hostname: getHostname(selection.custom.sourceUrl),
+      })
+    : defaultAttachment.owner.type === "organization"
       ? t("tooltip", { organization: defaultAttachment.owner.name })
       : t("tooltipPersonal");
 

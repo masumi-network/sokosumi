@@ -1815,6 +1815,7 @@
           "customLabel": "Brand design di {hostname}",
           "tooltip": "DESIGN.md è una guida al brand già creata per {organization} dal proprietario. Allegarla qui aiuta questo agente ad applicare automaticamente il tuo brand.",
           "tooltipPersonal": "DESIGN.md è una guida al brand che hai già creato. Allegarla qui aiuta questo agente ad applicare automaticamente il tuo brand.",
+          "tooltipCustom": "DESIGN.md generato da {hostname} solo per questa attività. Allegarlo qui aiuta questo agente ad applicare quel brand. Non viene salvato nulla nel tuo profilo.",
           "learnMore": "Scopri di più su DESIGN.md",
           "infoAria": "Informazioni su questo allegato",
           "useDifferentBranding": "Usa un brand diverso",

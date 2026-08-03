@@ -1815,6 +1815,7 @@
           "customLabel": "{hostname} Markendesign",
           "tooltip": "DESIGN.md ist ein Markenleitfaden, der vom Inhaber bereits für {organization} erstellt wurde. Mit dieser Anlage wendet der Agent deine Marke automatisch an.",
           "tooltipPersonal": "DESIGN.md ist ein Markenleitfaden, den du bereits erstellt hast. Mit dieser Anlage wendet der Agent deine Marke automatisch an.",
+          "tooltipCustom": "DESIGN.md, erzeugt von {hostname}, nur für diese Aufgabe. Mit dieser Anlage wendet der Agent dieses Branding an. Es wird nichts in deinem Profil gespeichert.",
           "learnMore": "Mehr über DESIGN.md erfahren",
           "infoAria": "Über diese Anlage",
           "useDifferentBranding": "Anderes Branding verwenden",
