@@ -4,9 +4,9 @@ import { revalidatePath } from "next/cache";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type {
-  BrowsableChatRoom,
   ChatRoom,
   ChatRoomMessage,
+  DiscoverableChatRoom,
 } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
 
@@ -378,16 +378,16 @@ export async function joinRoomAction(
   }
 }
 
-export async function listBrowsableChannelsAction(options?: {
+export async function listDiscoverableChannelsAction(options?: {
   q?: string;
-}): Promise<RoomActionResult<BrowsableChatRoom[]>> {
+}): Promise<RoomActionResult<DiscoverableChatRoom[]>> {
   const activeOrganization = await userService.getActiveOrganization();
   if (!activeOrganization) {
     return { ok: false, message: "Select an organization first." };
   }
 
   try {
-    const rooms = await chatRoomService.listBrowsableChannels({
+    const rooms = await chatRoomService.listDiscoverableChannels({
       q: options?.q,
     });
     return { ok: true, data: rooms };

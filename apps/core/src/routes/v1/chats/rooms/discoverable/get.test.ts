@@ -58,7 +58,7 @@ const userAuthContext: AuthVariables["authContext"] = {
   role: "user",
 };
 
-function browsableRow(overrides: Record<string, unknown> = {}) {
+function discoverableRow(overrides: Record<string, unknown> = {}) {
   return {
     id: ROOM_ID,
     name: "Launch Room",
@@ -77,13 +77,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
-  roomFindManyMock.mockResolvedValue([browsableRow()]);
+  roomFindManyMock.mockResolvedValue([discoverableRow()]);
   roomCountMock.mockResolvedValue(1);
 });
 
-describe("GET /chats/rooms/browse", () => {
+describe("GET /chats/rooms/discoverable", () => {
   it("lists public non-member active channels for the active org", async () => {
-    const response = await createApp(userAuthContext).request("/browse");
+    const response = await createApp(userAuthContext).request("/discoverable");
 
     expect(response.status).toBe(200);
     const body = await response.json();
@@ -115,8 +115,9 @@ describe("GET /chats/rooms/browse", () => {
   });
 
   it("applies optional q filter on name and slug", async () => {
-    const response =
-      await createApp(userAuthContext).request("/browse?q=launch");
+    const response = await createApp(userAuthContext).request(
+      "/discoverable?q=launch",
+    );
 
     expect(response.status).toBe(200);
     expect(roomFindManyMock).toHaveBeenCalledWith(
@@ -137,7 +138,7 @@ describe("GET /chats/rooms/browse", () => {
       userId: USER_ID,
       organizationId: null,
       role: "user",
-    }).request("/browse");
+    }).request("/discoverable");
 
     expect(response.status).toBe(400);
     expect(roomFindManyMock).not.toHaveBeenCalled();

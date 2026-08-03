@@ -3,12 +3,12 @@ import "server-only";
 import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
-  BrowsableChatRoom,
   ChatRoom,
   ChatRoomKind,
   ChatRoomMessage,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
+  DiscoverableChatRoom,
   UpdateChatRoomRequest,
 } from "@/lib/clients/generated/core";
 
@@ -49,12 +49,12 @@ export const chatRoomService = (() => {
     return rooms;
   });
 
-  async function listBrowsableChannels(options?: {
+  async function listDiscoverableChannels(options?: {
     q?: string;
     /** Cap Core pagination walks. Sidebar suggestions use 1 page. */
     maxPages?: number;
-  }): Promise<BrowsableChatRoom[]> {
-    const rooms: BrowsableChatRoom[] = [];
+  }): Promise<DiscoverableChatRoom[]> {
+    const rooms: DiscoverableChatRoom[] = [];
     let cursor: string | undefined;
     const q = options?.q?.trim();
     const maxPages = Math.min(
@@ -63,7 +63,7 @@ export const chatRoomService = (() => {
     );
 
     for (let page = 0; page < maxPages; page += 1) {
-      const response = await coreClient.getBrowsableChatRooms({
+      const response = await coreClient.getDiscoverableChatRooms({
         limit: ROOM_LIST_PAGE_LIMIT,
         ...(q ? { q } : {}),
         ...(cursor ? { cursor } : {}),
@@ -243,7 +243,7 @@ export const chatRoomService = (() => {
     getRoom,
     joinRoom,
     listArchivedRooms,
-    listBrowsableChannels,
+    listDiscoverableChannels,
     listMessages,
     listRooms,
     listThreadMessages,

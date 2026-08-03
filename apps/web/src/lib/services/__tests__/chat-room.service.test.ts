@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const getChatRoomsMock = vi.fn();
-const getBrowsableChatRoomsMock = vi.fn();
+const getDiscoverableChatRoomsMock = vi.fn();
 const archiveChatRoomMock = vi.fn();
 const leaveChatRoomMock = vi.fn();
 const joinChatRoomMock = vi.fn();
@@ -19,8 +19,8 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
   coreClient: {
     getChatRooms: (...args: unknown[]) => getChatRoomsMock(...args),
-    getBrowsableChatRooms: (...args: unknown[]) =>
-      getBrowsableChatRoomsMock(...args),
+    getDiscoverableChatRooms: (...args: unknown[]) =>
+      getDiscoverableChatRoomsMock(...args),
     archiveChatRoom: (...args: unknown[]) => archiveChatRoomMock(...args),
     leaveChatRoom: (...args: unknown[]) => leaveChatRoomMock(...args),
     joinChatRoom: (...args: unknown[]) => joinChatRoomMock(...args),
@@ -130,14 +130,14 @@ describe("chatRoomService.listRooms", () => {
   });
 });
 
-describe("chatRoomService.listBrowsableChannels", () => {
+describe("chatRoomService.listDiscoverableChannels", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
   });
 
   it("walks nextCursor until exhausted", async () => {
-    getBrowsableChatRoomsMock
+    getDiscoverableChatRoomsMock
       .mockResolvedValueOnce({
         data: [
           {
@@ -186,21 +186,21 @@ describe("chatRoomService.listBrowsableChannels", () => {
       });
 
     const { chatRoomService } = await import("../chat-room.service");
-    const rooms = await chatRoomService.listBrowsableChannels();
+    const rooms = await chatRoomService.listDiscoverableChannels();
 
     expect(rooms.map((item) => item.id)).toEqual(["room-1", "room-2"]);
-    expect(getBrowsableChatRoomsMock).toHaveBeenCalledTimes(2);
-    expect(getBrowsableChatRoomsMock).toHaveBeenNthCalledWith(1, {
+    expect(getDiscoverableChatRoomsMock).toHaveBeenCalledTimes(2);
+    expect(getDiscoverableChatRoomsMock).toHaveBeenNthCalledWith(1, {
       limit: 100,
     });
-    expect(getBrowsableChatRoomsMock).toHaveBeenNthCalledWith(2, {
+    expect(getDiscoverableChatRoomsMock).toHaveBeenNthCalledWith(2, {
       limit: 100,
       cursor: "room-1",
     });
   });
 
   it("passes q filter on every page", async () => {
-    getBrowsableChatRoomsMock.mockResolvedValue({
+    getDiscoverableChatRoomsMock.mockResolvedValue({
       data: [],
       meta: {
         pagination: {
@@ -213,16 +213,16 @@ describe("chatRoomService.listBrowsableChannels", () => {
     });
 
     const { chatRoomService } = await import("../chat-room.service");
-    await chatRoomService.listBrowsableChannels({ q: " launch " });
+    await chatRoomService.listDiscoverableChannels({ q: " launch " });
 
-    expect(getBrowsableChatRoomsMock).toHaveBeenCalledWith({
+    expect(getDiscoverableChatRoomsMock).toHaveBeenCalledWith({
       limit: 100,
       q: "launch",
     });
   });
 
   it("stops after maxPages for sidebar suggestions", async () => {
-    getBrowsableChatRoomsMock.mockResolvedValue({
+    getDiscoverableChatRoomsMock.mockResolvedValue({
       data: [
         {
           id: "room-1",
@@ -247,10 +247,12 @@ describe("chatRoomService.listBrowsableChannels", () => {
     });
 
     const { chatRoomService } = await import("../chat-room.service");
-    const rooms = await chatRoomService.listBrowsableChannels({ maxPages: 1 });
+    const rooms = await chatRoomService.listDiscoverableChannels({
+      maxPages: 1,
+    });
 
     expect(rooms.map((item) => item.id)).toEqual(["room-1"]);
-    expect(getBrowsableChatRoomsMock).toHaveBeenCalledTimes(1);
+    expect(getDiscoverableChatRoomsMock).toHaveBeenCalledTimes(1);
   });
 });
 

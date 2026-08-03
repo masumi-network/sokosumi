@@ -32,9 +32,9 @@ import {
 } from "@/components/ui/sidebar";
 import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
 import type {
-  BrowsableChatRoom,
   ChatRoom,
   ChatRoomPresence,
+  DiscoverableChatRoom,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -48,8 +48,8 @@ import {
 } from "./organization-chat-events";
 import {
   listOrganizationArchivedChatRoomsAction,
-  listOrganizationBrowsableChannelsAction,
   listOrganizationChatRoomsAction,
+  listOrganizationDiscoverableChannelsAction,
 } from "./organization-chat-list.actions";
 import {
   applyRoomReadOverlays,
@@ -268,7 +268,9 @@ export function OrganizationChatList({
   const hasOrganization = Boolean(organizationId);
   const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
-  const [joinableRooms, setJoinableRooms] = useState<BrowsableChatRoom[]>([]);
+  const [joinableRooms, setJoinableRooms] = useState<DiscoverableChatRoom[]>(
+    [],
+  );
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
@@ -305,10 +307,10 @@ export function OrganizationChatList({
           ? listOrganizationArchivedChatRoomsAction()
           : Promise.resolve({ ok: true as const, data: [] as ChatRoom[] }),
         hasOrganization
-          ? listOrganizationBrowsableChannelsAction()
+          ? listOrganizationDiscoverableChannelsAction()
           : Promise.resolve({
               ok: true as const,
-              data: [] as BrowsableChatRoom[],
+              data: [] as DiscoverableChatRoom[],
             }),
       ]);
       if (cancelled) {
@@ -403,10 +405,10 @@ export function OrganizationChatList({
           ? listOrganizationArchivedChatRoomsAction()
           : Promise.resolve({ ok: true as const, data: [] as ChatRoom[] }),
         hasOrganization
-          ? listOrganizationBrowsableChannelsAction()
+          ? listOrganizationDiscoverableChannelsAction()
           : Promise.resolve({
               ok: true as const,
-              data: [] as BrowsableChatRoom[],
+              data: [] as DiscoverableChatRoom[],
             }),
       ]).then(([activeResult, archivedResult, joinableResult]) => {
         if (cancelled) {
@@ -437,7 +439,7 @@ export function OrganizationChatList({
     };
   }, [hasOrganization, organizationId]);
 
-  function handleJoinChannel(room: BrowsableChatRoom) {
+  function handleJoinChannel(room: DiscoverableChatRoom) {
     if (joiningRoomId) {
       return;
     }

@@ -1190,7 +1190,7 @@ export type ChatRoom = {
 };
 
 /**
- * Channel discoverability: `"public"` (org-browsable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
+ * Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
  */
 export const ChatRoomDiscoverability = {
     PUBLIC: 'public',
@@ -1199,7 +1199,7 @@ export const ChatRoomDiscoverability = {
 } as const;
 
 /**
- * Channel discoverability: `"public"` (org-browsable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
+ * Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
  */
 export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
 
@@ -1259,13 +1259,13 @@ export type ChatRoomSuccessResponse = {
 
 export type CreateChatRoomRequest = {
     /**
-     * Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-browsable and self-joinable (GET /chats/rooms/browse, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.
+     * Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.
      */
     kind: 'channel';
     name: string;
     topic?: string;
     /**
-     * Channel discoverability. Defaults to `"public"` (org-browsable / joinable). `"private"` keeps the channel roster-only.
+     * Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.
      */
     discoverability?: 'public' | 'private';
     /**
@@ -1291,7 +1291,7 @@ export type CreateChatRoomRequest = {
     coworkerIds?: Array<string>;
 };
 
-export type BrowsableChatRoom = {
+export type DiscoverableChatRoom = {
     id: string;
     name: string;
     slug: string;
@@ -9005,7 +9005,7 @@ export type PostChatsRoomsResponses = {
 
 export type PostChatsRoomsResponse = PostChatsRoomsResponses[keyof PostChatsRoomsResponses];
 
-export type GetChatsRoomsBrowseData = {
+export type GetChatsRoomsDiscoverableData = {
     body?: never;
     headers?: {
         /**
@@ -9028,10 +9028,10 @@ export type GetChatsRoomsBrowseData = {
          */
         q?: string;
     };
-    url: '/chats/rooms/browse';
+    url: '/chats/rooms/discoverable';
 };
 
-export type GetChatsRoomsBrowseErrors = {
+export type GetChatsRoomsDiscoverableErrors = {
     /**
      * Invalid request
      */
@@ -9104,14 +9104,14 @@ export type GetChatsRoomsBrowseErrors = {
     };
 };
 
-export type GetChatsRoomsBrowseError = GetChatsRoomsBrowseErrors[keyof GetChatsRoomsBrowseErrors];
+export type GetChatsRoomsDiscoverableError = GetChatsRoomsDiscoverableErrors[keyof GetChatsRoomsDiscoverableErrors];
 
-export type GetChatsRoomsBrowseResponses = {
+export type GetChatsRoomsDiscoverableResponses = {
     /**
-     * Browsable public channels
+     * Discoverable public channels
      */
     200: {
-        data: Array<BrowsableChatRoom>;
+        data: Array<DiscoverableChatRoom>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -9120,7 +9120,7 @@ export type GetChatsRoomsBrowseResponses = {
     };
 };
 
-export type GetChatsRoomsBrowseResponse = GetChatsRoomsBrowseResponses[keyof GetChatsRoomsBrowseResponses];
+export type GetChatsRoomsDiscoverableResponse = GetChatsRoomsDiscoverableResponses[keyof GetChatsRoomsDiscoverableResponses];
 
 export type GetChatsRoomsByIdStreamMessagesData = {
     body?: never;

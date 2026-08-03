@@ -19,7 +19,7 @@ import mountPostChatRoomRead from "./[id]/read/post.js";
 import mountPostRestoreChatRoom from "./[id]/restore/post.js";
 import mountRoomStream from "./[id]/stream/index.js";
 import mountPostChatRoomUnread from "./[id]/unread/post.js";
-import mountBrowseChatRooms from "./browse/get.js";
+import mountDiscoverableChatRooms from "./discoverable/get.js";
 import mountGetChatRooms from "./get.js";
 import mountPostChatRoom from "./post.js";
 
@@ -27,8 +27,8 @@ const app = new OpenAPIHonoWithAuth();
 
 mountGetChatRooms(app);
 mountPostChatRoom(app);
-// Static `/browse` before `/{id}` so "browse" is not captured as a room id.
-mountBrowseChatRooms(app);
+// Static `/discoverable` before `/{id}` so it is not captured as a room id.
+mountDiscoverableChatRooms(app);
 // Static `stream` segment under `/{id}` — mount before generic `/{id}` if needed.
 mountRoomStream(app);
 mountGetChatRoom(app);

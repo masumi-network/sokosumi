@@ -1,14 +1,17 @@
 "use server";
 
-import type { BrowsableChatRoom, ChatRoom } from "@/lib/clients/generated/core";
+import type {
+  ChatRoom,
+  DiscoverableChatRoom,
+} from "@/lib/clients/generated/core";
 import { chatRoomService } from "@/lib/services";
 
 type OrganizationChatListActionResult =
   | { ok: true; data: ChatRoom[] }
   | { ok: false };
 
-type OrganizationBrowsableChannelsActionResult =
-  | { ok: true; data: BrowsableChatRoom[] }
+type OrganizationDiscoverableChannelsActionResult =
+  | { ok: true; data: DiscoverableChatRoom[] }
   | { ok: false };
 
 type OrganizationChatRoomMutationResult =
@@ -25,9 +28,11 @@ export async function listOrganizationChatRoomsAction(): Promise<OrganizationCha
   }
 }
 
-export async function listOrganizationBrowsableChannelsAction(): Promise<OrganizationBrowsableChannelsActionResult> {
+export async function listOrganizationDiscoverableChannelsAction(): Promise<OrganizationDiscoverableChannelsActionResult> {
   try {
-    const rooms = await chatRoomService.listBrowsableChannels({ maxPages: 1 });
+    const rooms = await chatRoomService.listDiscoverableChannels({
+      maxPages: 1,
+    });
     return { ok: true, data: rooms };
   } catch {
     return { ok: false };

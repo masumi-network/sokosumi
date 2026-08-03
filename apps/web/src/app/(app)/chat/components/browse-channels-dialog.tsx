@@ -6,7 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   joinRoomAction,
-  listBrowsableChannelsAction,
+  listDiscoverableChannelsAction,
 } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { BrowsableChatRoom } from "@/lib/clients/generated/core";
+import type { DiscoverableChatRoom } from "@/lib/clients/generated/core";
 
 export function BrowseChannelsDialog({
   triggerClassName,
@@ -30,7 +30,7 @@ export function BrowseChannelsDialog({
   const t = useTranslations("App.Channels.Browse");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [rooms, setRooms] = useState<BrowsableChatRoom[]>([]);
+  const [rooms, setRooms] = useState<DiscoverableChatRoom[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [joiningRoomId, setJoiningRoomId] = useState<string | null>(null);
   const [_isJoining, startJoinTransition] = useTransition();
@@ -43,7 +43,7 @@ export function BrowseChannelsDialog({
     let cancelled = false;
     const timeoutId = window.setTimeout(async () => {
       setIsLoading(true);
-      const result = await listBrowsableChannelsAction({ q: query });
+      const result = await listDiscoverableChannelsAction({ q: query });
       if (cancelled) {
         return;
       }
@@ -71,7 +71,7 @@ export function BrowseChannelsDialog({
     }
   }
 
-  function handleJoin(room: BrowsableChatRoom) {
+  function handleJoin(room: DiscoverableChatRoom) {
     if (joiningRoomId) {
       return;
     }

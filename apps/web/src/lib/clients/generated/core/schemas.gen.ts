@@ -4334,7 +4334,7 @@ export const ChatRoomDiscoverabilitySchema = {
         'private',
         null
     ],
-    description: 'Channel discoverability: `"public"` (org-browsable and self-joinable) or `"private"` (roster-only). Null for direct rooms.',
+    description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.',
     example: 'public'
 } as const;
 
@@ -4491,7 +4491,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'channel'
                     ],
-                    description: 'Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-browsable and self-joinable (GET /chats/rooms/browse, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.'
+                    description: 'Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.'
                 },
                 name: {
                     type: 'string',
@@ -4511,7 +4511,7 @@ export const CreateChatRoomRequestSchema = {
                         'private'
                     ],
                     default: 'public',
-                    description: 'Channel discoverability. Defaults to `"public"` (org-browsable / joinable). `"private"` keeps the channel roster-only.',
+                    description: 'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.',
                     example: 'public'
                 },
                 memberUserIds: {
@@ -4589,7 +4589,7 @@ export const CreateChatRoomRequestSchema = {
     ]
 } as const;
 
-export const BrowsableChatRoomSchema = {
+export const DiscoverableChatRoomSchema = {
     type: 'object',
     properties: {
         id: {
@@ -4829,7 +4829,7 @@ export const UpdateChatRoomRequestSchema = {
                     $ref: '#/components/schemas/ChatRoomDiscoverability'
                 },
                 {
-                    description: 'Update channel discoverability. `"public"` makes the channel org-browsable and self-joinable; `"private"` hides it from browse.',
+                    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable; `"private"` hides it from the discoverable listing.',
                     example: 'private'
                 }
             ]

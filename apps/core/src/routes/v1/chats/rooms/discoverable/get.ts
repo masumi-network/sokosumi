@@ -16,7 +16,7 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { browsableChatRoomSchema } from "@/schemas/chat-room.schema";
+import { discoverableChatRoomSchema } from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 import { requireActiveOrganizationId } from "../helpers";
@@ -39,17 +39,17 @@ const querySchema = cursorPaginationQuerySchema.extend({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
-    path: "/browse",
+    path: "/discoverable",
     description:
-      "List active public channels in the active organization that the caller is not already a member of. Requires an active organization. Optional `q` filters by name or slug.",
+      "List active public (`discoverability=public`) channels in the active organization that the caller is not already a member of. Requires an active organization. Optional `q` filters by name or slug.",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(browsableChatRoomSchema),
-        "Browsable public channels",
+        z.array(discoverableChatRoomSchema),
+        "Discoverable public channels",
       ),
       400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
@@ -129,7 +129,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(
       c,
-      z.array(browsableChatRoomSchema).parse(
+      z.array(discoverableChatRoomSchema).parse(
         rooms.map((room) => ({
           id: room.id,
           name: room.name,

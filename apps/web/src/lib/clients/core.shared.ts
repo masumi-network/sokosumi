@@ -16,9 +16,9 @@ import type {
   GetAgentsByIdReviewsData,
   GetAgentsData,
   GetCategoriesData,
-  GetChatsRoomsBrowseData,
   GetChatsRoomsByIdMessagesData,
   GetChatsRoomsData,
+  GetChatsRoomsDiscoverableData,
   GetCoworkersData,
   GetEnterpriseContractsData,
   GetHermesMeMessagesData,
@@ -121,9 +121,9 @@ import {
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
   getChatsRooms as coreGetChatsRooms,
-  getChatsRoomsBrowse as coreGetChatsRoomsBrowse,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
+  getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
   getCoworkers as coreGetCoworkers,
@@ -547,18 +547,18 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getBrowsableChatRooms(
-    query?: GetChatsRoomsBrowseData["query"],
+  async function getDiscoverableChatRooms(
+    query?: GetChatsRoomsDiscoverableData["query"],
   ) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetChatsRoomsBrowse({
+        coreGetChatsRoomsDiscoverable({
           client,
           query,
           cache: "no-store",
         }),
-      "Failed to fetch browsable chat rooms",
+      "Failed to fetch discoverable chat rooms",
     );
   }
 
@@ -3732,7 +3732,7 @@ export function createCoreClient(getClient: GetClient) {
     getChatRoom,
     getChatRoomMessages,
     getChatRooms,
-    getBrowsableChatRooms,
+    getDiscoverableChatRooms,
     markChatRoomRead,
     pinChatRoom,
     unpinChatRoom,

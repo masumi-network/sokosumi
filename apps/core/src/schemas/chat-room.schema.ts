@@ -66,7 +66,7 @@ export const chatRoomSchema = z
     topic: z.string().nullable().openapi({ example: "Weekly launch planning" }),
     discoverability: chatRoomDiscoverabilitySchema.nullable().openapi({
       description:
-        'Channel discoverability: `"public"` (org-browsable and self-joinable) or `"private"` (roster-only). Null for direct rooms.',
+        'Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.',
       example: "public",
     }),
     createdByUserId: z.string().openapi({ example: "user_123" }),
@@ -133,7 +133,7 @@ export const createChatRoomRequestSchema = z
     z.object({
       kind: z.literal("channel").openapi({
         description:
-          "Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-browsable and self-joinable (GET /chats/rooms/browse, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.",
+          "Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.",
       }),
       name: z.string().trim().min(1).max(80).openapi({
         example: "Launch Room",
@@ -146,7 +146,7 @@ export const createChatRoomRequestSchema = z
         .optional()
         .openapi({
           description:
-            'Channel discoverability. Defaults to `"public"` (org-browsable / joinable). `"private"` keeps the channel roster-only.',
+            'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.',
           example: "public",
         }),
       memberUserIds: roomMemberUserIdsSchema,
@@ -175,7 +175,7 @@ export const updateChatRoomRequestSchema = z
     }),
     discoverability: chatRoomDiscoverabilitySchema.optional().openapi({
       description:
-        'Update channel discoverability. `"public"` makes the channel org-browsable and self-joinable; `"private"` hides it from browse.',
+        'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable; `"private"` hides it from the discoverable listing.',
       example: "private",
     }),
     memberUserIds: z
@@ -195,7 +195,7 @@ export const updateChatRoomRequestSchema = z
   })
   .openapi("UpdateChatRoomRequest");
 
-export const browsableChatRoomSchema = z
+export const discoverableChatRoomSchema = z
   .object({
     id: z.string().uuid().openapi({
       example: "550e8400-e29b-41d4-a716-446655440000",
@@ -209,7 +209,7 @@ export const browsableChatRoomSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
   })
-  .openapi("BrowsableChatRoom");
+  .openapi("DiscoverableChatRoom");
 
 export const chatRoomMentionStatusSchema = z
   .enum(["pending", "sent", "responded", "failed"])
@@ -397,6 +397,6 @@ export const leftChatRoomSchema = z
 export const restoredChatRoomSchema = chatRoomSchema;
 
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
-export type BrowsableChatRoom = z.infer<typeof browsableChatRoomSchema>;
+export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
 export type ChatRoomMessageQuote = z.infer<typeof chatRoomMessageQuoteSchema>;
