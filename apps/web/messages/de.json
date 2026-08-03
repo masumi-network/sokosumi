@@ -4662,6 +4662,15 @@
         "groupDirectNoCoworkersError": "Gruppendirektnachrichten können keine Coworker enthalten.",
         "coworkerDirectOneToOneOnly": "Coworker-Direktnachrichten sind 1:1."
       },
+      "RoomSearch": {
+        "open": "In diesem Chat suchen",
+        "placeholder": "Nachrichten suchen…",
+        "idle": "Tippe, um Nachrichten in diesem Chat zu suchen.",
+        "empty": "Keine Nachrichten passen zu deiner Suche.",
+        "loading": "Suche…",
+        "error": "Nachrichten konnten nicht gesucht werden. Versuch es erneut.",
+        "replyBadge": "Thread-Antwort"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

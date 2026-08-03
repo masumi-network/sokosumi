@@ -10792,9 +10792,13 @@ export type GetChatsRoomsByIdMessagesData = {
          */
         limit?: number;
         /**
-         * When provided, returns replies for this root message. Otherwise returns top-level room messages.
+         * When provided, returns replies for this root message. Otherwise returns top-level room messages. Ignored when `q` is set.
          */
         parentMessageId?: string;
+        /**
+         * Case-insensitive substring match on message content. When set, searches top-level and thread replies and excludes soft-deleted messages. `parentMessageId` is ignored.
+         */
+        q?: string;
     };
     url: '/chats/rooms/{id}/messages';
 };

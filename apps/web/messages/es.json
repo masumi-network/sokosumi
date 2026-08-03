@@ -4662,6 +4662,15 @@
         "groupDirectNoCoworkersError": "Los mensajes directos de grupo no pueden incluir coworkers.",
         "coworkerDirectOneToOneOnly": "Los mensajes directos con coworkers son 1:1."
       },
+      "RoomSearch": {
+        "open": "Buscar en este chat",
+        "placeholder": "Buscar mensajes…",
+        "idle": "Escribe para buscar mensajes en este chat.",
+        "empty": "Ningún mensaje coincide con tu búsqueda.",
+        "loading": "Buscando…",
+        "error": "No se pudieron buscar los mensajes. Inténtalo de nuevo.",
+        "replyBadge": "Respuesta del hilo"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

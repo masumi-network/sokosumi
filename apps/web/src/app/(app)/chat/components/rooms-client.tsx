@@ -21,6 +21,7 @@ import {
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
+import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
@@ -1055,6 +1056,9 @@ export function RoomsClient({
 
   function handleQuoteMessage(message: ChatRoomMessage) {
     setPendingQuote(pendingQuoteFromMessage(message));
+    requestAnimationFrame(() => {
+      roomComposerRef.current?.focus();
+    });
   }
 
   function handleQuoteThreadMessage(message: ChatRoomMessage) {
@@ -1244,6 +1248,21 @@ export function RoomsClient({
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
+                  <RoomSearchPanel
+                    key={selectedRoom.id}
+                    roomId={selectedRoom.id}
+                    loadedMessages={messagesState}
+                    onOpenThread={loadThreadMessages}
+                    labels={{
+                      open: t("RoomSearch.open"),
+                      placeholder: t("RoomSearch.placeholder"),
+                      idle: t("RoomSearch.idle"),
+                      empty: t("RoomSearch.empty"),
+                      loading: t("RoomSearch.loading"),
+                      error: t("RoomSearch.error"),
+                      replyBadge: t("RoomSearch.replyBadge"),
+                    }}
+                  />
                   <RoomParticipantStack
                     room={selectedRoom}
                     currentUserId={currentUserId}

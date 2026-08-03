@@ -611,7 +611,10 @@ export function OrganizationChatList({
                 {sortedArchivedChannels.map((room) => {
                   const isRestoring = restoringRoomId === room.id;
                   return (
-                    <SidebarMenuItem key={room.id}>
+                    <SidebarMenuItem
+                      key={room.id}
+                      className="group/room-row relative"
+                    >
                       <div className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-center gap-2 px-3 py-1.5">
                         <ChannelVisibilityIcon
                           className="opacity-60"
@@ -620,25 +623,31 @@ export function OrganizationChatList({
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}
                         </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="group-data-[collapsible=icon]:hidden h-7 shrink-0 gap-1 px-2 text-xs"
-                          disabled={isRestoring || restoringRoomId !== null}
-                          onClick={() => handleRestoreRoom(room)}
-                          aria-label={`${tActions("restore")} ${room.name}`}
-                        >
-                          <RotateCcw
-                            className={cn(
-                              "size-3",
-                              isRestoring && "animate-spin",
-                            )}
-                            aria-hidden
-                          />
-                          {tActions("restore")}
-                        </Button>
+                        <span className="size-7 shrink-0" aria-hidden />
                       </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center",
+                          "group-data-[collapsible=icon]:hidden text-muted-foreground",
+                          isRestoring
+                            ? "opacity-100"
+                            : "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/room-row:opacity-100 [@media(hover:hover)]:group-focus-within/room-row:opacity-100",
+                        )}
+                        disabled={isRestoring || restoringRoomId !== null}
+                        onClick={() => handleRestoreRoom(room)}
+                        aria-label={`${tActions("restore")} ${room.name}`}
+                      >
+                        <RotateCcw
+                          className={cn(
+                            "size-3.5",
+                            isRestoring && "animate-spin",
+                          )}
+                          aria-hidden
+                        />
+                      </Button>
                     </SidebarMenuItem>
                   );
                 })}
