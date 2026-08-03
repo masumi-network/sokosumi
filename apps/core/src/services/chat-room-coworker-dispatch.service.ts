@@ -1,18 +1,25 @@
 import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
 import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
-import { generateText } from "ai";
+import { streamText } from "ai";
 
 import prisma from "@/lib/db/prisma";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
 
-const ROOM_COWORKER_TIMEOUT_MS = 90_000;
-/**
- * `sent` older than this is treated as abandoned (process killed after claim).
- * Must exceed `ROOM_COWORKER_TIMEOUT_MS` so an in-flight generateText is not
- * stolen by a reclaim.
- */
-export const ROOM_SENT_STALE_MS = ROOM_COWORKER_TIMEOUT_MS + 30_000;
+/** Hard ceiling for streamText only (not conversation create ≤25s). */
+export const ROOM_COWORKER_TOTAL_MS = 240_000;
+/** AI SDK stall budgets; content chunks reset these. */
+export const ROOM_COWORKER_FIRST_CHUNK_MS = 90_000;
+export const ROOM_COWORKER_CHUNK_MS = 90_000;
+
+export const ROOM_COWORKER_STREAM_TIMEOUT = {
+  totalMs: ROOM_COWORKER_TOTAL_MS,
+  firstChunkMs: ROOM_COWORKER_FIRST_CHUNK_MS,
+  chunkMs: ROOM_COWORKER_CHUNK_MS,
+} as const;
+
+/** Must exceed `ROOM_COWORKER_TOTAL_MS` so reclaim cannot steal an in-flight run. */
+export const ROOM_SENT_STALE_MS = ROOM_COWORKER_TOTAL_MS + 30_000;
 const STALE_SENT_RECLAIM_LIMIT = 10;
 
 /** How many prior messages the coworker sees as conversation context. */
@@ -243,7 +250,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   }
 
   // Claim before any provider work so concurrent dispatches cannot both run
-  // generateText. Fresh `sent` (in flight) loses quietly; stale `sent` is
+  // streamText. Fresh `sent` (in flight) loses quietly; stale `sent` is
   // reclaimed after ROOM_SENT_STALE_MS.
   const claimed = await claimMentionForDispatch(mentionId);
   if (!claimed) {
@@ -344,18 +351,17 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     contextMessages,
   });
 
-  // Bounds the coworker call: without it a stalled upstream keeps the mention
-  // non-terminal forever. Aborting throws, which the caller turns into failed.
-  const { text } = await generateText({
+  // Idle chunk timeouts abort stalls; totalMs is the hard ceiling.
+  const result = streamText({
     model: getSokosumiProvider()(null),
     messages: [{ role: "user", content: prompt }],
-    abortSignal: AbortSignal.timeout(ROOM_COWORKER_TIMEOUT_MS),
+    maxRetries: 0,
+    timeout: ROOM_COWORKER_STREAM_TIMEOUT,
     providerOptions: {
       sokosumi: providerOptions,
-    } as unknown as Parameters<typeof generateText>[0]["providerOptions"],
+    } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
   });
-
-  const responseText = text.trim();
+  const responseText = (await result.text).trim();
   if (!responseText || coworkerTextLooksLikeAgentError(responseText)) {
     await markMentionFailed(
       mentionId,
@@ -365,7 +371,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   }
 
   await prisma.$transaction(async (tx) => {
-    // Re-check membership after the provider call: eviction during generateText
+    // Re-check membership after the provider call: eviction during streamText
     // must not land a reply in a room the coworker left.
     const stillMember = await tx.chatRoomCoworkerMember.findUnique({
       where: {
@@ -390,7 +396,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
       return;
     }
 
-    // Soft-delete during generateText cancels the mention to `failed` and
+    // Soft-delete during streamText cancels the mention to `failed` and
     // wipes content; do not post a reply under a tombstone.
     const sourceMessage = await tx.chatRoomMessage.findUnique({
       where: { id: mention.message.id },
