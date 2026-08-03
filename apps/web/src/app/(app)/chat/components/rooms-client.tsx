@@ -147,7 +147,7 @@ function RoomParticipantStack({
             profile={participant}
             side="bottom"
             align="center"
-            className="size-6 shrink-0 md:size-7"
+            className="relative size-6 shrink-0 md:size-7"
             style={{ zIndex: visibleParticipants.length - index }}
             currentUserId={currentUserId}
             canOpenHumanDirect={canOpenHumanDirect}
@@ -157,24 +157,26 @@ function RoomParticipantStack({
             }
             isDirectActionBusy={openingDirectKey != null}
           >
-            <Avatar className="border-background ring-border/60 size-6 border-2 shadow-xs ring-1 md:size-7">
-              <AvatarImage src={participant.image ?? undefined} alt="" />
-              <AvatarFallback
-                className={cn(
-                  "text-[10px]",
-                  participant.kind === "coworker"
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground",
-                )}
-              >
-                {getInitials(participant.name)}
-              </AvatarFallback>
-            </Avatar>
-            <PresenceDot
-              presence={participant.presence}
-              label={presenceLabel(t, participant.presence)}
-              className="absolute -right-0.5 -bottom-0.5"
-            />
+            <span className="relative inline-flex size-full">
+              <Avatar className="border-background ring-border/60 size-full border-2 shadow-xs ring-1">
+                <AvatarImage src={participant.image ?? undefined} alt="" />
+                <AvatarFallback
+                  className={cn(
+                    "text-[10px]",
+                    participant.kind === "coworker"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {getInitials(participant.name)}
+                </AvatarFallback>
+              </Avatar>
+              <PresenceDot
+                presence={participant.presence}
+                label={presenceLabel(t, participant.presence)}
+                className="absolute -right-0.5 -bottom-0.5"
+              />
+            </span>
           </ChatParticipantHoverCard>
         ))}
       </div>

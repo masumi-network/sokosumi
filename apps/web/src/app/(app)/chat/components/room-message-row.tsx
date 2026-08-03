@@ -1149,7 +1149,7 @@ export function ChatMessageRow({
               profile={hoverProfile}
               side="top"
               align="start"
-              className="min-w-0 max-w-full"
+              className="w-fit min-w-0 max-w-full"
               currentUserId={currentUserId}
               canOpenHumanDirect={canOpenHumanDirect}
               onOpenDirect={onOpenDirectMessage}
