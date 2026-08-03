@@ -48,6 +48,10 @@ const envDefaults: Record<string, string> = {
   SHOW_AGENTS_BY_DEFAULT: "true",
   MAINTENANCE_MODE: "false",
   ABLY_PUBLISH_ONLY_KEY: "local-test",
+  VAPID_PUBLIC_KEY:
+    "BERlQWGm1ulGfhTWWJYMqZrrd0UBbuiVxcKx87i9lYX34uKq7CYrju3AdJ8sHK5H_FcywqQEpZZxlLOo0fufH-Y",
+  VAPID_PRIVATE_KEY: "rcdJqI1EMrvqEtD6G-TaI0KSZu6O62pEOb9enU-o2tg",
+  VAPID_SUBJECT: "mailto:noreply@sokosumi.test",
   JOB_FAILURE_NOTIFICATION_EMAILS: "",
   OPENROUTER_CHAT_API_KEY:
     "sk-or-v1-test-0000000000000000000000000000000000000000",

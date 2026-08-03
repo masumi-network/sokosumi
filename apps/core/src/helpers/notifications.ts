@@ -9,6 +9,8 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishNotificationEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
+import { sendPushForNotification } from "./push-notification.js";
+
 export interface CreateNotificationInput {
   userId: string;
   kind: NotificationKind;
@@ -98,6 +100,7 @@ export async function createNotification(
     });
 
     await publishNotificationCreated(notification);
+    void sendPushForNotification(notification);
 
     return { notification, created: true };
   } catch (error) {

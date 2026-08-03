@@ -72,10 +72,12 @@
     "resumable-stream": "2.2.12",
     "slugify": "1.6.9",
     "stripe": "22.4.0",
-    "uuid": "14.0.1"
+    "uuid": "14.0.1",
+    "web-push": "3.6.7"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
+    "@types/web-push": "3.6.4",
     "@typescript/native": "npm:typescript@7.0.2",
     "tsup": "8.5.1",
     "tsx": "4.23.5",

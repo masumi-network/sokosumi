@@ -8,12 +8,18 @@ import {
   createNotification,
 } from "./notifications";
 
-const { publishNotificationEventMock } = vi.hoisted(() => ({
-  publishNotificationEventMock: vi.fn(),
-}));
+const { publishNotificationEventMock, sendPushForNotificationMock } =
+  vi.hoisted(() => ({
+    publishNotificationEventMock: vi.fn(),
+    sendPushForNotificationMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/ably/publish", () => ({
   publishNotificationEvent: publishNotificationEventMock,
+}));
+
+vi.mock("./push-notification", () => ({
+  sendPushForNotification: sendPushForNotificationMock,
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -118,10 +124,12 @@ describe("createNotification", () => {
     });
     expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
     expect(prismaMock.notification.upsert).not.toHaveBeenCalled();
+    expect(sendPushForNotificationMock).toHaveBeenCalledWith(notification);
   });
 
-  it("returns the existing row unchanged on duplicate emits", async () => {
+  it("does not send push when the notification already exists", async () => {
     publishNotificationEventMock.mockClear();
+    sendPushForNotificationMock.mockClear();
     const existing = createNotificationRecord({
       messageParams: JSON.stringify({ jobName: "Original job name" }),
       metadata: JSON.stringify({ agentId: "original_agent" }),
@@ -142,6 +150,7 @@ describe("createNotification", () => {
 
     expect(result).toEqual({ notification: existing, created: false });
     expect(publishNotificationEventMock).not.toHaveBeenCalled();
+    expect(sendPushForNotificationMock).not.toHaveBeenCalled();
     expect(prismaMock.notification.findUnique).toHaveBeenCalledWith({
       where: {
         userId_kind_referenceId_eventId_messageKey: {
@@ -159,6 +168,7 @@ describe("createNotification", () => {
 
   it("creates a separate row when the message key differs for the same event", async () => {
     publishNotificationEventMock.mockClear();
+    sendPushForNotificationMock.mockClear();
     const existing = createNotificationRecord({
       messageKey: "Notifications.Job.completed",
     });
@@ -190,12 +200,14 @@ describe("createNotification", () => {
       },
     });
     expect(publishNotificationEventMock).toHaveBeenCalled();
+    expect(sendPushForNotificationMock).toHaveBeenCalledWith(created);
     expect(prismaMock.notification.findUnique).not.toHaveBeenCalled();
     expect(existing.messageKey).toBe("Notifications.Job.completed");
   });
 
   it("preserves read state when a duplicate emit arrives after mark-read", async () => {
     publishNotificationEventMock.mockClear();
+    sendPushForNotificationMock.mockClear();
     const existing = createNotificationRecord({
       isRead: true,
       readAt: READ_AT,

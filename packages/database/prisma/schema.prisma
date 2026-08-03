@@ -95,6 +95,8 @@ model User {
   orchestrator             Orchestrator?
   hermesPendingConnections HermesPendingConnection[]
 
+  pushSubscriptions PushSubscription[]
+
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")
@@ -387,6 +389,21 @@ model Notification {
   @@index([eventId])
   @@index([kind, eventId])
   @@map("notification")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid(7))
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([endpoint])
+  @@index([userId])
+  @@map("push_subscription")
 }
 
 model Project {

@@ -185,6 +185,17 @@ const envSchema = z.object({
   // Ably
   ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
 
+  // Web Push (VAPID)
+  VAPID_PUBLIC_KEY: z.string().min(1),
+  VAPID_PRIVATE_KEY: z.string().min(1),
+  VAPID_SUBJECT: z
+    .string()
+    .min(1)
+    .refine(
+      (value) => value.startsWith("mailto:") || value.startsWith("https://"),
+      "must be a mailto: or https: contact URI",
+    ),
+
   // Optional outbound webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),
   WEBHOOK_USER_UPDATED: z.url().optional(),

@@ -1,10 +1,9 @@
+import { getNotificationHref } from "@sokosumi/utils";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
-
 import { coreClient } from "@/lib/clients/core.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { getWorkspaceOrganizationId } from "@/lib/services/workspace.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
-import { getNotificationHref } from "@/lib/utils/notification-href";
 
 type HandleSelectWorkspace = (
   organizationId: string | null,

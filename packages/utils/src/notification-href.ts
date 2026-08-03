@@ -1,7 +1,12 @@
-import type { NotificationKind } from "@/lib/clients/generated/core";
+export type NotificationHrefKind =
+  | "TASK"
+  | "JOB"
+  | "CHAT"
+  | "SYSTEM"
+  | "BILLING";
 
-interface NotificationHrefItem {
-  kind: NotificationKind;
+export interface NotificationHrefItem {
+  kind: NotificationHrefKind;
   referenceId: string;
   metadata: Record<string, unknown> | null;
 }

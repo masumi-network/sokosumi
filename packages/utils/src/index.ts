@@ -154,6 +154,11 @@ export {
   stringifyMetadataRecord,
 } from "./metadata-record.js";
 export {
+  getNotificationHref,
+  type NotificationHrefItem,
+  type NotificationHrefKind,
+} from "./notification-href.js";
+export {
   type BuildOAuthClientScopeParamOptions,
   buildOAuthClientGrantTypes,
   buildOAuthClientScopeParam,

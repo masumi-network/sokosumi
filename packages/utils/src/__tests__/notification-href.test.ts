@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getNotificationHref } from "@/lib/utils/notification-href";
+import { getNotificationHref } from "../notification-href.js";
 
 describe("getNotificationHref", () => {
   it("returns job href with agentId", () => {

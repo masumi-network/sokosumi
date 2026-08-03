@@ -80,4 +80,64 @@ export const unreadCountSchema = z
   })
   .openapi("UnreadCount");
 
+export const pushVapidPublicKeySchema = z
+  .object({
+    publicKey: z.string().min(1).openapi({
+      description: "VAPID public key for Web Push subscription",
+      example: "BPxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    }),
+  })
+  .openapi("PushVapidPublicKey");
+
+export const pushSubscriptionUpsertBodySchema = z
+  .object({
+    endpoint: z.string().url().openapi({
+      description: "Push service endpoint URL",
+      example: "https://fcm.googleapis.com/fcm/send/abc",
+    }),
+    keys: z
+      .object({
+        p256dh: z.string().min(1).openapi({
+          description: "P-256 ECDH public key (base64url)",
+          example: "BNcRdteraUr2rz74p7R...",
+        }),
+        auth: z.string().min(1).openapi({
+          description: "Authentication secret (base64url)",
+          example: "tBHItJI5svbpez7KI4THag",
+        }),
+      })
+      .openapi("PushSubscriptionKeys"),
+  })
+  .openapi("PushSubscriptionUpsertBody");
+
+export const pushSubscriptionDeleteBodySchema = z
+  .object({
+    endpoint: z.string().url().openapi({
+      description: "Push service endpoint URL to unsubscribe",
+      example: "https://fcm.googleapis.com/fcm/send/abc",
+    }),
+  })
+  .openapi("PushSubscriptionDeleteBody");
+
+export const pushSubscriptionSchema = z
+  .object({
+    id: z.string().openapi({
+      description: "Unique identifier for the push subscription",
+      example: "01960001-0001-7001-8001-000000000001",
+    }),
+    endpoint: z.string().url().openapi({
+      description: "Push service endpoint URL",
+      example: "https://fcm.googleapis.com/fcm/send/abc",
+    }),
+    createdAt: dateTimeSchema.openapi({
+      description: "When the subscription was created",
+      example: "2026-08-01T00:00:00.000Z",
+    }),
+    updatedAt: dateTimeSchema.openapi({
+      description: "When the subscription was last updated",
+      example: "2026-08-01T00:00:00.000Z",
+    }),
+  })
+  .openapi("PushSubscription");
+
 export type NotificationItem = z.infer<typeof notificationItemSchema>;

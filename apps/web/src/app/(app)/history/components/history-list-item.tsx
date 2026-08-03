@@ -1,5 +1,6 @@
 "use client";
 
+import { getNotificationHref } from "@sokosumi/utils";
 import Link from "next/link";
 import {
   HistoryMetaTime,
@@ -15,7 +16,6 @@ import type { SokosumiJobStatus } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
-import { getNotificationHref } from "@/lib/utils/notification-href";
 
 export interface HistoryListItemLabels {
   credit: string;
