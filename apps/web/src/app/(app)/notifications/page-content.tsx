@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
+import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
@@ -227,6 +228,7 @@ export function NotificationsPageContent({
   return (
     <div className="flex flex-col gap-5 pb-4">
       {notice !== null ? <AccountNoticeRow /> : null}
+      <NotificationBrowserPermissionPrimer variant="page" />
       {unreadCount > 0 ? (
         <div className="flex justify-end">
           <Button

@@ -767,7 +767,12 @@
       "retry": "重试",
       "dismiss": "关闭",
       "view": "查看",
-      "dismissNotification": "关闭通知"
+      "dismissNotification": "关闭通知",
+      "browserNotificationTitle": "Sokosumi",
+      "browserPermissionTitle": "在其他标签页时也能收到提醒",
+      "browserPermissionDescription": "在 Sokosumi 已打开但未聚焦时，允许浏览器通知推送任务、作业、账单、系统和聊天更新。",
+      "browserPermissionEnable": "启用浏览器通知",
+      "browserPermissionRequesting": "正在等待权限…"
     },
     "HashValue": {
       "copy": "复制",

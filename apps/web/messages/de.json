@@ -767,7 +767,12 @@
       "retry": "Erneut versuchen",
       "dismiss": "Schließen",
       "view": "Ansehen",
-      "dismissNotification": "Benachrichtigung schließen"
+      "dismissNotification": "Benachrichtigung schließen",
+      "browserNotificationTitle": "Sokosumi",
+      "browserPermissionTitle": "Benachrichtigungen erhalten, wenn du in einem anderen Tab bist",
+      "browserPermissionDescription": "Erlaube Browser-Benachrichtigungen für Jobs, Tasks, Abrechnung, System und Chat, während Sokosumi geöffnet, aber nicht fokussiert ist.",
+      "browserPermissionEnable": "Browser-Benachrichtigungen aktivieren",
+      "browserPermissionRequesting": "Warte auf Berechtigung…"
     },
     "HashValue": {
       "copy": "Kopieren",
