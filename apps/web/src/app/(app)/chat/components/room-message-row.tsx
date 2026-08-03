@@ -22,7 +22,6 @@ import {
 } from "react";
 import { segmentRoomMessageContent } from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
-import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import Markdown from "@/components/markdown";
 import {
   AlertDialog,
@@ -37,6 +36,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import {
   Sheet,
@@ -298,7 +298,7 @@ function ChannelMessageText({
                 data-testid="room-message-attachment-row"
               >
                 {segment.links.map((link) => (
-                  <FileChipMiniPreviewWithMetadata
+                  <FileChipMiniPreviewFrame
                     key={`${link.index}-${link.url}`}
                     url={link.url}
                     fileName={link.fileName}

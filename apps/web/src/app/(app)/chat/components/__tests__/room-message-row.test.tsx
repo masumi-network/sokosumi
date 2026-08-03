@@ -34,8 +34,8 @@ vi.mock("@/components/markdown", () => ({
   default: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 
-vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
-  FileChipMiniPreviewWithMetadata: ({
+vi.mock("@/components/ui/file-chip-mini-preview", () => ({
+  FileChipMiniPreviewFrame: ({
     fileName,
   }: {
     fileName: string;
