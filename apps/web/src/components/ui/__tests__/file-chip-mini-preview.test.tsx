@@ -75,7 +75,11 @@ describe("FileChipMiniPreviewFrame", () => {
       screen.queryByRole("link", { name: /photo\.png/i }),
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "View image photo.png" }));
+    const imageButton = screen.getByRole("button", {
+      name: "View image photo.png",
+    });
+    expect(imageButton).toHaveClass("cursor-pointer");
+    fireEvent.click(imageButton);
 
     expect(screen.getByTestId("image-viewer")).toBeInTheDocument();
     expect(
@@ -93,6 +97,7 @@ describe("FileChipMiniPreviewFrame", () => {
     );
 
     const link = screen.getByRole("link");
+    expect(link).toHaveClass("cursor-pointer");
     expect(link).toHaveAttribute(
       "href",
       "https://blob.example.com/uploads/notes.pdf",
@@ -145,7 +150,11 @@ describe("FileChipMiniPreview", () => {
       screen.queryByRole("link", { name: /photo\.png/i }),
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "View image photo.png" }));
+    const imageButton = screen.getByRole("button", {
+      name: "View image photo.png",
+    });
+    expect(imageButton).toHaveClass("cursor-pointer");
+    fireEvent.click(imageButton);
 
     expect(screen.getByTestId("image-viewer")).toBeInTheDocument();
     expect(
@@ -163,6 +172,7 @@ describe("FileChipMiniPreview", () => {
     );
 
     const link = screen.getByRole("link");
+    expect(link).toHaveClass("cursor-pointer");
     expect(link).toHaveAttribute(
       "href",
       "https://blob.example.com/uploads/notes.pdf",
