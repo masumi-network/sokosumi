@@ -47,8 +47,20 @@ const querySchema = cursorPaginationQuerySchema.extend({
     .openapi({
       param: { name: "parentMessageId", in: "query" },
       description:
-        "When provided, returns replies for this root message. Otherwise returns top-level room messages.",
+        "When provided, returns replies for this root message. Otherwise returns top-level room messages. Ignored when `q` is set.",
       example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+  q: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .optional()
+    .openapi({
+      param: { name: "q", in: "query" },
+      description:
+        "Case-insensitive substring match on message content. When set, searches top-level and thread replies and excludes soft-deleted messages. `parentMessageId` is ignored.",
+      example: "budget",
     }),
 });
 
@@ -89,10 +101,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // the default client is fine; Promise.all inside interactive txs is not
     // (#2559).
     await requireChatRoomUserMembership(id, userContext.userId, prisma);
-    const where = {
-      roomId: id,
-      parentMessageId: queryParams.parentMessageId ?? null,
-    };
+    const searchQuery = queryParams.q;
+    const where = searchQuery
+      ? {
+          roomId: id,
+          deletedAt: null,
+          content: { contains: searchQuery, mode: "insensitive" as const },
+        }
+      : {
+          roomId: id,
+          parentMessageId: queryParams.parentMessageId ?? null,
+        };
 
     const [messages, count] = await Promise.all([
       prisma.chatRoomMessage.findMany({
@@ -125,10 +144,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const orderedMessages = [...pageMessages].reverse();
 
     // Polls hit this route; kick abandoned `sent` mentions so reclaim can run
-    // after a killed waitUntil left them non-terminal.
-    const staleMentionIds = await listStaleSentChatRoomMentionIds(id);
-    for (const mentionId of staleMentionIds) {
-      waitUntil(dispatchChatRoomMention(mentionId));
+    // after a killed waitUntil left them non-terminal. Skip on search — not a
+    // live timeline poll.
+    if (!searchQuery) {
+      const staleMentionIds = await listStaleSentChatRoomMentionIds(id);
+      for (const mentionId of staleMentionIds) {
+        waitUntil(dispatchChatRoomMention(mentionId));
+      }
     }
 
     return ok(

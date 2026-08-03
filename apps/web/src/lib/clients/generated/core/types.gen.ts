@@ -1177,7 +1177,7 @@ export type ChatRoom = {
      */
     pinnedAt: Date | null;
     /**
-     * When the current user muted this room in their sidebar. Null when unmuted.
+     * When the current user muted this room. Null when unmuted. Muted rooms sort last, hide sidebar attention chrome, and skip CHAT mention notifications.
      */
     mutedAt: Date | null;
     /**
@@ -10271,6 +10271,20 @@ export type PostChatsRoomsByIdPinErrors = {
         };
     };
     /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -10455,6 +10469,20 @@ export type PostChatsRoomsByIdMuteErrors = {
         };
     };
     /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -10509,9 +10537,13 @@ export type GetChatsRoomsByIdMessagesData = {
          */
         limit?: number;
         /**
-         * When provided, returns replies for this root message. Otherwise returns top-level room messages.
+         * When provided, returns replies for this root message. Otherwise returns top-level room messages. Ignored when `q` is set.
          */
         parentMessageId?: string;
+        /**
+         * Case-insensitive substring match on message content. When set, searches top-level and thread replies and excludes soft-deleted messages. `parentMessageId` is ignored.
+         */
+        q?: string;
     };
     url: '/chats/rooms/{id}/messages';
 };
