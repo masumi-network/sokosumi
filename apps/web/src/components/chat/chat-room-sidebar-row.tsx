@@ -166,7 +166,7 @@ export function ChatRoomSidebarRow({
             {tActions("markUnread")}
           </DropdownMenuItem>
           <DropdownMenuItem
-            disabled={isPending}
+            disabled={isPending || isMuted}
             onSelect={() => {
               if (isPinned) {
                 runRoomAction(unpinOrganizationChatRoomAction, {
@@ -184,7 +184,7 @@ export function ChatRoomSidebarRow({
             {isPinned ? tActions("unpin") : tActions("pin")}
           </DropdownMenuItem>
           <DropdownMenuItem
-            disabled={isPending}
+            disabled={isPending || isPinned}
             onSelect={() => {
               if (isMuted) {
                 runRoomAction(unmuteOrganizationChatRoomAction, {

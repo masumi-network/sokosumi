@@ -14,6 +14,7 @@ const {
   roomFindFirstMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
+  membershipFindUniqueMock,
   membershipUpdateMock,
   unreadQueryMock,
   mentionGroupByMock,
@@ -24,6 +25,7 @@ const {
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  membershipFindUniqueMock: vi.fn(),
   membershipUpdateMock: vi.fn(),
   unreadQueryMock: vi.fn(),
   mentionGroupByMock: vi.fn(),
@@ -50,7 +52,10 @@ const tx = {
   chatRoom: { findFirst: roomFindFirstMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
-  chatRoomUserMember: { update: membershipUpdateMock },
+  chatRoomUserMember: {
+    findUnique: membershipFindUniqueMock,
+    update: membershipUpdateMock,
+  },
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
@@ -113,6 +118,7 @@ beforeEach(() => {
   roomFindFirstMock.mockResolvedValue(room());
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
+  membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null });
   membershipUpdateMock.mockResolvedValue({});
   unreadQueryMock.mockResolvedValue([]);
   mentionGroupByMock.mockResolvedValue([]);
@@ -149,5 +155,19 @@ describe("POST /chats/rooms/{id}/mute", () => {
       mutedAt: "2026-08-03T12:00:00.000Z",
       markedUnread: false,
     });
+  });
+
+  it("rejects mute when the room is pinned", async () => {
+    membershipFindUniqueMock.mockResolvedValue({
+      pinnedAt: new Date("2026-08-03T10:00:00.000Z"),
+    });
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/mute`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(422);
+    expect(membershipUpdateMock).not.toHaveBeenCalled();
   });
 });

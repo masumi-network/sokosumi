@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -32,7 +33,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/mute",
-    description: "Mute an organization chat room for the current user.",
+    description:
+      "Mute an organization chat room for the current user. Cannot mute a pinned room.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -42,6 +44,7 @@ const route = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -55,6 +58,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const room = await prisma.$transaction(async (tx) => {
       const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
+
+      const membership = await tx.chatRoomUserMember.findUnique({
+        where: {
+          roomId_userId: {
+            roomId: room.id,
+            userId: userContext.userId,
+          },
+        },
+        select: { pinnedAt: true },
+      });
+      if (membership?.pinnedAt != null) {
+        throw unprocessableEntity("Cannot mute a pinned room. Unpin it first.");
+      }
 
       await tx.chatRoomUserMember.update({
         where: {
