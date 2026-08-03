@@ -61,9 +61,11 @@ provision upserts disposable Better Auth credential accounts:
 
 | Email | Password | Notes |
 | --- | --- | --- |
-| `admin@sokosumi.test` | `Password123!` | Platform admin (`role: admin`) + personal workspace |
-| `alice@sokosumi.test` | `Password123!` | Regular user + personal workspace |
-| `bob@sokosumi.test` | `Password123!` | Regular user + personal workspace |
+| `admin@sokosumi.test` | `Password123!` | Platform admin (`role: admin`) + personal workspace + owner of `admin-fixture` org |
+| `alice@sokosumi.test` | `Password123!` | Regular user + personal workspace + owner of `alice-fixture` org |
+| `bob@sokosumi.test` | `Password123!` | Regular user + personal workspace + owner of `bob-fixture` org |
+
+Each fixture also gets an **organization workspace** (`organization.slug` above) with the user as `member.role = owner`. Re-seed is idempotent on slug.
 
 **Guards:** fixtures run only when provision state has a `cloud-agent-*` branch
 name (and a `DATABASE_URL`). They refuse `main` / other non-agent branches.
