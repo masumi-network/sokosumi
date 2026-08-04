@@ -159,8 +159,8 @@ function getBetterAuthCookiePrefixFromEnv(): string {
   });
 }
 
-// Headers-only: Instant Nav sidebar may call getSession under
-// "use cache: private", where connection() is illegal (next-request-in-use-cache).
+// Headers-only: connection() is illegal under "use cache: private"
+// (next-request-in-use-cache). Keep shared auth reads safe for that boundary.
 async function getRequestHeaders(): Promise<Headers> {
   return headers();
 }

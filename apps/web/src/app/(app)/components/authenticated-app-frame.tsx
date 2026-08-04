@@ -51,7 +51,7 @@ export default async function AuthenticatedAppFrame({
               <BreadcrumbOverrideProvider>
                 <Suspense fallback={<AppSidebarFallback />}>
                   <PrivateCachedAppSidebar
-                    userId={session.user.id}
+                    sessionUser={session.user}
                     activeOrganizationId={
                       session.session.activeOrganizationId ?? null
                     }
