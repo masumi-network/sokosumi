@@ -133,6 +133,17 @@ describe("auth.server", () => {
     await expect(getSession({ refresh: true })).resolves.toBeNull();
   });
 
+  it("rethrows Cache Components hanging-promise aborts instead of null", async () => {
+    const hanging = Object.assign(new Error("Hanging promise rejection"), {
+      digest: "HANGING_PROMISE_REJECTION",
+    });
+    fetchMock.mockRejectedValue(hanging);
+
+    const { getSession } = await import("../auth.server");
+
+    await expect(getSession({ refresh: true })).rejects.toBe(hanging);
+  });
+
   it("returns null when the response body is not valid JSON", async () => {
     fetchMock.mockResolvedValue({
       ok: true,
