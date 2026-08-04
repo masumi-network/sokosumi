@@ -3612,7 +3612,18 @@
       },
       "purchasedSeatsLabel": "Seats comprados",
       "assignedSeatsLabel": "Asignados",
-      "unusedSeatsLabel": "Seats sin usar"
+      "unusedSeatsLabel": "Seats sin usar",
+      "PurchaseSuccess": {
+        "creditsTitle": "¡Todo listo!",
+        "creditsDescription": "Tus Credits se han añadido a tu cuenta.",
+        "subscriptionTitle": "¡Ahora tienes el plan {plan}!",
+        "subscriptionDescription": "Tu suscripción ya está activa.",
+        "coworkerRowTitle": "¿Listo para empezar?",
+        "coworkerRowDescription": "Inicia una tarea con uno de nuestros coworkers.",
+        "startTask": "Iniciar una tarea",
+        "startTaskWith": "Iniciar una tarea con {name}",
+        "goToTasks": "Ir a tareas"
+      }
     },
     "Credits": {
       "billingPortalCta": "Gestionar compras",
@@ -3642,18 +3653,6 @@
         "title": "Algo salió mal",
         "message": "Hubo un problema al procesar tu solicitud. Por favor, inténtalo más tarde.",
         "retryButton": "Intentar de nuevo"
-      },
-      "Success": {
-        "title": "¡Pago exitoso!",
-        "description": "Tu compra de Credits fue exitosa. ¡Gracias!",
-        "fulfillmentNote": "Tus Credits se acreditarán en tu cuenta en breve. Puedes ver tu saldo en la página de Credits.",
-        "backToDashboard": "Descubrir Agents",
-        "getStarted": "Empieza contratando tu primer Agent",
-        "Error": {
-          "title": "Algo salió mal",
-          "description": "No se encontró tu sesión de checkout",
-          "failedNote": "Contacta con nuestro soporte"
-        }
       },
       "Cancel": {
         "title": "Pago cancelado",
