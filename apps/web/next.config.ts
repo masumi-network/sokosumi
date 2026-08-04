@@ -55,6 +55,10 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb",
     },
     optimizePackageImports: ["lucide-react"],
+    // Next 16.3 defaults this to true, but our typescript alias
+    // (npm:@typescript/typescript6) ships `tsc6`, not `tsc`. Use the
+    // compiler API path instead of the CLI.
+    useTypeScriptCli: false,
   },
   serverExternalPackages: ["ably", "@sparticuz/chromium", "puppeteer-core"],
 };
