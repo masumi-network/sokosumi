@@ -15,6 +15,11 @@ import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 import AuthBackground from "./components/auth-background";
 
+// Instant Nav prerenders a Cache Components shell that Vercel serves for
+// POST/RSC to /signin|/signup as 405 (Method Not Allowed). Auth entry must
+// stay fully dynamic — same opt-out as admin / Hermes must-block gates.
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth.Metadata");
 

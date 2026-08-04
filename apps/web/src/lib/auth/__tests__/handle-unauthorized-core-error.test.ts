@@ -23,7 +23,7 @@ import {
   redirectIfUnauthorizedCoreError,
   withUnauthorizedCoreRedirect,
 } from "@/lib/auth/handle-unauthorized-core-error";
-import { CoreApiRequestError } from "@/lib/clients/core.client";
+import { CoreApiRequestError } from "@/lib/clients/core.shared";
 
 describe("isUnauthorizedCoreApiError", () => {
   it("matches Core 401 responses", () => {

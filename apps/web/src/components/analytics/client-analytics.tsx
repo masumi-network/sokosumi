@@ -1,18 +1,42 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { type ComponentType, useState } from "react";
 
-const Analytics = dynamic(
-  () => import("@vercel/analytics/next").then((mod) => mod.Analytics),
-  { ssr: false },
-);
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
-const SpeedInsights = dynamic(
-  () => import("@vercel/speed-insights/next").then((mod) => mod.SpeedInsights),
-  { ssr: false },
-);
+interface LoadedAnalytics {
+  Analytics: ComponentType;
+  SpeedInsights: ComponentType;
+}
 
 export function ClientAnalytics() {
+  const [loaded, setLoaded] = useState<LoadedAnalytics | null>(null);
+
+  useMountEffect(() => {
+    let cancelled = false;
+    void Promise.all([
+      import("@vercel/analytics/next"),
+      import("@vercel/speed-insights/next"),
+    ]).then(([analyticsMod, speedInsightsMod]) => {
+      if (cancelled) {
+        return;
+      }
+      setLoaded({
+        Analytics: analyticsMod.Analytics,
+        SpeedInsights: speedInsightsMod.SpeedInsights,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  if (!loaded) {
+    return null;
+  }
+
+  const { Analytics, SpeedInsights } = loaded;
+
   return (
     <>
       <Analytics />

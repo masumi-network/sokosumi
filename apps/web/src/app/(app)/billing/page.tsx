@@ -5,14 +5,18 @@ import { BalanceSection } from "@/components/billing/balance-section";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
 import { BillingTabs } from "@/components/billing/billing-tabs";
 import CouponSection from "@/components/billing/coupon-section";
+import { CreditsCheckoutReturn } from "@/components/billing/credits-checkout-return";
 import CreditsSection from "@/components/billing/credits-section";
 import { EnterpriseContractSummary } from "@/components/billing/enterprise-contract-summary";
+import { getFeaturedCoworkers } from "@/components/billing/get-featured-coworkers";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import {
+  getPlanTranslationKey,
   parsePlanName,
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
+import { SubscriptionSuccessModal } from "@/components/billing/subscription-success-modal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -55,14 +59,28 @@ function parseBillingTab(tab: string | undefined): BillingTab {
 }
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
-  const t = await getTranslations("App.Billing");
-  const [query, session, activeOrganization] = await Promise.all([
+  const [
+    t,
+    tSubscriptions,
+    tPurchaseSuccess,
+    query,
+    session,
+    activeOrganization,
+  ] = await Promise.all([
+    getTranslations("App.Billing"),
+    getTranslations("App.Subscriptions"),
+    getTranslations("App.Billing.PurchaseSuccess"),
     searchParams,
     getSession(),
     userService.getActiveOrganization(),
   ]);
   const activeTab = parseBillingTab(query.tab);
   const billingPortalReturnPath = `/billing?tab=${activeTab}`;
+  const coworkersPromise = getFeaturedCoworkers();
+  const subscriptionStatus = parseStatus(query.status);
+  const subscriptionSuccessDescription = tPurchaseSuccess(
+    "subscriptionDescription",
+  );
 
   if (!session) {
     return null;
@@ -113,14 +131,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     const showOrganizationBillingPortal = !isEnterpriseConsumable;
     const canPurchaseCredits =
       isOwnerOrAdmin && (currentPlan !== "free" || canPurchaseOnFreePlan);
-    const creditsCheckoutParams =
-      canPurchaseCredits && activeTab === "credits"
-        ? { cancel: query.cancel, session_id: query.session_id }
-        : undefined;
-    const couponCheckoutParams =
-      activeTab === "coupon"
-        ? { cancel: query.cancel, session_id: query.session_id }
-        : undefined;
 
     const [
       enterpriseContractSummary,
@@ -245,18 +255,33 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 organization={activeOrganization}
                 pricing={creditPricing}
                 returnPath="/billing?tab=credits"
-                searchParams={creditsCheckoutParams}
               />
             }
             couponContent={
               <CouponSection
                 organization={activeOrganization}
                 returnPath="/billing?tab=coupon"
-                searchParams={couponCheckoutParams}
               />
             }
           />
         </div>
+
+        <CreditsCheckoutReturn
+          cancel={query.cancel}
+          coworkersPromise={coworkersPromise}
+          sessionId={query.session_id}
+        />
+        <SubscriptionSuccessModal
+          coworkersPromise={coworkersPromise}
+          description={subscriptionSuccessDescription}
+          headline={tPurchaseSuccess("subscriptionTitle", {
+            plan: tSubscriptions(
+              `Plans.${getPlanTranslationKey(currentPlan)}.name`,
+            ),
+          })}
+          returnPath="/billing?tab=subscription"
+          status={subscriptionStatus}
+        />
       </div>
     );
   }
@@ -290,14 +315,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   });
 
   const canPurchaseCredits = currentPlan !== "free" || canPurchaseOnFreePlan;
-  const creditsCheckoutParams =
-    canPurchaseCredits && activeTab === "credits"
-      ? { cancel: query.cancel, session_id: query.session_id }
-      : undefined;
-  const couponCheckoutParams =
-    activeTab === "coupon"
-      ? { cancel: query.cancel, session_id: query.session_id }
-      : undefined;
 
   return (
     <div className="min-h-full w-full">
@@ -340,7 +357,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               currentPeriodEnd={latestPersonalSubscription?.periodEnd ?? null}
               plans={personalPlans}
               returnPath="/billing?tab=subscription"
-              status={parseStatus(query.status)}
+              status={subscriptionStatus}
             />
           }
           creditsContent={
@@ -349,18 +366,33 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               organization={null}
               pricing={creditPricing}
               returnPath="/billing?tab=credits"
-              searchParams={creditsCheckoutParams}
             />
           }
           couponContent={
             <CouponSection
               organization={null}
               returnPath="/billing?tab=coupon"
-              searchParams={couponCheckoutParams}
             />
           }
         />
       </div>
+
+      <CreditsCheckoutReturn
+        cancel={query.cancel}
+        coworkersPromise={coworkersPromise}
+        sessionId={query.session_id}
+      />
+      <SubscriptionSuccessModal
+        coworkersPromise={coworkersPromise}
+        description={subscriptionSuccessDescription}
+        headline={tPurchaseSuccess("subscriptionTitle", {
+          plan: tSubscriptions(
+            `Plans.${getPlanTranslationKey(currentPlan)}.name`,
+          ),
+        })}
+        returnPath="/billing?tab=subscription"
+        status={subscriptionStatus}
+      />
     </div>
   );
 }
