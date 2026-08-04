@@ -377,7 +377,7 @@ export const getCategories = <ThrowOnError extends boolean = false>(options?: Op
 });
 
 /**
- * List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null). Pass `status=archived` to list soft-archived membership rooms the caller may restore (creator or organization owner/admin).
+ * List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null). Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).
  */
 export const getChatsRooms = <ThrowOnError extends boolean = false>(options?: Options<GetChatsRoomsData, ThrowOnError>): RequestResult<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError> => (options?.client ?? client).get<GetChatsRoomsResponses, GetChatsRoomsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsResponseTransformer,
@@ -461,7 +461,7 @@ export const patchChatsRoomsById = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Archive an organization chat room. Every read filters on archivedAt, so it disappears for all members while its messages stay in the database. Only the room creator or an organization owner/admin may archive. Direct rooms cannot be archived.
+ * Archive an organization chat room. Every read filters on archivedAt, so it disappears for all members while its messages stay in the database. Only an organization owner/admin may archive. Direct rooms cannot be archived.
  */
 export const postChatsRoomsByIdArchive = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdArchiveData, ThrowOnError>): RequestResult<PostChatsRoomsByIdArchiveResponses, PostChatsRoomsByIdArchiveErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdArchiveResponses, PostChatsRoomsByIdArchiveErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdArchiveResponseTransformer,
@@ -470,7 +470,7 @@ export const postChatsRoomsByIdArchive = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members while keeping its existing slug. Only the room creator or an organization owner/admin may restore. Direct rooms cannot be restored because they cannot be archived.
+ * Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members while keeping its existing slug. Only an organization owner/admin may restore. Direct rooms cannot be restored because they cannot be archived.
  */
 export const postChatsRoomsByIdRestore = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdRestoreData, ThrowOnError>): RequestResult<PostChatsRoomsByIdRestoreResponses, PostChatsRoomsByIdRestoreErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdRestoreResponses, PostChatsRoomsByIdRestoreErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdRestoreResponseTransformer,
@@ -479,7 +479,7 @@ export const postChatsRoomsByIdRestore = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Leave an organization chat room. Removes only the caller's membership and read marker; the room and its messages are untouched for everyone else. Any member can leave. The last remaining member cannot leave (ask the channel creator or an organization owner/admin to archive instead), and direct rooms cannot be left.
+ * Leave an organization chat room. Removes only the caller's membership and read marker; the room and its messages are untouched for everyone else. Any member can leave. The last remaining member cannot leave (ask an organization owner/admin to archive instead), and direct rooms cannot be left.
  */
 export const deleteChatsRoomsByIdMembersMe = <ThrowOnError extends boolean = false>(options: Options<DeleteChatsRoomsByIdMembersMeData, ThrowOnError>): RequestResult<DeleteChatsRoomsByIdMembersMeResponses, DeleteChatsRoomsByIdMembersMeErrors, ThrowOnError> => (options.client ?? client).delete<DeleteChatsRoomsByIdMembersMeResponses, DeleteChatsRoomsByIdMembersMeErrors, ThrowOnError>({
     responseTransformer: deleteChatsRoomsByIdMembersMeResponseTransformer,
