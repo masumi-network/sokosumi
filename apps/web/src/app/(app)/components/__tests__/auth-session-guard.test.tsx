@@ -188,4 +188,55 @@ describe("AuthSessionGuard", () => {
     expect(authClient.getSession).toHaveBeenCalledTimes(2);
     expect(replaceMock).not.toHaveBeenCalled();
   });
+
+  it("does not redirect when an overlapping resume probe finds a session", async () => {
+    vi.useFakeTimers();
+
+    let resolveStaleResumeAttempt:
+      | ((value: typeof missingSession) => void)
+      | undefined;
+    const staleResumeAttempt = new Promise<typeof missingSession>((resolve) => {
+      resolveStaleResumeAttempt = resolve;
+    });
+    let getSessionCalls = 0;
+
+    vi.mocked(authClient.getSession).mockImplementation(() => {
+      getSessionCalls += 1;
+      if (getSessionCalls === 1) {
+        return Promise.resolve(presentSession);
+      }
+      if (getSessionCalls === 2) {
+        return staleResumeAttempt;
+      }
+      if (getSessionCalls === 3) {
+        return Promise.resolve(presentSession);
+      }
+      return Promise.resolve(missingSession);
+    });
+
+    render(<AuthSessionGuard />);
+    await flushMicrotasks();
+
+    window.dispatchEvent(new Event("focus"));
+    await advance(SESSION_RESUME_DEBOUNCE_MS);
+    await flushMicrotasks();
+
+    expect(getSessionCalls).toBe(2);
+
+    window.dispatchEvent(new Event("focus"));
+    await advance(SESSION_RESUME_DEBOUNCE_MS);
+    await flushMicrotasks();
+
+    expect(getSessionCalls).toBe(3);
+    expect(replaceMock).not.toHaveBeenCalled();
+
+    resolveStaleResumeAttempt?.(missingSession);
+    await flushMicrotasks();
+    await advance(250);
+    await flushMicrotasks();
+    await advance(750);
+    await flushMicrotasks();
+
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
 });

@@ -16,6 +16,7 @@ import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 export function AuthSessionGuard() {
   const router = useRouter();
   const isRedirectingRef = useRef(false);
+  const resumeGenerationRef = useRef(0);
   const getFreshSession = createAuthSessionGetter(() =>
     authClient.getSession({
       query: {
@@ -54,9 +55,12 @@ export function AuthSessionGuard() {
         return;
       }
 
+      const generation = ++resumeGenerationRef.current;
       const result = await probeSessionWithRetry({
         getSession: getFreshSession,
-        shouldCancel: () => isRedirectingRef.current,
+        shouldCancel: () =>
+          isRedirectingRef.current ||
+          generation !== resumeGenerationRef.current,
       });
 
       if (result === "missing") {
