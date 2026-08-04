@@ -174,4 +174,26 @@ describe("PurchaseSuccessCoworkerRow", () => {
 
     consoleError.mockRestore();
   });
+
+  it("calls onNavigate from the error-boundary 'go to tasks' fallback", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const onNavigate = vi.fn();
+
+    await act(async () => {
+      render(
+        <PurchaseSuccessCoworkerRow
+          coworkersPromise={Promise.reject(new Error("boom"))}
+          onNavigate={onNavigate}
+        />,
+      );
+    });
+
+    screen.getByText("goToTasks").closest("a")?.click();
+
+    expect(onNavigate).toHaveBeenCalled();
+
+    consoleError.mockRestore();
+  });
 });

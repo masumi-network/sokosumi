@@ -26,7 +26,12 @@ export function PurchaseSuccessCoworkerRow(
 ) {
   return (
     <DefaultErrorBoundary
-      fallback={<GoToTasksFallback className={props.className} />}
+      fallback={
+        <GoToTasksFallback
+          className={props.className}
+          onNavigate={props.onNavigate}
+        />
+      }
     >
       <Suspense fallback={<CoworkerRowLoading />}>
         <CoworkerRowInner {...props} />
