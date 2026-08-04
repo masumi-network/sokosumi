@@ -6,6 +6,8 @@ import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 
 import FullscreenEffect from "./components/fullscreen-effect";
 
+export const instant = false;
+
 interface HermesLayoutProps {
   children: ReactNode;
 }
