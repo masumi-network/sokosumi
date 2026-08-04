@@ -15,6 +15,7 @@ export interface BlobLike {
   status: BlobStatus;
   name?: string | null;
   fileUrl?: string | null;
+  mimeType?: string | null;
 }
 
 export interface LinkLike {
@@ -87,6 +88,7 @@ function FileItemChip({ blob }: { blob: BlobLike }) {
     <FileChipWithMetadata
       url={getBlobUrl(blob)}
       fileName={blob.name}
+      mediaType={blob.mimeType}
       sizeClass="size-4"
     />
   );

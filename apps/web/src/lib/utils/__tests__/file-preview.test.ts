@@ -69,6 +69,7 @@ describe("isPdfUrl / isPdfMediaType", () => {
   it("recognizes the application/pdf MIME type", () => {
     expect(isPdfMediaType("application/pdf")).toBe(true);
     expect(isPdfMediaType("APPLICATION/PDF")).toBe(true);
+    expect(isPdfMediaType("application/pdf; charset=binary")).toBe(true);
     expect(isPdfMediaType("application/zip")).toBe(false);
   });
 });
@@ -80,10 +81,12 @@ describe("isTextPreviewUrl / isTextPreviewMediaType", () => {
     expect(isTextPreviewUrl("https://blob.example/data.csv")).toBe(false);
   });
 
-  it("recognizes text/plain and text/markdown MIME types", () => {
+  it("recognizes text MIME types including Content-Type parameters", () => {
     expect(isTextPreviewMediaType("text/plain")).toBe(true);
+    expect(isTextPreviewMediaType("text/plain; charset=utf-8")).toBe(true);
     expect(isTextPreviewMediaType("text/markdown")).toBe(true);
     expect(isTextPreviewMediaType("text/csv")).toBe(false);
+    expect(isTextPreviewMediaType("application/json")).toBe(false);
   });
 });
 
