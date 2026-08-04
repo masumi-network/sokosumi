@@ -37,6 +37,7 @@ import {
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-signal-unread-threads-attention";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
@@ -282,6 +283,15 @@ export function RoomsClient({
   // handlers must not merge into messagesState after the selection moved.
   const selectedRoomIdRef = useRef(selectedRoomId);
   selectedRoomIdRef.current = selectedRoomId;
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
+  const [attentionRefreshToken, setAttentionRefreshToken] = useState(0);
+  const [syncedAttentionRoomId, setSyncedAttentionRoomId] =
+    useState(selectedRoomId);
+  if (selectedRoomId !== syncedAttentionRoomId) {
+    setSyncedAttentionRoomId(selectedRoomId);
+    setAttentionRefreshToken(0);
+  }
   const [isSending, startSendingTransition] = useTransition();
   const [isThreadLoading, startThreadLoadingTransition] = useTransition();
   const [isSendingThreadReply, startSendingThreadReplyTransition] =
@@ -431,6 +441,12 @@ export function RoomsClient({
       setThreadParentMessage((current) =>
         current?.id === message.id ? message : current,
       );
+
+      if (
+        shouldSignalUnreadThreadsAttention(message, currentUserIdRef.current)
+      ) {
+        setAttentionRefreshToken((token) => token + 1);
+      }
 
       const openThreadParentId = threadParentMessageIdRef.current;
       if (!openThreadParentId) {
@@ -835,6 +851,7 @@ export function RoomsClient({
           mergeRoomMessages(current, threadResult.data.messages),
         );
       }
+      setAttentionRefreshToken((token) => token + 1);
     };
 
     window.addEventListener("focus", refreshLatest);
@@ -1371,6 +1388,7 @@ export function RoomsClient({
                   <UnreadThreadsPanel
                     key={`unread-threads-${selectedRoom.id}`}
                     roomId={selectedRoom.id}
+                    attentionRefreshToken={attentionRefreshToken}
                     onOpenThread={loadThreadMessages}
                     labels={{
                       open: t("UnreadThreads.open"),

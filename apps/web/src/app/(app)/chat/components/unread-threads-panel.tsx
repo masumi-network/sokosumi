@@ -36,9 +36,16 @@ export interface UnreadThreadsPanelLabels {
 interface UnreadThreadsPanelProps {
   roomId: string;
   labels: UnreadThreadsPanelLabels;
+  /**
+   * Monotonic epoch from the parent. Values > 0 trigger a debounced
+   * unread-threads refetch (badge always; list only while open).
+   */
+  attentionRefreshToken: number;
   /** Returns true when thread look-state was persisted successfully. */
   onOpenThread: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
 }
+
+const ATTENTION_REFRESH_DEBOUNCE_MS = 300;
 
 function UnreadThreadsBadge({ count }: { count: number }) {
   if (count <= 0) {
@@ -61,6 +68,7 @@ function UnreadThreadsBadge({ count }: { count: number }) {
 export function UnreadThreadsPanel({
   roomId,
   labels,
+  attentionRefreshToken,
   onOpenThread,
 }: UnreadThreadsPanelProps) {
   const [open, setOpen] = useState(false);
@@ -70,6 +78,8 @@ export function UnreadThreadsPanel({
   const [isLoading, setIsLoading] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const requestIdRef = useRef(0);
+  const openRef = useRef(open);
+  openRef.current = open;
   const { formatTimeAgo } = useLocalizedDateTime();
 
   const loadUnreadThreads = useEffectEvent(
@@ -113,6 +123,18 @@ export function UnreadThreadsPanel({
     }
     void loadUnreadThreads({ forPanel: true });
   }, [open, roomId]);
+
+  useEffect(() => {
+    if (attentionRefreshToken <= 0) {
+      return;
+    }
+    const timerId = window.setTimeout(() => {
+      void loadUnreadThreads({ forPanel: openRef.current });
+    }, ATTENTION_REFRESH_DEBOUNCE_MS);
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [attentionRefreshToken]);
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
