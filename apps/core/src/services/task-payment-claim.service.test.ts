@@ -9,6 +9,7 @@ const {
   claimFindUniqueMock,
   claimFindFirstMock,
   claimFindManyMock,
+  claimCountMock,
   refundClaimUpdateManyMock,
   claimUpdateManyMock,
   claimUpdateMock,
@@ -16,10 +17,12 @@ const {
   captureMessageMock,
   resolvePurchaseMock,
   prismaTransactionMock,
+  claimActionCreateMock,
 } = vi.hoisted(() => ({
   claimFindUniqueMock: vi.fn(),
   claimFindFirstMock: vi.fn(),
   claimFindManyMock: vi.fn(),
+  claimCountMock: vi.fn(),
   refundClaimUpdateManyMock: vi.fn(),
   claimUpdateManyMock: vi.fn(),
   claimUpdateMock: vi.fn(),
@@ -27,6 +30,7 @@ const {
   captureMessageMock: vi.fn(),
   resolvePurchaseMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  claimActionCreateMock: vi.fn(),
 }));
 
 vi.mock("@sentry/node", () => ({
@@ -50,6 +54,10 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: claimUpdateManyMock,
       findFirst: claimFindFirstMock,
       findMany: claimFindManyMock,
+      count: claimCountMock,
+    },
+    taskPaymentClaimAction: {
+      create: claimActionCreateMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -193,6 +201,44 @@ describe("task payment claims", () => {
     expect(
       await refundFailedTaskPaymentClaim("claim-1", "duplicate callback"),
     ).toBe(false);
+    expect(claimUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("reports a lost processing lease without calling the claim purchased", async () => {
+    refundClaimUpdateManyMock.mockResolvedValue({ count: 0 });
+    claimFindUniqueMock.mockResolvedValue({
+      id: "claim-1",
+      status: TaskPaymentClaimStatus.PENDING,
+      transaction: {
+        amount: -500n,
+        userId: "user-1",
+        organizationId: null,
+      },
+    });
+
+    await expect(
+      refundFailedTaskPaymentClaim("claim-1", "worker failed", "lease-1"),
+    ).rejects.toThrow(
+      "Task payment claim claim-1 could not be refunded (status PENDING; lease no longer owned)",
+    );
+    expect(claimUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves the purchased-state error when a refund loses the race", async () => {
+    refundClaimUpdateManyMock.mockResolvedValue({ count: 0 });
+    claimFindUniqueMock.mockResolvedValue({
+      id: "claim-1",
+      status: TaskPaymentClaimStatus.PURCHASED,
+      transaction: {
+        amount: -500n,
+        userId: "user-1",
+        organizationId: null,
+      },
+    });
+
+    await expect(
+      refundFailedTaskPaymentClaim("claim-1", "worker failed", "lease-1"),
+    ).rejects.toThrow("Task payment claim claim-1 is already purchased");
     expect(claimUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -399,7 +445,13 @@ describe("task payment claims", () => {
       },
     });
 
-    await expect(resolveReviewedTaskPaymentClaim("claim-1")).resolves.toEqual({
+    await expect(
+      resolveReviewedTaskPaymentClaim({
+        claimId: "claim-1",
+        operatorId: "admin-1",
+        reason: "Verified out of band",
+      }),
+    ).resolves.toEqual({
       status: "refunded",
       reason: "Operator resolve confirmed not_found: Task purchase not found",
       compensated: true,
@@ -422,7 +474,13 @@ describe("task payment claims", () => {
       err({ kind: "ambiguous", message: "resolver unavailable" }),
     );
 
-    await expect(resolveReviewedTaskPaymentClaim("claim-1")).resolves.toEqual({
+    await expect(
+      resolveReviewedTaskPaymentClaim({
+        claimId: "claim-1",
+        operatorId: "admin-1",
+        reason: "Verified out of band",
+      }),
+    ).resolves.toEqual({
       status: "review_required",
       reason: "resolver unavailable",
     });
@@ -491,7 +549,13 @@ describe("task payment claims", () => {
   it("moves a reviewed claim back to the normal retry queue", async () => {
     claimUpdateManyMock.mockResolvedValue({ count: 1 });
 
-    await expect(retryReviewedTaskPaymentClaim("claim-1")).resolves.toBe(true);
+    await expect(
+      retryReviewedTaskPaymentClaim({
+        claimId: "claim-1",
+        operatorId: "admin-1",
+        reason: "Node recovered",
+      }),
+    ).resolves.toBe(true);
     expect(claimUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -511,9 +575,12 @@ describe("task payment claims", () => {
   it("reconciles stale pending claims for the current network", async () => {
     claimFindManyMock.mockResolvedValue([{ id: "claim-stale" }]);
     claimUpdateManyMock.mockResolvedValue({ count: 0 });
+    claimCountMock.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
 
     await expect(syncPendingTaskPaymentClaims()).resolves.toEqual({
       processed: 1,
+      eligible: 1,
+      reviewRequired: 0,
     });
     expect(claimFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -523,6 +590,36 @@ describe("task payment claims", () => {
           reviewRequiredAt: null,
         }),
       }),
+    );
+  });
+
+  it("reports a backlog one cron tick can no longer drain", async () => {
+    claimFindManyMock.mockResolvedValue([]);
+    claimCountMock.mockResolvedValueOnce(51).mockResolvedValueOnce(3);
+
+    await expect(syncPendingTaskPaymentClaims()).resolves.toEqual({
+      processed: 0,
+      eligible: 51,
+      reviewRequired: 3,
+    });
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Task payment claim backlog is growing",
+      expect.objectContaining({
+        level: "warning",
+        extra: expect.objectContaining({ eligible: 51, reviewRequired: 3 }),
+      }),
+    );
+  });
+
+  it("stays quiet while the backlog fits inside the retry cadence", async () => {
+    claimFindManyMock.mockResolvedValue([]);
+    claimCountMock.mockResolvedValueOnce(50).mockResolvedValueOnce(0);
+
+    await syncPendingTaskPaymentClaims();
+
+    expect(captureMessageMock).not.toHaveBeenCalledWith(
+      "Task payment claim backlog is growing",
+      expect.anything(),
     );
   });
 });

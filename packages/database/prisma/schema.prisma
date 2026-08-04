@@ -79,6 +79,8 @@ model User {
   vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
   vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
 
+  taskPaymentClaimActions TaskPaymentClaimAction[]
+
   // Credit Buckets
   creditBuckets CreditBucket[]
 
@@ -975,7 +977,7 @@ model Job {
   // Exact normalized token amounts expected by purchase reconciliation.
   purchaseAmounts             Json?
   // False for jobs created before amount snapshots were enforced.
-  purchaseAmountMatchRequired Boolean @default(false)
+  purchaseAmountMatchRequired Boolean   @default(false)
   identifierFromPurchaser     String?
   payByTime                   DateTime?
   submitResultTime            DateTime?
@@ -1692,9 +1694,9 @@ model TaskPaymentClaim {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  network                  String
-  blockchainIdentifier    String
-  purchasePayload          Json
+  network              String
+  blockchainIdentifier String
+  purchasePayload      Json
   status               TaskPaymentClaimStatus @default(PENDING)
   externalPurchaseId   String?
   failureReason        String?
@@ -1714,10 +1716,35 @@ model TaskPaymentClaim {
   refundTransactionId String?      @unique
   refundTransaction   Transaction? @relation("RefundedTransactionTaskPaymentClaim", fields: [refundTransactionId], references: [id], onDelete: Restrict)
 
+  actions TaskPaymentClaimAction[]
+
   @@unique([network, blockchainIdentifier])
   @@index([network, status, nextAttemptAt])
   @@index([network, reviewRequiredAt, nextAttemptAt])
   @@map("task_payment_claim")
+}
+
+/// Append-only audit trail for operator decisions on a task payment claim.
+/// These actions move money (refund/resolve) or reset recovery state (retry),
+/// and the claim's own `failureReason` is cleared by a retry — so attribution
+/// must live in rows that are never updated or deleted.
+model TaskPaymentClaimAction {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  claimId String
+  claim   TaskPaymentClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  /// "refund" | "resolve" | "retry"
+  action String
+
+  operatorId String
+  operator   User   @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+
+  reason String
+
+  @@index([claimId, createdAt])
+  @@map("task_payment_claim_action")
 }
 
 model CoworkerUsage {

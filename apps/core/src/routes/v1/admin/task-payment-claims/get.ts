@@ -12,6 +12,7 @@ import {
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireAdminAuthContext } from "@/middleware/auth";
 import {
   adminTaskPaymentClaimListQuerySchema,
   adminTaskPaymentClaimListSchema,
@@ -37,6 +38,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
+    requireAdminAuthContext(c.var.authContext);
     const { cursor, take, skip } = parseCursorPagination(c.req.valid("query"));
     const where = {
       network: getEnv().NETWORK,

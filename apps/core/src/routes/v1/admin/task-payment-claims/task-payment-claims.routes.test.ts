@@ -76,6 +76,31 @@ function createApp(role: string = "admin") {
   return app;
 }
 
+/** Mounts one handler WITHOUT the parent admin guard, to prove it guards itself. */
+function createUnguardedApp(
+  role: string,
+  mount: (app: OpenAPIHonoWithAuth) => void,
+) {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & RequestIdVariables;
+  }>({ defaultHook: defaultValidationHook });
+
+  app.use("*", async (c, next) => {
+    c.set("requestId", "req_task_payment_claim_unguarded_test");
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "user",
+      userId: "user_member",
+      organizationId: null,
+      role,
+    });
+    await next();
+  });
+  app.onError(errorHandler);
+  mount(app as unknown as OpenAPIHonoWithAuth);
+  return app;
+}
+
 describe("admin task payment claim routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -136,13 +161,46 @@ describe("admin task payment claim routes", () => {
 
     const response = await createApp().request("/claim-1/retry", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "Payment node recovered" }),
     });
 
     expect(response.status).toBe(200);
-    expect(retryReviewedClaimMock).toHaveBeenCalledWith("claim-1");
+    expect(retryReviewedClaimMock).toHaveBeenCalledWith({
+      claimId: "claim-1",
+      operatorId: "user_admin",
+      reason: "Payment node recovered",
+    });
     await expect(response.json()).resolves.toMatchObject({
       data: { status: "retry_scheduled" },
     });
+  });
+
+  it("keeps the retry handler admin-only without its parent router guard", async () => {
+    const response = await createUnguardedApp("member", mountRetry).request(
+      "/claim-1/retry",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(retryReviewedClaimMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the resolve handler admin-only without its parent router guard", async () => {
+    const response = await createUnguardedApp("member", mountResolve).request(
+      "/claim-1/resolve",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(resolveReviewedClaimMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the list handler admin-only without its parent router guard", async () => {
+    const response = await createUnguardedApp("member", mountList).request("/");
+
+    expect(response.status).toBe(403);
+    expect(claimFindManyMock).not.toHaveBeenCalled();
   });
 
   it("runs resolve-only recovery for a reviewed claim", async () => {
@@ -153,10 +211,16 @@ describe("admin task payment claim routes", () => {
 
     const response = await createApp().request("/claim-1/resolve", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "Confirmed on chain" }),
     });
 
     expect(response.status).toBe(200);
-    expect(resolveReviewedClaimMock).toHaveBeenCalledWith("claim-1");
+    expect(resolveReviewedClaimMock).toHaveBeenCalledWith({
+      claimId: "claim-1",
+      operatorId: "user_admin",
+      reason: "Confirmed on chain",
+    });
     await expect(response.json()).resolves.toMatchObject({
       data: { status: "purchased", purchaseId: "purchase-1" },
     });

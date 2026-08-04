@@ -12667,7 +12667,12 @@ export const MasumiPaymentSchema = {
             },
             minItems: 1,
             maxItems: 7,
-            example: []
+            example: [
+                {
+                    amount: '470000000000',
+                    unit: ''
+                }
+            ]
         },
         PaymentSource: {
             $ref: '#/components/schemas/MasumiTaskPaymentSource'

@@ -207,7 +207,12 @@ export async function refundFailedTaskPaymentClaim(
       return false;
     }
     if (claimed.count === 0) {
-      throw new Error(`Task payment claim ${claimId} is already purchased`);
+      if (claim.status === TaskPaymentClaimStatus.PURCHASED) {
+        throw new Error(`Task payment claim ${claimId} is already purchased`);
+      }
+      throw new Error(
+        `Task payment claim ${claimId} could not be refunded (status ${claim.status}; lease no longer owned)`,
+      );
     }
 
     const refundAmount = claim.transaction.amount * -1n;
@@ -235,6 +240,11 @@ export async function refundFailedTaskPaymentClaim(
                 referenceId: `task-payment:${claim.id}`,
                 referenceType: CreditBucketReferenceType.REFUND,
                 user: { connect: { id: claim.transaction.userId } },
+                // Non-expiring, matching how job refunds compensate
+                // (services/job-refund.ts). The debit may have consumed
+                // expiring buckets, so this can extend the credits' lifetime —
+                // deliberate: a payment Sokosumi failed to place must not cost
+                // the user credits that expire before they can be spent again.
                 expiresAt: null,
                 ...(claim.transaction.organizationId
                   ? {
@@ -250,6 +260,36 @@ export async function refundFailedTaskPaymentClaim(
       },
     });
     return true;
+  });
+}
+
+export interface ReviewedTaskPaymentClaimActionInput {
+  claimId: string;
+  operatorId: string;
+  reason: string;
+}
+
+/**
+ * Durable, append-only record of an operator decision on a claim.
+ *
+ * These endpoints move money (`resolve` can refund) or reset recovery state
+ * (`retry` clears `failureReason`), so attribution cannot live in a mutable
+ * column. Written before the action for `resolve` and after a successful
+ * `retry`, so a crash mid-action still leaves the intent recorded.
+ */
+async function recordTaskPaymentClaimAction(entry: {
+  claimId: string;
+  action: "resolve" | "retry" | "refund";
+  operatorId: string;
+  reason: string;
+}): Promise<void> {
+  await prisma.taskPaymentClaimAction.create({
+    data: {
+      claimId: entry.claimId,
+      action: entry.action,
+      operatorId: entry.operatorId,
+      reason: entry.reason.slice(0, MAX_FAILURE_REASON_LENGTH),
+    },
   });
 }
 
@@ -489,8 +529,9 @@ export async function processTaskPaymentClaim(
  * single writer that performs the remote POST, preserving lease safety.
  */
 export async function retryReviewedTaskPaymentClaim(
-  claimId: string,
+  input: ReviewedTaskPaymentClaimActionInput,
 ): Promise<boolean> {
+  const { claimId, operatorId, reason } = input;
   const leaseExpiredAt = new Date(Date.now() - PROCESSING_LEASE_MS);
   const updated = await prisma.taskPaymentClaim.updateMany({
     where: {
@@ -513,13 +554,18 @@ export async function retryReviewedTaskPaymentClaim(
       reviewRequiredAt: null,
     },
   });
-  return updated.count === 1;
-}
-
-interface RefundReviewedTaskPaymentClaimInput {
-  claimId: string;
-  operatorId: string;
-  reason: string;
+  if (updated.count !== 1) {
+    return false;
+  }
+  // `failureReason` above is cleared by design, so the operator decision would
+  // otherwise leave no trace at all once the retry succeeds.
+  await recordTaskPaymentClaimAction({
+    claimId,
+    action: "retry",
+    operatorId,
+    reason,
+  });
+  return true;
 }
 
 /**
@@ -528,7 +574,7 @@ interface RefundReviewedTaskPaymentClaimInput {
  * not inspect purchasePayload, so corrupted rows can still be compensated.
  */
 export async function refundReviewedTaskPaymentClaim(
-  input: RefundReviewedTaskPaymentClaimInput,
+  input: ReviewedTaskPaymentClaimActionInput,
 ): Promise<TaskPaymentClaimProcessResult> {
   const claim = await acquireTaskPaymentClaim(input.claimId, {
     ignoreSchedule: true,
@@ -541,6 +587,13 @@ export async function refundReviewedTaskPaymentClaim(
   if (!processingToken) {
     throw new Error(`Task payment claim ${claim.id} has no processing token`);
   }
+
+  await recordTaskPaymentClaimAction({
+    claimId: claim.id,
+    action: "refund",
+    operatorId: input.operatorId,
+    reason: input.reason,
+  });
 
   return await finalizePermanentFailure(
     claim.id,
@@ -555,8 +608,9 @@ export async function refundReviewedTaskPaymentClaim(
  * and ambiguous lookup failures remain held for operator review.
  */
 export async function resolveReviewedTaskPaymentClaim(
-  claimId: string,
+  input: ReviewedTaskPaymentClaimActionInput,
 ): Promise<TaskPaymentClaimProcessResult> {
+  const { claimId, operatorId, reason } = input;
   const claim = await acquireTaskPaymentClaim(claimId, {
     ignoreSchedule: true,
     requireReview: true,
@@ -569,12 +623,29 @@ export async function resolveReviewedTaskPaymentClaim(
     throw new Error(`Task payment claim ${claim.id} has no processing token`);
   }
 
+  // AFTER acquisition: the audit row FKs to the claim, so writing it first
+  // would turn an unknown id into a foreign-key 500 instead of the intended
+  // 409, and would log decisions on claims that were never acquired. Still
+  // before the remote call, so a crash mid-resolve leaves the intent recorded.
+  await recordTaskPaymentClaimAction({
+    claimId: claim.id,
+    action: "resolve",
+    operatorId,
+    reason,
+  });
+
   let payload: MasumiTaskPurchaseInput;
   try {
     payload = parsePurchasePayload(claim.purchasePayload);
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    return await finalizeAmbiguousFailure(claim, processingToken, reason, true);
+    const parseFailureReason =
+      error instanceof Error ? error.message : String(error);
+    return await finalizeAmbiguousFailure(
+      claim,
+      processingToken,
+      parseFailureReason,
+      true,
+    );
   }
 
   const resolved = await paymentClient().resolveMasumiTaskPaymentPurchase(
@@ -607,27 +678,53 @@ export async function resolveReviewedTaskPaymentClaim(
   );
 }
 
+/**
+ * Backlog depth at which one cron tick can no longer keep up (each tick drains
+ * at most SYNC_BATCH_SIZE). Reported so a growing queue of charged-but-unpaid
+ * claims surfaces on its own instead of only through individual failures.
+ */
+const TASK_PAYMENT_CLAIM_BACKLOG_ALERT_THRESHOLD = SYNC_BATCH_SIZE * 5;
+
 /** Reconciles retry-eligible PENDING rows for current deployment network. */
 export async function syncPendingTaskPaymentClaims(
   options: SyncPendingTaskPaymentClaimsOptions = {},
-): Promise<{ processed: number }> {
+): Promise<{ processed: number; eligible: number; reviewRequired: number }> {
   const now = new Date();
   const leaseExpiredAt = new Date(now.getTime() - PROCESSING_LEASE_MS);
-  const pending = await prisma.taskPaymentClaim.findMany({
-    where: {
-      network: getEnv().NETWORK,
-      status: TaskPaymentClaimStatus.PENDING,
-      reviewRequiredAt: null,
-      nextAttemptAt: { lte: now },
-      OR: [
-        { processingStartedAt: null },
-        { processingStartedAt: { lt: leaseExpiredAt } },
-      ],
-    },
-    orderBy: [{ nextAttemptAt: "asc" }, { id: "asc" }],
-    take: SYNC_BATCH_SIZE,
-    select: { id: true },
-  });
+  const eligibleWhere: Prisma.TaskPaymentClaimWhereInput = {
+    network: getEnv().NETWORK,
+    status: TaskPaymentClaimStatus.PENDING,
+    reviewRequiredAt: null,
+    nextAttemptAt: { lte: now },
+    OR: [
+      { processingStartedAt: null },
+      { processingStartedAt: { lt: leaseExpiredAt } },
+    ],
+  };
+  const [pending, eligible, reviewRequired] = await Promise.all([
+    prisma.taskPaymentClaim.findMany({
+      where: eligibleWhere,
+      orderBy: [{ nextAttemptAt: "asc" }, { id: "asc" }],
+      take: SYNC_BATCH_SIZE,
+      select: { id: true },
+    }),
+    prisma.taskPaymentClaim.count({ where: eligibleWhere }),
+    prisma.taskPaymentClaim.count({
+      where: {
+        network: getEnv().NETWORK,
+        status: TaskPaymentClaimStatus.PENDING,
+        reviewRequiredAt: { not: null },
+      },
+    }),
+  ]);
+
+  if (eligible > TASK_PAYMENT_CLAIM_BACKLOG_ALERT_THRESHOLD) {
+    Sentry.captureMessage("Task payment claim backlog is growing", {
+      level: "warning",
+      tags: { error_type: "task_payment_claim_backlog" },
+      extra: { eligible, reviewRequired, batchSize: SYNC_BATCH_SIZE },
+    });
+  }
 
   let processed = 0;
   for (const claim of pending) {
@@ -639,5 +736,5 @@ export async function syncPendingTaskPaymentClaims(
     });
     processed += 1;
   }
-  return { processed };
+  return { processed, eligible, reviewRequired };
 }

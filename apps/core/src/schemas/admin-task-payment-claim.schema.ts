@@ -21,6 +21,17 @@ export const refundAdminTaskPaymentClaimBodySchema = z
   })
   .openapi("RefundAdminTaskPaymentClaimBody");
 
+/**
+ * Resolve and retry also change money or recovery state, so they carry the
+ * same mandatory operator reason as refund — it is written to the append-only
+ * claim-action audit trail.
+ */
+export const reviewedTaskPaymentClaimActionBodySchema = z
+  .object({
+    reason: z.string().trim().min(1).max(500),
+  })
+  .openapi("ReviewedTaskPaymentClaimActionBody");
+
 export const adminTaskPaymentClaimSchema = z
   .object({
     id: z.string(),
