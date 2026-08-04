@@ -1408,6 +1408,12 @@
       },
       "title": "Chat",
       "description": "Chatte mit deinen KI-Coworkern",
+      "MobileBottomNav": {
+        "ariaLabel": "Hauptnavigation",
+        "home": "Start",
+        "history": "Verlauf",
+        "search": "Suchen"
+      },
       "Chat": {
         "newChat": "Neuer Chat",
         "conversationSwitcher": "Unterhaltungen",

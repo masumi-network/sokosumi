@@ -1408,6 +1408,12 @@
       },
       "title": "Chat",
       "description": "Chatea con tus AI Coworkers",
+      "MobileBottomNav": {
+        "ariaLabel": "Navegación principal",
+        "home": "Inicio",
+        "history": "Historial",
+        "search": "Buscar"
+      },
       "Chat": {
         "newChat": "Nuevo chat",
         "conversationSwitcher": "Conversaciones",
