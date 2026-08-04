@@ -7,6 +7,7 @@ import { BillingTabs } from "@/components/billing/billing-tabs";
 import CouponSection from "@/components/billing/coupon-section";
 import CreditsSection from "@/components/billing/credits-section";
 import { EnterpriseContractSummary } from "@/components/billing/enterprise-contract-summary";
+import { getFeaturedCoworkers } from "@/components/billing/get-featured-coworkers";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import {
@@ -63,6 +64,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   ]);
   const activeTab = parseBillingTab(query.tab);
   const billingPortalReturnPath = `/billing?tab=${activeTab}`;
+  const coworkersPromise = getFeaturedCoworkers();
 
   if (!session) {
     return null;
@@ -228,6 +230,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               <OrganizationSubscriptionSection
                 assignedSeatCount={seatCounts.assignedCount}
                 cancelAtPeriodEnd={billingPlan.cancelAtPeriodEnd}
+                coworkersPromise={coworkersPromise}
                 currentPlan={currentPlan}
                 currentPeriodEnd={billingPlan.periodEnd}
                 currentSeats={currentSeats}
@@ -237,6 +240,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 organizationId={activeOrganization.id}
                 plans={orgPlans}
                 returnPath="/billing?tab=subscription"
+                status={parseStatus(query.status)}
               />
             }
             creditsContent={
@@ -337,6 +341,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               cancelAtPeriodEnd={
                 latestPersonalSubscription?.cancelAtPeriodEnd ?? false
               }
+              coworkersPromise={coworkersPromise}
               currentPeriodEnd={latestPersonalSubscription?.periodEnd ?? null}
               plans={personalPlans}
               returnPath="/billing?tab=subscription"

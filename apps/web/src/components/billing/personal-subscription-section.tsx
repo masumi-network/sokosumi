@@ -9,18 +9,22 @@ import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { PurchaseSuccessModal } from "@/components/billing/purchase-success-modal";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { upgradePersonalSubscription } from "@/lib/actions/subscription";
+import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
 import {
+  getPlanTranslationKey,
   type SubscriptionPlanView,
   splitSubscriptionPlans,
 } from "./subscription-plan-utils";
 
 interface PersonalSubscriptionSectionProps {
   cancelAtPeriodEnd: boolean;
+  coworkersPromise: Promise<CoworkerOption[]>;
   currentPeriodEnd: Date | string | null;
   plans: SubscriptionPlanView[];
   returnPath?: string;
@@ -29,12 +33,14 @@ interface PersonalSubscriptionSectionProps {
 
 export function PersonalSubscriptionSection({
   cancelAtPeriodEnd,
+  coworkersPromise,
   currentPeriodEnd,
   plans,
   returnPath,
   status,
 }: PersonalSubscriptionSectionProps) {
   const t = useTranslations("App.Subscriptions");
+  const tPurchaseSuccess = useTranslations("App.Billing.PurchaseSuccess");
   const formatter = useFormatter();
   const router = useRouter();
   const { freePlan, paidPlans } = useMemo(
@@ -44,16 +50,25 @@ export function PersonalSubscriptionSection({
   const [pendingPlan, setPendingPlan] = useState<SubscriptionPlanName | null>(
     null,
   );
+  const [successModalOpen, setSuccessModalOpen] = useState(
+    status === "success",
+  );
 
-  const statusMessage = useMemo(() => {
-    if (status === "success") {
-      return t("statusSuccess");
+  const currentPlanName = useMemo(() => {
+    const currentPlan = plans.find((plan) => plan.isCurrent);
+    return currentPlan
+      ? t(`Plans.${getPlanTranslationKey(currentPlan.name)}.name`)
+      : "";
+  }, [plans, t]);
+
+  const statusMessage = status === "cancel" ? t("statusCancel") : null;
+
+  function handleSuccessModalOpenChange(open: boolean) {
+    setSuccessModalOpen(open);
+    if (!open) {
+      router.replace(returnPath ?? "/billing?tab=subscription");
     }
-    if (status === "cancel") {
-      return t("statusCancel");
-    }
-    return null;
-  }, [status, t]);
+  }
 
   const cancellationDate = useMemo(() => {
     if (!cancelAtPeriodEnd || !currentPeriodEnd) {
@@ -155,6 +170,16 @@ export function PersonalSubscriptionSection({
 
         {freePlan ? <SubscriptionFreePlanRow plan={freePlan} /> : null}
       </div>
+
+      <PurchaseSuccessModal
+        open={successModalOpen}
+        onOpenChange={handleSuccessModalOpenChange}
+        headline={tPurchaseSuccess("subscriptionTitle", {
+          plan: currentPlanName,
+        })}
+        description={tPurchaseSuccess("subscriptionDescription")}
+        coworkersPromise={coworkersPromise}
+      />
     </div>
   );
 }

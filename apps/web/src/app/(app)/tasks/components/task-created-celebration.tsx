@@ -4,6 +4,7 @@ import { ArrowRight, Check, Clock } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { COLUMN_STATUS_COLORS } from "@/app/tasks/types/task-board";
 import { Button } from "@/components/ui/button";
+import { ConfettiBurst } from "@/components/ui/confetti-burst";
 import { cn } from "@/lib/utils";
 
 type CelebrationTaskStatus = "DRAFT" | "QUEUED" | "READY";
@@ -60,19 +61,6 @@ const STATUS_CARD_STYLES: Record<
   },
 };
 
-// Small confetti burst over the landing column — deterministic (no hydration jitter).
-const CONFETTI = [
-  { x: -34, y: -30, c: "#6400FF", s: 6 },
-  { x: -14, y: -44, c: "#00a4fa", s: 5 },
-  { x: 10, y: -46, c: "#fa008c", s: 6 },
-  { x: 30, y: -34, c: "#ffd300", s: 5 },
-  { x: -40, y: -8, c: "#0afa14", s: 5 },
-  { x: 40, y: -10, c: "#ff6400", s: 6 },
-  { x: -22, y: -52, c: "#6400FF", s: 4 },
-  { x: 22, y: -52, c: "#00a4fa", s: 4 },
-  { x: 0, y: -56, c: "#fa008c", s: 5 },
-];
-
 export function TaskCreatedCelebration({
   name,
   status,
@@ -94,27 +82,10 @@ export function TaskCreatedCelebration({
       <div className="relative w-full max-w-md">
         {/* Confetti over the landing column */}
         {reduceMotion ? null : (
-          <div
-            aria-hidden
+          <ConfettiBurst
             className="pointer-events-none absolute top-10 z-10"
             style={{ left: confettiLeft }}
-          >
-            {CONFETTI.map((p) => (
-              <motion.span
-                key={`${p.c}-${p.x}-${p.y}`}
-                className="absolute rounded-[2px]"
-                style={{ width: p.s, height: p.s, backgroundColor: p.c }}
-                initial={{ opacity: 0, x: 0, y: 0, scale: 0 }}
-                animate={{
-                  opacity: [0, 1, 1, 0],
-                  x: p.x,
-                  y: p.y,
-                  scale: [0, 1, 1, 0.5],
-                }}
-                transition={{ duration: 0.8, delay: 0.42, ease: "easeOut" }}
-              />
-            ))}
-          </div>
+          />
         )}
 
         <div className="grid grid-cols-3 gap-2.5">

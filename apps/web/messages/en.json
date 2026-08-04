@@ -3641,6 +3641,17 @@
         "title": "Something Went Wrong",
         "message": "We encountered an issue loading billing details. Please try again later.",
         "retryButton": "Try Again"
+      },
+      "PurchaseSuccess": {
+        "creditsTitle": "Payment successful!",
+        "creditsDescription": "Your credits have been added to your account.",
+        "subscriptionTitle": "You're on the {plan} plan!",
+        "subscriptionDescription": "Your subscription is now active.",
+        "coworkerRowTitle": "Ready to get started?",
+        "coworkerRowDescription": "Kick off a task with one of our coworkers.",
+        "startTask": "Start a task",
+        "startTaskWith": "Start a task with {name}",
+        "goToTasks": "Go to tasks"
       }
     },
     "Credits": {
@@ -3671,18 +3682,6 @@
         "title": "Something Went Wrong",
         "message": "We encountered an issue processing your request. Please try again later.",
         "retryButton": "Try Again"
-      },
-      "Success": {
-        "title": "Payment Successful!",
-        "description": "Your credit purchase was successful. Thank you!",
-        "fulfillmentNote": "Your credits will be added to your account shortly. You can check your balance on the credits page.",
-        "backToDashboard": "Browse Agents",
-        "getStarted": "Get started by hiring your first agent",
-        "Error": {
-          "title": "Something Went Wrong",
-          "description": "Your checkout session not found",
-          "failedNote": "Contact our support"
-        }
       },
       "Cancel": {
         "title": "Payment Cancelled",

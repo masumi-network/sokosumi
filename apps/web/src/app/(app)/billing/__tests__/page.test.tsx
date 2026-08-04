@@ -24,6 +24,7 @@ const personalSubscriptionSectionMock = vi.fn();
 const getOrganizationBillingPlanMock = vi.fn();
 const getEnterpriseContractBillingSummaryMock = vi.fn();
 const enterpriseContractSummaryMock = vi.fn();
+const getFeaturedCoworkersMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -96,6 +97,11 @@ vi.mock("@/components/billing/enterprise-contract-summary", () => ({
 vi.mock("@/lib/services/enterprise-contract-summary.service", () => ({
   getEnterpriseContractBillingSummary: (...args: unknown[]) =>
     getEnterpriseContractBillingSummaryMock(...args),
+}));
+
+vi.mock("@/components/billing/get-featured-coworkers", () => ({
+  getFeaturedCoworkers: (...args: unknown[]) =>
+    getFeaturedCoworkersMock(...args),
 }));
 
 vi.mock("@/components/billing/balance-section", () => ({
@@ -214,10 +220,13 @@ function mockEnterpriseOrganizationBillingPlan(
   });
 }
 
+const coworkersPromise = Promise.resolve([]);
+
 describe("BillingPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    getFeaturedCoworkersMock.mockReturnValue(coworkersPromise);
     getSessionMock.mockResolvedValue({
       user: {
         email: "member@nmkr.io",
@@ -404,9 +413,32 @@ describe("BillingPage", () => {
     expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         cancelAtPeriodEnd: false,
+        coworkersPromise,
         currentPeriodEnd: "2026-03-01T00:00:00.000Z",
         returnPath: "/billing?tab=subscription",
         status: null,
+      }),
+    );
+  });
+
+  it("threads the status query param and featured-coworkers promise into the personal subscription section", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+
+    const { default: BillingPage } = await import("../page");
+
+    render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          status: "success",
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkersPromise,
+        status: "success",
       }),
     );
   });
@@ -443,16 +475,48 @@ describe("BillingPage", () => {
       expect.objectContaining({
         assignedSeatCount: 2,
         cancelAtPeriodEnd: false,
+        coworkersPromise,
         currentPlan: "free",
         currentPeriodEnd: new Date("2026-03-01T00:00:00.000Z"),
         currentSeats: 5,
         isEnterpriseConsumable: false,
         isEnterpriseContract: false,
         memberCount: 2,
+        status: null,
       }),
     );
     expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
     expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
+  });
+
+  it("threads the status query param into the organization subscription section", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: "org-1",
+      name: "Org One",
+      slug: "org-one",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    mockSelfServeOrganizationBillingPlan("free", 5);
+
+    const { default: BillingPage } = await import("../page");
+
+    render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          status: "success",
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkersPromise,
+        status: "success",
+      }),
+    );
   });
 
   it("shows the billing portal for organization plans with a Stripe customer", async () => {

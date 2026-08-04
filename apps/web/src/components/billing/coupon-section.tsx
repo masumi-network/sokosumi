@@ -1,11 +1,10 @@
 import CreditsCancelModal from "@/app/credits/components/cancel-modal";
+import { CreditsPurchaseSuccess } from "@/app/credits/components/credits-purchase-success";
 import PurchaseTracker from "@/app/credits/components/purchase-tracker";
-import CreditsSuccessModal from "@/app/credits/components/success-modal";
+import { getFeaturedCoworkers } from "@/components/billing/get-featured-coworkers";
 import CouponForm from "@/components/credits/coupon-form";
 import { coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
-import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
-import { agentService } from "@/lib/services";
 
 interface CouponSectionProps {
   organization: Organization | null;
@@ -24,8 +23,7 @@ export default async function CouponSection({
   const sessionId = searchParams?.session_id;
   const cancel = searchParams?.cancel;
 
-  const randomAgentPromise = agentService.getRandomAvailableAgentData();
-  const projectOptionsPromise = getProjectFilterOptions();
+  const coworkersPromise = getFeaturedCoworkers();
   const checkoutSession = sessionId
     ? await coreClient
         .getCheckoutSessionAnalytics(sessionId)
@@ -37,10 +35,7 @@ export default async function CouponSection({
     <>
       <CouponForm organization={organization} returnPath={returnPath} />
       {sessionId ? (
-        <CreditsSuccessModal
-          randomAgentPromise={randomAgentPromise}
-          projectOptionsPromise={projectOptionsPromise}
-        />
+        <CreditsPurchaseSuccess coworkersPromise={coworkersPromise} />
       ) : null}
       {checkoutSession ? (
         <PurchaseTracker checkoutSession={checkoutSession} />

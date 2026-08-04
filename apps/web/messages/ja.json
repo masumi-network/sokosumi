@@ -3578,7 +3578,18 @@
       },
       "purchasedSeatsLabel": "購入済みSeats",
       "assignedSeatsLabel": "割り当て済み",
-      "unusedSeatsLabel": "未使用Seats"
+      "unusedSeatsLabel": "未使用Seats",
+      "PurchaseSuccess": {
+        "creditsTitle": "お支払いが完了しました！",
+        "creditsDescription": "クレジットがアカウントに追加されました。",
+        "subscriptionTitle": "{plan}プランになりました！",
+        "subscriptionDescription": "サブスクリプションが有効になりました。",
+        "coworkerRowTitle": "さっそく始めましょう",
+        "coworkerRowDescription": "コワーカーとタスクを開始しましょう。",
+        "startTask": "タスクを開始",
+        "startTaskWith": "{name}とタスクを開始",
+        "goToTasks": "タスクへ移動"
+      }
     },
     "Credits": {
       "billingPortalCta": "購入を管理",
@@ -3608,18 +3619,6 @@
         "title": "問題が発生しました",
         "message": "リクエストの処理中に問題が発生しました。しばらくしてから再度お試しください。",
         "retryButton": "再試行"
-      },
-      "Success": {
-        "title": "お支払いが完了しました！",
-        "description": "クレジットの購入が完了しました。ありがとうございます。",
-        "fulfillmentNote": "クレジットはまもなくアカウントに追加されます。クレジットページで残高をご確認いただけます。",
-        "backToDashboard": "エージェントを探す",
-        "getStarted": "最初のエージェントを雇って開始する",
-        "Error": {
-          "title": "問題が発生しました",
-          "description": "チェックアウトセッションが見つかりません",
-          "failedNote": "サポートにお問い合わせください"
-        }
       },
       "Cancel": {
         "title": "お支払いがキャンセルされました",

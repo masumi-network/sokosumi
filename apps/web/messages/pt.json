@@ -3578,7 +3578,18 @@
       },
       "purchasedSeatsLabel": "Seats comprados",
       "assignedSeatsLabel": "Atribuídos",
-      "unusedSeatsLabel": "Seats não utilizados"
+      "unusedSeatsLabel": "Seats não utilizados",
+      "PurchaseSuccess": {
+        "creditsTitle": "Pagamento efetuado com sucesso!",
+        "creditsDescription": "Os seus créditos foram adicionados à sua conta.",
+        "subscriptionTitle": "Está agora no plano {plan}!",
+        "subscriptionDescription": "A sua subscrição está agora ativa.",
+        "coworkerRowTitle": "Pronto para começar?",
+        "coworkerRowDescription": "Inicie uma tarefa com um dos nossos coworkers.",
+        "startTask": "Iniciar uma tarefa",
+        "startTaskWith": "Iniciar uma tarefa com {name}",
+        "goToTasks": "Ir para tarefas"
+      }
     },
     "Credits": {
       "billingPortalCta": "Gerir compras",
@@ -3608,18 +3619,6 @@
         "title": "Algo correu mal",
         "message": "Encontrámos um problema ao processar o seu pedido. Tente novamente mais tarde.",
         "retryButton": "Tentar novamente"
-      },
-      "Success": {
-        "title": "Pagamento efetuado com sucesso!",
-        "description": "A sua compra de créditos foi efetuada com sucesso. Obrigado!",
-        "fulfillmentNote": "Os seus créditos serão adicionados à sua conta em breve. Pode verificar o seu saldo na página de créditos.",
-        "backToDashboard": "Explorar agentes",
-        "getStarted": "Comece por contratar o seu primeiro agente",
-        "Error": {
-          "title": "Algo correu mal",
-          "description": "A sua sessão de checkout não foi encontrada",
-          "failedNote": "Contacte o nosso suporte"
-        }
       },
       "Cancel": {
         "title": "Pagamento cancelado",

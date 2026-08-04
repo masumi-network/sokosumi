@@ -3578,7 +3578,18 @@
       },
       "purchasedSeatsLabel": "已购买 Seats",
       "assignedSeatsLabel": "已分配",
-      "unusedSeatsLabel": "未使用 Seats"
+      "unusedSeatsLabel": "未使用 Seats",
+      "PurchaseSuccess": {
+        "creditsTitle": "支付成功！",
+        "creditsDescription": "您的积分已添加到账户。",
+        "subscriptionTitle": "您现在是{plan}方案！",
+        "subscriptionDescription": "您的订阅现已生效。",
+        "coworkerRowTitle": "准备好开始了吗？",
+        "coworkerRowDescription": "与我们的协作伙伴一起开始一项任务。",
+        "startTask": "开始任务",
+        "startTaskWith": "与{name}开始任务",
+        "goToTasks": "前往任务"
+      }
     },
     "Credits": {
       "billingPortalCta": "管理购买记录",
@@ -3608,18 +3619,6 @@
         "title": "出现问题",
         "message": "处理您的请求时遇到问题。请稍后重试。",
         "retryButton": "重试"
-      },
-      "Success": {
-        "title": "支付成功！",
-        "description": "您的积分购买已成功。感谢您！",
-        "fulfillmentNote": "您的积分将在稍后添加到您的账户。您可以在积分页面查看余额。",
-        "backToDashboard": "浏览智能体",
-        "getStarted": "从雇用您的第一个智能体开始",
-        "Error": {
-          "title": "出现问题",
-          "description": "未找到您的结账会话",
-          "failedNote": "请联系支持"
-        }
       },
       "Cancel": {
         "title": "支付已取消",

@@ -3578,7 +3578,18 @@
       },
       "purchasedSeatsLabel": "Seats achetés",
       "assignedSeatsLabel": "Attribués",
-      "unusedSeatsLabel": "Seats inutilisés"
+      "unusedSeatsLabel": "Seats inutilisés",
+      "PurchaseSuccess": {
+        "creditsTitle": "Paiement réussi !",
+        "creditsDescription": "Vos crédits ont été ajoutés à votre compte.",
+        "subscriptionTitle": "Vous êtes maintenant sur le plan {plan} !",
+        "subscriptionDescription": "Votre abonnement est maintenant actif.",
+        "coworkerRowTitle": "Prêt à commencer ?",
+        "coworkerRowDescription": "Lancez une tâche avec l'un de nos collègues.",
+        "startTask": "Lancer une tâche",
+        "startTaskWith": "Lancer une tâche avec {name}",
+        "goToTasks": "Aller aux tâches"
+      }
     },
     "Credits": {
       "billingPortalCta": "Gérer les achats",
@@ -3608,18 +3619,6 @@
         "title": "Une erreur est survenue",
         "message": "Nous avons rencontré un problème lors du traitement de votre demande. Veuillez réessayer plus tard.",
         "retryButton": "Réessayer"
-      },
-      "Success": {
-        "title": "Paiement réussi !",
-        "description": "Votre achat de crédits a bien été effectué. Merci !",
-        "fulfillmentNote": "Vos crédits seront ajoutés à votre compte sous peu. Vous pouvez consulter votre solde sur la page des crédits.",
-        "backToDashboard": "Parcourir les agents",
-        "getStarted": "Commencez en engageant votre premier agent",
-        "Error": {
-          "title": "Une erreur est survenue",
-          "description": "Session de paiement introuvable",
-          "failedNote": "Contactez notre support"
-        }
       },
       "Cancel": {
         "title": "Paiement annulé",

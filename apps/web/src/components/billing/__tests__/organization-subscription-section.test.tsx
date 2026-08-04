@@ -4,16 +4,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshMock = vi.fn();
 const pushMock = vi.fn();
+const replaceMock = vi.fn();
 const updateOrganizationSubscriptionSeatsMock = vi.fn();
 const upgradeOrganizationSubscriptionMock = vi.fn();
 const subscriptionPlanCardMock = vi.fn();
 const subscriptionEnterprisePlanCardMock = vi.fn();
 const subscriptionFreePlanRowMock = vi.fn();
+const purchaseSuccessModalMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
     refresh: refreshMock,
+    replace: replaceMock,
   }),
 }));
 
@@ -37,6 +40,13 @@ vi.mock("@/lib/actions/subscription", () => ({
     updateOrganizationSubscriptionSeatsMock(...args),
   upgradeOrganizationSubscription: (...args: unknown[]) =>
     upgradeOrganizationSubscriptionMock(...args),
+}));
+
+vi.mock("@/components/billing/purchase-success-modal", () => ({
+  PurchaseSuccessModal: (props: unknown) => {
+    purchaseSuccessModalMock(props);
+    return null;
+  },
 }));
 
 vi.mock("../subscription-plan-card", () => ({
@@ -88,6 +98,8 @@ function createPlans() {
   ];
 }
 
+const coworkersPromise = Promise.resolve([]);
+
 describe("OrganizationSubscriptionSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -106,6 +118,7 @@ describe("OrganizationSubscriptionSection", () => {
       <OrganizationSubscriptionSection
         assignedSeatCount={2}
         cancelAtPeriodEnd={false}
+        coworkersPromise={coworkersPromise}
         currentPlan="enterprise"
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={5}
@@ -115,6 +128,7 @@ describe("OrganizationSubscriptionSection", () => {
         organizationId="org-enterprise"
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
+        status={null}
       />,
     );
 
@@ -132,6 +146,7 @@ describe("OrganizationSubscriptionSection", () => {
       <OrganizationSubscriptionSection
         assignedSeatCount={0}
         cancelAtPeriodEnd={false}
+        coworkersPromise={coworkersPromise}
         currentPlan="enterprise"
         currentPeriodEnd={null}
         currentSeats={5}
@@ -141,6 +156,7 @@ describe("OrganizationSubscriptionSection", () => {
         organizationId="org-enterprise-post-term"
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
+        status={null}
       />,
     );
 
@@ -158,6 +174,7 @@ describe("OrganizationSubscriptionSection", () => {
       <OrganizationSubscriptionSection
         assignedSeatCount={1}
         cancelAtPeriodEnd={false}
+        coworkersPromise={coworkersPromise}
         currentPlan="starter"
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
@@ -167,6 +184,7 @@ describe("OrganizationSubscriptionSection", () => {
         organizationId="org-1"
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
+        status={null}
       />,
     );
 
@@ -191,6 +209,7 @@ describe("OrganizationSubscriptionSection", () => {
       <OrganizationSubscriptionSection
         assignedSeatCount={2}
         cancelAtPeriodEnd
+        coworkersPromise={coworkersPromise}
         currentPlan="starter"
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
@@ -200,6 +219,7 @@ describe("OrganizationSubscriptionSection", () => {
         organizationId="org-1"
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
+        status={null}
       />,
     );
 
@@ -217,6 +237,7 @@ describe("OrganizationSubscriptionSection", () => {
       <OrganizationSubscriptionSection
         assignedSeatCount={3}
         cancelAtPeriodEnd={false}
+        coworkersPromise={coworkersPromise}
         currentPlan="starter"
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
@@ -226,6 +247,7 @@ describe("OrganizationSubscriptionSection", () => {
         organizationId="org-1"
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
+        status={null}
       />,
     );
 
@@ -242,6 +264,7 @@ describe("OrganizationSubscriptionSection", () => {
       <OrganizationSubscriptionSection
         assignedSeatCount={1}
         cancelAtPeriodEnd={false}
+        coworkersPromise={coworkersPromise}
         currentPlan="starter"
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
@@ -251,6 +274,7 @@ describe("OrganizationSubscriptionSection", () => {
         organizationId="org-1"
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
+        status={null}
       />,
     );
 
@@ -286,6 +310,7 @@ describe("OrganizationSubscriptionSection", () => {
       <OrganizationSubscriptionSection
         assignedSeatCount={1}
         cancelAtPeriodEnd={false}
+        coworkersPromise={coworkersPromise}
         currentPlan="starter"
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
@@ -295,6 +320,7 @@ describe("OrganizationSubscriptionSection", () => {
         organizationId="org-1"
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
+        status={null}
       />,
     );
 
@@ -314,5 +340,82 @@ describe("OrganizationSubscriptionSection", () => {
       expect(toast.success).toHaveBeenCalledWith("statusSuccess");
       expect(refreshMock).toHaveBeenCalled();
     });
+  });
+
+  it("does not open the purchase success modal when status is null", () => {
+    render(
+      <OrganizationSubscriptionSection
+        assignedSeatCount={1}
+        cancelAtPeriodEnd={false}
+        coworkersPromise={coworkersPromise}
+        currentPlan="starter"
+        isEnterpriseConsumable={false}
+        isEnterpriseContract={false}
+        currentPeriodEnd={null}
+        currentSeats={2}
+        memberCount={2}
+        organizationId="org-1"
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+        status={null}
+      />,
+    );
+
+    expect(purchaseSuccessModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({ open: false }),
+    );
+  });
+
+  it("opens the purchase success modal with the current plan name when status is success", () => {
+    render(
+      <OrganizationSubscriptionSection
+        assignedSeatCount={1}
+        cancelAtPeriodEnd={false}
+        coworkersPromise={coworkersPromise}
+        currentPlan="starter"
+        isEnterpriseConsumable={false}
+        isEnterpriseContract={false}
+        currentPeriodEnd={null}
+        currentSeats={2}
+        memberCount={2}
+        organizationId="org-1"
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+        status="success"
+      />,
+    );
+
+    expect(purchaseSuccessModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        open: true,
+        headline: 'subscriptionTitle:{"plan":"Plans.starter.name"}',
+        coworkersPromise,
+      }),
+    );
+  });
+
+  it("closing the success modal strips the status param via router.replace", () => {
+    render(
+      <OrganizationSubscriptionSection
+        assignedSeatCount={1}
+        cancelAtPeriodEnd={false}
+        coworkersPromise={coworkersPromise}
+        currentPlan="starter"
+        isEnterpriseConsumable={false}
+        isEnterpriseContract={false}
+        currentPeriodEnd={null}
+        currentSeats={2}
+        memberCount={2}
+        organizationId="org-1"
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+        status="success"
+      />,
+    );
+
+    const { onOpenChange } = purchaseSuccessModalMock.mock.calls.at(-1)?.[0];
+    onOpenChange(false);
+
+    expect(replaceMock).toHaveBeenCalledWith("/billing?tab=subscription");
   });
 });
