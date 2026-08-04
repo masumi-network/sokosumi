@@ -2,9 +2,7 @@ import type { Session } from "@sokosumi/utils";
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
-import { getEnvPublicConfig } from "@/config/env.public";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
-import { hasAdminRole } from "@/lib/auth/admin-access";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   GetUsersByIdCreditsResponse,
@@ -18,16 +16,24 @@ import {
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
 
-import { resolveAccountNotice } from "./account-notice-state";
 import { OnboardingDialogLoader } from "./onboarding-dialog-loader";
-import { NoticeDialogHydrator, ShellHydrators } from "./shell-hydrators.client";
-import Sidebar from "./sidebar";
+import {
+  CoworkersHydrator,
+  NoticeDialogHydrator,
+} from "./shell-hydrators.client";
 
-interface AppShellChromeProps {
+interface AppShellOverlaysProps {
   session: Session;
 }
 
-export default async function AppShellChrome({ session }: AppShellChromeProps) {
+/**
+ * Onboarding, pending notices, and coworkers hydration — streamed separately
+ * from the private-cached sidebar chrome (`Suspense fallback={null}`).
+ * Must not private-cache: cookies() for onboarding gate + non-chrome data.
+ */
+export default async function AppShellOverlays({
+  session,
+}: AppShellOverlaysProps) {
   const cookieStore = await cookies();
   const [
     shouldShowOnboarding,
@@ -53,10 +59,6 @@ export default async function AppShellChrome({ session }: AppShellChromeProps) {
   const announcementNotices = pendingNotices.filter(
     (notice: Notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
   );
-  const adminMenuEnabled = hasAdminRole(
-    (session.user as typeof session.user & { role?: string | null }).role,
-  );
-  const creditsData = creditsResult?.data.credits ?? null;
   const currentPlan =
     creditsResult != null
       ? (creditsResult.data.subscription?.plan ?? "free")
@@ -73,30 +75,10 @@ export default async function AppShellChrome({ session }: AppShellChromeProps) {
     );
   const shouldLoadSubscriptionOnboarding =
     shouldShowFreeSubscriptionGate && !subscriptionOnboardingGateAlreadyServed;
-  const currentTimestampMs = creditsResult?.meta?.timestamp
-    ? new Date(creditsResult.meta.timestamp).getTime()
-    : 0;
-  const lowCreditsThreshold =
-    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
-  const accountNotice = resolveAccountNotice({
-    credits: creditsData?.total ?? null,
-    currentPlan,
-    email: session.user.email,
-    emailVerified: session.user.emailVerified,
-    threshold: lowCreditsThreshold,
-  });
 
   return (
     <>
-      <ShellHydrators accountNotice={accountNotice} coworkers={coworkers} />
-      <Sidebar
-        adminMenuEnabled={adminMenuEnabled}
-        creditsData={creditsData}
-        currentTimestampMs={currentTimestampMs}
-        organizationName={activeOrganization?.name ?? null}
-        session={session}
-        lowCreditsThreshold={lowCreditsThreshold}
-      />
+      <CoworkersHydrator coworkers={coworkers} />
       {shouldShowOnboarding ? (
         <Suspense fallback={null}>
           <OnboardingDialogLoader

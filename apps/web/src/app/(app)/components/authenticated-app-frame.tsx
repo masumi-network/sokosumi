@@ -7,15 +7,17 @@ import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-conte
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
+import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import type { Notice } from "@/lib/clients/generated/core";
 
-import AppShellChrome from "./app-shell-chrome";
+import AppShellOverlays from "./app-shell-overlays";
 import { AppSidebarFallback } from "./app-sidebar-fallback";
 import Header from "./header";
 import { LoginAccountNoticeToast } from "./login-account-notice-toast.client";
 import { NoticeDialogProvider } from "./notice-dialog-context";
 import { NotificationToastListener } from "./notification-toast-listener";
 import { NotificationToaster } from "./notification-toaster.client";
+import PrivateCachedAppSidebar from "./private-cached-app-sidebar";
 
 const EMPTY_COWORKERS: Coworker[] = [];
 const EMPTY_NOTICES: Notice[] = [];
@@ -28,6 +30,9 @@ export default async function AuthenticatedAppFrame({
   children,
 }: AuthenticatedAppFrameProps) {
   const session = await getSessionOrRedirect();
+  const adminMenuEnabled = hasAdminRole(
+    (session.user as typeof session.user & { role?: string | null }).role,
+  );
 
   return (
     <NotificationProvider userId={session.user.id}>
@@ -47,7 +52,16 @@ export default async function AuthenticatedAppFrame({
             >
               <BreadcrumbOverrideProvider>
                 <Suspense fallback={<AppSidebarFallback />}>
-                  <AppShellChrome session={session} />
+                  <PrivateCachedAppSidebar
+                    userId={session.user.id}
+                    activeOrganizationId={
+                      session.session.activeOrganizationId ?? null
+                    }
+                    adminMenuEnabled={adminMenuEnabled}
+                  />
+                </Suspense>
+                <Suspense fallback={null}>
+                  <AppShellOverlays session={session} />
                 </Suspense>
                 <div
                   className="flex min-w-0 flex-1 overflow-clip"
