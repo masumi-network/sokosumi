@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
@@ -14,6 +14,26 @@ vi.mock("next/image", () => ({
   }) => {
     return <img src={props.src} alt={props.alt} className={props.className} />;
   },
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations:
+    (namespace?: string) => (key: string, values?: Record<string, unknown>) => {
+      if (namespace === "Components.DocumentViewer") {
+        const documentLabels: Record<string, string> = {
+          title: "Document",
+          download: "Download document",
+          openInNewTab: "Open in new tab",
+          loading: "Loading document…",
+          fetchError: "This document couldn't be loaded.",
+        };
+        return documentLabels[key] ?? key;
+      }
+      if (key === "download") {
+        return "Download image";
+      }
+      return key;
+    },
 }));
 
 const fetchMock = vi.fn();
@@ -163,5 +183,41 @@ describe("FileChipWithMetadata", () => {
       expect(screen.getByText("empty.txt")).toBeInTheDocument();
       expect(screen.getByText("0 B")).toBeInTheDocument();
     });
+  });
+
+  it("opens a document viewer for an extensionless URL after HEAD returns application/pdf", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: createHeaders({
+        "content-disposition": null,
+        "content-length": "4096",
+        "content-type": "application/pdf",
+      }),
+    });
+
+    render(
+      <FileChipWithMetadata
+        url="https://files.example/abcdef012345"
+        fileName="report"
+      />,
+    );
+
+    expect(screen.getByText("report")).toBeInTheDocument();
+    expect(screen.getByRole("link")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /report/i }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /report/i }));
+
+    expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
+    expect(screen.getByTitle("report")).toHaveAttribute(
+      "src",
+      "https://files.example/abcdef012345#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+    );
   });
 });

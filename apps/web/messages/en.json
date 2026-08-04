@@ -812,6 +812,14 @@
       "more": "More options",
       "openInNewTab": "Open in new tab",
       "copyImage": "Copy image"
+    },
+    "DocumentViewer": {
+      "title": "Document",
+      "viewDocument": "View document {fileName}",
+      "download": "Download document",
+      "openInNewTab": "Open in new tab",
+      "loading": "Loading document…",
+      "fetchError": "This document couldn't be loaded."
     }
   },
   "Join": {
