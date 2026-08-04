@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { HistoryList } from "@/app/history/components/history-list";
 import { HistoryToolbar } from "@/app/history/components/history-toolbar";
@@ -36,6 +37,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HistoryPage({ searchParams }: HistoryPageProps) {
+  await connection();
   const [rawSearchParams, t, jobStatusT, session] = await Promise.all([
     searchParams,
     getTranslations("App.History"),
