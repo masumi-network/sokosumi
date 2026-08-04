@@ -31,6 +31,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
       <AuthSessionGuard />
       <DynamicAblyProvider>
         <SidebarProvider
+          // Cookie preference restored client-side in SidebarProvider
+          // (useLayoutEffect) so this layout stays sync for Instant Nav.
           defaultOpen
           data-app-shell
           className="flex max-w-svw overflow-clip"
