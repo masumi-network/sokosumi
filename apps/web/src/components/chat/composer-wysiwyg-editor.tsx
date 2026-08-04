@@ -100,6 +100,7 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
 }
 
 const EDITOR_PROSE_CLASSNAME = cn(
+  "markdown-compose-surface",
   "[&_em]:italic [&_i]:italic [&_strong]:font-bold [&_b]:font-bold",
   "[&_u]:underline [&_s]:line-through [&_strike]:line-through [&_del]:line-through",
   "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
