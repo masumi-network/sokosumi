@@ -655,7 +655,7 @@ export function OnboardingDialog({
           {tMetadata("description")}
         </DialogDescription>
 
-        <div className="bg-background flex max-h-svh flex-col overflow-hidden rounded-xl shadow-lg md:max-h-[85vh] md:min-h-[768px]">
+        <div className="bg-background flex max-h-svh flex-col overflow-hidden rounded-xl shadow-lg md:max-h-[85vh]">
           {/* Content area */}
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto md:overflow-hidden md:flex-row">
             {/* Visual panel — stacked on mobile, side panel on desktop */}
