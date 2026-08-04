@@ -123,4 +123,17 @@ describe("transformPurchaseToJobUpdate", () => {
     expect("onChainTransactionStatus" in transformedPurchase).toBe(false);
     expect("onChainTransactionHash" in transformedPurchase).toBe(false);
   });
+
+  it("clears the transaction hash when the current transaction has none", () => {
+    const purchase = buildPurchase();
+    const transformedPurchase = transformPurchaseToJobUpdate({
+      ...purchase,
+      CurrentTransaction: purchase.CurrentTransaction
+        ? { ...purchase.CurrentTransaction, txHash: null }
+        : null,
+    });
+
+    expect(transformedPurchase.onChainTransactionHash).toBeNull();
+    expect(transformedPurchase.onChainTransactionStatus).toBe("FAILED");
+  });
 });

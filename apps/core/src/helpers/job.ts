@@ -21,6 +21,7 @@ import {
   type AgentJobStartFailure,
   createAgentClient,
   isV2RegistryIdentifier,
+  normalizeMasumiPaymentUnit,
   normalizeV2RegistryIdentifier,
 } from "@sokosumi/masumi";
 import type {
@@ -43,7 +44,6 @@ import {
   getCardanoV2ReadySources,
   getCreditCostsOrThrow,
   isCardanoV2SourceReady,
-  normalizeMasumiPaymentUnit,
   toMasumiAgent,
 } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
@@ -104,6 +104,12 @@ async function createPaidJob(
   agentJobResponse: StartPaidJobResponseSchemaType,
   identifierFromPurchaser: string,
   purchaseAmounts: { amount: string; unit: string }[],
+  // Only true when these amounts were also sent to the payment node as the
+  // drift guard. When the guard is omitted (legacy V1 metadata with more
+  // amounts than POST /purchase accepts) the node may lock a drifted price, so
+  // requiring an exact match would make the job-sync backfill refuse the
+  // purchase forever instead of reconciling it.
+  purchaseAmountMatchRequired: boolean,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
@@ -173,7 +179,7 @@ async function createPaidJob(
       paymentSourceType: agentJobResponse.paymentSourceType,
       supportedPaymentSourceIndex: agentJobResponse.supportedPaymentSourceIndex,
       purchaseAmounts,
-      purchaseAmountMatchRequired: true,
+      purchaseAmountMatchRequired,
       sellerVkey: agentJobResponse.sellerVKey,
       identifierFromPurchaser,
     },
@@ -275,14 +281,6 @@ export interface JobOwnerContext {
 
 const MAX_PAYMENT_NODE_PURCHASE_AMOUNTS = 7;
 
-/**
- * The lowest credits cost among an agent's fixed-priced, purchase-ready V2
- * payment sources. Only purchase-ready sources count — the seller can never
- * validly select an unready one (enforced after start_job), so a cheap
- * unready source must not understate the floor. Sources whose units have no
- * CreditCost row cannot be selected for billing and are skipped; null when
- * no source is priceable.
- */
 /**
  * Records that a hire failed AFTER `start_job` was accepted, so the seller is
  * doing work for a job Sokosumi will never track. MIP-003 has no cancel, so
@@ -447,17 +445,13 @@ export async function createAgentJobForUser(
   }
 
   let cost = getAgentCost(agentRecord, creditCosts);
-
-  if (
-    agentRecord.paymentType !== PaymentType.WEB3_CARDANO_V2 &&
-    maxCents !== null &&
-    cost.cents > maxCents
-  ) {
-    throw badRequest("Credit cost exceeds maximum accepted credits");
-  }
   const isV2Agent =
     agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2 ||
     isV2RegistryIdentifier(agentRecord.blockchainIdentifier);
+
+  if (!isV2Agent && maxCents !== null && cost.cents > maxCents) {
+    throw badRequest("Credit cost exceeds maximum accepted credits");
+  }
   let preparedV2Sources = new Map<number, PreparedV2Source>();
   if (isV2Agent && agentRecord.pricing.pricingType === PricingType.FIXED) {
     preparedV2Sources = prepareEligibleV2Sources(
@@ -507,8 +501,7 @@ export async function createAgentJobForUser(
   const jobInput = {
     agentId: agentInput.agentId,
     agentBlockchainIdentifier: masumiAgent.blockchainIdentifier,
-    agentApiBaseUrl:
-      masumiAgent.metadataOverride?.apiBaseUrl ?? masumiAgent.apiBaseUrl,
+    agentApiBaseUrl: masumiAgent.apiBaseUrl,
     ownerId: owner.ownerId,
     organizationId: owner.organizationId,
     workspaceId: owner.workspaceId,
@@ -752,6 +745,7 @@ export async function createAgentJobForUser(
       paidJobResult,
       identifierFromPurchaser,
       expectedPurchaseAmounts,
+      purchaseRequestAmounts !== null,
       tx,
     );
   }, "Job creation conflicted with a concurrent request. Please retry.");
@@ -785,14 +779,14 @@ export async function createAgentJobForUser(
           Sentry.captureException(error);
         });
     } else {
-      // A 4xx from the node is not transient — with the Amounts guard it most
-      // likely means on-chain pricing drifted from the synced pricing the
+      // A permanent rejection is not transient — with the Amounts guard it
+      // most likely means on-chain pricing drifted from the synced pricing the
       // credits charge used. Page it; the job follows the payment-failed
       // credit-refund path.
-      if (/\(status 4\d\d\)/.test(createPurchaseResult.error)) {
+      if (createPurchaseResult.error.kind === "permanent") {
         Sentry.captureException(
           new Error(
-            `Purchase rejected by payment node (likely price drift) for agent ${agentInput.agentId}: ${createPurchaseResult.error}`,
+            `Purchase rejected by payment node (likely price drift) for agent ${agentInput.agentId}: ${createPurchaseResult.error.message}`,
           ),
         );
       }
@@ -801,7 +795,7 @@ export async function createAgentJobForUser(
       console.warn("[createAgentJobForUser] purchase registration failed", {
         jobId: job.id,
         agentId: agentInput.agentId,
-        error: createPurchaseResult.error,
+        error: createPurchaseResult.error.message,
       });
     }
   }

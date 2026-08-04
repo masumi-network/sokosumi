@@ -8,6 +8,7 @@ import {
 } from "@sokosumi/database";
 import {
   isV2RegistryIdentifier,
+  normalizeMasumiPaymentUnit,
   parseVersionedAgentIdentifier,
 } from "@sokosumi/masumi";
 import type { PostRegistryDiffResponse } from "@sokosumi/masumi/clients";
@@ -16,7 +17,6 @@ import { getEnv } from "@/config/env";
 import {
   type CardanoV2ReadySource,
   isCardanoV2SourceReady,
-  normalizeMasumiPaymentUnit,
 } from "@/helpers/agent";
 
 const POSTGRES_INT_MAX = 2_147_483_647;
@@ -195,10 +195,13 @@ const registryStorageEntrySchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   apiBaseUrl: z.string().nullable(),
-  type: z.string(),
-  openApiSpecUrl: z.string().nullable(),
-  x402ResourcesUrl: z.string().nullable(),
-  supersededByAgentIdentifier: z.string().nullable(),
+  // The V2 surface fields are optional on purpose: a registry deployment that
+  // predates them must degrade to the V1 projection (convertEntryType maps a
+  // missing type to STANDARD), not quarantine its entire catalog as INVALID.
+  type: z.string().nullish(),
+  openApiSpecUrl: z.string().nullish(),
+  x402ResourcesUrl: z.string().nullish(),
+  supersededByAgentIdentifier: z.string().nullish(),
   metadataVersion: z.number(),
   lastUptimeCheck: z.union([z.string(), z.date()]),
   uptimeCount: z.number(),
@@ -218,19 +221,21 @@ const registryStorageEntrySchema = z.object({
   privacyPolicy: z.string().nullable(),
   paymentType: z.string(),
   AgentPricing: z.unknown(),
-  SupportedPaymentSources: z.array(
-    z.object({
-      sourceIndex: z.number(),
-      chain: z.string(),
-      network: z.string(),
-      paymentSourceType: z.string().nullable(),
-      address: z.string(),
-      payTo: z.string().nullable(),
-      scheme: z.string().nullable(),
-      resource: z.string().nullable(),
-      pricing: registryPaymentSourcePricingSchema,
-    }),
-  ),
+  SupportedPaymentSources: z
+    .array(
+      z.object({
+        sourceIndex: z.number(),
+        chain: z.string(),
+        network: z.string(),
+        paymentSourceType: z.string().nullable(),
+        address: z.string(),
+        payTo: z.string().nullable(),
+        scheme: z.string().nullable(),
+        resource: z.string().nullable(),
+        pricing: registryPaymentSourcePricingSchema,
+      }),
+    )
+    .nullish(),
   ExampleOutput: z.array(
     z.object({
       mimeType: z.string(),
@@ -398,10 +403,11 @@ export function getRegistryEntryStorageIssue(
     return `AgentPricing exceeds ${MAX_LEGACY_PRICING_AMOUNTS} amounts or is malformed`;
   }
 
-  if (safeEntry.SupportedPaymentSources.length > MAX_PAYMENT_SOURCES) {
+  const supportedPaymentSources = safeEntry.SupportedPaymentSources ?? [];
+  if (supportedPaymentSources.length > MAX_PAYMENT_SOURCES) {
     return `SupportedPaymentSources exceeds ${MAX_PAYMENT_SOURCES} entries`;
   }
-  for (const source of safeEntry.SupportedPaymentSources) {
+  for (const source of supportedPaymentSources) {
     if (
       !isDatabaseInt(source.sourceIndex) ||
       source.sourceIndex > MAX_PAYMENT_SOURCE_INDEX
@@ -445,10 +451,15 @@ export function normalizeRegistryEntry(
     supersededByAgentIdentifier: entry.supersededByAgentIdentifier
       ? normalizeRegistryIdentifier(entry.supersededByAgentIdentifier)
       : entry.supersededByAgentIdentifier,
-    SupportedPaymentSources: entry.SupportedPaymentSources.map((source) =>
-      source.chain === "Cardano" && source.paymentSourceType === "Web3CardanoV2"
-        ? { ...source, address: source.address.toLowerCase() }
-        : source,
+    // Defensive `?? []`, like every other read of this field: a registry
+    // deployment predating the V2 surface omits it entirely, and throwing here
+    // parks the sync cursor on every entry instead of degrading to V1.
+    SupportedPaymentSources: (entry.SupportedPaymentSources ?? []).map(
+      (source) =>
+        source.chain === "Cardano" &&
+        source.paymentSourceType === "Web3CardanoV2"
+          ? { ...source, address: source.address.toLowerCase() }
+          : source,
     ),
   };
 }
@@ -561,21 +572,24 @@ function projectV2AgentPricing(
       readySources,
     ),
   );
-  const projected = (readyMatching.length > 0 ? readyMatching : matching).map(
+  const isReadyProjection = readyMatching.length > 0;
+  const projected = (isReadyProjection ? readyMatching : matching).map(
     (source) => projectSourcePricing(source.pricing, entry.agentIdentifier),
   );
   const pricing = projected[0];
   if (!pricing) {
     return { pricingType: PricingType.UNKNOWN };
   }
+  // Applies to the unready fallback too: with no ready source there is no
+  // basis for preferring one candidate's price, and taking the first would
+  // advertise an arbitrary one of several disagreeing prices.
   if (
-    readyMatching.length > 0 &&
     projected.some(
       (candidate) => !areProjectedPricingsEqual(pricing, candidate),
     )
   ) {
     console.warn(
-      `[sync/agents] Entry ${entry.agentIdentifier} has purchase-ready Cardano V2 sources with different pricing; storing as UNKNOWN (agent stays unavailable)`,
+      `[sync/agents] Entry ${entry.agentIdentifier} has ${isReadyProjection ? "purchase-ready" : "matching"} Cardano V2 sources with different pricing; storing as UNKNOWN (agent stays unavailable)`,
     );
     return { pricingType: PricingType.UNKNOWN };
   }

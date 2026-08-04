@@ -20,13 +20,19 @@ import {
 } from "@/schemas/task.schema";
 
 const HEX_PATTERN = /^[0-9a-f]+$/i;
+const MASUMI_TIMESTAMP_PATTERN = /^\d{1,19}$/;
 const MAX_SIGNED_INT64 = 9_223_372_036_854_775_807n;
 
 const masumiTimestampSchema = z
   .string()
-  .regex(/^\d{1,19}$/, "must be a positive millisecond timestamp")
+  .regex(MASUMI_TIMESTAMP_PATTERN, "must be a positive millisecond timestamp")
   .refine(
-    (value) => /^\d{1,19}$/.test(value) && BigInt(value) <= MAX_SIGNED_INT64,
+    (value) => MASUMI_TIMESTAMP_PATTERN.test(value) && BigInt(value) > 0n,
+    "must be a positive millisecond timestamp",
+  )
+  .refine(
+    (value) =>
+      MASUMI_TIMESTAMP_PATTERN.test(value) && BigInt(value) <= MAX_SIGNED_INT64,
     "must fit in a signed 64-bit integer",
   );
 
@@ -132,7 +138,7 @@ const masumiPaymentPayloadSchema = z
       .array(masumiPaymentAmountSchema)
       .min(1)
       .max(7)
-      .openapi({ example: [] }),
+      .openapi({ example: [{ amount: "470000000000", unit: "" }] }),
     PaymentSource: masumiPaymentSourceSchema.optional(),
   })
   .openapi("MasumiPayment");

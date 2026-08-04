@@ -50,6 +50,7 @@ describe("createTaskEventRequestSchema", () => {
     ["inputHash", "not-a-sha256-hash"],
     ["sellerVkey", "not-a-vkey"],
     ["submitResultTime", "tomorrow"],
+    ["submitResultTime", "0"],
     ["blockchainIdentifier", "not-hex"],
   ])("rejects node-invalid %s before charging", (field, value) => {
     const result = createTaskEventRequestSchema().safeParse({

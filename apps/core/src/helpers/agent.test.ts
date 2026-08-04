@@ -76,7 +76,7 @@ describe("buildAvailableAgentWhereClause", () => {
     expect(where.isShown).toBe(true);
   });
 
-  it("keeps pricing validation behavior unchanged", () => {
+  it("requires fixed pricing to have at least one billable amount row", () => {
     const where = buildAvailableAgentWhereClause(
       [createCreditCost("USD"), createCreditCost("EUR")],
       [],
@@ -91,6 +91,12 @@ describe("buildAvailableAgentWhereClause", () => {
           fixedPricing: {
             amounts: {
               every: {
+                unit: { in: ["USD", "EUR"] },
+              },
+              // `every` alone is vacuously true while a registry replay has
+              // deleted the amount rows; such an agent would be counted but
+              // then dropped from the page by buildAgentSummaries.
+              some: {
                 unit: { in: ["USD", "EUR"] },
               },
             },
@@ -362,13 +368,13 @@ describe("toMasumiAgent", () => {
     });
   });
 
-  it("prefers the registry apiBaseUrl over the override", () => {
+  it("prefers the metadata override over the registry apiBaseUrl", () => {
     const result = toMasumiAgent({
       ...baseAgent,
       metadataOverride: { apiBaseUrl: "https://override.example.com" },
     });
 
-    expect(result.apiBaseUrl).toBe("https://agent.example.com");
+    expect(result.apiBaseUrl).toBe("https://override.example.com");
   });
 });
 

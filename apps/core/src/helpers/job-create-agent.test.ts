@@ -432,6 +432,42 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     ).toBe(true);
   });
 
+  it("does not require an amount match when the drift guard was omitted", async () => {
+    // Legacy V1 metadata may register more amounts than POST /purchase
+    // accepts, so the guard is omitted and the node can lock a drifted price.
+    // Recording the snapshot as authoritative would make the job-sync backfill
+    // refuse that purchase forever.
+    const manyAmounts = Array.from({ length: 8 }, (_unused, index) => ({
+      unit: `token-${index}`,
+      amount: BigInt(1_000 + index),
+    }));
+    const agentRecord = createPaidV1AgentRecord();
+    agentFindFirstMock.mockResolvedValue({
+      ...agentRecord,
+      pricing: {
+        ...agentRecord.pricing,
+        fixedPricing: { amounts: manyAmounts },
+      },
+    });
+    getAgentCostMock.mockReturnValue({ cents: BigInt(1) });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: sellerResponding(paidV1JobResponse),
+    });
+
+    await createAgentJobForUser(createInput());
+
+    expect(createPurchaseMock).toHaveBeenCalledWith(
+      "agent-chain",
+      expect.any(Object),
+      { prompt: "hello" },
+      expect.any(String),
+      undefined,
+    );
+    expect(
+      txJobCreateMock.mock.calls[0]?.[0].data.purchaseAmountMatchRequired,
+    ).toBe(false);
+  });
+
   it("hires a legacy agent that returns V2-shaped payment fields", async () => {
     // A V1 seller upgrading its SDK may echo V2 fields. main ignored them;
     // rejecting would break those agents mid-rollout, and only after
@@ -512,6 +548,48 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(startPaidAgentJobMock).not.toHaveBeenCalled();
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("applies the buyer cap to source prices for registry-identified V2 agents", async () => {
+    const policyId = "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b";
+    const agentIdentifier = `${policyId}${"ab".repeat(29)}000002`;
+    agentFindFirstMock.mockResolvedValue({
+      ...createPaidV2AgentRecord(),
+      blockchainIdentifier: agentIdentifier,
+      paymentType: PaymentType.NONE,
+    });
+    getAgentCostMock.mockReturnValue({ cents: BigInt(200) });
+    getCardanoV2ReadySourcesMock.mockResolvedValue([
+      {
+        policyId,
+        smartContractAddress: "addr_test1_v2_contract",
+      },
+    ]);
+    calculateCentsFromMasumiAmountStringsMock.mockReturnValue(BigInt(100));
+    const startPaidAgentJobMock = sellerResponding({
+      ...paidV2JobResponse,
+      agentIdentifier,
+    });
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: startPaidAgentJobMock,
+    });
+
+    await createAgentJobForUser(
+      createInput({
+        agentInput: {
+          ...createInput().agentInput,
+          maxAcceptedCents: BigInt(150),
+        },
+      }),
+    );
+
+    expect(startPaidAgentJobMock).toHaveBeenCalled();
+    expect(creditBucketPrepareConsumptionMock).toHaveBeenCalledWith(
+      "user_1",
+      "org_1",
+      BigInt(100),
+      expect.any(Object),
+    );
   });
 
   it("takes the free flow for a FREE-priced V2 agent even with a paid source and no cap", async () => {
@@ -910,7 +988,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
 
     await expect(
       createAgentJobForUser(
-        createInput({ agentInput: { maxAcceptedCents: 150 } }),
+        createInput({
+          agentInput: {
+            ...createInput().agentInput,
+            maxAcceptedCents: BigInt(150),
+          },
+        }),
       ),
     ).rejects.toThrow("Credit cost exceeds maximum accepted credits");
 

@@ -222,7 +222,7 @@ interface PurchaseJobUpdate {
   nextAction?: NextJobAction;
   nextActionErrorType?: NextJobActionErrorType | null;
   nextActionErrorNote: string | null;
-  onChainTransactionHash?: string;
+  onChainTransactionHash?: string | null;
   onChainTransactionStatus?: OnChainTransactionStatus;
 }
 
@@ -265,7 +265,7 @@ export function transformPurchaseToJobUpdate(
       transaction.status,
     );
     if (transactionStatus !== undefined) {
-      data.onChainTransactionHash = transaction.txHash ?? undefined;
+      data.onChainTransactionHash = transaction.txHash ?? null;
       data.onChainTransactionStatus = transactionStatus;
     }
   }

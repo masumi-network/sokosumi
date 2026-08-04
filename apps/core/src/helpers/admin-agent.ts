@@ -9,6 +9,7 @@ import {
 } from "@sokosumi/database";
 
 import {
+  getAgentApiBaseUrl,
   getAgentDescription,
   getAgentImage,
   getAgentName,
@@ -163,7 +164,7 @@ export function mapAdminAgentDetail(
       name: getAgentName(agent),
       description: getAgentDescription(agent),
       image: getAgentImage(agent),
-      apiBaseUrl: agent.metadataOverride?.apiBaseUrl ?? agent.apiBaseUrl,
+      apiBaseUrl: getAgentApiBaseUrl(agent),
       authorName: author.name,
       authorImage: author.image,
       authorContactEmail: author.email,

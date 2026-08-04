@@ -18,8 +18,8 @@ export const PARKED_IDENTIFIER_PREFIX = "legacy-v2:";
  * one before the duplicate is parked. Mirrors the consolidation in migration
  * 20260803152000: ratings keep the newest per user (the (userId, agentId)
  * unique constraint forbids duplicates), categories and any admin metadata
- * override follow the stable row, and job notifications are retargeted so
- * their deep links keep resolving.
+ * override follow the stable row. Notification retargeting runs separately
+ * after this transaction completes.
  */
 export async function consolidateDuplicateAgentRelations(
   tx: Prisma.TransactionClient,
@@ -142,6 +142,14 @@ export async function retargetDuplicateAgentNotifications(
   }
 }
 
+/** Ordering for "most severe wins" — mirrors the enum's own progression. */
+const RISK_CLASSIFICATION_SEVERITY: Record<RiskClassification, number> = {
+  [RiskClassification.MINIMAL]: 0,
+  [RiskClassification.LIMITED]: 1,
+  [RiskClassification.HIGH]: 2,
+  [RiskClassification.UNACCEPTABLE]: 3,
+};
+
 interface CuratedTwinDefaults {
   categoryIds: string[];
   isShown: boolean;
@@ -201,11 +209,24 @@ export async function resolveCuratedTwinDefaults(
       return fallback;
     }
 
-    const newest = twins[0];
+    // Inherit RESTRICTIVE curation only. The twin lookup keys on `name` and
+    // `apiBaseUrl`, both registry-controlled, so anyone who knows a curated
+    // agent's public name and endpoint can seed a matching registration.
+    // Carrying suppression and risk across is safe in that world — the worst an
+    // impostor can do is inherit a stricter rating than the default. Carrying
+    // categories or a *lower* risk rating is not: that hands the impostor
+    // curated placement and launders an admin's rating onto an unrelated entry.
     return {
-      categoryIds: newest.categories.map((category) => category.id),
+      categoryIds: [],
       isShown: twins.every((twin) => twin.isShown) && fallback.isShown,
-      riskClassification: newest.riskClassification,
+      riskClassification: twins.reduce(
+        (mostSevere, twin) =>
+          RISK_CLASSIFICATION_SEVERITY[twin.riskClassification] >
+          RISK_CLASSIFICATION_SEVERITY[mostSevere]
+            ? twin.riskClassification
+            : mostSevere,
+        fallback.riskClassification,
+      ),
     };
   } catch (error) {
     // Curation lookup must never break ingestion; fail to the safe default.

@@ -132,6 +132,42 @@ describe("createPurchase duplicate handling", () => {
     });
   });
 
+  it("accepts a duplicate whose hex identifiers differ only in case", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Purchase already exists" } },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: createResolvedPurchase({
+          blockchainIdentifier:
+            startJobResponse.blockchainIdentifier.toUpperCase(),
+          agentIdentifier: startJobResponse.agentIdentifier.toUpperCase(),
+          inputHash: startJobResponse.input_hash.toUpperCase(),
+        }),
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    // Hex casing carries no meaning; treating it as a mismatch would refund a
+    // buyer whose purchase is live at the node.
+    expect(result.isOk()).toBe(true);
+  });
+
   it("forwards the V2 payment-source selection", async () => {
     postPurchaseMock.mockResolvedValue({
       data: {
@@ -292,9 +328,10 @@ describe("createPurchase duplicate handling", () => {
     );
 
     expect(result.isErr()).toBe(true);
-    expect(result.isErr() && result.error).toBe(
-      "Duplicate purchase does not match request",
-    );
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "permanent",
+      message: "Duplicate purchase does not match request",
+    });
   });
 
   it("matches normalized and summed duplicate funds", async () => {
@@ -353,9 +390,10 @@ describe("createPurchase duplicate handling", () => {
     );
 
     expect(result.isErr()).toBe(true);
-    expect(result.isErr() && result.error).toBe(
-      "Duplicate purchase does not match request",
-    );
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "permanent",
+      message: "Duplicate purchase does not match request",
+    });
   });
 
   it("rejects a duplicate belonging to a different seller wallet", async () => {
@@ -390,9 +428,10 @@ describe("createPurchase duplicate handling", () => {
     );
 
     expect(result.isErr()).toBe(true);
-    expect(result.isErr() && result.error).toBe(
-      "Duplicate purchase does not match request",
-    );
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "permanent",
+      message: "Duplicate purchase does not match request",
+    });
   });
 
   it("matches a V2 duplicate against its request seller wallet", async () => {
@@ -512,9 +551,10 @@ describe("createPurchase duplicate handling", () => {
     );
 
     expect(result.isErr()).toBe(true);
-    expect(result.isErr() && result.error).toBe(
-      "Failed to resolve duplicate purchase",
-    );
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "ambiguous",
+      message: "Failed to resolve duplicate purchase",
+    });
   });
 
   it("rejects an embedded purchase whose identifier does not match", async () => {
@@ -669,9 +709,11 @@ describe("createPurchase duplicate handling", () => {
 
     expect(result.isErr()).toBe(true);
     // Preserve both the status and the node's structured explanation.
-    expect(result.isErr() && result.error).toBe(
-      "Failed to create purchase request (status 400): Bad request",
-    );
+    expect(result.isErr() && result.error).toMatchObject({
+      kind: "permanent",
+      status: 400,
+      message: "Failed to create purchase request (status 400): Bad request",
+    });
     expect(postPurchaseResolveBlockchainIdentifierMock).not.toHaveBeenCalled();
   });
 });

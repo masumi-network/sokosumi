@@ -10,7 +10,10 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import { listV2RegistryPolicyIds } from "@sokosumi/masumi";
+import {
+  listV2RegistryPolicyIds,
+  normalizeMasumiPaymentUnit,
+} from "@sokosumi/masumi";
 import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
@@ -26,6 +29,10 @@ import {
   type RatingMetrics,
 } from "@/schemas/agent.schema";
 
+import {
+  getCachedCardanoV2ReadySources,
+  setCachedCardanoV2ReadySources,
+} from "./cardano-v2-readiness-cache";
 import { internalServerError, notFound, unprocessableEntity } from "./error";
 
 type AgentMetadataOverrideScalars = AgentMetadataOverride;
@@ -79,6 +86,14 @@ export const getAgentAuthorImage = (
   return resolveIpfsOrHttpUrl(image);
 };
 
+export function getAgentApiBaseUrl(
+  agent: Pick<Agent, "apiBaseUrl"> & {
+    metadataOverride?: Pick<AgentMetadataOverrideScalars, "apiBaseUrl"> | null;
+  },
+): string | null {
+  return agent.metadataOverride?.apiBaseUrl ?? agent.apiBaseUrl;
+}
+
 export function toMasumiAgent(
   agent: Pick<Agent, "id" | "name" | "blockchainIdentifier" | "apiBaseUrl"> & {
     metadataOverride?: Pick<AgentMetadataOverrideScalars, "apiBaseUrl"> | null;
@@ -86,7 +101,7 @@ export function toMasumiAgent(
 ): MasumiAgent {
   // OpenApi/X402 pointer entries have no MIP-003 endpoint; they are excluded
   // from availability, so this only triggers on direct-by-id access.
-  const apiBaseUrl = agent.apiBaseUrl ?? agent.metadataOverride?.apiBaseUrl;
+  const apiBaseUrl = getAgentApiBaseUrl(agent);
   if (!apiBaseUrl) {
     throw unprocessableEntity("Agent has no API endpoint");
   }
@@ -112,8 +127,7 @@ export function toMasumiAgentForJob(job: {
     metadataOverride?: Pick<AgentMetadataOverrideScalars, "apiBaseUrl"> | null;
   };
 }): MasumiAgent {
-  const currentApiBaseUrl =
-    job.agent.metadataOverride?.apiBaseUrl ?? job.agent.apiBaseUrl;
+  const currentApiBaseUrl = getAgentApiBaseUrl(job.agent);
   const apiBaseUrl = job.agentApiBaseUrl ?? currentApiBaseUrl;
   if (!apiBaseUrl) {
     throw unprocessableEntity("Agent has no API endpoint");
@@ -177,15 +191,6 @@ export const getCreditCostsOrThrow = async (
 };
 
 /**
- * Masumi/Cardano uses both an empty string and "lovelace" for ADA. Sokosumi
- * stores the non-empty spelling so CreditCost remains configurable through
- * its public API.
- */
-export function normalizeMasumiPaymentUnit(unit: string): string {
-  return unit === "" || unit.toLowerCase() === "lovelace" ? "lovelace" : unit;
-}
-
-/**
  * Builds a Prisma where clause for filtering agents by availability and valid pricing.
  *
  * Availability rules:
@@ -236,6 +241,10 @@ const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
  * Exact Cardano V2 policy/contract sources the payment node reported
  * purchase-ready recently. Returns an empty list while the rollout flag is
  * off, the cache is stale, or the cache payload is invalid.
+ *
+ * Memoized for a few seconds (see cardano-v2-readiness-cache) because this runs
+ * on every catalog request while the underlying row only changes once per cron
+ * cycle.
  */
 export const getCardanoV2ReadySources = async (
   tx: Prisma.TransactionClient = prisma,
@@ -243,23 +252,31 @@ export const getCardanoV2ReadySources = async (
   if (!getEnv().ENABLE_CARDANO_V2_AGENTS) {
     return [];
   }
+  const cached = getCachedCardanoV2ReadySources<CardanoV2ReadySource>();
+  if (cached) {
+    return cached;
+  }
   const readiness = await tx.syncMetadata.findUnique({
     where: { key: CARDANO_V2_RAIL_READINESS_KEY },
   });
+  // Every exit below memoizes, including the empty ones: a missing, stale or
+  // malformed row is just as stable between cron cycles as a valid one.
   if (
     !readiness?.cursorId ||
     Date.now() - readiness.lastSyncedAt.getTime() >=
       CARDANO_V2_RAIL_READINESS_TTL_MS
   ) {
+    setCachedCardanoV2ReadySources<CardanoV2ReadySource>([]);
     return [];
   }
 
   try {
     const payload: unknown = JSON.parse(readiness.cursorId);
     if (!Array.isArray(payload)) {
+      setCachedCardanoV2ReadySources<CardanoV2ReadySource>([]);
       return [];
     }
-    return payload.filter(
+    const readySources = payload.filter(
       (source): source is CardanoV2ReadySource =>
         typeof source === "object" &&
         source !== null &&
@@ -270,7 +287,10 @@ export const getCardanoV2ReadySources = async (
         typeof source.smartContractAddress === "string" &&
         source.smartContractAddress.length > 0,
     );
+    setCachedCardanoV2ReadySources(readySources);
+    return readySources;
   } catch {
+    setCachedCardanoV2ReadySources<CardanoV2ReadySource>([]);
     return [];
   }
 };
@@ -300,6 +320,15 @@ export const buildAvailableAgentWhereClause = (
         fixedPricing: {
           amounts: {
             every: {
+              unit: { in: validUnits },
+            },
+            // `every` is vacuously true for an empty relation, so without this
+            // a FIXED pricing whose amount rows are momentarily gone (a
+            // registry replay deletes and recreates them) still matches. Such
+            // an agent throws in getAgentCost and is dropped from the page by
+            // buildAgentSummaries — excluding it here keeps the row set and
+            // the total count in agreement.
+            some: {
               unit: { in: validUnits },
             },
           },

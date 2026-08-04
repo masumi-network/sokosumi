@@ -88,10 +88,34 @@ export interface MasumiTaskPurchaseInput {
   supportedPaymentSourceIndex?: number;
 }
 
-export interface TaskPurchaseFailure {
+/**
+ * A failed purchase creation. `kind` — not the message text — is what callers
+ * branch on: a "permanent" rejection is the node refusing this exact payload
+ * (price drift, invalid terms) and will fail identically on every retry, while
+ * "ambiguous" means the outcome is unknown and a purchase may already exist.
+ */
+export interface PurchaseFailure {
   kind: "permanent" | "ambiguous";
   message: string;
   status?: number;
+}
+
+export type TaskPurchaseFailure = PurchaseFailure;
+
+/**
+ * A 4xx other than the two retryable ones is the node rejecting this payload
+ * as such; anything else (5xx, timeout, transport) leaves the outcome unknown.
+ */
+function classifyPurchaseFailureKind(
+  status: number | undefined,
+): PurchaseFailure["kind"] {
+  return status !== undefined &&
+    status >= 400 &&
+    status < 500 &&
+    status !== 408 &&
+    status !== 429
+    ? "permanent"
+    : "ambiguous";
 }
 
 export interface TaskPurchaseResolutionFailure {
@@ -110,14 +134,30 @@ function doPurchaseAmountsMatchRequest(
   return doMasumiPaymentAmountsMatch(request.Amounts, purchase.PaidFunds);
 }
 
+/**
+ * Compares two hex-encoded protocol values. Casing never carries meaning in
+ * these fields, and a mismatch here is not cosmetic: it classifies the claim
+ * as `mismatch`, which refunds the buyer while the remote purchase stays live.
+ */
+function doHexValuesMatch(
+  left: string | null | undefined,
+  right: string,
+): boolean {
+  // An absent value never matches — same as the strict equality this replaced.
+  return left != null && left.toLowerCase() === right.toLowerCase();
+}
+
 function doesPurchaseMatchRequest(
   purchase: ResolvedPurchase,
   request: PurchaseRequest,
 ): boolean {
   return (
-    purchase.blockchainIdentifier === request.blockchainIdentifier &&
-    purchase.agentIdentifier === request.agentIdentifier &&
-    purchase.inputHash === request.inputHash &&
+    doHexValuesMatch(
+      purchase.blockchainIdentifier,
+      request.blockchainIdentifier,
+    ) &&
+    doHexValuesMatch(purchase.agentIdentifier, request.agentIdentifier) &&
+    doHexValuesMatch(purchase.inputHash, request.inputHash) &&
     purchase.payByTime === request.payByTime &&
     purchase.submitResultTime === request.submitResultTime &&
     purchase.unlockTime === request.unlockTime &&
@@ -175,7 +215,7 @@ export function createPaymentClient(
   const recoverDuplicatePurchase = async (
     request: PurchaseRequest,
     options: PaymentClientRequestOptions = {},
-  ): Promise<Result<CreatedPurchase, string>> => {
+  ): Promise<Result<CreatedPurchase, PurchaseFailure>> => {
     // The node's duplicate check is NOT wallet-scope filtered, so the 409's
     // embedded purchase may belong to another API key's scope. Only accept a
     // matching purchase returned by the scope-filtered resolve endpoint. On a
@@ -193,18 +233,31 @@ export function createPaymentClient(
       if (response.data && !response.error) {
         const purchase = response.data.data;
         if (!doesPurchaseMatchRequest(purchase, request)) {
-          return err("Duplicate purchase does not match request");
+          return err({
+            kind: "permanent",
+            message: "Duplicate purchase does not match request",
+          });
         }
         return ok(purchase);
       }
       if (response.response?.status === 404) {
-        return err("Duplicate purchase is not visible to this API key");
+        return err({
+          kind: "permanent",
+          message: "Duplicate purchase is not visible to this API key",
+          status: 404,
+        });
       }
     } catch {
-      return err("Failed to resolve duplicate purchase");
+      return err({
+        kind: "ambiguous",
+        message: "Failed to resolve duplicate purchase",
+      });
     }
 
-    return err("Failed to resolve duplicate purchase");
+    return err({
+      kind: "ambiguous",
+      message: "Failed to resolve duplicate purchase",
+    });
   };
 
   const buildTaskPurchaseRequest = (
@@ -362,7 +415,7 @@ export function createPaymentClient(
       inputData: InputSchemaType,
       identifierFromPurchaser: string,
       amounts?: Array<{ amount: string; unit: string }>,
-    ): Promise<Result<PostPurchaseResponses["200"]["data"], string>> {
+    ): Promise<Result<PostPurchaseResponses["200"]["data"], PurchaseFailure>> {
       try {
         const body: PurchaseRequest = {
           agentIdentifier: agentBlockchainIdentifier,
@@ -403,14 +456,20 @@ export function createPaymentClient(
             return recoverDuplicatePurchase(body);
           }
           console.error("Failed to create purchase request", response.error);
-          return err(
-            `Failed to create purchase request (status ${response.response?.status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
-          );
+          const status = response.response?.status;
+          return err({
+            kind: classifyPurchaseFailureKind(status),
+            message: `Failed to create purchase request (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
+            status,
+          });
         }
 
         return ok(response.data.data);
       } catch (error) {
-        return err(String(error) || "Failed to create purchase request");
+        return err({
+          kind: "ambiguous",
+          message: String(error) || "Failed to create purchase request",
+        });
       }
     },
 
@@ -462,14 +521,7 @@ export function createPaymentClient(
           // The event is already charged when this error surfaces. Carry the
           // node's status and reason into compensation and alerting.
           return err({
-            kind:
-              status !== undefined &&
-              status >= 400 &&
-              status < 500 &&
-              status !== 408 &&
-              status !== 429
-                ? "permanent"
-                : "ambiguous",
+            kind: classifyPurchaseFailureKind(status),
             message: `Failed to create purchase request (status ${status ?? "unknown"}): ${extractNodeErrorMessage(response.error)}`,
             status,
           });

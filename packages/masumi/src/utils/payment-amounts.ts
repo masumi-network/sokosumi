@@ -1,4 +1,10 @@
-function normalizePaymentUnit(unit: string): string {
+/**
+ * Masumi/Cardano uses both an empty string and "lovelace" for ADA. This is the
+ * single spelling everything downstream (credit costs, pricing projection,
+ * purchase reconciliation) compares on, so it lives with the protocol types
+ * rather than being restated per consumer.
+ */
+export function normalizeMasumiPaymentUnit(unit: string): string {
   return unit === "" || unit.toLowerCase() === "lovelace" ? "lovelace" : unit;
 }
 
@@ -23,7 +29,7 @@ export function aggregateMasumiPaymentAmounts(
       return null;
     }
 
-    const unit = normalizePaymentUnit(amount.unit);
+    const unit = normalizeMasumiPaymentUnit(amount.unit);
     totals.set(unit, (totals.get(unit) ?? 0n) + BigInt(amount.amount));
   }
 

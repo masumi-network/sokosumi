@@ -203,6 +203,31 @@ async function chargeTaskCreditsOrMarkOutOfCredits(params: {
   }
 }
 
+/**
+ * Upper bound on a single task-event charge.
+ *
+ * The amount is chosen by the assigned coworker, and this flow has no
+ * caller-supplied ceiling like the hire flow's `maxAcceptedCents` — so an
+ * unbounded charge would let one event empty the owner's balance. Report it:
+ * a breach is a compromised or misbehaving coworker, not user error.
+ */
+function assertTaskEventChargeWithinCeiling(creditsValue: number): void {
+  if (creditsValue <= LIMITS.MAX_TASK_EVENT_CREDITS) {
+    return;
+  }
+  Sentry.captureMessage("Task event charge exceeded the per-event ceiling", {
+    level: "error",
+    tags: { error_type: "task_event_charge_ceiling_exceeded" },
+    extra: {
+      attemptedCredits: creditsValue,
+      ceiling: LIMITS.MAX_TASK_EVENT_CREDITS,
+    },
+  });
+  throw unprocessableEntity(
+    `Credit amount exceeds the maximum chargeable value for a single task event (${LIMITS.MAX_TASK_EVENT_CREDITS})`,
+  );
+}
+
 interface SettleTaskEventChargeParams {
   task: {
     ownerId: string;
@@ -231,8 +256,12 @@ async function settleTaskEventCharge({
   tx,
 }: SettleTaskEventChargeParams): Promise<SettleTaskEventChargeResult> {
   if (masumiPayment) {
+    // Log identifiers, not the payload: the full object carries the seller
+    // vkey, amounts, and deadlines into retained logs for every charge.
     console.info("[tasks] masumi task payment: using masumiPayment", {
-      masumiPayment,
+      blockchainIdentifier: masumiPayment.blockchainIdentifier,
+      agentIdentifier: masumiPayment.agentIdentifier,
+      paymentSourceType: masumiPayment.paymentSourceType,
     });
     // V2 payments are gated exactly like the job flow: rollout flag AND a
     // payment node that recently reported the payload's EXACT policy/contract
@@ -283,6 +312,7 @@ async function settleTaskEventCharge({
         `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
       );
     }
+    assertTaskEventChargeWithinCeiling(creditsValue);
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
       userId: task.ownerId,
       organizationId: task.organizationId,
@@ -313,6 +343,7 @@ async function settleTaskEventCharge({
         `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
       );
     }
+    assertTaskEventChargeWithinCeiling(credits);
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
       userId: task.ownerId,
       organizationId: task.organizationId,
@@ -751,11 +782,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    if (masumiPayment != null) {
+    // Unreachable by construction (a charged payment always writes its claim
+    // in the same transaction). Never throw on it: the event and its debit are
+    // already committed, so throwing would answer 500 for work that succeeded.
+    if (masumiPayment != null && !taskPaymentClaimId) {
+      console.error("[tasks] masumi task payment: no durable claim", {
+        taskId,
+        taskEventId: event.id,
+        blockchainIdentifier: masumiPayment.blockchainIdentifier,
+      });
+      Sentry.captureMessage("Masumi task payment has no durable claim", {
+        level: "error",
+        tags: { error_type: "task_payment_claim_missing" },
+        extra: {
+          taskId,
+          taskEventId: event.id,
+          blockchainIdentifier: masumiPayment.blockchainIdentifier,
+        },
+      });
+    }
+
+    if (masumiPayment != null && taskPaymentClaimId) {
       const taskEventId = event.id;
-      if (!taskPaymentClaimId) {
-        throw new Error("Masumi task payment has no durable claim");
-      }
 
       Sentry.addBreadcrumb({
         category: "task_masumi_purchase",

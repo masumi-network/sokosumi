@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { PricingType } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
@@ -115,6 +116,10 @@ describe("GET /agents", () => {
         icon: null,
         summary: "A short summary",
         riskClassification: "MINIMAL",
+        pricing: {
+          pricingType: PricingType.FREE,
+          fixedPricing: null,
+        },
         _count: { jobs: 2 },
         categories: [
           {
@@ -359,13 +364,16 @@ describe("GET /agents", () => {
 
   it("advances pagination from the consumed raw row when its summary is skipped", async () => {
     agentFindManyMock.mockResolvedValue([
-      { id: "agent_unreadable" },
+      {
+        id: "agent_unreadable",
+        pricing: {
+          pricingType: PricingType.FIXED,
+          fixedPricing: { amounts: [] },
+        },
+      },
       { id: "agent_next_page" },
     ]);
     agentCountMock.mockResolvedValue(2);
-    getAgentCostMock.mockImplementation(() => {
-      throw new Error("transient pricing rewrite");
-    });
 
     const app = createApp();
     const response = await app.request("http://localhost/?limit=1");
@@ -377,5 +385,21 @@ describe("GET /agents", () => {
     expect(response.status).toBe(200);
     expect(body.data).toEqual([]);
     expect(body.meta.pagination.nextCursor).toBe("agent_unreadable");
+    expect(getAgentCostMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates unexpected pricing failures", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getAgentCostMock.mockImplementation(() => {
+      throw new Error("unexpected pricing failure");
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(500);
+    consoleErrorSpy.mockRestore();
   });
 });

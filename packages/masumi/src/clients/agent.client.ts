@@ -41,6 +41,23 @@ export interface AgentClientConfig {
   }) => void;
 }
 
+/**
+ * MIP-003 responses are small JSON documents. `ssrfSafeFetch` buffers the whole
+ * body, so without a cap a hostile or broken seller can stream unbounded data
+ * into the process; without a timeout it can hold the invocation open forever.
+ * Both are per-endpoint rather than global because `status` is polled far more
+ * often than the one-shot calls.
+ */
+const AGENT_RESPONSE_MAX_BYTES = 2 * 1024 * 1024;
+const AGENT_INPUT_SCHEMA_MAX_BYTES = 1 * 1024 * 1024;
+const AGENT_REQUEST_TIMEOUT_MS = 30_000;
+
+/** Combines a caller signal with the client's own request deadline. */
+function withRequestTimeout(signal?: AbortSignal): AbortSignal {
+  const timeout = AbortSignal.timeout(AGENT_REQUEST_TIMEOUT_MS);
+  return signal ? AbortSignal.any([signal, timeout]) : timeout;
+}
+
 interface AgentClientRequestOptions {
   signal?: AbortSignal;
 }
@@ -187,6 +204,8 @@ export function createAgentClient(config?: AgentClientConfig) {
             identifier_from_purchaser: identifierFromPurchaser,
             input_data: inputData,
           }),
+          signal: withRequestTimeout(),
+          maxResponseBytes: AGENT_RESPONSE_MAX_BYTES,
         });
       } catch (error) {
         return err(ambiguous(String(error)));
@@ -246,6 +265,8 @@ export function createAgentClient(config?: AgentClientConfig) {
           body: JSON.stringify({
             input_data: inputData,
           }),
+          signal: withRequestTimeout(),
+          maxResponseBytes: AGENT_RESPONSE_MAX_BYTES,
         });
       } catch (error) {
         return err(ambiguous(String(error)));
@@ -296,7 +317,8 @@ export function createAgentClient(config?: AgentClientConfig) {
         jobStatusUrl.searchParams.set("job_id", jobId);
         const jobStatusResponse = await ssrfSafeFetch(jobStatusUrl, {
           method: "GET",
-          signal: options.signal,
+          signal: withRequestTimeout(options.signal),
+          maxResponseBytes: AGENT_RESPONSE_MAX_BYTES,
         });
 
         if (!jobStatusResponse.ok) {
@@ -360,6 +382,8 @@ export function createAgentClient(config?: AgentClientConfig) {
             "Content-Type": "application/json",
           },
           body,
+          signal: withRequestTimeout(),
+          maxResponseBytes: AGENT_RESPONSE_MAX_BYTES,
         });
 
         if (!provideInputResponse.ok) {
@@ -392,7 +416,10 @@ export function createAgentClient(config?: AgentClientConfig) {
           "input_schema",
         );
 
-        const response = await ssrfSafeFetch(inputSchemaUrl);
+        const response = await ssrfSafeFetch(inputSchemaUrl, {
+          signal: withRequestTimeout(),
+          maxResponseBytes: AGENT_INPUT_SCHEMA_MAX_BYTES,
+        });
 
         if (!response.ok) {
           // Log HTTP errors (4xx/5xx)

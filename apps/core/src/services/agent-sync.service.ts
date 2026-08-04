@@ -1,15 +1,14 @@
 import * as Sentry from "@sentry/node";
 import { AgentEntryType, AgentStatus, type Prisma } from "@sokosumi/database";
-import { isV2RegistryIdentifier } from "@sokosumi/masumi";
+import {
+  isV2RegistryIdentifier,
+  normalizeMasumiPaymentUnit,
+} from "@sokosumi/masumi";
 
 import { registryClient } from "@/clients/masumi-registry.client";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { getEnv } from "@/config/env";
-import {
-  getAgentDescription,
-  getCardanoV2ReadySources,
-  normalizeMasumiPaymentUnit,
-} from "@/helpers/agent";
+import { getAgentDescription, getCardanoV2ReadySources } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 
 import {
@@ -99,7 +98,12 @@ async function quarantineInvalidRegistryEntry(
               },
             ]
           : []),
-        { blockchainIdentifier: normalizedEntry.agentIdentifier },
+        {
+          blockchainIdentifier: {
+            equals: normalizedEntry.agentIdentifier,
+            mode: "insensitive",
+          },
+        },
       ],
     },
     data: { status: AgentStatus.INVALID },
@@ -190,6 +194,8 @@ async function upsertRegistryAgent(
     registryVersion: true,
     blockchainIdentifier: true,
     metadataVersion: true,
+    apiBaseUrl: true,
+    isShown: true,
   } as const;
   const existingByRegistryIdentity = await prisma.agent.findUnique({
     where: { registryIdentity: version.registryIdentity },
@@ -298,6 +304,39 @@ async function upsertRegistryAgent(
     (entry.metadataVersion != null &&
       entry.metadataVersion !== existing.metadataVersion);
 
+  // A promotion rewrites the canonical row — endpoint, pricing, payment
+  // sources — while the ratings, categories and risk rating of the previous
+  // revision stay attached. Core cannot verify locally that the successor was
+  // minted by the same seller: that guarantee lives in the V2 registry
+  // validator. So when a promotion MOVES THE ENDPOINT, unpublish the row and
+  // page instead of letting the new endpoint inherit a curated, well-rated
+  // listing. In-flight jobs are unaffected (they pin their own endpoint
+  // snapshot via `toMasumiAgentForJob`); an admin re-publishes after review.
+  const promotedEndpoint =
+    isRevisionPromotion &&
+    registryFields.apiBaseUrl !== existing.apiBaseUrl &&
+    // A revision that merely ADDS an endpoint to a pointer entry has nothing
+    // curated to hijack — there was no reachable agent before.
+    existing.apiBaseUrl !== null;
+
+  if (promotedEndpoint && existing.isShown) {
+    Sentry.captureMessage(
+      "Agent revision promotion changed the API endpoint; unpublishing pending review",
+      {
+        level: "error",
+        tags: { error_type: "agent_revision_endpoint_changed" },
+        extra: {
+          agentId: existing.id,
+          registryIdentity: version.registryIdentity,
+          fromVersion: existing.registryVersion,
+          toVersion: version.registryVersion,
+          previousApiBaseUrl: existing.apiBaseUrl,
+          nextApiBaseUrl: registryFields.apiBaseUrl,
+        },
+      },
+    );
+  }
+
   // A rollback-era binary can also have stored this revision's identifier as
   // its OWN row (registryIdentity=NULL) while the canonical row resolved via
   // registryIdentity above. Park that duplicate before the canonical row
@@ -391,6 +430,10 @@ async function upsertRegistryAgent(
         registryIdentity: version.registryIdentity,
         registryVersion: version.registryVersion,
         ...registryFields,
+        // See `promotedEndpoint`: an endpoint move across a revision cannot be
+        // verified as same-seller here, so the listing stops being hireable
+        // until an admin re-publishes it.
+        ...(promotedEndpoint ? { isShown: false } : {}),
         // Tags are registry-owned and every diff entry carries the full list,
         // so they are SET (not connected) on every update. This also heals
         // the historical tag unions the 20260803152000 repair left on

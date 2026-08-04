@@ -7,6 +7,7 @@ import {
   CARDANO_V2_RAIL_READINESS_KEY,
   CARDANO_V2_RAIL_READINESS_TTL_MS,
 } from "@/helpers/agent";
+import { resetCardanoV2ReadySourcesCache } from "@/helpers/cardano-v2-readiness-cache";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -89,34 +90,61 @@ export async function syncCardanoV2RailReadiness(
       : left.smartContractAddress.localeCompare(right.smartContractAddress);
   });
   const serializedReadySources = JSON.stringify(readySources);
-  const previousReadiness = await prisma.syncMetadata.findUnique({
-    where: { key: CARDANO_V2_RAIL_READINESS_KEY },
-  });
-  // A cache that had gone stale (TTL expired) fed [] to the availability and
-  // pricing paths, so entries synced during that window were projected from
-  // the fallback source rather than a purchase-ready one. Coming back with the
-  // SAME source set is therefore still a change that must trigger a replay.
-  const wasReadinessStale =
-    previousReadiness === null ||
-    Date.now() - previousReadiness.lastSyncedAt.getTime() >=
-      CARDANO_V2_RAIL_READINESS_TTL_MS;
-  const readinessChanged =
-    previousReadiness?.cursorId !== serializedReadySources || wasReadinessStale;
-  await prisma.syncMetadata.upsert({
-    where: { key: CARDANO_V2_RAIL_READINESS_KEY },
-    create: {
-      key: CARDANO_V2_RAIL_READINESS_KEY,
-      cursorId: serializedReadySources,
-      lastSyncedAt: new Date(),
-    },
-    update: {
-      cursorId: serializedReadySources,
-      lastSyncedAt: new Date(),
-    },
-  });
-  await prisma.syncMetadata.deleteMany({
-    where: { key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY },
-  });
+  let readinessChanged: boolean;
+  try {
+    const previousReadiness = await prisma.syncMetadata.findUnique({
+      where: { key: CARDANO_V2_RAIL_READINESS_KEY },
+    });
+    // A cache that had gone stale (TTL expired) fed [] to the availability and
+    // pricing paths, so entries synced during that window were projected from
+    // the fallback source rather than a purchase-ready one. Coming back with
+    // the SAME source set is therefore still a change that must trigger a
+    // replay.
+    const wasReadinessStale =
+      previousReadiness === null ||
+      Date.now() - previousReadiness.lastSyncedAt.getTime() >=
+        CARDANO_V2_RAIL_READINESS_TTL_MS;
+    readinessChanged =
+      previousReadiness?.cursorId !== serializedReadySources ||
+      wasReadinessStale;
+    await prisma.syncMetadata.upsert({
+      where: { key: CARDANO_V2_RAIL_READINESS_KEY },
+      create: {
+        key: CARDANO_V2_RAIL_READINESS_KEY,
+        cursorId: serializedReadySources,
+        lastSyncedAt: new Date(),
+      },
+      update: {
+        cursorId: serializedReadySources,
+        lastSyncedAt: new Date(),
+      },
+    });
+    // Drop the in-process memo so the registry replay that runs right after
+    // this refresh — and any request served by this instance — projects
+    // against the value just written, not the one read seconds earlier.
+    resetCardanoV2ReadySourcesCache();
+  } catch (cacheError) {
+    // Readiness is advisory and must never crash the registry sync loop. A
+    // failed write leaves the old cache intact, so retry on the next cycle.
+    console.warn(
+      "[sync/agents] Failed to persist Cardano V2 rail readiness:",
+      cacheError,
+    );
+    return false;
+  }
+
+  try {
+    await prisma.syncMetadata.deleteMany({
+      where: { key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY },
+    });
+  } catch (cleanupError) {
+    // Cache persistence already succeeded. Keep readinessChanged so source
+    // changes still trigger a registry replay; retry marker cleanup next time.
+    console.warn(
+      "[sync/agents] Failed to clear Cardano V2 readiness failure marker:",
+      cleanupError,
+    );
+  }
 
   if (isCardanoV2Enabled && readySources.length === 0) {
     console.warn(
