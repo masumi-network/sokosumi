@@ -18,11 +18,13 @@ import {
   editRoomMessageAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
+  markThreadReadAction,
   sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
+import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
@@ -971,12 +973,18 @@ export function RoomsClient({
     );
   }
 
-  function loadThreadMessages(parentMessage: ChatRoomMessage) {
-    if (!selectedRoom) return;
+  async function loadThreadMessages(
+    parentMessage: ChatRoomMessage,
+  ): Promise<boolean> {
+    if (!selectedRoom) {
+      return false;
+    }
     const roomId = selectedRoom.id;
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
+    // Thread look state is independent of room mark-read.
+    const markResult = await markThreadReadAction(roomId, parentMessage.id);
     startThreadLoadingTransition(async () => {
       const result = await listThreadMessagesAction(roomId, parentMessage.id);
       if (!result.ok) {
@@ -989,6 +997,7 @@ export function RoomsClient({
       setThreadMessages(result.data.messages);
       setThreadOlderNextCursor(result.data.nextCursor);
     });
+    return markResult.ok;
   }
 
   function handleLoadOlderMessages() {
@@ -1356,6 +1365,24 @@ export function RoomsClient({
                       loading: t("RoomSearch.loading"),
                       error: t("RoomSearch.error"),
                       replyBadge: t("RoomSearch.replyBadge"),
+                    }}
+                  />
+                  <UnreadThreadsPanel
+                    key={`unread-threads-${selectedRoom.id}`}
+                    roomId={selectedRoom.id}
+                    onOpenThread={loadThreadMessages}
+                    labels={{
+                      open: t("UnreadThreads.open"),
+                      title: t("UnreadThreads.title"),
+                      markAllRead: t("UnreadThreads.markAllRead"),
+                      empty: t("UnreadThreads.empty"),
+                      loading: t("UnreadThreads.loading"),
+                      error: t("UnreadThreads.error"),
+                      markAllReadError: t("UnreadThreads.markAllReadError"),
+                      startedBy: (name) =>
+                        t("UnreadThreads.startedBy", { name }),
+                      unreadReplies: (count) =>
+                        t("UnreadThreads.unreadReplies", { count }),
                     }}
                   />
                   <RoomParticipantStack

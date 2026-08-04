@@ -17,6 +17,7 @@ import type {
   GetAgentsData,
   GetCategoriesData,
   GetChatsRoomsByIdMessagesData,
+  GetChatsRoomsByIdThreadsByParentMessageIdMessagesData,
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
   GetCoworkersData,
@@ -125,6 +126,9 @@ import {
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
+  getChatsRoomsByIdThreads as coreGetChatsRoomsByIdThreads,
+  getChatsRoomsByIdThreadsByParentMessageId as coreGetChatsRoomsByIdThreadsByParentMessageId,
+  getChatsRoomsByIdThreadsByParentMessageIdMessages as coreGetChatsRoomsByIdThreadsByParentMessageIdMessages,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
@@ -229,6 +233,8 @@ import {
   postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
+  postChatsRoomsByIdThreadsByParentMessageIdRead as corePostChatsRoomsByIdThreadsByParentMessageIdRead,
+  postChatsRoomsByIdThreadsRead as corePostChatsRoomsByIdThreadsRead,
   postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
@@ -758,6 +764,78 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch chat room messages",
+    );
+  }
+
+  async function getChatRoomThreads(
+    id: string,
+    query?: { unread?: "true" | "false" },
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdThreads({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch threads",
+    );
+  }
+
+  async function getChatRoomThread(id: string, parentMessageId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdThreadsByParentMessageId({
+          client,
+          path: { id, parentMessageId },
+          cache: "no-store",
+        }),
+      "Failed to fetch thread",
+    );
+  }
+
+  async function getChatRoomThreadMessages(
+    id: string,
+    parentMessageId: string,
+    query?: GetChatsRoomsByIdThreadsByParentMessageIdMessagesData["query"],
+  ) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdThreadsByParentMessageIdMessages({
+          client,
+          path: { id, parentMessageId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch thread messages",
+    );
+  }
+
+  async function markChatRoomThreadRead(id: string, parentMessageId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdThreadsByParentMessageIdRead({
+          client,
+          path: { id, parentMessageId },
+        }),
+      "Failed to mark thread looked",
+    );
+  }
+
+  async function markChatRoomThreadsRead(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdThreadsRead({
+          client,
+          path: { id },
+        }),
+      "Failed to mark unread threads looked",
     );
   }
 
@@ -3773,9 +3851,14 @@ export function createCoreClient(getClient: GetClient) {
     deleteTaskSchedule,
     getChatRoom,
     getChatRoomMessages,
+    getChatRoomThread,
+    getChatRoomThreadMessages,
+    getChatRoomThreads,
     getChatRooms,
     getDiscoverableChatRooms,
     markChatRoomRead,
+    markChatRoomThreadsRead,
+    markChatRoomThreadRead,
     pinChatRoom,
     unpinChatRoom,
     muteChatRoom,

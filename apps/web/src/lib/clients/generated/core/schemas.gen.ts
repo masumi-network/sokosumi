@@ -4901,6 +4901,49 @@ export const LeftChatRoomSchema = {
     ]
 } as const;
 
+export const ChatRoomThreadSchema = {
+    type: 'object',
+    properties: {
+        parentMessage: {
+            $ref: '#/components/schemas/ChatRoomMessage'
+        },
+        replyCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Non-deleted replies under this parent.',
+            example: 5
+        },
+        lastReplyAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-07-02T12:00:00.000Z',
+            description: 'createdAt of the newest non-deleted reply.'
+        },
+        unreadReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-deleted replies from others after the look baseline for this parent.',
+            example: 2
+        },
+        lastUnreadReplyAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-07-02T12:00:00.000Z',
+            description: 'createdAt of the newest qualifying unread reply, or null when none.'
+        }
+    },
+    required: [
+        'parentMessage',
+        'replyCount',
+        'lastReplyAt',
+        'unreadReplyCount',
+        'lastUnreadReplyAt'
+    ]
+} as const;
+
 export const ChatRoomMessageSchema = {
     type: 'object',
     properties: {
@@ -5209,6 +5252,41 @@ export const ChatRoomMessageQuoteAttachmentSchema = {
         'fileName',
         'url',
         'mediaKind'
+    ]
+} as const;
+
+export const ChatRoomThreadsMarkAllSchema = {
+    type: 'object',
+    properties: {
+        markedCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of parent threads whose look state was upserted.',
+            example: 3
+        }
+    },
+    required: [
+        'markedCount'
+    ]
+} as const;
+
+export const ChatRoomThreadReadStateSchema = {
+    type: 'object',
+    properties: {
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        lastReadAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'parentMessageId',
+        'lastReadAt'
     ]
 } as const;
 
