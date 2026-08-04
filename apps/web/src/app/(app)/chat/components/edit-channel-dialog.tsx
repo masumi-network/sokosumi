@@ -47,16 +47,15 @@ export function EditChannelDialog({
   channel,
   members,
   coworkers,
-  canArchive,
+  canManage,
   canLeave,
   membersLoadFailed = false,
 }: {
   channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
-  /** Creator or organization owner/admin — archiving hides the room for
-   * everyone. */
-  canArchive: boolean;
+  /** Creator or organization owner/admin — manage name/topic/members/archive. */
+  canManage: boolean;
   /** Any member can leave, except the last one: an empty roster could not be
    * archived by a remaining elevated member. */
   canLeave: boolean;
@@ -96,11 +95,12 @@ export function EditChannelDialog({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canManage) return;
     startTransition(async () => {
       const result = await updateRoomAction(channel.id, {
         name,
         topic,
-        ...(canArchive ? { discoverability } : {}),
+        discoverability,
         memberUserIds: memberIds,
         coworkerIds,
       });
@@ -178,26 +178,28 @@ export function EditChannelDialog({
                 {t("Dialog.editDescription")}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-channel-name">{t("Dialog.name")}</Label>
-                <Input
-                  id="edit-channel-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-channel-topic">{t("Dialog.topic")}</Label>
-                <Textarea
-                  id="edit-channel-topic"
-                  value={topic}
-                  onChange={(event) => setTopic(event.target.value)}
-                  rows={3}
-                />
-              </div>
-              {canArchive ? (
+            {canManage ? (
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-channel-name">{t("Dialog.name")}</Label>
+                  <Input
+                    id="edit-channel-name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-channel-topic">
+                    {t("Dialog.topic")}
+                  </Label>
+                  <Textarea
+                    id="edit-channel-topic"
+                    value={topic}
+                    onChange={(event) => setTopic(event.target.value)}
+                    rows={3}
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label>{t("Visibility.label")}</Label>
                   <RadioGroup
@@ -237,18 +239,18 @@ export function EditChannelDialog({
                       : t("Visibility.privateHelp")}
                   </p>
                 </div>
-              ) : null}
-              <ParticipantCheckboxes
-                members={members}
-                coworkers={coworkers}
-                memberIds={memberIds}
-                coworkerIds={coworkerIds}
-                onMemberIdsChange={setMemberIds}
-                onCoworkerIdsChange={setCoworkerIds}
-                membersLoadFailed={membersLoadFailed}
-              />
-            </div>
-            {canArchive || canLeave ? (
+                <ParticipantCheckboxes
+                  members={members}
+                  coworkers={coworkers}
+                  memberIds={memberIds}
+                  coworkerIds={coworkerIds}
+                  onMemberIdsChange={setMemberIds}
+                  onCoworkerIdsChange={setCoworkerIds}
+                  membersLoadFailed={membersLoadFailed}
+                />
+              </div>
+            ) : null}
+            {canManage || canLeave ? (
               <div className="space-y-3 border-t pt-4">
                 <p className="text-sm font-medium">
                   {tActions("sectionTitle")}
@@ -265,7 +267,7 @@ export function EditChannelDialog({
                       {tActions("leave")}
                     </Button>
                   ) : null}
-                  {canArchive ? (
+                  {canManage ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -287,10 +289,14 @@ export function EditChannelDialog({
               >
                 {t("Dialog.cancel")}
               </Button>
-              <Button type="submit" variant="primary" disabled={isPending}>
-                {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-                {t("Dialog.save")}
-              </Button>
+              {canManage ? (
+                <Button type="submit" variant="primary" disabled={isPending}>
+                  {isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : null}
+                  {t("Dialog.save")}
+                </Button>
+              ) : null}
             </DialogFooter>
           </form>
         </DialogContent>
