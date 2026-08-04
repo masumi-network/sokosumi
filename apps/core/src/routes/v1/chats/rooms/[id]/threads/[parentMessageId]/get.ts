@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -8,12 +9,9 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatRoomUnreadThreadSchema } from "@/schemas/chat-room.schema";
+import { chatRoomThreadSchema } from "@/schemas/chat-room.schema";
 
-import {
-  listChatRoomUnreadThreads,
-  requireChatRoomUserAccess,
-} from "../../helpers";
+import { getChatRoomThread, requireChatRoomUserAccess } from "../../../helpers";
 
 const paramsSchema = z.object({
   id: z
@@ -23,26 +21,30 @@ const paramsSchema = z.object({
       param: { name: "id", in: "path" },
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
+  parentMessageId: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "parentMessageId", in: "path" },
+      example: "550e8400-e29b-41d4-a716-446655440001",
+    }),
 });
 
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
-    path: "/{id}/unread-threads",
+    path: "/{id}/threads/{parentMessageId}",
     description:
-      "List top-level messages in a room that have unread thread replies for the current user. Look baseline is per-thread lastReadAt, else room read-state createdAt, else all history. Independent of room mark-read.",
+      "Get one thread summary by root parent message id. 404 when missing, not a root, soft-deleted, or has no replies.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(
-        z.array(chatRoomUnreadThreadSchema),
-        "Unread threads",
-      ),
+      200: jsonSuccessResponse(chatRoomThreadSchema, "Thread"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("Room not found"),
+      404: jsonErrorResponse("Thread not found"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -51,19 +53,23 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
-    const { id } = c.req.valid("param");
+    const { id, parentMessageId } = c.req.valid("param");
 
     const room = await requireChatRoomUserAccess(
       id,
       userContext.userId,
       prisma,
     );
-    const items = await listChatRoomUnreadThreads(
+    const thread = await getChatRoomThread(
       room.id,
       userContext.userId,
+      parentMessageId,
       prisma,
     );
+    if (!thread) {
+      throw notFound("Thread not found");
+    }
 
-    return ok(c, z.array(chatRoomUnreadThreadSchema).parse(items));
+    return ok(c, chatRoomThreadSchema.parse(thread));
   });
 }

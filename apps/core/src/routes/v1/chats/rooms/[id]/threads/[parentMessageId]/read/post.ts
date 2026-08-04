@@ -11,7 +11,10 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomThreadReadStateSchema } from "@/schemas/chat-room.schema";
 
-import { requireChatRoomUserAccess } from "../../../../helpers";
+import {
+  markChatRoomThreadRead,
+  requireChatRoomUserAccess,
+} from "../../../../helpers";
 
 const paramsSchema = z.object({
   id: z
@@ -21,11 +24,11 @@ const paramsSchema = z.object({
       param: { name: "id", in: "path" },
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
-  messageId: z
+  parentMessageId: z
     .string()
     .uuid()
     .openapi({
-      param: { name: "messageId", in: "path" },
+      param: { name: "parentMessageId", in: "path" },
       example: "550e8400-e29b-41d4-a716-446655440001",
     }),
 });
@@ -33,9 +36,9 @@ const paramsSchema = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
-    path: "/{id}/messages/{messageId}/read",
+    path: "/{id}/threads/{parentMessageId}/read",
     description:
-      "Mark a top-level room message as looked for the current user (ThreadPanel open). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.",
+      "Mark a thread root as looked for the current user (ThreadPanel open). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -47,7 +50,7 @@ const route = withGlobalHeaderParameters(
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("Room or message not found"),
+      404: jsonErrorResponse("Thread not found"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -56,49 +59,23 @@ const route = withGlobalHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
-    const { id, messageId } = c.req.valid("param");
-    const readAt = new Date();
+    const { id, parentMessageId } = c.req.valid("param");
 
     const room = await requireChatRoomUserAccess(
       id,
       userContext.userId,
       prisma,
     );
-
-    const parent = await prisma.chatRoomMessage.findFirst({
-      where: {
-        id: messageId,
-        roomId: room.id,
-        parentMessageId: null,
-      },
-      select: { id: true },
-    });
-
-    if (!parent) {
-      throw notFound("Message not found");
+    const state = await markChatRoomThreadRead(
+      room.id,
+      userContext.userId,
+      parentMessageId,
+      prisma,
+    );
+    if (!state) {
+      throw notFound("Thread not found");
     }
 
-    const state = await prisma.chatRoomThreadReadState.upsert({
-      where: {
-        userId_parentMessageId: {
-          userId: userContext.userId,
-          parentMessageId: parent.id,
-        },
-      },
-      update: { lastReadAt: readAt },
-      create: {
-        userId: userContext.userId,
-        parentMessageId: parent.id,
-        lastReadAt: readAt,
-      },
-    });
-
-    return ok(
-      c,
-      chatRoomThreadReadStateSchema.parse({
-        parentMessageId: state.parentMessageId,
-        lastReadAt: state.lastReadAt,
-      }),
-    );
+    return ok(c, chatRoomThreadReadStateSchema.parse(state));
   });
 }

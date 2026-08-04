@@ -159,40 +159,63 @@ export async function getChatRoomUnreadCounts(
   return new Map(rows.map((row) => [row.roomId, Number(row.unreadCount)]));
 }
 
-export interface ChatRoomUnreadThreadAggregate {
+export interface ChatRoomThreadAggregate {
   parentMessageId: string;
+  replyCount: number;
+  lastReplyAt: Date;
   unreadReplyCount: number;
-  lastUnreadReplyAt: Date;
+  lastUnreadReplyAt: Date | null;
 }
 
 /**
- * Parents (top-level messages) in a room that have ≥1 non-deleted, non-self
- * reply after the caller's look baseline.
+ * Parents (top-level messages) in a room that have ≥1 non-deleted reply,
+ * with per-user unread counts.
  *
  * Look baseline per parent:
  * 1. ChatRoomThreadReadState.lastReadAt when a row exists
  * 2. else ChatRoomReadState.createdAt for (room, user) when present
  * 3. else -infinity (all historical non-self replies count)
  *
- * Never uses room lastReadAt — room mark-read must not clear unread-thread look state.
+ * Never uses room lastReadAt — room mark-read must not clear thread look state.
  */
-export async function getChatRoomUnreadThreadAggregates(
+export async function getChatRoomThreadAggregates(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
-): Promise<ChatRoomUnreadThreadAggregate[]> {
+  options?: { unreadOnly?: boolean; parentMessageId?: string },
+): Promise<ChatRoomThreadAggregate[]> {
+  const unreadOnly = options?.unreadOnly === true;
+  const parentMessageId = options?.parentMessageId;
   const rows = await tx.$queryRawUnsafe<
     Array<{
       parentMessageId: string;
+      replyCount: number | bigint;
+      lastReplyAt: Date;
       unreadReplyCount: number | bigint;
-      lastUnreadReplyAt: Date;
+      lastUnreadReplyAt: Date | null;
     }>
   >(
     `
     SELECT
       parent.id AS "parentMessageId",
-      COUNT(reply.id)::int AS "unreadReplyCount",
-      MAX(reply."createdAt") AS "lastUnreadReplyAt"
+      COUNT(reply.id)::int AS "replyCount",
+      MAX(reply."createdAt") AS "lastReplyAt",
+      COUNT(reply.id) FILTER (
+        WHERE (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+          AND reply."createdAt" > COALESCE(
+            thread_read."lastReadAt",
+            room_read."createdAt",
+            '-infinity'::timestamp
+          )
+      )::int AS "unreadReplyCount",
+      MAX(reply."createdAt") FILTER (
+        WHERE (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+          AND reply."createdAt" > COALESCE(
+            thread_read."lastReadAt",
+            room_read."createdAt",
+            '-infinity'::timestamp
+          )
+      ) AS "lastUnreadReplyAt"
     FROM "chat_room_message" reply
     INNER JOIN "chat_room_message" parent
       ON parent.id = reply."parentMessageId"
@@ -208,41 +231,41 @@ export async function getChatRoomUnreadThreadAggregates(
       AND reply."deletedAt" IS NULL
       AND parent."deletedAt" IS NULL
       AND parent."parentMessageId" IS NULL
-      AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
-      AND reply."createdAt" > COALESCE(
-        thread_read."lastReadAt",
-        room_read."createdAt",
-        '-infinity'::timestamp
-      )
+      ${parentMessageId ? "AND parent.id = $3::uuid" : ""}
     GROUP BY parent.id
+    HAVING COUNT(reply.id) >= 1
     ORDER BY MAX(reply."createdAt") DESC
     `,
-    roomId,
-    userId,
+    ...(parentMessageId ? [roomId, userId, parentMessageId] : [roomId, userId]),
   );
 
-  return rows.map((row) => ({
+  const aggregates = rows.map((row) => ({
     parentMessageId: row.parentMessageId,
+    replyCount: Number(row.replyCount),
+    lastReplyAt: row.lastReplyAt,
     unreadReplyCount: Number(row.unreadReplyCount),
     lastUnreadReplyAt: row.lastUnreadReplyAt,
   }));
+
+  if (!unreadOnly) {
+    return aggregates;
+  }
+
+  return aggregates
+    .filter((row) => row.unreadReplyCount >= 1)
+    .toSorted((a, b) => {
+      const aAt = a.lastUnreadReplyAt?.getTime() ?? 0;
+      const bAt = b.lastUnreadReplyAt?.getTime() ?? 0;
+      return bAt - aAt;
+    });
 }
 
-/**
- * Attention list with mapped parent messages, sorted by newest unread reply.
- * Soft-deleted parents are omitted by the aggregate query; a missing findMany
- * row (race) is skipped.
- */
-export async function listChatRoomUnreadThreads(
+async function mapThreadAggregates(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
+  aggregates: ChatRoomThreadAggregate[],
 ) {
-  const aggregates = await getChatRoomUnreadThreadAggregates(
-    roomId,
-    userId,
-    tx,
-  );
   if (aggregates.length === 0) {
     return [];
   }
@@ -266,6 +289,8 @@ export async function listChatRoomUnreadThreads(
     return [
       {
         parentMessage: mapChatRoomMessage(parent, userId),
+        replyCount: aggregate.replyCount,
+        lastReplyAt: aggregate.lastReplyAt,
         unreadReplyCount: aggregate.unreadReplyCount,
         lastUnreadReplyAt: aggregate.lastUnreadReplyAt,
       },
@@ -274,19 +299,92 @@ export async function listChatRoomUnreadThreads(
 }
 
 /**
+ * List threads in a room. When `unreadOnly`, only parents with ≥1 unread
+ * non-self reply after the look baseline.
+ */
+export async function listChatRoomThreads(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+  options?: { unreadOnly?: boolean },
+) {
+  const aggregates = await getChatRoomThreadAggregates(roomId, userId, tx, {
+    unreadOnly: options?.unreadOnly,
+  });
+  return mapThreadAggregates(roomId, userId, tx, aggregates);
+}
+
+/**
+ * One thread summary by parent id, or null when missing / not a thread.
+ */
+export async function getChatRoomThread(
+  roomId: string,
+  userId: string,
+  parentMessageId: string,
+  tx: Prisma.TransactionClient,
+) {
+  const aggregates = await getChatRoomThreadAggregates(roomId, userId, tx, {
+    parentMessageId,
+  });
+  const items = await mapThreadAggregates(roomId, userId, tx, aggregates);
+  return items[0] ?? null;
+}
+
+/**
+ * Upsert look state for a top-level parent. Returns null when parent missing.
+ */
+export async function markChatRoomThreadRead(
+  roomId: string,
+  userId: string,
+  parentMessageId: string,
+  tx: Prisma.TransactionClient,
+): Promise<{ parentMessageId: string; lastReadAt: Date } | null> {
+  const parent = await tx.chatRoomMessage.findFirst({
+    where: {
+      id: parentMessageId,
+      roomId,
+      parentMessageId: null,
+    },
+    select: { id: true },
+  });
+  if (!parent) {
+    return null;
+  }
+
+  const readAt = new Date();
+  const state = await tx.chatRoomThreadReadState.upsert({
+    where: {
+      userId_parentMessageId: {
+        userId,
+        parentMessageId: parent.id,
+      },
+    },
+    update: { lastReadAt: readAt },
+    create: {
+      userId,
+      parentMessageId: parent.id,
+      lastReadAt: readAt,
+    },
+  });
+
+  return {
+    parentMessageId: state.parentMessageId,
+    lastReadAt: state.lastReadAt,
+  };
+}
+
+/**
  * Upsert look state for every parent currently needing attention in the room.
  * Does not change room ChatRoomReadState or CHAT notifications.
  */
-export async function markAllChatRoomUnreadThreadsRead(
+export async function markAllChatRoomThreadsRead(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
 ): Promise<number> {
-  const aggregates = await getChatRoomUnreadThreadAggregates(
-    roomId,
-    userId,
-    tx,
-  );
+  const aggregates = await getChatRoomThreadAggregates(roomId, userId, tx, {
+    unreadOnly: true,
+  });
   if (aggregates.length === 0) {
     return 0;
   }

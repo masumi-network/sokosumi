@@ -8,10 +8,10 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatRoomUnreadThreadsMarkAllSchema } from "@/schemas/chat-room.schema";
+import { chatRoomThreadsMarkAllSchema } from "@/schemas/chat-room.schema";
 
 import {
-  markAllChatRoomUnreadThreadsRead,
+  markAllChatRoomThreadsRead,
   requireChatRoomUserAccess,
 } from "../../../helpers";
 
@@ -28,7 +28,7 @@ const paramsSchema = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
-    path: "/{id}/unread-threads/read",
+    path: "/{id}/threads/read",
     description:
       "Mark every unread thread in a room as looked for the current user. Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.",
     tags: ["Chat Rooms"],
@@ -37,7 +37,7 @@ const route = withGlobalHeaderParameters(
     },
     responses: {
       200: jsonSuccessResponse(
-        chatRoomUnreadThreadsMarkAllSchema,
+        chatRoomThreadsMarkAllSchema,
         "Unread threads marked looked",
       ),
       401: jsonErrorResponse("Unauthorized"),
@@ -58,12 +58,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const markedCount = await markAllChatRoomUnreadThreadsRead(
+    const markedCount = await markAllChatRoomThreadsRead(
       room.id,
       userContext.userId,
       prisma,
     );
 
-    return ok(c, chatRoomUnreadThreadsMarkAllSchema.parse({ markedCount }));
+    return ok(c, chatRoomThreadsMarkAllSchema.parse({ markedCount }));
   });
 }
