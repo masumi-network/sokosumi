@@ -1,4 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
+import { type ReactNode, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -11,9 +12,7 @@ const getNotificationsUnreadCountMock = vi.fn();
 const useNotificationRealtimeMock = vi.fn();
 
 const lazyAblyProviderMock = vi.fn(
-  ({ children }: { children: React.ReactNode }): React.ReactNode => (
-    <>{children}</>
-  ),
+  ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
 );
 
 vi.mock("@/lib/clients/core.browser.client", () => ({
@@ -32,14 +31,13 @@ vi.mock("@/lib/ably/use-notification-realtime", () => ({
 }));
 
 vi.mock("ably/react", () => ({
-  ChannelProvider: ({ children }: { children: React.ReactNode }) => (
+  ChannelProvider: ({ children }: { children: ReactNode }) => (
     <div data-testid="notifications-channel-provider">{children}</div>
   ),
 }));
 
 vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: (props: { children: React.ReactNode }) =>
-    lazyAblyProviderMock(props),
+  default: (props: { children: ReactNode }) => lazyAblyProviderMock(props),
 }));
 
 vi.mock("@/app/components/notification-toast-listener", () => ({
@@ -70,9 +68,7 @@ describe("NotificationProvider island", () => {
     useNotificationRealtimeMock.mockReset();
     lazyAblyProviderMock.mockReset();
     lazyAblyProviderMock.mockImplementation(
-      ({ children }: { children: React.ReactNode }): React.ReactNode => (
-        <>{children}</>
-      ),
+      ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
     );
 
     getNotificationsMock.mockResolvedValue({ data: [] });
@@ -80,7 +76,7 @@ describe("NotificationProvider island", () => {
   });
 
   it("renders children and REST context without waiting on Ably", async () => {
-    lazyAblyProviderMock.mockImplementation((): React.ReactNode => null);
+    lazyAblyProviderMock.mockImplementation((): ReactNode => null);
 
     render(
       <NotificationProvider userId="user-1">
@@ -129,7 +125,7 @@ describe("NotificationProvider island", () => {
   });
 
   it("surfaces fetch errors on the immediate path without Ably", async () => {
-    lazyAblyProviderMock.mockImplementation((): React.ReactNode => null);
+    lazyAblyProviderMock.mockImplementation((): ReactNode => null);
     getNotificationsMock.mockRejectedValue(new Error("network down"));
 
     const consoleError = vi
@@ -152,5 +148,77 @@ describe("NotificationProvider island", () => {
     expect(useNotificationRealtimeMock).not.toHaveBeenCalled();
 
     consoleError.mockRestore();
+  });
+
+  it("refetches after the Ably island mounts so REST-before-subscribe gaps close", async () => {
+    let islandOpen = false;
+    let bumpGate: (() => void) | null = null;
+
+    function GatedLazyAbly({ children }: { children: ReactNode }) {
+      const [, setTick] = useState(0);
+      bumpGate = () => {
+        setTick((tick) => tick + 1);
+      };
+      if (!islandOpen) {
+        return null;
+      }
+      return <>{children}</>;
+    }
+
+    lazyAblyProviderMock.mockImplementation(
+      ({ children }: { children: ReactNode }) => (
+        <GatedLazyAbly>{children}</GatedLazyAbly>
+      ),
+    );
+
+    getNotificationsMock
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "notification-gap",
+            userId: "user-1",
+            kind: "JOB",
+            referenceId: "job-1",
+            eventId: "event-1",
+            messageKey: "Notifications.Job.completed",
+            messageParams: {},
+            metadata: {},
+            isRead: false,
+            readAt: null,
+            createdAt: new Date("2026-06-18T09:00:00.000Z"),
+          },
+        ],
+      });
+    getNotificationsUnreadCountMock
+      .mockResolvedValueOnce({ data: { count: 0 } })
+      .mockResolvedValueOnce({ data: { count: 1 } });
+
+    render(
+      <NotificationProvider userId="user-1">
+        <NotificationConsumer />
+      </NotificationProvider>,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getNotificationsMock).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("0");
+    expect(useNotificationRealtimeMock).not.toHaveBeenCalled();
+
+    islandOpen = true;
+    await act(async () => {
+      bumpGate?.();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(useNotificationRealtimeMock).toHaveBeenCalled();
+    expect(getNotificationsMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId("unread-count")).toHaveTextContent("1");
   });
 });

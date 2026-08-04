@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 import { NotificationToastListener } from "@/app/components/notification-toast-listener";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   makeUserNotificationsChannelName,
   type NotificationEventData,
@@ -233,9 +234,11 @@ interface NotificationProviderProps {
 function NotificationRealtimeBridge({
   userId,
   onNotification,
+  onSubscribed,
 }: {
   userId: string;
   onNotification: (notification: NotificationEventData) => void;
+  onSubscribed: () => void;
 }) {
   useNotificationRealtime({
     userId,
@@ -243,6 +246,10 @@ function NotificationRealtimeBridge({
     onError: (error) => {
       console.error("Ably notification error:", error);
     },
+  });
+
+  useMountEffect(() => {
+    onSubscribed();
   });
 
   return null;
@@ -350,6 +357,10 @@ export function NotificationProvider({
     [],
   );
 
+  const handleRealtimeSubscribed = useCallback(() => {
+    void fetchNotifications();
+  }, [fetchNotifications]);
+
   useEffect(() => {
     void fetchNotifications();
   }, [fetchNotifications]);
@@ -372,6 +383,7 @@ export function NotificationProvider({
           <NotificationRealtimeBridge
             userId={userId}
             onNotification={handleNotificationEvent}
+            onSubscribed={handleRealtimeSubscribed}
           />
           <NotificationToastListener userId={userId} markRead={markRead} />
         </ChannelProvider>
