@@ -20,11 +20,12 @@ vi.mock("@/lib/utils/datetime.client", () => ({
 }));
 
 const labels = {
-  open: "Threads needing attention",
-  title: "Threads needing attention",
-  empty: "No threads need attention.",
+  open: "Unread threads",
+  title: "Unread Threads",
+  empty: "No unread threads.",
   loading: "Loading threads…",
   error: "Could not load threads.",
+  startedBy: (name: string) => `Started by ${name}`,
   unreadReplies: (count: number) =>
     count === 1 ? "1 unread reply" : `${count} unread replies`,
 };
@@ -105,7 +106,36 @@ describe("ThreadAttentionPanel", () => {
     expect(
       await screen.findByTestId("thread-attention-item"),
     ).toHaveTextContent("Budget review parent");
+    expect(screen.getByText(/Started by Ada/)).toBeInTheDocument();
     expect(screen.getByText("2 unread replies")).toBeInTheDocument();
+  });
+
+  it("shows a plain-text preview instead of raw markdown mentions", async () => {
+    listThreadAttentionActionMock.mockResolvedValue({
+      ok: true,
+      data: [
+        attentionItem({
+          parentMessage: parentMessage({
+            content:
+              "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:noodles Hello **Noodles**",
+          }),
+        }),
+      ],
+    });
+
+    render(
+      <ThreadAttentionPanel
+        roomId="550e8400-e29b-41d4-a716-446655440000"
+        labels={labels}
+        onOpenThread={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("thread-attention-trigger"));
+    const item = await screen.findByTestId("thread-attention-item");
+    expect(item).toHaveTextContent("@noodles Hello Noodles");
+    expect(item).not.toHaveTextContent("019fc7e4");
+    expect(item).not.toHaveTextContent("**");
   });
 
   it("shows empty state when nothing needs attention", async () => {

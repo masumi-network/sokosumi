@@ -1371,6 +1371,8 @@ export function RoomsClient({
                       empty: t("ThreadAttention.empty"),
                       loading: t("ThreadAttention.loading"),
                       error: t("ThreadAttention.error"),
+                      startedBy: (name) =>
+                        t("ThreadAttention.startedBy", { name }),
                       unreadReplies: (count) =>
                         t("ThreadAttention.unreadReplies", { count }),
                     }}

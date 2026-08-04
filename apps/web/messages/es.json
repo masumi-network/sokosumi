@@ -4713,11 +4713,12 @@
         "replyBadge": "Respuesta del hilo"
       },
       "ThreadAttention": {
-        "open": "Hilos que necesitan atención",
-        "title": "Hilos que necesitan atención",
-        "empty": "Ningún hilo necesita atención.",
+        "open": "Hilos sin leer",
+        "title": "Hilos sin leer",
+        "empty": "No hay hilos sin leer.",
         "loading": "Cargando hilos…",
         "error": "No se pudieron cargar los hilos. Inténtalo de nuevo.",
+        "startedBy": "Iniciado por {name}",
         "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}"
       },
       "Toolbar": {

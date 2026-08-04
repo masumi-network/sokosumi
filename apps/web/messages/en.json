@@ -4832,11 +4832,12 @@
         "replyBadge": "Thread reply"
       },
       "ThreadAttention": {
-        "open": "Threads needing attention",
-        "title": "Threads needing attention",
-        "empty": "No threads need attention.",
+        "open": "Unread threads",
+        "title": "Unread Threads",
+        "empty": "No unread threads.",
         "loading": "Loading threads…",
         "error": "Could not load threads. Try again.",
+        "startedBy": "Started by {name}",
         "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}"
       },
       "Toolbar": {

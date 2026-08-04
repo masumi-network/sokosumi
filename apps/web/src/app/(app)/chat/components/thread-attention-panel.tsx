@@ -4,6 +4,7 @@ import { Loader2, MessagesSquare } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { listThreadAttentionAction } from "@/app/chat/actions";
 import { messageSender } from "@/app/chat/components/room-helpers";
+import { formatThreadAttentionPreview } from "@/app/chat/utils/thread-attention-preview";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -23,6 +24,7 @@ export interface ThreadAttentionPanelLabels {
   empty: string;
   loading: string;
   error: string;
+  startedBy: (name: string) => string;
   unreadReplies: (count: number) => string;
 }
 
@@ -136,6 +138,9 @@ export function ThreadAttentionPanel({
           {items.map((item) => {
             const sender = messageSender(item.parentMessage);
             const lastAt = item.lastUnreadReplyAt;
+            const preview =
+              formatThreadAttentionPreview(item.parentMessage.content) ||
+              sender.name;
             return (
               <button
                 key={item.parentMessage.id}
@@ -146,19 +151,22 @@ export function ThreadAttentionPanel({
                 onClick={() => handleSelect(item)}
                 data-testid="thread-attention-item"
               >
-                <div className="flex items-center gap-2">
-                  <span className="truncate font-medium">{sender.name}</span>
-                  <span className="text-muted-foreground ml-auto shrink-0 text-xs">
+                <div className="flex items-start gap-2">
+                  <span className="line-clamp-2 min-w-0 flex-1 font-medium">
+                    {preview}
+                  </span>
+                  <span className="text-muted-foreground shrink-0 text-xs">
                     {formatTimeAgo(
                       lastAt instanceof Date ? lastAt : new Date(lastAt),
                     )}
                   </span>
                 </div>
-                <p className="text-muted-foreground line-clamp-2 text-xs">
-                  {item.parentMessage.content}
-                </p>
-                <p className="text-foreground text-xs font-medium">
-                  {labels.unreadReplies(item.unreadReplyCount)}
+                <p className="text-muted-foreground truncate text-xs">
+                  {labels.startedBy(sender.name)}
+                  <span aria-hidden="true"> · </span>
+                  <span className="text-foreground font-medium">
+                    {labels.unreadReplies(item.unreadReplyCount)}
+                  </span>
                 </p>
               </button>
             );

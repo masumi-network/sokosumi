@@ -4713,11 +4713,12 @@
         "replyBadge": "Resposta do tópico"
       },
       "ThreadAttention": {
-        "open": "Tópicos que precisam de atenção",
-        "title": "Tópicos que precisam de atenção",
-        "empty": "Nenhum tópico precisa de atenção.",
+        "open": "Tópicos não lidos",
+        "title": "Tópicos não lidos",
+        "empty": "Nenhum tópico não lido.",
         "loading": "Carregando tópicos…",
         "error": "Não foi possível carregar os tópicos. Tente novamente.",
+        "startedBy": "Iniciado por {name}",
         "unreadReplies": "{count, plural, one {# resposta não lida} other {# respostas não lidas}}"
       },
       "Toolbar": {

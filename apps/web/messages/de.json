@@ -4713,11 +4713,12 @@
         "replyBadge": "Thread-Antwort"
       },
       "ThreadAttention": {
-        "open": "Threads, die Aufmerksamkeit brauchen",
-        "title": "Threads, die Aufmerksamkeit brauchen",
-        "empty": "Keine Threads brauchen Aufmerksamkeit.",
+        "open": "Ungelesene Threads",
+        "title": "Ungelesene Threads",
+        "empty": "Keine ungelesenen Threads.",
         "loading": "Threads werden geladen…",
-        "error": "Threads konnten nicht geladen werden. Versuch es erneut.",
+        "error": "Threads konnten nicht geladen werden. Bitte erneut versuchen.",
+        "startedBy": "Gestartet von {name}",
         "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
       },
       "Toolbar": {

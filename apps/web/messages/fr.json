@@ -4713,11 +4713,12 @@
         "replyBadge": "Réponse du fil"
       },
       "ThreadAttention": {
-        "open": "Fils nécessitant une attention",
-        "title": "Fils nécessitant une attention",
-        "empty": "Aucun fil ne nécessite d'attention.",
+        "open": "Fils non lus",
+        "title": "Fils non lus",
+        "empty": "Aucun fil non lu.",
         "loading": "Chargement des fils…",
         "error": "Impossible de charger les fils. Réessayez.",
+        "startedBy": "Démarré par {name}",
         "unreadReplies": "{count, plural, one {# réponse non lue} other {# réponses non lues}}"
       },
       "Toolbar": {
