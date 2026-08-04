@@ -95,7 +95,10 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("blocks deletion while a task payment claim is pending", async () => {
-    taskPaymentClaimFindFirstMock.mockResolvedValue({ id: "claim_pending" });
+    taskPaymentClaimFindFirstMock.mockResolvedValue({
+      id: "claim_pending",
+      reviewRequiredAt: null,
+    });
 
     const promise = prepareTasksForUserDeletion("user_delete", {
       $transaction: transactionMock,
@@ -104,6 +107,26 @@ describe("prepareTasksForUserDeletion", () => {
     await expect(promise).rejects.toMatchObject({
       status: "BAD_REQUEST",
       body: expect.objectContaining({ code: "TASK_PAYMENT_CLAIM_PENDING" }),
+    });
+    expect(taskPaymentClaimDeleteManyMock).not.toHaveBeenCalled();
+    expect(taskDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("directs reviewed claims to administrator recovery before deletion", async () => {
+    taskPaymentClaimFindFirstMock.mockResolvedValue({
+      id: "claim_review",
+      reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
+    });
+
+    const promise = prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    await expect(promise).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({
+        code: "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
+      }),
     });
     expect(taskPaymentClaimDeleteManyMock).not.toHaveBeenCalled();
     expect(taskDeleteManyMock).not.toHaveBeenCalled();

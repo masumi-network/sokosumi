@@ -3181,6 +3181,201 @@ export const TaskFileUploaderCoworkerSchema = {
     ]
 } as const;
 
+export const AdminTaskPaymentClaimSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'Preprod',
+                'Mainnet'
+            ]
+        },
+        blockchainIdentifier: {
+            type: 'string'
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        attemptCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        lastAttemptAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        nextAttemptAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        reviewRequiredAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        taskEventId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        transactionId: {
+            type: 'string'
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                },
+                email: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'network',
+        'blockchainIdentifier',
+        'failureReason',
+        'attemptCount',
+        'lastAttemptAt',
+        'nextAttemptAt',
+        'reviewRequiredAt',
+        'taskEventId',
+        'transactionId',
+        'user'
+    ]
+} as const;
+
+export const AdminTaskPaymentClaimActionResultSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                status: {
+                    type: 'string',
+                    enum: [
+                        'purchased'
+                    ]
+                },
+                purchaseId: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'status',
+                'purchaseId'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                status: {
+                    type: 'string',
+                    enum: [
+                        'refunded'
+                    ]
+                },
+                reason: {
+                    type: 'string'
+                },
+                compensated: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'status',
+                'reason',
+                'compensated'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                status: {
+                    type: 'string',
+                    enum: [
+                        'retry_scheduled'
+                    ]
+                },
+                reason: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'status',
+                'reason'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                status: {
+                    type: 'string',
+                    enum: [
+                        'review_required'
+                    ]
+                },
+                reason: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'status',
+                'reason'
+            ]
+        }
+    ]
+} as const;
+
+export const RefundAdminTaskPaymentClaimBodySchema = {
+    type: 'object',
+    properties: {
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        }
+    },
+    required: [
+        'reason'
+    ]
+} as const;
+
 export const VendorListSchema = {
     type: 'array',
     items: {

@@ -869,6 +869,45 @@ export type TaskFileUploaderCoworker = {
     coworker: CoworkerSummary;
 };
 
+export type AdminTaskPaymentClaim = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    network: 'Preprod' | 'Mainnet';
+    blockchainIdentifier: string;
+    failureReason: string | null;
+    attemptCount: number;
+    lastAttemptAt: Date | null;
+    nextAttemptAt: Date;
+    reviewRequiredAt: Date;
+    taskEventId: string | null;
+    transactionId: string;
+    user: {
+        id: string;
+        name: string;
+        email: string;
+    };
+};
+
+export type AdminTaskPaymentClaimActionResult = {
+    status: 'purchased';
+    purchaseId: string;
+} | {
+    status: 'refunded';
+    reason: string;
+    compensated: boolean;
+} | {
+    status: 'retry_scheduled';
+    reason: string;
+} | {
+    status: 'review_required';
+    reason: string;
+};
+
+export type RefundAdminTaskPaymentClaimBody = {
+    reason: string;
+};
+
 export type VendorList = Array<Vendor>;
 
 export type Vendor = {
@@ -5806,6 +5845,310 @@ export type GetAdminTaskResponses = {
 };
 
 export type GetAdminTaskResponse = GetAdminTaskResponses[keyof GetAdminTaskResponses];
+
+export type ListAdminTaskPaymentClaimsRequiringReviewData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/admin/task-payment-claims';
+};
+
+export type ListAdminTaskPaymentClaimsRequiringReviewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminTaskPaymentClaimsRequiringReviewError = ListAdminTaskPaymentClaimsRequiringReviewErrors[keyof ListAdminTaskPaymentClaimsRequiringReviewErrors];
+
+export type ListAdminTaskPaymentClaimsRequiringReviewResponses = {
+    /**
+     * Task payment claims requiring review
+     */
+    200: {
+        data: Array<AdminTaskPaymentClaim>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminTaskPaymentClaimsRequiringReviewResponse = ListAdminTaskPaymentClaimsRequiringReviewResponses[keyof ListAdminTaskPaymentClaimsRequiringReviewResponses];
+
+export type RefundAdminTaskPaymentClaimData = {
+    body?: RefundAdminTaskPaymentClaimBody;
+    path: {
+        /**
+         * Task payment claim ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/task-payment-claims/{id}/refund';
+};
+
+export type RefundAdminTaskPaymentClaimErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - claim is not available for review
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RefundAdminTaskPaymentClaimError = RefundAdminTaskPaymentClaimErrors[keyof RefundAdminTaskPaymentClaimErrors];
+
+export type RefundAdminTaskPaymentClaimResponses = {
+    /**
+     * Task payment claim refund result
+     */
+    200: {
+        data: AdminTaskPaymentClaimActionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RefundAdminTaskPaymentClaimResponse = RefundAdminTaskPaymentClaimResponses[keyof RefundAdminTaskPaymentClaimResponses];
+
+export type ResolveAdminTaskPaymentClaimData = {
+    body?: never;
+    path: {
+        /**
+         * Task payment claim ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/task-payment-claims/{id}/resolve';
+};
+
+export type ResolveAdminTaskPaymentClaimErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - claim is not available for review
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ResolveAdminTaskPaymentClaimError = ResolveAdminTaskPaymentClaimErrors[keyof ResolveAdminTaskPaymentClaimErrors];
+
+export type ResolveAdminTaskPaymentClaimResponses = {
+    /**
+     * Task payment claim resolution result
+     */
+    200: {
+        data: AdminTaskPaymentClaimActionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ResolveAdminTaskPaymentClaimResponse = ResolveAdminTaskPaymentClaimResponses[keyof ResolveAdminTaskPaymentClaimResponses];
+
+export type RetryAdminTaskPaymentClaimData = {
+    body?: never;
+    path: {
+        /**
+         * Task payment claim ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/task-payment-claims/{id}/retry';
+};
+
+export type RetryAdminTaskPaymentClaimErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - claim is not available for review
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RetryAdminTaskPaymentClaimError = RetryAdminTaskPaymentClaimErrors[keyof RetryAdminTaskPaymentClaimErrors];
+
+export type RetryAdminTaskPaymentClaimResponses = {
+    /**
+     * Task payment claim retry scheduled
+     */
+    200: {
+        data: AdminTaskPaymentClaimActionResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RetryAdminTaskPaymentClaimResponse = RetryAdminTaskPaymentClaimResponses[keyof RetryAdminTaskPaymentClaimResponses];
 
 export type ListAdminVendorsData = {
     body?: never;

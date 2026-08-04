@@ -1212,6 +1212,115 @@ describe("agentSyncService.syncRegistryAgents", () => {
     ).toEqual([{ unit: "lovelace", amount: BigInt(2_000_000) }]);
   });
 
+  it("keeps V2 agents with source-dependent prices unavailable", async () => {
+    const policyId = V2_AGENT_ROOT.slice(0, 56);
+    syncMetadataFindUniqueMock.mockImplementation(
+      async ({ where }: { where: { key: string } }) =>
+        where.key === "cardano-v2-rail-readiness"
+          ? {
+              cursorId: JSON.stringify([
+                {
+                  policyId,
+                  smartContractAddress: "addr_test1_contract",
+                },
+              ]),
+              lastSyncedAt: new Date(),
+            }
+          : {
+              key: "agents-sync-metadata",
+              lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+              cursorId: null,
+            },
+    );
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-v2-mixed-prices", {
+          agentIdentifier: createV2AgentIdentifier(1),
+          paymentType: "Web3CardanoV2",
+          AgentPricing: null,
+          SupportedPaymentSources: [
+            createCardanoV2PaymentSource(),
+            createCardanoV2PaymentSource({
+              sourceIndex: 1,
+              pricing: {
+                pricingType: "Fixed",
+                fixed: [{ asset: "lovelace", amount: "2000000" }],
+              },
+            }),
+          ],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.pricing.create).toEqual({
+      pricingType: PricingType.UNKNOWN,
+    });
+  });
+
+  it("keeps V2 agents available when ready sources have equivalent amounts", async () => {
+    const policyId = V2_AGENT_ROOT.slice(0, 56);
+    syncMetadataFindUniqueMock.mockImplementation(
+      async ({ where }: { where: { key: string } }) =>
+        where.key === "cardano-v2-rail-readiness"
+          ? {
+              cursorId: JSON.stringify([
+                {
+                  policyId,
+                  smartContractAddress: "addr_test1_contract",
+                },
+              ]),
+              lastSyncedAt: new Date(),
+            }
+          : {
+              key: "agents-sync-metadata",
+              lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+              cursorId: null,
+            },
+    );
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-v2-equivalent-prices", {
+          agentIdentifier: createV2AgentIdentifier(1),
+          paymentType: "Web3CardanoV2",
+          AgentPricing: null,
+          SupportedPaymentSources: [
+            createCardanoV2PaymentSource(),
+            createCardanoV2PaymentSource({
+              sourceIndex: 1,
+              pricing: {
+                pricingType: "Fixed",
+                fixed: [
+                  { asset: "lovelace", amount: "400000" },
+                  { asset: "", amount: "600000" },
+                ],
+              },
+            }),
+          ],
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    const createCall = agentCreateMock.mock.calls[0]?.[0];
+    expect(createCall.data.pricing.create.pricingType).toBe(PricingType.FIXED);
+    expect(
+      createCall.data.pricing.create.fixedPricing.create.amounts.createMany
+        .data,
+    ).toEqual([{ unit: "lovelace", amount: BigInt(1_000_000) }]);
+  });
+
   it("canonicalizes uppercase V2 identifiers before persistence", async () => {
     const uppercaseIdentifier = createV2AgentIdentifier(1).toUpperCase();
     getAgentsDiffMock.mockResolvedValue(

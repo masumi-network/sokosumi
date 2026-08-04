@@ -47,6 +47,11 @@ function createResolvedPurchase(overrides: Record<string, unknown> = {}) {
       paymentSourceType: "Web3CardanoV1",
       smartContractAddress: "addr_test1_contract",
     },
+    SellerWallet: {
+      id: "seller_wallet_1",
+      walletVkey: startJobResponse.sellerVKey,
+    },
+    SmartContractWallet: null,
     ...overrides,
   };
 }
@@ -351,6 +356,91 @@ describe("createPurchase duplicate handling", () => {
     expect(result.isErr() && result.error).toBe(
       "Duplicate purchase does not match request",
     );
+  });
+
+  it("rejects a duplicate belonging to a different seller wallet", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Purchase already exists" } },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: createResolvedPurchase({
+          SellerWallet: {
+            id: "seller_wallet_other",
+            walletVkey: "different-seller-vkey",
+          },
+        }),
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      startJobResponse,
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toBe(
+      "Duplicate purchase does not match request",
+    );
+  });
+
+  it("matches a V2 duplicate against its request seller wallet", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Purchase already exists" } },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: createResolvedPurchase({
+          PaymentSource: {
+            paymentSourceType: "Web3CardanoV2",
+            smartContractAddress: "addr_test1_contract",
+          },
+          SellerWallet: {
+            id: "seller_wallet_1",
+            walletVkey: startJobResponse.sellerVKey,
+          },
+          SmartContractWallet: {
+            id: "smart_contract_wallet_1",
+            walletVkey: "different-smart-contract-vkey",
+            walletAddress: "addr_test1_seller",
+          },
+        }),
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchase(
+      "agent1",
+      {
+        ...startJobResponse,
+        paymentSourceType: "Web3CardanoV2",
+        supportedPaymentSourceIndex: 0,
+      },
+      {},
+      "aabbccddeeff00112233",
+    );
+
+    expect(result.isOk()).toBe(true);
+    expect(result.isOk() && result.value.id).toBe("purchase_existing");
   });
 
   it("errors on a 409 whose purchase is not visible to this API key", async () => {

@@ -51,6 +51,26 @@ type ResolvedPurchase =
 type CreatedPurchase = PostPurchaseResponses["200"]["data"];
 type PurchaseRequest = NonNullable<PostPurchaseData["body"]>;
 
+export interface ResolvedPurchaseSellerIdentity {
+  SellerWallet: { walletVkey: string } | null | undefined;
+}
+
+/**
+ * Matches the seller wallet supplied in the purchase request. Payment node
+ * stores that identity in SellerWallet for both V1 and V2 purchases.
+ */
+export function doesResolvedPurchaseSellerMatch(
+  purchase: ResolvedPurchaseSellerIdentity,
+  expectedSellerVkey: string,
+): boolean {
+  const wallet = purchase.SellerWallet;
+  return (
+    wallet !== null &&
+    wallet !== undefined &&
+    wallet.walletVkey.toLowerCase() === expectedSellerVkey.toLowerCase()
+  );
+}
+
 export interface MasumiTaskPurchaseInput {
   blockchainIdentifier: string;
   agentIdentifier: string;
@@ -103,6 +123,7 @@ function doesPurchaseMatchRequest(
     purchase.unlockTime === request.unlockTime &&
     purchase.externalDisputeUnlockTime === request.externalDisputeUnlockTime &&
     purchase.metadata === (request.metadata ?? null) &&
+    doesResolvedPurchaseSellerMatch(purchase, request.sellerVkey) &&
     (request.paymentSourceType === undefined ||
       purchase.PaymentSource.paymentSourceType === request.paymentSourceType) &&
     (request.smartContractAddress === undefined ||

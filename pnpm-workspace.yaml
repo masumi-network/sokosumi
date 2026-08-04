@@ -28,6 +28,9 @@ overrides:
   "js-yaml@<4.3.0": "4.3.0"
   # brace-expansion GHSA-3jxr-9vmj-r5cp (DoS via {} groups) — lighthouse > @sentry/node > minimatch.
   "brace-expansion@>=2.0.0 <2.1.2": "2.1.2"
+  # brace-expansion GHSA-mh99-v99m-4gvg / GHSA-rgw5-rvv9-x895 (unbounded
+  # expansion memory) — @sentry/nextjs and react-email glob chains.
+  "brace-expansion@>=5.0.0 <5.0.9": "5.0.9"
   # @opentelemetry/core GHSA-8988-4f7v-96qf (unbounded baggage memory) — @sentry/* and
   # lighthouse dev chain. Pin to the patched 2.8 line.
   "@opentelemetry/core@<2.8.0": "2.8.0"
@@ -36,14 +39,11 @@ overrides:
   # via vite@8.0.16 (esbuild@0.27.7) and tsup@8.5.1. Force all resolving copies
   # below the patched line to 0.28.1.
   "esbuild@<0.28.1": "0.28.1"
-  # undici GHSA-vxpw-j846-p89q (WebSocket DoS), GHSA-p88m-4jfj-68fv (Set-Cookie
-  # header injection), GHSA-35p6-xmwp-9g52 (keep-alive poisoning),
-  # GHSA-g8m3-5g58-fq7m (SameSite downgrade) — @vercel/blob@2.5.0 still resolves
-  # undici@6.26.0. Force patched 6.27 line (direct blob HTTP client path).
-  "undici@<6.27.0": "6.27.0"
-  # fast-uri GHSA-4c8g-83qw-93j6 / GHSA-v2hh-gcrm-f6hx (host confusion) — prisma
-  # dev > ajv > fast-uri@3.1.2. Dev-tooling transitive; force patched 3.1.4 line.
-  "fast-uri@<3.1.4": "3.1.4"
+  # undici GHSA-8xcm-r25x-g524 / GHSA-m8rv-5g2x-5cg5 /
+  # GHSA-v3r7-h72x-cjcm — @vercel/blob direct HTTP client path.
+  "undici@<6.28.0": "6.28.0"
+  # fast-uri GHSA-7p8r-x3mc-p8w7 (host confusion) — Prisma/AJV chains.
+  "fast-uri@<3.1.5": "3.1.5"
   # sharp GHSA-f88m-g3jw-g9cj (libvips CVEs) — next optional dep still resolves
   # sharp@0.34.5. Force patched 0.35 line (image optimization runtime path).
   "sharp@<0.35.0": "0.35.3"

@@ -1703,6 +1703,7 @@ model TaskPaymentClaim {
   nextAttemptAt        DateTime               @default(now())
   processingStartedAt  DateTime?
   processingToken      String?
+  reviewRequiredAt     DateTime?
 
   taskEventId String?    @unique
   taskEvent   TaskEvent? @relation(fields: [taskEventId], references: [id], onDelete: SetNull)
@@ -1715,6 +1716,7 @@ model TaskPaymentClaim {
 
   @@unique([network, blockchainIdentifier])
   @@index([network, status, nextAttemptAt])
+  @@index([network, reviewRequiredAt, nextAttemptAt])
   @@map("task_payment_claim")
 }
 

@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import {
   CreditBucketReferenceType,
   type Prisma,
@@ -17,6 +18,7 @@ const REQUEST_TIMEOUT_MS = 20_000;
 const RETRY_BASE_MS = 30_000;
 const RETRY_MAX_MS = 30 * 60 * 1_000;
 const SYNC_BATCH_SIZE = 10;
+export const TASK_PAYMENT_CLAIM_REVIEW_ATTEMPTS = 8;
 
 const taskPurchasePayloadSchema = z.object({
   blockchainIdentifier: z.string(),
@@ -62,6 +64,7 @@ export type TaskPaymentClaimProcessResult =
   | { status: "purchased"; purchaseId: string }
   | { status: "refunded"; reason: string; compensated: boolean }
   | { status: "retry_scheduled"; reason: string }
+  | { status: "review_required"; reason: string }
   | { status: "skipped" };
 
 function getRequestSignal(parent?: AbortSignal): AbortSignal {
@@ -250,7 +253,15 @@ export async function refundFailedTaskPaymentClaim(
   });
 }
 
-async function acquireTaskPaymentClaim(claimId: string) {
+interface AcquireTaskPaymentClaimOptions {
+  ignoreSchedule?: boolean;
+  requireReview?: boolean;
+}
+
+async function acquireTaskPaymentClaim(
+  claimId: string,
+  options: AcquireTaskPaymentClaimOptions = {},
+) {
   const now = new Date();
   const processingToken = uuidv4();
   const leaseExpiredAt = new Date(now.getTime() - PROCESSING_LEASE_MS);
@@ -259,7 +270,10 @@ async function acquireTaskPaymentClaim(claimId: string) {
       id: claimId,
       network: getEnv().NETWORK,
       status: TaskPaymentClaimStatus.PENDING,
-      nextAttemptAt: { lte: now },
+      ...(options.ignoreSchedule ? {} : { nextAttemptAt: { lte: now } }),
+      ...(options.requireReview
+        ? { reviewRequiredAt: { not: null } }
+        : { reviewRequiredAt: null }),
       OR: [
         { processingStartedAt: null },
         { processingStartedAt: { lt: leaseExpiredAt } },
@@ -283,6 +297,7 @@ async function acquireTaskPaymentClaim(claimId: string) {
       attemptCount: true,
       purchasePayload: true,
       processingToken: true,
+      reviewRequiredAt: true,
     },
   });
 }
@@ -291,8 +306,16 @@ async function scheduleTaskPaymentClaimRetry(
   claimId: string,
   processingToken: string,
   attemptCount: number,
+  reviewRequiredAt: Date | null,
   reason: string,
-): Promise<void> {
+  requireReview: boolean = false,
+): Promise<boolean> {
+  const now = new Date();
+  const shouldRequireReview =
+    requireReview ||
+    reviewRequiredAt !== null ||
+    attemptCount >= TASK_PAYMENT_CLAIM_REVIEW_ATTEMPTS;
+  const newlyRequiresReview = shouldRequireReview && reviewRequiredAt === null;
   const released = await prisma.taskPaymentClaim.updateMany({
     where: {
       id: claimId,
@@ -304,11 +327,24 @@ async function scheduleTaskPaymentClaimRetry(
       nextAttemptAt: getRetryAt(attemptCount),
       processingStartedAt: null,
       processingToken: null,
+      ...(newlyRequiresReview ? { reviewRequiredAt: now } : {}),
     },
   });
   if (released.count !== 1) {
     throw new Error(`Task payment claim ${claimId} lease is no longer owned`);
   }
+  if (newlyRequiresReview) {
+    Sentry.captureMessage("Task payment claim requires review", {
+      level: "error",
+      tags: { error_type: "task_payment_claim_review_required" },
+      extra: {
+        claimId,
+        attemptCount,
+        reason: reason.slice(0, MAX_FAILURE_REASON_LENGTH),
+      },
+    });
+  }
+  return shouldRequireReview;
 }
 
 async function finalizePermanentFailure(
@@ -328,17 +364,24 @@ async function finalizeAmbiguousFailure(
   claim: {
     id: string;
     attemptCount: number;
+    reviewRequiredAt: Date | null;
   },
   processingToken: string,
   reason: string,
+  requireReview: boolean = false,
 ): Promise<TaskPaymentClaimProcessResult> {
-  await scheduleTaskPaymentClaimRetry(
+  const requiresReview = await scheduleTaskPaymentClaimRetry(
     claim.id,
     processingToken,
     claim.attemptCount,
+    claim.reviewRequiredAt,
     reason,
+    requireReview,
   );
-  return { status: "retry_scheduled", reason };
+  return {
+    status: requiresReview ? "review_required" : "retry_scheduled",
+    reason,
+  };
 }
 
 /**
@@ -363,7 +406,8 @@ export async function processTaskPaymentClaim(
     payload = parsePurchasePayload(claim.purchasePayload);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    return await finalizeAmbiguousFailure(claim, processingToken, reason);
+    // Stored payload corruption cannot heal through another network retry.
+    return await finalizeAmbiguousFailure(claim, processingToken, reason, true);
   }
 
   const client = paymentClient();
@@ -440,7 +484,130 @@ export async function processTaskPaymentClaim(
   );
 }
 
-/** Reconciles fresh and stale PENDING rows for current deployment network. */
+/**
+ * Moves a reviewed claim back to the normal retry cadence. Cron remains the
+ * single writer that performs the remote POST, preserving lease safety.
+ */
+export async function retryReviewedTaskPaymentClaim(
+  claimId: string,
+): Promise<boolean> {
+  const leaseExpiredAt = new Date(Date.now() - PROCESSING_LEASE_MS);
+  const updated = await prisma.taskPaymentClaim.updateMany({
+    where: {
+      id: claimId,
+      network: getEnv().NETWORK,
+      status: TaskPaymentClaimStatus.PENDING,
+      reviewRequiredAt: { not: null },
+      OR: [
+        { processingStartedAt: null },
+        { processingStartedAt: { lt: leaseExpiredAt } },
+      ],
+    },
+    data: {
+      // Acquisition increments this to 2, forcing resolve-first before POST.
+      attemptCount: 1,
+      failureReason: null,
+      nextAttemptAt: new Date(),
+      processingStartedAt: null,
+      processingToken: null,
+      reviewRequiredAt: null,
+    },
+  });
+  return updated.count === 1;
+}
+
+interface RefundReviewedTaskPaymentClaimInput {
+  claimId: string;
+  operatorId: string;
+  reason: string;
+}
+
+/**
+ * Terminal operator recovery for claims whose stored payload cannot be parsed
+ * or whose remote state was verified out of band. This path deliberately does
+ * not inspect purchasePayload, so corrupted rows can still be compensated.
+ */
+export async function refundReviewedTaskPaymentClaim(
+  input: RefundReviewedTaskPaymentClaimInput,
+): Promise<TaskPaymentClaimProcessResult> {
+  const claim = await acquireTaskPaymentClaim(input.claimId, {
+    ignoreSchedule: true,
+    requireReview: true,
+  });
+  if (!claim) {
+    return { status: "skipped" };
+  }
+  const processingToken = claim.processingToken;
+  if (!processingToken) {
+    throw new Error(`Task payment claim ${claim.id} has no processing token`);
+  }
+
+  return await finalizePermanentFailure(
+    claim.id,
+    processingToken,
+    `Administrator ${input.operatorId} refunded claim: ${input.reason}`,
+  );
+}
+
+/**
+ * Resolve-only operator recovery. Never creates a second remote purchase:
+ * found purchases are attached, authoritative absence/mismatch is refunded,
+ * and ambiguous lookup failures remain held for operator review.
+ */
+export async function resolveReviewedTaskPaymentClaim(
+  claimId: string,
+): Promise<TaskPaymentClaimProcessResult> {
+  const claim = await acquireTaskPaymentClaim(claimId, {
+    ignoreSchedule: true,
+    requireReview: true,
+  });
+  if (!claim) {
+    return { status: "skipped" };
+  }
+  const processingToken = claim.processingToken;
+  if (!processingToken) {
+    throw new Error(`Task payment claim ${claim.id} has no processing token`);
+  }
+
+  let payload: MasumiTaskPurchaseInput;
+  try {
+    payload = parsePurchasePayload(claim.purchasePayload);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return await finalizeAmbiguousFailure(claim, processingToken, reason, true);
+  }
+
+  const resolved = await paymentClient().resolveMasumiTaskPaymentPurchase(
+    payload,
+    { signal: getRequestSignal() },
+  );
+  if (resolved.isOk()) {
+    await markTaskPaymentClaimPurchased(
+      claim.id,
+      resolved.value.id,
+      processingToken,
+    );
+    return { status: "purchased", purchaseId: resolved.value.id };
+  }
+  if (
+    resolved.error.kind === "not_found" ||
+    resolved.error.kind === "mismatch"
+  ) {
+    return await finalizePermanentFailure(
+      claim.id,
+      processingToken,
+      `Operator resolve confirmed ${resolved.error.kind}: ${resolved.error.message}`,
+    );
+  }
+  return await finalizeAmbiguousFailure(
+    claim,
+    processingToken,
+    resolved.error.message,
+    true,
+  );
+}
+
+/** Reconciles retry-eligible PENDING rows for current deployment network. */
 export async function syncPendingTaskPaymentClaims(
   options: SyncPendingTaskPaymentClaimsOptions = {},
 ): Promise<{ processed: number }> {
@@ -450,6 +617,7 @@ export async function syncPendingTaskPaymentClaims(
     where: {
       network: getEnv().NETWORK,
       status: TaskPaymentClaimStatus.PENDING,
+      reviewRequiredAt: null,
       nextAttemptAt: { lte: now },
       OR: [
         { processingStartedAt: null },

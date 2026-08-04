@@ -13,6 +13,7 @@ const {
   claimUpdateManyMock,
   claimUpdateMock,
   createPurchaseMock,
+  captureMessageMock,
   resolvePurchaseMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
@@ -23,8 +24,13 @@ const {
   claimUpdateManyMock: vi.fn(),
   claimUpdateMock: vi.fn(),
   createPurchaseMock: vi.fn(),
+  captureMessageMock: vi.fn(),
   resolvePurchaseMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureMessage: captureMessageMock,
 }));
 
 vi.mock("@/config/env", () => ({
@@ -54,7 +60,11 @@ import {
   markTaskPaymentClaimPurchased,
   processTaskPaymentClaim,
   refundFailedTaskPaymentClaim,
+  refundReviewedTaskPaymentClaim,
+  resolveReviewedTaskPaymentClaim,
+  retryReviewedTaskPaymentClaim,
   syncPendingTaskPaymentClaims,
+  TASK_PAYMENT_CLAIM_REVIEW_ATTEMPTS,
 } from "./task-payment-claim.service";
 
 const purchasePayload = {
@@ -193,6 +203,7 @@ describe("task payment claims", () => {
       attemptCount: 1,
       purchasePayload,
       processingToken: "lease-1",
+      reviewRequiredAt: null,
     });
     createPurchaseMock.mockResolvedValue(
       err({
@@ -232,6 +243,7 @@ describe("task payment claims", () => {
       attemptCount: 1,
       purchasePayload,
       processingToken: "lease-1",
+      reviewRequiredAt: null,
     });
     createPurchaseMock.mockResolvedValue(
       err({ kind: "ambiguous", message: "network timeout" }),
@@ -264,6 +276,7 @@ describe("task payment claims", () => {
       attemptCount: 2,
       purchasePayload,
       processingToken: "lease-2",
+      reviewRequiredAt: null,
     });
     resolvePurchaseMock.mockResolvedValue(
       ok({ id: "purchase-existing" } as { id: string }),
@@ -285,6 +298,216 @@ describe("task payment claims", () => {
     );
   });
 
+  it("escalates an ambiguous claim after the automatic retry threshold", async () => {
+    claimUpdateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    claimFindFirstMock.mockResolvedValue({
+      id: "claim-1",
+      attemptCount: TASK_PAYMENT_CLAIM_REVIEW_ATTEMPTS,
+      purchasePayload,
+      processingToken: "lease-review",
+      reviewRequiredAt: null,
+    });
+    resolvePurchaseMock.mockResolvedValue(
+      err({ kind: "ambiguous", message: "resolver unavailable" }),
+    );
+
+    await expect(processTaskPaymentClaim("claim-1")).resolves.toEqual({
+      status: "review_required",
+      reason: "resolver unavailable",
+    });
+
+    const retryUpdate = claimUpdateManyMock.mock.calls[1]?.[0];
+    expect(retryUpdate.data.reviewRequiredAt).toBeInstanceOf(Date);
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Task payment claim requires review",
+      expect.objectContaining({
+        tags: { error_type: "task_payment_claim_review_required" },
+        extra: expect.objectContaining({
+          claimId: "claim-1",
+          attemptCount: TASK_PAYMENT_CLAIM_REVIEW_ATTEMPTS,
+        }),
+      }),
+    );
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("escalates a malformed stored payload without a network retry", async () => {
+    claimUpdateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    claimFindFirstMock.mockResolvedValue({
+      id: "claim-1",
+      attemptCount: 1,
+      purchasePayload: { malformed: true },
+      processingToken: "lease-malformed",
+      reviewRequiredAt: null,
+    });
+
+    await expect(processTaskPaymentClaim("claim-1")).resolves.toMatchObject({
+      status: "review_required",
+    });
+    expect(
+      claimUpdateManyMock.mock.calls[1]?.[0].data.reviewRequiredAt,
+    ).toBeInstanceOf(Date);
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+    expect(resolvePurchaseMock).not.toHaveBeenCalled();
+    expect(captureMessageMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not automatically reacquire claims requiring review", async () => {
+    claimUpdateManyMock.mockResolvedValueOnce({ count: 0 });
+
+    await expect(processTaskPaymentClaim("claim-1")).resolves.toEqual({
+      status: "skipped",
+    });
+    expect(claimUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ reviewRequiredAt: null }),
+      }),
+    );
+    expect(claimFindFirstMock).not.toHaveBeenCalled();
+    expect(resolvePurchaseMock).not.toHaveBeenCalled();
+    expect(captureMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("refunds a reviewed claim only after authoritative absence", async () => {
+    claimUpdateManyMock.mockResolvedValueOnce({ count: 1 });
+    claimFindFirstMock.mockResolvedValue({
+      id: "claim-1",
+      attemptCount: TASK_PAYMENT_CLAIM_REVIEW_ATTEMPTS + 1,
+      purchasePayload,
+      processingToken: "lease-reviewed",
+      reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
+    });
+    resolvePurchaseMock.mockResolvedValue(
+      err({
+        kind: "not_found",
+        message: "Task purchase not found",
+        status: 404,
+      }),
+    );
+    refundClaimUpdateManyMock.mockResolvedValue({ count: 1 });
+    claimFindUniqueMock.mockResolvedValue({
+      id: "claim-1",
+      status: TaskPaymentClaimStatus.REFUNDED,
+      transaction: {
+        amount: -500n,
+        userId: "user-1",
+        organizationId: null,
+      },
+    });
+
+    await expect(resolveReviewedTaskPaymentClaim("claim-1")).resolves.toEqual({
+      status: "refunded",
+      reason: "Operator resolve confirmed not_found: Task purchase not found",
+      compensated: true,
+    });
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a reviewed claim pending when operator resolution is ambiguous", async () => {
+    claimUpdateManyMock
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 1 });
+    claimFindFirstMock.mockResolvedValue({
+      id: "claim-1",
+      attemptCount: TASK_PAYMENT_CLAIM_REVIEW_ATTEMPTS + 1,
+      purchasePayload,
+      processingToken: "lease-reviewed",
+      reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
+    });
+    resolvePurchaseMock.mockResolvedValue(
+      err({ kind: "ambiguous", message: "resolver unavailable" }),
+    );
+
+    await expect(resolveReviewedTaskPaymentClaim("claim-1")).resolves.toEqual({
+      status: "review_required",
+      reason: "resolver unavailable",
+    });
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+    expect(claimUpdateManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          processingStartedAt: null,
+          processingToken: null,
+        }),
+      }),
+    );
+  });
+
+  it("refunds a reviewed claim without parsing its stored payload", async () => {
+    claimUpdateManyMock.mockResolvedValueOnce({ count: 1 });
+    claimFindFirstMock.mockResolvedValue({
+      id: "claim-1",
+      attemptCount: TASK_PAYMENT_CLAIM_REVIEW_ATTEMPTS + 1,
+      purchasePayload: { malformed: true },
+      processingToken: "lease-reviewed",
+      reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
+    });
+    refundClaimUpdateManyMock.mockResolvedValue({ count: 1 });
+    claimFindUniqueMock.mockResolvedValue({
+      id: "claim-1",
+      status: TaskPaymentClaimStatus.REFUNDED,
+      transaction: {
+        amount: -500n,
+        userId: "user-1",
+        organizationId: null,
+      },
+    });
+
+    await expect(
+      refundReviewedTaskPaymentClaim({
+        claimId: "claim-1",
+        operatorId: "admin-1",
+        reason: "stored payload is corrupt",
+      }),
+    ).resolves.toEqual({
+      status: "refunded",
+      reason: "Administrator admin-1 refunded claim: stored payload is corrupt",
+      compensated: true,
+    });
+    expect(claimUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "claim-1",
+          network: "Preprod",
+          status: TaskPaymentClaimStatus.PENDING,
+          reviewRequiredAt: { not: null },
+        }),
+      }),
+    );
+    expect(refundClaimUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ processingToken: "lease-reviewed" }),
+      }),
+    );
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+    expect(resolvePurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("moves a reviewed claim back to the normal retry queue", async () => {
+    claimUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await expect(retryReviewedTaskPaymentClaim("claim-1")).resolves.toBe(true);
+    expect(claimUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "claim-1",
+          reviewRequiredAt: { not: null },
+        }),
+        data: expect.objectContaining({
+          attemptCount: 1,
+          reviewRequiredAt: null,
+          processingStartedAt: null,
+          processingToken: null,
+        }),
+      }),
+    );
+  });
+
   it("reconciles stale pending claims for the current network", async () => {
     claimFindManyMock.mockResolvedValue([{ id: "claim-stale" }]);
     claimUpdateManyMock.mockResolvedValue({ count: 0 });
@@ -297,6 +520,7 @@ describe("task payment claims", () => {
         where: expect.objectContaining({
           network: "Preprod",
           status: TaskPaymentClaimStatus.PENDING,
+          reviewRequiredAt: null,
         }),
       }),
     );

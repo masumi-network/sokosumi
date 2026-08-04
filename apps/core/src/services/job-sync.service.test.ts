@@ -243,10 +243,12 @@ function createJob(
     submitResultTime: new Date(now.getTime() + 40 * 60 * 1000),
     unlockTime: new Date(now.getTime() + 50 * 60 * 1000),
     externalDisputeUnlockTime: new Date(now.getTime() + 60 * 60 * 1000),
+    input: JSON.stringify({ prompt: "hello" }),
     inputHash: "job-input-hash",
     paymentSourceType: null,
     purchaseAmounts: [{ unit: "lovelace", amount: "1000000" }],
     purchaseAmountMatchRequired: true,
+    sellerVkey: "seller-vkey-1",
     completedAt: null,
     status: SokosumiJobStatus.PROCESSING,
     jobStatusSettled: false,
@@ -260,6 +262,7 @@ function matchingResolvedPurchase(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
   const agent = job.agent as { blockchainIdentifier?: string } | undefined;
+  const inputData = JSON.parse(job.input as string);
   return {
     inputHash: job.inputHash,
     agentIdentifier:
@@ -272,6 +275,13 @@ function matchingResolvedPurchase(
       (job.externalDisputeUnlockTime as Date).getTime(),
     ),
     PaidFunds: job.purchaseAmounts,
+    PaymentSource: { paymentSourceType: "Web3CardanoV1" },
+    SellerWallet: {
+      id: "seller_wallet_1",
+      walletVkey: job.sellerVkey,
+    },
+    SmartContractWallet: null,
+    metadata: JSON.stringify({ inputData, jobId: job.agentJobId }),
     ...overrides,
   };
 }
@@ -417,23 +427,12 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     // The resolved purchase echoes the job's own seller-signed terms — the
     // backfill guard refuses anything else.
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(
-      ok({
-        id: "purchase_backfilled",
-        resultHash: "result-hash",
-        inputHash: pendingBackfillJob.inputHash as string,
-        agentIdentifier: (
-          pendingBackfillJob.agent as { blockchainIdentifier: string }
-        ).blockchainIdentifier,
-        payByTime: String((pendingBackfillJob.payByTime as Date).getTime()),
-        submitResultTime: String(
-          (pendingBackfillJob.submitResultTime as Date).getTime(),
-        ),
-        unlockTime: String((pendingBackfillJob.unlockTime as Date).getTime()),
-        externalDisputeUnlockTime: String(
-          (pendingBackfillJob.externalDisputeUnlockTime as Date).getTime(),
-        ),
-        PaidFunds: pendingBackfillJob.purchaseAmounts,
-      }),
+      ok(
+        matchingResolvedPurchase(pendingBackfillJob, {
+          id: "purchase_backfilled",
+          resultHash: "result-hash",
+        }),
+      ),
     );
     getJobByIdMock.mockResolvedValueOnce(backfilledJob);
 
@@ -699,6 +698,66 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         matchingResolvedPurchase(pendingJob, {
           id: "purchase_wrong_price",
           PaidFunds: [{ unit: "lovelace", amount: "2000000" }],
+        }),
+      ),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobPurchaseMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          "Resolved purchase does not match job terms",
+        ),
+      }),
+    );
+  });
+
+  it("refuses to backfill a purchase belonging to a different seller", async () => {
+    const pendingJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(
+        matchingResolvedPurchase(pendingJob, {
+          id: "purchase_wrong_seller",
+          SellerWallet: {
+            id: "seller_wallet_other",
+            walletVkey: "different-seller-vkey",
+          },
+        }),
+      ),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobPurchaseMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          "Resolved purchase does not match job terms",
+        ),
+      }),
+    );
+  });
+
+  it("refuses to backfill a purchase with different metadata", async () => {
+    const pendingJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(
+        matchingResolvedPurchase(pendingJob, {
+          id: "purchase_wrong_metadata",
+          metadata: JSON.stringify({
+            inputData: { prompt: "different" },
+            jobId: pendingJob.agentJobId,
+          }),
         }),
       ),
     );

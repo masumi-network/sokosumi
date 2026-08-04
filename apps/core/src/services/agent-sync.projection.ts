@@ -536,11 +536,10 @@ function projectSourcePricing(
  * V2 entries price each payment source independently. The agent-level pricing
  * (credits math, availability) comes from the Cardano V2 source matching this
  * deployment's network; no match means the agent is not purchasable here.
- * Among matching sources, one that is currently purchase-ready is preferred so
- * the displayed price stays consistent with the source a hire can actually
- * use (readiness is refreshed just before registry sync in the same cron; a
- * readiness flip between syncs can still leave the stored price stale until
- * the entry next changes).
+ * Every currently purchase-ready source must project the same pricing because
+ * the catalog exposes one agent-level price while the seller selects a source.
+ * Different source prices stay unavailable instead of advertising a ceiling
+ * that job creation must reject. Readiness changes trigger a registry replay.
  */
 function projectV2AgentPricing(
   entry: RegistryDiffEntry,
@@ -555,18 +554,56 @@ function projectV2AgentPricing(
       candidate.network === network &&
       candidate.paymentSourceType === "Web3CardanoV2",
   );
-  const source =
-    matching.find((candidate) =>
-      isCardanoV2SourceReady(
-        entry.agentIdentifier,
-        candidate.address,
-        readySources,
-      ),
-    ) ?? matching[0];
-  if (!source) {
+  const readyMatching = matching.filter((candidate) =>
+    isCardanoV2SourceReady(
+      entry.agentIdentifier,
+      candidate.address,
+      readySources,
+    ),
+  );
+  const projected = (readyMatching.length > 0 ? readyMatching : matching).map(
+    (source) => projectSourcePricing(source.pricing, entry.agentIdentifier),
+  );
+  const pricing = projected[0];
+  if (!pricing) {
     return { pricingType: PricingType.UNKNOWN };
   }
-  return projectSourcePricing(source.pricing, entry.agentIdentifier);
+  if (
+    readyMatching.length > 0 &&
+    projected.some(
+      (candidate) => !areProjectedPricingsEqual(pricing, candidate),
+    )
+  ) {
+    console.warn(
+      `[sync/agents] Entry ${entry.agentIdentifier} has purchase-ready Cardano V2 sources with different pricing; storing as UNKNOWN (agent stays unavailable)`,
+    );
+    return { pricingType: PricingType.UNKNOWN };
+  }
+  return pricing;
+}
+
+function areProjectedPricingsEqual(
+  left: ParsedAgentPricing,
+  right: ParsedAgentPricing,
+): boolean {
+  if (left.pricingType !== right.pricingType) {
+    return false;
+  }
+  const aggregate = (
+    amounts: readonly { unit: string; amount: bigint }[],
+  ): string[] => {
+    const totals = new Map<string, bigint>();
+    for (const amount of amounts) {
+      totals.set(amount.unit, (totals.get(amount.unit) ?? 0n) + amount.amount);
+    }
+    return Array.from(totals, ([unit, amount]) => `${unit}:${amount}`).sort();
+  };
+  const leftAmounts = aggregate(left.fixedPricingAmounts ?? []);
+  const rightAmounts = aggregate(right.fixedPricingAmounts ?? []);
+  return (
+    leftAmounts.length === rightAmounts.length &&
+    leftAmounts.every((value, index) => value === rightAmounts[index])
+  );
 }
 
 export function resolveEntryPricing(
@@ -584,17 +621,10 @@ export function resolveEntryPricing(
 /**
  * Warns when a V2 entry exposes a purchase-ready source Sokosumi cannot bill.
  *
- * The agent-level price comes from ONE preferred source, so the availability
- * filter and the displayed cost only ever validate that source's units. A
- * seller may still select any other purchase-ready source at start_job — and
- * if its units have no CreditCost row, or it carries no fixed pricing, the
- * hire fails only AFTER start_job, stranding a seller-side job (see
- * reportOrphanedSellerJob in helpers/job.ts).
- *
- * That is a registry-data defect, so surface it at ingestion where it is
- * detectable once per sync rather than once per stranded hire. Advisory only:
- * it never blocks the upsert, since the entry is still valid for every other
- * source it offers.
+ * Source-dependent or unusable pricing already projects to UNKNOWN and keeps
+ * the agent unavailable. This warning identifies the registry-data defect at
+ * ingestion instead of waiting for a hire attempt. Advisory only: the normal
+ * pricing projection and availability filters own enforcement.
  */
 export function warnOnUnbillableReadyV2Sources(
   entry: RegistryDiffEntry,

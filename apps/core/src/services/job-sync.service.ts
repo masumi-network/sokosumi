@@ -28,6 +28,7 @@ import {
 } from "@sokosumi/email";
 import {
   createAgentClient,
+  doesResolvedPurchaseSellerMatch,
   doMasumiPaymentAmountsMatch,
   normalizeV2RegistryIdentifier,
 } from "@sokosumi/masumi";
@@ -540,6 +541,24 @@ function matchesDeadline(
   return purchaseValue === String(jobValue.getTime());
 }
 
+/** Recreates the exact metadata sent by createPurchase for a stored job. */
+function getExpectedPurchaseMetadata(job: {
+  agentJobId: string;
+  input: string | null;
+}): string | null {
+  if (typeof job.input !== "string") {
+    return null;
+  }
+  try {
+    return JSON.stringify({
+      inputData: JSON.parse(job.input),
+      jobId: job.agentJobId,
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function syncPurchaseState(
   initialJob: JobWithSokosumiStatus,
   options: JobSyncExecutionOptions,
@@ -603,10 +622,16 @@ async function syncPurchaseState(
       const doPaidFundsMatch =
         !job.purchaseAmountMatchRequired ||
         doMasumiPaymentAmountsMatch(job.purchaseAmounts, purchase.PaidFunds);
+      const expectedPurchaseMetadata = getExpectedPurchaseMetadata(job);
       const doesPurchaseMatchJob =
         typeof job.inputHash === "string" &&
         job.inputHash.length > 0 &&
         purchase.inputHash === job.inputHash &&
+        typeof job.sellerVkey === "string" &&
+        job.sellerVkey.length > 0 &&
+        doesResolvedPurchaseSellerMatch(purchase, job.sellerVkey) &&
+        expectedPurchaseMetadata !== null &&
+        purchase.metadata === expectedPurchaseMetadata &&
         expectedAgentIdentifier !== null &&
         normalizeV2RegistryIdentifier(purchase.agentIdentifier ?? "") ===
           normalizeV2RegistryIdentifier(expectedAgentIdentifier) &&

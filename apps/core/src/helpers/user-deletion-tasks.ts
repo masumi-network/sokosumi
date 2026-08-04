@@ -30,9 +30,16 @@ export async function prepareTasksForUserDeletion(
         status: TaskPaymentClaimStatus.PENDING,
         transaction: { userId },
       },
-      select: { id: true },
+      select: { id: true, reviewRequiredAt: true },
     });
     if (pendingPaymentClaim) {
+      if (pendingPaymentClaim.reviewRequiredAt) {
+        throw new APIError("BAD_REQUEST", {
+          code: "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
+          message:
+            "A task payment needs administrator review before your account can be deleted. Please contact support.",
+        });
+      }
       throw new APIError("BAD_REQUEST", {
         code: "TASK_PAYMENT_CLAIM_PENDING",
         message:
