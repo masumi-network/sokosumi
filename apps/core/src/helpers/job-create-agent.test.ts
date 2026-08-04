@@ -1,4 +1,4 @@
-import { jobSummaryInclude } from "@sokosumi/database/types/job";
+import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 import type { InputSchemaSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType } from "@sokosumi/masumi/types";
 import { ok } from "neverthrow";
@@ -191,7 +191,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
             },
           },
         }),
-        include: jobSummaryInclude,
+        include: jobListSummaryInclude,
       }),
     );
   });

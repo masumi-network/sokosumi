@@ -12,8 +12,8 @@ import {
   jobPurchaseRepository,
 } from "@sokosumi/database/repositories";
 import {
-  type JobWithSummaryRelations,
-  jobSummaryInclude,
+  type JobWithListSummaryRelations,
+  jobListSummaryInclude,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
 import type {
@@ -89,7 +89,7 @@ async function createPaidJob(
   agentJobResponse: StartPaidJobResponseSchemaType,
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient,
-): Promise<JobWithSummaryRelations> {
+): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.ownerId,
@@ -156,7 +156,7 @@ async function createPaidJob(
       identifierFromPurchaser,
     },
     include: {
-      ...jobSummaryInclude,
+      ...jobListSummaryInclude,
     },
   });
 }
@@ -179,7 +179,7 @@ async function createFreeJob(
   },
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
-): Promise<JobWithSummaryRelations> {
+): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   return await tx.job.create({
     data: {
@@ -220,7 +220,7 @@ async function createFreeJob(
       identifierFromPurchaser: null,
     },
     include: {
-      ...jobSummaryInclude,
+      ...jobListSummaryInclude,
     },
   });
 }
@@ -249,7 +249,7 @@ export interface JobOwnerContext {
 
 export async function createAgentJobForUser(
   input: CreateAgentJobInput,
-): Promise<JobWithSummaryRelations> {
+): Promise<JobWithListSummaryRelations> {
   const { owner, agentInput, taskContext } = input;
   const maxCents =
     agentInput.maxAcceptedCents ??
@@ -538,7 +538,7 @@ export async function getUserJobs(
     cursor: cursor ? { id: cursor } : undefined,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: {
-      ...jobSummaryInclude,
+      ...jobListSummaryInclude,
     },
   });
   const count = await tx.job.count({ where });

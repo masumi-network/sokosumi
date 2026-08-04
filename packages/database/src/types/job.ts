@@ -92,6 +92,40 @@ export type JobWithSummaryRelations = Prisma.JobGetPayload<{
   include: typeof jobSummaryInclude;
 }>;
 
+/** Lean events for list/summary: status + timestamps + result, no blobs/links/full input. */
+export const jobListEventsSelect = {
+  events: {
+    orderBy: {
+      createdAt: "desc",
+    },
+    select: {
+      status: true,
+      createdAt: true,
+      result: true,
+      input: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  },
+} as const;
+
+export const jobListSummaryInclude = {
+  ...workspaceRelationInclude,
+  ...jobListEventsSelect,
+  ...jobWithTransaction,
+  ...jobWithPurchase,
+  ...jobSummaryOwnerOrganizationInclude,
+} as const;
+
+export type JobWithListSummaryRelations = Prisma.JobGetPayload<{
+  include: typeof jobListSummaryInclude;
+}>;
+
+export type JobEventForListSummary =
+  JobWithListSummaryRelations["events"][number];
+
 export const jobWithRefundedTransaction = {
   refundedTransaction: true,
 } as const;
