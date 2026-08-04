@@ -17,13 +17,18 @@ vi.mock("next/link", () => ({
   default: ({
     children,
     href,
-    onClick,
+    onNavigate,
   }: {
     children: ReactNode;
     href: string;
-    onClick?: () => void;
+    onNavigate?: (event: { preventDefault: () => void }) => void;
   }) => (
-    <a href={href} onClick={onClick}>
+    <a
+      href={href}
+      onClick={() => {
+        onNavigate?.({ preventDefault() {} });
+      }}
+    >
       {children}
     </a>
   ),

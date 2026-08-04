@@ -3643,7 +3643,7 @@
         "retryButton": "Try Again"
       },
       "PurchaseSuccess": {
-        "creditsTitle": "Payment successful!",
+        "creditsTitle": "You're all set!",
         "creditsDescription": "Your credits have been added to your account.",
         "subscriptionTitle": "You're on the {plan} plan!",
         "subscriptionDescription": "Your subscription is now active.",

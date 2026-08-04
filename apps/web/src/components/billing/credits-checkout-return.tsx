@@ -33,14 +33,14 @@ export async function CreditsCheckoutReturn({
 
   return (
     <>
-      {sessionId ? (
-        <CreditsPurchaseSuccess
-          coworkersPromise={coworkersPromise}
-          initialOpen
-        />
-      ) : null}
       {checkoutSession ? (
-        <PurchaseTracker checkoutSession={checkoutSession} />
+        <>
+          <CreditsPurchaseSuccess
+            coworkersPromise={coworkersPromise}
+            initialOpen
+          />
+          <PurchaseTracker checkoutSession={checkoutSession} />
+        </>
       ) : null}
       {cancel ? <CreditsCancelModal /> : null}
     </>

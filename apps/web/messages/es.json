@@ -3612,7 +3612,7 @@
       "assignedSeatsLabel": "Asignados",
       "unusedSeatsLabel": "Seats sin usar",
       "PurchaseSuccess": {
-        "creditsTitle": "¡Pago exitoso!",
+        "creditsTitle": "¡Todo listo!",
         "creditsDescription": "Tus Credits se han añadido a tu cuenta.",
         "subscriptionTitle": "¡Ahora tienes el plan {plan}!",
         "subscriptionDescription": "Tu suscripción ya está activa.",

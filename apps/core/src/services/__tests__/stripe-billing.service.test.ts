@@ -472,6 +472,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
   beforeEach(() => {
     getCheckoutSessionMock.mockResolvedValue({
       id: "cs_123",
+      status: "complete",
       amount_total: 12000,
       currency: "eur",
       customer: "cus_user",
@@ -502,6 +503,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
     ]);
     getCheckoutSessionMock.mockResolvedValue({
       id: "cs_123",
+      status: "complete",
       amount_total: 12000,
       currency: "eur",
       customer: "cus_org",
@@ -516,6 +518,23 @@ describe("getCheckoutSessionAnalytics ownership", () => {
 
   it("rejects checkout session analytics when the customer is not owned by the caller", async () => {
     findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_other" });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_123", "user_1"),
+    ).rejects.toThrow("Checkout session not found");
+  });
+
+  it("rejects checkout session analytics when the session is not complete", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_123",
+      status: "open",
+      amount_total: 12000,
+      currency: "eur",
+      customer: "cus_user",
+      line_items: { data: [] },
+      metadata: {},
+    });
 
     await expect(
       stripeBillingService.getCheckoutSessionAnalytics("cs_123", "user_1"),
