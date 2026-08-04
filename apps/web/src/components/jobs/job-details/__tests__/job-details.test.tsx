@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { act } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import JobDetails from "@/components/jobs/job-details/job-details";
 import type { Job } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
@@ -44,8 +44,15 @@ vi.mock("ably/react", () => ({
   },
 }));
 
+const lazyAblyProviderMock = vi.fn(
+  ({ children }: { children: React.ReactNode }): React.ReactNode => (
+    <>{children}</>
+  ),
+);
+
 vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  default: (props: { children: React.ReactNode }) =>
+    lazyAblyProviderMock(props),
 }));
 
 vi.mock("@/queries", () => ({
@@ -123,6 +130,33 @@ function createJob(overrides?: Partial<Job>): Job {
 }
 
 describe("JobDetails", () => {
+  beforeEach(() => {
+    lazyAblyProviderMock.mockReset();
+    lazyAblyProviderMock.mockImplementation(
+      ({ children }: { children: React.ReactNode }): React.ReactNode => (
+        <>{children}</>
+      ),
+    );
+  });
+
+  it("keeps job details visible while LazyAblyProvider is still loading", () => {
+    lazyAblyProviderMock.mockImplementation((): React.ReactNode => null);
+
+    const session = {
+      user: { id: "user-1" },
+    };
+    const initialJob = createJob();
+
+    useSessionMock.mockReturnValue({ data: session });
+    getJobQueryOptionsMock.mockReturnValue({});
+    useQueryMock.mockReturnValue({ data: initialJob });
+
+    render(<JobDetails job={initialJob} />);
+
+    expect(screen.getByTestId("job-details-presenter")).toBeInTheDocument();
+    expect(screen.queryByTestId("channel-provider")).not.toBeInTheDocument();
+  });
+
   it("privately refetches and passes the latest job into the presenter", () => {
     const session = {
       user: { id: "user-1" },

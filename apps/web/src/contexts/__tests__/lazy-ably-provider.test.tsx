@@ -95,4 +95,43 @@ describe("LazyAblyProvider", () => {
 
     consoleError.mockRestore();
   });
+
+  it("ignores a settled AblyProvider import after unmount", async () => {
+    let releaseImport!: () => void;
+    const importGate = new Promise<void>((resolve) => {
+      releaseImport = resolve;
+    });
+
+    vi.doMock("@/contexts/ably-provider", async () => {
+      await importGate;
+      return {
+        __esModule: true,
+        default: mockAblyProvider,
+      };
+    });
+
+    const { default: LazyAblyProvider } = await import(
+      "@/contexts/lazy-ably-provider"
+    );
+
+    const { unmount } = render(
+      <LazyAblyProvider>
+        <span>realtime-child</span>
+      </LazyAblyProvider>,
+    );
+
+    expect(screen.queryByText("realtime-child")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("ably-provider")).not.toBeInTheDocument();
+
+    unmount();
+
+    await act(async () => {
+      releaseImport();
+      await Promise.resolve();
+    });
+
+    expect(mockAblyProvider).not.toHaveBeenCalled();
+    expect(screen.queryByText("realtime-child")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("ably-provider")).not.toBeInTheDocument();
+  });
 });

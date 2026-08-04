@@ -1,13 +1,10 @@
 "use client";
 
-import { ChannelProvider } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { DataTable } from "@/components/data-table";
-import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { makeAgentJobsChannelName } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -54,38 +51,32 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
   };
 
   return (
-    <LazyAblyProvider>
-      <ChannelProvider
-        channelName={makeAgentJobsChannelName(params.agentId, userId)}
-      >
-        <div className="job-table-width bg-muted/50 flex flex-col rounded-xl border">
-          <JobsSearch
-            jobs={jobs}
-            onFilteredChange={(list) => setFilteredJobs(list)}
-          />
-          <DataTable
-            tableClassName="[&>table]:flex! [&>table]:md:table!"
-            columns={getColumns(userId, t, dateFormatter, queryParam)}
-            onRowClick={(row) => getOnRowClick(row)}
-            data={filteredJobs}
-            rowClassName={(row) => getRowClassName(row)}
-            containerClassName={cn("min-h-[300px] bg-transparent")}
-            defaultSort={[
-              {
-                id: "createdAt",
-                desc: true,
-              },
-            ]}
-            getGroupKey={(row) => {
-              return row.createdAt ? getDateGroupKey(row.createdAt) : null;
-            }}
-            renderGroupHeader={(groupKey) => {
-              return <div className="px-2 py-1">{groupKey}</div>;
-            }}
-          />
-        </div>
-      </ChannelProvider>
-    </LazyAblyProvider>
+    <div className="job-table-width bg-muted/50 flex flex-col rounded-xl border">
+      <JobsSearch
+        jobs={jobs}
+        onFilteredChange={(list) => setFilteredJobs(list)}
+      />
+      <DataTable
+        tableClassName="[&>table]:flex! [&>table]:md:table!"
+        columns={getColumns(userId, t, dateFormatter, queryParam)}
+        onRowClick={(row) => getOnRowClick(row)}
+        data={filteredJobs}
+        rowClassName={(row) => getRowClassName(row)}
+        containerClassName={cn("min-h-[300px] bg-transparent")}
+        defaultSort={[
+          {
+            id: "createdAt",
+            desc: true,
+          },
+        ]}
+        getGroupKey={(row) => {
+          return row.createdAt ? getDateGroupKey(row.createdAt) : null;
+        }}
+        renderGroupHeader={(groupKey) => {
+          return <div className="px-2 py-1">{groupKey}</div>;
+        }}
+      />
+    </div>
   );
 }
 

@@ -1329,27 +1329,16 @@ export function TasksView({
               />
             </ChannelProvider>
           ))}
-          {tabsContent}
-          {shouldShowEmptyStateOverlay ? (
-            <TasksEmptyStateOverlay
-              labels={labels.emptyState}
-              onComplete={handleGuideComplete}
-              onDismiss={handleGuideDismiss}
-            />
-          ) : null}
         </LazyAblyProvider>
-      ) : (
-        <>
-          {tabsContent}
-          {shouldShowEmptyStateOverlay ? (
-            <TasksEmptyStateOverlay
-              labels={labels.emptyState}
-              onComplete={handleGuideComplete}
-              onDismiss={handleGuideDismiss}
-            />
-          ) : null}
-        </>
-      )}
+      ) : null}
+      {tabsContent}
+      {shouldShowEmptyStateOverlay ? (
+        <TasksEmptyStateOverlay
+          labels={labels.emptyState}
+          onComplete={handleGuideComplete}
+          onDismiss={handleGuideDismiss}
+        />
+      ) : null}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}

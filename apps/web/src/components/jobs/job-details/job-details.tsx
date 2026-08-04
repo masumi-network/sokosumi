@@ -63,16 +63,18 @@ export default function JobDetails({
   }
 
   return (
-    <LazyAblyProvider>
-      <ChannelProvider channelName={channelName}>
-        <JobDetailsRealtimeListener
-          channelName={channelName}
-          jobId={initialJob.id}
-          onStatusUpdate={handleStatusUpdate}
-        />
-        {detailsContent}
-      </ChannelProvider>
-    </LazyAblyProvider>
+    <>
+      {detailsContent}
+      <LazyAblyProvider>
+        <ChannelProvider channelName={channelName}>
+          <JobDetailsRealtimeListener
+            channelName={channelName}
+            jobId={initialJob.id}
+            onStatusUpdate={handleStatusUpdate}
+          />
+        </ChannelProvider>
+      </LazyAblyProvider>
+    </>
   );
 }
 
