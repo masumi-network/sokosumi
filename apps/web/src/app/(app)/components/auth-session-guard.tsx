@@ -16,6 +16,7 @@ import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 export function AuthSessionGuard() {
   const router = useRouter();
   const isRedirectingRef = useRef(false);
+  const mountedRef = useRef(true);
   const resumeGenerationRef = useRef(0);
   const getFreshSession = createAuthSessionGetter(() =>
     authClient.getSession({
@@ -59,6 +60,7 @@ export function AuthSessionGuard() {
       const result = await probeSessionWithRetry({
         getSession: getFreshSession,
         shouldCancel: () =>
+          !mountedRef.current ||
           isRedirectingRef.current ||
           generation !== resumeGenerationRef.current,
       });
@@ -92,6 +94,7 @@ export function AuthSessionGuard() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      mountedRef.current = false;
       scheduler.cancel();
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);

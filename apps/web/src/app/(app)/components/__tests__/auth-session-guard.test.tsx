@@ -189,6 +189,46 @@ describe("AuthSessionGuard", () => {
     expect(replaceMock).not.toHaveBeenCalled();
   });
 
+  it("does not redirect when unmounted during an in-flight resume probe", async () => {
+    vi.useFakeTimers();
+
+    let resolveInFlightResume:
+      | ((value: typeof missingSession) => void)
+      | undefined;
+    const inFlightResume = new Promise<typeof missingSession>((resolve) => {
+      resolveInFlightResume = resolve;
+    });
+    let getSessionCalls = 0;
+
+    vi.mocked(authClient.getSession).mockImplementation(() => {
+      getSessionCalls += 1;
+      if (getSessionCalls === 1) {
+        return Promise.resolve(presentSession);
+      }
+      return inFlightResume;
+    });
+
+    const { unmount } = render(<AuthSessionGuard />);
+    await flushMicrotasks();
+
+    window.dispatchEvent(new Event("focus"));
+    await advance(SESSION_RESUME_DEBOUNCE_MS);
+    await flushMicrotasks();
+
+    expect(getSessionCalls).toBe(2);
+
+    unmount();
+    window.history.replaceState({}, "", "/agents/other");
+    resolveInFlightResume?.(missingSession);
+    await flushMicrotasks();
+    await advance(250);
+    await flushMicrotasks();
+    await advance(750);
+    await flushMicrotasks();
+
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
   it("does not redirect when an overlapping resume probe finds a session", async () => {
     vi.useFakeTimers();
 
