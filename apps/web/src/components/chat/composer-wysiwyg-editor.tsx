@@ -22,6 +22,7 @@ import {
   findPositionForOffset,
   getActiveEmojiTrigger,
   getActiveTrigger,
+  getCaretOffset,
   getCaretRect,
   getPopupPositionFromRect,
   MENTION_CLASSNAME,
@@ -110,6 +111,17 @@ const EDITOR_PROSE_CLASSNAME = cn(
   "[&_span[data-mention-key]]:text-primary [&_span[data-mention-key]]:cursor-pointer [&_span[data-mention-key]]:font-semibold [&_span[data-mention-key]]:hover:underline",
 );
 
+function restoreCaretAtOffset(root: HTMLElement, offset: number): void {
+  const selection = window.getSelection();
+  if (!selection) return;
+  const position = findPositionForOffset(root, offset);
+  const range = document.createRange();
+  range.setStart(position.node, position.offset);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 function insertLineBreak(editor: HTMLElement): void {
   editor.focus();
   let didInsert = false;
@@ -161,6 +173,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const isInternalChange = useRef(false);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const manualMentionOpenRef = useRef(false);
+  const savedCaretOffsetRef = useRef<number | null>(null);
   const onActiveFormatsChangeRef = useRef(onActiveFormatsChange);
   onActiveFormatsChangeRef.current = onActiveFormatsChange;
   const [suggestionUi, setSuggestionUi] = useState<SuggestionUiState>({
@@ -569,7 +582,24 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
   const insertText = useCallback(
     (text: string) => {
-      editorRef.current?.focus();
+      const editor = editorRef.current;
+      if (!editor) return;
+
+      const offset = savedCaretOffsetRef.current;
+      editor.focus();
+      if (offset != null) {
+        restoreCaretAtOffset(editor, offset);
+      } else {
+        const selection = window.getSelection();
+        if (selection) {
+          const range = document.createRange();
+          range.selectNodeContents(editor);
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+
       let didInsert = false;
       try {
         didInsert = document.execCommand("insertText", false, text);
@@ -586,10 +616,14 @@ export function ComposerWysiwygEditor<TData = unknown>({
           range.collapse(false);
           selection.removeAllRanges();
           selection.addRange(range);
-        } else if (editorRef.current) {
-          editorRef.current.appendChild(document.createTextNode(text));
+        } else {
+          editor.appendChild(document.createTextNode(text));
         }
       }
+
+      const nextOffset = getCaretOffset(editor);
+      savedCaretOffsetRef.current =
+        nextOffset ?? (offset != null ? offset + text.length : null);
 
       handleInput();
     },
@@ -896,6 +930,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
   useEffect(() => {
     const onSelectionChange = () => {
       publishActiveFormats();
+      const editor = editorRef.current;
+      if (!editor) return;
+      const caretOffset = getCaretOffset(editor);
+      if (caretOffset != null) {
+        savedCaretOffsetRef.current = caretOffset;
+      }
     };
     document.addEventListener("selectionchange", onSelectionChange);
     return () => {
