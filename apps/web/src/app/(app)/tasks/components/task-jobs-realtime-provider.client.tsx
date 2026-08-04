@@ -3,7 +3,7 @@
 import { ChannelProvider } from "ably/react";
 import type { ReactNode } from "react";
 
-import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 
 interface TaskJobsRealtimeProviderProps {
   children: ReactNode;
@@ -12,7 +12,7 @@ interface TaskJobsRealtimeProviderProps {
 export function TaskJobsRealtimeProvider({
   children,
 }: TaskJobsRealtimeProviderProps) {
-  return <DynamicAblyProvider>{children}</DynamicAblyProvider>;
+  return <LazyAblyProvider>{children}</LazyAblyProvider>;
 }
 
 interface TaskJobStatusChannelProviderProps {
