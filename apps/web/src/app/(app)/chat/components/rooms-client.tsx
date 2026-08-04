@@ -1398,7 +1398,7 @@ export function RoomsClient({
               <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
                 <div
                   ref={contentRef}
-                  className="flex w-full flex-col justify-end px-5 pt-6 pb-3"
+                  className="flex w-full flex-col justify-end px-5 pt-6 pb-0"
                   style={
                     contentMinHeight != null
                       ? { minHeight: contentMinHeight }

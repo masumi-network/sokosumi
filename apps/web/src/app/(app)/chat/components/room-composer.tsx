@@ -21,6 +21,11 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import {
+  getFormatToolbarOpenPreference,
+  resolveFormatToolbarOpenOnMount,
+  setFormatToolbarOpenPreference,
+} from "@/app/chat/utils/format-toolbar-preference-storage";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { ComposerAddLinkDialog } from "@/components/chat/composer-add-link-dialog";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
@@ -275,7 +280,7 @@ export function RoomComposer({
   const [linkInitialUrl, setLinkInitialUrl] = useState("");
   /**
    * Slack Aa toggle: formatting strip above the editor.
-   * SSR + first paint start closed (hydration-safe). Desktop opens once on mount.
+   * SSR + first paint start closed (hydration-safe). Preference persisted via localStorage on Aa.
    */
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
   const [activeFormats, setActiveFormats] = useState<ComposerActiveFormats>(
@@ -288,11 +293,15 @@ export function RoomComposer({
     ? onSelectedKeysChange
     : undefined;
 
-  // Desktop default open (SOK-681); mobile stays closed. No resize re-apply.
+  // Stored pref wins; else desktop open / mobile closed (SOK-681). No resize re-apply.
   useMountEffect(() => {
-    if (window.innerWidth >= MOBILE_BREAKPOINT) {
-      setFormatToolbarOpen(true);
-    }
+    setFormatToolbarOpen(
+      resolveFormatToolbarOpenOnMount({
+        stored: getFormatToolbarOpenPreference(),
+        viewportWidth: window.innerWidth,
+        mobileBreakpoint: MOBILE_BREAKPOINT,
+      }),
+    );
   });
 
   // After paint so the format strip / quote chip have height before scroll.
@@ -518,7 +527,13 @@ export function RoomComposer({
                   : t("Toolbar.showFormatting")
               }
               aria-pressed={formatToolbarOpen}
-              onClick={() => setFormatToolbarOpen((open) => !open)}
+              onClick={() => {
+                setFormatToolbarOpen((open) => {
+                  const next = !open;
+                  setFormatToolbarOpenPreference(next);
+                  return next;
+                });
+              }}
             >
               <ALargeSmall className="size-4" aria-hidden />
             </Button>
