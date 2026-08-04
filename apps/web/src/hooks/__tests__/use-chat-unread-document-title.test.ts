@@ -145,4 +145,27 @@ describe("useChatUnreadDocumentTitle", () => {
       restore();
     }
   });
+
+  it("restores the previous title when soft navigation clears document.title", async () => {
+    renderHook(() => useChatUnreadDocumentTitle(0));
+
+    await act(async () => {
+      document.title = "Sokosumi - Chat";
+      await Promise.resolve();
+    });
+    expect(document.title).toBe("Sokosumi - Chat");
+
+    await act(async () => {
+      // Next App Router clears <title> during soft navigations before writing
+      // the next metadata title. Browsers show the page host while empty.
+      const titleElement = document.querySelector("title");
+      if (!titleElement) {
+        throw new Error("document title element missing");
+      }
+      titleElement.textContent = "";
+      await Promise.resolve();
+    });
+
+    expect(document.title).toBe("Sokosumi - Chat");
+  });
 });
