@@ -2,6 +2,7 @@ import { MemberRole, NotificationKind } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  assertChatRoomPatchAuth,
   buildDirectCoworkerRoomKey,
   buildDirectParticipantRoomKey,
   buildDirectRoomKey,
@@ -216,43 +217,15 @@ describe("buildDirectRoomName", () => {
 });
 
 describe("canManageChatRoomLifecycle", () => {
-  const creatorId = "user_creator";
-  const otherId = "user_other";
-
-  it("allows the channel creator regardless of org role", () => {
-    expect(
-      canManageChatRoomLifecycle({
-        createdByUserId: creatorId,
-        userId: creatorId,
-        role: MemberRole.MEMBER,
-      }),
-    ).toBe(true);
-  });
-
   it.each([
     ["owner", MemberRole.OWNER],
     ["admin", MemberRole.ADMIN],
-  ] as const)(
-    "allows an organization %s who is not the creator",
-    (_label, role) => {
-      expect(
-        canManageChatRoomLifecycle({
-          createdByUserId: creatorId,
-          userId: otherId,
-          role,
-        }),
-      ).toBe(true);
-    },
-  );
+  ] as const)("allows an organization %s", (_label, role) => {
+    expect(canManageChatRoomLifecycle({ role })).toBe(true);
+  });
 
-  it("denies a plain member who did not create the room", () => {
-    expect(
-      canManageChatRoomLifecycle({
-        createdByUserId: creatorId,
-        userId: otherId,
-        role: MemberRole.MEMBER,
-      }),
-    ).toBe(false);
+  it("denies a creator who is only a plain member", () => {
+    expect(canManageChatRoomLifecycle({ role: MemberRole.MEMBER })).toBe(false);
   });
 });
 
@@ -268,6 +241,39 @@ describe("canPermanentlyDeleteChatRoom", () => {
     expect(canPermanentlyDeleteChatRoom({ role: MemberRole.MEMBER })).toBe(
       false,
     );
+  });
+});
+
+describe("assertChatRoomPatchAuth", () => {
+  it("allows a plain member to PATCH roster-only", () => {
+    expect(() =>
+      assertChatRoomPatchAuth({
+        role: MemberRole.MEMBER,
+        body: { memberUserIds: ["user_a"], coworkerIds: [] },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a plain member PATCH that touches settings", () => {
+    expect(() =>
+      assertChatRoomPatchAuth({
+        role: MemberRole.MEMBER,
+        body: { name: "Nope" },
+      }),
+    ).toThrow(/organization owner or admin/i);
+  });
+
+  it("allows an organization admin to PATCH settings and roster", () => {
+    expect(() =>
+      assertChatRoomPatchAuth({
+        role: MemberRole.ADMIN,
+        body: {
+          name: "Ops",
+          memberUserIds: ["user_a"],
+          coworkerIds: [],
+        },
+      }),
+    ).not.toThrow();
   });
 });
 

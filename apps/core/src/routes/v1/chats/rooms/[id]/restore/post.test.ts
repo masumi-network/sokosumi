@@ -119,34 +119,24 @@ beforeEach(() => {
 });
 
 describe("POST /chats/rooms/{id}/restore", () => {
-  it("clears archivedAt and returns the live room for the creator", async () => {
-    const archived = archivedRoom();
-    const live = { ...archived, archivedAt: null };
-    roomFindFirstMock
-      .mockResolvedValueOnce(archived)
-      .mockResolvedValueOnce(live);
+  it("rejects a creator who is only a plain member", async () => {
+    roomFindFirstMock.mockResolvedValue(archivedRoom());
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
 
     const response = await restore();
 
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data.id).toBe(ROOM_ID);
-    expect(body.data.name).toBe("general");
-    expect(body.data.slug).toBe("general");
-
-    const sqlParts = queryRawMock.mock.calls[0]?.[0] as TemplateStringsArray;
-    expect(sqlParts.join(" ")).toContain("FOR UPDATE");
-    expect(roomUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: ROOM_ID, archivedAt: { not: null } },
-      data: { archivedAt: null },
-    });
+    expect(response.status).toBe(403);
+    const text = await response.text();
+    expect(text).toMatch(/organization owner or admin/i);
+    expect(text).not.toMatch(/creator/i);
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it.each([
     ["admin", MemberRole.ADMIN],
     ["owner", MemberRole.OWNER],
   ])(
-    "lets an organization %s restore a room they did not create",
+    "lets an organization %s restore a room and returns the live room",
     async (_label, role) => {
       const archived = archivedRoom({ createdByUserId: OTHER_ID });
       roomFindFirstMock
@@ -154,11 +144,24 @@ describe("POST /chats/rooms/{id}/restore", () => {
         .mockResolvedValueOnce({ ...archived, archivedAt: null });
       memberFindUniqueMock.mockResolvedValue({ role });
 
-      expect((await restore()).status).toBe(200);
+      const response = await restore();
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.data.id).toBe(ROOM_ID);
+      expect(body.data.name).toBe("general");
+      expect(body.data.slug).toBe("general");
+
+      const sqlParts = queryRawMock.mock.calls[0]?.[0] as TemplateStringsArray;
+      expect(sqlParts.join(" ")).toContain("FOR UPDATE");
+      expect(roomUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: ROOM_ID, archivedAt: { not: null } },
+        data: { archivedAt: null },
+      });
     },
   );
 
-  it("rejects a plain member who is not the creator", async () => {
+  it("rejects a plain member who is not elevated", async () => {
     roomFindFirstMock.mockResolvedValue(
       archivedRoom({ createdByUserId: OTHER_ID, memberIds: [SELF_ID] }),
     );
@@ -191,6 +194,7 @@ describe("POST /chats/rooms/{id}/restore", () => {
 
   it("400s when a concurrent restore already cleared archivedAt", async () => {
     roomFindFirstMock.mockResolvedValue(archivedRoom());
+    memberFindUniqueMock.mockResolvedValue({ role: MemberRole.OWNER });
     roomUpdateManyMock.mockResolvedValue({ count: 0 });
 
     expect((await restore()).status).toBe(400);

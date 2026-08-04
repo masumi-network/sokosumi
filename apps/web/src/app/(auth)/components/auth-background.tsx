@@ -1,6 +1,10 @@
+"use client";
+
 import Image from "next/image";
+import { useState } from "react";
 
 import { KanjiLogo } from "@/components/masumi-logos";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
 const AUTH_BACKGROUND_IMAGES = [
   "/images/backgrounds/auth-bg-1.png",
@@ -10,14 +14,17 @@ const AUTH_BACKGROUND_IMAGES = [
   "/images/backgrounds/auth-bg-5.png",
 ] as const;
 
-function getRandomAuthBackground() {
-  const randomIndex = Math.floor(Math.random() * AUTH_BACKGROUND_IMAGES.length);
-
-  return AUTH_BACKGROUND_IMAGES[randomIndex];
-}
-
 export default function AuthBackground() {
-  const backgroundImage = getRandomAuthBackground();
+  const [backgroundImage, setBackgroundImage] = useState<
+    (typeof AUTH_BACKGROUND_IMAGES)[number]
+  >(AUTH_BACKGROUND_IMAGES[0]);
+
+  useMountEffect(() => {
+    const randomIndex = Math.floor(
+      Math.random() * AUTH_BACKGROUND_IMAGES.length,
+    );
+    setBackgroundImage(AUTH_BACKGROUND_IMAGES[randomIndex]);
+  });
 
   return (
     <div className="hidden h-full w-1/2 lg:block">

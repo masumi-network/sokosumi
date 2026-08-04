@@ -327,16 +327,17 @@ export function RoomsClient({
   const currentMemberRole = organizationMembers.find(
     (member) => member.user.id === currentUserId,
   )?.role;
-  // Archiving hides the room for everyone: creator or org owner/admin only.
-  const canArchiveSelectedRoom = Boolean(
-    selectedRoom &&
-      !isDirectRoom &&
-      (selectedRoom.createdByUserId === currentUserId ||
-        currentMemberRole === "owner" ||
-        currentMemberRole === "admin"),
+  const isOrgOwnerOrAdmin =
+    currentMemberRole === "owner" || currentMemberRole === "admin";
+  // Any active channel member may rewrite the roster.
+  const canEditSelectedRoomMembers = Boolean(selectedRoom && !isDirectRoom);
+  // Name/topic/discoverability and archive: organization owner/admin only.
+  const canManageSelectedRoomSettings = Boolean(
+    selectedRoom && !isDirectRoom && isOrgOwnerOrAdmin,
   );
+  const canArchiveSelectedRoom = canManageSelectedRoomSettings;
   // Any member can leave, but not the last one — an empty roster could not be
-  // archived (archive requires membership of creator/owner/admin).
+  // archived (archive requires membership of an org owner/admin).
   const canLeaveSelectedRoom = Boolean(
     selectedRoom && !isDirectRoom && selectedRoom.userMembers.length > 1,
   );
@@ -1396,7 +1397,9 @@ export function RoomsClient({
                       channel={selectedRoom}
                       members={organizationMembers}
                       coworkers={coworkers}
-                      canManage={canArchiveSelectedRoom}
+                      canEditMembers={canEditSelectedRoomMembers}
+                      canManageSettings={canManageSelectedRoomSettings}
+                      canArchive={canArchiveSelectedRoom}
                       canLeave={canLeaveSelectedRoom}
                       membersLoadFailed={membersLoadFailed}
                     />
@@ -1508,6 +1511,7 @@ export function RoomsClient({
                             room: selectedRoom,
                             isStreamOverlay,
                           })}
+                          isFirstOfDay={showDaySeparator}
                           isContinuation={
                             !showDaySeparator &&
                             isMessageContinuation(previousMessage, message)

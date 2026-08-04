@@ -8,9 +8,6 @@ import { getSession } from "@/lib/auth/auth.server";
 import { installPdfExportRequestGuard } from "@/lib/utils/pdf-export-ssrf";
 import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limited";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 /** Hard cap on HTML payload size to limit Chromium memory/CPU abuse. */
 const MAX_HTML_BYTES = 1_500_000;
 

@@ -27,6 +27,8 @@ const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
 );
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
   async headers() {
     return [
       {

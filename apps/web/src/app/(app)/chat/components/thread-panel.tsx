@@ -105,10 +105,15 @@ export function ThreadPanel({
 }) {
   const t = useTranslations("App.Channels");
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
-  const { scrollerRef, contentRef, contentMinHeight, scrollToBottomIfPinned } =
-    useStickToBottom({
-      resetKey: parentMessage.id,
-    });
+  const {
+    scrollerRef,
+    contentRef,
+    contentMinHeight,
+    scrollToBottom,
+    scrollToBottomIfPinned,
+  } = useStickToBottom({
+    resetKey: parentMessage.id,
+  });
 
   useMountEffect(() => {
     requestAnimationFrame(() => {
@@ -121,6 +126,21 @@ export function ThreadPanel({
     requestAnimationFrame(() => {
       threadComposerRef.current?.focus();
     });
+  }
+
+  async function handleSendReply(
+    request: RoomSessionSendRequest,
+  ): Promise<RoomSessionSendResult> {
+    const result = await onSendReply(request);
+    if (result.ok) {
+      // Own send always reveals the new reply, even if typing/composer resize
+      // cleared the sticky flag. Re-pin so ResizeObserver follows late layout.
+      scrollToBottom();
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
+    }
+    return result;
   }
 
   function editPropsFor(messageId: string) {
@@ -277,7 +297,7 @@ export function ThreadPanel({
           onRestorePendingQuote={onRestorePendingQuote}
           onChromeResize={scrollToBottomIfPinned}
           onBeforeSend={onBeforeSendReply}
-          onSend={onSendReply}
+          onSend={handleSendReply}
         />
       </RoomFileDropZone>
     </aside>

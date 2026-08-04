@@ -5,7 +5,7 @@ import {
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "@sokosumi/utils";
 
-import { badRequest, notFound } from "@/helpers/error";
+import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import {
   type ChatRoomMessageQuote,
@@ -972,31 +972,70 @@ export async function buildUniqueRoomSlug(
 }
 
 /**
- * Archive and restore hide or resurface a room for everyone, so only the
- * creator or an organization owner/admin may do either. Plain members leave
- * instead (or ask someone elevated to archive).
+ * Organization owner/admin elevation for channel lifecycle and settings.
+ * Room creator is provenance only — never authorizes.
+ */
+export function isOrganizationOwnerOrAdmin(role: string): boolean {
+  return role === MemberRole.OWNER || role === MemberRole.ADMIN;
+}
+
+/**
+ * Archive and restore hide or resurface a room for everyone, so only an
+ * organization owner/admin may do either. Plain members leave instead (or ask
+ * someone elevated to archive).
  */
 export function canManageChatRoomLifecycle(options: {
-  createdByUserId: string;
-  userId: string;
   /** Organization membership role from Prisma (`string`); compare to `MemberRole`. */
   role: string;
 }): boolean {
-  return (
-    options.createdByUserId === options.userId ||
-    options.role === MemberRole.OWNER ||
-    options.role === MemberRole.ADMIN
-  );
+  return isOrganizationOwnerOrAdmin(options.role);
 }
 
 /**
  * Permanent delete removes the room and cascaded children for everyone.
- * Organization owner/admin only — room creator membership is not enough.
+ * Same elevation as archive/restore — organization owner/admin only.
  */
 export function canPermanentlyDeleteChatRoom(options: {
   role: string;
 }): boolean {
-  return options.role === MemberRole.OWNER || options.role === MemberRole.ADMIN;
+  return canManageChatRoomLifecycle(options);
+}
+
+export function chatRoomPatchTouchesSettings(body: {
+  name?: unknown;
+  topic?: unknown;
+  discoverability?: unknown;
+}): boolean {
+  return (
+    body.name !== undefined ||
+    body.topic !== undefined ||
+    body.discoverability !== undefined
+  );
+}
+
+/**
+ * Split PATCH gates: settings (name/topic/discoverability) need OWNER/ADMIN;
+ * roster rewrite is allowed for any active channel member (membership already
+ * proven by the access helper). Fail settings before any writes.
+ */
+export function assertChatRoomPatchAuth(options: {
+  role: string;
+  body: {
+    name?: unknown;
+    topic?: unknown;
+    discoverability?: unknown;
+    memberUserIds?: unknown;
+    coworkerIds?: unknown;
+  };
+}): void {
+  if (
+    chatRoomPatchTouchesSettings(options.body) &&
+    !isOrganizationOwnerOrAdmin(options.role)
+  ) {
+    throw forbidden(
+      "Only an organization owner or admin can update channel settings.",
+    );
+  }
 }
 
 export async function requireChatRoomUserAccess(
