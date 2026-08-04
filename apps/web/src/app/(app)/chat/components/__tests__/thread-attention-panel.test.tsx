@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ThreadAttentionPanel } from "@/app/chat/components/thread-attention-panel";
 import type {
   ChatRoomMessage,
-  ChatRoomUnreadThread,
+  ChatRoomThread,
 } from "@/lib/clients/generated/core";
 
 const listUnreadThreadsActionMock = vi.fn();
@@ -67,10 +67,12 @@ function parentMessage(
 }
 
 function attentionItem(
-  overrides: Partial<ChatRoomUnreadThread> = {},
-): ChatRoomUnreadThread {
+  overrides: Partial<ChatRoomThread> = {},
+): ChatRoomThread {
   return {
     parentMessage: parentMessage(),
+    replyCount: 2,
+    lastReplyAt: new Date("2026-08-01T01:00:00.000Z"),
     unreadReplyCount: 2,
     lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
     ...overrides,

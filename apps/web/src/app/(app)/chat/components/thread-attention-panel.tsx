@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/popover";
 import type {
   ChatRoomMessage,
-  ChatRoomUnreadThread,
+  ChatRoomThread,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -63,7 +63,7 @@ export function ThreadAttentionPanel({
   onOpenThread,
 }: ThreadAttentionPanelProps) {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<ChatRoomUnreadThread[]>([]);
+  const [items, setItems] = useState<ChatRoomThread[]>([]);
   const [badgeCount, setBadgeCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -124,7 +124,7 @@ export function ThreadAttentionPanel({
     setOpen(nextOpen);
   }
 
-  function handleSelect(item: ChatRoomUnreadThread) {
+  function handleSelect(item: ChatRoomThread) {
     setBadgeCount((current) => Math.max(0, current - 1));
     onOpenThread(item.parentMessage);
     handleOpenChange(false);
@@ -217,7 +217,7 @@ export function ThreadAttentionPanel({
           ) : null}
           {items.map((item) => {
             const sender = messageSender(item.parentMessage);
-            const lastAt = item.lastUnreadReplyAt;
+            const lastAt = item.lastUnreadReplyAt ?? item.lastReplyAt;
             const preview =
               formatThreadAttentionPreview(item.parentMessage.content) ||
               sender.name;
