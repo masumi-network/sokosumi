@@ -74,7 +74,7 @@ Cookie names on local Preprod: `sokosumi-localhost-preprod.session_token` (requi
 Computer-use notes (live-proved with `alice@sokosumi.test`):
 
 - Scroll past Google / Microsoft / Passkey / Magic Link. Magic Link also has its **own** email field + “Send me a Magic Link” — do **not** type there. Target fields under **“OR SIGN IN WITH PASSWORD”** only.
-- **Type** email and password with real keystrokes (or the GUI type tool). Setting `input.value` via JS / paste-without-events often leaves react-hook-form empty so Login stays disabled or submit no-ops.
+- **Type** email and password with real keystrokes (or the GUI type tool). Setting `input.value` via JS / paste-without-events often leaves react-hook-form empty so zod blocks submit (Login stays enabled — it only disables while `isSubmitting`).
 - Submit with **Enter** (or the purple **Login** button under the password form).
 - After success, Chrome may show a **“Save password?”** bubble over the app — dismiss **Never** / **No thanks** before clicking app chrome, or clicks miss.
 - When computer-use keeps failing, run `verify-sokosumi sign-in --method cookie` (agent-browser), then continue the map.
