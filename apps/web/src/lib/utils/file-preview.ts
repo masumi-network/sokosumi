@@ -26,23 +26,28 @@ const TEXT_PREVIEW_MEDIA_TYPES = new Set([
   "text/x-markdown",
 ]);
 
+/** Strip parameters (`text/plain; charset=utf-8` → `text/plain`) for allowlist checks. */
+export function normalizeMediaType(mediaType?: string | null): string | null {
+  if (!mediaType) return null;
+  const base = mediaType.split(";", 1)[0]?.trim().toLowerCase();
+  return base || null;
+}
+
 export function isOfficeFile(url: string): boolean {
   return OFFICE_EXTENSIONS.has(getExtensionFromUrl(url));
 }
 
 export function isOfficeMediaType(mediaType?: string | null): boolean {
-  return mediaType
-    ? mediaType.toLowerCase() in OFFICE_MEDIA_TYPE_EXTENSION
-    : false;
+  const normalized = normalizeMediaType(mediaType);
+  return normalized ? normalized in OFFICE_MEDIA_TYPE_EXTENSION : false;
 }
 
 /** The Office file extension implied by a MIME type, when known. */
 export function officeExtensionFromMediaType(
   mediaType?: string | null,
 ): string | undefined {
-  return mediaType
-    ? OFFICE_MEDIA_TYPE_EXTENSION[mediaType.toLowerCase()]
-    : undefined;
+  const normalized = normalizeMediaType(mediaType);
+  return normalized ? OFFICE_MEDIA_TYPE_EXTENSION[normalized] : undefined;
 }
 
 export function isPdfUrl(url: string): boolean {
@@ -50,7 +55,7 @@ export function isPdfUrl(url: string): boolean {
 }
 
 export function isPdfMediaType(mediaType?: string | null): boolean {
-  return mediaType?.toLowerCase() === "application/pdf";
+  return normalizeMediaType(mediaType) === "application/pdf";
 }
 
 export function isTextPreviewUrl(url: string): boolean {
@@ -58,9 +63,8 @@ export function isTextPreviewUrl(url: string): boolean {
 }
 
 export function isTextPreviewMediaType(mediaType?: string | null): boolean {
-  return mediaType
-    ? TEXT_PREVIEW_MEDIA_TYPES.has(mediaType.toLowerCase())
-    : false;
+  const normalized = normalizeMediaType(mediaType);
+  return normalized ? TEXT_PREVIEW_MEDIA_TYPES.has(normalized) : false;
 }
 
 export type DocumentPreviewKind = "office" | "pdf" | "text";
@@ -98,7 +102,7 @@ export function classifyFilePreview(
   mediaType?: string | null,
 ): FilePreviewClassification {
   const isImage =
-    (mediaType?.toLowerCase().startsWith("image/") ?? false) ||
+    (normalizeMediaType(mediaType)?.startsWith("image/") ?? false) ||
     isImageUrl(url) ||
     (fileName ? isImageUrl(fileName) : false);
 

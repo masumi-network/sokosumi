@@ -1,6 +1,7 @@
 import { FileIcon } from "lucide-react";
+
+import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Favicon } from "@/components/ui/favicon";
-import { FileChip } from "@/components/ui/file-chip";
 import { BlobStatus } from "@/lib/clients/generated/core";
 import { getBlobUrl } from "@/lib/helpers/blob";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ export interface BlobLike {
   status: BlobStatus;
   name?: string | null;
   fileUrl?: string | null;
+  mimeType?: string | null;
 }
 
 export interface LinkLike {
@@ -83,6 +85,11 @@ function FileItemChip({ blob }: { blob: BlobLike }) {
   }
 
   return (
-    <FileChip url={getBlobUrl(blob)} fileName={blob.name} sizeClass="size-4" />
+    <FileChipWithMetadata
+      url={getBlobUrl(blob)}
+      fileName={blob.name}
+      mediaType={blob.mimeType}
+      sizeClass="size-4"
+    />
   );
 }

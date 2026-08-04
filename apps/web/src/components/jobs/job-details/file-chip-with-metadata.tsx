@@ -80,15 +80,22 @@ function useFileHeadMetadata(url: string) {
 export function FileChipWithMetadata({
   url,
   title,
+  mediaType,
+  fileName,
+  size,
   ...props
-}: Omit<FileChipProps, "fileName" | "size">) {
+}: Omit<FileChipProps, "fileName" | "size"> & {
+  fileName?: string | null;
+  size?: number | bigint | null;
+}) {
   const metadata = useFileHeadMetadata(url);
 
   return (
     <FileChip
       url={url}
-      fileName={metadata?.fileName}
-      size={metadata?.size ?? undefined}
+      fileName={fileName ?? metadata?.fileName}
+      mediaType={mediaType ?? metadata?.contentType}
+      size={size ?? metadata?.size ?? undefined}
       title={title ?? metadata?.contentType}
       {...props}
     />

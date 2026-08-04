@@ -130,6 +130,13 @@ vi.mock("@/components/expandable-markdown", () => ({
 }));
 
 vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
+  FileChipWithMetadata: ({
+    url,
+    fileName,
+  }: {
+    url: string;
+    fileName?: string | null;
+  }) => <div>{fileName ?? url}</div>,
   FileChipMiniPreviewWithMetadata: ({ url }: { url: string }) => (
     <div>{url}</div>
   ),
@@ -577,12 +584,11 @@ describe("TaskActivitySection", () => {
 
     render(<TaskActivitySection {...baseProps} events={events} />);
 
-    // report.pdf is now previewable, so it renders as a button that opens
-    // the DocumentViewer rather than a plain link — see file-chip.test.tsx
-    // for the click-to-preview behavior itself.
-    expect(
-      screen.getByRole("button", { name: /report\.pdf/i }),
-    ).toBeInTheDocument();
+    // Markdown keeps the inline link; SourcesGrid also lists the extracted
+    // file via FileChipWithMetadata (mocked above as the URL/name text).
+    expect(screen.getAllByText(/report\.pdf/i).length).toBeGreaterThanOrEqual(
+      1,
+    );
     expect(
       screen.getByRole("link", { name: /docs\.example\.com/i }),
     ).toHaveAttribute("href", "https://docs.example.com/article");

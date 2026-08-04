@@ -78,6 +78,9 @@ describe("DocumentViewer", () => {
       "https://blob.example.com/report.pdf",
     );
     expect(download).toHaveAttribute("download", "report.pdf");
+    expect(download).toHaveAttribute("title", "Download document");
+    expect(download.className).toMatch(/size-8/);
+    expect(download.className).toMatch(/sm:w-auto/);
 
     const openInNewTab = screen.getByRole("link", { name: "Open in new tab" });
     expect(openInNewTab).toHaveAttribute(
@@ -85,6 +88,9 @@ describe("DocumentViewer", () => {
       "https://blob.example.com/report.pdf",
     );
     expect(openInNewTab).toHaveAttribute("target", "_blank");
+    expect(openInNewTab).toHaveAttribute("title", "Open in new tab");
+    expect(openInNewTab.className).toMatch(/size-8/);
+    expect(openInNewTab.className).toMatch(/sm:w-auto/);
   });
 
   it("embeds a PDF natively with the toolbar hidden", () => {

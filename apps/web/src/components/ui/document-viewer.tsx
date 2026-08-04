@@ -152,7 +152,7 @@ function DocumentViewerContent({
 
   return (
     <>
-      <div className="border-border/60 flex items-center justify-between gap-3 border-b py-4 pr-14 pl-6">
+      <div className="border-border/60 flex items-center justify-between gap-2 border-b py-3 pr-14 pl-4 sm:gap-3 sm:py-4 sm:pl-6">
         <div className="flex min-w-0 items-center gap-2">
           <FileText
             className="text-muted-foreground size-4 shrink-0"
@@ -162,17 +162,38 @@ function DocumentViewerContent({
             {fileName}
           </DialogTitle>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button asChild variant="outline" size="sm">
-            <a href={url} target="_blank" rel="noreferrer noopener">
-              {t("openInNewTab")}
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <Button
+            asChild
+            variant="outline"
+            size="icon"
+            className="size-8 sm:h-8 sm:w-auto sm:gap-1.5 sm:px-3"
+          >
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer noopener"
+              aria-label={t("openInNewTab")}
+              title={t("openInNewTab")}
+            >
               <ExternalLink className="size-3.5" aria-hidden />
+              <span className="hidden sm:inline">{t("openInNewTab")}</span>
             </a>
           </Button>
-          <Button asChild variant="outline" size="sm">
-            <a download={fileName} href={url}>
-              {t("download")}
+          <Button
+            asChild
+            variant="outline"
+            size="icon"
+            className="size-8 sm:h-8 sm:w-auto sm:gap-1.5 sm:px-3"
+          >
+            <a
+              download={fileName}
+              href={url}
+              aria-label={t("download")}
+              title={t("download")}
+            >
               <Download className="size-3.5" aria-hidden />
+              <span className="hidden sm:inline">{t("download")}</span>
             </a>
           </Button>
         </div>
