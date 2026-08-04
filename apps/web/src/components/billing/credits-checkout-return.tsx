@@ -31,6 +31,9 @@ export async function CreditsCheckoutReturn({
         .catch(() => null)
     : null;
 
+  // Prefer success when Stripe returns both markers (malformed return URL).
+  const showCancel = Boolean(cancel) && !sessionId;
+
   return (
     <>
       {checkoutSession ? (
@@ -42,7 +45,7 @@ export async function CreditsCheckoutReturn({
           <PurchaseTracker checkoutSession={checkoutSession} />
         </>
       ) : null}
-      {cancel ? <CreditsCancelModal /> : null}
+      {showCancel ? <CreditsCancelModal /> : null}
     </>
   );
 }

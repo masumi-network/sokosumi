@@ -106,4 +106,33 @@ describe("CreditsCheckoutReturn", () => {
     expect(creditsPurchaseSuccessMock).not.toHaveBeenCalled();
     expect(getCheckoutSessionAnalyticsMock).not.toHaveBeenCalled();
   });
+
+  it("prefers success over cancel when both markers are present", async () => {
+    const checkoutSession = {
+      sessionId: "cs_both",
+      currency: "eur",
+      value: 1,
+      items: [],
+    };
+    getCheckoutSessionAnalyticsMock.mockResolvedValue({
+      data: checkoutSession,
+    });
+
+    render(
+      await CreditsCheckoutReturn({
+        cancel: "true",
+        coworkersPromise,
+        sessionId: "cs_both",
+      }),
+    );
+
+    expect(getCheckoutSessionAnalyticsMock).toHaveBeenCalledWith("cs_both");
+    expect(creditsPurchaseSuccessMock).toHaveBeenCalledWith(
+      expect.objectContaining({ coworkersPromise, initialOpen: true }),
+    );
+    expect(purchaseTrackerMock).toHaveBeenCalledWith(
+      expect.objectContaining({ checkoutSession }),
+    );
+    expect(creditsCancelModalMock).not.toHaveBeenCalled();
+  });
 });
