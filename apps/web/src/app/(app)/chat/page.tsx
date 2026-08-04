@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatWelcomeClient } from "@/app/chat/components/chat-welcome-client";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+import DefaultLoading from "@/components/default-loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { chatRoomService, userService } from "@/lib/services";
@@ -37,11 +40,19 @@ export async function generateMetadata({
   };
 }
 
+function ChatPageFallback() {
+  return <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />;
+}
+
 /**
  * `/chat` landing = classic coworker welcome. Draft modes via query:
  * `?create=channel`, `?dm=new`. Open rooms: `/chat/rooms/[roomId]`.
  */
-export default async function ChatPage({ searchParams }: ChatPageProps) {
+async function ChatPageContent({ searchParams }: ChatPageProps) {
+  // Defer before any cookies()/headers()-bound work so PPR shell probing does
+  // not soft-reject dynamic APIs while filling this Suspense hole.
+  await connection();
+
   const [query, tChannels, activeOrganization, session] = await Promise.all([
     searchParams,
     getTranslations("App.Channels"),
@@ -145,5 +156,13 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
         userName={session?.user.name ?? undefined}
       />
     </>
+  );
+}
+
+export default function ChatPage({ searchParams }: ChatPageProps) {
+  return (
+    <Suspense fallback={<ChatPageFallback />}>
+      <ChatPageContent searchParams={searchParams} />
+    </Suspense>
   );
 }
