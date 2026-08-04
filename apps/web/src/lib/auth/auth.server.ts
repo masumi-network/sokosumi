@@ -159,6 +159,12 @@ function getBetterAuthCookiePrefixFromEnv(): string {
   });
 }
 
+// Headers-only: Instant Nav sidebar may call getSession under
+// "use cache: private", where connection() is illegal (next-request-in-use-cache).
+async function getRequestHeaders(): Promise<Headers> {
+  return headers();
+}
+
 /**
  * Cheap presence check — no Core round-trip. Anonymous auth entry paths
  * (signin/signup) must not pay Core RTT when no session cookie exists.
@@ -232,7 +238,7 @@ async function fetchSession(
 }
 
 const getCachedSession = cache(async (): Promise<Session | null> => {
-  return fetchSession(await headers());
+  return fetchSession(await getRequestHeaders());
 });
 
 /**
@@ -245,7 +251,7 @@ export async function getSession(
   options?: GetSessionOptions,
 ): Promise<Session | null> {
   if (options?.refresh) {
-    return fetchSession(await headers(), options);
+    return fetchSession(await getRequestHeaders(), options);
   }
 
   return getCachedSession();
@@ -255,7 +261,7 @@ const getCachedUserAccounts = cache(
   async (): Promise<Result<Account[], CoreAuthReadError>> => {
     const result = await fetchCoreAuth<unknown>(
       CORE_LIST_ACCOUNTS_PATH,
-      await headers(),
+      await getRequestHeaders(),
       {
         failureLogMessage: "Failed to fetch user accounts from Core",
       },
@@ -291,7 +297,7 @@ const getCachedActiveSubscriptions = cache(
   ): Promise<Result<ActiveSubscription[], CoreAuthReadError>> => {
     const result = await fetchCoreAuth<unknown>(
       CORE_LIST_ACTIVE_SUBSCRIPTIONS_PATH,
-      await headers(),
+      await getRequestHeaders(),
       {
         failureLogMessage: "Failed to fetch active subscriptions from Core",
         searchParams: {
@@ -331,7 +337,7 @@ const getCachedOAuthClientPublic = cache(
   ): Promise<Result<OAuthClientPublic | null, CoreAuthReadError>> => {
     const result = await fetchCoreAuth<OAuthClientPublic | null>(
       CORE_GET_OAUTH_CLIENT_PUBLIC_PATH,
-      await headers(),
+      await getRequestHeaders(),
       {
         failureLogMessage: "Failed to fetch OAuth client from Core",
         searchParams: { client_id: clientId },
@@ -376,7 +382,7 @@ export async function getSessionOrRedirect(): Promise<Session> {
     return session;
   }
   // Get the current URL from headers for server-side redirect
-  const headersList = await headers();
+  const headersList = await getRequestHeaders();
   const pathname = headersList.get("x-pathname") ?? "";
   const searchParams = headersList.get("x-search-params") ?? "";
   const currentUrl = pathname + searchParams;
