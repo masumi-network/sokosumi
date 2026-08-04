@@ -762,13 +762,6 @@ export function chatRoomPatchTouchesSettings(body: {
   );
 }
 
-export function chatRoomPatchTouchesRoster(body: {
-  memberUserIds?: unknown;
-  coworkerIds?: unknown;
-}): boolean {
-  return body.memberUserIds !== undefined || body.coworkerIds !== undefined;
-}
-
 /**
  * Split PATCH gates: settings (name/topic/discoverability) need OWNER/ADMIN;
  * roster rewrite is allowed for any active channel member (membership already

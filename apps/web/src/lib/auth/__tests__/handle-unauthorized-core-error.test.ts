@@ -56,7 +56,7 @@ describe("isUnauthorizedCoreApiError", () => {
     expect(
       isUnauthorizedCoreApiError(
         new CoreApiRequestError(
-          "Only the channel creator or an organization owner/admin can update members",
+          "Only an organization owner or admin can update channel settings.",
           { status: 403 },
         ),
       ),
@@ -143,7 +143,7 @@ describe("withUnauthorizedCoreRedirect", () => {
 
   it("rethrows business 403 errors without redirecting", async () => {
     const forbidden = new CoreApiRequestError(
-      "Only the channel creator or an organization owner/admin can update members",
+      "Only an organization owner or admin can update channel settings.",
       { status: 403 },
     );
     const client = withUnauthorizedCoreRedirect({
