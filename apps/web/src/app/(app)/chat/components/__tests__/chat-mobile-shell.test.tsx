@@ -2,11 +2,9 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let mockPathname = "/chat";
-let mockSearch = "";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
-  useSearchParams: () => new URLSearchParams(mockSearch),
 }));
 
 vi.mock("next-intl", () => ({
@@ -41,7 +39,6 @@ import { CHAT_MOBILE_TAB_BAR_CLEARANCE } from "../chat-mobile-tab-registry";
 describe("ChatMobileShell", () => {
   beforeEach(() => {
     mockPathname = "/chat";
-    mockSearch = "";
   });
 
   it("renders bottom nav and tab-bar clearance on chat home", () => {
@@ -70,9 +67,8 @@ describe("ChatMobileShell", () => {
     expect(wrapper?.className).not.toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
 
-  it("keeps bottom nav on draft create/dm surfaces", () => {
+  it("keeps bottom nav on /chat (drafts share this path)", () => {
     mockPathname = "/chat";
-    mockSearch = "create=channel";
 
     render(
       <ChatMobileShell>

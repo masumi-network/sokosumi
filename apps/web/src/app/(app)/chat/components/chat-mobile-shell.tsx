@@ -1,8 +1,8 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
-import { classifyChatChromeSurface } from "@/app/chat/utils/chat-route-base";
+import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 import { cn } from "@/lib/utils";
 
 import { ChatMobileBottomNav } from "./chat-mobile-bottom-nav";
@@ -13,10 +13,8 @@ export function ChatMobileShell({
 }: {
   children: React.ReactNode;
 }): React.ReactElement {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const surface = classifyChatChromeSurface(pathname, searchParams);
-  const showBottomNav = surface !== "room";
+  // Room path alone gates the tab bar; drafts share `/chat` and keep the nav.
+  const showBottomNav = !isChatRoomPathname(usePathname());
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
