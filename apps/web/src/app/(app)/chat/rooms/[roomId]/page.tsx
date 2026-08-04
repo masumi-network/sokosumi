@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
@@ -41,15 +40,6 @@ function NoOrganizationCard({
 
 function ChatRoomPageFallback() {
   return <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />;
-}
-
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("App.Channels.Metadata");
-
-  return {
-    title: t("title"),
-    description: t("description"),
-  };
 }
 
 /**
