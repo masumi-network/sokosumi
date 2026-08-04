@@ -53,7 +53,7 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "App.Subscriptions",
   "App.Account",
   "App.Billing",
-  "App.Channels",
+  "App.Channels.Presence",
   "App.Coworkers",
   "App.Developer",
   "App.MCP",
