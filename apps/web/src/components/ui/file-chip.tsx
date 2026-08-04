@@ -15,6 +15,7 @@ import { formatBytes } from "@/lib/utils/format-bytes";
 export interface FileChipProps extends React.ComponentPropsWithoutRef<"a"> {
   url: string;
   fileName?: string | null;
+  mediaType?: string | null;
   size?: number | bigint | null;
   /**
    * Tailwind size class (e.g., `size-8`, `size-10`). Defaults to `size-10`.
@@ -31,6 +32,7 @@ export function FileChip(props: FileChipProps) {
   const {
     url,
     fileName: fileNameProp,
+    mediaType,
     size,
     className,
     sizeClass = "size-10",
@@ -39,7 +41,11 @@ export function FileChip(props: FileChipProps) {
     ...anchorProps
   } = props;
   const fileName = fileNameProp ?? url.split("/").pop() ?? url;
-  const { isImage, documentKind } = classifyFilePreview(url, fileNameProp);
+  const { isImage, documentKind } = classifyFilePreview(
+    url,
+    fileNameProp,
+    mediaType,
+  );
   const canUseNextImage = canUseNextImageSrc(url);
   const prettySize = formatBytes(size);
   const containerSizeClass = sizeClass;
@@ -87,7 +93,8 @@ export function FileChip(props: FileChipProps) {
         ) : (
           <div className={cn("flex size-full items-center justify-center", shouldApplyIconPadding && "p-1")}>
             {(() => {
-              const ext = getExtensionFromUrl(url) || "file";
+              const ext =
+                getExtensionFromUrl(fileNameProp ?? url) || "file";
               return <FileTypeIcon extension={ext} />;
             })()}
           </div>
@@ -143,6 +150,7 @@ export function FileChip(props: FileChipProps) {
           url={url}
           fileName={fileName}
           kind={documentKind}
+          mediaType={mediaType}
         />
       </>
     );

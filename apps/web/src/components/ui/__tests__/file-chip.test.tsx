@@ -94,6 +94,40 @@ describe("FileChip", () => {
     );
   });
 
+  it("opens a document viewer for an extensionless URL when mediaType is a previewable MIME", () => {
+    render(
+      <FileChip
+        url="https://blob.example.com/uploads/abcdef012345"
+        mediaType="application/pdf"
+      />,
+    );
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+
+    const trigger = screen.getByRole("button");
+    fireEvent.click(trigger);
+
+    expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
+    expect(screen.getByTitle("abcdef012345")).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/abcdef012345#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+    );
+  });
+
+  it("opens an image viewer for an extensionless URL when mediaType is image/*", () => {
+    render(
+      <FileChip
+        url="https://blob.example.com/uploads/abcdef012345"
+        mediaType="image/png"
+      />,
+    );
+
+    const trigger = screen.getByRole("button");
+    fireEvent.click(trigger);
+
+    expect(screen.getByTestId("image-viewer")).toBeInTheDocument();
+  });
+
   it("keeps a plain download/open link for unsupported file types", () => {
     render(
       <FileChip
