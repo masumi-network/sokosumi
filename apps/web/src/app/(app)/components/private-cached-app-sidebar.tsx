@@ -7,8 +7,6 @@ import {
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getSession } from "@/lib/auth/auth.server";
-import { coreClient } from "@/lib/clients/core.client";
-import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import { chatRoomService, userService } from "@/lib/services";
@@ -17,6 +15,11 @@ import {
   resolvePlanSecondaryLabel,
 } from "@/lib/utils/plan-label";
 
+import {
+  getCachedMyCredits,
+  privateSidebarOrgTag,
+  privateSidebarUserTag,
+} from "./private-sidebar-cache";
 import { AccountNoticeHydrator } from "./shell-hydrators.client";
 import Sidebar, { resolveCreditUsage } from "./sidebar";
 
@@ -39,9 +42,9 @@ export default async function PrivateCachedAppSidebar({
 }: PrivateCachedAppSidebarProps) {
   "use cache: private";
   cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
-  cacheTag(`app-sidebar-user-${userId}`);
+  cacheTag(privateSidebarUserTag(userId));
   if (activeOrganizationId) {
-    cacheTag(`app-sidebar-org-${activeOrganizationId}`);
+    cacheTag(privateSidebarOrgTag(activeOrganizationId));
   }
 
   const session = await getSession();
@@ -67,7 +70,7 @@ export default async function PrivateCachedAppSidebar({
         [] as Awaited<ReturnType<typeof chatRoomService.listArchivedRooms>>,
       );
   const activeOrganizationPromise = userService.getActiveOrganization();
-  const creditsPromise = coreClient.getMyCredits().catch(() => null);
+  const creditsPromise = getCachedMyCredits();
 
   const [
     tCredit,
@@ -77,7 +80,7 @@ export default async function PrivateCachedAppSidebar({
     archivedChatRooms,
     { showVendors: showDeveloperVendors },
     activeOrganization,
-    creditsResultRaw,
+    creditsResult,
   ] = await Promise.all([
     tCreditPromise,
     tPlanPromise,
@@ -88,7 +91,6 @@ export default async function PrivateCachedAppSidebar({
     activeOrganizationPromise,
     creditsPromise,
   ]);
-  const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
 
   const creditsData = creditsResult?.data.credits ?? null;
   const currentPlan = creditsData?.subscription?.plan ?? "free";

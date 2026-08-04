@@ -32,6 +32,13 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
+const invalidatePrivateSidebarChromeMock = vi.fn();
+
+vi.mock("@/app/components/private-sidebar-cache", () => ({
+  invalidatePrivateSidebarChrome: (...args: unknown[]) =>
+    invalidatePrivateSidebarChromeMock(...args),
+}));
+
 describe("credits actions", () => {
   const session = {
     user: {
