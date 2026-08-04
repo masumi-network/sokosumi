@@ -1393,6 +1393,7 @@ export type ChatRoomMessage = {
         [key: string]: unknown;
     } | null;
     quote: ChatRoomMessageQuote;
+    membership: ChatRoomMessageMembership;
 };
 
 export type ChatRoomMessageSender = {
@@ -1448,6 +1449,21 @@ export type ChatRoomMessageQuoteAttachment = {
     url: string;
     mediaKind: 'image' | 'file';
 } | null;
+
+export type ChatRoomMessageMembership = {
+    action: 'joined' | 'left';
+    subject: ChatRoomMessageMembershipSubject;
+} | null;
+
+export type ChatRoomMessageMembershipSubject = {
+    type: 'user';
+    id: string;
+    name: string;
+} | {
+    type: 'coworker';
+    id: string;
+    name: string;
+};
 
 export type ChatRoomThreadsMarkAll = {
     /**
