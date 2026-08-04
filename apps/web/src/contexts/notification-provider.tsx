@@ -12,6 +12,9 @@ import {
 } from "react";
 import { toast } from "sonner";
 
+import { NotificationToastListener } from "@/app/components/notification-toast-listener";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   makeUserNotificationsChannelName,
   type NotificationEventData,
@@ -228,7 +231,36 @@ interface NotificationProviderProps {
   children: React.ReactNode;
 }
 
-function NotificationProviderBody({
+function NotificationRealtimeBridge({
+  userId,
+  onNotification,
+  onSubscribed,
+}: {
+  userId: string;
+  onNotification: (notification: NotificationEventData) => void;
+  onSubscribed: () => void;
+}) {
+  useNotificationRealtime({
+    userId,
+    onNotification,
+    onError: (error) => {
+      console.error("Ably notification error:", error);
+    },
+  });
+
+  useMountEffect(() => {
+    onSubscribed();
+  });
+
+  return null;
+}
+
+/**
+ * Immediate path: reducer + REST fetch/mark-read + context + children.
+ * Sibling island: LazyAbly → ChannelProvider → realtime bridge + toast listener
+ * that dispatch into the same reducer. Children never wait on Ably.
+ */
+export function NotificationProvider({
   userId,
   children,
 }: NotificationProviderProps) {
@@ -325,13 +357,9 @@ function NotificationProviderBody({
     [],
   );
 
-  useNotificationRealtime({
-    userId,
-    onNotification: handleNotificationEvent,
-    onError: (error) => {
-      console.error("Ably notification error:", error);
-    },
-  });
+  const handleRealtimeSubscribed = useCallback(() => {
+    void fetchNotifications();
+  }, [fetchNotifications]);
 
   useEffect(() => {
     void fetchNotifications();
@@ -347,18 +375,19 @@ function NotificationProviderBody({
     hasFetchError,
   };
 
-  return <NotificationContext value={value}>{children}</NotificationContext>;
-}
-
-export function NotificationProvider({
-  userId,
-  children,
-}: NotificationProviderProps) {
   return (
-    <ChannelProvider channelName={makeUserNotificationsChannelName(userId)}>
-      <NotificationProviderBody userId={userId}>
-        {children}
-      </NotificationProviderBody>
-    </ChannelProvider>
+    <NotificationContext value={value}>
+      {children}
+      <LazyAblyProvider>
+        <ChannelProvider channelName={makeUserNotificationsChannelName(userId)}>
+          <NotificationRealtimeBridge
+            userId={userId}
+            onNotification={handleNotificationEvent}
+            onSubscribed={handleRealtimeSubscribed}
+          />
+          <NotificationToastListener userId={userId} markRead={markRead} />
+        </ChannelProvider>
+      </LazyAblyProvider>
+    </NotificationContext>
   );
 }

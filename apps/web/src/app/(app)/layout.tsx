@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import QueryProvider from "@/contexts/query-provider";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { APP_MESSAGE_PATHS } from "@/i18n/message-namespaces";
@@ -32,21 +31,19 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <ClientMessageBoundary paths={APP_MESSAGE_PATHS}>
       <QueryProvider>
         <AuthSessionGuard />
-        <LazyAblyProvider>
-          <SidebarProvider
-            // Cookie preference restored client-side in SidebarProvider
-            // (useLayoutEffect) so this layout stays sync for Instant Nav.
-            defaultOpen
-            data-app-shell
-            className="flex max-w-svw overflow-clip"
+        <SidebarProvider
+          // Cookie preference restored client-side in SidebarProvider
+          // (useLayoutEffect) so this layout stays sync for Instant Nav.
+          defaultOpen
+          data-app-shell
+          className="flex max-w-svw overflow-clip"
+        >
+          <Suspense
+            fallback={<AppShellLoadingFrame>{children}</AppShellLoadingFrame>}
           >
-            <Suspense
-              fallback={<AppShellLoadingFrame>{children}</AppShellLoadingFrame>}
-            >
-              <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
-            </Suspense>
-          </SidebarProvider>
-        </LazyAblyProvider>
+            <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
+          </Suspense>
+        </SidebarProvider>
       </QueryProvider>
     </ClientMessageBoundary>
   );
