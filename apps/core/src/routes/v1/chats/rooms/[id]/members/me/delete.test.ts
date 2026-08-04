@@ -15,7 +15,10 @@ const {
   queryRawMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
+  userFindUniqueMock,
+  messageCreateMock,
   prismaTransactionMock,
+  publishChatRoomMessageRealtimeMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   userMemberCountMock: vi.fn(),
@@ -24,16 +27,49 @@ const {
   queryRawMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+  messageCreateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  publishChatRoomMessageRealtimeMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: { $transaction: prismaTransactionMock },
 }));
 
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+}));
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const SELF_ID = "user_self";
 const OTHER_ID = "user_other";
+
+const MEMBERSHIP_MESSAGE = {
+  id: "550e8400-e29b-41d4-a716-446655440099",
+  roomId: ROOM_ID,
+  parentMessageId: null,
+  senderUserId: null,
+  senderCoworkerId: null,
+  content: "user_self left",
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  deletedAt: null,
+  editedAt: null,
+  metadata: {
+    membership: {
+      action: "left",
+      subject: { type: "user", id: SELF_ID, name: "user_self" },
+    },
+  },
+  clientMessageId: null,
+  responsesApiResponseId: null,
+  senderUser: null,
+  senderCoworker: null,
+  mentionsAsSource: [],
+  reactions: [],
+  replies: [],
+  _count: { replies: 0 },
+};
 
 const tx = {
   chatRoom: { findFirst: roomFindFirstMock },
@@ -42,6 +78,8 @@ const tx = {
     deleteMany: userMemberDeleteManyMock,
   },
   chatRoomReadState: { deleteMany: readStateDeleteManyMock },
+  chatRoomMessage: { create: messageCreateMock },
+  user: { findUnique: userFindUniqueMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   $queryRaw: queryRawMock,
@@ -108,6 +146,9 @@ beforeEach(() => {
   userMemberCountMock.mockResolvedValue(1);
   userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
   readStateDeleteManyMock.mockResolvedValue({ count: 1 });
+  userFindUniqueMock.mockResolvedValue({ name: SELF_ID });
+  messageCreateMock.mockResolvedValue(MEMBERSHIP_MESSAGE);
+  publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
 });
 
 describe("DELETE /chats/rooms/{id}/members/me", () => {
@@ -160,6 +201,42 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
     expect((await leave()).status).toBe(400);
     expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
     expect(readStateDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("emits a left membership status message and publishes after commit", async () => {
+    roomFindFirstMock.mockResolvedValue(room());
+    userMemberCountMock.mockResolvedValue(1);
+
+    const response = await leave();
+
+    expect(response.status).toBe(200);
+    expect(messageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          roomId: ROOM_ID,
+          content: "user_self left",
+          senderUserId: null,
+          senderCoworkerId: null,
+          metadata: {
+            membership: {
+              action: "left",
+              subject: { type: "user", id: SELF_ID, name: "user_self" },
+            },
+          },
+        }),
+      }),
+    );
+    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
+      MEMBERSHIP_MESSAGE,
+    );
+  });
+
+  it("does not emit membership status when refusing a direct leave", async () => {
+    roomFindFirstMock.mockResolvedValue(room({ kind: "direct" }));
+
+    expect((await leave()).status).toBe(400);
+    expect(messageCreateMock).not.toHaveBeenCalled();
+    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
   });
 
   it("refuses to leave a direct room", async () => {

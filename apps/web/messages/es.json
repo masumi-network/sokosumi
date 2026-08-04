@@ -4977,6 +4977,10 @@
         "markAllReadError": "No se pudieron marcar los hilos no leídos como leídos. Inténtalo de nuevo.",
         "startedBy": "Iniciado por {name}",
         "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}"
+      },
+      "MembershipStatus": {
+        "joined": "{name} se unió",
+        "left": "{name} salió"
       }
     }
   },

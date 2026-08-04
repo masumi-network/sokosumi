@@ -5022,6 +5022,9 @@ export const ChatRoomMessageSchema = {
         },
         quote: {
             $ref: '#/components/schemas/ChatRoomMessageQuote'
+        },
+        membership: {
+            $ref: '#/components/schemas/ChatRoomMessageMembership'
         }
     },
     required: [
@@ -5038,7 +5041,8 @@ export const ChatRoomMessageSchema = {
         'threadReplyCount',
         'threadLastReplyAt',
         'metadata',
-        'quote'
+        'quote',
+        'membership'
     ]
 } as const;
 
@@ -5252,6 +5256,78 @@ export const ChatRoomMessageQuoteAttachmentSchema = {
         'fileName',
         'url',
         'mediaKind'
+    ]
+} as const;
+
+export const ChatRoomMessageMembershipSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        action: {
+            type: 'string',
+            enum: [
+                'joined',
+                'left'
+            ]
+        },
+        subject: {
+            $ref: '#/components/schemas/ChatRoomMessageMembershipSubject'
+        }
+    },
+    required: [
+        'action',
+        'subject'
+    ]
+} as const;
+
+export const ChatRoomMessageMembershipSubjectSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'user'
+                    ]
+                },
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'type',
+                'id',
+                'name'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'coworker'
+                    ]
+                },
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'type',
+                'id',
+                'name'
+            ]
+        }
     ]
 } as const;
 
