@@ -28,6 +28,9 @@ interface ExpandableMarkdownProps {
   collapseLabel: string;
   fadeClassName?: string;
   highlightTerm?: string;
+  /** Starts already expanded — e.g. a Completed event's summary should be
+   * readable without an extra click. */
+  defaultOpen?: boolean;
 }
 
 export function ExpandableMarkdown({
@@ -38,8 +41,9 @@ export function ExpandableMarkdown({
   collapseLabel,
   fadeClassName,
   highlightTerm,
+  defaultOpen = false,
 }: ExpandableMarkdownProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [isExpandable, setIsExpandable] = useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const effectiveLineClamp = LINE_CLAMP_CLASSES[lineClamp] ? lineClamp : 5;
@@ -47,13 +51,25 @@ export function ExpandableMarkdown({
 
   useEffect(() => {
     const element = contentRef.current;
-    if (!element || open) {
+    if (!element) {
       return;
     }
 
     const measureOverflow = () => {
-      const hasOverflow = element.scrollHeight > element.clientHeight + 1;
-      setIsExpandable(hasOverflow);
+      const fullHeight = element.scrollHeight;
+      // When expanded, clientHeight equals full content, so overflow would
+      // always read false. Compare against the clamped height we'd use when
+      // collapsed so Collapse can still appear for defaultOpen long content.
+      let collapsedHeight = element.clientHeight;
+      if (open) {
+        const lineHeight = Number.parseFloat(
+          getComputedStyle(element).lineHeight,
+        );
+        if (Number.isFinite(lineHeight) && lineHeight > 0) {
+          collapsedHeight = lineHeight * effectiveLineClamp;
+        }
+      }
+      setIsExpandable(fullHeight > collapsedHeight + 1);
     };
 
     measureOverflow();
@@ -64,7 +80,7 @@ export function ExpandableMarkdown({
     return () => {
       observer.disconnect();
     };
-  }, [content, lineClampClass, open]);
+  }, [content, effectiveLineClamp, lineClampClass, open]);
 
   const shouldFade = !open && isExpandable;
 
