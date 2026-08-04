@@ -82,6 +82,11 @@ async function CoworkersTier() {
 /**
  * Tier 2 — full catalog streams after Tier 1 paints so LCP is the coworker
  * gallery, not a blocked wait on every catalog page.
+ *
+ * Catalog loaders are cookie-free (`'use cache'`) and share across users at
+ * runtime. Still `await connection()` first so build/PPR probing does not
+ * statically fill the cache when Core is unreachable (CI `next build`).
+ * Translations also need request locale via cookies/headers.
  */
 async function AllAgentsTier() {
   await connection();
