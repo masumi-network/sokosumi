@@ -4,6 +4,9 @@ vi.mock("server-only", () => ({}));
 
 const getChatRoomsMock = vi.fn();
 const getDiscoverableChatRoomsMock = vi.fn();
+const getChatRoomThreadsMock = vi.fn();
+const markChatRoomThreadReadMock = vi.fn();
+const markChatRoomThreadsReadMock = vi.fn();
 const archiveChatRoomMock = vi.fn();
 const deleteChatRoomMock = vi.fn();
 const leaveChatRoomMock = vi.fn();
@@ -22,6 +25,11 @@ vi.mock("@/lib/clients/core.client", () => ({
     getChatRooms: (...args: unknown[]) => getChatRoomsMock(...args),
     getDiscoverableChatRooms: (...args: unknown[]) =>
       getDiscoverableChatRoomsMock(...args),
+    getChatRoomThreads: (...args: unknown[]) => getChatRoomThreadsMock(...args),
+    markChatRoomThreadRead: (...args: unknown[]) =>
+      markChatRoomThreadReadMock(...args),
+    markChatRoomThreadsRead: (...args: unknown[]) =>
+      markChatRoomThreadsReadMock(...args),
     archiveChatRoom: (...args: unknown[]) => archiveChatRoomMock(...args),
     deleteChatRoom: (...args: unknown[]) => deleteChatRoomMock(...args),
     leaveChatRoom: (...args: unknown[]) => leaveChatRoomMock(...args),
@@ -346,5 +354,56 @@ describe("chatRoomService lifecycle wrappers", () => {
     await chatRoomService.deleteRoom("room-1");
 
     expect(deleteChatRoomMock).toHaveBeenCalledWith("room-1");
+  });
+});
+
+describe("chatRoomService thread attention", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("listUnreadThreads returns Core unread thread items", async () => {
+    const items = [
+      {
+        parentMessage: { id: "msg-1" },
+        unreadReplyCount: 3,
+        lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
+      },
+    ];
+    getChatRoomThreadsMock.mockResolvedValue({ data: items });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const result = await chatRoomService.listUnreadThreads("room-1");
+
+    expect(getChatRoomThreadsMock).toHaveBeenCalledWith("room-1", {
+      unread: "true",
+    });
+    expect(result).toEqual(items);
+  });
+
+  it("markThreadRead posts look state for parent message", async () => {
+    const state = {
+      parentMessageId: "msg-1",
+      lastReadAt: new Date("2026-08-01T02:00:00.000Z"),
+    };
+    markChatRoomThreadReadMock.mockResolvedValue({ data: state });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const result = await chatRoomService.markThreadRead("room-1", "msg-1");
+
+    expect(markChatRoomThreadReadMock).toHaveBeenCalledWith("room-1", "msg-1");
+    expect(result).toEqual(state);
+  });
+
+  it("markAllUnreadThreadsRead posts mark-all for room", async () => {
+    const payload = { markedCount: 3 };
+    markChatRoomThreadsReadMock.mockResolvedValue({ data: payload });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const result = await chatRoomService.markAllUnreadThreadsRead("room-1");
+
+    expect(markChatRoomThreadsReadMock).toHaveBeenCalledWith("room-1");
+    expect(result).toEqual(payload);
   });
 });

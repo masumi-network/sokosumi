@@ -18,8 +18,30 @@ const messagesDir = path.join(__dirname, "../messages");
 const LOCALES = ["de", "es"];
 const write = process.argv.includes("--write");
 
+const BLOCKED_PATH_SEGMENTS = new Set([
+  "__proto__",
+  "prototype",
+  "constructor",
+]);
+
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function assertSafePathSegment(segment) {
+  if (BLOCKED_PATH_SEGMENTS.has(segment)) {
+    throw new Error(
+      `[messages:parity] blocked path segment "${segment}" (prototype pollution guard)`,
+    );
+  }
+}
+
+function splitSafePath(dottedPath) {
+  const parts = dottedPath.split(".");
+  for (const part of parts) {
+    assertSafePathSegment(part);
+  }
+  return parts;
 }
 
 function collectLeafPaths(value, prefix = "", out = []) {
@@ -37,6 +59,7 @@ function collectLeafPaths(value, prefix = "", out = []) {
   }
 
   for (const key of keys) {
+    assertSafePathSegment(key);
     const next = prefix ? `${prefix}.${key}` : key;
     collectLeafPaths(value[key], next, out);
   }
@@ -44,7 +67,7 @@ function collectLeafPaths(value, prefix = "", out = []) {
 }
 
 function getAtPath(root, dottedPath) {
-  const parts = dottedPath.split(".");
+  const parts = splitSafePath(dottedPath);
   let current = root;
   for (const part of parts) {
     if (!isPlainObject(current) || !(part in current)) {
@@ -56,12 +79,12 @@ function getAtPath(root, dottedPath) {
 }
 
 function setAtPath(root, dottedPath, value) {
-  const parts = dottedPath.split(".");
+  const parts = splitSafePath(dottedPath);
   let current = root;
   for (let index = 0; index < parts.length - 1; index++) {
     const part = parts[index];
     if (!isPlainObject(current[part])) {
-      current[part] = {};
+      current[part] = Object.create(null);
     }
     current = current[part];
   }
@@ -69,7 +92,7 @@ function setAtPath(root, dottedPath, value) {
 }
 
 function deleteAtPath(root, dottedPath) {
-  const parts = dottedPath.split(".");
+  const parts = splitSafePath(dottedPath);
   const stack = [{ parent: null, key: null, node: root }];
 
   let current = root;
