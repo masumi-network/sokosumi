@@ -82,6 +82,18 @@ describe("auth.server", () => {
     expect(callOrder.slice(0, 2)).toEqual(["headers", "fetch"]);
   });
 
+  it("rethrows hanging-promise aborts from headers for refreshed getSession", async () => {
+    const hanging = Object.assign(new Error("Hanging promise rejection"), {
+      digest: "HANGING_PROMISE_REJECTION",
+    });
+    headersMock.mockRejectedValue(hanging);
+
+    const { getSession } = await import("../auth.server");
+
+    await expect(getSession({ refresh: true })).rejects.toBe(hanging);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("uses headers for listUserAccounts", async () => {
     fetchMock.mockImplementation(async () => {
       callOrder.push("fetch");
