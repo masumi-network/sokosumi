@@ -28,6 +28,22 @@ vi.mock("@/components/ui/mention-textarea-utils", async (importOriginal) => {
 });
 
 describe("ComposerWysiwygEditor", () => {
+  it("disables Inter contextual alternates so ** markers stay aligned", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    expect(screen.getByRole("textbox")).toHaveClass("markdown-compose-surface");
+  });
+
   it("applies top-side flip and dynamic maxHeight to the mention listbox", () => {
     function Harness() {
       const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
