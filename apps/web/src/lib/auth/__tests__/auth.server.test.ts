@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchMock = vi.fn();
 const headersMock = vi.fn();
+const connectionMock = vi.fn();
 const captureMessageMock = vi.fn();
 const setTagMock = vi.fn();
 const setContextMock = vi.fn();
+const callOrder: string[] = [];
 
 const SESSION_COOKIE =
   "sokosumi-localhost-preprod.session_token=session-token-value";
@@ -21,6 +23,10 @@ vi.mock("@sentry/nextjs", () => ({
   ) => {
     callback({ setTag: setTagMock, setContext: setContextMock });
   },
+}));
+
+vi.mock("next/server", () => ({
+  connection: (...args: unknown[]) => connectionMock(...args),
 }));
 
 vi.mock("next/headers", () => ({
@@ -47,8 +53,57 @@ describe("auth.server", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    headersMock.mockResolvedValue(new Headers({ cookie: SESSION_COOKIE }));
+    callOrder.length = 0;
+    connectionMock.mockImplementation(async () => {
+      callOrder.push("connection");
+    });
+    headersMock.mockImplementation(async () => {
+      callOrder.push("headers");
+      return new Headers({ cookie: SESSION_COOKIE });
+    });
+    fetchMock.mockImplementation(async () => {
+      callOrder.push("fetch");
+      return {
+        ok: true,
+        json: async () => ({
+          session: { activeOrganizationId: null },
+          user: { id: "user_123" },
+        }),
+      };
+    });
     vi.stubGlobal("fetch", fetchMock);
+  });
+
+  it("awaits connection before headers and fetch for getSession", async () => {
+    const { getSession } = await import("../auth.server");
+
+    await getSession();
+
+    expect(callOrder.slice(0, 3)).toEqual(["connection", "headers", "fetch"]);
+  });
+
+  it("awaits connection before headers and fetch for refreshed getSession", async () => {
+    const { getSession } = await import("../auth.server");
+
+    await getSession({ refresh: true });
+
+    expect(callOrder.slice(0, 3)).toEqual(["connection", "headers", "fetch"]);
+  });
+
+  it("awaits connection before headers for listUserAccounts", async () => {
+    fetchMock.mockImplementation(async () => {
+      callOrder.push("fetch");
+      return {
+        ok: true,
+        json: async () => [],
+      };
+    });
+
+    const { listUserAccounts } = await import("../auth.server");
+
+    await listUserAccounts();
+
+    expect(callOrder.slice(0, 3)).toEqual(["connection", "headers", "fetch"]);
   });
 
   it("skips Core when no session cookie is present", async () => {

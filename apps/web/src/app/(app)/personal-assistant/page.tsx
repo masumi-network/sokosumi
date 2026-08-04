@@ -1,7 +1,6 @@
 import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -30,7 +29,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HermesPage() {
-  await connection();
   const session = await getSession();
   const userName = session?.user.name ?? null;
   const userEmail = session?.user.email ?? null;
