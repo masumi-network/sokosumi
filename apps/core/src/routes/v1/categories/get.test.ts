@@ -2,7 +2,6 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
 import mountGetCategories from "./get";
@@ -49,7 +48,7 @@ function createApp() {
     return await next();
   });
 
-  mountGetCategories(app as unknown as OpenAPIHonoWithAuth);
+  mountGetCategories(app);
   return app;
 }
 

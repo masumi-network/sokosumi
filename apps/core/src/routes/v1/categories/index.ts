@@ -1,8 +1,9 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
 
 import mountGetCategories from "./get.js";
 
-const app = new OpenAPIHonoWithAuth();
+// GET / is public catalog — anonymous list for cookie-free `'use cache'`.
+const app = new OpenAPIHono();
 
 mountGetCategories(app);
 
