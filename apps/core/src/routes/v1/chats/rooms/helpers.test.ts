@@ -9,8 +9,8 @@ import {
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
   contentIncludesRoomAllMention,
-  getChatRoomThreadAttentionAggregates,
   getChatRoomUnreadMentionCounts,
+  getChatRoomUnreadThreadAggregates,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
   resolveMentionedCoworkerIds,
@@ -534,7 +534,7 @@ describe("mapChatRoomMessage quote", () => {
   });
 });
 
-describe("getChatRoomThreadAttentionAggregates", () => {
+describe("getChatRoomUnreadThreadAggregates", () => {
   it("queries with thread baseline independent of room lastReadAt and excludes soft-deleted/self replies", async () => {
     const queryRawUnsafe = vi.fn().mockResolvedValue([
       {
@@ -545,7 +545,7 @@ describe("getChatRoomThreadAttentionAggregates", () => {
     ]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
 
-    const rows = await getChatRoomThreadAttentionAggregates(
+    const rows = await getChatRoomUnreadThreadAggregates(
       "550e8400-e29b-41d4-a716-446655440000",
       "user_123",
       tx,

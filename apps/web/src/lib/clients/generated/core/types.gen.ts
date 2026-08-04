@@ -1356,7 +1356,7 @@ export type LeftChatRoom = {
     remainingUserMemberCount: number;
 };
 
-export type ChatRoomThreadAttentionItem = {
+export type ChatRoomUnreadThread = {
     parentMessage: ChatRoomMessage;
     /**
      * Non-deleted replies from others after the look baseline for this parent.
@@ -1441,7 +1441,7 @@ export type ChatRoomMessageQuoteAttachment = {
     mediaKind: 'image' | 'file';
 } | null;
 
-export type ChatRoomThreadAttentionMarkAll = {
+export type ChatRoomUnreadThreadsMarkAll = {
     /**
      * Number of parent threads whose look state was upserted.
      */
@@ -10531,7 +10531,7 @@ export type PostChatsRoomsByIdUnreadResponses = {
 
 export type PostChatsRoomsByIdUnreadResponse = PostChatsRoomsByIdUnreadResponses[keyof PostChatsRoomsByIdUnreadResponses];
 
-export type GetChatsRoomsByIdThreadAttentionData = {
+export type GetChatsRoomsByIdUnreadThreadsData = {
     body?: never;
     headers?: {
         /**
@@ -10543,10 +10543,10 @@ export type GetChatsRoomsByIdThreadAttentionData = {
         id: string;
     };
     query?: never;
-    url: '/chats/rooms/{id}/thread-attention';
+    url: '/chats/rooms/{id}/unread-threads';
 };
 
-export type GetChatsRoomsByIdThreadAttentionErrors = {
+export type GetChatsRoomsByIdUnreadThreadsErrors = {
     /**
      * Unauthorized
      */
@@ -10605,14 +10605,14 @@ export type GetChatsRoomsByIdThreadAttentionErrors = {
     };
 };
 
-export type GetChatsRoomsByIdThreadAttentionError = GetChatsRoomsByIdThreadAttentionErrors[keyof GetChatsRoomsByIdThreadAttentionErrors];
+export type GetChatsRoomsByIdUnreadThreadsError = GetChatsRoomsByIdUnreadThreadsErrors[keyof GetChatsRoomsByIdUnreadThreadsErrors];
 
-export type GetChatsRoomsByIdThreadAttentionResponses = {
+export type GetChatsRoomsByIdUnreadThreadsResponses = {
     /**
-     * Threads needing attention
+     * Unread threads
      */
     200: {
-        data: Array<ChatRoomThreadAttentionItem>;
+        data: Array<ChatRoomUnreadThread>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10621,9 +10621,9 @@ export type GetChatsRoomsByIdThreadAttentionResponses = {
     };
 };
 
-export type GetChatsRoomsByIdThreadAttentionResponse = GetChatsRoomsByIdThreadAttentionResponses[keyof GetChatsRoomsByIdThreadAttentionResponses];
+export type GetChatsRoomsByIdUnreadThreadsResponse = GetChatsRoomsByIdUnreadThreadsResponses[keyof GetChatsRoomsByIdUnreadThreadsResponses];
 
-export type PostChatsRoomsByIdThreadAttentionReadData = {
+export type PostChatsRoomsByIdUnreadThreadsReadData = {
     body?: never;
     headers?: {
         /**
@@ -10635,10 +10635,10 @@ export type PostChatsRoomsByIdThreadAttentionReadData = {
         id: string;
     };
     query?: never;
-    url: '/chats/rooms/{id}/thread-attention/read';
+    url: '/chats/rooms/{id}/unread-threads/read';
 };
 
-export type PostChatsRoomsByIdThreadAttentionReadErrors = {
+export type PostChatsRoomsByIdUnreadThreadsReadErrors = {
     /**
      * Unauthorized
      */
@@ -10697,14 +10697,14 @@ export type PostChatsRoomsByIdThreadAttentionReadErrors = {
     };
 };
 
-export type PostChatsRoomsByIdThreadAttentionReadError = PostChatsRoomsByIdThreadAttentionReadErrors[keyof PostChatsRoomsByIdThreadAttentionReadErrors];
+export type PostChatsRoomsByIdUnreadThreadsReadError = PostChatsRoomsByIdUnreadThreadsReadErrors[keyof PostChatsRoomsByIdUnreadThreadsReadErrors];
 
-export type PostChatsRoomsByIdThreadAttentionReadResponses = {
+export type PostChatsRoomsByIdUnreadThreadsReadResponses = {
     /**
      * Unread threads marked looked
      */
     200: {
-        data: ChatRoomThreadAttentionMarkAll;
+        data: ChatRoomUnreadThreadsMarkAll;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -10713,7 +10713,7 @@ export type PostChatsRoomsByIdThreadAttentionReadResponses = {
     };
 };
 
-export type PostChatsRoomsByIdThreadAttentionReadResponse = PostChatsRoomsByIdThreadAttentionReadResponses[keyof PostChatsRoomsByIdThreadAttentionReadResponses];
+export type PostChatsRoomsByIdUnreadThreadsReadResponse = PostChatsRoomsByIdUnreadThreadsReadResponses[keyof PostChatsRoomsByIdUnreadThreadsReadResponses];
 
 export type DeleteChatsRoomsByIdPinData = {
     body?: never;

@@ -4901,7 +4901,7 @@ export const LeftChatRoomSchema = {
     ]
 } as const;
 
-export const ChatRoomThreadAttentionItemSchema = {
+export const ChatRoomUnreadThreadSchema = {
     type: 'object',
     properties: {
         parentMessage: {
@@ -5238,7 +5238,7 @@ export const ChatRoomMessageQuoteAttachmentSchema = {
     ]
 } as const;
 
-export const ChatRoomThreadAttentionMarkAllSchema = {
+export const ChatRoomUnreadThreadsMarkAllSchema = {
     type: 'object',
     properties: {
         markedCount: {

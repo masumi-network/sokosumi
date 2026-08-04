@@ -8,10 +8,10 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatRoomThreadAttentionItemSchema } from "@/schemas/chat-room.schema";
+import { chatRoomUnreadThreadSchema } from "@/schemas/chat-room.schema";
 
 import {
-  listChatRoomThreadAttention,
+  listChatRoomUnreadThreads,
   requireChatRoomUserAccess,
 } from "../../helpers";
 
@@ -28,7 +28,7 @@ const paramsSchema = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "get",
-    path: "/{id}/thread-attention",
+    path: "/{id}/unread-threads",
     description:
       "List top-level messages in a room that have unread thread replies for the current user. Look baseline is per-thread lastReadAt, else room read-state createdAt, else all history. Independent of room mark-read.",
     tags: ["Chat Rooms"],
@@ -37,8 +37,8 @@ const route = withGlobalHeaderParameters(
     },
     responses: {
       200: jsonSuccessResponse(
-        z.array(chatRoomThreadAttentionItemSchema),
-        "Threads needing attention",
+        z.array(chatRoomUnreadThreadSchema),
+        "Unread threads",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -58,12 +58,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const items = await listChatRoomThreadAttention(
+    const items = await listChatRoomUnreadThreads(
       room.id,
       userContext.userId,
       prisma,
     );
 
-    return ok(c, z.array(chatRoomThreadAttentionItemSchema).parse(items));
+    return ok(c, z.array(chatRoomUnreadThreadSchema).parse(items));
   });
 }

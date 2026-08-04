@@ -125,7 +125,7 @@ import {
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
-  getChatsRoomsByIdThreadAttention as coreGetChatsRoomsByIdThreadAttention,
+  getChatsRoomsByIdUnreadThreads as coreGetChatsRoomsByIdUnreadThreads,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
@@ -231,8 +231,8 @@ import {
   postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
-  postChatsRoomsByIdThreadAttentionRead as corePostChatsRoomsByIdThreadAttentionRead,
   postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
+  postChatsRoomsByIdUnreadThreadsRead as corePostChatsRoomsByIdUnreadThreadsRead,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
   postEnterpriseContracts as corePostEnterpriseContracts,
@@ -764,16 +764,16 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getChatRoomThreadAttention(id: string) {
+  async function getChatRoomUnreadThreads(id: string) {
     return executeOperation(
       getClient,
       (client) =>
-        coreGetChatsRoomsByIdThreadAttention({
+        coreGetChatsRoomsByIdUnreadThreads({
           client,
           path: { id },
           cache: "no-store",
         }),
-      "Failed to fetch thread attention",
+      "Failed to fetch unread threads",
     );
   }
 
@@ -789,11 +789,11 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function markChatRoomThreadAttentionRead(id: string) {
+  async function markChatRoomUnreadThreadsRead(id: string) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostChatsRoomsByIdThreadAttentionRead({
+        corePostChatsRoomsByIdUnreadThreadsRead({
           client,
           path: { id },
         }),
@@ -3806,11 +3806,11 @@ export function createCoreClient(getClient: GetClient) {
     deleteTaskSchedule,
     getChatRoom,
     getChatRoomMessages,
-    getChatRoomThreadAttention,
+    getChatRoomUnreadThreads,
     getChatRooms,
     getDiscoverableChatRooms,
     markChatRoomRead,
-    markChatRoomThreadAttentionRead,
+    markChatRoomUnreadThreadsRead,
     markChatRoomThreadRead,
     pinChatRoom,
     unpinChatRoom,

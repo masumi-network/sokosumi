@@ -6,9 +6,9 @@ import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
 import type {
   ChatRoom,
   ChatRoomMessage,
-  ChatRoomThreadAttentionItem,
-  ChatRoomThreadAttentionMarkAll,
   ChatRoomThreadReadState,
+  ChatRoomUnreadThread,
+  ChatRoomUnreadThreadsMarkAll,
   DiscoverableChatRoom,
 } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
@@ -448,11 +448,11 @@ export async function listThreadMessagesAction(
   }
 }
 
-export async function listThreadAttentionAction(
+export async function listUnreadThreadsAction(
   roomId: string,
-): Promise<RoomActionResult<ChatRoomThreadAttentionItem[]>> {
+): Promise<RoomActionResult<ChatRoomUnreadThread[]>> {
   try {
-    const items = await chatRoomService.listThreadAttention(roomId);
+    const items = await chatRoomService.listUnreadThreads(roomId);
     return { ok: true, data: items };
   } catch (error) {
     return {
@@ -480,11 +480,11 @@ export async function markThreadReadAction(
   }
 }
 
-export async function markAllThreadAttentionReadAction(
+export async function markAllUnreadThreadsReadAction(
   roomId: string,
-): Promise<RoomActionResult<ChatRoomThreadAttentionMarkAll>> {
+): Promise<RoomActionResult<ChatRoomUnreadThreadsMarkAll>> {
   try {
-    const result = await chatRoomService.markAllThreadAttentionRead(roomId);
+    const result = await chatRoomService.markAllUnreadThreadsRead(roomId);
     return { ok: true, data: result };
   } catch (error) {
     return {

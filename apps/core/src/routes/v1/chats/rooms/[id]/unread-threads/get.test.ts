@@ -8,7 +8,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountGetChatRoomThreadAttention from "./get";
+import mountGetChatRoomUnreadThreads from "./get";
 
 const {
   roomFindFirstMock,
@@ -56,14 +56,14 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.use("*", async (c, next) => {
-    c.set("requestId", "req_thread_attention");
+    c.set("requestId", "req_unread_threads");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
 
   app.onError(errorHandler);
-  mountGetChatRoomThreadAttention(app as unknown as OpenAPIHonoWithAuth);
+  mountGetChatRoomUnreadThreads(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
@@ -151,10 +151,10 @@ beforeEach(() => {
   messageFindManyMock.mockResolvedValue([parentMessage()]);
 });
 
-describe("GET /chats/rooms/{id}/thread-attention", () => {
+describe("GET /chats/rooms/{id}/unread-threads", () => {
   it("returns parents with unread non-self replies after look baseline", async () => {
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/thread-attention`,
+      `/${ROOM_ID}/unread-threads`,
     );
 
     expect(response.status).toBe(200);
@@ -191,7 +191,7 @@ describe("GET /chats/rooms/{id}/thread-attention", () => {
     roomFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/thread-attention`,
+      `/${ROOM_ID}/unread-threads`,
     );
 
     expect(response.status).toBe(404);
@@ -200,7 +200,7 @@ describe("GET /chats/rooms/{id}/thread-attention", () => {
 
   it("rejects non-user auth contexts", async () => {
     const response = await createApp(coworkerAuthContext).request(
-      `/${ROOM_ID}/thread-attention`,
+      `/${ROOM_ID}/unread-threads`,
     );
 
     expect(response.status).toBe(403);
@@ -211,7 +211,7 @@ describe("GET /chats/rooms/{id}/thread-attention", () => {
     queryRawUnsafeMock.mockResolvedValue([]);
 
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/thread-attention`,
+      `/${ROOM_ID}/unread-threads`,
     );
 
     expect(response.status).toBe(200);

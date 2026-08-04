@@ -6,9 +6,9 @@ import type {
   ChatRoom,
   ChatRoomKind,
   ChatRoomMessage,
-  ChatRoomThreadAttentionItem,
-  ChatRoomThreadAttentionMarkAll,
   ChatRoomThreadReadState,
+  ChatRoomUnreadThread,
+  ChatRoomUnreadThreadsMarkAll,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
   DiscoverableChatRoom,
@@ -202,10 +202,10 @@ export const chatRoomService = (() => {
     };
   });
 
-  const listThreadAttention = cache(async function listThreadAttention(
+  const listUnreadThreads = cache(async function listUnreadThreads(
     roomId: string,
-  ): Promise<ChatRoomThreadAttentionItem[]> {
-    const response = await coreClient.getChatRoomThreadAttention(roomId);
+  ): Promise<ChatRoomUnreadThread[]> {
+    const response = await coreClient.getChatRoomUnreadThreads(roomId);
     return response.data;
   });
 
@@ -220,10 +220,10 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
-  async function markAllThreadAttentionRead(
+  async function markAllUnreadThreadsRead(
     roomId: string,
-  ): Promise<ChatRoomThreadAttentionMarkAll> {
-    const response = await coreClient.markChatRoomThreadAttentionRead(roomId);
+  ): Promise<ChatRoomUnreadThreadsMarkAll> {
+    const response = await coreClient.markChatRoomUnreadThreadsRead(roomId);
     return response.data;
   }
 
@@ -279,11 +279,11 @@ export const chatRoomService = (() => {
     listDiscoverableChannels,
     listMessages,
     listRooms,
-    listThreadAttention,
+    listUnreadThreads,
     listThreadMessages,
     leaveRoom,
     markRead,
-    markAllThreadAttentionRead,
+    markAllUnreadThreadsRead,
     markThreadRead,
     markUnread,
     pinRoom,

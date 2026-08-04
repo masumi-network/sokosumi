@@ -8,7 +8,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-import mountMarkAllChatRoomThreadAttentionRead from "./post";
+import mountMarkAllChatRoomUnreadThreadsRead from "./post";
 
 const {
   roomFindFirstMock,
@@ -56,16 +56,14 @@ function createApp(authContext: AuthVariables["authContext"]) {
   });
 
   app.use("*", async (c, next) => {
-    c.set("requestId", "req_mark_all_thread_attention");
+    c.set("requestId", "req_mark_all_unread_threads");
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
     return await next();
   });
 
   app.onError(errorHandler);
-  mountMarkAllChatRoomThreadAttentionRead(
-    app as unknown as OpenAPIHonoWithAuth,
-  );
+  mountMarkAllChatRoomUnreadThreadsRead(app as unknown as OpenAPIHonoWithAuth);
   return app;
 }
 
@@ -110,7 +108,7 @@ function room() {
   };
 }
 
-describe("POST /chats/rooms/{id}/thread-attention/read", () => {
+describe("POST /chats/rooms/{id}/unread-threads/read", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     roomFindFirstMock.mockResolvedValue(room());
@@ -143,7 +141,7 @@ describe("POST /chats/rooms/{id}/thread-attention/read", () => {
 
   it("upserts look state for each attention parent and returns markedCount", async () => {
     const app = createApp(userAuthContext);
-    const response = await app.request(`/${ROOM_ID}/thread-attention/read`, {
+    const response = await app.request(`/${ROOM_ID}/unread-threads/read`, {
       method: "POST",
     });
 
@@ -176,7 +174,7 @@ describe("POST /chats/rooms/{id}/thread-attention/read", () => {
   it("returns markedCount 0 when nothing needs attention", async () => {
     queryRawUnsafeMock.mockResolvedValue([]);
     const app = createApp(userAuthContext);
-    const response = await app.request(`/${ROOM_ID}/thread-attention/read`, {
+    const response = await app.request(`/${ROOM_ID}/unread-threads/read`, {
       method: "POST",
     });
 
@@ -187,7 +185,7 @@ describe("POST /chats/rooms/{id}/thread-attention/read", () => {
 
   it("rejects non-user auth contexts", async () => {
     const response = await createApp(coworkerAuthContext).request(
-      `/${ROOM_ID}/thread-attention/read`,
+      `/${ROOM_ID}/unread-threads/read`,
       {
         method: "POST",
       },

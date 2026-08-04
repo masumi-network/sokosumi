@@ -159,7 +159,7 @@ export async function getChatRoomUnreadCounts(
   return new Map(rows.map((row) => [row.roomId, Number(row.unreadCount)]));
 }
 
-export interface ChatRoomThreadAttentionAggregate {
+export interface ChatRoomUnreadThreadAggregate {
   parentMessageId: string;
   unreadReplyCount: number;
   lastUnreadReplyAt: Date;
@@ -174,13 +174,13 @@ export interface ChatRoomThreadAttentionAggregate {
  * 2. else ChatRoomReadState.createdAt for (room, user) when present
  * 3. else -infinity (all historical non-self replies count)
  *
- * Never uses room lastReadAt — room mark-read must not clear thread attention.
+ * Never uses room lastReadAt — room mark-read must not clear unread-thread look state.
  */
-export async function getChatRoomThreadAttentionAggregates(
+export async function getChatRoomUnreadThreadAggregates(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
-): Promise<ChatRoomThreadAttentionAggregate[]> {
+): Promise<ChatRoomUnreadThreadAggregate[]> {
   const rows = await tx.$queryRawUnsafe<
     Array<{
       parentMessageId: string;
@@ -233,12 +233,12 @@ export async function getChatRoomThreadAttentionAggregates(
  * Soft-deleted parents are omitted by the aggregate query; a missing findMany
  * row (race) is skipped.
  */
-export async function listChatRoomThreadAttention(
+export async function listChatRoomUnreadThreads(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
 ) {
-  const aggregates = await getChatRoomThreadAttentionAggregates(
+  const aggregates = await getChatRoomUnreadThreadAggregates(
     roomId,
     userId,
     tx,
@@ -277,12 +277,12 @@ export async function listChatRoomThreadAttention(
  * Upsert look state for every parent currently needing attention in the room.
  * Does not change room ChatRoomReadState or CHAT notifications.
  */
-export async function markAllChatRoomThreadAttentionRead(
+export async function markAllChatRoomUnreadThreadsRead(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
 ): Promise<number> {
-  const aggregates = await getChatRoomThreadAttentionAggregates(
+  const aggregates = await getChatRoomUnreadThreadAggregates(
     roomId,
     userId,
     tx,

@@ -4,9 +4,9 @@ vi.mock("server-only", () => ({}));
 
 const getChatRoomsMock = vi.fn();
 const getDiscoverableChatRoomsMock = vi.fn();
-const getChatRoomThreadAttentionMock = vi.fn();
+const getChatRoomUnreadThreadsMock = vi.fn();
 const markChatRoomThreadReadMock = vi.fn();
-const markChatRoomThreadAttentionReadMock = vi.fn();
+const markChatRoomUnreadThreadsReadMock = vi.fn();
 const archiveChatRoomMock = vi.fn();
 const deleteChatRoomMock = vi.fn();
 const leaveChatRoomMock = vi.fn();
@@ -25,12 +25,12 @@ vi.mock("@/lib/clients/core.client", () => ({
     getChatRooms: (...args: unknown[]) => getChatRoomsMock(...args),
     getDiscoverableChatRooms: (...args: unknown[]) =>
       getDiscoverableChatRoomsMock(...args),
-    getChatRoomThreadAttention: (...args: unknown[]) =>
-      getChatRoomThreadAttentionMock(...args),
+    getChatRoomUnreadThreads: (...args: unknown[]) =>
+      getChatRoomUnreadThreadsMock(...args),
     markChatRoomThreadRead: (...args: unknown[]) =>
       markChatRoomThreadReadMock(...args),
-    markChatRoomThreadAttentionRead: (...args: unknown[]) =>
-      markChatRoomThreadAttentionReadMock(...args),
+    markChatRoomUnreadThreadsRead: (...args: unknown[]) =>
+      markChatRoomUnreadThreadsReadMock(...args),
     archiveChatRoom: (...args: unknown[]) => archiveChatRoomMock(...args),
     deleteChatRoom: (...args: unknown[]) => deleteChatRoomMock(...args),
     leaveChatRoom: (...args: unknown[]) => leaveChatRoomMock(...args),
@@ -364,7 +364,7 @@ describe("chatRoomService thread attention", () => {
     vi.resetModules();
   });
 
-  it("listThreadAttention returns Core attention items", async () => {
+  it("listUnreadThreads returns Core unread thread items", async () => {
     const items = [
       {
         parentMessage: { id: "msg-1" },
@@ -372,12 +372,12 @@ describe("chatRoomService thread attention", () => {
         lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
       },
     ];
-    getChatRoomThreadAttentionMock.mockResolvedValue({ data: items });
+    getChatRoomUnreadThreadsMock.mockResolvedValue({ data: items });
 
     const { chatRoomService } = await import("../chat-room.service");
-    const result = await chatRoomService.listThreadAttention("room-1");
+    const result = await chatRoomService.listUnreadThreads("room-1");
 
-    expect(getChatRoomThreadAttentionMock).toHaveBeenCalledWith("room-1");
+    expect(getChatRoomUnreadThreadsMock).toHaveBeenCalledWith("room-1");
     expect(result).toEqual(items);
   });
 
@@ -395,14 +395,14 @@ describe("chatRoomService thread attention", () => {
     expect(result).toEqual(state);
   });
 
-  it("markAllThreadAttentionRead posts mark-all for room", async () => {
+  it("markAllUnreadThreadsRead posts mark-all for room", async () => {
     const payload = { markedCount: 3 };
-    markChatRoomThreadAttentionReadMock.mockResolvedValue({ data: payload });
+    markChatRoomUnreadThreadsReadMock.mockResolvedValue({ data: payload });
 
     const { chatRoomService } = await import("../chat-room.service");
-    const result = await chatRoomService.markAllThreadAttentionRead("room-1");
+    const result = await chatRoomService.markAllUnreadThreadsRead("room-1");
 
-    expect(markChatRoomThreadAttentionReadMock).toHaveBeenCalledWith("room-1");
+    expect(markChatRoomUnreadThreadsReadMock).toHaveBeenCalledWith("room-1");
     expect(result).toEqual(payload);
   });
 });

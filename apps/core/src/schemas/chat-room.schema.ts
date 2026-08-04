@@ -400,7 +400,7 @@ export const restoredChatRoomSchema = chatRoomSchema;
  * A top-level room message with ≥1 unread non-self reply after the caller's
  * per-thread look baseline (or room-read createdAt / -infinity fallback).
  */
-export const chatRoomThreadAttentionItemSchema = z
+export const chatRoomUnreadThreadSchema = z
   .object({
     parentMessage: chatRoomMessageSchema,
     unreadReplyCount: z.number().int().min(1).openapi({
@@ -413,7 +413,7 @@ export const chatRoomThreadAttentionItemSchema = z
       example: "2026-07-02T12:00:00.000Z",
     }),
   })
-  .openapi("ChatRoomThreadAttentionItem");
+  .openapi("ChatRoomUnreadThread");
 
 /** Result of marking a thread parent as looked (ThreadPanel open). */
 export const chatRoomThreadReadStateSchema = z
@@ -425,26 +425,24 @@ export const chatRoomThreadReadStateSchema = z
   })
   .openapi("ChatRoomThreadReadState");
 
-/** Result of marking every attention thread in a room as looked. */
-export const chatRoomThreadAttentionMarkAllSchema = z
+/** Result of marking every unread thread in a room as looked. */
+export const chatRoomUnreadThreadsMarkAllSchema = z
   .object({
     markedCount: z.number().int().min(0).openapi({
       description: "Number of parent threads whose look state was upserted.",
       example: 3,
     }),
   })
-  .openapi("ChatRoomThreadAttentionMarkAll");
+  .openapi("ChatRoomUnreadThreadsMarkAll");
 
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
 export type ChatRoomMessageQuote = z.infer<typeof chatRoomMessageQuoteSchema>;
-export type ChatRoomThreadAttentionItem = z.infer<
-  typeof chatRoomThreadAttentionItemSchema
->;
+export type ChatRoomUnreadThread = z.infer<typeof chatRoomUnreadThreadSchema>;
 export type ChatRoomThreadReadState = z.infer<
   typeof chatRoomThreadReadStateSchema
 >;
-export type ChatRoomThreadAttentionMarkAll = z.infer<
-  typeof chatRoomThreadAttentionMarkAllSchema
+export type ChatRoomUnreadThreadsMarkAll = z.infer<
+  typeof chatRoomUnreadThreadsMarkAllSchema
 >;

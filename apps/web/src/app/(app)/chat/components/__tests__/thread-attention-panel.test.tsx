@@ -3,17 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ThreadAttentionPanel } from "@/app/chat/components/thread-attention-panel";
 import type {
   ChatRoomMessage,
-  ChatRoomThreadAttentionItem,
+  ChatRoomUnreadThread,
 } from "@/lib/clients/generated/core";
 
-const listThreadAttentionActionMock = vi.fn();
-const markAllThreadAttentionReadActionMock = vi.fn();
+const listUnreadThreadsActionMock = vi.fn();
+const markAllUnreadThreadsReadActionMock = vi.fn();
 
 vi.mock("@/app/chat/actions", () => ({
-  listThreadAttentionAction: (...args: unknown[]) =>
-    listThreadAttentionActionMock(...args),
-  markAllThreadAttentionReadAction: (...args: unknown[]) =>
-    markAllThreadAttentionReadActionMock(...args),
+  listUnreadThreadsAction: (...args: unknown[]) =>
+    listUnreadThreadsActionMock(...args),
+  markAllUnreadThreadsReadAction: (...args: unknown[]) =>
+    markAllUnreadThreadsReadActionMock(...args),
 }));
 
 vi.mock("@/lib/utils/datetime.client", () => ({
@@ -67,8 +67,8 @@ function parentMessage(
 }
 
 function attentionItem(
-  overrides: Partial<ChatRoomThreadAttentionItem> = {},
-): ChatRoomThreadAttentionItem {
+  overrides: Partial<ChatRoomUnreadThread> = {},
+): ChatRoomUnreadThread {
   return {
     parentMessage: parentMessage(),
     unreadReplyCount: 2,
@@ -80,11 +80,11 @@ function attentionItem(
 describe("ThreadAttentionPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    listThreadAttentionActionMock.mockResolvedValue({
+    listUnreadThreadsActionMock.mockResolvedValue({
       ok: true,
       data: [attentionItem()],
     });
-    markAllThreadAttentionReadActionMock.mockResolvedValue({
+    markAllUnreadThreadsReadActionMock.mockResolvedValue({
       ok: true,
       data: { markedCount: 1 },
     });
@@ -110,7 +110,7 @@ describe("ThreadAttentionPanel", () => {
     expect(screen.getByText(labels.title)).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(listThreadAttentionActionMock).toHaveBeenCalledWith(
+      expect(listUnreadThreadsActionMock).toHaveBeenCalledWith(
         "550e8400-e29b-41d4-a716-446655440000",
       );
     });
@@ -126,7 +126,7 @@ describe("ThreadAttentionPanel", () => {
   });
 
   it("shows no badge when there are no unread threads", async () => {
-    listThreadAttentionActionMock.mockResolvedValue({ ok: true, data: [] });
+    listUnreadThreadsActionMock.mockResolvedValue({ ok: true, data: [] });
 
     render(
       <ThreadAttentionPanel
@@ -137,7 +137,7 @@ describe("ThreadAttentionPanel", () => {
     );
 
     await waitFor(() => {
-      expect(listThreadAttentionActionMock).toHaveBeenCalled();
+      expect(listUnreadThreadsActionMock).toHaveBeenCalled();
     });
     expect(
       screen.queryByTestId("thread-attention-badge"),
@@ -145,7 +145,7 @@ describe("ThreadAttentionPanel", () => {
   });
 
   it("shows a plain-text preview instead of raw markdown mentions", async () => {
-    listThreadAttentionActionMock.mockResolvedValue({
+    listUnreadThreadsActionMock.mockResolvedValue({
       ok: true,
       data: [
         attentionItem({
@@ -173,7 +173,7 @@ describe("ThreadAttentionPanel", () => {
   });
 
   it("shows empty state when nothing needs attention", async () => {
-    listThreadAttentionActionMock.mockResolvedValue({ ok: true, data: [] });
+    listUnreadThreadsActionMock.mockResolvedValue({ ok: true, data: [] });
 
     render(
       <ThreadAttentionPanel
@@ -211,7 +211,7 @@ describe("ThreadAttentionPanel", () => {
     );
 
     await waitFor(() => {
-      expect(markAllThreadAttentionReadActionMock).toHaveBeenCalledWith(
+      expect(markAllUnreadThreadsReadActionMock).toHaveBeenCalledWith(
         "550e8400-e29b-41d4-a716-446655440000",
       );
     });
