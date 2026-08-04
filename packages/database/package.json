@@ -82,11 +82,11 @@
   "devDependencies": {
     "@types/node": "24.13.3",
     "@types/pg": "8.20.3",
-    "@typescript/native": "npm:typescript@7.0.2",
+    "@typescript/typescript6": "6.0.2",
     "dotenv": "17.4.2",
     "prisma": "7.9.1",
     "tsx": "4.23.5",
-    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "typescript": "7.0.2",
     "vitest": "4.1.10"
   }
 }
