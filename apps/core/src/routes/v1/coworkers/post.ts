@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import slugify from "slugify";
 import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
+import { assertCoworkerBaseUrlIsPublicForWrite } from "@/helpers/coworker-base-url";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
@@ -88,6 +89,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest(
         "Coworker name must contain at least one valid character",
       );
+    }
+
+    // Refuse an internal endpoint before it is ever persisted. Request-time
+    // guards still run (DNS can change after the write), but a rejected write
+    // keeps the bad URL out of the database and out of the admin UI.
+    if (body.baseURL) {
+      await assertCoworkerBaseUrlIsPublicForWrite(body.baseURL);
     }
 
     const coworker = await prisma.$transaction(async (tx) => {

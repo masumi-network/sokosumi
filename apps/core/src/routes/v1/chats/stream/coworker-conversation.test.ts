@@ -1,6 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const fetchMock = vi.fn();
+const { fetchMock, TestSsrfError } = vi.hoisted(() => ({
+  fetchMock: vi.fn(),
+  TestSsrfError: class TestSsrfError extends Error {},
+}));
+
+// The conversation call goes through the SSRF-guarded client (the base URL is
+// vendor-supplied), so the mock has to sit there rather than on global fetch.
+vi.mock("@sokosumi/net", () => ({
+  ssrfSafeFetch: fetchMock,
+  SsrfError: TestSsrfError,
+}));
 
 import {
   COWORKER_CHAT_BILLING_MESSAGE,
@@ -13,7 +23,6 @@ const DEFAULT_BASE_URL = "https://api.coworker.example.com/v1";
 
 describe("coworker-conversation", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockClear();
   });
 
@@ -142,6 +151,28 @@ describe("coworker-conversation", () => {
 });
 
 describe("throwCoworkerRemoteConversationHttpError", () => {
+  it("surfaces an outbound-guard rejection distinctly from a transport failure", async () => {
+    fetchMock.mockRejectedValueOnce(
+      new TestSsrfError("Host resolves to blocked address 169.254.169.254"),
+    );
+
+    // A blocked address or an oversized body is operator-actionable; folding it
+    // into a generic 503 would hide a misconfigured or hostile endpoint.
+    await expect(
+      createCoworkerConversation({
+        responsesApiBaseUrl: "https://cow.example/v1",
+        sokosumiUserId: "user-1",
+        sokosumiOrganizationId: null,
+        coworkerSlug: "agent",
+        sokosumiConversationId: "conv-local-1",
+      }),
+    ).rejects.toMatchObject({
+      name: "CoworkerConversationError",
+      upstreamStatus: 502,
+      upstreamCode: "coworker_endpoint_rejected",
+    });
+  });
+
   it("maps billing_required to 403 with a user-facing message", () => {
     expect(() =>
       throwCoworkerRemoteConversationHttpError(

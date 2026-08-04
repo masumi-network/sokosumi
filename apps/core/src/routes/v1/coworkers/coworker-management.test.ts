@@ -9,6 +9,7 @@ import mountPatchCoworkerById from "./[id]/patch";
 import mountPostCoworker from "./post";
 
 const {
+  assertBaseUrlMock,
   userFindUniqueMock,
   coworkerFindFirstAuthMock,
   vendorMemberFindFirstAuthMock,
@@ -21,6 +22,7 @@ const {
   coworkerApiKeyUpdateManyMock,
   vendorFindUniqueMock,
 } = vi.hoisted(() => ({
+  assertBaseUrlMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   coworkerFindFirstAuthMock: vi.fn(),
   vendorMemberFindFirstAuthMock: vi.fn(),
@@ -32,6 +34,12 @@ const {
   coworkerUpdateManyMock: vi.fn(),
   coworkerApiKeyUpdateManyMock: vi.fn(),
   vendorFindUniqueMock: vi.fn(),
+}));
+
+// Write-time SSRF guard resolves DNS; stub it so these CRUD tests stay offline.
+// Its own behaviour is covered in coworker-base-url.test.ts.
+vi.mock("@/helpers/coworker-base-url", () => ({
+  assertCoworkerBaseUrlIsPublicForWrite: assertBaseUrlMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({

@@ -78,6 +78,18 @@ export const LIMITS = {
 
   /** Minimum chargeable credits */
   MIN_CHARGEABLE_CREDITS: 1e-10,
+
+  /**
+   * Maximum credits a single task event may charge the task owner.
+   *
+   * The amount is declared by the assigned coworker (`credits`, or the on-chain
+   * `masumiPayment.Amounts`), and unlike the hire flow the task-event flow has
+   * no caller-supplied ceiling — so without this a compromised or buggy
+   * coworker could drain an owner's whole balance in one event. Sized well
+   * above any legitimate single-event charge; breaching it is an incident, not
+   * a routine rejection.
+   */
+  MAX_TASK_EVENT_CREDITS: 10_000,
 } as const;
 
 /** User-Agent sent with outbound webhook requests from the Core API. */

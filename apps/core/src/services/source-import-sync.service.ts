@@ -1,12 +1,22 @@
 import { BlobStatus } from "@sokosumi/database";
 import { ssrfSafeFetch } from "@sokosumi/net";
-import { buildJobBlobPathname, getUrlBasename } from "@sokosumi/utils";
+import {
+  buildJobBlobPathname,
+  FILE_UPLOAD_MAX_SIZE_BYTES,
+  getUrlBasename,
+} from "@sokosumi/utils";
 import { head, put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 const MAX_CONCURRENT_IMPORTS = 5;
+/**
+ * Largest agent-referenced file this importer will pull. Matches the direct
+ * user-upload limit so an agent cannot smuggle in something a user could not
+ * upload themselves, and bounds the memory a single import can hold.
+ */
+const SOURCE_IMPORT_MAX_BYTES = FILE_UPLOAD_MAX_SIZE_BYTES;
 
 interface ImportPendingResultBlobsOptions {
   abortSignal: AbortSignal;
@@ -118,9 +128,12 @@ async function importBlob(
     // private/loopback/link-local/metadata addresses before fetching. The
     // result is uploaded to a public blob store, so an unguarded fetch on a
     // URL derived from untrusted job output would be an SSRF + exfiltration
-    // primitive.
+    // primitive. The body is buffered here AND inside `ssrfSafeFetch`, with
+    // several imports running concurrently, so the abort deadline bounds only
+    // duration — `maxResponseBytes` bounds the memory.
     const response = await ssrfSafeFetch(blob.sourceUrl, {
       signal: abortSignal,
+      maxResponseBytes: SOURCE_IMPORT_MAX_BYTES,
     });
 
     if (!response.ok) {

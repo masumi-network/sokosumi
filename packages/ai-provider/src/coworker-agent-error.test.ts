@@ -10,6 +10,9 @@ import {
 } from "./coworker-agent-error.js";
 import { createSokosumiLanguageModel } from "./sokosumi-language-model.js";
 
+// Coworker mode fails closed without an SSRF guard; Core injects the real one.
+const assertUrlAllowedMock = vi.fn();
+
 describe("coworkerTextLooksLikeAgentError", () => {
   it("detects Elena agent error text and AGENT_ERROR markers", () => {
     expect(
@@ -102,6 +105,7 @@ describe("SokosumiLanguageModel coworker streaming", () => {
       providerOptions: {
         sokosumi: {
           mode: "coworker",
+          assertUrlAllowed: assertUrlAllowedMock,
           coworkerBaseUrl: "https://cow.example/api",
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",

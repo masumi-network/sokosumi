@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory";
 
-import { badRequest } from "@/helpers/error";
+import { badRequest, forbidden } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
   type AuthEnv,
@@ -9,6 +9,7 @@ import {
   type OrchestratorAuthenticationContext,
   setAuthContext,
 } from "@/middleware/auth";
+import { hasCoworkerUserDelegation } from "@/middleware/coworker-delegation";
 
 const HEADER_CONTEXT_USER_ID = "x-context-user-id";
 const HEADER_CONTEXT_ORGANIZATION_ID = "x-context-organization-id";
@@ -112,6 +113,24 @@ export const coworkerContextMiddleware = createMiddleware<AuthEnv>(
     };
 
     if (isCoworkerAuthContext(authContext)) {
+      // Existence of the context user is not authorization. A coworker key is
+      // vendor-issued and the header is caller-chosen, so without this check
+      // any vendor could name any user id and read/act as them on every route
+      // that resolves the effective user via `requireUserContext`.
+      // Orchestrator keys are exempt: that is a first-party service token, not
+      // a third-party credential.
+      const hasDelegation = await hasCoworkerUserDelegation({
+        coworkerId: authContext.coworkerId,
+        vendorId: authContext.vendorId,
+        userId,
+      });
+
+      if (!hasDelegation) {
+        throw forbidden(
+          "Coworker is not delegated to act for the specified context user",
+        );
+      }
+
       setAuthContext(c, {
         isAuthenticated,
         authContext: {

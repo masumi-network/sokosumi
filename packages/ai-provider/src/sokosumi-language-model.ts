@@ -27,6 +27,12 @@ import type { CreateSokosumiOptions } from "./types.js";
 
 const OPENROUTER_RESPONSES_URL = "https://openrouter.ai/api/v1/responses";
 const COWORKER_CONVERSATION_MAX_RETRIES = 2;
+/**
+ * Redirect hops followed on a coworker Responses POST. Each hop is re-validated
+ * against the caller's SSRF guard, so this only bounds loops — one hop covers
+ * the realistic cases (router, trailing-slash normalizer).
+ */
+const MAX_COWORKER_REDIRECTS = 3;
 const SOKOSUMI_SUPPORTED_URL_PATTERNS: Record<string, RegExp[]> = {
   // The Responses API mapping forwards these as image_url/file_url or inline data.
   "*": [/^https?:\/\//i, /^data:/i],
@@ -397,15 +403,54 @@ async function streamCoworker(
     }
   }
 
+  /**
+   * POSTs to the coworker Responses endpoint, validating the target before the
+   * socket opens and again on every redirect hop.
+   *
+   * The URL is built from vendor-supplied `coworkerBaseUrl`, so the guard must
+   * run per request (not once per call): a rebinding DNS record could
+   * otherwise slip an internal address into the retry below. Redirects are
+   * followed MANUALLY rather than refused outright — an endpoint behind a
+   * router or a trailing-slash normalizer legitimately redirects — but each
+   * hop is re-validated, so a public host cannot bounce this POST (identity
+   * headers and all) to an internal one.
+   *
+   * Only 307/308 are followed: the other 3xx codes downgrade a POST to GET,
+   * which this API cannot answer, so following them would silently drop the
+   * request body.
+   */
+  async function postWithValidatedRedirects(
+    requestBody: CoworkerResponsesBody,
+  ): Promise<Response> {
+    let target = url;
+    for (let hop = 0; hop <= MAX_COWORKER_REDIRECTS; hop++) {
+      await sokosumiOpts.assertUrlAllowed?.(target);
+      const response = await fetch(target, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(requestBody),
+        signal: options.abortSignal,
+        redirect: "manual",
+      });
+
+      if (response.status !== 307 && response.status !== 308) {
+        return response;
+      }
+      const location = response.headers.get("location");
+      if (!location) {
+        return response;
+      }
+      target = new URL(location, target).toString();
+    }
+    throw new Error(
+      `Coworker Responses API exceeded ${MAX_COWORKER_REDIRECTS} redirects`,
+    );
+  }
+
   async function fetchCoworkerResponses(
     requestBody: CoworkerResponsesBody,
   ): Promise<Response> {
-    let response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(requestBody),
-      signal: options.abortSignal,
-    });
+    let response = await postWithValidatedRedirects(requestBody);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
@@ -429,12 +474,7 @@ async function streamCoworker(
         };
         body = retryBody;
         requestBodyForError = retryBody;
-        response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(retryBody),
-          signal: options.abortSignal,
-        });
+        response = await postWithValidatedRedirects(retryBody);
       } else {
         throwCoworkerResponsesApiError(
           response,
