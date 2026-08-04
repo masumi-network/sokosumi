@@ -1,5 +1,6 @@
 import type { Session } from "@sokosumi/utils";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
@@ -34,6 +35,9 @@ interface AppShellOverlaysProps {
 export default async function AppShellOverlays({
   session,
 }: AppShellOverlaysProps) {
+  // Defer before cookies()/Core so Cache Components PPR probing does not
+  // soft-reject dynamic APIs while filling this Suspense hole (#3617).
+  await connection();
   const cookieStorePromise = cookies();
   const [
     shouldShowOnboarding,

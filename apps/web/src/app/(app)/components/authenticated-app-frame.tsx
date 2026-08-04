@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import type { Coworker } from "@/app/chat/utils/types";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
@@ -29,6 +30,9 @@ interface AuthenticatedAppFrameProps {
 export default async function AuthenticatedAppFrame({
   children,
 }: AuthenticatedAppFrameProps) {
+  // Defer before session cookies()/fetch so Cache Components PPR probing does
+  // not abort Core get-session (HANGING_PROMISE_REJECTION → null → /signin).
+  await connection();
   const session = await getSessionOrRedirect();
   const adminMenuEnabled = hasAdminRole(
     (session.user as typeof session.user & { role?: string | null }).role,
