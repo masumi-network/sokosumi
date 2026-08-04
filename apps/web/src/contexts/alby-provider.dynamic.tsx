@@ -28,8 +28,10 @@ export default function DynamicAblyProvider({
     };
   });
 
+  // Do not mount children until AblyProvider is ready — ChannelProvider /
+  // useChannel throw without Ably React context.
   if (!Provider) {
-    return children;
+    return null;
   }
 
   return <Provider>{children}</Provider>;
