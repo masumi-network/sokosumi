@@ -534,6 +534,7 @@ describe("mapChatRoomMessage quote", () => {
     expect(mapped.deletedAt).toEqual(new Date("2025-01-03T00:00:00.000Z"));
     expect(mapped.editedAt).toBeNull();
     expect(mapped.quote).toBeNull();
+    expect(mapped.membership).toBeNull();
     expect(mapped.metadata).toBeNull();
     expect(mapped.reactions).toEqual([]);
     expect(mapped.threadReplyCount).toBe(2);
@@ -579,5 +580,69 @@ describe("getChatRoomThreadAggregates", () => {
     expect(sql).toMatch(
       /reply\."senderUserId" IS NULL OR reply\."senderUserId" <>/,
     );
+  });
+});
+
+describe("mapChatRoomMessage membership", () => {
+  it("promotes metadata.membership onto the DTO membership field", () => {
+    const membership = {
+      action: "joined" as const,
+      subject: { type: "user" as const, id: "user_ada", name: "Ada" },
+    };
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: null,
+      senderCoworkerId: null,
+      content: "Ada joined",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: { membership },
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: null,
+      senderCoworker: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      _count: { replies: 0 },
+    });
+
+    expect(mapped.membership).toEqual(membership);
+    expect(mapped.sender).toEqual({ type: "unknown" });
+    expect(mapped.quote).toBeNull();
+  });
+
+  it("returns null membership when metadata has no membership", () => {
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: "user_123",
+      senderCoworkerId: null,
+      content: "hello",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: null,
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: {
+        id: "user_123",
+        name: "Patrick",
+        email: "patrick@example.com",
+        image: null,
+        sessions: [],
+      },
+      senderCoworker: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      _count: { replies: 0 },
+    });
+
+    expect(mapped.membership).toBeNull();
   });
 });

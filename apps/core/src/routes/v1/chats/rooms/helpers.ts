@@ -12,6 +12,11 @@ import {
   MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@/schemas/chat-room.schema";
 
+import {
+  assertChatRoomContentMessage,
+  readMembershipFromMetadata,
+} from "./membership-status";
+
 export const chatRoomUserSelect = {
   id: true,
   name: true,
@@ -721,6 +726,7 @@ export function mapChatRoomMessage(
     threadLastReplyAt: message.replies[0]?.createdAt ?? null,
     metadata: isDeleted ? null : metadata,
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),
+    membership: isDeleted ? null : readMembershipFromMetadata(metadata),
   };
 }
 
@@ -815,6 +821,7 @@ export async function resolveRoomQuoteSnapshot(
     select: {
       id: true,
       content: true,
+      metadata: true,
       senderUser: { select: { name: true } },
       senderCoworker: { select: { name: true } },
     },
@@ -823,6 +830,8 @@ export async function resolveRoomQuoteSnapshot(
   if (!quoted) {
     throw badRequest("Quoted message not found");
   }
+
+  assertChatRoomContentMessage(quoted.metadata);
 
   const { snippet, attachment } = buildRoomQuoteSnippetParts(quoted.content);
 

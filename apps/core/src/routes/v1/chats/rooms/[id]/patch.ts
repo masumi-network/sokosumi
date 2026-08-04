@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -26,6 +27,10 @@ import {
   validateChatCoworkerIds,
   validateOrganizationUserIds,
 } from "../helpers";
+import {
+  diffChannelMembershipRoster,
+  recordChannelMembershipStatus,
+} from "../membership-status";
 
 const paramsSchema = z.object({
   id: z
@@ -72,7 +77,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     try {
-      const room = await prisma.$transaction(async (tx) => {
+      const { room, statusMessages } = await prisma.$transaction(async (tx) => {
         const existing = await requireChatRoomUserAccess(
           id,
           userContext.userId,
@@ -132,12 +137,40 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           updateData.discoverability = body.discoverability;
         }
 
+        const priorUsers =
+          body.memberUserIds !== undefined
+            ? existing.userMembers.map((member) => ({
+                id: member.user.id,
+                name: member.user.name,
+              }))
+            : [];
+        const priorCoworkers =
+          body.coworkerIds !== undefined
+            ? existing.coworkerMembers.map((member) => ({
+                id: member.coworker.id,
+                name: member.coworker.name,
+              }))
+            : [];
+
+        let nextUsers = priorUsers;
+        let nextCoworkers = priorCoworkers;
+
         if (body.memberUserIds !== undefined) {
           const memberUserIds = await validateOrganizationUserIds(
             organizationId,
             [userContext.userId, ...body.memberUserIds],
             tx,
           );
+          const users = await tx.user.findMany({
+            where: { id: { in: memberUserIds } },
+            select: { id: true, name: true },
+          });
+          const nameById = new Map(users.map((user) => [user.id, user.name]));
+          nextUsers = memberUserIds.map((userId) => ({
+            id: userId,
+            name: nameById.get(userId) ?? userId,
+          }));
+
           await tx.chatRoomUserMember.deleteMany({
             where: { roomId: existing.id },
           });
@@ -167,6 +200,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             body.coworkerIds,
             tx,
           );
+          const coworkers = await tx.coworker.findMany({
+            where: { id: { in: coworkerIds } },
+            select: { id: true, name: true },
+          });
+          const nameById = new Map(
+            coworkers.map((coworker) => [coworker.id, coworker.name]),
+          );
+          nextCoworkers = coworkerIds.map((coworkerId) => ({
+            id: coworkerId,
+            name: nameById.get(coworkerId) ?? coworkerId,
+          }));
+
           // Fail open mentions for coworkers dropped from the roster so a
           // queued dispatch cannot post after eviction.
           await tx.chatRoomMention.updateMany({
@@ -193,12 +238,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
         }
 
-        return tx.chatRoom.update({
+        const changes = diffChannelMembershipRoster({
+          prior: { users: priorUsers, coworkers: priorCoworkers },
+          next: { users: nextUsers, coworkers: nextCoworkers },
+        });
+        const createdStatus = await recordChannelMembershipStatus(tx, {
+          roomId: existing.id,
+          roomKind: existing.kind,
+          changes,
+        });
+
+        const room = await tx.chatRoom.update({
           where: { id: existing.id },
           data: updateData,
           include: chatRoomInclude,
         });
+
+        return { room, statusMessages: createdStatus };
       });
+
+      for (const message of statusMessages) {
+        await publishChatRoomMessageRealtime(message);
+      }
 
       return ok(
         c,
