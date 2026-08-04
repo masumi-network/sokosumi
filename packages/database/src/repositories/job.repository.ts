@@ -24,6 +24,8 @@ interface CreateJobBase {
   input: string;
   inputHash: string | null;
   name: string | null;
+  /** Snapshot of the agent endpoint at job start; required for FREE offline sync. */
+  agentApiBaseUrl: string | null;
 }
 
 interface CreatePaidJobData extends CreateJobBase {
@@ -114,6 +116,7 @@ export const jobRepository = {
       },
 
       name: data.name,
+      agentApiBaseUrl: data.agentApiBaseUrl,
     };
 
     switch (data.jobType) {

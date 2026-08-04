@@ -33,6 +33,13 @@ vi.mock("@/middleware/auth-middleware", () => ({
       await handler(params),
 }));
 
+const invalidatePrivateSidebarChromeMock = vi.fn();
+
+vi.mock("@/app/components/private-sidebar-cache", () => ({
+  invalidatePrivateSidebarChrome: (...args: unknown[]) =>
+    invalidatePrivateSidebarChromeMock(...args),
+}));
+
 const organizationSession = {
   user: {
     id: "user-1",
@@ -87,6 +94,10 @@ describe("subscription actions", () => {
       "org-1",
       9,
     );
+    expect(invalidatePrivateSidebarChromeMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      organizationId: "org-1",
+    });
   });
 
   it("maps enterprise exclusivity errors from core seat updates", async () => {

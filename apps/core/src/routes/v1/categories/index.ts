@@ -1,8 +1,14 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
+
+import { defaultValidationHook } from "@/lib/hono";
 
 import mountGetCategories from "./get.js";
 
-const app = new OpenAPIHonoWithAuth();
+// GET / is public catalog — anonymous list for cookie-free `'use cache'`.
+// defaultValidationHook matches OpenAPIHonoWithAuth (422 on Zod failures).
+const app = new OpenAPIHono({
+  defaultHook: defaultValidationHook,
+});
 
 mountGetCategories(app);
 

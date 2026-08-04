@@ -16,4 +16,4 @@ CREATE INDEX "task_payment_claim_action_claimId_createdAt_idx" ON "task_payment_
 
 ALTER TABLE "task_payment_claim_action" ADD CONSTRAINT "task_payment_claim_action_claimId_fkey" FOREIGN KEY ("claimId") REFERENCES "task_payment_claim"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-ALTER TABLE "task_payment_claim_action" ADD CONSTRAINT "task_payment_claim_action_operatorId_fkey" FOREIGN KEY ("operatorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "task_payment_claim_action" ADD CONSTRAINT "task_payment_claim_action_operatorId_fkey" FOREIGN KEY ("operatorId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

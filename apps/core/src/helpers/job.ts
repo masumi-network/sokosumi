@@ -684,6 +684,11 @@ export async function createAgentJobForUser(
         const fixedPricingAmounts = agent.pricing.fixedPricing
           ? aggregateAmountsByUnit(agent.pricing.fixedPricing.amounts)
           : [];
+        // Empty amounts are truthy as `[]` and would otherwise record an
+        // exact-match requirement against no units / send `[]` to the node.
+        if (fixedPricingAmounts.length === 0) {
+          throw unprocessableEntity("Paid agent has no fixed pricing amounts");
+        }
         // Legacy V1 metadata permits more entries than POST /purchase accepts.
         // Preserve those agents' old behavior by omitting the optional drift
         // guard until the node's request limit is widened.

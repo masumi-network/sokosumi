@@ -15,8 +15,11 @@ describe("normalizeMasumiPaymentUnit", () => {
     expect(normalizeMasumiPaymentUnit("Lovelace")).toBe("lovelace");
   });
 
-  it("leaves asset units untouched", () => {
+  it("lowercases hex asset units", () => {
     expect(normalizeMasumiPaymentUnit(TOKEN_UNIT)).toBe(TOKEN_UNIT);
+    expect(normalizeMasumiPaymentUnit(TOKEN_UNIT.toUpperCase())).toBe(
+      TOKEN_UNIT,
+    );
   });
 });
 
@@ -78,6 +81,15 @@ describe("doMasumiPaymentAmountsMatch", () => {
           { amount: "400000", unit: "lovelace" },
           { amount: "600000", unit: "lovelace" },
         ],
+      ),
+    ).toBe(true);
+  });
+
+  it("matches hex asset units regardless of casing", () => {
+    expect(
+      doMasumiPaymentAmountsMatch(
+        [{ amount: "5", unit: TOKEN_UNIT.toUpperCase() }],
+        [{ amount: "5", unit: TOKEN_UNIT }],
       ),
     ).toBe(true);
   });

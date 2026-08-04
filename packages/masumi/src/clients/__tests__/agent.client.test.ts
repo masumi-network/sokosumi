@@ -70,6 +70,30 @@ describe("startPaidAgentJob failure classification", () => {
     }
   });
 
+  it.each([302, 307] as const)(
+    "classifies POST redirect %s as ambiguous — seller acceptance unknown",
+    async (status: 302 | 307) => {
+      ssrfSafeFetchMock.mockResolvedValue(
+        new Response(null, {
+          status,
+          headers: { Location: "https://other.example/start_job" },
+        }),
+      );
+
+      const result = await createAgentClient().startPaidAgentJob(
+        createAgent(),
+        "nonce",
+        inputData,
+      );
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.kind).toBe("ambiguous");
+        expect(result.error.message).toContain(`status ${status}`);
+      }
+    },
+  );
+
   it("classifies an off-contract 2xx body as invalid-response — the job is stranded", async () => {
     // The exact shape a non-compliant seller returned on preprod: a 200 with
     // identifier_from_seller and none of agentIdentifier, sellerVKey,

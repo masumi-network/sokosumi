@@ -2,6 +2,7 @@
 
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import * as z from "zod";
+import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -153,7 +154,7 @@ interface UpdatePreferredOrganizationParameters extends AuthenticatedRequest {
 export const updatePreferredOrganization = withSession<
   UpdatePreferredOrganizationParameters,
   Result<{ organizationId: string | null }, ActionError>
->(async ({ organizationId }) => {
+>(async ({ organizationId, session }) => {
   const parsedResult = updatePreferredOrganizationSchema.safeParse({
     organizationId,
   });
@@ -165,10 +166,18 @@ export const updatePreferredOrganization = withSession<
     });
   }
 
+  const previousOrganizationId = session.session.activeOrganizationId ?? null;
+
   try {
     const { data } = await coreClient.setMyPreferredOrganization(
       parsedResult.data.organizationId,
     );
+
+    invalidatePrivateSidebarChrome({
+      userId: session.user.id,
+      organizationId: data.organizationId,
+      previousOrganizationId,
+    });
 
     return Ok({
       organizationId: data.organizationId,

@@ -190,6 +190,7 @@ export function RoomSessionComposer({
       pendingQuote={pendingQuote}
       onClearPendingQuote={onClearPendingQuote}
       onChromeResize={onChromeResize}
+      focusOnMount
     />
   );
 }

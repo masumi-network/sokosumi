@@ -100,9 +100,19 @@ function classifyStartJobHttpFailure(
   message: string,
 ): AgentJobStartFailure {
   const detailedMessage = `${message} (status ${response.status})`;
-  return response.status === 408 || response.status >= 500
-    ? ambiguous(detailedMessage)
-    : unreachable(detailedMessage);
+  // Timeouts and 5xx: seller may have accepted before failing.
+  if (response.status === 408 || response.status >= 500) {
+    return ambiguous(detailedMessage);
+  }
+  // ssrfSafeFetch does not follow POST redirects; acceptance is unknown.
+  if (response.status >= 300 && response.status < 400) {
+    return ambiguous(detailedMessage);
+  }
+  // Explicit non-timeout 4xx: no seller-side job was accepted.
+  if (response.status >= 400 && response.status < 500) {
+    return unreachable(detailedMessage);
+  }
+  return ambiguous(detailedMessage);
 }
 
 /**
