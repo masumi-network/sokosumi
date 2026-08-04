@@ -9,6 +9,7 @@ import {
 import type { Job } from "../generated/prisma/client.js";
 import {
   type FreeJobWithStatus,
+  type JobEventForListSummary,
   type JobEventForStatusCompute,
   type JobEventWithRelations,
   type JobForStatusCompute,
@@ -291,20 +292,22 @@ function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
   }
 }
 
-export function getCompletedEvent(
-  job: JobWithEvents,
-): JobEventWithRelations | undefined {
-  return job.events.find(
-    (event: JobEventWithRelations) => event.status === AgentJobStatus.COMPLETED,
-  );
+export function getCompletedEvent(job: {
+  events: readonly JobEventForListSummary[];
+}): JobEventForListSummary | undefined {
+  return job.events.find((event) => event.status === AgentJobStatus.COMPLETED);
 }
 
-export function getCompletedAt(job: JobWithEvents): Date | null {
+export function getCompletedAt(job: {
+  events: readonly JobEventForListSummary[];
+}): Date | null {
   const completedEvent = getCompletedEvent(job);
   return completedEvent?.createdAt ?? null;
 }
 
-export function getResult(job: JobWithEvents): string | null {
+export function getResult(job: {
+  events: readonly JobEventForListSummary[];
+}): string | null {
   const completedEvent = getCompletedEvent(job);
   return completedEvent?.result ?? null;
 }

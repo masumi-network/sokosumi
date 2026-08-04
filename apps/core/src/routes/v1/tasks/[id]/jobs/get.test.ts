@@ -1,5 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { jobSummaryInclude } from "@sokosumi/database/types/job";
+import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -97,7 +97,7 @@ describe("GET /tasks/{id}/jobs", () => {
     );
     expect(jobFindManyMock).toHaveBeenCalledWith({
       where: { taskId: "tsk_123" },
-      include: jobSummaryInclude,
+      include: jobListSummaryInclude,
       orderBy: { createdAt: "asc" },
     });
   });

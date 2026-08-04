@@ -1,5 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { jobSummaryInclude } from "@sokosumi/database/types/job";
+import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -40,7 +40,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const jobsList = await tx.job.findMany({
         where: { taskId: id },
-        include: jobSummaryInclude,
+        include: jobListSummaryInclude,
         orderBy: { createdAt: "asc" },
       });
 

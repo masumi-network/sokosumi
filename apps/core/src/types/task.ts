@@ -1,10 +1,5 @@
 import { type Prisma, workspaceRelationInclude } from "@sokosumi/database";
-import {
-  jobSummaryOwnerOrganizationInclude,
-  jobWithEvents,
-  jobWithPurchase,
-  jobWithTransaction,
-} from "@sokosumi/database/types/job";
+import { jobListSummaryInclude } from "@sokosumi/database/types/job";
 
 import type { AuthenticationContext } from "@/middleware/auth";
 import {
@@ -66,13 +61,7 @@ const taskBaseInclude = {
     },
   },
   jobs: {
-    include: {
-      ...workspaceRelationInclude,
-      ...jobWithEvents,
-      ...jobWithTransaction,
-      ...jobWithPurchase,
-      ...jobSummaryOwnerOrganizationInclude,
-    },
+    include: jobListSummaryInclude,
     orderBy: {
       createdAt: "asc",
     },
