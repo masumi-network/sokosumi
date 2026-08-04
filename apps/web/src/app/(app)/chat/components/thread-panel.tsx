@@ -7,7 +7,6 @@ import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -114,12 +113,6 @@ export function ThreadPanel({
     scrollToBottomIfPinned,
   } = useStickToBottom({
     resetKey: parentMessage.id,
-  });
-
-  useMountEffect(() => {
-    requestAnimationFrame(() => {
-      threadComposerRef.current?.focus();
-    });
   });
 
   function handleQuote(message: ChatRoomMessage) {
