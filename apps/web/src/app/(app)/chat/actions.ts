@@ -1,11 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { actionErrorMessage } from "@/app/chat/action-error-message";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
-import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type {
   ChatRoom,
   ChatRoomMessage,
+  ChatRoomThread,
+  ChatRoomThreadReadState,
+  ChatRoomThreadsMarkAll,
   DiscoverableChatRoom,
 } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
@@ -69,16 +72,6 @@ function cleanDiscoverability(
     return value;
   }
   return undefined;
-}
-
-function actionErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof CoreApiRequestError) {
-    return error.message;
-  }
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-  return fallback;
 }
 
 export async function createChannelAction(
@@ -451,6 +444,52 @@ export async function listThreadMessagesAction(
     return {
       ok: false,
       message: actionErrorMessage(error, "Could not load thread."),
+    };
+  }
+}
+
+export async function listUnreadThreadsAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoomThread[]>> {
+  try {
+    const items = await chatRoomService.listUnreadThreads(roomId);
+    return { ok: true, data: items };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not load unread threads."),
+    };
+  }
+}
+
+export async function markThreadReadAction(
+  roomId: string,
+  parentMessageId: string,
+): Promise<RoomActionResult<ChatRoomThreadReadState>> {
+  try {
+    const state = await chatRoomService.markThreadRead(roomId, parentMessageId);
+    return { ok: true, data: state };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not mark thread looked."),
+    };
+  }
+}
+
+export async function markAllUnreadThreadsReadAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoomThreadsMarkAll>> {
+  try {
+    const result = await chatRoomService.markAllUnreadThreadsRead(roomId);
+    return { ok: true, data: result };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(
+        error,
+        "Could not mark unread threads as read.",
+      ),
     };
   }
 }

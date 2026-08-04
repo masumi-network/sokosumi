@@ -33,9 +33,6 @@ import { setupDomContext } from "@/lib/utils/dom-context";
 import { hasHtmlContent } from "@/lib/utils/html-detection";
 import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limited";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 interface GenerateDocxRequest {
   markdown?: string;
   fileName?: string;

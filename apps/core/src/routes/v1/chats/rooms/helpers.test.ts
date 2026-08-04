@@ -2,6 +2,7 @@ import { MemberRole, NotificationKind } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  assertChatRoomPatchAuth,
   buildDirectCoworkerRoomKey,
   buildDirectParticipantRoomKey,
   buildDirectRoomKey,
@@ -9,6 +10,7 @@ import {
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
   contentIncludesRoomAllMention,
+  getChatRoomThreadAggregates,
   getChatRoomUnreadMentionCounts,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
@@ -215,43 +217,15 @@ describe("buildDirectRoomName", () => {
 });
 
 describe("canManageChatRoomLifecycle", () => {
-  const creatorId = "user_creator";
-  const otherId = "user_other";
-
-  it("allows the channel creator regardless of org role", () => {
-    expect(
-      canManageChatRoomLifecycle({
-        createdByUserId: creatorId,
-        userId: creatorId,
-        role: MemberRole.MEMBER,
-      }),
-    ).toBe(true);
-  });
-
   it.each([
     ["owner", MemberRole.OWNER],
     ["admin", MemberRole.ADMIN],
-  ] as const)(
-    "allows an organization %s who is not the creator",
-    (_label, role) => {
-      expect(
-        canManageChatRoomLifecycle({
-          createdByUserId: creatorId,
-          userId: otherId,
-          role,
-        }),
-      ).toBe(true);
-    },
-  );
+  ] as const)("allows an organization %s", (_label, role) => {
+    expect(canManageChatRoomLifecycle({ role })).toBe(true);
+  });
 
-  it("denies a plain member who did not create the room", () => {
-    expect(
-      canManageChatRoomLifecycle({
-        createdByUserId: creatorId,
-        userId: otherId,
-        role: MemberRole.MEMBER,
-      }),
-    ).toBe(false);
+  it("denies a creator who is only a plain member", () => {
+    expect(canManageChatRoomLifecycle({ role: MemberRole.MEMBER })).toBe(false);
   });
 });
 
@@ -267,6 +241,39 @@ describe("canPermanentlyDeleteChatRoom", () => {
     expect(canPermanentlyDeleteChatRoom({ role: MemberRole.MEMBER })).toBe(
       false,
     );
+  });
+});
+
+describe("assertChatRoomPatchAuth", () => {
+  it("allows a plain member to PATCH roster-only", () => {
+    expect(() =>
+      assertChatRoomPatchAuth({
+        role: MemberRole.MEMBER,
+        body: { memberUserIds: ["user_a"], coworkerIds: [] },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a plain member PATCH that touches settings", () => {
+    expect(() =>
+      assertChatRoomPatchAuth({
+        role: MemberRole.MEMBER,
+        body: { name: "Nope" },
+      }),
+    ).toThrow(/organization owner or admin/i);
+  });
+
+  it("allows an organization admin to PATCH settings and roster", () => {
+    expect(() =>
+      assertChatRoomPatchAuth({
+        role: MemberRole.ADMIN,
+        body: {
+          name: "Ops",
+          memberUserIds: ["user_a"],
+          coworkerIds: [],
+        },
+      }),
+    ).not.toThrow();
   });
 });
 
@@ -530,5 +537,47 @@ describe("mapChatRoomMessage quote", () => {
     expect(mapped.metadata).toBeNull();
     expect(mapped.reactions).toEqual([]);
     expect(mapped.threadReplyCount).toBe(2);
+  });
+});
+
+describe("getChatRoomThreadAggregates", () => {
+  it("queries with thread baseline independent of room lastReadAt and excludes soft-deleted/self replies", async () => {
+    const queryRawUnsafe = vi.fn().mockResolvedValue([
+      {
+        parentMessageId: "550e8400-e29b-41d4-a716-446655440001",
+        replyCount: 5,
+        lastReplyAt: new Date("2026-07-02T11:00:00.000Z"),
+        unreadReplyCount: 3,
+        lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
+      },
+    ]);
+    const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
+
+    const rows = await getChatRoomThreadAggregates(
+      "550e8400-e29b-41d4-a716-446655440000",
+      "user_123",
+      tx,
+    );
+
+    expect(rows).toEqual([
+      {
+        parentMessageId: "550e8400-e29b-41d4-a716-446655440001",
+        replyCount: 5,
+        lastReplyAt: new Date("2026-07-02T11:00:00.000Z"),
+        unreadReplyCount: 3,
+        lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
+      },
+    ]);
+
+    const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
+    expect(sql).toContain('thread_read."lastReadAt"');
+    expect(sql).toContain('room_read."createdAt"');
+    expect(sql).toContain("'-infinity'::timestamp");
+    expect(sql).not.toMatch(/room_read\."lastReadAt"/);
+    expect(sql).toContain('reply."deletedAt" IS NULL');
+    expect(sql).toContain('parent."deletedAt" IS NULL');
+    expect(sql).toMatch(
+      /reply\."senderUserId" IS NULL OR reply\."senderUserId" <>/,
+    );
   });
 });

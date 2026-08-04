@@ -5,7 +5,7 @@ import {
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "@sokosumi/utils";
 
-import { badRequest, notFound } from "@/helpers/error";
+import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import {
   type ChatRoomMessageQuote,
@@ -42,13 +42,13 @@ export const chatRoomInclude = {
     include: {
       user: { select: chatRoomUserSelect },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
   coworkerMembers: {
     include: {
       coworker: { select: chatRoomCoworkerSelect },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
 } as const satisfies Prisma.ChatRoomInclude;
 
@@ -157,6 +157,257 @@ export async function getChatRoomUnreadCounts(
   );
 
   return new Map(rows.map((row) => [row.roomId, Number(row.unreadCount)]));
+}
+
+export interface ChatRoomThreadAggregate {
+  parentMessageId: string;
+  replyCount: number;
+  lastReplyAt: Date;
+  unreadReplyCount: number;
+  lastUnreadReplyAt: Date | null;
+}
+
+/**
+ * Parents (top-level messages) in a room that have ≥1 non-deleted reply,
+ * with per-user unread counts.
+ *
+ * Look baseline per parent:
+ * 1. ChatRoomThreadReadState.lastReadAt when a row exists
+ * 2. else ChatRoomReadState.createdAt for (room, user) when present
+ * 3. else -infinity (all historical non-self replies count)
+ *
+ * Never uses room lastReadAt — room mark-read must not clear thread look state.
+ */
+export async function getChatRoomThreadAggregates(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+  options?: { unreadOnly?: boolean; parentMessageId?: string },
+): Promise<ChatRoomThreadAggregate[]> {
+  const unreadOnly = options?.unreadOnly === true;
+  const parentMessageId = options?.parentMessageId;
+  const rows = await tx.$queryRawUnsafe<
+    Array<{
+      parentMessageId: string;
+      replyCount: number | bigint;
+      lastReplyAt: Date;
+      unreadReplyCount: number | bigint;
+      lastUnreadReplyAt: Date | null;
+    }>
+  >(
+    `
+    SELECT
+      parent.id AS "parentMessageId",
+      COUNT(reply.id)::int AS "replyCount",
+      MAX(reply."createdAt") AS "lastReplyAt",
+      COUNT(reply.id) FILTER (
+        WHERE (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+          AND reply."createdAt" > COALESCE(
+            thread_read."lastReadAt",
+            room_read."createdAt",
+            '-infinity'::timestamp
+          )
+      )::int AS "unreadReplyCount",
+      MAX(reply."createdAt") FILTER (
+        WHERE (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+          AND reply."createdAt" > COALESCE(
+            thread_read."lastReadAt",
+            room_read."createdAt",
+            '-infinity'::timestamp
+          )
+      ) AS "lastUnreadReplyAt"
+    FROM "chat_room_message" reply
+    INNER JOIN "chat_room_message" parent
+      ON parent.id = reply."parentMessageId"
+      AND parent."roomId" = reply."roomId"
+    LEFT JOIN "chat_room_thread_read_state" thread_read
+      ON thread_read."parentMessageId" = parent.id
+      AND thread_read."userId" = $2
+    LEFT JOIN "chat_room_read_state" room_read
+      ON room_read."roomId" = reply."roomId"
+      AND room_read."userId" = $2
+    WHERE reply."roomId" = $1::uuid
+      AND reply."parentMessageId" IS NOT NULL
+      AND reply."deletedAt" IS NULL
+      AND parent."deletedAt" IS NULL
+      AND parent."parentMessageId" IS NULL
+      ${parentMessageId ? "AND parent.id = $3::uuid" : ""}
+    GROUP BY parent.id
+    HAVING COUNT(reply.id) >= 1
+    ORDER BY MAX(reply."createdAt") DESC
+    `,
+    ...(parentMessageId ? [roomId, userId, parentMessageId] : [roomId, userId]),
+  );
+
+  const aggregates = rows.map((row) => ({
+    parentMessageId: row.parentMessageId,
+    replyCount: Number(row.replyCount),
+    lastReplyAt: row.lastReplyAt,
+    unreadReplyCount: Number(row.unreadReplyCount),
+    lastUnreadReplyAt: row.lastUnreadReplyAt,
+  }));
+
+  if (!unreadOnly) {
+    return aggregates;
+  }
+
+  return aggregates
+    .filter((row) => row.unreadReplyCount >= 1)
+    .toSorted((a, b) => {
+      const aAt = a.lastUnreadReplyAt?.getTime() ?? 0;
+      const bAt = b.lastUnreadReplyAt?.getTime() ?? 0;
+      return bAt - aAt;
+    });
+}
+
+async function mapThreadAggregates(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+  aggregates: ChatRoomThreadAggregate[],
+) {
+  if (aggregates.length === 0) {
+    return [];
+  }
+
+  const parents = await tx.chatRoomMessage.findMany({
+    where: {
+      id: { in: aggregates.map((row) => row.parentMessageId) },
+      roomId,
+      parentMessageId: null,
+      deletedAt: null,
+    },
+    include: chatRoomMessageInclude,
+  });
+  const parentsById = new Map(parents.map((parent) => [parent.id, parent]));
+
+  return aggregates.flatMap((aggregate) => {
+    const parent = parentsById.get(aggregate.parentMessageId);
+    if (!parent) {
+      return [];
+    }
+    return [
+      {
+        parentMessage: mapChatRoomMessage(parent, userId),
+        replyCount: aggregate.replyCount,
+        lastReplyAt: aggregate.lastReplyAt,
+        unreadReplyCount: aggregate.unreadReplyCount,
+        lastUnreadReplyAt: aggregate.lastUnreadReplyAt,
+      },
+    ];
+  });
+}
+
+/**
+ * List threads in a room. When `unreadOnly`, only parents with ≥1 unread
+ * non-self reply after the look baseline.
+ */
+export async function listChatRoomThreads(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+  options?: { unreadOnly?: boolean },
+) {
+  const aggregates = await getChatRoomThreadAggregates(roomId, userId, tx, {
+    unreadOnly: options?.unreadOnly,
+  });
+  return mapThreadAggregates(roomId, userId, tx, aggregates);
+}
+
+/**
+ * One thread summary by parent id, or null when missing / not a thread.
+ */
+export async function getChatRoomThread(
+  roomId: string,
+  userId: string,
+  parentMessageId: string,
+  tx: Prisma.TransactionClient,
+) {
+  const aggregates = await getChatRoomThreadAggregates(roomId, userId, tx, {
+    parentMessageId,
+  });
+  const items = await mapThreadAggregates(roomId, userId, tx, aggregates);
+  return items[0] ?? null;
+}
+
+/**
+ * Upsert look state for a top-level parent. Returns null when parent missing.
+ */
+export async function markChatRoomThreadRead(
+  roomId: string,
+  userId: string,
+  parentMessageId: string,
+  tx: Prisma.TransactionClient,
+): Promise<{ parentMessageId: string; lastReadAt: Date } | null> {
+  const parent = await tx.chatRoomMessage.findFirst({
+    where: {
+      id: parentMessageId,
+      roomId,
+      parentMessageId: null,
+    },
+    select: { id: true },
+  });
+  if (!parent) {
+    return null;
+  }
+
+  const readAt = new Date();
+  const state = await tx.chatRoomThreadReadState.upsert({
+    where: {
+      userId_parentMessageId: {
+        userId,
+        parentMessageId: parent.id,
+      },
+    },
+    update: { lastReadAt: readAt },
+    create: {
+      userId,
+      parentMessageId: parent.id,
+      lastReadAt: readAt,
+    },
+  });
+
+  return {
+    parentMessageId: state.parentMessageId,
+    lastReadAt: state.lastReadAt,
+  };
+}
+
+/**
+ * Upsert look state for every parent currently needing attention in the room.
+ * Does not change room ChatRoomReadState or CHAT notifications.
+ */
+export async function markAllChatRoomThreadsRead(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<number> {
+  const aggregates = await getChatRoomThreadAggregates(roomId, userId, tx, {
+    unreadOnly: true,
+  });
+  if (aggregates.length === 0) {
+    return 0;
+  }
+
+  const readAt = new Date();
+  for (const aggregate of aggregates) {
+    await tx.chatRoomThreadReadState.upsert({
+      where: {
+        userId_parentMessageId: {
+          userId,
+          parentMessageId: aggregate.parentMessageId,
+        },
+      },
+      update: { lastReadAt: readAt },
+      create: {
+        userId,
+        parentMessageId: aggregate.parentMessageId,
+        lastReadAt: readAt,
+      },
+    });
+  }
+
+  return aggregates.length;
 }
 
 /**
@@ -721,31 +972,70 @@ export async function buildUniqueRoomSlug(
 }
 
 /**
- * Archive and restore hide or resurface a room for everyone, so only the
- * creator or an organization owner/admin may do either. Plain members leave
- * instead (or ask someone elevated to archive).
+ * Organization owner/admin elevation for channel lifecycle and settings.
+ * Room creator is provenance only — never authorizes.
+ */
+export function isOrganizationOwnerOrAdmin(role: string): boolean {
+  return role === MemberRole.OWNER || role === MemberRole.ADMIN;
+}
+
+/**
+ * Archive and restore hide or resurface a room for everyone, so only an
+ * organization owner/admin may do either. Plain members leave instead (or ask
+ * someone elevated to archive).
  */
 export function canManageChatRoomLifecycle(options: {
-  createdByUserId: string;
-  userId: string;
   /** Organization membership role from Prisma (`string`); compare to `MemberRole`. */
   role: string;
 }): boolean {
-  return (
-    options.createdByUserId === options.userId ||
-    options.role === MemberRole.OWNER ||
-    options.role === MemberRole.ADMIN
-  );
+  return isOrganizationOwnerOrAdmin(options.role);
 }
 
 /**
  * Permanent delete removes the room and cascaded children for everyone.
- * Organization owner/admin only — room creator membership is not enough.
+ * Same elevation as archive/restore — organization owner/admin only.
  */
 export function canPermanentlyDeleteChatRoom(options: {
   role: string;
 }): boolean {
-  return options.role === MemberRole.OWNER || options.role === MemberRole.ADMIN;
+  return canManageChatRoomLifecycle(options);
+}
+
+export function chatRoomPatchTouchesSettings(body: {
+  name?: unknown;
+  topic?: unknown;
+  discoverability?: unknown;
+}): boolean {
+  return (
+    body.name !== undefined ||
+    body.topic !== undefined ||
+    body.discoverability !== undefined
+  );
+}
+
+/**
+ * Split PATCH gates: settings (name/topic/discoverability) need OWNER/ADMIN;
+ * roster rewrite is allowed for any active channel member (membership already
+ * proven by the access helper). Fail settings before any writes.
+ */
+export function assertChatRoomPatchAuth(options: {
+  role: string;
+  body: {
+    name?: unknown;
+    topic?: unknown;
+    discoverability?: unknown;
+    memberUserIds?: unknown;
+    coworkerIds?: unknown;
+  };
+}): void {
+  if (
+    chatRoomPatchTouchesSettings(options.body) &&
+    !isOrganizationOwnerOrAdmin(options.role)
+  ) {
+    throw forbidden(
+      "Only an organization owner or admin can update channel settings.",
+    );
+  }
 }
 
 export async function requireChatRoomUserAccess(
@@ -855,7 +1145,7 @@ const chatRoomWriteSelect = {
         },
       },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
   coworkerMembers: {
     select: {
@@ -867,7 +1157,7 @@ const chatRoomWriteSelect = {
         },
       },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
 } as const satisfies Prisma.ChatRoomSelect;
 

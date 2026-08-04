@@ -27,6 +27,8 @@ const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
 );
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
   async headers() {
     return [
       {
@@ -54,7 +56,8 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: "20mb",
     },
-    optimizePackageImports: ["lucide-react"],
+    turbopackRustReactCompiler: true,
+    optimizePackageImports: ["lucide-react", "radix-ui"],
   },
   serverExternalPackages: ["ably", "@sparticuz/chromium", "puppeteer-core"],
 };

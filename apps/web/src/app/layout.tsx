@@ -2,19 +2,19 @@ import "./globals.css";
 
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
+import { DEFAULT_LOCALE } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { Suspense } from "react";
 
 import { ClientAnalytics } from "@/components/analytics/client-analytics";
 import { DeploymentRefreshHandler } from "@/components/deployment-refresh-handler";
-import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
-import { Toaster } from "@/components/ui/sonner";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { ThemeProvider } from "@/contexts/theme-context";
+
+import { RootIntlTree } from "./components/root-intl-tree";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,17 +38,20 @@ export function generateMetadata(): Metadata {
   };
 }
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
   const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
 
   return (
-    <html lang={locale} suppressHydrationWarning className={inter.className}>
+    <html
+      lang={DEFAULT_LOCALE}
+      suppressHydrationWarning
+      className={inter.className}
+    >
       <head>
         <ApplePwaHead />
       </head>
@@ -57,13 +60,9 @@ export default async function RootLayout({
       <body className="bg-background min-h-svh max-w-dvw antialiased">
         <NuqsAdapter>
           <ThemeProvider>
-            <NextIntlClientProvider messages={messages}>
-              <GlobalModalsContextProvider>
-                <div className="bg-background">{children}</div>
-              </GlobalModalsContextProvider>
-              {/* Toaster */}
-              <Toaster />
-            </NextIntlClientProvider>
+            <Suspense fallback={<div className="bg-background min-h-svh" />}>
+              <RootIntlTree>{children}</RootIntlTree>
+            </Suspense>
           </ThemeProvider>
         </NuqsAdapter>
         <ClientAnalytics />

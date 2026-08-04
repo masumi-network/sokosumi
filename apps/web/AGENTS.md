@@ -173,9 +173,10 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 - Use `useTranslations` hook in components
 - **Locale-safe formatting in client components**: never use bare `.toLocaleString()` or default-locale `Intl.*` for numbers/dates in `'use client'` code — Node and the browser can format differently and cause hydration errors. Use `useFormatter().number()` / `useFormatter().dateTime()` in client components and `getFormatter()` in server components. See [.cursor/rules/i18n-formatting.mdc](.cursor/rules/i18n-formatting.mdc).
 - `messages/en.json` is the source-of-truth catalog for the web app
-- Every supported locale file in `messages/*.json` must keep the exact same key paths as `messages/en.json`
+- Supported locales: `en`, `de`, `es` — keep exact key-path parity (`pnpm --filter web messages:parity`)
 - When a key is added, removed, renamed, or moved in `messages/en.json`, apply the same path change to every supported locale file in the same change
 - If a translated value is not available yet, temporarily copy the English string so the key exists in every locale file
+- **Client message bags**: route layouts nest `ClientMessageBoundary` (`src/i18n/`) so the client provider only receives a picked subset (`GLOBAL` / `AUTH` / `APP` / nested `HERMES`|`ADMIN` / `SHARE`). Server `getTranslations` still sees the full catalog from `request.ts`. Add new client namespaces to the owning bag in `message-namespaces.ts`.
 
 ### Database Access
 

@@ -508,6 +508,15 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   }
 }
 
+/*
+ * Inter's default `calt` raises/lowers * unevenly before capitals
+ * (e.g. `**Andreas` → first * high, second * low). Compose surfaces
+ * type markdown markers often; keep asterisks aligned.
+ */
+@utility markdown-compose-surface {
+  font-variant-ligatures: no-contextual;
+}
+
 @utility landing-hero-bg {
   background-image:
     linear-gradient(rgba(0, 164, 250, 0.39), rgba(255, 255, 255, 1)),

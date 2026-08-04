@@ -3,6 +3,7 @@
 import { Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
+import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -104,7 +105,15 @@ export function ThreadPanel({
 }) {
   const t = useTranslations("App.Channels");
   const threadComposerRef = useRef<RoomComposerHandle | null>(null);
-  const threadBottomRef = useRef<HTMLDivElement | null>(null);
+  const {
+    scrollerRef,
+    contentRef,
+    contentMinHeight,
+    scrollToBottom,
+    scrollToBottomIfPinned,
+  } = useStickToBottom({
+    resetKey: parentMessage.id,
+  });
 
   useMountEffect(() => {
     requestAnimationFrame(() => {
@@ -117,6 +126,21 @@ export function ThreadPanel({
     requestAnimationFrame(() => {
       threadComposerRef.current?.focus();
     });
+  }
+
+  async function handleSendReply(
+    request: RoomSessionSendRequest,
+  ): Promise<RoomSessionSendResult> {
+    const result = await onSendReply(request);
+    if (result.ok) {
+      // Own send always reveals the new reply, even if typing/composer resize
+      // cleared the sticky flag. Re-pin so ResizeObserver follows late layout.
+      scrollToBottom();
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
+    }
+    return result;
   }
 
   function editPropsFor(messageId: string) {
@@ -171,8 +195,16 @@ export function ThreadPanel({
             <X className="size-4" aria-hidden />
           </Button>
         </header>
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="px-4 py-4">
+        <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
+          <div
+            ref={contentRef}
+            className="flex w-full flex-col justify-end px-4 pt-4 pb-0"
+            style={
+              contentMinHeight != null
+                ? { minHeight: contentMinHeight }
+                : undefined
+            }
+          >
             <ChatMessageRow
               message={parentMessage}
               coworkersById={coworkersById}
@@ -246,7 +278,6 @@ export function ThreadPanel({
                     {t("Thread.empty")}
                   </p>
                 )}
-                <div ref={threadBottomRef} />
               </>
             )}
           </div>
@@ -264,11 +295,9 @@ export function ThreadPanel({
           pendingQuote={pendingQuote}
           onClearPendingQuote={onClearPendingQuote}
           onRestorePendingQuote={onRestorePendingQuote}
-          onChromeResize={() => {
-            threadBottomRef.current?.scrollIntoView({ block: "end" });
-          }}
+          onChromeResize={scrollToBottomIfPinned}
           onBeforeSend={onBeforeSendReply}
-          onSend={onSendReply}
+          onSend={handleSendReply}
         />
       </RoomFileDropZone>
     </aside>

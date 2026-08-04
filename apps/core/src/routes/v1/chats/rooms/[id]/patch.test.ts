@@ -179,15 +179,60 @@ beforeEach(() => {
 });
 
 describe("PATCH /chats/rooms/{id}", () => {
-  it("updates a channel room when the caller is the creator", async () => {
-    const existing = channelRoom();
-    const updated = channelRoom({
-      name: "Ship Room",
-      slug: "ship-room",
-      topic: "Go live checklist",
-    });
+  it("allows a non-creator member to PATCH roster-only", async () => {
+    const existing = channelRoom({ createdByUserId: OTHER_USER_ID });
+    const updated = channelRoom({ createdByUserId: OTHER_USER_ID });
     roomFindFirstMock.mockResolvedValueOnce(existing);
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
     roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberCreateManyMock.mockResolvedValue({ count: 2 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(userMemberCreateManyMock).toHaveBeenCalled();
+    expect(roomUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: ROOM_ID },
+        data: {},
+      }),
+    );
+  });
+
+  it("rejects a non-creator member PATCH that touches settings", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      channelRoom({ createdByUserId: OTHER_USER_ID }),
+    );
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Nope" }),
+    });
+
+    expect(response.status).toBe(403);
+    const text = await response.text();
+    expect(text).toMatch(/organization owner or admin/i);
+    expect(text).not.toMatch(/creator/i);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a creator who is only a plain member from PATCH settings", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(channelRoom());
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {
@@ -199,55 +244,21 @@ describe("PATCH /chats/rooms/{id}", () => {
       }),
     });
 
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data.name).toBe("Ship Room");
-    expect(body.data.slug).toBe("ship-room");
-    expect(body.data.topic).toBe("Go live checklist");
-    expect(roomUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: ROOM_ID },
-        data: {
-          name: "Ship Room",
-          slug: "ship-room",
-          topic: "Go live checklist",
-        },
-      }),
-    );
+    expect(response.status).toBe(403);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("updates channel discoverability when the caller can manage the room", async () => {
-    const existing = channelRoom({ discoverability: "private" });
-    const updated = channelRoom({ discoverability: "public" });
-    roomFindFirstMock.mockResolvedValueOnce(existing);
-    roomUpdateMock.mockResolvedValueOnce(updated);
-
-    const app = createApp(userAuthContext);
-    const response = await app.request(`/${ROOM_ID}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        discoverability: "public",
-      }),
+  it("updates channel settings when the caller is an organization admin", async () => {
+    const existing = channelRoom({
+      createdByUserId: OTHER_USER_ID,
+      discoverability: "private",
     });
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data.discoverability).toBe("public");
-    expect(roomUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: ROOM_ID },
-        data: { discoverability: "public" },
-      }),
-    );
-  });
-
-  it("allows an organization admin who is not the creator to update", async () => {
-    const existing = channelRoom({ createdByUserId: OTHER_USER_ID });
     const updated = channelRoom({
       createdByUserId: OTHER_USER_ID,
-      name: "Ops",
-      slug: "ops",
+      name: "Ship Room",
+      slug: "ship-room",
+      topic: "Go live checklist",
+      discoverability: "public",
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     memberFindUniqueMock.mockResolvedValue({ role: "admin" });
@@ -257,11 +268,28 @@ describe("PATCH /chats/rooms/{id}", () => {
     const response = await app.request(`/${ROOM_ID}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Ops" }),
+      body: JSON.stringify({
+        name: "Ship Room",
+        topic: "Go live checklist",
+        discoverability: "public",
+      }),
     });
 
     expect(response.status).toBe(200);
-    expect(roomUpdateMock).toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.data.name).toBe("Ship Room");
+    expect(body.data.discoverability).toBe("public");
+    expect(roomUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: ROOM_ID },
+        data: {
+          name: "Ship Room",
+          slug: "ship-room",
+          topic: "Go live checklist",
+          discoverability: "public",
+        },
+      }),
+    );
   });
 
   it("rejects direct room edits with 400", async () => {
@@ -276,26 +304,6 @@ describe("PATCH /chats/rooms/{id}", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toContain("Direct rooms cannot be edited.");
-    expect(roomUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects non-creator members with 403", async () => {
-    roomFindFirstMock.mockResolvedValueOnce(
-      channelRoom({ createdByUserId: OTHER_USER_ID }),
-    );
-    memberFindUniqueMock.mockResolvedValue({ role: "member" });
-
-    const app = createApp(userAuthContext);
-    const response = await app.request(`/${ROOM_ID}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Nope" }),
-    });
-
-    expect(response.status).toBe(403);
-    expect(await response.text()).toContain(
-      "Only the room creator or an organization owner or admin can update this room.",
-    );
     expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 

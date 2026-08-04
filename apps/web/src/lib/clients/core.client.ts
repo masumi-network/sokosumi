@@ -38,14 +38,11 @@ const rawCoreClient = createCoreClient(createCoreGeneratedClient);
 export const coreClient = withUnauthorizedCoreRedirect(rawCoreClient);
 
 /**
- * Unwrapped Core client — bypasses the 401/403 → signin redirect proxy.
+ * Unwrapped Core client — bypasses the session-401 → signin redirect proxy.
  *
- * Use this only for endpoints where a 403/404/409 is a *business verdict about
- * the resource*, not a session-auth failure. The Hermes skills endpoints return
- * 403 ("skill blocked by audit policy"), 409 ("slug conflict") and 404
- * ("instance not found") as expected install outcomes; routed through the
- * redirecting client they would bounce the user to /signin (surfacing as a
- * cryptic `NEXT_REDIRECT`) instead of showing a toast. The page these actions
- * run on is an RSC that already guards genuine auth via the redirecting client.
+ * Prefer the redirecting `coreClient` for normal server reads. Use this when a
+ * caller must handle 401 itself (for example an action that maps auth failure
+ * to a toast) or when the surrounding RSC already proved the session via
+ * `coreClient`. Business 403s no longer redirect through the proxy.
  */
 export const coreClientNoRedirect = rawCoreClient;

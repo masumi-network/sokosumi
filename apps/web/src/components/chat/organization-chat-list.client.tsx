@@ -21,6 +21,10 @@ import {
 import { toast } from "sonner";
 import { deleteRoomAction, restoreRoomAction } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
+import {
+  getDirectRoomParticipants,
+  getRoomDisplayName,
+} from "@/app/chat/components/room-helpers";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import {
   AlertDialog,
@@ -85,70 +89,6 @@ interface OrganizationChatListProps {
   canDeleteArchivedRooms?: boolean;
 }
 
-interface DirectParticipant {
-  id: string;
-  name: string;
-  image: string | null;
-  presence: ChatRoomPresence;
-}
-
-function getDirectParticipants(
-  room: ChatRoom,
-  currentUserId: string,
-): DirectParticipant[] {
-  const humans = room.userMembers
-    .filter((member) => member.id !== currentUserId)
-    .map((member) => ({
-      id: member.id,
-      name: member.name,
-      image: member.image,
-      presence: member.presence,
-    }));
-
-  const coworkers = room.coworkerMembers.map((coworker) => ({
-    id: coworker.id,
-    name: coworker.name,
-    image: coworker.image,
-    presence: coworker.presence,
-  }));
-
-  return [...humans, ...coworkers];
-}
-
-const DIRECT_NAME_PREVIEW_LIMIT = 3;
-
-/**
- * Single source of truth for direct-channel titles: the sidebar and the
- * channels pane must never label the same conversation differently.
- */
-export function getDirectRoomDisplayName(
-  room: ChatRoom,
-  currentUserId: string,
-): string {
-  if (room.kind !== "direct") {
-    return room.name;
-  }
-
-  const names = [
-    ...room.userMembers
-      .filter((member) => member.id !== currentUserId)
-      .map((member) => member.name || member.email),
-    ...room.coworkerMembers.map((coworker) => coworker.name),
-  ];
-
-  if (names.length === 0) {
-    const self = room.userMembers[0] ?? null;
-    return self?.name || room.name;
-  }
-
-  if (names.length <= DIRECT_NAME_PREVIEW_LIMIT) {
-    return names.join(", ");
-  }
-
-  const shown = names.slice(0, DIRECT_NAME_PREVIEW_LIMIT);
-  return `${shown.join(", ")} and ${names.length - shown.length} more`;
-}
-
 function presenceLabel(
   t: ReturnType<typeof useTranslations<"App.Channels">>,
   presence: ChatRoomPresence,
@@ -172,7 +112,10 @@ function DirectAvatarStack({
   currentUserId: string;
 }) {
   const t = useTranslations("App.Channels");
-  const participants = getDirectParticipants(room, currentUserId).slice(0, 3);
+  const participants = getDirectRoomParticipants(room, currentUserId).slice(
+    0,
+    3,
+  );
 
   if (participants.length === 0) {
     return (
@@ -737,7 +680,7 @@ export function OrganizationChatList({
                   key={room.id}
                   room={room}
                   href={`/chat/rooms/${room.id}`}
-                  label={getDirectRoomDisplayName(room, currentUserId)}
+                  label={getRoomDisplayName(room, currentUserId)}
                   isActive={activeRoomId === room.id}
                   leading={
                     <DirectAvatarStack

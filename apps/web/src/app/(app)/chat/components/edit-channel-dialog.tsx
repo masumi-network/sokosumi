@@ -47,6 +47,8 @@ export function EditChannelDialog({
   channel,
   members,
   coworkers,
+  canEditMembers,
+  canManageSettings,
   canArchive,
   canLeave,
   membersLoadFailed = false,
@@ -54,8 +56,11 @@ export function EditChannelDialog({
   channel: ChatRoom;
   members: Member[];
   coworkers: Coworker[];
-  /** Creator or organization owner/admin — archiving hides the room for
-   * everyone. */
+  /** Any active channel member may rewrite the roster. */
+  canEditMembers: boolean;
+  /** Organization owner/admin — name/topic/discoverability. */
+  canManageSettings: boolean;
+  /** Organization owner/admin — archive the channel. */
   canArchive: boolean;
   /** Any member can leave, except the last one: an empty roster could not be
    * archived by a remaining elevated member. */
@@ -83,6 +88,8 @@ export function EditChannelDialog({
   );
   const [isPending, startTransition] = useTransition();
 
+  const canSubmit = canEditMembers || canManageSettings;
+
   useEffect(() => {
     if (!open) return;
     setName(channel.name);
@@ -96,14 +103,24 @@ export function EditChannelDialog({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canSubmit) return;
     startTransition(async () => {
-      const result = await updateRoomAction(channel.id, {
-        name,
-        topic,
-        ...(canArchive ? { discoverability } : {}),
-        memberUserIds: memberIds,
-        coworkerIds,
-      });
+      // Roster-only body when the caller cannot change settings (R3).
+      const result = await updateRoomAction(
+        channel.id,
+        canManageSettings
+          ? {
+              name,
+              topic,
+              discoverability,
+              memberUserIds: memberIds,
+              coworkerIds,
+            }
+          : {
+              memberUserIds: memberIds,
+              coworkerIds,
+            },
+      );
       if (!result.ok) {
         toast.error(result.message);
         return;
@@ -178,76 +195,89 @@ export function EditChannelDialog({
                 {t("Dialog.editDescription")}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-channel-name">{t("Dialog.name")}</Label>
-                <Input
-                  id="edit-channel-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-channel-topic">{t("Dialog.topic")}</Label>
-                <Textarea
-                  id="edit-channel-topic"
-                  value={topic}
-                  onChange={(event) => setTopic(event.target.value)}
-                  rows={3}
-                />
-              </div>
-              {canArchive ? (
-                <div className="space-y-2">
-                  <Label>{t("Visibility.label")}</Label>
-                  <RadioGroup
-                    value={discoverability}
-                    onValueChange={(value) => {
-                      if (value === "public" || value === "private") {
-                        setDiscoverability(value);
-                      }
-                    }}
-                    className="flex flex-wrap gap-4"
-                  >
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem value="public" id="edit-channel-public" />
-                      <Label
-                        htmlFor="edit-channel-public"
-                        className="cursor-pointer font-normal"
-                      >
-                        {t("Visibility.public")}
+            {canManageSettings || canEditMembers ? (
+              <div className="grid gap-4">
+                {canManageSettings ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-channel-name">
+                        {t("Dialog.name")}
                       </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <RadioGroupItem
-                        value="private"
-                        id="edit-channel-private"
+                      <Input
+                        id="edit-channel-name"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        required
                       />
-                      <Label
-                        htmlFor="edit-channel-private"
-                        className="cursor-pointer font-normal"
-                      >
-                        {t("Visibility.private")}
-                      </Label>
                     </div>
-                  </RadioGroup>
-                  <p className="text-muted-foreground text-xs">
-                    {discoverability === "public"
-                      ? t("Visibility.publicHelp")
-                      : t("Visibility.privateHelp")}
-                  </p>
-                </div>
-              ) : null}
-              <ParticipantCheckboxes
-                members={members}
-                coworkers={coworkers}
-                memberIds={memberIds}
-                coworkerIds={coworkerIds}
-                onMemberIdsChange={setMemberIds}
-                onCoworkerIdsChange={setCoworkerIds}
-                membersLoadFailed={membersLoadFailed}
-              />
-            </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-channel-topic">
+                        {t("Dialog.topic")}
+                      </Label>
+                      <Textarea
+                        id="edit-channel-topic"
+                        value={topic}
+                        onChange={(event) => setTopic(event.target.value)}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("Visibility.label")}</Label>
+                      <RadioGroup
+                        value={discoverability}
+                        onValueChange={(value) => {
+                          if (value === "public" || value === "private") {
+                            setDiscoverability(value);
+                          }
+                        }}
+                        className="flex flex-wrap gap-4"
+                      >
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem
+                            value="public"
+                            id="edit-channel-public"
+                          />
+                          <Label
+                            htmlFor="edit-channel-public"
+                            className="cursor-pointer font-normal"
+                          >
+                            {t("Visibility.public")}
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem
+                            value="private"
+                            id="edit-channel-private"
+                          />
+                          <Label
+                            htmlFor="edit-channel-private"
+                            className="cursor-pointer font-normal"
+                          >
+                            {t("Visibility.private")}
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                      <p className="text-muted-foreground text-xs">
+                        {discoverability === "public"
+                          ? t("Visibility.publicHelp")
+                          : t("Visibility.privateHelp")}
+                      </p>
+                    </div>
+                  </>
+                ) : null}
+                {canEditMembers ? (
+                  <ParticipantCheckboxes
+                    members={members}
+                    coworkers={coworkers}
+                    memberIds={memberIds}
+                    coworkerIds={coworkerIds}
+                    onMemberIdsChange={setMemberIds}
+                    onCoworkerIdsChange={setCoworkerIds}
+                    membersLoadFailed={membersLoadFailed}
+                  />
+                ) : null}
+              </div>
+            ) : null}
             {canArchive || canLeave ? (
               <div className="space-y-3 border-t pt-4">
                 <p className="text-sm font-medium">
@@ -287,10 +317,14 @@ export function EditChannelDialog({
               >
                 {t("Dialog.cancel")}
               </Button>
-              <Button type="submit" variant="primary" disabled={isPending}>
-                {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-                {t("Dialog.save")}
-              </Button>
+              {canSubmit ? (
+                <Button type="submit" variant="primary" disabled={isPending}>
+                  {isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : null}
+                  {t("Dialog.save")}
+                </Button>
+              ) : null}
             </DialogFooter>
           </form>
         </DialogContent>

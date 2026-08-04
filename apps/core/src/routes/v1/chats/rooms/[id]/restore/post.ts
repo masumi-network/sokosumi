@@ -34,7 +34,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/restore",
     description:
-      "Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members while keeping its existing slug. Only the room creator or an organization owner/admin may restore. Direct rooms cannot be restored because they cannot be archived.",
+      "Restore a soft-archived organization chat room. Clears archivedAt so the room reappears for remaining members while keeping its existing slug. Only an organization owner/admin may restore. Direct rooms cannot be restored because they cannot be archived.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -87,15 +87,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: userContext.userId,
         tx,
       });
-      if (
-        !canManageChatRoomLifecycle({
-          createdByUserId: existing.createdByUserId,
-          userId: userContext.userId,
-          role,
-        })
-      ) {
+      if (!canManageChatRoomLifecycle({ role })) {
         throw forbidden(
-          "Only the room creator or an organization owner or admin can restore this room.",
+          "Only an organization owner or admin can restore this room.",
         );
       }
 
