@@ -34,6 +34,11 @@ function setCaretToStart(element: HTMLElement): void {
 }
 
 describe("MarkdownEditor", () => {
+  it("disables Inter contextual alternates so ** markers stay aligned", () => {
+    render(<MarkdownEditor value="" onChange={vi.fn()} />);
+    expect(screen.getByRole("textbox")).toHaveClass("markdown-compose-surface");
+  });
+
   it("keeps mailto links with @ while rendering mentions", async () => {
     render(
       <MarkdownEditor
