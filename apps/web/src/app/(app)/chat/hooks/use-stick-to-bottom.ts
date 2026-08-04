@@ -14,6 +14,10 @@ interface UseStickToBottomOptions {
   nearBottomPx?: number;
 }
 
+function distanceFromBottom(el: HTMLElement): number {
+  return el.scrollHeight - el.scrollTop - el.clientHeight;
+}
+
 export function useStickToBottom({
   resetKey = null,
   nearBottomPx = STICK_TO_BOTTOM_NEAR_PX,
@@ -23,6 +27,9 @@ export function useStickToBottom({
   // Sticky flag measured on scroll *before* growth. Measuring after a
   // ResizeObserver jump can make a pinned user look scrolled-up for a frame.
   const stickToBottomRef = useRef(true);
+  // Last observed scroller scrollHeight so ResizeObserver can recover when a
+  // growth-driven scroll event clears the sticky flag mid-frame.
+  const lastScrollHeightRef = useRef(0);
   // Pixel min-height so short transcripts can justify-end inside Radix's
   // display:table viewport wrapper (percentage min-height does not resolve).
   const [contentMinHeight, setContentMinHeight] = useState<number>();
@@ -58,14 +65,33 @@ export function useStickToBottom({
       return;
     }
 
+    lastScrollHeightRef.current = scroller.scrollHeight;
+
     const observer = new ResizeObserver(() => {
+      const previousHeight = lastScrollHeightRef.current;
+      const nextHeight = scroller.scrollHeight;
+      const growth = nextHeight - previousHeight;
+      lastScrollHeightRef.current = nextHeight;
+
       if (stickToBottomRef.current) {
         scroller.scrollTop = scroller.scrollHeight;
+        return;
+      }
+
+      // Content growth can fire `scroll` before this callback. Distance then
+      // looks large and clears the sticky flag even though the user was at the
+      // pre-growth bottom. Recover from that false unpin.
+      if (growth > 0) {
+        const distanceBeforeGrowth = distanceFromBottom(scroller) - growth;
+        if (distanceBeforeGrowth < nearBottomPx) {
+          scroller.scrollTop = scroller.scrollHeight;
+          stickToBottomRef.current = true;
+        }
       }
     });
     observer.observe(content);
     return () => observer.disconnect();
-  }, [resetKey]);
+  }, [nearBottomPx, resetKey]);
 
   useEffect(() => {
     const scroller = scrollerRef.current;
@@ -98,8 +124,7 @@ export function useStickToBottom({
       if (!node) {
         return;
       }
-      const distance = node.scrollHeight - node.scrollTop - node.clientHeight;
-      stickToBottomRef.current = distance < nearBottomPx;
+      stickToBottomRef.current = distanceFromBottom(node) < nearBottomPx;
     }
 
     scroller.addEventListener("scroll", handleScroll, { passive: true });

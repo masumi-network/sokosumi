@@ -79,22 +79,35 @@ vi.mock("../room-session-composer", () => ({
   RoomSessionComposer: ({
     ref,
     onChromeResize,
+    onSend,
   }: {
     ref?: Ref<RoomComposerHandle>;
     onChromeResize?: () => void;
+    onSend?: () => Promise<{ ok: boolean }>;
   }) => {
     useImperativeHandle(ref, () => ({
       attachFiles: () => undefined,
       focus: () => undefined,
     }));
     return (
-      <button
-        type="button"
-        data-testid="chrome-resize"
-        onClick={onChromeResize}
-      >
-        chrome-resize
-      </button>
+      <>
+        <button
+          type="button"
+          data-testid="chrome-resize"
+          onClick={onChromeResize}
+        >
+          chrome-resize
+        </button>
+        <button
+          type="button"
+          data-testid="send-reply"
+          onClick={() => {
+            void onSend?.();
+          }}
+        >
+          send-reply
+        </button>
+      </>
     );
   },
 }));
@@ -216,6 +229,15 @@ describe("ThreadPanel stick-to-bottom", () => {
     setScrollerMetrics(scroller, {
       scrollHeight: 1000,
       clientHeight: 400,
+      scrollTop: 600,
+    });
+    act(() => {
+      fireResize();
+    });
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
       scrollTop: 200,
     });
     act(() => {
@@ -252,5 +274,31 @@ describe("ThreadPanel stick-to-bottom", () => {
     });
 
     expect(scroller.scrollTop).toBe(50);
+  });
+
+  it("re-pins to bottom after a successful send even when previously unpinned", async () => {
+    renderThreadPanel();
+    const scroller = screen.getByTestId("thread-scroller");
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
+      scrollTop: 50,
+    });
+    act(() => {
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1300,
+      clientHeight: 400,
+      scrollTop: 50,
+    });
+
+    await act(async () => {
+      screen.getByTestId("send-reply").click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    expect(scroller.scrollTop).toBe(1300);
   });
 });

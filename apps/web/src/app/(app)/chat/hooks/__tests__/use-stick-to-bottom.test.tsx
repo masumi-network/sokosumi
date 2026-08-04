@@ -119,7 +119,15 @@ describe("useStickToBottom", () => {
     setScrollerMetrics(scroller, {
       scrollHeight: 1000,
       clientHeight: 400,
-      // distance = 400 >= NEAR
+      scrollTop: 600,
+    });
+    act(() => {
+      fireResize();
+    });
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
       scrollTop: 200,
     });
     act(() => {
@@ -223,5 +231,44 @@ describe("useStickToBottom", () => {
     });
 
     expect(scroller.scrollTop).toBe(1200);
+  });
+
+  it("still pins after growth when a scroll event unpins before ResizeObserver runs", () => {
+    // Real browsers clamp scrollTop to scrollHeight - clientHeight. Content
+    // growth leaves scrollTop put, distance jumps, and a scroll event can clear
+    // the sticky flag before ResizeObserver runs. Hook must recover.
+    render(<Harness resetKey="room-1" />);
+    const scroller = screen.getByTestId("scroller");
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
+      // clamped bottom (not jsdom's unclamped scrollHeight assignment)
+      scrollTop: 600,
+    });
+    act(() => {
+      fireResize();
+    });
+
+    const growth = STICK_TO_BOTTOM_NEAR_PX + 50;
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000 + growth,
+      clientHeight: 400,
+      scrollTop: 600,
+    });
+    act(() => {
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+
+    // Sticky flag cleared: chrome pin-scroll no-ops.
+    act(() => {
+      screen.getByRole("button", { name: "pin-scroll" }).click();
+    });
+    expect(scroller.scrollTop).toBe(600);
+
+    act(() => {
+      fireResize();
+    });
+
+    expect(scroller.scrollTop).toBe(1000 + growth);
   });
 });
