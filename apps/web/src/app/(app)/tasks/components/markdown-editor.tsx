@@ -701,6 +701,7 @@ export const MarkdownEditor = forwardRef<
         role="textbox"
         aria-multiline="true"
         className={cn(
+          "markdown-compose-surface",
           "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto px-3 py-2 text-sm",
           "outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
