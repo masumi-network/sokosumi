@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import QueryProvider from "@/contexts/query-provider";
+import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
+import { APP_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 
 import { AppShellLoadingFrame } from "./components/app-shell-loading-frame";
 import { AuthSessionGuard } from "./components/auth-session-guard";
@@ -27,23 +29,25 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   return (
-    <QueryProvider>
-      <AuthSessionGuard />
-      <DynamicAblyProvider>
-        <SidebarProvider
-          // Cookie preference restored client-side in SidebarProvider
-          // (useLayoutEffect) so this layout stays sync for Instant Nav.
-          defaultOpen
-          data-app-shell
-          className="flex max-w-svw overflow-clip"
-        >
-          <Suspense
-            fallback={<AppShellLoadingFrame>{children}</AppShellLoadingFrame>}
+    <ClientMessageBoundary paths={APP_MESSAGE_PATHS}>
+      <QueryProvider>
+        <AuthSessionGuard />
+        <DynamicAblyProvider>
+          <SidebarProvider
+            // Cookie preference restored client-side in SidebarProvider
+            // (useLayoutEffect) so this layout stays sync for Instant Nav.
+            defaultOpen
+            data-app-shell
+            className="flex max-w-svw overflow-clip"
           >
-            <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
-          </Suspense>
-        </SidebarProvider>
-      </DynamicAblyProvider>
-    </QueryProvider>
+            <Suspense
+              fallback={<AppShellLoadingFrame>{children}</AppShellLoadingFrame>}
+            >
+              <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
+            </Suspense>
+          </SidebarProvider>
+        </DynamicAblyProvider>
+      </QueryProvider>
+    </ClientMessageBoundary>
   );
 }

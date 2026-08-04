@@ -13,6 +13,20 @@ alwaysApply: false
 
 When code that uses translations is deleted or modified, you must check for and remove unused translation keys from `messages/en.json`. This prevents orphaned translation keys from accumulating in the codebase.
 
+## Supported locales
+
+Web catalogs: `en` (source of truth), `de`, `es` under `apps/web/messages/`.
+
+Run key-path parity with `pnpm --filter web messages:parity` (sync with `messages:parity:write`).
+
+## Client message bags
+
+Route layouts nest `ClientMessageBoundary` (`src/i18n/client-message-boundary.tsx`) so the client only receives a picked subset of messages via `pickMessages` + `message-namespaces.ts`. Server `getTranslations` / `getMessages` still see the full catalog from `src/i18n/request.ts`.
+
+Bags: `GLOBAL` (root), `AUTH` (auth + flows), `APP` (default app; no Hermes/Admin), nested `HERMES` / `ADMIN` (`APP_SHELL` + feature), `SHARE`.
+
+When adding client-only copy under a heavy namespace (e.g. `App.Hermes`), ensure the owning layout bag includes that path — do not ship the full catalog to every route.
+
 ## Translation Usage Patterns
 
 Translations are accessed via the `useTranslations()` hook:
@@ -111,17 +125,11 @@ Supported locale catalogs:
 
 - `apps/web/messages/de.json`
 - `apps/web/messages/es.json`
-- `apps/web/messages/it.json`
-- `apps/web/messages/fr.json`
-- `apps/web/messages/pt.json`
-- `apps/web/messages/pt-BR.json`
-- `apps/web/messages/ja.json`
-- `apps/web/messages/zh-Hans.json`
 
 #### Add key
 
 1. Add the key to `apps/web/messages/en.json`.
-2. Add the same key path to every supported locale file.
+2. Add the same key path to every supported locale file (`de`, `es`).
 3. Provide a **proper translation** in each non-English locale file in the same change (see [Locale string quality](#locale-string-quality)).
 4. Only if translation is genuinely blocked: temporarily copy the English string so the key exists in all locales, and replace with real translations before merge (or track an explicit follow-up).
 
@@ -141,7 +149,7 @@ Supported locale catalogs:
 
 `apps/web/messages/en.json` is the **source of truth for key paths** and the only catalog authored in English.
 
-**Non-English locale files** (`de`, `es`, `it`, `fr`, `pt`, `pt-BR`, `ja`, `zh-Hans`) must contain **real translations** for user-facing strings—not English copies left as the final value.
+**Non-English locale files** (`de`, `es`) must contain **real translations** for user-facing strings—not English copies left as the final value.
 
 ### ✅ DO
 
@@ -156,16 +164,19 @@ Supported locale catalogs:
 
 ### Placeholder workflow
 
-English copy in `de.json` / `ja.json` / etc. is allowed only as a **short-lived placeholder** while keys are being wired. Before finishing the task, replace placeholders with translations or call out the deferral.
+English copy in `de.json` / `es.json` is allowed only as a **short-lived placeholder** while keys are being wired. Before finishing the task, replace placeholders with translations or call out the deferral.
 
-### Verification (optional)
-
-After editing keys, spot-check that non-English values differ from English for the keys you added:
+### Verification
 
 ```bash
-# Example: compare one key path (adjust path to your new key)
+pnpm --filter web messages:parity
+```
+
+Spot-check one key:
+
+```bash
 KEY='App.Organizations.OrganizationDetail.Subscription.someKey'
-for locale in de es it fr pt pt-BR ja zh-Hans; do
+for locale in de es; do
   echo "$locale: $(jq -r --arg k "$KEY" 'getpath($k | split("."))' apps/web/messages/$locale.json)"
 done
 jq -r --arg k "$KEY" 'getpath($k | split("."))' apps/web/messages/en.json
@@ -201,7 +212,7 @@ For email templates, follow [`packages/email/AGENTS.md`](../../../../packages/em
 After adding/removing/renaming translation keys:
 
 1. Verify JSON is still valid for all locale files.
-2. Verify key-path parity between `apps/web/messages/en.json` and all supported locale files (no missing/extra keys).
+2. Run `pnpm --filter web messages:parity`.
 3. Verify non-English locale values are translated (not English copies left as final state).
 4. Check that no broken references exist in code.
 5. Ensure files are properly formatted (run `pnpm web:format`).

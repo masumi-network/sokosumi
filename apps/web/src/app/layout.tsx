@@ -5,12 +5,14 @@ import * as Sentry from "@sentry/nextjs";
 import { DEFAULT_LOCALE } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Suspense } from "react";
 
 import { ClientAnalytics } from "@/components/analytics/client-analytics";
 import { DeploymentRefreshHandler } from "@/components/deployment-refresh-handler";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { ThemeProvider } from "@/contexts/theme-context";
 
 import { RootIntlTree } from "./components/root-intl-tree";
 
@@ -56,9 +58,13 @@ export default function RootLayout({
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       {gaId && <GoogleAnalytics gaId={gaId} />}
       <body className="bg-background min-h-svh max-w-dvw antialiased">
-        <Suspense fallback={<div className="bg-background min-h-svh" />}>
-          <RootIntlTree>{children}</RootIntlTree>
-        </Suspense>
+        <NuqsAdapter>
+          <ThemeProvider>
+            <Suspense fallback={<div className="bg-background min-h-svh" />}>
+              <RootIntlTree>{children}</RootIntlTree>
+            </Suspense>
+          </ThemeProvider>
+        </NuqsAdapter>
         <ClientAnalytics />
         <DeploymentRefreshHandler />
       </body>

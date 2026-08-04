@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
+import { HERMES_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { getSession } from "@/lib/auth/auth.server";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 
@@ -33,9 +35,9 @@ export default async function HermesLayout({ children }: HermesLayoutProps) {
   // long pages (EmptyState) scroll normally; short pages (setup loaders)
   // don't get a phantom body scroll.
   return (
-    <>
+    <ClientMessageBoundary paths={HERMES_MESSAGE_PATHS}>
       <FullscreenEffect />
       {children}
-    </>
+    </ClientMessageBoundary>
   );
 }
