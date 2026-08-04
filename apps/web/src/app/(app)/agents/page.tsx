@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -11,8 +12,7 @@ import { AgentsNotAvailable, AgentsSkeleton } from "@/components/agents";
 import { CoworkerGallerySection } from "@/components/agents/coworker-gallery-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapCoreCategoriesToCategories } from "@/lib/agents/core-dto-mappers";
-import { getAllCoreAgents } from "@/lib/agents/core-loaders";
-import { coreClient } from "@/lib/clients/core.client";
+import { getAllCoreAgents, getCoreCategories } from "@/lib/agents/core-loaders";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { getAgentRatingStatsMap } from "@/lib/types/core-dto";
 
@@ -62,6 +62,10 @@ function AgentsCatalogFallback() {
 }
 
 async function CoworkersTier() {
+  // Defer before any cookies()/headers()-bound work so PPR shell probing does
+  // not soft-reject dynamic APIs while filling this Suspense hole.
+  await connection();
+
   const coworkers = await coworkerService
     .listCoworkers("tasks")
     .catch(() => []);
@@ -80,14 +84,16 @@ async function CoworkersTier() {
  * gallery, not a blocked wait on every catalog page.
  */
 async function AllAgentsTier() {
-  const [coreAgents, categoriesResponse, t] = await Promise.all([
+  await connection();
+
+  const [coreAgents, categories, t] = await Promise.all([
     getAllCoreAgents().catch((error) => {
       logAgentsCatalogFetchFailure("agent catalog", error);
       return [];
     }),
-    coreClient.getCategories().catch((error) => {
+    getCoreCategories().catch((error) => {
       logAgentsCatalogFetchFailure("categories", error);
-      return { data: [] };
+      return [];
     }),
     getTranslations("App.Agents"),
   ]);
@@ -96,7 +102,7 @@ async function AllAgentsTier() {
     return <AgentsNotAvailable />;
   }
 
-  const categories = mapCoreCategoriesToCategories(categoriesResponse.data);
+  const mappedCategories = mapCoreCategoriesToCategories(categories);
   const ratingStatsMap = getAgentRatingStatsMap(coreAgents);
 
   return (
@@ -112,7 +118,7 @@ async function AllAgentsTier() {
       <FilteredAgents
         agents={coreAgents}
         ratingStatsMap={ratingStatsMap}
-        categories={categories}
+        categories={mappedCategories}
       />
     </section>
   );

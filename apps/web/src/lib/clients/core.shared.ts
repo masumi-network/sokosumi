@@ -2244,14 +2244,21 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getCategories(query?: GetCategoriesData["query"]) {
+  async function getCategories(
+    query?: GetCategoriesData["query"],
+    cacheOptions?: { revalidate: number; tags?: string[] },
+  ) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetCategories({
           client,
           query,
-          cache: "no-store",
+          // Categories are global (same as GET /v1/agents) — callers may opt
+          // into cross-request revalidation. Default stays `no-store`.
+          ...(cacheOptions
+            ? { next: cacheOptions }
+            : { cache: "no-store" as const }),
         }),
       "Failed to fetch categories",
     );

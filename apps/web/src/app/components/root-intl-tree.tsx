@@ -7,6 +7,8 @@ import { GlobalModalsContextProvider } from "@/components/modals/global-modals-c
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/contexts/theme-context";
 
+import { DocumentLocale } from "./document-locale";
+
 interface RootProvidersProps {
   children: React.ReactNode;
   locale: string;
@@ -18,6 +20,7 @@ function RootProviders({ children, locale, messages }: RootProvidersProps) {
     <NuqsAdapter>
       <ThemeProvider>
         <NextIntlClientProvider locale={locale} messages={messages}>
+          <DocumentLocale />
           <GlobalModalsContextProvider>
             <div className="bg-background">{children}</div>
           </GlobalModalsContextProvider>
