@@ -132,10 +132,10 @@ beforeEach(() => {
   });
 });
 
-describe("POST /chats/rooms/{id}/messages/{messageId}/thread-read", () => {
+describe("POST /chats/rooms/{id}/messages/{messageId}/read", () => {
   it("upserts ChatRoomThreadReadState for a top-level parent without touching room read", async () => {
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/messages/${MESSAGE_ID}/thread-read`,
+      `/${ROOM_ID}/messages/${MESSAGE_ID}/read`,
       { method: "POST" },
     );
 
@@ -181,7 +181,7 @@ describe("POST /chats/rooms/{id}/messages/{messageId}/thread-read", () => {
     messageFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/messages/${MESSAGE_ID}/thread-read`,
+      `/${ROOM_ID}/messages/${MESSAGE_ID}/read`,
       { method: "POST" },
     );
 
@@ -193,7 +193,7 @@ describe("POST /chats/rooms/{id}/messages/{messageId}/thread-read", () => {
     roomFindFirstMock.mockResolvedValue(null);
 
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/messages/${MESSAGE_ID}/thread-read`,
+      `/${ROOM_ID}/messages/${MESSAGE_ID}/read`,
       { method: "POST" },
     );
 
@@ -204,7 +204,7 @@ describe("POST /chats/rooms/{id}/messages/{messageId}/thread-read", () => {
 
   it("rejects non-user auth contexts", async () => {
     const response = await createApp(coworkerAuthContext).request(
-      `/${ROOM_ID}/messages/${MESSAGE_ID}/thread-read`,
+      `/${ROOM_ID}/messages/${MESSAGE_ID}/read`,
       { method: "POST" },
     );
 

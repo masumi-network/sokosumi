@@ -33,7 +33,7 @@ const paramsSchema = z.object({
 const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
-    path: "/{id}/messages/{messageId}/thread-read",
+    path: "/{id}/messages/{messageId}/read",
     description:
       "Mark a top-level room message as looked for the current user (ThreadPanel open). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.",
     tags: ["Chat Rooms"],

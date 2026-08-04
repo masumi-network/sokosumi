@@ -9,7 +9,7 @@ import mountPostChatRoomSelfMembership from "./[id]/members/me/post.js";
 import mountDeleteChatRoomMessage from "./[id]/messages/[messageId]/delete.js";
 import mountPatchChatRoomMessage from "./[id]/messages/[messageId]/patch.js";
 import mountPostChatRoomMessageReaction from "./[id]/messages/[messageId]/reactions/post.js";
-import mountPostChatRoomThreadRead from "./[id]/messages/[messageId]/thread-read/post.js";
+import mountPostChatRoomThreadRead from "./[id]/messages/[messageId]/read/post.js";
 import mountGetChatRoomMessages from "./[id]/messages/get.js";
 import mountPostChatRoomMessage from "./[id]/messages/post.js";
 import mountDeleteChatRoomMute from "./[id]/mute/delete.js";

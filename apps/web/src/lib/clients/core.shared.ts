@@ -226,7 +226,7 @@ import {
   postChatsRoomsByIdMembersMe as corePostChatsRoomsByIdMembersMe,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
-  postChatsRoomsByIdMessagesByMessageIdThreadRead as corePostChatsRoomsByIdMessagesByMessageIdThreadRead,
+  postChatsRoomsByIdMessagesByMessageIdRead as corePostChatsRoomsByIdMessagesByMessageIdRead,
   postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
   postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
@@ -781,7 +781,7 @@ export function createCoreClient(getClient: GetClient) {
     return executeOperation(
       getClient,
       (client) =>
-        corePostChatsRoomsByIdMessagesByMessageIdThreadRead({
+        corePostChatsRoomsByIdMessagesByMessageIdRead({
           client,
           path: { id, messageId },
         }),

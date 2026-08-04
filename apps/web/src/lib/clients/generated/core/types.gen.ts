@@ -11647,7 +11647,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
 
 export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponse = PostChatsRoomsByIdMessagesByMessageIdReactionsResponses[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsResponses];
 
-export type PostChatsRoomsByIdMessagesByMessageIdThreadReadData = {
+export type PostChatsRoomsByIdMessagesByMessageIdReadData = {
     body?: never;
     headers?: {
         /**
@@ -11660,10 +11660,10 @@ export type PostChatsRoomsByIdMessagesByMessageIdThreadReadData = {
         messageId: string;
     };
     query?: never;
-    url: '/chats/rooms/{id}/messages/{messageId}/thread-read';
+    url: '/chats/rooms/{id}/messages/{messageId}/read';
 };
 
-export type PostChatsRoomsByIdMessagesByMessageIdThreadReadErrors = {
+export type PostChatsRoomsByIdMessagesByMessageIdReadErrors = {
     /**
      * Unauthorized
      */
@@ -11722,9 +11722,9 @@ export type PostChatsRoomsByIdMessagesByMessageIdThreadReadErrors = {
     };
 };
 
-export type PostChatsRoomsByIdMessagesByMessageIdThreadReadError = PostChatsRoomsByIdMessagesByMessageIdThreadReadErrors[keyof PostChatsRoomsByIdMessagesByMessageIdThreadReadErrors];
+export type PostChatsRoomsByIdMessagesByMessageIdReadError = PostChatsRoomsByIdMessagesByMessageIdReadErrors[keyof PostChatsRoomsByIdMessagesByMessageIdReadErrors];
 
-export type PostChatsRoomsByIdMessagesByMessageIdThreadReadResponses = {
+export type PostChatsRoomsByIdMessagesByMessageIdReadResponses = {
     /**
      * Thread marked looked
      */
@@ -11738,7 +11738,7 @@ export type PostChatsRoomsByIdMessagesByMessageIdThreadReadResponses = {
     };
 };
 
-export type PostChatsRoomsByIdMessagesByMessageIdThreadReadResponse = PostChatsRoomsByIdMessagesByMessageIdThreadReadResponses[keyof PostChatsRoomsByIdMessagesByMessageIdThreadReadResponses];
+export type PostChatsRoomsByIdMessagesByMessageIdReadResponse = PostChatsRoomsByIdMessagesByMessageIdReadResponses[keyof PostChatsRoomsByIdMessagesByMessageIdReadResponses];
 
 export type PostChatsRoomsByIdFilesData = {
     body: CreateChatRoomFileUploadSessionRequest;
