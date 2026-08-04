@@ -1,5 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
 import type {
   ChatRoomMessage,
@@ -35,12 +41,14 @@ const labels = {
     count === 1 ? "1 unread reply" : `${count} unread replies`,
 };
 
+const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
+
 function parentMessage(
   overrides: Partial<ChatRoomMessage> = {},
 ): ChatRoomMessage {
   return {
     id: "550e8400-e29b-41d4-a716-446655440001",
-    roomId: "550e8400-e29b-41d4-a716-446655440000",
+    roomId: ROOM_ID,
     parentMessageId: null,
     content: "Budget review parent",
     createdAt: new Date("2026-08-01T00:00:00.000Z"),
@@ -79,6 +87,22 @@ function unreadThreadItem(
   };
 }
 
+interface RenderPanelOptions {
+  attentionRefreshToken?: number;
+  onOpenThread?: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
+}
+
+function renderPanel(options: RenderPanelOptions = {}) {
+  return render(
+    <UnreadThreadsPanel
+      roomId={ROOM_ID}
+      labels={labels}
+      attentionRefreshToken={options.attentionRefreshToken ?? 0}
+      onOpenThread={options.onOpenThread ?? vi.fn().mockResolvedValue(true)}
+    />,
+  );
+}
+
 describe("UnreadThreadsPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -92,14 +116,12 @@ describe("UnreadThreadsPanel", () => {
     });
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("opens unread threads surface from the header control", async () => {
-    render(
-      <UnreadThreadsPanel
-        roomId="550e8400-e29b-41d4-a716-446655440000"
-        labels={labels}
-        onOpenThread={vi.fn().mockResolvedValue(true)}
-      />,
-    );
+    renderPanel();
 
     expect(
       screen.queryByTestId("unread-threads-panel"),
@@ -112,9 +134,7 @@ describe("UnreadThreadsPanel", () => {
     expect(screen.getByText(labels.title)).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(listUnreadThreadsActionMock).toHaveBeenCalledWith(
-        "550e8400-e29b-41d4-a716-446655440000",
-      );
+      expect(listUnreadThreadsActionMock).toHaveBeenCalledWith(ROOM_ID);
     });
 
     expect(await screen.findByTestId("unread-threads-item")).toHaveTextContent(
@@ -130,13 +150,7 @@ describe("UnreadThreadsPanel", () => {
   it("shows no badge when there are no unread threads", async () => {
     listUnreadThreadsActionMock.mockResolvedValue({ ok: true, data: [] });
 
-    render(
-      <UnreadThreadsPanel
-        roomId="550e8400-e29b-41d4-a716-446655440000"
-        labels={labels}
-        onOpenThread={vi.fn().mockResolvedValue(true)}
-      />,
-    );
+    renderPanel();
 
     await waitFor(() => {
       expect(listUnreadThreadsActionMock).toHaveBeenCalled();
@@ -159,13 +173,7 @@ describe("UnreadThreadsPanel", () => {
       ],
     });
 
-    render(
-      <UnreadThreadsPanel
-        roomId="550e8400-e29b-41d4-a716-446655440000"
-        labels={labels}
-        onOpenThread={vi.fn().mockResolvedValue(true)}
-      />,
-    );
+    renderPanel();
 
     fireEvent.click(screen.getByTestId("unread-threads-trigger"));
     const item = await screen.findByTestId("unread-threads-item");
@@ -177,13 +185,7 @@ describe("UnreadThreadsPanel", () => {
   it("shows empty state when nothing needs attention", async () => {
     listUnreadThreadsActionMock.mockResolvedValue({ ok: true, data: [] });
 
-    render(
-      <UnreadThreadsPanel
-        roomId="550e8400-e29b-41d4-a716-446655440000"
-        labels={labels}
-        onOpenThread={vi.fn().mockResolvedValue(true)}
-      />,
-    );
+    renderPanel();
 
     fireEvent.click(screen.getByTestId("unread-threads-trigger"));
 
@@ -196,13 +198,7 @@ describe("UnreadThreadsPanel", () => {
   });
 
   it("marks all unread threads as read and clears badge", async () => {
-    render(
-      <UnreadThreadsPanel
-        roomId="550e8400-e29b-41d4-a716-446655440000"
-        labels={labels}
-        onOpenThread={vi.fn().mockResolvedValue(true)}
-      />,
-    );
+    renderPanel();
 
     expect(
       await screen.findByTestId("unread-threads-badge"),
@@ -211,9 +207,7 @@ describe("UnreadThreadsPanel", () => {
     fireEvent.click(await screen.findByTestId("unread-threads-mark-all-read"));
 
     await waitFor(() => {
-      expect(markAllUnreadThreadsReadActionMock).toHaveBeenCalledWith(
-        "550e8400-e29b-41d4-a716-446655440000",
-      );
+      expect(markAllUnreadThreadsReadActionMock).toHaveBeenCalledWith(ROOM_ID);
     });
     expect(await screen.findByTestId("unread-threads-empty")).toHaveTextContent(
       labels.empty,
@@ -235,13 +229,7 @@ describe("UnreadThreadsPanel", () => {
         }),
     );
 
-    render(
-      <UnreadThreadsPanel
-        roomId="550e8400-e29b-41d4-a716-446655440000"
-        labels={labels}
-        onOpenThread={vi.fn().mockResolvedValue(true)}
-      />,
-    );
+    renderPanel();
 
     expect(
       await screen.findByTestId("unread-threads-badge"),
@@ -273,13 +261,7 @@ describe("UnreadThreadsPanel", () => {
   it("opens thread and decrements badge only when look-state persists", async () => {
     const onOpenThread = vi.fn().mockResolvedValue(true);
 
-    render(
-      <UnreadThreadsPanel
-        roomId="550e8400-e29b-41d4-a716-446655440000"
-        labels={labels}
-        onOpenThread={onOpenThread}
-      />,
-    );
+    renderPanel({ onOpenThread });
 
     expect(
       await screen.findByTestId("unread-threads-badge"),
@@ -305,13 +287,7 @@ describe("UnreadThreadsPanel", () => {
   it("keeps badge when mark-read fails", async () => {
     const onOpenThread = vi.fn().mockResolvedValue(false);
 
-    render(
-      <UnreadThreadsPanel
-        roomId="550e8400-e29b-41d4-a716-446655440000"
-        labels={labels}
-        onOpenThread={onOpenThread}
-      />,
-    );
+    renderPanel({ onOpenThread });
 
     expect(
       await screen.findByTestId("unread-threads-badge"),
@@ -325,5 +301,180 @@ describe("UnreadThreadsPanel", () => {
     expect(await screen.findByTestId("unread-threads-badge")).toHaveTextContent(
       "1",
     );
+  });
+
+  it("coalesces rapid attentionRefreshToken bumps into one fetch after 300ms", async () => {
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <UnreadThreadsPanel
+        roomId={ROOM_ID}
+        labels={labels}
+        attentionRefreshToken={0}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const mountCalls = listUnreadThreadsActionMock.mock.calls.length;
+
+    rerender(
+      <UnreadThreadsPanel
+        roomId={ROOM_ID}
+        labels={labels}
+        attentionRefreshToken={1}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+    rerender(
+      <UnreadThreadsPanel
+        roomId={ROOM_ID}
+        labels={labels}
+        attentionRefreshToken={2}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+    rerender(
+      <UnreadThreadsPanel
+        roomId={ROOM_ID}
+        labels={labels}
+        attentionRefreshToken={3}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    expect(listUnreadThreadsActionMock).toHaveBeenCalledTimes(mountCalls);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(299);
+    });
+    expect(listUnreadThreadsActionMock).toHaveBeenCalledTimes(mountCalls);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(listUnreadThreadsActionMock).toHaveBeenCalledTimes(mountCalls + 1);
+  });
+
+  it("updates badge from live refresh while closed without showing the list", async () => {
+    listUnreadThreadsActionMock.mockResolvedValueOnce({
+      ok: true,
+      data: [],
+    });
+
+    const { rerender } = render(
+      <UnreadThreadsPanel
+        roomId={ROOM_ID}
+        labels={labels}
+        attentionRefreshToken={0}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(listUnreadThreadsActionMock).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      screen.queryByTestId("unread-threads-badge"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("unread-threads-panel"),
+    ).not.toBeInTheDocument();
+
+    listUnreadThreadsActionMock.mockResolvedValueOnce({
+      ok: true,
+      data: [unreadThreadItem(), unreadThreadItem()],
+    });
+
+    vi.useFakeTimers();
+    rerender(
+      <UnreadThreadsPanel
+        roomId={ROOM_ID}
+        labels={labels}
+        attentionRefreshToken={1}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    vi.useRealTimers();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("unread-threads-badge")).toHaveTextContent("2");
+    });
+    expect(
+      screen.queryByTestId("unread-threads-panel"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("unread-threads-item")).not.toBeInTheDocument();
+  });
+
+  it("refreshes the open panel list when attentionRefreshToken bumps", async () => {
+    listUnreadThreadsActionMock.mockResolvedValue({
+      ok: true,
+      data: [
+        unreadThreadItem({
+          parentMessage: parentMessage({ content: "First unread" }),
+        }),
+      ],
+    });
+
+    const { rerender } = render(
+      <UnreadThreadsPanel
+        roomId={ROOM_ID}
+        labels={labels}
+        attentionRefreshToken={0}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(listUnreadThreadsActionMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByTestId("unread-threads-trigger"));
+    expect(await screen.findByTestId("unread-threads-item")).toHaveTextContent(
+      "First unread",
+    );
+    const callsBeforeLive = listUnreadThreadsActionMock.mock.calls.length;
+
+    listUnreadThreadsActionMock.mockResolvedValue({
+      ok: true,
+      data: [
+        unreadThreadItem({
+          parentMessage: parentMessage({
+            id: "550e8400-e29b-41d4-a716-446655440099",
+            content: "Live refreshed unread",
+          }),
+        }),
+      ],
+    });
+
+    vi.useFakeTimers();
+    rerender(
+      <UnreadThreadsPanel
+        roomId={ROOM_ID}
+        labels={labels}
+        attentionRefreshToken={1}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    vi.useRealTimers();
+
+    await waitFor(() => {
+      expect(listUnreadThreadsActionMock.mock.calls.length).toBeGreaterThan(
+        callsBeforeLive,
+      );
+    });
+    expect(await screen.findByTestId("unread-threads-item")).toHaveTextContent(
+      "Live refreshed unread",
+    );
+    expect(screen.getByTestId("unread-threads-panel")).toBeInTheDocument();
   });
 });

@@ -28,6 +28,37 @@ interface TasksLoadingViewProps {
   labels: TasksLoadingLabels;
 }
 
+/** Sync shell labels for Instant Navigations / `loading.tsx` (no cookies/i18n). */
+export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
+  tabs: {
+    tasks: "Tasks",
+    jobs: "Jobs",
+  },
+  columns: {
+    backlog: "Backlog",
+    todo: "Todo",
+    "in-progress": "In Progress",
+    "input-required": "Input Required",
+    done: "Done",
+  },
+  add: "New Task",
+  addTask: "New Task",
+  display: {
+    button: "Display",
+  },
+};
+
+export function TasksPageSkeleton() {
+  return (
+    <div className="w-full px-2">
+      <TasksLoadingView
+        viewMode="board"
+        labels={TASKS_LOADING_DEFAULT_LABELS}
+      />
+    </div>
+  );
+}
+
 export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
   const resolvedViewMode = viewMode ?? "board";
 
