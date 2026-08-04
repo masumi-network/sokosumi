@@ -66,6 +66,7 @@ import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { CreateChannelDialog } from "./create-channel-dialog";
 import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
+import { MembershipStatusRow } from "./membership-status-row";
 import {
   openDirectWithParticipant,
   participantDirectKey,
@@ -1471,52 +1472,56 @@ export function RoomsClient({
                             formatDaySeparator={formatDaySeparator}
                           />
                         ) : null}
-                        <ChatMessageRow
-                          message={message}
-                          coworkersById={coworkersById}
-                          coworkersBySlug={coworkersBySlug}
-                          usersById={usersById}
-                          usersBySlug={usersBySlug}
-                          currentUserId={currentUserId}
-                          canOpenHumanDirect={canOpenHumanDirect}
-                          onOpenDirectMessage={handleOpenDirectMessage}
-                          openingDirectParticipantKey={openingDirectKey}
-                          onToggleReaction={handleToggleReaction}
-                          onOpenThread={
-                            shouldShowChatRoomThreadButton({
+                        {message.membership != null ? (
+                          <MembershipStatusRow message={message} />
+                        ) : (
+                          <ChatMessageRow
+                            message={message}
+                            coworkersById={coworkersById}
+                            coworkersBySlug={coworkersBySlug}
+                            usersById={usersById}
+                            usersBySlug={usersBySlug}
+                            currentUserId={currentUserId}
+                            canOpenHumanDirect={canOpenHumanDirect}
+                            onOpenDirectMessage={handleOpenDirectMessage}
+                            openingDirectParticipantKey={openingDirectKey}
+                            onToggleReaction={handleToggleReaction}
+                            onOpenThread={
+                              shouldShowChatRoomThreadButton({
+                                room: selectedRoom,
+                                isStreamOverlay,
+                              })
+                                ? loadThreadMessages
+                                : undefined
+                            }
+                            onQuote={handleQuoteMessage}
+                            onStartEdit={handleStartEdit}
+                            onDelete={handleDeleteMessage}
+                            isEditing={editSession?.messageId === message.id}
+                            editDraft={
+                              editSession?.messageId === message.id
+                                ? editSession.draft
+                                : ""
+                            }
+                            onEditDraftChange={handleEditDraftChange}
+                            onCancelEdit={handleCancelEdit}
+                            onSaveEdit={handleSaveEdit}
+                            isSavingEdit={
+                              isSavingEdit &&
+                              editSession?.messageId === message.id
+                            }
+                            // Stream overlays never show thread chrome.
+                            showThreadButton={shouldShowChatRoomThreadButton({
                               room: selectedRoom,
                               isStreamOverlay,
-                            })
-                              ? loadThreadMessages
-                              : undefined
-                          }
-                          onQuote={handleQuoteMessage}
-                          onStartEdit={handleStartEdit}
-                          onDelete={handleDeleteMessage}
-                          isEditing={editSession?.messageId === message.id}
-                          editDraft={
-                            editSession?.messageId === message.id
-                              ? editSession.draft
-                              : ""
-                          }
-                          onEditDraftChange={handleEditDraftChange}
-                          onCancelEdit={handleCancelEdit}
-                          onSaveEdit={handleSaveEdit}
-                          isSavingEdit={
-                            isSavingEdit &&
-                            editSession?.messageId === message.id
-                          }
-                          // Stream overlays never show thread chrome.
-                          showThreadButton={shouldShowChatRoomThreadButton({
-                            room: selectedRoom,
-                            isStreamOverlay,
-                          })}
-                          isFirstOfDay={showDaySeparator}
-                          isContinuation={
-                            !showDaySeparator &&
-                            isMessageContinuation(previousMessage, message)
-                          }
-                        />
+                            })}
+                            isFirstOfDay={showDaySeparator}
+                            isContinuation={
+                              !showDaySeparator &&
+                              isMessageContinuation(previousMessage, message)
+                            }
+                          />
+                        )}
                       </div>
                     );
                   })}

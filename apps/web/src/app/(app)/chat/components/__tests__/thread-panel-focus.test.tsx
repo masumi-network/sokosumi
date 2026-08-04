@@ -72,6 +72,7 @@ function parentMessage(
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
+    membership: null,
     sender: {
       type: "user",
       user: {

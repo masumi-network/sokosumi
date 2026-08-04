@@ -13,6 +13,7 @@ import type {
   ChatRoomMessage,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
+import { MembershipStatusRow } from "./membership-status-row";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
@@ -205,20 +206,24 @@ export function ThreadPanel({
                 : undefined
             }
           >
-            <ChatMessageRow
-              message={parentMessage}
-              coworkersById={coworkersById}
-              coworkersBySlug={coworkersBySlug}
-              usersById={usersById}
-              usersBySlug={usersBySlug}
-              canOpenHumanDirect={canOpenHumanDirect}
-              onOpenDirectMessage={onOpenDirectMessage}
-              openingDirectParticipantKey={openingDirectParticipantKey}
-              onToggleReaction={onToggleReaction}
-              onQuote={onQuote ? handleQuote : undefined}
-              showThreadButton={false}
-              {...editPropsFor(parentMessage.id)}
-            />
+            {parentMessage.membership != null ? (
+              <MembershipStatusRow message={parentMessage} />
+            ) : (
+              <ChatMessageRow
+                message={parentMessage}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={onOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectParticipantKey}
+                onToggleReaction={onToggleReaction}
+                onQuote={onQuote ? handleQuote : undefined}
+                showThreadButton={false}
+                {...editPropsFor(parentMessage.id)}
+              />
+            )}
             <div className="my-4 border-t" />
             {isLoading ? (
               <div className="text-muted-foreground flex items-center gap-2 py-4 text-sm">
@@ -249,29 +254,33 @@ export function ThreadPanel({
                 ) : null}
                 {replies.length > 0 ? (
                   <div className="flex flex-col">
-                    {replies.map((reply, index) => (
-                      <ChatMessageRow
-                        key={reply.id}
-                        message={reply}
-                        coworkersById={coworkersById}
-                        coworkersBySlug={coworkersBySlug}
-                        usersById={usersById}
-                        usersBySlug={usersBySlug}
-                        canOpenHumanDirect={canOpenHumanDirect}
-                        onOpenDirectMessage={onOpenDirectMessage}
-                        openingDirectParticipantKey={
-                          openingDirectParticipantKey
-                        }
-                        onToggleReaction={onToggleReaction}
-                        onQuote={onQuote ? handleQuote : undefined}
-                        showThreadButton={false}
-                        isContinuation={isMessageContinuation(
-                          replies[index - 1],
-                          reply,
-                        )}
-                        {...editPropsFor(reply.id)}
-                      />
-                    ))}
+                    {replies.map((reply, index) =>
+                      reply.membership != null ? (
+                        <MembershipStatusRow key={reply.id} message={reply} />
+                      ) : (
+                        <ChatMessageRow
+                          key={reply.id}
+                          message={reply}
+                          coworkersById={coworkersById}
+                          coworkersBySlug={coworkersBySlug}
+                          usersById={usersById}
+                          usersBySlug={usersBySlug}
+                          canOpenHumanDirect={canOpenHumanDirect}
+                          onOpenDirectMessage={onOpenDirectMessage}
+                          openingDirectParticipantKey={
+                            openingDirectParticipantKey
+                          }
+                          onToggleReaction={onToggleReaction}
+                          onQuote={onQuote ? handleQuote : undefined}
+                          showThreadButton={false}
+                          isContinuation={isMessageContinuation(
+                            replies[index - 1],
+                            reply,
+                          )}
+                          {...editPropsFor(reply.id)}
+                        />
+                      ),
+                    )}
                   </div>
                 ) : (
                   <p className="text-muted-foreground py-4 text-sm">

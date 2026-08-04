@@ -24,6 +24,7 @@ function baseMessage(
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
+    membership: null,
     deletedAt: null,
     ...overrides,
   };
@@ -200,6 +201,24 @@ describe("isMessageContinuation", () => {
     const previous = unknownMessage("m1", "2026-07-01T12:00:00.000Z");
     const current = unknownMessage("m2", "2026-07-01T12:01:00.000Z");
     expect(isMessageContinuation(previous, current)).toBe(false);
+  });
+
+  it("never continues across membership status rows", () => {
+    const previous = userMessage("m1", "2026-07-01T12:00:00.000Z");
+    const status = baseMessage({
+      id: "m-status",
+      createdAt: new Date("2026-07-01T12:01:00.000Z"),
+      content: "",
+      sender: { type: "unknown" },
+      membership: {
+        action: "joined",
+        subject: { type: "user", id: "u-alice", name: "Alice" },
+      },
+    });
+    const next = userMessage("m2", "2026-07-01T12:02:00.000Z");
+
+    expect(isMessageContinuation(previous, status)).toBe(false);
+    expect(isMessageContinuation(status, next)).toBe(false);
   });
 
   it("honors a custom gapMs option", () => {

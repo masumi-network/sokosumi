@@ -303,6 +303,11 @@ export function isMessageContinuation(
     return false;
   }
 
+  // Membership status rows are not chat bubbles; never continue across them.
+  if (previous.membership != null || current.membership != null) {
+    return false;
+  }
+
   const previousKey = messageSenderKey(previous);
   const currentKey = messageSenderKey(current);
   if (!previousKey || !currentKey || previousKey !== currentKey) {

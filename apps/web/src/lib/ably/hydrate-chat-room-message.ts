@@ -30,5 +30,6 @@ export function hydrateChatRoomMessageFromRealtime(
     threadLastReplyAt: toNullableDate(message.threadLastReplyAt),
     metadata: message.metadata,
     quote: message.quote as ChatRoomMessage["quote"],
+    membership: message.membership as ChatRoomMessage["membership"],
   };
 }
