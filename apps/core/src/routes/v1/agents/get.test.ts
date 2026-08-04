@@ -2,7 +2,6 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import type { AuthVariables } from "@/middleware/auth";
 
 import mountGetAgents from "./get";
 
@@ -56,9 +55,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 function createApp() {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>({
+  const app = new OpenAPIHono({
     defaultHook: (result) => {
       if (!result.success && result.error) {
         throw unprocessableEntity(formatZodErrorMessage(result.error));
@@ -68,13 +65,6 @@ function createApp() {
 
   app.use("*", async (c, next) => {
     c.set("requestId", "test-req-id");
-    c.set("isAuthenticated", true);
-    c.set("authContext", {
-      actor: "user",
-      userId: "user_123",
-      organizationId: null,
-      role: "user",
-    });
     return await next();
   });
 
