@@ -62,8 +62,8 @@
     "test": "vitest run",
     "test:ci": "vitest run",
     "test:watch": "vitest",
-    "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
-    "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
+    "generate:payment": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.payment.config.ts",
+    "generate:registry": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.registry.config.ts",
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
   },
   "dependencies": {
@@ -75,8 +75,8 @@
   "devDependencies": {
     "@hey-api/openapi-ts": "0.99.0",
     "@types/node": "24.13.3",
-    "@typescript/native": "npm:typescript@7.0.2",
-    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "@typescript/typescript6": "6.0.2",
+    "typescript": "7.0.2",
     "vitest": "4.1.10"
   }
 }
