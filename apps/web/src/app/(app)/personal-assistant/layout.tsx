@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import type { ReactNode } from "react";
 
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
@@ -17,6 +18,7 @@ interface HermesLayoutProps {
 export default async function HermesLayout({ children }: HermesLayoutProps) {
   // Hermes beta gate: outside the whitelisted email domains the whole route
   // does not exist — same 404 a made-up path would get, so nothing leaks.
+  await connection();
   const session = await getSession();
   if (!isHermesBetaAccessEmail(session?.user.email)) {
     notFound();

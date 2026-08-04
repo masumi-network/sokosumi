@@ -1,8 +1,10 @@
 import { getUserMetadata } from "@sokosumi/utils";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { BillingPortalErrorToast } from "@/components/billing/billing-portal-error-toast";
+import DefaultLoading from "@/components/default-loading";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
@@ -11,7 +13,19 @@ import { designMdService } from "@/lib/services/design-md.service";
 
 import { AccountSettings } from "./components/account-settings";
 
-export default async function Page() {
+function AccountPageFallback() {
+  return (
+    <div className="flex items-center justify-center gap-16 md:p-8">
+      <DefaultLoading />
+    </div>
+  );
+}
+
+async function AccountPageContent() {
+  // Defer before any cookies()/headers()-bound work so PPR shell probing does
+  // not soft-reject dynamic APIs while filling this Suspense hole.
+  await connection();
+
   const t = await getTranslations("App.Account.LinkedAccounts");
   const tBilling = await getTranslations("App.Account.BillingDetails");
   const [accountsResult, session] = await Promise.all([
@@ -68,5 +82,13 @@ export default async function Page() {
         />
       </div>
     </div>
+  );
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<AccountPageFallback />}>
+      <AccountPageContent />
+    </Suspense>
   );
 }

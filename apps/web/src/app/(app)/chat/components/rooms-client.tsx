@@ -37,6 +37,7 @@ import {
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-signal-unread-threads-attention";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
@@ -121,6 +122,12 @@ interface RoomsClientProps {
 const COWORKER_RESPONSE_POLL_MS = 2500;
 /** ~2.5 minutes of polling before we stop waiting for a coworker reply. */
 const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
+/**
+ * Focused-room backstop for human peer traffic. Ably is still primary;
+ * without a timer, dropped/lagged events only recover on focus/visibility and
+ * then jump into the timeline by createdAt between already-shown own sends.
+ */
+const ROOM_LIVE_POLL_MS = 3000;
 
 function RoomMessageRealtimeBridge({
   userId,
@@ -282,6 +289,15 @@ export function RoomsClient({
   // handlers must not merge into messagesState after the selection moved.
   const selectedRoomIdRef = useRef(selectedRoomId);
   selectedRoomIdRef.current = selectedRoomId;
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
+  const [attentionRefreshToken, setAttentionRefreshToken] = useState(0);
+  const [syncedAttentionRoomId, setSyncedAttentionRoomId] =
+    useState(selectedRoomId);
+  if (selectedRoomId !== syncedAttentionRoomId) {
+    setSyncedAttentionRoomId(selectedRoomId);
+    setAttentionRefreshToken(0);
+  }
   const [isSending, startSendingTransition] = useTransition();
   const [isThreadLoading, startThreadLoadingTransition] = useTransition();
   const [isSendingThreadReply, startSendingThreadReplyTransition] =
@@ -431,6 +447,12 @@ export function RoomsClient({
       setThreadParentMessage((current) =>
         current?.id === message.id ? message : current,
       );
+
+      if (
+        shouldSignalUnreadThreadsAttention(message, currentUserIdRef.current)
+      ) {
+        setAttentionRefreshToken((token) => token + 1);
+      }
 
       const openThreadParentId = threadParentMessageIdRef.current;
       if (!openThreadParentId) {
@@ -792,8 +814,9 @@ export function RoomsClient({
     };
   }, [selectedRoom?.id, hasPendingRoomCoworkerMention]);
 
-  // Safety net when Ably is unavailable or a message was missed while hidden.
-  // Live peer traffic arrives via Ably Pub/Sub (RoomMessageRealtimeBridge).
+  // Ably Pub/Sub is primary (RoomMessageRealtimeBridge). Keep a short poll +
+  // focus/visibility refresh so human peer rows still land when Ably drops or
+  // lags while the room stays open.
   useEffect(() => {
     if (!selectedRoom) {
       return;
@@ -835,8 +858,10 @@ export function RoomsClient({
           mergeRoomMessages(current, threadResult.data.messages),
         );
       }
+      setAttentionRefreshToken((token) => token + 1);
     };
 
+    const intervalId = window.setInterval(refreshLatest, ROOM_LIVE_POLL_MS);
     window.addEventListener("focus", refreshLatest);
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -847,6 +872,7 @@ export function RoomsClient({
 
     return () => {
       cancelled = true;
+      window.clearInterval(intervalId);
       window.removeEventListener("focus", refreshLatest);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
@@ -1371,6 +1397,7 @@ export function RoomsClient({
                   <UnreadThreadsPanel
                     key={`unread-threads-${selectedRoom.id}`}
                     roomId={selectedRoom.id}
+                    attentionRefreshToken={attentionRefreshToken}
                     onOpenThread={loadThreadMessages}
                     labels={{
                       open: t("UnreadThreads.open"),

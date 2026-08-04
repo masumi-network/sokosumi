@@ -17,6 +17,10 @@ vi.mock("next/navigation", () => ({
   redirect: (url: string) => redirectMock(url),
 }));
 
+vi.mock("next/server", () => ({
+  connection: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("next-intl/server", () => ({
   getTranslations:
     async () => (key: string, values?: Record<string, unknown>) =>
@@ -56,7 +60,7 @@ vi.mock("@/app/chat/components/rooms-client", () => ({
   RoomsClient: () => <div data-testid="rooms-client" />,
 }));
 
-import ChatRoomPage from "../page";
+import { ChatRoomPageContent } from "../page";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const ORG_A = "org_a";
@@ -124,7 +128,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
 
     await expect(
-      ChatRoomPage({ params: Promise.resolve({ roomId: ROOM_ID }) }),
+      ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
     ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
 
     expect(redirectMock).toHaveBeenCalledWith("/chat?notice=room-unavailable");
@@ -141,7 +145,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     );
 
     await expect(
-      ChatRoomPage({ params: Promise.resolve({ roomId: ROOM_ID }) }),
+      ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
     ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
 
     expect(redirectMock).toHaveBeenCalledWith("/chat?notice=room-unavailable");
@@ -156,7 +160,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     getRoomMock.mockResolvedValue(null);
 
     await expect(
-      ChatRoomPage({ params: Promise.resolve({ roomId: ROOM_ID }) }),
+      ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
     ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
   });
 
@@ -168,7 +172,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     });
     getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
 
-    const element = (await ChatRoomPage({
+    const element = (await ChatRoomPageContent({
       params: Promise.resolve({ roomId: ROOM_ID }),
     })) as ReactElement;
 
@@ -189,7 +193,7 @@ describe("ChatRoomPage org deep-link guard", () => {
       failed: true,
     });
 
-    const element = (await ChatRoomPage({
+    const element = (await ChatRoomPageContent({
       params: Promise.resolve({ roomId: ROOM_ID }),
     })) as ReactElement;
 
@@ -206,7 +210,7 @@ describe("ChatRoomPage org deep-link guard", () => {
       room({ organizationId: null, kind: "direct" }),
     );
 
-    const element = (await ChatRoomPage({
+    const element = (await ChatRoomPageContent({
       params: Promise.resolve({ roomId: ROOM_ID }),
     })) as ReactElement;
 
