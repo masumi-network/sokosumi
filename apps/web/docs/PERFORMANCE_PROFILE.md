@@ -130,11 +130,11 @@ Ensure `getSessionOrRedirect` and any flag that calls `getSession()` use this ca
 
 ### 3.2 Heavy / third-party components
 
-**Observation:** Only one `next/dynamic` usage was found: `contexts/alby-provider.dynamic.tsx` (Ably). Analytics (e.g. Vercel Analytics, SpeedInsights) in the root layout are not dynamically loaded.
+**Observation:** Ably loads via mount-gated `import()` in `contexts/lazy-ably-provider.tsx` (Instant-safe; no `next/dynamic` + `ssr: false`). Root `ClientAnalytics` uses the same pattern for Vercel Analytics / SpeedInsights.
 
 **Skill ref:** §2.3 Defer Non-Critical Third-Party Libraries, §2.4 Dynamic Imports for Heavy Components.
 
-**Recommendation:** Consider loading Analytics/SpeedInsights (and similar) with `next/dynamic` and `{ ssr: false }` so they don’t block initial paint. Evaluate any other heavy or below-the-fold components for dynamic import.
+**Recommendation:** Prefer mount-gated client `import()` (or equivalent) over `next/dynamic` with `{ ssr: false }` on Instant-validated shells, which throws `BAILOUT_TO_CLIENT_SIDE_RENDERING` during Instant validation.
 
 ---
 

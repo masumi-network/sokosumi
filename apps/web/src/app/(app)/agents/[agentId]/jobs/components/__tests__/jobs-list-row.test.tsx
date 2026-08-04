@@ -22,7 +22,7 @@ vi.mock("ably/react", () => ({
   useChannel: vi.fn(),
 }));
 
-vi.mock("@/contexts/alby-provider.dynamic", () => ({
+vi.mock("@/contexts/lazy-ably-provider", () => ({
   __esModule: true,
   default: ({ children }: { children: ReactNode }) => children,
 }));

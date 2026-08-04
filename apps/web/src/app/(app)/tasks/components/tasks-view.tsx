@@ -59,7 +59,7 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import {
   jobStatusDataSchema,
   makeAgentJobsChannelName,
@@ -1310,7 +1310,7 @@ export function TasksView({
       initialProjectId={defaultProjectId}
     >
       {userId ? (
-        <DynamicAblyProvider>
+        <LazyAblyProvider>
           <ChannelProvider channelName={makeUserTasksChannelName(userId)}>
             <TasksRealtimeListener
               userId={userId}
@@ -1337,7 +1337,7 @@ export function TasksView({
               onDismiss={handleGuideDismiss}
             />
           ) : null}
-        </DynamicAblyProvider>
+        </LazyAblyProvider>
       ) : (
         <>
           {tabsContent}

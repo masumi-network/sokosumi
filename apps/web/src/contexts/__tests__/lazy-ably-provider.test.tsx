@@ -39,21 +39,21 @@ class TestErrorBoundary extends Component<
   }
 }
 
-describe("DynamicAblyProvider", () => {
+describe("LazyAblyProvider", () => {
   beforeEach(() => {
     mockAblyProvider.mockClear();
     vi.resetModules();
   });
 
   it("does not mount children until AblyProvider is loaded", async () => {
-    const { default: DynamicAblyProvider } = await import(
-      "@/contexts/alby-provider.dynamic"
+    const { default: LazyAblyProvider } = await import(
+      "@/contexts/lazy-ably-provider"
     );
 
     render(
-      <DynamicAblyProvider>
+      <LazyAblyProvider>
         <span>realtime-child</span>
-      </DynamicAblyProvider>,
+      </LazyAblyProvider>,
     );
 
     expect(screen.queryByText("realtime-child")).not.toBeInTheDocument();
@@ -72,8 +72,8 @@ describe("DynamicAblyProvider", () => {
       throw new Error("chunk load failed");
     });
 
-    const { default: DynamicAblyProvider } = await import(
-      "@/contexts/alby-provider.dynamic"
+    const { default: LazyAblyProvider } = await import(
+      "@/contexts/lazy-ably-provider"
     );
 
     const consoleError = vi
@@ -82,9 +82,9 @@ describe("DynamicAblyProvider", () => {
 
     render(
       <TestErrorBoundary>
-        <DynamicAblyProvider>
+        <LazyAblyProvider>
           <span>realtime-child</span>
-        </DynamicAblyProvider>
+        </LazyAblyProvider>
       </TestErrorBoundary>,
     );
 

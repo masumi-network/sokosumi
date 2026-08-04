@@ -6,7 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { DataTable } from "@/components/data-table";
-import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { makeAgentJobsChannelName } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -54,7 +54,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
   };
 
   return (
-    <DynamicAblyProvider>
+    <LazyAblyProvider>
       <ChannelProvider
         channelName={makeAgentJobsChannelName(params.agentId, userId)}
       >
@@ -85,7 +85,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
           />
         </div>
       </ChannelProvider>
-    </DynamicAblyProvider>
+    </LazyAblyProvider>
   );
 }
 

@@ -44,7 +44,7 @@ vi.mock("ably/react", () => ({
   },
 }));
 
-vi.mock("@/contexts/alby-provider.dynamic", () => ({
+vi.mock("@/contexts/lazy-ably-provider", () => ({
   default: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 

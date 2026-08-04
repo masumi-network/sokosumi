@@ -4,13 +4,11 @@ import { type ComponentType, type ReactNode, useState } from "react";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
-interface DynamicAblyProviderProps {
+interface LazyAblyProviderProps {
   children: ReactNode;
 }
 
-export default function DynamicAblyProvider({
-  children,
-}: DynamicAblyProviderProps) {
+export default function LazyAblyProvider({ children }: LazyAblyProviderProps) {
   const [Provider, setProvider] = useState<ComponentType<{
     children: ReactNode;
   }> | null>(null);

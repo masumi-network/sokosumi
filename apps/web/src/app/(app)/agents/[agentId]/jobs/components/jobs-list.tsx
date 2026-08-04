@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
-import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
@@ -166,7 +166,7 @@ export function JobsList({
   }
 
   return (
-    <DynamicAblyProvider>
+    <LazyAblyProvider>
       <ChannelProvider channelName={channelName}>
         <JobsStatusRealtimeListener
           channelName={channelName}
@@ -206,7 +206,7 @@ export function JobsList({
           </div>
         </aside>
       </ChannelProvider>
-    </DynamicAblyProvider>
+    </LazyAblyProvider>
   );
 }
 
