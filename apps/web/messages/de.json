@@ -3612,7 +3612,7 @@
       "assignedSeatsLabel": "Zugewiesen",
       "unusedSeatsLabel": "Ungenutzte Seats",
       "PurchaseSuccess": {
-        "creditsTitle": "Zahlung erfolgreich!",
+        "creditsTitle": "Alles erledigt!",
         "creditsDescription": "Deine Credits wurden deinem Konto gutgeschrieben.",
         "subscriptionTitle": "Du bist jetzt im {plan}-Plan!",
         "subscriptionDescription": "Dein Abo ist jetzt aktiv.",

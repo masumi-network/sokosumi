@@ -521,6 +521,12 @@ export const stripeBillingService = {
       throw notFound("Checkout session not found");
     }
 
+    // Incomplete/open/expired sessions must not unlock success UI or purchase
+    // analytics. Coupons can complete with payment_status=no_payment_required.
+    if (session.status !== "complete") {
+      throw notFound("Checkout session not found");
+    }
+
     return mapCheckoutSessionAnalytics(session);
   },
 };

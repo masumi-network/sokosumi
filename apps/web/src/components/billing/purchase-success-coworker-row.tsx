@@ -59,7 +59,7 @@ function CoworkerRowInner({
           key={coworker.id}
           href={`/tasks?create=true&assignee=${encodeURIComponent(coworker.slug)}`}
           aria-label={t("startTaskWith", { name: coworker.name })}
-          onClick={onNavigate}
+          onNavigate={onNavigate}
           className="group focus-visible:ring-ring flex flex-col items-center gap-2 rounded-lg p-1 outline-none focus-visible:ring-2"
         >
           <Avatar className="ring-border group-hover:ring-primary size-14 ring-1 transition-all group-hover:scale-105 group-hover:ring-2">
@@ -91,7 +91,7 @@ function GoToTasksFallback({
 
   return (
     <Button asChild variant="outline" className={className}>
-      <Link href="/tasks" onClick={onNavigate}>
+      <Link href="/tasks" onNavigate={onNavigate}>
         {t("goToTasks")}
         <ArrowRight className="size-4" aria-hidden />
       </Link>

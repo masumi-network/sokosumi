@@ -53,7 +53,7 @@ describe("CreditsCheckoutReturn", () => {
     expect(getCheckoutSessionAnalyticsMock).not.toHaveBeenCalled();
   });
 
-  it("mounts success UI and tracker when session id is present", async () => {
+  it("mounts success UI and tracker when session validates", async () => {
     const checkoutSession = {
       sessionId: "cs_1",
       currency: "eur",
@@ -78,6 +78,20 @@ describe("CreditsCheckoutReturn", () => {
       expect.objectContaining({ checkoutSession }),
     );
     expect(creditsCancelModalMock).not.toHaveBeenCalled();
+  });
+
+  it("does not mount success UI when session validation fails", async () => {
+    getCheckoutSessionAnalyticsMock.mockRejectedValue(new Error("not found"));
+
+    render(
+      await CreditsCheckoutReturn({
+        coworkersPromise,
+        sessionId: "cs_invalid",
+      }),
+    );
+
+    expect(creditsPurchaseSuccessMock).not.toHaveBeenCalled();
+    expect(purchaseTrackerMock).not.toHaveBeenCalled();
   });
 
   it("mounts the cancel modal when cancel is present", async () => {
