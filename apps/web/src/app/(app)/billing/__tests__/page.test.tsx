@@ -26,6 +26,7 @@ const getEnterpriseContractBillingSummaryMock = vi.fn();
 const enterpriseContractSummaryMock = vi.fn();
 const getFeaturedCoworkersMock = vi.fn();
 const subscriptionSuccessModalMock = vi.fn();
+const creditsCheckoutReturnMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -170,6 +171,13 @@ vi.mock("@/components/billing/personal-subscription-section", () => ({
 vi.mock("@/components/billing/subscription-success-modal", () => ({
   SubscriptionSuccessModal: (props: unknown) => {
     subscriptionSuccessModalMock(props);
+    return null;
+  },
+}));
+
+vi.mock("@/components/billing/credits-checkout-return", () => ({
+  CreditsCheckoutReturn: (props: unknown) => {
+    creditsCheckoutReturnMock(props);
     return null;
   },
 }));
@@ -459,6 +467,30 @@ describe("BillingPage", () => {
         headline: 'subscriptionTitle:{"plan":"Plans.pro.name"}',
         returnPath: "/billing?tab=subscription",
         status: "success",
+      }),
+    );
+  });
+
+  it("threads credits checkout markers and coworkers into CreditsCheckoutReturn outside tabs", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+
+    const { default: BillingPage } = await import("../page");
+
+    render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          cancel: "true",
+          session_id: "cs_test_123",
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(creditsCheckoutReturnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancel: "true",
+        coworkersPromise,
+        sessionId: "cs_test_123",
       }),
     );
   });
