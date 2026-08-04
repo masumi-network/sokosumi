@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { getNotificationHref } from "@/lib/utils/notification-href";
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/vendor-grant-notification";
 
 describe("getNotificationHref", () => {
   it("returns job href with agentId", () => {
@@ -53,11 +54,37 @@ describe("getNotificationHref", () => {
     ).toBe("/chat/rooms/room%2Fwith%20spaces");
   });
 
-  it("falls back to home for SYSTEM notifications", () => {
+  it("deep-links pending vendor grant SYSTEM to personal review", () => {
     expect(
       getNotificationHref({
         kind: "SYSTEM",
         referenceId: "grant-1",
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        metadata: { vendorGrantId: "grant-1" },
+      }),
+    ).toBe("/account#vendor-workspace-access");
+  });
+
+  it("deep-links pending vendor grant SYSTEM to org review", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "grant-1",
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        metadata: {
+          vendorGrantId: "grant-1",
+          organizationId: "org_1",
+        },
+      }),
+    ).toBe("/organizations/org_1#vendor-workspace-access");
+  });
+
+  it("falls back to home for non-pending SYSTEM notifications", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "notice-1",
+        messageKey: "notifications.system.generic",
         metadata: { vendorGrantId: "grant-1", roomId: "should-not-route" },
       }),
     ).toBe("/");

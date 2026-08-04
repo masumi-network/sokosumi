@@ -6,7 +6,7 @@ import type {
 
 export type TaskFileListItem = Pick<
   TaskFile | PublicSharedTaskFile,
-  "id" | "name" | "fileUrl" | "size"
+  "id" | "name" | "fileUrl" | "size" | "mimeType"
 >;
 
 interface TaskFilesProps {
@@ -34,6 +34,7 @@ export function TaskFiles({ title, files, className }: TaskFilesProps) {
             key={file.id}
             url={file.fileUrl}
             fileName={file.name}
+            mediaType={file.mimeType}
             size={file.size}
           />
         ))}
