@@ -42,13 +42,13 @@ export const chatRoomInclude = {
     include: {
       user: { select: chatRoomUserSelect },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
   coworkerMembers: {
     include: {
       coworker: { select: chatRoomCoworkerSelect },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
 } as const satisfies Prisma.ChatRoomInclude;
 
@@ -855,7 +855,7 @@ const chatRoomWriteSelect = {
         },
       },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
   coworkerMembers: {
     select: {
@@ -867,7 +867,7 @@ const chatRoomWriteSelect = {
         },
       },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   },
 } as const satisfies Prisma.ChatRoomSelect;
 
