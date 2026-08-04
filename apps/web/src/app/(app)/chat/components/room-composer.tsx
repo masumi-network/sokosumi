@@ -241,6 +241,7 @@ export function RoomComposer({
   pendingQuote = null,
   onClearPendingQuote,
   onChromeResize,
+  focusOnMount = false,
 }: {
   ref?: Ref<RoomComposerHandle>;
   /** When set, attaches mint via room chat file endpoint. */
@@ -267,6 +268,8 @@ export function RoomComposer({
    * so the parent can keep the latest message visible above the composer.
    */
   onChromeResize?: () => void;
+  /** Focus the editor after mount (room/thread open). */
+  focusOnMount?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const tToolbar = useTranslations("App.Channels.Toolbar");
@@ -302,6 +305,16 @@ export function RoomComposer({
         mobileBreakpoint: MOBILE_BREAKPOINT,
       }),
     );
+  });
+
+  useMountEffect(() => {
+    if (!focusOnMount) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      editorRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
   });
 
   // After paint so the format strip / quote chip have height before scroll.
