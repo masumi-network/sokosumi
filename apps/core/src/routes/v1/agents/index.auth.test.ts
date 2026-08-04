@@ -122,6 +122,8 @@ describe("agents routes auth gate", () => {
 
     expect(response.status).toBe(422);
     expect(agentFindManyMock).not.toHaveBeenCalled();
+    expect(agentCountMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("rejects anonymous GET /agents/{id}", async () => {
