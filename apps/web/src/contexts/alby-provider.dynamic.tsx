@@ -14,19 +14,35 @@ export default function DynamicAblyProvider({
   const [Provider, setProvider] = useState<ComponentType<{
     children: ReactNode;
   }> | null>(null);
+  const [loadError, setLoadError] = useState<Error | null>(null);
 
   useMountEffect(() => {
     let cancelled = false;
-    void import("./ably-provider").then((m) => {
-      if (cancelled) {
-        return;
-      }
-      setProvider(() => m.default);
-    });
+    void import("./ably-provider")
+      .then((m) => {
+        if (cancelled) {
+          return;
+        }
+        setProvider(() => m.default);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setLoadError(
+          new Error("Failed to load Ably provider", {
+            cause: error,
+          }),
+        );
+      });
     return () => {
       cancelled = true;
     };
   });
+
+  if (loadError) {
+    throw loadError;
+  }
 
   // Do not mount children until AblyProvider is ready — ChannelProvider /
   // useChannel throw without Ably React context.

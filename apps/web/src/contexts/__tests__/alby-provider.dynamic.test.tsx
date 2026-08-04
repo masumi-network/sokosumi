@@ -1,4 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
+import { Component, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockAblyProvider = vi.fn(
@@ -11,6 +12,32 @@ vi.mock("@/contexts/ably-provider", () => ({
   __esModule: true,
   default: (props: { children: React.ReactNode }) => mockAblyProvider(props),
 }));
+
+interface TestErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface TestErrorBoundaryState {
+  error: Error | null;
+}
+
+class TestErrorBoundary extends Component<
+  TestErrorBoundaryProps,
+  TestErrorBoundaryState
+> {
+  state: TestErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): TestErrorBoundaryState {
+    return { error };
+  }
+
+  render(): ReactNode {
+    if (this.state.error) {
+      return <div role="alert">{this.state.error.message}</div>;
+    }
+    return this.props.children;
+  }
+}
 
 describe("DynamicAblyProvider", () => {
   beforeEach(() => {
@@ -38,5 +65,34 @@ describe("DynamicAblyProvider", () => {
 
     expect(screen.getByTestId("ably-provider")).toBeInTheDocument();
     expect(screen.getByText("realtime-child")).toBeInTheDocument();
+  });
+
+  it("propagates a rejected AblyProvider import to the nearest error boundary", async () => {
+    vi.doMock("@/contexts/ably-provider", () => {
+      throw new Error("chunk load failed");
+    });
+
+    const { default: DynamicAblyProvider } = await import(
+      "@/contexts/alby-provider.dynamic"
+    );
+
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(
+      <TestErrorBoundary>
+        <DynamicAblyProvider>
+          <span>realtime-child</span>
+        </DynamicAblyProvider>
+      </TestErrorBoundary>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Failed to load Ably provider",
+    );
+    expect(screen.queryByText("realtime-child")).not.toBeInTheDocument();
+
+    consoleError.mockRestore();
   });
 });
