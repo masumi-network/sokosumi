@@ -119,7 +119,15 @@ describe("useStickToBottom", () => {
     setScrollerMetrics(scroller, {
       scrollHeight: 1000,
       clientHeight: 400,
-      // distance = 400 >= NEAR
+      scrollTop: 600,
+    });
+    act(() => {
+      fireResize();
+    });
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
       scrollTop: 200,
     });
     act(() => {
@@ -238,7 +246,7 @@ describe("useStickToBottom", () => {
       scrollTop: 600,
     });
     act(() => {
-      scroller.dispatchEvent(new Event("scroll"));
+      fireResize();
     });
 
     const growth = STICK_TO_BOTTOM_NEAR_PX + 50;
