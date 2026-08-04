@@ -373,7 +373,7 @@ export function NotificationProvider({
             userId={userId}
             onNotification={handleNotificationEvent}
           />
-          <NotificationToastListener userId={userId} />
+          <NotificationToastListener userId={userId} markRead={markRead} />
         </ChannelProvider>
       </LazyAblyProvider>
     </NotificationContext>

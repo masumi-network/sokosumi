@@ -43,9 +43,12 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
 }));
 
 vi.mock("@/app/components/notification-toast-listener", () => ({
-  NotificationToastListener: ({ userId }: { userId: string }) => (
-    <div data-testid="notification-toast-listener">{userId}</div>
-  ),
+  NotificationToastListener: ({
+    userId,
+  }: {
+    userId: string;
+    markRead: (id: string) => Promise<void>;
+  }) => <div data-testid="notification-toast-listener">{userId}</div>,
 }));
 
 function NotificationConsumer() {
