@@ -16,7 +16,6 @@ import { AppSidebarFallback } from "./app-sidebar-fallback";
 import Header from "./header";
 import { LoginAccountNoticeToast } from "./login-account-notice-toast.client";
 import { NoticeDialogProvider } from "./notice-dialog-context";
-import { NotificationToastListener } from "./notification-toast-listener";
 import { NotificationToaster } from "./notification-toaster.client";
 import PrivateCachedAppSidebar from "./private-cached-app-sidebar";
 
@@ -47,7 +46,6 @@ export default async function AuthenticatedAppFrame({
             announcementNotices={EMPTY_NOTICES}
           >
             <NotificationToaster />
-            <NotificationToastListener userId={session.user.id} />
             <LoginAccountNoticeToast />
             <HistorySearchDialogProvider
               activeOrganizationId={
