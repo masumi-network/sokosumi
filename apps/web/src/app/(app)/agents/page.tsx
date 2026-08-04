@@ -82,19 +82,25 @@ async function CoworkersTier() {
 /**
  * Tier 2 — full catalog streams after Tier 1 paints so LCP is the coworker
  * gallery, not a blocked wait on every catalog page.
+ *
+ * Catalog loaders are cookie-free (`'use cache'`), so start them before
+ * `connection()`. Translations still need request locale via cookies/headers.
  */
 async function AllAgentsTier() {
+  const agentsPromise = getAllCoreAgents().catch((error) => {
+    logAgentsCatalogFetchFailure("agent catalog", error);
+    return [];
+  });
+  const categoriesPromise = getCoreCategories().catch((error) => {
+    logAgentsCatalogFetchFailure("categories", error);
+    return [];
+  });
+
   await connection();
 
   const [coreAgents, categories, t] = await Promise.all([
-    getAllCoreAgents().catch((error) => {
-      logAgentsCatalogFetchFailure("agent catalog", error);
-      return [];
-    }),
-    getCoreCategories().catch((error) => {
-      logAgentsCatalogFetchFailure("categories", error);
-      return [];
-    }),
+    agentsPromise,
+    categoriesPromise,
     getTranslations("App.Agents"),
   ]);
 
