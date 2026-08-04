@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 
 import { requireAdminSession } from "@/lib/auth/admin-access";
 
+export const instant = false;
+
 interface AdminLayoutProps {
   children: ReactNode;
 }

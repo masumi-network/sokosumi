@@ -33,6 +33,22 @@ function logAgentsCatalogFetchFailure(scope: string, error: unknown): void {
   });
 }
 
+function CoworkersTierFallback() {
+  return (
+    <section className="space-y-8">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-56 md:h-8" />
+        <Skeleton className="h-4 w-80 md:h-5" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
+          <Skeleton key={index} className="h-40 w-full rounded-xl" />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function AgentsCatalogFallback() {
   return (
     <section className="space-y-8">
@@ -42,6 +58,20 @@ function AgentsCatalogFallback() {
       </div>
       <AgentsSkeleton />
     </section>
+  );
+}
+
+async function CoworkersTier() {
+  const coworkers = await coworkerService
+    .listCoworkers("tasks")
+    .catch(() => []);
+  const coworkerOptions = getCoworkerOptions(coworkers);
+
+  return (
+    <CreateTaskModalProvider>
+      <CoworkerGallerySection coworkers={coworkers} />
+      <CreateTaskModal coworkerOptions={coworkerOptions} />
+    </CreateTaskModalProvider>
   );
 }
 
@@ -88,21 +118,13 @@ async function AllAgentsTier() {
   );
 }
 
-export default async function GalleryPage() {
-  // Tier 1 is the LCP surface: coworkers only. CreateTaskModal lazy-loads agent
-  // names + design.md when opened (same pattern as the tasks board).
-  const coworkers = await coworkerService
-    .listCoworkers("tasks")
-    .catch(() => []);
-  const coworkerOptions = getCoworkerOptions(coworkers);
-
+export default function GalleryPage() {
   return (
     <div className="w-full">
       <div className="space-y-16 px-2 pb-8 md:space-y-24">
-        <CreateTaskModalProvider>
-          <CoworkerGallerySection coworkers={coworkers} />
-          <CreateTaskModal coworkerOptions={coworkerOptions} />
-        </CreateTaskModalProvider>
+        <Suspense fallback={<CoworkersTierFallback />}>
+          <CoworkersTier />
+        </Suspense>
 
         <Suspense fallback={<AgentsCatalogFallback />}>
           <AllAgentsTier />
