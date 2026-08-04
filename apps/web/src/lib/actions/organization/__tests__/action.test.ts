@@ -58,9 +58,19 @@ vi.mock("next/headers", () => ({
   headers: () => headersMock(),
 }));
 
+const invalidatePrivateSidebarChromeMock = vi.fn();
+
+vi.mock("@/app/components/private-sidebar-cache", () => ({
+  invalidatePrivateSidebarChrome: (...args: unknown[]) =>
+    invalidatePrivateSidebarChromeMock(...args),
+}));
+
 const session = {
   user: {
     id: "user-1",
+  },
+  session: {
+    activeOrganizationId: "org-prev",
   },
 } as never;
 
@@ -274,6 +284,11 @@ describe("updatePreferredOrganization", () => {
       data: { organizationId: "org-1" },
     });
     expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith("org-1");
+    expect(invalidatePrivateSidebarChromeMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      organizationId: "org-1",
+      previousOrganizationId: "org-prev",
+    });
   });
 
   it("clears the preferred organization when null is provided", async () => {

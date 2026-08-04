@@ -3,14 +3,8 @@ import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
-import { getEnvPublicConfig } from "@/config/env.public";
 import { getPendingNoticesAction } from "@/lib/actions/notice";
-import { hasAdminRole } from "@/lib/auth/admin-access";
-import { coreClient } from "@/lib/clients/core.client";
-import type {
-  GetUsersByIdCreditsResponse,
-  Notice,
-} from "@/lib/clients/generated/core";
+import type { Notice, Organization } from "@/lib/clients/generated/core";
 import { NoticeKind } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
@@ -19,32 +13,43 @@ import {
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
 
-import { resolveAccountNotice } from "./account-notice-state";
 import { OnboardingDialogLoader } from "./onboarding-dialog-loader";
-import { NoticeDialogHydrator, ShellHydrators } from "./shell-hydrators.client";
-import Sidebar from "./sidebar";
+import { getCachedMyCredits } from "./private-sidebar-cache";
+import {
+  CoworkersHydrator,
+  NoticeDialogHydrator,
+} from "./shell-hydrators.client";
 
-interface AppShellChromeProps {
+interface AppShellOverlaysProps {
   session: Session;
 }
 
-export default async function AppShellChrome({ session }: AppShellChromeProps) {
+/**
+ * Onboarding, pending notices, and coworkers hydration — streamed separately
+ * from the private-cached sidebar chrome (`Suspense fallback={null}`).
+ * Must not private-cache: cookies() for onboarding gate + non-chrome data.
+ *
+ * Credits/org are fetched only on the branches that need them so we do not
+ * always duplicate the private sidebar Core reads.
+ */
+export default async function AppShellOverlays({
+  session,
+}: AppShellOverlaysProps) {
+  // Defer before cookies()/Core so Cache Components PPR probing does not
+  // soft-reject dynamic APIs while filling this Suspense hole (#3617).
   await connection();
-  const cookieStore = await cookies();
+  const cookieStorePromise = cookies();
   const [
     shouldShowOnboarding,
     pendingNoticesResult,
-    activeOrganization,
-    creditsResultRaw,
     coworkersResult,
+    cookieStore,
   ] = await Promise.all([
     userService.showOnboarding(session),
     getPendingNoticesAction(),
-    userService.getActiveOrganization(),
-    coreClient.getMyCredits().catch(() => null),
     coworkerService.listCoworkers().catch(() => []),
+    cookieStorePromise,
   ]);
-  const creditsResult = creditsResultRaw as GetUsersByIdCreditsResponse | null;
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
   const pendingNotices = pendingNoticesResult.ok
     ? pendingNoticesResult.data
@@ -55,16 +60,7 @@ export default async function AppShellChrome({ session }: AppShellChromeProps) {
   const announcementNotices = pendingNotices.filter(
     (notice: Notice) => notice.kind === NoticeKind.ANNOUNCEMENT,
   );
-  const adminMenuEnabled = hasAdminRole(
-    (session.user as typeof session.user & { role?: string | null }).role,
-  );
-  const creditsData = creditsResult?.data.credits ?? null;
-  const currentPlan =
-    creditsResult != null
-      ? (creditsResult.data.subscription?.plan ?? "free")
-      : null;
-  const shouldShowFreeSubscriptionGate =
-    !shouldShowOnboarding && currentPlan === "free";
+
   const subscriptionOnboardingGateCookie = cookieStore.get(
     SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
   )?.value;
@@ -73,32 +69,29 @@ export default async function AppShellChrome({ session }: AppShellChromeProps) {
       subscriptionOnboardingGateCookie,
       session.session.id,
     );
-  const shouldLoadSubscriptionOnboarding =
-    shouldShowFreeSubscriptionGate && !subscriptionOnboardingGateAlreadyServed;
-  const currentTimestampMs = creditsResult?.meta?.timestamp
-    ? new Date(creditsResult.meta.timestamp).getTime()
-    : 0;
-  const lowCreditsThreshold =
-    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
-  const accountNotice = resolveAccountNotice({
-    credits: creditsData?.total ?? null,
-    currentPlan,
-    email: session.user.email,
-    emailVerified: session.user.emailVerified,
-    threshold: lowCreditsThreshold,
-  });
+
+  let activeOrganization: Organization | null = null;
+  let shouldLoadSubscriptionOnboarding = false;
+
+  if (shouldShowOnboarding) {
+    activeOrganization = await userService.getActiveOrganization();
+  } else if (!subscriptionOnboardingGateAlreadyServed) {
+    // Shared React.cache with PrivateCachedAppSidebar — one Core hit per request
+    // when both cold-fill; skipped entirely when gate already served.
+    const creditsResult = await getCachedMyCredits();
+    const currentPlan =
+      creditsResult != null
+        ? (creditsResult.data.subscription?.plan ?? "free")
+        : null;
+    if (currentPlan === "free") {
+      activeOrganization = await userService.getActiveOrganization();
+      shouldLoadSubscriptionOnboarding = true;
+    }
+  }
 
   return (
     <>
-      <ShellHydrators accountNotice={accountNotice} coworkers={coworkers} />
-      <Sidebar
-        adminMenuEnabled={adminMenuEnabled}
-        creditsData={creditsData}
-        currentTimestampMs={currentTimestampMs}
-        organizationName={activeOrganization?.name ?? null}
-        session={session}
-        lowCreditsThreshold={lowCreditsThreshold}
-      />
+      <CoworkersHydrator coworkers={coworkers} />
       {shouldShowOnboarding ? (
         <Suspense fallback={null}>
           <OnboardingDialogLoader
