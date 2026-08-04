@@ -2065,15 +2065,6 @@ app.openapi(getInstanceRoute, async (c) => {
 });
 
 /**
- * True when the user has assistant-plan coverage: a subscription of Standard
- * or better on their personal reference or on any organization they belong to
- * (enterprise contracts only when consumable). Web's UX gate uses the same
- * rule via `hasAssistantPlanCoverage`; this is the API-level floor beneath it
- * — Better Auth API keys and OAuth access tokens mint plain user auth
- * contexts, so the Core route must enforce the plan itself rather than
- * trusting the web action's check.
- */
-/**
  * True when a resolved org billing plan unlocks the personal assistant.
  * Enterprise only when consumable; self-serve only at Standard+.
  */
@@ -2092,6 +2083,15 @@ function orgBillingPlanUnlocksAssistant(
   );
 }
 
+/**
+ * True when the user has assistant-plan coverage: a subscription of Standard
+ * or better on their personal reference or on any organization they belong to
+ * (enterprise contracts only when consumable). Web's UX gate uses the same
+ * rule via `hasAssistantPlanCoverage`; this is the API-level floor beneath it
+ * — Better Auth API keys and OAuth access tokens mint plain user auth
+ * contexts, so the Core route must enforce the plan itself rather than
+ * trusting the web action's check.
+ */
 async function userHasAssistantPlanCoverage(userId: string): Promise<boolean> {
   // Personal Stripe subscription (user as referenceId).
   const personal =
