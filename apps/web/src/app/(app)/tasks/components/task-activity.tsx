@@ -636,6 +636,7 @@ export function TaskActivitySection({
                         expandLabel={expandLabel}
                         collapseLabel={collapseLabel}
                         fadeClassName="to-transparent"
+                        defaultOpen={shouldHighlightDoneBorder}
                       />
                     ) : null}
                     {shouldShowBillingPlaceholder ? (
