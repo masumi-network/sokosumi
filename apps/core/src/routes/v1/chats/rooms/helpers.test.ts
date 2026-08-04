@@ -9,8 +9,8 @@ import {
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
   contentIncludesRoomAllMention,
+  getChatRoomThreadAggregates,
   getChatRoomUnreadMentionCounts,
-  getChatRoomUnreadThreadAggregates,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
   resolveMentionedCoworkerIds,
@@ -534,18 +534,20 @@ describe("mapChatRoomMessage quote", () => {
   });
 });
 
-describe("getChatRoomUnreadThreadAggregates", () => {
+describe("getChatRoomThreadAggregates", () => {
   it("queries with thread baseline independent of room lastReadAt and excludes soft-deleted/self replies", async () => {
     const queryRawUnsafe = vi.fn().mockResolvedValue([
       {
         parentMessageId: "550e8400-e29b-41d4-a716-446655440001",
+        replyCount: 5,
+        lastReplyAt: new Date("2026-07-02T11:00:00.000Z"),
         unreadReplyCount: 3,
         lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
       },
     ]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
 
-    const rows = await getChatRoomUnreadThreadAggregates(
+    const rows = await getChatRoomThreadAggregates(
       "550e8400-e29b-41d4-a716-446655440000",
       "user_123",
       tx,
@@ -554,6 +556,8 @@ describe("getChatRoomUnreadThreadAggregates", () => {
     expect(rows).toEqual([
       {
         parentMessageId: "550e8400-e29b-41d4-a716-446655440001",
+        replyCount: 5,
+        lastReplyAt: new Date("2026-07-02T11:00:00.000Z"),
         unreadReplyCount: 3,
         lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
       },
