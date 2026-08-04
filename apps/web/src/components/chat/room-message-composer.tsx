@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const ROOM_COMPOSER_TEXTAREA_CLASSNAME =
-  "max-h-40 min-h-12 md:min-h-20 resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-2 md:py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm";
+  "max-h-40 min-h-9 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 py-2 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm";
 
 export const ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME =
   "size-9 rounded-full sm:size-8";

@@ -983,7 +983,7 @@ function MessageEditComposer({
           onChange(event.target.value);
         }}
         disabled={isSaving}
-        className="min-h-20"
+        className="min-h-9 max-h-40 resize-none overflow-y-auto field-sizing-content"
         autoFocus
         onKeyDown={(event) => {
           if (event.key === "Escape") {
