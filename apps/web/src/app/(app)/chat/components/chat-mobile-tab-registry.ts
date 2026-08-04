@@ -14,15 +14,7 @@ export const CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET =
 export const CHAT_MOBILE_HEIGHT_SHELL_CLASS =
   "h-[calc(100svh-64px)] max-md:h-[calc(100svh-64px-4rem)]" as const;
 
-/**
- * Room composer outer padding. Bar clearance comes from
- * `CHAT_MOBILE_HEIGHT_SHELL_CLASS` / shell `pb-16`; keep safe-area here.
- */
-export const CHAT_MOBILE_ROOM_COMPOSER_PADDING_CLASSNAME =
-  "px-5 pt-2 md:pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))]" as const;
-
 export type ChatMobileTabId = "home" | "history" | "search";
-
 export type ChatMobileTabLabelKey = "home" | "history" | "search";
 
 interface ChatMobileTabBase {
