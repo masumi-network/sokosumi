@@ -17,8 +17,10 @@
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "test": "vitest run",
-    "test:ci": "vitest run",
+    "messages:parity": "node ./scripts/check-message-key-parity.mjs",
+    "messages:parity:write": "node ./scripts/check-message-key-parity.mjs --write",
+    "test": "pnpm messages:parity && vitest run",
+    "test:ci": "pnpm messages:parity && vitest run",
     "test:watch": "vitest",
     "generate:core": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.core.config.ts",
     "generate:core:snapshot": "pnpm --filter @sokosumi/core run write-openapi-snapshot-for-web && NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.core.config.ts -i openapi-core.snapshot.json"

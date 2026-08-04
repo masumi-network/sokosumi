@@ -18,7 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const messagesDir = path.join(__dirname, "../messages");
 const overridesDir = path.join(messagesDir, "hermes-translations");
 
-const LOCALES = ["de", "es", "fr", "it", "ja", "pt", "pt-BR", "zh-Hans"];
+const LOCALES = ["de", "es"];
 
 /**
  * When `shape` is a keyed numeric map and `value` is an array, rewrite the

@@ -16,8 +16,6 @@ import {
 } from "@/lib/billing/billing-portal-redirect";
 import { isAllowedStripeBillingPortalUrl } from "@/lib/billing/stripe-billing-portal-url";
 
-export const dynamic = "force-dynamic";
-
 const SAFE_RETURN_FALLBACK = "/billing?tab=subscription";
 
 function redirectToSignIn(

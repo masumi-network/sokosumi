@@ -117,6 +117,7 @@ describe("publishChatRoomMessageEvent", () => {
       threadLastReplyAt: null,
       metadata: null,
       quote: null,
+      membership: null,
     };
 
     await publishChatRoomMessageEvent({

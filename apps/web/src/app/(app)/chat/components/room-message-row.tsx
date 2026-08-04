@@ -1134,6 +1134,7 @@ export function ChatMessageRow({
   showThreadButton = true,
   showQuoteButton = true,
   isContinuation = false,
+  isFirstOfDay = false,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -1159,6 +1160,8 @@ export function ChatMessageRow({
   showQuoteButton?: boolean;
   /** Slack-style continuation: omit avatar / name / primary timestamp. */
   isContinuation?: boolean;
+  /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
+  isFirstOfDay?: boolean;
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
@@ -1219,7 +1222,11 @@ export function ChatMessageRow({
       className={cn(
         "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
-        isContinuation ? "min-h-0 py-0.5" : "mt-3 min-h-0 pt-1 pb-0.5",
+        isContinuation
+          ? "min-h-0 py-0.5"
+          : isFirstOfDay
+            ? "mt-0 min-h-0 pt-1 pb-0.5"
+            : "mt-2 min-h-0 pt-1 pb-0.5",
       )}
       {...(showActions ? longPress : {})}
     >

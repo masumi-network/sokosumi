@@ -4443,7 +4443,7 @@ export const ChatRoomListStatusSchema = {
         'archived'
     ],
     default: 'active',
-    description: 'Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller can restore (creator, or org owner/admin, and still a member).',
+    description: 'Room visibility. `active` (default) lists live rooms; `archived` lists soft-archived channels the caller can restore (organization owner/admin, and still a member).',
     example: 'active'
 } as const;
 
@@ -4891,13 +4891,56 @@ export const LeftChatRoomSchema = {
         remainingUserMemberCount: {
             type: 'integer',
             minimum: 1,
-            description: 'Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; the channel creator or an organization owner/admin must archive instead.',
+            description: 'Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.',
             example: 3
         }
     },
     required: [
         'id',
         'remainingUserMemberCount'
+    ]
+} as const;
+
+export const ChatRoomThreadSchema = {
+    type: 'object',
+    properties: {
+        parentMessage: {
+            $ref: '#/components/schemas/ChatRoomMessage'
+        },
+        replyCount: {
+            type: 'integer',
+            minimum: 1,
+            description: 'Non-deleted replies under this parent.',
+            example: 5
+        },
+        lastReplyAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-07-02T12:00:00.000Z',
+            description: 'createdAt of the newest non-deleted reply.'
+        },
+        unreadReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-deleted replies from others after the look baseline for this parent.',
+            example: 2
+        },
+        lastUnreadReplyAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2026-07-02T12:00:00.000Z',
+            description: 'createdAt of the newest qualifying unread reply, or null when none.'
+        }
+    },
+    required: [
+        'parentMessage',
+        'replyCount',
+        'lastReplyAt',
+        'unreadReplyCount',
+        'lastUnreadReplyAt'
     ]
 } as const;
 
@@ -4979,6 +5022,9 @@ export const ChatRoomMessageSchema = {
         },
         quote: {
             $ref: '#/components/schemas/ChatRoomMessageQuote'
+        },
+        membership: {
+            $ref: '#/components/schemas/ChatRoomMessageMembership'
         }
     },
     required: [
@@ -4995,7 +5041,8 @@ export const ChatRoomMessageSchema = {
         'threadReplyCount',
         'threadLastReplyAt',
         'metadata',
-        'quote'
+        'quote',
+        'membership'
     ]
 } as const;
 
@@ -5209,6 +5256,113 @@ export const ChatRoomMessageQuoteAttachmentSchema = {
         'fileName',
         'url',
         'mediaKind'
+    ]
+} as const;
+
+export const ChatRoomMessageMembershipSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        action: {
+            type: 'string',
+            enum: [
+                'joined',
+                'left'
+            ]
+        },
+        subject: {
+            $ref: '#/components/schemas/ChatRoomMessageMembershipSubject'
+        }
+    },
+    required: [
+        'action',
+        'subject'
+    ]
+} as const;
+
+export const ChatRoomMessageMembershipSubjectSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'user'
+                    ]
+                },
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'type',
+                'id',
+                'name'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'coworker'
+                    ]
+                },
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'type',
+                'id',
+                'name'
+            ]
+        }
+    ]
+} as const;
+
+export const ChatRoomThreadsMarkAllSchema = {
+    type: 'object',
+    properties: {
+        markedCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of parent threads whose look state was upserted.',
+            example: 3
+        }
+    },
+    required: [
+        'markedCount'
+    ]
+} as const;
+
+export const ChatRoomThreadReadStateSchema = {
+    type: 'object',
+    properties: {
+        parentMessageId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        lastReadAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'parentMessageId',
+        'lastReadAt'
     ]
 } as const;
 

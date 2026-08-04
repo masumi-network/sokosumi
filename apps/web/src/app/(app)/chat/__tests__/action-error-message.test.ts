@@ -39,7 +39,7 @@ describe("actionErrorMessage", () => {
 
   it("returns CoreApiRequestError permission message for 403", () => {
     const message =
-      "Only the channel creator or an organization owner/admin can update members";
+      "Only an organization owner or admin can update channel settings.";
 
     expect(
       actionErrorMessage(

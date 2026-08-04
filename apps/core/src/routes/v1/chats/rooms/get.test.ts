@@ -105,28 +105,15 @@ describe("GET /chats/rooms", () => {
     expect(roomCountMock).toHaveBeenCalledOnce();
   });
 
-  it("lists archived rooms the plain member created", async () => {
+  it("returns an empty archived list for a plain member (no creator filter)", async () => {
     const response = await createApp(ORG_ID).request("/?status=archived");
 
     expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual([]);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
-    expect(roomFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          archivedAt: { not: null },
-          organizationId: ORG_ID,
-          createdByUserId: USER_ID,
-          userMembers: { some: { userId: USER_ID } },
-        }),
-      }),
-    );
-    expect(roomCountMock).toHaveBeenCalledWith({
-      where: expect.objectContaining({
-        archivedAt: { not: null },
-        createdByUserId: USER_ID,
-        organizationId: ORG_ID,
-      }),
-    });
+    expect(roomFindManyMock).not.toHaveBeenCalled();
+    expect(roomCountMock).not.toHaveBeenCalled();
   });
 
   it.each([
