@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -11,8 +12,7 @@ import { AgentsNotAvailable, AgentsSkeleton } from "@/components/agents";
 import { CoworkerGallerySection } from "@/components/agents/coworker-gallery-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapCoreCategoriesToCategories } from "@/lib/agents/core-dto-mappers";
-import { getAllCoreAgents } from "@/lib/agents/core-loaders";
-import { coreClient } from "@/lib/clients/core.client";
+import { getAllCoreAgents, getCoreCategories } from "@/lib/agents/core-loaders";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { getAgentRatingStatsMap } from "@/lib/types/core-dto";
 
@@ -33,6 +33,22 @@ function logAgentsCatalogFetchFailure(scope: string, error: unknown): void {
   });
 }
 
+function CoworkersTierFallback() {
+  return (
+    <section className="space-y-8">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-56 md:h-8" />
+        <Skeleton className="h-4 w-80 md:h-5" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
+          <Skeleton key={index} className="h-40 w-full rounded-xl" />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function AgentsCatalogFallback() {
   return (
     <section className="space-y-8">
@@ -45,19 +61,39 @@ function AgentsCatalogFallback() {
   );
 }
 
+async function CoworkersTier() {
+  // Defer before any cookies()/headers()-bound work so PPR shell probing does
+  // not soft-reject dynamic APIs while filling this Suspense hole.
+  await connection();
+
+  const coworkers = await coworkerService
+    .listCoworkers("tasks")
+    .catch(() => []);
+  const coworkerOptions = getCoworkerOptions(coworkers);
+
+  return (
+    <CreateTaskModalProvider>
+      <CoworkerGallerySection coworkers={coworkers} />
+      <CreateTaskModal coworkerOptions={coworkerOptions} />
+    </CreateTaskModalProvider>
+  );
+}
+
 /**
  * Tier 2 — full catalog streams after Tier 1 paints so LCP is the coworker
  * gallery, not a blocked wait on every catalog page.
  */
 async function AllAgentsTier() {
-  const [coreAgents, categoriesResponse, t] = await Promise.all([
+  await connection();
+
+  const [coreAgents, categories, t] = await Promise.all([
     getAllCoreAgents().catch((error) => {
       logAgentsCatalogFetchFailure("agent catalog", error);
       return [];
     }),
-    coreClient.getCategories().catch((error) => {
+    getCoreCategories().catch((error) => {
       logAgentsCatalogFetchFailure("categories", error);
-      return { data: [] };
+      return [];
     }),
     getTranslations("App.Agents"),
   ]);
@@ -66,7 +102,7 @@ async function AllAgentsTier() {
     return <AgentsNotAvailable />;
   }
 
-  const categories = mapCoreCategoriesToCategories(categoriesResponse.data);
+  const mappedCategories = mapCoreCategoriesToCategories(categories);
   const ratingStatsMap = getAgentRatingStatsMap(coreAgents);
 
   return (
@@ -82,27 +118,19 @@ async function AllAgentsTier() {
       <FilteredAgents
         agents={coreAgents}
         ratingStatsMap={ratingStatsMap}
-        categories={categories}
+        categories={mappedCategories}
       />
     </section>
   );
 }
 
-export default async function GalleryPage() {
-  // Tier 1 is the LCP surface: coworkers only. CreateTaskModal lazy-loads agent
-  // names + design.md when opened (same pattern as the tasks board).
-  const coworkers = await coworkerService
-    .listCoworkers("tasks")
-    .catch(() => []);
-  const coworkerOptions = getCoworkerOptions(coworkers);
-
+export default function GalleryPage() {
   return (
     <div className="w-full">
       <div className="space-y-16 px-2 pb-8 md:space-y-24">
-        <CreateTaskModalProvider>
-          <CoworkerGallerySection coworkers={coworkers} />
-          <CreateTaskModal coworkerOptions={coworkerOptions} />
-        </CreateTaskModalProvider>
+        <Suspense fallback={<CoworkersTierFallback />}>
+          <CoworkersTier />
+        </Suspense>
 
         <Suspense fallback={<AgentsCatalogFallback />}>
           <AllAgentsTier />
