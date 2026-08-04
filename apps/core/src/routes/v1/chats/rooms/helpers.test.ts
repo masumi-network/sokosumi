@@ -9,6 +9,7 @@ import {
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
   contentIncludesRoomAllMention,
+  getChatRoomThreadAttentionAggregates,
   getChatRoomUnreadMentionCounts,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
@@ -530,5 +531,43 @@ describe("mapChatRoomMessage quote", () => {
     expect(mapped.metadata).toBeNull();
     expect(mapped.reactions).toEqual([]);
     expect(mapped.threadReplyCount).toBe(2);
+  });
+});
+
+describe("getChatRoomThreadAttentionAggregates", () => {
+  it("queries with thread baseline independent of room lastReadAt and excludes soft-deleted/self replies", async () => {
+    const queryRawUnsafe = vi.fn().mockResolvedValue([
+      {
+        parentMessageId: "550e8400-e29b-41d4-a716-446655440001",
+        unreadReplyCount: 3,
+        lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
+      },
+    ]);
+    const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
+
+    const rows = await getChatRoomThreadAttentionAggregates(
+      "550e8400-e29b-41d4-a716-446655440000",
+      "user_123",
+      tx,
+    );
+
+    expect(rows).toEqual([
+      {
+        parentMessageId: "550e8400-e29b-41d4-a716-446655440001",
+        unreadReplyCount: 3,
+        lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
+      },
+    ]);
+
+    const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
+    expect(sql).toContain('thread_read."lastReadAt"');
+    expect(sql).toContain('room_read."createdAt"');
+    expect(sql).toContain("'-infinity'::timestamp");
+    expect(sql).not.toMatch(/room_read\."lastReadAt"/);
+    expect(sql).toContain('reply."deletedAt" IS NULL');
+    expect(sql).toContain('parent."deletedAt" IS NULL');
+    expect(sql).toMatch(
+      /reply\."senderUserId" IS NULL OR reply\."senderUserId" <>/,
+    );
   });
 });

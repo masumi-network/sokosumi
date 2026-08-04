@@ -159,6 +159,120 @@ export async function getChatRoomUnreadCounts(
   return new Map(rows.map((row) => [row.roomId, Number(row.unreadCount)]));
 }
 
+export interface ChatRoomThreadAttentionAggregate {
+  parentMessageId: string;
+  unreadReplyCount: number;
+  lastUnreadReplyAt: Date;
+}
+
+/**
+ * Parents (top-level messages) in a room that have ≥1 non-deleted, non-self
+ * reply after the caller's look baseline.
+ *
+ * Look baseline per parent:
+ * 1. ChatRoomThreadReadState.lastReadAt when a row exists
+ * 2. else ChatRoomReadState.createdAt for (room, user) when present
+ * 3. else -infinity (all historical non-self replies count)
+ *
+ * Never uses room lastReadAt — room mark-read must not clear thread attention.
+ */
+export async function getChatRoomThreadAttentionAggregates(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<ChatRoomThreadAttentionAggregate[]> {
+  const rows = await tx.$queryRawUnsafe<
+    Array<{
+      parentMessageId: string;
+      unreadReplyCount: number | bigint;
+      lastUnreadReplyAt: Date;
+    }>
+  >(
+    `
+    SELECT
+      parent.id AS "parentMessageId",
+      COUNT(reply.id)::int AS "unreadReplyCount",
+      MAX(reply."createdAt") AS "lastUnreadReplyAt"
+    FROM "chat_room_message" reply
+    INNER JOIN "chat_room_message" parent
+      ON parent.id = reply."parentMessageId"
+      AND parent."roomId" = reply."roomId"
+    LEFT JOIN "chat_room_thread_read_state" thread_read
+      ON thread_read."parentMessageId" = parent.id
+      AND thread_read."userId" = $2
+    LEFT JOIN "chat_room_read_state" room_read
+      ON room_read."roomId" = reply."roomId"
+      AND room_read."userId" = $2
+    WHERE reply."roomId" = $1::uuid
+      AND reply."parentMessageId" IS NOT NULL
+      AND reply."deletedAt" IS NULL
+      AND parent."deletedAt" IS NULL
+      AND parent."parentMessageId" IS NULL
+      AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+      AND reply."createdAt" > COALESCE(
+        thread_read."lastReadAt",
+        room_read."createdAt",
+        '-infinity'::timestamp
+      )
+    GROUP BY parent.id
+    ORDER BY MAX(reply."createdAt") DESC
+    `,
+    roomId,
+    userId,
+  );
+
+  return rows.map((row) => ({
+    parentMessageId: row.parentMessageId,
+    unreadReplyCount: Number(row.unreadReplyCount),
+    lastUnreadReplyAt: row.lastUnreadReplyAt,
+  }));
+}
+
+/**
+ * Attention list with mapped parent messages, sorted by newest unread reply.
+ * Soft-deleted parents are omitted by the aggregate query; a missing findMany
+ * row (race) is skipped.
+ */
+export async function listChatRoomThreadAttention(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+) {
+  const aggregates = await getChatRoomThreadAttentionAggregates(
+    roomId,
+    userId,
+    tx,
+  );
+  if (aggregates.length === 0) {
+    return [];
+  }
+
+  const parents = await tx.chatRoomMessage.findMany({
+    where: {
+      id: { in: aggregates.map((row) => row.parentMessageId) },
+      roomId,
+      parentMessageId: null,
+      deletedAt: null,
+    },
+    include: chatRoomMessageInclude,
+  });
+  const parentsById = new Map(parents.map((parent) => [parent.id, parent]));
+
+  return aggregates.flatMap((aggregate) => {
+    const parent = parentsById.get(aggregate.parentMessageId);
+    if (!parent) {
+      return [];
+    }
+    return [
+      {
+        parentMessage: mapChatRoomMessage(parent, userId),
+        unreadReplyCount: aggregate.unreadReplyCount,
+        lastUnreadReplyAt: aggregate.lastUnreadReplyAt,
+      },
+    ];
+  });
+}
+
 /**
  * Per-room count of unread CHAT notifications for the user.
  * `referenceId` is the room id (see emitChatMentionNotifications).

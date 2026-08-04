@@ -396,7 +396,42 @@ export const leftChatRoomSchema = z
  */
 export const restoredChatRoomSchema = chatRoomSchema;
 
+/**
+ * A top-level room message with ≥1 unread non-self reply after the caller's
+ * per-thread look baseline (or room-read createdAt / -infinity fallback).
+ */
+export const chatRoomThreadAttentionItemSchema = z
+  .object({
+    parentMessage: chatRoomMessageSchema,
+    unreadReplyCount: z.number().int().min(1).openapi({
+      description:
+        "Non-deleted replies from others after the look baseline for this parent.",
+      example: 2,
+    }),
+    lastUnreadReplyAt: dateTimeSchema.openapi({
+      description: "createdAt of the newest qualifying unread reply.",
+      example: "2026-07-02T12:00:00.000Z",
+    }),
+  })
+  .openapi("ChatRoomThreadAttentionItem");
+
+/** Result of marking a thread parent as looked (ThreadPanel open). */
+export const chatRoomThreadReadStateSchema = z
+  .object({
+    parentMessageId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    lastReadAt: dateTimeSchema,
+  })
+  .openapi("ChatRoomThreadReadState");
+
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
 export type ChatRoomMessageQuote = z.infer<typeof chatRoomMessageQuoteSchema>;
+export type ChatRoomThreadAttentionItem = z.infer<
+  typeof chatRoomThreadAttentionItemSchema
+>;
+export type ChatRoomThreadReadState = z.infer<
+  typeof chatRoomThreadReadStateSchema
+>;
