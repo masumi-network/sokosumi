@@ -6,6 +6,8 @@ import type {
   ChatRoom,
   ChatRoomKind,
   ChatRoomMessage,
+  ChatRoomThreadAttentionItem,
+  ChatRoomThreadReadState,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
   DiscoverableChatRoom,
@@ -199,6 +201,24 @@ export const chatRoomService = (() => {
     };
   });
 
+  const listThreadAttention = cache(async function listThreadAttention(
+    roomId: string,
+  ): Promise<ChatRoomThreadAttentionItem[]> {
+    const response = await coreClient.getChatRoomThreadAttention(roomId);
+    return response.data;
+  });
+
+  async function markThreadRead(
+    roomId: string,
+    parentMessageId: string,
+  ): Promise<ChatRoomThreadReadState> {
+    const response = await coreClient.markChatRoomThreadRead(
+      roomId,
+      parentMessageId,
+    );
+    return response.data;
+  }
+
   async function sendMessage(
     roomId: string,
     body: CreateChatRoomMessageRequest,
@@ -251,9 +271,11 @@ export const chatRoomService = (() => {
     listDiscoverableChannels,
     listMessages,
     listRooms,
+    listThreadAttention,
     listThreadMessages,
     leaveRoom,
     markRead,
+    markThreadRead,
     markUnread,
     pinRoom,
     restoreRoom,

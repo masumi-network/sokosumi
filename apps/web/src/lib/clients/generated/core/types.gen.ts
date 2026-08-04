@@ -1356,6 +1356,18 @@ export type LeftChatRoom = {
     remainingUserMemberCount: number;
 };
 
+export type ChatRoomThreadAttentionItem = {
+    parentMessage: ChatRoomMessage;
+    /**
+     * Non-deleted replies from others after the look baseline for this parent.
+     */
+    unreadReplyCount: number;
+    /**
+     * createdAt of the newest qualifying unread reply.
+     */
+    lastUnreadReplyAt: Date;
+};
+
 export type ChatRoomMessage = {
     id: string;
     roomId: string;
@@ -1458,6 +1470,11 @@ export type UpdateChatRoomMessageRequest = {
 
 export type ReactToChatRoomMessageRequest = {
     emoji: string;
+};
+
+export type ChatRoomThreadReadState = {
+    parentMessageId: string;
+    lastReadAt: Date;
 };
 
 export type ChatRoomFileUploadSession = {
@@ -10507,6 +10524,98 @@ export type PostChatsRoomsByIdUnreadResponses = {
 
 export type PostChatsRoomsByIdUnreadResponse = PostChatsRoomsByIdUnreadResponses[keyof PostChatsRoomsByIdUnreadResponses];
 
+export type GetChatsRoomsByIdThreadAttentionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/thread-attention';
+};
+
+export type GetChatsRoomsByIdThreadAttentionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdThreadAttentionError = GetChatsRoomsByIdThreadAttentionErrors[keyof GetChatsRoomsByIdThreadAttentionErrors];
+
+export type GetChatsRoomsByIdThreadAttentionResponses = {
+    /**
+     * Threads needing attention
+     */
+    200: {
+        data: Array<ChatRoomThreadAttentionItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdThreadAttentionResponse = GetChatsRoomsByIdThreadAttentionResponses[keyof GetChatsRoomsByIdThreadAttentionResponses];
+
 export type DeleteChatsRoomsByIdPinData = {
     body?: never;
     headers?: {
@@ -11438,6 +11547,99 @@ export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponses = {
 };
 
 export type PostChatsRoomsByIdMessagesByMessageIdReactionsResponse = PostChatsRoomsByIdMessagesByMessageIdReactionsResponses[keyof PostChatsRoomsByIdMessagesByMessageIdReactionsResponses];
+
+export type PostChatsRoomsByIdMessagesByMessageIdThreadReadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/thread-read';
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdThreadReadErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room or message not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdThreadReadError = PostChatsRoomsByIdMessagesByMessageIdThreadReadErrors[keyof PostChatsRoomsByIdMessagesByMessageIdThreadReadErrors];
+
+export type PostChatsRoomsByIdMessagesByMessageIdThreadReadResponses = {
+    /**
+     * Thread marked looked
+     */
+    200: {
+        data: ChatRoomThreadReadState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMessagesByMessageIdThreadReadResponse = PostChatsRoomsByIdMessagesByMessageIdThreadReadResponses[keyof PostChatsRoomsByIdMessagesByMessageIdThreadReadResponses];
 
 export type PostChatsRoomsByIdFilesData = {
     body: CreateChatRoomFileUploadSessionRequest;

@@ -4,6 +4,8 @@ vi.mock("server-only", () => ({}));
 
 const getChatRoomsMock = vi.fn();
 const getDiscoverableChatRoomsMock = vi.fn();
+const getChatRoomThreadAttentionMock = vi.fn();
+const markChatRoomThreadReadMock = vi.fn();
 const archiveChatRoomMock = vi.fn();
 const deleteChatRoomMock = vi.fn();
 const leaveChatRoomMock = vi.fn();
@@ -22,6 +24,10 @@ vi.mock("@/lib/clients/core.client", () => ({
     getChatRooms: (...args: unknown[]) => getChatRoomsMock(...args),
     getDiscoverableChatRooms: (...args: unknown[]) =>
       getDiscoverableChatRoomsMock(...args),
+    getChatRoomThreadAttention: (...args: unknown[]) =>
+      getChatRoomThreadAttentionMock(...args),
+    markChatRoomThreadRead: (...args: unknown[]) =>
+      markChatRoomThreadReadMock(...args),
     archiveChatRoom: (...args: unknown[]) => archiveChatRoomMock(...args),
     deleteChatRoom: (...args: unknown[]) => deleteChatRoomMock(...args),
     leaveChatRoom: (...args: unknown[]) => leaveChatRoomMock(...args),
@@ -346,5 +352,43 @@ describe("chatRoomService lifecycle wrappers", () => {
     await chatRoomService.deleteRoom("room-1");
 
     expect(deleteChatRoomMock).toHaveBeenCalledWith("room-1");
+  });
+});
+
+describe("chatRoomService thread attention", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("listThreadAttention returns Core attention items", async () => {
+    const items = [
+      {
+        parentMessage: { id: "msg-1" },
+        unreadReplyCount: 3,
+        lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
+      },
+    ];
+    getChatRoomThreadAttentionMock.mockResolvedValue({ data: items });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const result = await chatRoomService.listThreadAttention("room-1");
+
+    expect(getChatRoomThreadAttentionMock).toHaveBeenCalledWith("room-1");
+    expect(result).toEqual(items);
+  });
+
+  it("markThreadRead posts look state for parent message", async () => {
+    const state = {
+      parentMessageId: "msg-1",
+      lastReadAt: new Date("2026-08-01T02:00:00.000Z"),
+    };
+    markChatRoomThreadReadMock.mockResolvedValue({ data: state });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const result = await chatRoomService.markThreadRead("room-1", "msg-1");
+
+    expect(markChatRoomThreadReadMock).toHaveBeenCalledWith("room-1", "msg-1");
+    expect(result).toEqual(state);
   });
 });

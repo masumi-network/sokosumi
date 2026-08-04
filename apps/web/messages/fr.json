@@ -4712,6 +4712,14 @@
         "error": "Impossible de rechercher les messages. Réessayez.",
         "replyBadge": "Réponse du fil"
       },
+      "ThreadAttention": {
+        "open": "Fils nécessitant une attention",
+        "title": "Fils nécessitant une attention",
+        "empty": "Aucun fil ne nécessite d'attention.",
+        "loading": "Chargement des fils…",
+        "error": "Impossible de charger les fils. Réessayez.",
+        "unreadReplies": "{count, plural, one {# réponse non lue} other {# réponses non lues}}"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

@@ -6,6 +6,8 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type {
   ChatRoom,
   ChatRoomMessage,
+  ChatRoomThreadAttentionItem,
+  ChatRoomThreadReadState,
   DiscoverableChatRoom,
 } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
@@ -451,6 +453,38 @@ export async function listThreadMessagesAction(
     return {
       ok: false,
       message: actionErrorMessage(error, "Could not load thread."),
+    };
+  }
+}
+
+export async function listThreadAttentionAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoomThreadAttentionItem[]>> {
+  try {
+    const items = await chatRoomService.listThreadAttention(roomId);
+    return { ok: true, data: items };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(
+        error,
+        "Could not load threads needing attention.",
+      ),
+    };
+  }
+}
+
+export async function markThreadReadAction(
+  roomId: string,
+  parentMessageId: string,
+): Promise<RoomActionResult<ChatRoomThreadReadState>> {
+  try {
+    const state = await chatRoomService.markThreadRead(roomId, parentMessageId);
+    return { ok: true, data: state };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not mark thread looked."),
     };
   }
 }

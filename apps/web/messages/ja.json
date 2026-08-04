@@ -4712,6 +4712,14 @@
         "error": "メッセージを検索できませんでした。もう一度お試しください。",
         "replyBadge": "スレッド返信"
       },
+      "ThreadAttention": {
+        "open": "対応が必要なスレッド",
+        "title": "対応が必要なスレッド",
+        "empty": "対応が必要なスレッドはありません。",
+        "loading": "スレッドを読み込み中…",
+        "error": "スレッドを読み込めませんでした。もう一度お試しください。",
+        "unreadReplies": "{count, plural, one {未読の返信 # 件} other {未読の返信 # 件}}"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

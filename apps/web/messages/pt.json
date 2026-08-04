@@ -4712,6 +4712,14 @@
         "error": "Não foi possível pesquisar as mensagens. Tente novamente.",
         "replyBadge": "Resposta do tópico"
       },
+      "ThreadAttention": {
+        "open": "Tópicos que precisam de atenção",
+        "title": "Tópicos que precisam de atenção",
+        "empty": "Nenhum tópico precisa de atenção.",
+        "loading": "A carregar tópicos…",
+        "error": "Não foi possível carregar os tópicos. Tente novamente.",
+        "unreadReplies": "{count, plural, one {# resposta não lida} other {# respostas não lidas}}"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

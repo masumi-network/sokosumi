@@ -18,11 +18,13 @@ import {
   editRoomMessageAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
+  markThreadReadAction,
   sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
+import { ThreadAttentionPanel } from "@/app/chat/components/thread-attention-panel";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
@@ -976,6 +978,8 @@ export function RoomsClient({
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
+    // Fire-and-forget: thread look state is independent of room mark-read.
+    void markThreadReadAction(roomId, parentMessage.id);
     startThreadLoadingTransition(async () => {
       const result = await listThreadMessagesAction(roomId, parentMessage.id);
       if (!result.ok) {
@@ -1355,6 +1359,20 @@ export function RoomsClient({
                       loading: t("RoomSearch.loading"),
                       error: t("RoomSearch.error"),
                       replyBadge: t("RoomSearch.replyBadge"),
+                    }}
+                  />
+                  <ThreadAttentionPanel
+                    key={`attention-${selectedRoom.id}`}
+                    roomId={selectedRoom.id}
+                    onOpenThread={loadThreadMessages}
+                    labels={{
+                      open: t("ThreadAttention.open"),
+                      title: t("ThreadAttention.title"),
+                      empty: t("ThreadAttention.empty"),
+                      loading: t("ThreadAttention.loading"),
+                      error: t("ThreadAttention.error"),
+                      unreadReplies: (count) =>
+                        t("ThreadAttention.unreadReplies", { count }),
                     }}
                   />
                   <RoomParticipantStack

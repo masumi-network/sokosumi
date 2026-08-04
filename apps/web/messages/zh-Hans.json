@@ -4712,6 +4712,14 @@
         "error": "无法搜索消息。请重试。",
         "replyBadge": "帖子回复"
       },
+      "ThreadAttention": {
+        "open": "需要关注的帖子",
+        "title": "需要关注的帖子",
+        "empty": "没有需要关注的帖子。",
+        "loading": "正在加载帖子…",
+        "error": "无法加载帖子。请重试。",
+        "unreadReplies": "{count, plural, one {# 条未读回复} other {# 条未读回复}}"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

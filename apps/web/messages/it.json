@@ -4712,6 +4712,14 @@
         "error": "Impossibile cercare i messaggi. Riprova.",
         "replyBadge": "Risposta del thread"
       },
+      "ThreadAttention": {
+        "open": "Thread che richiedono attenzione",
+        "title": "Thread che richiedono attenzione",
+        "empty": "Nessun thread richiede attenzione.",
+        "loading": "Caricamento thread…",
+        "error": "Impossibile caricare i thread. Riprova.",
+        "unreadReplies": "{count, plural, one {# risposta non letta} other {# risposte non lette}}"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

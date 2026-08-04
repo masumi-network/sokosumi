@@ -4712,6 +4712,14 @@
         "error": "No se pudieron buscar los mensajes. Inténtalo de nuevo.",
         "replyBadge": "Respuesta del hilo"
       },
+      "ThreadAttention": {
+        "open": "Hilos que necesitan atención",
+        "title": "Hilos que necesitan atención",
+        "empty": "Ningún hilo necesita atención.",
+        "loading": "Cargando hilos…",
+        "error": "No se pudieron cargar los hilos. Inténtalo de nuevo.",
+        "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

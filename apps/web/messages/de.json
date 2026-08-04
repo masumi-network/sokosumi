@@ -4712,6 +4712,14 @@
         "error": "Nachrichten konnten nicht gesucht werden. Versuch es erneut.",
         "replyBadge": "Thread-Antwort"
       },
+      "ThreadAttention": {
+        "open": "Threads, die Aufmerksamkeit brauchen",
+        "title": "Threads, die Aufmerksamkeit brauchen",
+        "empty": "Keine Threads brauchen Aufmerksamkeit.",
+        "loading": "Threads werden geladen…",
+        "error": "Threads konnten nicht geladen werden. Versuch es erneut.",
+        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

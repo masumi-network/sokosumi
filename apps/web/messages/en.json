@@ -4831,6 +4831,14 @@
         "error": "Could not search messages. Try again.",
         "replyBadge": "Thread reply"
       },
+      "ThreadAttention": {
+        "open": "Threads needing attention",
+        "title": "Threads needing attention",
+        "empty": "No threads need attention.",
+        "loading": "Loading threads…",
+        "error": "Could not load threads. Try again.",
+        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}"
+      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",

@@ -125,6 +125,7 @@ import {
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
+  getChatsRoomsByIdThreadAttention as coreGetChatsRoomsByIdThreadAttention,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
   getCheckoutSessionAnalytics as coreGetCheckoutSessionAnalytics,
   getCouponDetails as coreGetCouponDetails,
@@ -225,6 +226,7 @@ import {
   postChatsRoomsByIdMembersMe as corePostChatsRoomsByIdMembersMe,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
+  postChatsRoomsByIdMessagesByMessageIdThreadRead as corePostChatsRoomsByIdMessagesByMessageIdThreadRead,
   postChatsRoomsByIdMute as corePostChatsRoomsByIdMute,
   postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
@@ -758,6 +760,31 @@ export function createCoreClient(getClient: GetClient) {
           cache: "no-store",
         }),
       "Failed to fetch chat room messages",
+    );
+  }
+
+  async function getChatRoomThreadAttention(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdThreadAttention({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch thread attention",
+    );
+  }
+
+  async function markChatRoomThreadRead(id: string, messageId: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMessagesByMessageIdThreadRead({
+          client,
+          path: { id, messageId },
+        }),
+      "Failed to mark thread looked",
     );
   }
 
@@ -3766,9 +3793,11 @@ export function createCoreClient(getClient: GetClient) {
     deleteTaskSchedule,
     getChatRoom,
     getChatRoomMessages,
+    getChatRoomThreadAttention,
     getChatRooms,
     getDiscoverableChatRooms,
     markChatRoomRead,
+    markChatRoomThreadRead,
     pinChatRoom,
     unpinChatRoom,
     muteChatRoom,
