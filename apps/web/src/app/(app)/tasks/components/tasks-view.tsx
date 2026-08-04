@@ -59,7 +59,7 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import {
   jobStatusDataSchema,
   makeAgentJobsChannelName,
@@ -1310,7 +1310,7 @@ export function TasksView({
       initialProjectId={defaultProjectId}
     >
       {userId ? (
-        <DynamicAblyProvider>
+        <LazyAblyProvider>
           <ChannelProvider channelName={makeUserTasksChannelName(userId)}>
             <TasksRealtimeListener
               userId={userId}
@@ -1329,27 +1329,16 @@ export function TasksView({
               />
             </ChannelProvider>
           ))}
-          {tabsContent}
-          {shouldShowEmptyStateOverlay ? (
-            <TasksEmptyStateOverlay
-              labels={labels.emptyState}
-              onComplete={handleGuideComplete}
-              onDismiss={handleGuideDismiss}
-            />
-          ) : null}
-        </DynamicAblyProvider>
-      ) : (
-        <>
-          {tabsContent}
-          {shouldShowEmptyStateOverlay ? (
-            <TasksEmptyStateOverlay
-              labels={labels.emptyState}
-              onComplete={handleGuideComplete}
-              onDismiss={handleGuideDismiss}
-            />
-          ) : null}
-        </>
-      )}
+        </LazyAblyProvider>
+      ) : null}
+      {tabsContent}
+      {shouldShowEmptyStateOverlay ? (
+        <TasksEmptyStateOverlay
+          labels={labels.emptyState}
+          onComplete={handleGuideComplete}
+          onDismiss={handleGuideDismiss}
+        />
+      ) : null}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}
         projectOptions={projectOptions}

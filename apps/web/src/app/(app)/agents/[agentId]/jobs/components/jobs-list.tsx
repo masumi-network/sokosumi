@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
-import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
@@ -166,47 +166,49 @@ export function JobsList({
   }
 
   return (
-    <DynamicAblyProvider>
-      <ChannelProvider channelName={channelName}>
-        <JobsStatusRealtimeListener
-          channelName={channelName}
-          onStatusUpdate={handleStatusUpdate}
-        />
-        <aside className="lg:border-border flex h-full min-h-0 w-full flex-col py-4 lg:w-72 lg:border-r">
-          <JobsSearch
-            jobs={localJobs}
-            onFilteredChange={(nextJobs) => setFilteredJobs(nextJobs)}
+    <>
+      <LazyAblyProvider>
+        <ChannelProvider channelName={channelName}>
+          <JobsStatusRealtimeListener
+            channelName={channelName}
+            onStatusUpdate={handleStatusUpdate}
           />
+        </ChannelProvider>
+      </LazyAblyProvider>
+      <aside className="lg:border-border flex h-full min-h-0 w-full flex-col py-4 lg:w-72 lg:border-r">
+        <JobsSearch
+          jobs={localJobs}
+          onFilteredChange={(nextJobs) => setFilteredJobs(nextJobs)}
+        />
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 lg:pb-2">
-            {dayGroups.length > 0 ? (
-              dayGroups.map((group) => (
-                <section key={group.key} className="mb-4">
-                  <div className="text-muted-foreground px-2 pb-2 text-xs font-medium capitalize">
-                    {group.key}
-                  </div>
-                  <ul className="space-y-2">
-                    {group.jobs.map((job) => (
-                      <li key={job.id}>
-                        <JobRow
-                          job={job}
-                          selected={activeJobId === job.id}
-                          onClick={handleJobClick}
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))
-            ) : (
-              <div className="text-muted-foreground px-2 py-8 text-sm">
-                {t("emptyJobs")}
-              </div>
-            )}
-          </div>
-        </aside>
-      </ChannelProvider>
-    </DynamicAblyProvider>
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 lg:pb-2">
+          {dayGroups.length > 0 ? (
+            dayGroups.map((group) => (
+              <section key={group.key} className="mb-4">
+                <div className="text-muted-foreground px-2 pb-2 text-xs font-medium capitalize">
+                  {group.key}
+                </div>
+                <ul className="space-y-2">
+                  {group.jobs.map((job) => (
+                    <li key={job.id}>
+                      <JobRow
+                        job={job}
+                        selected={activeJobId === job.id}
+                        onClick={handleJobClick}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
+          ) : (
+            <div className="text-muted-foreground px-2 py-8 text-sm">
+              {t("emptyJobs")}
+            </div>
+          )}
+        </div>
+      </aside>
+    </>
   );
 }
 

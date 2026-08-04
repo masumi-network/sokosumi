@@ -20,12 +20,21 @@ export interface CheckoutSessionData {
   }[];
 }
 
-export default function PurchaseTracker({
-  checkoutSession,
-}: PurchaseTrackerProps) {
+/** Fires at most once per checkout session id for the lifetime of this JS realm. */
+const firedPurchaseSessionIds = new Set<string>();
+
+export function resetFiredPurchaseSessionIdsForTests() {
+  firedPurchaseSessionIds.clear();
+}
+
+export function PurchaseTracker({ checkoutSession }: PurchaseTrackerProps) {
   useEffect(() => {
     const { session_id, currency, value, items } =
       mapCheckoutSession(checkoutSession);
+    if (firedPurchaseSessionIds.has(session_id)) {
+      return;
+    }
+    firedPurchaseSessionIds.add(session_id);
     fireGTMEvent.purchase(session_id, currency, value, items);
   }, [checkoutSession]);
 

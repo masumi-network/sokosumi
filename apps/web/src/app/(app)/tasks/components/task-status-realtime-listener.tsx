@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
-import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { makeUserTasksChannelName, taskEventDataSchema } from "@/lib/ably";
 
 interface TaskStatusRealtimeListenerProps {
@@ -55,10 +55,10 @@ export function TaskStatusRealtimeListener(
   props: TaskStatusRealtimeListenerProps,
 ) {
   return (
-    <DynamicAblyProvider>
+    <LazyAblyProvider>
       <ChannelProvider channelName={makeUserTasksChannelName(props.userId)}>
         <TaskStatusRealtimeListenerBody {...props} />
       </ChannelProvider>
-    </DynamicAblyProvider>
+    </LazyAblyProvider>
   );
 }

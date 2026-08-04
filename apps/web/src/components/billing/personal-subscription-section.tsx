@@ -45,15 +45,7 @@ export function PersonalSubscriptionSection({
     null,
   );
 
-  const statusMessage = useMemo(() => {
-    if (status === "success") {
-      return t("statusSuccess");
-    }
-    if (status === "cancel") {
-      return t("statusCancel");
-    }
-    return null;
-  }, [status, t]);
+  const statusMessage = status === "cancel" ? t("statusCancel") : null;
 
   const cancellationDate = useMemo(() => {
     if (!cancelAtPeriodEnd || !currentPeriodEnd) {

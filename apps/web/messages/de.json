@@ -3610,7 +3610,18 @@
       },
       "purchasedSeatsLabel": "Gekaufte Seats",
       "assignedSeatsLabel": "Zugewiesen",
-      "unusedSeatsLabel": "Ungenutzte Seats"
+      "unusedSeatsLabel": "Ungenutzte Seats",
+      "PurchaseSuccess": {
+        "creditsTitle": "Alles erledigt!",
+        "creditsDescription": "Deine Credits wurden deinem Konto gutgeschrieben.",
+        "subscriptionTitle": "Du bist jetzt im {plan}-Plan!",
+        "subscriptionDescription": "Dein Abo ist jetzt aktiv.",
+        "coworkerRowTitle": "Bereit loszulegen?",
+        "coworkerRowDescription": "Starte eine Aufgabe mit einem unserer Coworker.",
+        "startTask": "Aufgabe starten",
+        "startTaskWith": "Aufgabe mit {name} starten",
+        "goToTasks": "Zu den Aufgaben"
+      }
     },
     "Credits": {
       "billingPortalCta": "Käufe verwalten",
@@ -3640,18 +3651,6 @@
         "title": "Etwas ist schiefgelaufen",
         "message": "Bei der Verarbeitung deiner Anfrage ist ein Problem aufgetreten. Bitte versuche es später erneut.",
         "retryButton": "Erneut versuchen"
-      },
-      "Success": {
-        "title": "Zahlung erfolgreich!",
-        "description": "Dein Credit-Kauf war erfolgreich. Vielen Dank!",
-        "fulfillmentNote": "Deine Credits werden in Kürze deinem Account gutgeschrieben. Du kannst dein Guthaben auf der Credits-Seite einsehen.",
-        "backToDashboard": "Agents entdecken",
-        "getStarted": "Starte mit der Beauftragung deines ersten Agents",
-        "Error": {
-          "title": "Etwas ist schiefgelaufen",
-          "description": "Deine Checkout-Sitzung wurde nicht gefunden",
-          "failedNote": "Kontaktiere unseren Support"
-        }
       },
       "Cancel": {
         "title": "Zahlung abgebrochen",
