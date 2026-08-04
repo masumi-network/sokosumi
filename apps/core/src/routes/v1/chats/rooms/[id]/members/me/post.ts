@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -17,6 +18,7 @@ import {
   requireActiveOrganizationId,
   requireJoinablePublicOrgChannel,
 } from "../../../helpers";
+import { recordChannelMembershipStatus } from "../../../membership-status";
 
 const paramsSchema = z.object({
   id: z
@@ -63,7 +65,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const organizationId = requireActiveOrganizationId(userContext);
     const { id } = c.req.valid("param");
 
-    const room = await prisma.$transaction(async (tx) => {
+    const { room, statusMessages } = await prisma.$transaction(async (tx) => {
       const existing = await requireJoinablePublicOrgChannel(
         id,
         userContext.userId,
@@ -102,6 +104,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: { id: true },
       });
 
+      let createdStatus = [] as Awaited<
+        ReturnType<typeof recordChannelMembershipStatus>
+      >;
+
       if (!alreadyMember) {
         await tx.chatRoomUserMember.create({
           data: {
@@ -118,13 +124,40 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ],
           skipDuplicates: true,
         });
+
+        const actor = await tx.user.findUnique({
+          where: { id: userContext.userId },
+          select: { name: true },
+        });
+        const actorName = actor?.name?.trim() || "Someone";
+
+        createdStatus = await recordChannelMembershipStatus(tx, {
+          roomId: existing.id,
+          roomKind: locked.kind,
+          changes: [
+            {
+              action: "joined",
+              subject: {
+                type: "user",
+                id: userContext.userId,
+                name: actorName,
+              },
+            },
+          ],
+        });
       }
 
-      return tx.chatRoom.findFirstOrThrow({
+      const room = await tx.chatRoom.findFirstOrThrow({
         where: { id: existing.id },
         include: chatRoomInclude,
       });
+
+      return { room, statusMessages: createdStatus };
     });
+
+    for (const message of statusMessages) {
+      await publishChatRoomMessageRealtime(message);
+    }
 
     return ok(c, chatRoomSchema.parse(mapChatRoom(room, userContext.userId)));
   });

@@ -4970,6 +4970,10 @@
         "markAllReadError": "Could not mark unread threads as read. Try again.",
         "startedBy": "Started by {name}",
         "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}"
+      },
+      "MembershipStatus": {
+        "joined": "{name} joined",
+        "left": "{name} left"
       }
     }
   },

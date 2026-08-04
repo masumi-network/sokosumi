@@ -4970,6 +4970,10 @@
         "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
         "startedBy": "Gestartet von {name}",
         "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
+      },
+      "MembershipStatus": {
+        "joined": "{name} ist beigetreten",
+        "left": "{name} hat den Channel verlassen"
       }
     }
   },

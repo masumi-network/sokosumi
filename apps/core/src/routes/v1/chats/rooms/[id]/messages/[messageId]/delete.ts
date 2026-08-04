@@ -17,6 +17,7 @@ import {
   mapChatRoomMessage,
   requireChatRoomUserMembership,
 } from "../../../helpers";
+import { assertChatRoomContentMessage } from "../../../membership-status";
 
 const paramsSchema = z.object({
   id: z
@@ -73,6 +74,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!existing) {
         throw notFound("Message not found");
       }
+
+      assertChatRoomContentMessage(existing.metadata);
 
       if (existing.senderUserId !== userContext.userId) {
         throw forbidden("You can only delete your own messages");

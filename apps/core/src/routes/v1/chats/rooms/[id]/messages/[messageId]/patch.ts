@@ -20,6 +20,7 @@ import {
   mapChatRoomMessage,
   requireChatRoomUserWriteAccess,
 } from "../../../helpers";
+import { assertChatRoomContentMessage } from "../../../membership-status";
 
 const paramsSchema = z.object({
   id: z
@@ -85,6 +86,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (!existing) {
         throw notFound("Message not found");
       }
+
+      assertChatRoomContentMessage(existing.metadata);
 
       if (existing.senderCoworkerId) {
         throw forbidden("Coworker messages cannot be edited");

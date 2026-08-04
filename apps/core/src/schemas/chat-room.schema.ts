@@ -288,6 +288,29 @@ export const chatRoomMessageQuoteSchema = z
   })
   .openapi("ChatRoomMessageQuote");
 
+export const chatRoomMessageMembershipSubjectSchema = z
+  .discriminatedUnion("type", [
+    z.object({
+      type: z.literal("user"),
+      id: z.string(),
+      name: z.string(),
+    }),
+    z.object({
+      type: z.literal("coworker"),
+      id: z.string(),
+      name: z.string(),
+    }),
+  ])
+  .openapi("ChatRoomMessageMembershipSubject");
+
+/** Durable channel join/leave snapshot under metadata.membership, promoted on the DTO. */
+export const chatRoomMessageMembershipSchema = z
+  .object({
+    action: z.enum(["joined", "left"]),
+    subject: chatRoomMessageMembershipSubjectSchema,
+  })
+  .openapi("ChatRoomMessageMembership");
+
 export const chatRoomMessageSchema = z
   .object({
     id: z.string().uuid(),
@@ -304,6 +327,7 @@ export const chatRoomMessageSchema = z
     threadLastReplyAt: dateTimeSchema.nullable(),
     metadata: z.record(z.string(), z.any()).nullable(),
     quote: chatRoomMessageQuoteSchema.nullable(),
+    membership: chatRoomMessageMembershipSchema.nullable(),
   })
   .openapi("ChatRoomMessage");
 
@@ -449,6 +473,9 @@ export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
 export type ChatRoomMessageQuote = z.infer<typeof chatRoomMessageQuoteSchema>;
+export type ChatRoomMessageMembership = z.infer<
+  typeof chatRoomMessageMembershipSchema
+>;
 export type ChatRoomThread = z.infer<typeof chatRoomThreadSchema>;
 export type ChatRoomThreadReadState = z.infer<
   typeof chatRoomThreadReadStateSchema
