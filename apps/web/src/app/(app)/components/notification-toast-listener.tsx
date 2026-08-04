@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
-import { useNotifications } from "@/contexts/notification-provider";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { authClient } from "@/lib/auth/auth.client";
@@ -23,6 +22,7 @@ import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notif
 
 interface NotificationToastListenerProps {
   userId: string;
+  markRead: (id: string) => Promise<void>;
 }
 
 interface NotificationToastBodyProps {
@@ -80,11 +80,11 @@ function VendorGrantNotificationToast({
 
 export function NotificationToastListener({
   userId,
+  markRead,
 }: NotificationToastListenerProps) {
   const t = useTranslations("Components.NotificationCenter");
   const tDetail = useTranslations("App.Tasks.Detail");
   const formatMessage = useNotificationMessage();
-  const { markRead } = useNotifications();
   const router = useRouter();
   const { handleSelectWorkspace } = useWorkspaceSwitcher();
 
