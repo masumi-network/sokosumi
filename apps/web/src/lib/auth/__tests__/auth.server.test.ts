@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchMock = vi.fn();
 const headersMock = vi.fn();
-const connectionMock = vi.fn();
 const captureMessageMock = vi.fn();
 const setTagMock = vi.fn();
 const setContextMock = vi.fn();
@@ -23,10 +22,6 @@ vi.mock("@sentry/nextjs", () => ({
   ) => {
     callback({ setTag: setTagMock, setContext: setContextMock });
   },
-}));
-
-vi.mock("next/server", () => ({
-  connection: (...args: unknown[]) => connectionMock(...args),
 }));
 
 vi.mock("next/headers", () => ({
@@ -54,9 +49,6 @@ describe("auth.server", () => {
     vi.resetModules();
     vi.clearAllMocks();
     callOrder.length = 0;
-    connectionMock.mockImplementation(async () => {
-      callOrder.push("connection");
-    });
     headersMock.mockImplementation(async () => {
       callOrder.push("headers");
       return new Headers({ cookie: SESSION_COOKIE });
@@ -74,23 +66,23 @@ describe("auth.server", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
 
-  it("awaits connection before headers and fetch for getSession", async () => {
+  it("uses headers then fetch for getSession", async () => {
     const { getSession } = await import("../auth.server");
 
     await getSession();
 
-    expect(callOrder.slice(0, 3)).toEqual(["connection", "headers", "fetch"]);
+    expect(callOrder.slice(0, 2)).toEqual(["headers", "fetch"]);
   });
 
-  it("awaits connection before headers and fetch for refreshed getSession", async () => {
+  it("uses headers then fetch for refreshed getSession", async () => {
     const { getSession } = await import("../auth.server");
 
     await getSession({ refresh: true });
 
-    expect(callOrder.slice(0, 3)).toEqual(["connection", "headers", "fetch"]);
+    expect(callOrder.slice(0, 2)).toEqual(["headers", "fetch"]);
   });
 
-  it("awaits connection before headers for listUserAccounts", async () => {
+  it("uses headers for listUserAccounts", async () => {
     fetchMock.mockImplementation(async () => {
       callOrder.push("fetch");
       return {
@@ -103,7 +95,7 @@ describe("auth.server", () => {
 
     await listUserAccounts();
 
-    expect(callOrder.slice(0, 3)).toEqual(["connection", "headers", "fetch"]);
+    expect(callOrder.slice(0, 2)).toEqual(["headers", "fetch"]);
   });
 
   it("skips Core when no session cookie is present", async () => {

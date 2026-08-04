@@ -6,7 +6,6 @@ import { getSessionCookie } from "better-auth/cookies";
 import { err, ok, type Result } from "neverthrow";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
 import { cache } from "react";
 import type { ActiveSubscription } from "@/components/billing/subscription-plan-utils";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -160,9 +159,9 @@ function getBetterAuthCookiePrefixFromEnv(): string {
   });
 }
 
-// Defer until request is dynamic so PPR soft-aborts do not hit Core as null.
+// Headers-only: Instant Nav sidebar may call getSession under
+// "use cache: private", where connection() is illegal (next-request-in-use-cache).
 async function getRequestHeaders(): Promise<Headers> {
-  await connection();
   return headers();
 }
 
