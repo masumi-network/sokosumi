@@ -9,6 +9,7 @@ const subscriptionFreePlanRowMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
+    push: vi.fn(),
     refresh: refreshMock,
   }),
 }));
@@ -192,5 +193,47 @@ describe("PersonalSubscriptionSection", () => {
       expect(toast.success).toHaveBeenCalledWith("statusSuccess");
       expect(refreshMock).toHaveBeenCalled();
     });
+  });
+
+  it("does not show a status banner when status is null", () => {
+    const { queryByText } = render(
+      <PersonalSubscriptionSection
+        cancelAtPeriodEnd={false}
+        currentPeriodEnd={null}
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+        status={null}
+      />,
+    );
+
+    expect(queryByText("statusCancel")).not.toBeInTheDocument();
+  });
+
+  it("shows a cancel banner when status is cancel", () => {
+    const { getByText } = render(
+      <PersonalSubscriptionSection
+        cancelAtPeriodEnd={false}
+        currentPeriodEnd={null}
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+        status="cancel"
+      />,
+    );
+
+    expect(getByText("statusCancel")).toBeInTheDocument();
+  });
+
+  it("does not show a status banner when status is success (the success modal, owned by the billing page, handles that)", () => {
+    const { queryByText } = render(
+      <PersonalSubscriptionSection
+        cancelAtPeriodEnd={false}
+        currentPeriodEnd={null}
+        plans={createPlans()}
+        returnPath="/billing?tab=subscription"
+        status="success"
+      />,
+    );
+
+    expect(queryByText("statusCancel")).not.toBeInTheDocument();
   });
 });

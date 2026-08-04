@@ -3,6 +3,7 @@
 import { useQueryState } from "nuqs";
 import { Suspense } from "react";
 
+import CancelCard from "@/app/credits/components/cancel-card";
 import {
   Dialog,
   DialogContent,
@@ -11,9 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-import CancelCard from "./cancel-card";
-
-export default function CreditsCancelModal() {
+export function CreditsCancelModal() {
   return (
     <Suspense>
       <CreditsCancelModalInner />

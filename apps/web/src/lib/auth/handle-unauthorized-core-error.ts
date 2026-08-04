@@ -3,7 +3,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { CoreApiRequestError } from "@/lib/clients/core.client";
+import { CoreApiRequestError } from "@/lib/clients/core.shared";
 
 export function isUnauthorizedCoreApiError(error: unknown): boolean {
   if (!(error instanceof CoreApiRequestError)) {
