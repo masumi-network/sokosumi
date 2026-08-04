@@ -9,6 +9,18 @@ description: Clean up and keep next-intl translation keys in sync when code or m
 
 When code that uses translations is deleted or modified, check for and remove unused translation keys from `messages/en.json`. When keys in `messages/en.json` change, synchronize every supported locale file. Prevents orphaned keys and keeps locale catalogs in parity.
 
+## Supported locales
+
+`en` (source of truth), `de`, `es` — `apps/web/messages/{en,de,es}.json`.
+
+Parity: `pnpm --filter web messages:parity` (write: `messages:parity:write`). Wired into web `test`.
+
+## Client message bags
+
+Layouts nest `ClientMessageBoundary` so clients get a picked subset (`pickMessages` + `message-namespaces.ts`), not the full catalog. Server `getTranslations` still uses the full request catalog.
+
+Bags: `GLOBAL`, `AUTH`, `APP` (no Hermes/Admin), nested `HERMES`/`ADMIN` (`APP_SHELL` + feature), `SHARE`. Add new client namespaces to the owning bag when needed.
+
 ## Translation Usage Patterns
 
 Translations are accessed via `useTranslations()`:
@@ -48,7 +60,7 @@ After deleting a component that used `Components.CookieConsent.title`:
 
 `apps/web/messages/en.json` is source of truth. Any key add/remove/rename must be applied to every supported locale.
 
-**Locale files**: `de.json`, `es.json`, `it.json`, `fr.json`, `pt.json`, `pt-BR.json`, `ja.json`, `zh-Hans.json` (all under `apps/web/messages/`).
+**Locale files**: `de.json`, `es.json` (under `apps/web/messages/`).
 
 - **Add key**: Add to `en.json`, then add same path to every locale with **proper translations** in each non-English file (see Locale string quality).
 - **Remove key**: Remove from `en.json`, then remove same path from every locale; remove empty parent objects.
@@ -58,7 +70,7 @@ After deleting a component that used `Components.CookieConsent.title`:
 
 `apps/web/messages/en.json` is source of truth for **key paths** and the only catalog authored in English.
 
-Non-English files (`de`, `es`, `it`, `fr`, `pt`, `pt-BR`, `ja`, `zh-Hans`) must use **real translations** for user-facing strings—not English left as the final value.
+Non-English files (`de`, `es`) must use **real translations** for user-facing strings—not English left as the final value.
 
 ### ✅ DO
 
@@ -98,7 +110,7 @@ For `@sokosumi/email` locales, use `packages/email/AGENTS.md` instead of this we
 After changes:
 
 1. JSON valid for all locale files.
-2. Key-path parity between `apps/web/messages/en.json` and all locale files.
+2. `pnpm --filter web messages:parity`.
 3. Non-English locale values are translated (not English copies left as final state).
 4. No broken references in code.
 5. Run `pnpm web:format`.
@@ -117,7 +129,7 @@ jq -r 'paths(scalars) as $p | $p | join(".")' apps/web/messages/en.json
 
 # Spot-check one key across locales (replace KEY path)
 KEY='App.Organizations.OrganizationDetail.Subscription.exampleKey'
-for locale in de es it fr pt pt-BR ja zh-Hans; do
+for locale in de es; do
   echo "$locale: $(jq -r --arg k "$KEY" 'getpath($k | split("."))' apps/web/messages/$locale.json)"
 done
 jq -r --arg k "$KEY" 'getpath($k | split("."))' apps/web/messages/en.json

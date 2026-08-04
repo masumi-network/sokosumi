@@ -1,11 +1,11 @@
 import type { AbstractIntlMessages } from "next-intl";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
-import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "@/contexts/theme-context";
+import { GLOBAL_MESSAGE_PATHS } from "@/i18n/message-namespaces";
+import { pickMessages } from "@/i18n/pick-messages";
 
 import { DocumentLocale } from "./document-locale";
 
@@ -17,17 +17,13 @@ interface RootProvidersProps {
 
 function RootProviders({ children, locale, messages }: RootProvidersProps) {
   return (
-    <NuqsAdapter>
-      <ThemeProvider>
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <DocumentLocale />
-          <GlobalModalsContextProvider>
-            <div className="bg-background">{children}</div>
-          </GlobalModalsContextProvider>
-          <Toaster />
-        </NextIntlClientProvider>
-      </ThemeProvider>
-    </NuqsAdapter>
+    <NextIntlClientProvider locale={locale} messages={messages}>
+      <DocumentLocale />
+      <GlobalModalsContextProvider>
+        <div className="bg-background">{children}</div>
+      </GlobalModalsContextProvider>
+      <Toaster />
+    </NextIntlClientProvider>
   );
 }
 
@@ -37,9 +33,10 @@ interface RootIntlTreeProps {
 
 export async function RootIntlTree({ children }: RootIntlTreeProps) {
   const [locale, messages] = await Promise.all([getLocale(), getMessages()]);
+  const picked = pickMessages(messages, GLOBAL_MESSAGE_PATHS);
 
   return (
-    <RootProviders locale={locale} messages={messages}>
+    <RootProviders locale={locale} messages={picked}>
       {children}
     </RootProviders>
   );

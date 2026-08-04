@@ -2,6 +2,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
+import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
+import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 
 export default function FlowsLayout({
   children,
@@ -9,17 +11,19 @@ export default function FlowsLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex h-svh gap-6 p-6">
-      <div className="flex h-full flex-1 flex-col gap-6">
-        <Link href="/">
-          <ThemedLogo LogoComponent={SokosumiLogo} priority />
-        </Link>
-        <div className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center">
-          {children}
+    <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
+      <div className="flex h-svh gap-6 p-6">
+        <div className="flex h-full flex-1 flex-col gap-6">
+          <Link href="/">
+            <ThemedLogo LogoComponent={SokosumiLogo} priority />
+          </Link>
+          <div className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center">
+            {children}
+          </div>
+          <FlowsLayoutFooter />
         </div>
-        <FlowsLayoutFooter />
       </div>
-    </div>
+    </ClientMessageBoundary>
   );
 }
 

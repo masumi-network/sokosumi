@@ -5,7 +5,7 @@ import {
   formatDistanceToNowStrict,
   type Locale,
 } from "date-fns";
-import { de, enUS, es, fr, it, ja, pt, ptBR, zhCN } from "date-fns/locale";
+import { de, enUS, es } from "date-fns/locale";
 import { useEffect, useState } from "react";
 
 import { formatShortDateTime } from "@/lib/utils/datetime";
@@ -19,12 +19,6 @@ const DATE_FNS_LOCALES: Record<string, Locale> = {
   de,
   en: enUS,
   es,
-  fr,
-  it,
-  ja,
-  pt,
-  "pt-BR": ptBR,
-  "zh-Hans": zhCN,
 };
 
 interface TimeAgoProps {
