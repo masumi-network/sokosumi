@@ -1057,7 +1057,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(
       fixedEntryCall.data.pricing.create.fixedPricing.create.amounts.createMany
         .data,
-    ).toEqual([{ amount: BigInt(42), unit: "TOKEN" }]);
+    ).toEqual([{ amount: BigInt(42), unit: "token" }]);
 
     // entry-3 has an unexpected payment type: it is still ingested (nothing is
     // skipped anymore), stored as UNKNOWN payment type and UNKNOWN pricing.
@@ -2067,7 +2067,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
           create: {
             amounts: {
               createMany: {
-                data: [{ amount: BigInt(42), unit: "TOKEN" }],
+                data: [{ amount: BigInt(42), unit: "token" }],
               },
             },
           },

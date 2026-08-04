@@ -71,6 +71,7 @@ vi.mock("@/helpers/agent", () => ({
   getAgentImage: getAgentImageMock,
   getAgentName: getAgentNameMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+  getCardanoV2ReadySources: () => Promise.resolve([]),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
