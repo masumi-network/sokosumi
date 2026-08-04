@@ -1,4 +1,6 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
+
+import { defaultValidationHook, OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetAgentById from "./[id]/get.js";
 import mountGetAgentInputSchema from "./[id]/input-schema/get.js";
@@ -10,18 +12,30 @@ import mountGetAgentReviews from "./[id]/reviews/get.js";
 import mountGetMyAgentReview from "./[id]/reviews/me/get.js";
 import mountGetAgents from "./get.js";
 
-const app = new OpenAPIHonoWithAuth({
+// GET / is public catalog — cookie-free `'use cache'` consumers need anonymous
+// access. It must NOT sit on OpenAPIHonoWithAuth. Still needs defaultValidationHook
+// so query validation returns 422 (same as OpenAPIHonoWithAuth), not raw 400.
+const publicRoutes = new OpenAPIHono({
+  defaultHook: defaultValidationHook,
+});
+mountGetAgents(publicRoutes);
+
+// Agent by-id and nested routes remain authenticated.
+const authedRoutes = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
 });
 
-mountGetAgents(app);
-mountGetAgentById(app);
-mountGetAgentReviews(app);
-mountGetMyAgentReview(app);
-mountGetAgentRatingEligibility(app);
-mountPostAgentRating(app);
-mountGetAgentInputSchema(app);
-mountGetJobsByAgentId(app);
-mountPostAgentJob(app);
+mountGetAgentById(authedRoutes);
+mountGetAgentReviews(authedRoutes);
+mountGetMyAgentReview(authedRoutes);
+mountGetAgentRatingEligibility(authedRoutes);
+mountPostAgentRating(authedRoutes);
+mountGetAgentInputSchema(authedRoutes);
+mountGetJobsByAgentId(authedRoutes);
+mountPostAgentJob(authedRoutes);
+
+const app = new OpenAPIHono();
+app.route("/", publicRoutes);
+app.route("/", authedRoutes);
 
 export default app;

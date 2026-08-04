@@ -6106,12 +6106,6 @@ export type PatchAdminVendorResponse = PatchAdminVendorResponses[keyof PatchAdmi
 
 export type GetAgentsData = {
     body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
     path?: never;
     query?: {
         /**
@@ -6131,20 +6125,6 @@ export type GetAgentsData = {
 };
 
 export type GetAgentsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
     /**
      * Unprocessable Entity
      */
@@ -8804,35 +8784,10 @@ export type PostAgentsByIdJobsResponse = PostAgentsByIdJobsResponses[keyof PostA
 
 export type GetCategoriesData = {
     body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
     path?: never;
     query?: never;
     url: '/categories';
 };
-
-export type GetCategoriesErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type GetCategoriesError = GetCategoriesErrors[keyof GetCategoriesErrors];
 
 export type GetCategoriesResponses = {
     /**

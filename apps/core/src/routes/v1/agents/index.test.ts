@@ -163,4 +163,21 @@ describe("agents routes OpenAPI scope contract", () => {
     expect(stylesProperty).toBeDefined();
     expect(JSON.stringify(stylesProperty)).toContain("CategoryStyles");
   });
+
+  it("documents list agents as anonymous-public and agent by-id as authed", () => {
+    const doc = agentsRouter.getOpenAPI31Document({
+      openapi: "3.1.0",
+      info: {
+        title: "Agents API",
+        version: "1.0.0",
+      },
+    });
+
+    const listGet = doc.paths?.["/"]?.get;
+    expect(listGet?.security).toEqual([]);
+    expect(listGet?.responses?.["401"]).toBeUndefined();
+
+    const byIdGet = doc.paths?.["/{id}"]?.get;
+    expect(byIdGet?.responses?.["401"]).toBeDefined();
+  });
 });
