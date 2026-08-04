@@ -22,7 +22,6 @@ import {
 import { type ReactNode, useState } from "react";
 
 import { VendorMark } from "@/components/agents/vendor-mark";
-import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,9 +29,11 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DocumentTextPreview } from "@/components/ui/document-text-preview";
 import type { Vendor } from "@/lib/clients/generated/core";
 import type { CoworkerOffer } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
+import { isOfficeFile, officeViewerUrl } from "@/lib/utils/file-preview";
 
 export type OfferOutput = NonNullable<CoworkerOffer["outputs"]>[number];
 export type OutputKind = OfferOutput["type"];
@@ -65,11 +66,6 @@ export function offerOutputs(offer: CoworkerOffer): OfferOutput[] {
   return outs.length ? outs : [{ type: "text" }];
 }
 
-// Office files need the Microsoft viewer to embed; PDFs/images embed natively.
-const OFFICE_FILE = /\.(pptx?|docx?|xlsx?)(\?|#|$)/i;
-export function isOfficeFile(url: string): boolean {
-  return OFFICE_FILE.test(url);
-}
 // Office document kinds — these must go through the Office viewer regardless of
 // the URL's extension, otherwise the browser downloads them instead of showing them.
 const OFFICE_EXT: Partial<Record<OutputKind, string>> = {
@@ -79,17 +75,6 @@ const OFFICE_EXT: Partial<Record<OutputKind, string>> = {
 };
 export function isOfficeType(type: OutputKind): boolean {
   return type in OFFICE_EXT;
-}
-export function officeViewerUrl(url: string, type?: OutputKind): string {
-  // The Office viewer identifies the format from the URL's file extension.
-  // Extensionless URLs (e.g. IPFS hashes) need a filename hint or the viewer
-  // can't open them — append one derived from the output type.
-  let src = url;
-  if (!isOfficeFile(url)) {
-    const ext = (type && OFFICE_EXT[type]) ?? "docx";
-    src = `${url}${url.includes("?") ? "&" : "?"}filename=file.${ext}`;
-  }
-  return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(src)}`;
 }
 
 export function OutputTypeIcon({
@@ -520,7 +505,7 @@ export function OfferEmbed({
     // natively — hide the browser's PDF chrome (toolbar / thumbnail rail).
     const src =
       isOfficeType(type) || isOfficeFile(url)
-        ? officeViewerUrl(url, type)
+        ? officeViewerUrl(url, OFFICE_EXT[type])
         : `${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
     return (
       <iframe src={src} title={title} className="bg-muted/40 h-full w-full" />
@@ -529,36 +514,7 @@ export function OfferEmbed({
   // Text outputs render their inline example as a real document "page" — a
   // titled sheet with document-grade typography (not a cramped markdown blob).
   if (text) {
-    const docTitle = output.label ?? title;
-    return (
-      <div className="bg-muted/40 h-full w-full overflow-y-auto p-4 md:p-6">
-        <article className="bg-background border-border/70 mx-auto max-w-2xl overflow-hidden rounded-xl border shadow-md">
-          {/* Document letterhead */}
-          <div className="border-border/60 flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">
-            <span className="bg-primary/10 text-primary flex size-7 shrink-0 items-center justify-center rounded-md">
-              <FileText className="size-4" aria-hidden />
-            </span>
-            <p className="text-foreground truncate text-sm font-medium">
-              {docTitle}
-            </p>
-          </div>
-          {/* Document body */}
-          <div className="px-7 py-7 md:px-10 md:py-9">
-            <Markdown
-              className={cn(
-                "prose-h2:text-xl prose-h2:mb-3 prose-h2:tracking-tight",
-                "prose-h3:text-foreground prose-h3:mt-7 prose-h3:mb-2 prose-h3:text-base",
-                "prose-p:text-foreground/90 prose-p:text-[15px] prose-p:leading-7",
-                "prose-li:text-foreground/90 prose-li:my-1.5 prose-li:text-[15px] prose-li:leading-7",
-                "prose-ul:my-3 prose-ol:my-3 prose-strong:text-foreground",
-              )}
-            >
-              {text}
-            </Markdown>
-          </div>
-        </article>
-      </div>
-    );
+    return <DocumentTextPreview title={output.label ?? title} content={text} />;
   }
   return (
     <div className="bg-muted/40 flex h-full flex-col items-center justify-center gap-3 px-10">

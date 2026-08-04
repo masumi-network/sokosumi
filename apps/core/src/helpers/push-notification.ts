@@ -75,6 +75,7 @@ export async function sendPushForNotification(
       kind: notification.kind,
       referenceId: notification.referenceId,
       metadata,
+      messageKey: notification.messageKey,
     });
     const payload = JSON.stringify({
       tag: notification.id,

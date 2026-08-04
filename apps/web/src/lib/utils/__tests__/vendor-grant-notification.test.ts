@@ -1,9 +1,9 @@
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
   isPendingVendorGrantNotification,
   resolveVendorGrantNotificationTarget,
-  VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "@/lib/utils/vendor-grant-notification";
 
 describe("isPendingVendorGrantNotification", () => {

@@ -410,6 +410,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                   expandLabel={tTaskDetail("expand")}
                                   collapseLabel={tTaskDetail("collapse")}
                                   fadeClassName="to-transparent"
+                                  defaultOpen={shouldHighlightDoneBorder}
                                 />
                               ) : null}
                               {hasCommentSources ? (

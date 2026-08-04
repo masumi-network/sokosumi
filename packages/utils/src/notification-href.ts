@@ -5,10 +5,43 @@ export type NotificationHrefKind =
   | "SYSTEM"
   | "BILLING";
 
+export const VENDOR_GRANT_PENDING_MESSAGE_KEY =
+  "notifications.vendorGrant.pending";
+
 export interface NotificationHrefItem {
   kind: NotificationHrefKind;
   referenceId: string;
   metadata: Record<string, unknown> | null;
+  messageKey?: string;
+}
+
+function buildVendorGrantReviewHref(organizationId: string | null): string {
+  if (organizationId === null) {
+    return "/account#vendor-workspace-access";
+  }
+
+  return `/organizations/${encodeURIComponent(organizationId)}#vendor-workspace-access`;
+}
+
+function resolvePendingVendorGrantHref(
+  notification: Pick<
+    NotificationHrefItem,
+    "messageKey" | "referenceId" | "metadata"
+  >,
+): string | null {
+  if (notification.messageKey !== VENDOR_GRANT_PENDING_MESSAGE_KEY) {
+    return null;
+  }
+
+  if (!notification.referenceId) {
+    return null;
+  }
+
+  const rawOrganizationId = notification.metadata?.organizationId;
+  const organizationId =
+    typeof rawOrganizationId === "string" ? rawOrganizationId : null;
+
+  return buildVendorGrantReviewHref(organizationId);
 }
 
 /**
@@ -33,7 +66,14 @@ export function getNotificationHref(
     case "CHAT":
       return `/chat/rooms/${encodeURIComponent(notification.referenceId)}`;
 
-    case "SYSTEM":
+    case "SYSTEM": {
+      const vendorGrantHref = resolvePendingVendorGrantHref(notification);
+      if (vendorGrantHref) {
+        return vendorGrantHref;
+      }
+      return `/`;
+    }
+
     case "BILLING":
       return `/`;
 

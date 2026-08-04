@@ -157,6 +157,7 @@ export {
   getNotificationHref,
   type NotificationHrefItem,
   type NotificationHrefKind,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "./notification-href.js";
 export {
   type BuildOAuthClientScopeParamOptions,

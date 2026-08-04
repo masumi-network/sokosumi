@@ -1,14 +1,21 @@
-import Image from "next/image";
+"use client";
 
-import { cn } from "@/lib/utils";
-import { formatBytes } from "@/lib/utils/format-bytes";
-import {getExtensionFromUrl, isImageUrl} from "@sokosumi/utils";
-import { FileTypeIcon } from "@/components/ui/file-icon";
+import { getExtensionFromUrl } from "@sokosumi/utils";
+import Image from "next/image";
+import { useState } from "react";
+
 import { canUseNextImageSrc } from "@/config/next-image";
+import { DocumentViewer } from "@/components/ui/document-viewer";
+import { FileTypeIcon } from "@/components/ui/file-icon";
+import { ImageViewer } from "@/components/ui/image-viewer";
+import { cn } from "@/lib/utils";
+import { classifyFilePreview } from "@/lib/utils/file-preview";
+import { formatBytes } from "@/lib/utils/format-bytes";
 
 export interface FileChipProps extends React.ComponentPropsWithoutRef<"a"> {
   url: string;
   fileName?: string | null;
+  mediaType?: string | null;
   size?: number | bigint | null;
   /**
    * Tailwind size class (e.g., `size-8`, `size-10`). Defaults to `size-10`.
@@ -25,14 +32,20 @@ export function FileChip(props: FileChipProps) {
   const {
     url,
     fileName: fileNameProp,
+    mediaType,
     size,
     className,
     sizeClass = "size-10",
     iconPx = 40,
+    title,
     ...anchorProps
   } = props;
   const fileName = fileNameProp ?? url.split("/").pop() ?? url;
-  const isImage = isImageUrl(url);
+  const { isImage, documentKind } = classifyFilePreview(
+    url,
+    fileNameProp,
+    mediaType,
+  );
   const canUseNextImage = canUseNextImageSrc(url);
   const prettySize = formatBytes(size);
   const containerSizeClass = sizeClass;
@@ -41,18 +54,16 @@ export function FileChip(props: FileChipProps) {
     const numeric = match ? Number(match[1]) : NaN;
     return Number.isFinite(numeric) && numeric > 6;
   })();
+  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
 
-  return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noreferrer noopener"
-      {...anchorProps}
-      className={cn(
-        "hover:bg-accent focus-visible:ring-ring inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition outline-none",
-        className,
-      )}
-    >
+  const chipClassName = cn(
+    "hover:bg-accent focus-visible:ring-ring inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition outline-none",
+    className,
+  );
+
+  const content = (
+    <>
       <div
         className={cn(
           "bg-accent/50 relative shrink-0 rounded",
@@ -82,7 +93,8 @@ export function FileChip(props: FileChipProps) {
         ) : (
           <div className={cn("flex size-full items-center justify-center", shouldApplyIconPadding && "p-1")}>
             {(() => {
-              const ext = getExtensionFromUrl(url) || "file";
+              const ext =
+                getExtensionFromUrl(fileNameProp ?? url) || "file";
               return <FileTypeIcon extension={ext} />;
             })()}
           </div>
@@ -96,6 +108,64 @@ export function FileChip(props: FileChipProps) {
           </div>
         )}
       </div>
+    </>
+  );
+
+  if (isImage) {
+    return (
+      <>
+        <button
+          type="button"
+          title={title}
+          className={chipClassName}
+          onClick={() => setIsImageViewerOpen(true)}
+        >
+          {content}
+        </button>
+        <ImageViewer
+          open={isImageViewerOpen}
+          onOpenChange={setIsImageViewerOpen}
+          src={url}
+          alt={fileName}
+          downloadFilename={fileName}
+        />
+      </>
+    );
+  }
+
+  if (documentKind) {
+    return (
+      <>
+        <button
+          type="button"
+          title={title}
+          className={chipClassName}
+          onClick={() => setIsDocumentViewerOpen(true)}
+        >
+          {content}
+        </button>
+        <DocumentViewer
+          open={isDocumentViewerOpen}
+          onOpenChange={setIsDocumentViewerOpen}
+          url={url}
+          fileName={fileName}
+          kind={documentKind}
+          mediaType={mediaType}
+        />
+      </>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={title}
+      {...anchorProps}
+      className={chipClassName}
+    >
+      {content}
     </a>
   );
 }

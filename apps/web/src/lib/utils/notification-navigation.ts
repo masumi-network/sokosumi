@@ -34,7 +34,10 @@ function getWorkspaceIdFromMetadata(
 }
 
 export async function handleNotificationNavigation(
-  notification: Pick<NotificationItem, "kind" | "referenceId" | "metadata">,
+  notification: Pick<
+    NotificationItem,
+    "kind" | "referenceId" | "metadata" | "messageKey"
+  >,
   activeOrgId: string | null,
   router: AppRouterInstance,
   handleSelectWorkspace: HandleSelectWorkspace,
@@ -44,6 +47,7 @@ export async function handleNotificationNavigation(
     kind: notification.kind,
     referenceId: notification.referenceId,
     metadata: notification.metadata,
+    messageKey: notification.messageKey,
   });
 
   if (!href) {

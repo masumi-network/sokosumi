@@ -19,6 +19,8 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   },
 }));
 
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@sokosumi/utils";
+
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 
 function createNotification(
@@ -175,5 +177,34 @@ describe("handleNotificationNavigation", () => {
       successMessage: "switched:Org One",
     });
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("deep-links pending vendor grant and switches workspace when needed", async () => {
+    getWorkspaceOrganizationIdMock.mockResolvedValueOnce("org_1");
+
+    await handleNotificationNavigation(
+      createNotification({
+        kind: "SYSTEM",
+        referenceId: "grant_1",
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        metadata: {
+          workspaceId: "11111111-1111-7111-8111-111111111111",
+          organizationId: "org_1",
+          vendorGrantId: "grant_1",
+        },
+      }),
+      null,
+      router,
+      handleSelectWorkspace,
+      t,
+    );
+
+    expect(handleSelectWorkspace).toHaveBeenCalledWith("org_1", {
+      shouldRedirectAgentJobsBasePath: false,
+      successMessage: "switched:Org One",
+    });
+    expect(pushMock).toHaveBeenCalledWith(
+      "/organizations/org_1#vendor-workspace-access",
+    );
   });
 });

@@ -1,7 +1,6 @@
-import type { NotificationItem } from "@/lib/clients/generated/core";
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@sokosumi/utils";
 
-export const VENDOR_GRANT_PENDING_MESSAGE_KEY =
-  "notifications.vendorGrant.pending";
+import type { NotificationItem } from "@/lib/clients/generated/core";
 
 interface VendorGrantNotificationTarget {
   grantId: string;

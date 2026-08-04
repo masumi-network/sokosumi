@@ -21,8 +21,19 @@ vi.mock("@/components/default-error-boundary", () => ({
 }));
 
 vi.mock("@/components/expandable-markdown", () => ({
-  ExpandableMarkdown: ({ content }: { content: string }) => (
-    <div data-testid="expandable-markdown">{content}</div>
+  ExpandableMarkdown: ({
+    content,
+    defaultOpen,
+  }: {
+    content: string;
+    defaultOpen?: boolean;
+  }) => (
+    <div
+      data-testid="expandable-markdown"
+      data-default-open={String(Boolean(defaultOpen))}
+    >
+      {content}
+    </div>
   ),
 }));
 
@@ -143,5 +154,35 @@ describe("JobDetailsOutputs", () => {
     expect(
       screen.queryByLabelText("Components.Jobs.JobDetails.JobShare.share"),
     ).not.toBeInTheDocument();
+  });
+
+  it("expands the result by default for a completed event", () => {
+    render(
+      <JobDetailsOutputs
+        job={createJob()}
+        event={createEvent()}
+        readOnly={false}
+      />,
+    );
+
+    expect(screen.getByTestId("expandable-markdown")).toHaveAttribute(
+      "data-default-open",
+      "true",
+    );
+  });
+
+  it("does not force-expand the result for a non-completed event", () => {
+    render(
+      <JobDetailsOutputs
+        job={createJob()}
+        event={{ ...createEvent(), status: AgentJobStatus.RUNNING }}
+        readOnly={false}
+      />,
+    );
+
+    expect(screen.getByTestId("expandable-markdown")).toHaveAttribute(
+      "data-default-open",
+      "false",
+    );
   });
 });
