@@ -4710,6 +4710,12 @@
       }
     },
     "Channels": {
+      "MobileNav": {
+        "home": "Inicio",
+        "history": "Historial",
+        "search": "Buscar",
+        "ariaLabel": "Chat"
+      },
       "Actions": {
         "more": "Acciones del mensaje",
         "sectionTitle": "Gestionar canal",

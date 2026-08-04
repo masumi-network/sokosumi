@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 
 import { ChatErrorFallback } from "./components/chat-error-fallback";
+import { ChatMobileShell } from "./components/chat-mobile-shell";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Channels.Metadata");
@@ -28,7 +29,7 @@ export default function ChatLayout({
 }) {
   return (
     <DefaultErrorBoundary fallback={<ChatErrorFallback />}>
-      {children}
+      <ChatMobileShell>{children}</ChatMobileShell>
     </DefaultErrorBoundary>
   );
 }

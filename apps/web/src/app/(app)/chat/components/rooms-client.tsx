@@ -22,6 +22,7 @@ import {
   sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
+import { CHAT_MOBILE_HEIGHT_SHELL_CLASS } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
@@ -1312,7 +1313,12 @@ export function RoomsClient({
   );
 
   return (
-    <div className="-m-4 flex h-[calc(100svh-64px)] min-h-0 flex-col overflow-hidden bg-background">
+    <div
+      className={cn(
+        "-m-4 flex min-h-0 flex-col overflow-hidden bg-background",
+        CHAT_MOBILE_HEIGHT_SHELL_CLASS,
+      )}
+    >
       {currentUserId ? (
         <LazyAblyProvider>
           <ChannelProvider
