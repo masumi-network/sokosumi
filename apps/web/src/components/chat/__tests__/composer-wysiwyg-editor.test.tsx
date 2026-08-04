@@ -235,4 +235,61 @@ describe("ComposerWysiwygEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "restore" }));
     expect(editor.textContent).toContain("typing indicators please");
   });
+
+  it("inserts text at the saved caret after selection leaves the editor", () => {
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("hello world");
+      return (
+        <>
+          <button type="button" onClick={() => editorRef.current?.focus()}>
+            focus-editor
+          </button>
+          <button
+            type="button"
+            onClick={() => editorRef.current?.insertText("😀")}
+          >
+            insert-emoji
+          </button>
+          <button type="button" aria-label="picker-search">
+            picker-search
+          </button>
+          <ComposerWysiwygEditor
+            ref={editorRef}
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+          <output data-testid="composer-value">{value}</output>
+        </>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    fireEvent.click(screen.getByRole("button", { name: "focus-editor" }));
+
+    const textNode = editor.firstChild;
+    expect(textNode?.nodeType).toBe(Node.TEXT_NODE);
+    const selection = window.getSelection();
+    expect(selection).not.toBeNull();
+    const range = document.createRange();
+    // Caret after "hello " (offset 6).
+    range.setStart(textNode as Text, 6);
+    range.collapse(true);
+    selection!.removeAllRanges();
+    selection!.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+
+    // Picker search steals focus and clears the live document selection.
+    fireEvent.click(screen.getByRole("button", { name: "picker-search" }));
+    selection!.removeAllRanges();
+    document.dispatchEvent(new Event("selectionchange"));
+
+    fireEvent.click(screen.getByRole("button", { name: "insert-emoji" }));
+
+    expect(screen.getByTestId("composer-value")).toHaveTextContent(
+      "hello 😀world",
+    );
+  });
 });
