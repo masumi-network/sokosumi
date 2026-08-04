@@ -58,7 +58,7 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * Non-member / missing room → soft land on `/chat` (cutover design), not 404.
  */
-async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
+export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
   // Defer before any cookies()/headers()-bound work so PPR shell probing does
   // not soft-reject dynamic APIs while filling this Suspense hole.
   await connection();
