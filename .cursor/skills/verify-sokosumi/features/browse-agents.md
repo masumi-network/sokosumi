@@ -25,11 +25,11 @@ Preconditions:
 - **Open catalog.** Run `agent-browser open http://localhost:3000/agents` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. Page is `/agents` and not `/signin`.
 - **Healthy list.** Snapshot shows one or more agent links/cards under **Browse all agents** (below the coworker gallery — do not treat coworker cards as catalog detail). Note one agent name and its `href` via `agent-browser get attr @ref href` (snapshot link text often omits the path).
 - **Open detail.** Scroll the catalog link into view (`scrollintoview`), then click it. URL matches `/agents/<id>` (not `/jobs`). Detail `h1` matches the agent name. If the click no-ops (list still visible — common), open the noted `href` directly — still valid after discovering it from the list.
-- **Empty/error path.** If the page shows **No agents available** (web soft-empty when Core `GET /v1/agents` 500s for missing `credit_cost`), capture screenshot + snapshot and stop. Report unmet catalog precondition — do not invent hire/job success. A healthy catalog with a search miss shows **No Agents found** instead — that is not a broken catalog.
+- **Empty/error path.** If the page shows **No agents available**, capture screenshot + snapshot and stop. That soft-empty covers both a Core `GET /v1/agents` failure (often missing `credit_cost` → 500 → web catch returns `[]`) and a successful empty list. Report unmet catalog precondition — do not invent hire/job success. A healthy non-empty catalog with a search miss shows **No Agents found** instead — that is not a broken catalog.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/browse-agents` then screenshot + `snapshot -i` for list and (if reached) detail under that directory.
 
 ## Gotchas
 
-- Catalog depends on Core `GET /v1/agents` and credit-cost rows; local empty DB often soft-fails to **No agents available** (Core still 500) even when auth works.
+- Catalog depends on Core `GET /v1/agents` and credit-cost rows; local empty DB often soft-fails to **No agents available** (Core 500 or empty `[]`) even when auth works.
 - Do not treat a marketing/landing redirect as catalog proof.
 - Hire/run-job flows are out of scope for this feature file — list + detail only.
