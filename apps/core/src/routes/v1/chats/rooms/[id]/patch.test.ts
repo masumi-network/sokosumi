@@ -17,6 +17,7 @@ const {
   memberFindUniqueMock,
   memberFindManyMock,
   coworkerFindManyMock,
+  userFindManyMock,
   userMemberDeleteManyMock,
   userMemberCreateManyMock,
   readStateDeleteManyMock,
@@ -24,9 +25,11 @@ const {
   coworkerMemberDeleteManyMock,
   coworkerMemberCreateManyMock,
   mentionUpdateManyMock,
+  messageCreateMock,
   membershipFindManyMock,
   readStateFindManyMock,
   prismaTransactionMock,
+  publishChatRoomMessageRealtimeMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   roomFindManyMock: vi.fn(),
@@ -35,6 +38,7 @@ const {
   memberFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  userFindManyMock: vi.fn(),
   userMemberDeleteManyMock: vi.fn(),
   userMemberCreateManyMock: vi.fn(),
   readStateDeleteManyMock: vi.fn(),
@@ -42,9 +46,11 @@ const {
   coworkerMemberDeleteManyMock: vi.fn(),
   coworkerMemberCreateManyMock: vi.fn(),
   mentionUpdateManyMock: vi.fn(),
+  messageCreateMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  publishChatRoomMessageRealtimeMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -57,6 +63,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: readStateFindManyMock,
     },
   },
+}));
+
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -80,6 +90,9 @@ const tx = {
   coworker: {
     findMany: coworkerFindManyMock,
   },
+  user: {
+    findMany: userFindManyMock,
+  },
   chatRoomUserMember: {
     deleteMany: userMemberDeleteManyMock,
     createMany: userMemberCreateManyMock,
@@ -94,6 +107,9 @@ const tx = {
   },
   chatRoomMention: {
     updateMany: mentionUpdateManyMock,
+  },
+  chatRoomMessage: {
+    create: messageCreateMock,
   },
 };
 
@@ -174,20 +190,93 @@ beforeEach(() => {
       where.userId.in.map((userId) => ({ userId })),
   );
   coworkerFindManyMock.mockResolvedValue([]);
+  userFindManyMock.mockImplementation(
+    async ({ where }: { where: { id: { in: string[] } } }) =>
+      where.id.in.map((id) => ({
+        id,
+        name: id === USER_ID ? "Ada" : id === OTHER_USER_ID ? "Bob" : id,
+      })),
+  );
+  messageCreateMock.mockImplementation(async ({ data }) => ({
+    id: "550e8400-e29b-41d4-a716-446655440099",
+    roomId: ROOM_ID,
+    parentMessageId: null,
+    senderUserId: null,
+    senderCoworkerId: null,
+    content: data.content,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    deletedAt: null,
+    editedAt: null,
+    metadata: data.metadata,
+    clientMessageId: null,
+    responsesApiResponseId: null,
+    senderUser: null,
+    senderCoworker: null,
+    mentionsAsSource: [],
+    reactions: [],
+    replies: [],
+    _count: { replies: 0 },
+  }));
+  publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
 });
 
 describe("PATCH /chats/rooms/{id}", () => {
-  it("updates a channel room when the caller is the creator", async () => {
-    const existing = channelRoom();
-    const updated = channelRoom({
-      name: "Ship Room",
-      slug: "ship-room",
-      topic: "Go live checklist",
-    });
+  it("allows a non-creator member to PATCH roster-only", async () => {
+    const existing = channelRoom({ createdByUserId: OTHER_USER_ID });
+    const updated = channelRoom({ createdByUserId: OTHER_USER_ID });
     roomFindFirstMock.mockResolvedValueOnce(existing);
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
     roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberCreateManyMock.mockResolvedValue({ count: 2 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(userMemberCreateManyMock).toHaveBeenCalled();
+    expect(roomUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: ROOM_ID },
+        data: {},
+      }),
+    );
+  });
+
+  it("rejects a non-creator member PATCH that touches settings", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      channelRoom({ createdByUserId: OTHER_USER_ID }),
+    );
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Nope" }),
+    });
+
+    expect(response.status).toBe(403);
+    const text = await response.text();
+    expect(text).toMatch(/organization owner or admin/i);
+    expect(text).not.toMatch(/creator/i);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a creator who is only a plain member from PATCH settings", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(channelRoom());
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {
@@ -199,55 +288,21 @@ describe("PATCH /chats/rooms/{id}", () => {
       }),
     });
 
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data.name).toBe("Ship Room");
-    expect(body.data.slug).toBe("ship-room");
-    expect(body.data.topic).toBe("Go live checklist");
-    expect(roomUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: ROOM_ID },
-        data: {
-          name: "Ship Room",
-          slug: "ship-room",
-          topic: "Go live checklist",
-        },
-      }),
-    );
+    expect(response.status).toBe(403);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("updates channel discoverability when the caller can manage the room", async () => {
-    const existing = channelRoom({ discoverability: "private" });
-    const updated = channelRoom({ discoverability: "public" });
-    roomFindFirstMock.mockResolvedValueOnce(existing);
-    roomUpdateMock.mockResolvedValueOnce(updated);
-
-    const app = createApp(userAuthContext);
-    const response = await app.request(`/${ROOM_ID}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        discoverability: "public",
-      }),
+  it("updates channel settings when the caller is an organization admin", async () => {
+    const existing = channelRoom({
+      createdByUserId: OTHER_USER_ID,
+      discoverability: "private",
     });
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data.discoverability).toBe("public");
-    expect(roomUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: ROOM_ID },
-        data: { discoverability: "public" },
-      }),
-    );
-  });
-
-  it("allows an organization admin who is not the creator to update", async () => {
-    const existing = channelRoom({ createdByUserId: OTHER_USER_ID });
     const updated = channelRoom({
       createdByUserId: OTHER_USER_ID,
-      name: "Ops",
-      slug: "ops",
+      name: "Ship Room",
+      slug: "ship-room",
+      topic: "Go live checklist",
+      discoverability: "public",
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     memberFindUniqueMock.mockResolvedValue({ role: "admin" });
@@ -257,11 +312,28 @@ describe("PATCH /chats/rooms/{id}", () => {
     const response = await app.request(`/${ROOM_ID}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Ops" }),
+      body: JSON.stringify({
+        name: "Ship Room",
+        topic: "Go live checklist",
+        discoverability: "public",
+      }),
     });
 
     expect(response.status).toBe(200);
-    expect(roomUpdateMock).toHaveBeenCalled();
+    const body = await response.json();
+    expect(body.data.name).toBe("Ship Room");
+    expect(body.data.discoverability).toBe("public");
+    expect(roomUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: ROOM_ID },
+        data: {
+          name: "Ship Room",
+          slug: "ship-room",
+          topic: "Go live checklist",
+          discoverability: "public",
+        },
+      }),
+    );
   });
 
   it("rejects direct room edits with 400", async () => {
@@ -279,26 +351,6 @@ describe("PATCH /chats/rooms/{id}", () => {
     expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects non-creator members with 403", async () => {
-    roomFindFirstMock.mockResolvedValueOnce(
-      channelRoom({ createdByUserId: OTHER_USER_ID }),
-    );
-    memberFindUniqueMock.mockResolvedValue({ role: "member" });
-
-    const app = createApp(userAuthContext);
-    const response = await app.request(`/${ROOM_ID}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: "Nope" }),
-    });
-
-    expect(response.status).toBe(403);
-    expect(await response.text()).toContain(
-      "Only the room creator or an organization owner or admin can update this room.",
-    );
-    expect(roomUpdateMock).not.toHaveBeenCalled();
-  });
-
   it("rejects unknown rooms with 404", async () => {
     roomFindFirstMock.mockResolvedValueOnce(null);
 
@@ -312,6 +364,84 @@ describe("PATCH /chats/rooms/{id}", () => {
     expect(response.status).toBe(404);
     expect(await response.text()).toContain("Room not found");
     expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("emits joined/left membership status for user and coworker roster diffs", async () => {
+    const removedCoworkerId = "cow_old";
+    const addedCoworkerId = "cow_new";
+    const existing = channelRoom({
+      coworkerMembers: [
+        {
+          coworker: {
+            id: removedCoworkerId,
+            name: "OldBot",
+            slug: "old",
+            image: null,
+          },
+        },
+      ],
+    });
+    const updated = channelRoom({
+      userMembers: [
+        {
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          user: {
+            id: OTHER_USER_ID,
+            name: "Bob",
+            email: "bob@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+      coworkerMembers: [
+        {
+          coworker: {
+            id: addedCoworkerId,
+            name: "NewBot",
+            slug: "new",
+            image: null,
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    coworkerFindManyMock.mockResolvedValue([
+      { id: addedCoworkerId, name: "NewBot" },
+    ]);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberCreateManyMock.mockResolvedValue({ count: 2 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+    coworkerMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    coworkerMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    mentionUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, OTHER_USER_ID],
+        coworkerIds: [addedCoworkerId],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(messageCreateMock).toHaveBeenCalledTimes(3);
+    expect(
+      messageCreateMock.mock.calls.map((call) => call[0].data.content),
+    ).toEqual(["OldBot left", "Bob joined", "NewBot joined"]);
+    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledTimes(3);
   });
 
   it("fails open mentions when coworkers are removed from the roster", async () => {

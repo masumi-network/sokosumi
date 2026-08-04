@@ -82,12 +82,13 @@ model User {
   // Credit Buckets
   creditBuckets CreditBucket[]
 
-  createdChatRooms      ChatRoom[]             @relation("ChatRoomCreator")
-  chatRoomMemberships   ChatRoomUserMember[]
-  chatRoomMessages      ChatRoomMessage[]      @relation("ChatRoomUserSender")
-  chatRoomReactions     ChatRoomReaction[]
-  chatRoomReadStates    ChatRoomReadState[]
-  noticeAcknowledgments NoticeAcknowledgment[]
+  createdChatRooms         ChatRoom[]                @relation("ChatRoomCreator")
+  chatRoomMemberships      ChatRoomUserMember[]
+  chatRoomMessages         ChatRoomMessage[]         @relation("ChatRoomUserSender")
+  chatRoomReactions        ChatRoomReaction[]
+  chatRoomReadStates       ChatRoomReadState[]
+  chatRoomThreadReadStates ChatRoomThreadReadState[]
+  noticeAcknowledgments    NoticeAcknowledgment[]
 
   // Hermes (per-user private agent — single conversation)
   hermesMessages           HermesMessage[]
@@ -1868,14 +1869,15 @@ model ChatRoomMessage {
 
   /// AI SDK / client message id for user stream-turn idempotency.
   /// Also mirrored in metadata.client_message_id for transcript consumers.
-  clientMessageId String?
+  clientMessageId        String?
   /// OpenAI Responses API response id for assistant stream-turn idempotency.
   /// Also mirrored in metadata.responses_api_response_id for transcript consumers.
   responsesApiResponseId String?
 
-  mentionsAsSource   ChatRoomMention[]  @relation("ChatRoomMentionSource")
-  mentionResponseFor ChatRoomMention?   @relation("ChatRoomMentionResponse")
+  mentionsAsSource   ChatRoomMention[]         @relation("ChatRoomMentionSource")
+  mentionResponseFor ChatRoomMention?          @relation("ChatRoomMentionResponse")
   reactions          ChatRoomReaction[]
+  threadReadStates   ChatRoomThreadReadState[]
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
   // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.
@@ -1915,7 +1917,7 @@ model ChatRoomReadState {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  lastReadAt DateTime @default(now())
+  lastReadAt     DateTime  @default(now())
   /// Null = not forced-unread. Cleared whenever mark-read runs.
   markedUnreadAt DateTime?
   createdAt      DateTime  @default(now())
@@ -1925,6 +1927,25 @@ model ChatRoomReadState {
   @@index([userId])
   @@index([roomId, lastReadAt])
   @@map("chat_room_read_state")
+}
+
+/// Per-user look marker for a chat room thread (top-level parent message).
+/// Independent of room ChatRoomReadState — room mark-read never writes here.
+model ChatRoomThreadReadState {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentMessageId String          @db.Uuid
+  parentMessage   ChatRoomMessage @relation(fields: [parentMessageId], references: [id], onDelete: Cascade)
+
+  lastReadAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, parentMessageId])
+  @@index([parentMessageId])
+  @@index([userId])
+  @@map("chat_room_thread_read_state")
 }
 
 model ChatRoomMention {

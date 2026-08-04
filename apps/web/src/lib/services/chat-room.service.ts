@@ -6,6 +6,9 @@ import type {
   ChatRoom,
   ChatRoomKind,
   ChatRoomMessage,
+  ChatRoomThread,
+  ChatRoomThreadReadState,
+  ChatRoomThreadsMarkAll,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
   DiscoverableChatRoom,
@@ -188,16 +191,46 @@ export const chatRoomService = (() => {
     parentMessageId: string,
     options?: { cursor?: string; limit?: number },
   ): Promise<ChatRoomMessagesPage> {
-    const response = await coreClient.getChatRoomMessages(roomId, {
-      limit: options?.limit ?? ROOM_MESSAGE_LIMIT,
+    const response = await coreClient.getChatRoomThreadMessages(
+      roomId,
       parentMessageId,
-      cursor: options?.cursor,
-    });
+      {
+        limit: options?.limit ?? ROOM_MESSAGE_LIMIT,
+        cursor: options?.cursor,
+      },
+    );
     return {
       messages: response.data,
       nextCursor: response.meta?.pagination?.nextCursor ?? null,
     };
   });
+
+  const listUnreadThreads = cache(async function listUnreadThreads(
+    roomId: string,
+  ): Promise<ChatRoomThread[]> {
+    const response = await coreClient.getChatRoomThreads(roomId, {
+      unread: "true",
+    });
+    return response.data;
+  });
+
+  async function markThreadRead(
+    roomId: string,
+    parentMessageId: string,
+  ): Promise<ChatRoomThreadReadState> {
+    const response = await coreClient.markChatRoomThreadRead(
+      roomId,
+      parentMessageId,
+    );
+    return response.data;
+  }
+
+  async function markAllUnreadThreadsRead(
+    roomId: string,
+  ): Promise<ChatRoomThreadsMarkAll> {
+    const response = await coreClient.markChatRoomThreadsRead(roomId);
+    return response.data;
+  }
 
   async function sendMessage(
     roomId: string,
@@ -251,9 +284,12 @@ export const chatRoomService = (() => {
     listDiscoverableChannels,
     listMessages,
     listRooms,
+    listUnreadThreads,
     listThreadMessages,
     leaveRoom,
     markRead,
+    markAllUnreadThreadsRead,
+    markThreadRead,
     markUnread,
     pinRoom,
     restoreRoom,

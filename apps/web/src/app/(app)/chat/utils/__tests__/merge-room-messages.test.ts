@@ -31,6 +31,7 @@ function message(id: string, createdAt: string, content = id): ChatRoomMessage {
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
+    membership: null,
     deletedAt: null,
   };
 }
@@ -140,6 +141,23 @@ describe("mergeRoomMessages", () => {
       "stream:zzz-user",
       "stream:aaa-assistant",
     ]);
+  });
+
+  it("keeps membership status rows alongside chat messages", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
+    const joined = {
+      ...message("m2", "2026-07-01T11:00:00.000Z", "Alice joined"),
+      sender: { type: "unknown" as const },
+      membership: {
+        action: "joined" as const,
+        subject: { type: "user" as const, id: "u-alice", name: "Alice" },
+      },
+    };
+
+    const merged = mergeRoomMessages([chat], [joined]);
+
+    expect(merged.map((row) => row.id)).toEqual(["m1", "m2"]);
+    expect(merged[1]?.membership?.action).toBe("joined");
   });
 });
 
@@ -253,5 +271,69 @@ describe("mergeMessagesWithStreamOverlay", () => {
     );
 
     expect(merged.map((row) => row.id)).toEqual(["stream:u1", "stream:u2"]);
+  });
+
+  it("keeps membership status with empty content when overlay is idle", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
+    const emptyBody = message("m-empty", "2026-07-01T10:30:00.000Z", "   ");
+    const joined = {
+      ...message("m2", "2026-07-01T11:00:00.000Z", ""),
+      sender: { type: "unknown" as const },
+      membership: {
+        action: "joined" as const,
+        subject: { type: "user" as const, id: "u-alice", name: "Alice" },
+      },
+    };
+    const left = {
+      ...message("m3", "2026-07-01T12:00:00.000Z", ""),
+      sender: { type: "unknown" as const },
+      membership: {
+        action: "left" as const,
+        subject: {
+          type: "coworker" as const,
+          id: "cow-1",
+          name: "Jamal",
+        },
+      },
+    };
+
+    const merged = mergeMessagesWithStreamOverlay(
+      [chat, emptyBody, joined, left],
+      [],
+    );
+
+    expect(merged.map((row) => row.id)).toEqual(["m1", "m2", "m3"]);
+    expect(merged[1]?.membership?.action).toBe("joined");
+    expect(merged[2]?.membership?.action).toBe("left");
+  });
+
+  it("keeps membership status in history while stream overlay is active", () => {
+    const chat = message("m1", "2026-07-01T10:00:00.000Z", "earlier");
+    const joined = {
+      ...message("m2", "2026-07-01T11:00:00.000Z", ""),
+      sender: { type: "unknown" as const },
+      membership: {
+        action: "joined" as const,
+        subject: { type: "user" as const, id: "u-bob", name: "Bob" },
+      },
+    };
+    const streamUser = message("stream:user", "2026-07-01T12:00:00.000Z", "hi");
+    const streamAssistant = coworkerMessage(
+      "stream:assistant",
+      "2026-07-01T12:00:00.001Z",
+      "hello",
+    );
+
+    const merged = mergeMessagesWithStreamOverlay(
+      [chat, joined],
+      [streamUser, streamAssistant],
+    );
+
+    expect(merged.map((row) => row.id)).toEqual([
+      "m1",
+      "m2",
+      "stream:user",
+      "stream:assistant",
+    ]);
   });
 });

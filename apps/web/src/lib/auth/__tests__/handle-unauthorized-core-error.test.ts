@@ -51,6 +51,17 @@ describe("isUnauthorizedCoreApiError", () => {
       ),
     ).toBe(false);
   });
+
+  it("does not treat business 403 permission errors as unauthorized", () => {
+    expect(
+      isUnauthorizedCoreApiError(
+        new CoreApiRequestError(
+          "Only an organization owner or admin can update channel settings.",
+          { status: 403 },
+        ),
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("redirectIfUnauthorizedCoreError", () => {
@@ -127,6 +138,19 @@ describe("withUnauthorizedCoreRedirect", () => {
     });
 
     await expect(client.getTask("task-id")).rejects.toBe(boom);
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("rethrows business 403 errors without redirecting", async () => {
+    const forbidden = new CoreApiRequestError(
+      "Only an organization owner or admin can update channel settings.",
+      { status: 403 },
+    );
+    const client = withUnauthorizedCoreRedirect({
+      updateRoom: (_roomId: string) => Promise.reject(forbidden),
+    });
+
+    await expect(client.updateRoom("room-id")).rejects.toBe(forbidden);
     expect(redirectMock).not.toHaveBeenCalled();
   });
 });

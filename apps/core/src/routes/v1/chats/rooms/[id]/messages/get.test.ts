@@ -162,7 +162,7 @@ describe("GET /chats/rooms/{id}/messages", () => {
 
   it("filters by content when q is set and searches all thread depths", async () => {
     const response = await createApp(userAuthContext).request(
-      `/${ROOM_ID}/messages?q=Hello&parentMessageId=${MESSAGE_ID}`,
+      `/${ROOM_ID}/messages?q=Hello`,
     );
 
     expect(response.status).toBe(200);

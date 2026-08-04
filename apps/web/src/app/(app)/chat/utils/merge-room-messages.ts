@@ -53,9 +53,18 @@ function hasVisibleMessageBody(message: ChatRoomMessage): boolean {
   return message.content.trim().length > 0;
 }
 
+/** Channel join/leave rows must stay even if content is empty. */
+function isMembershipStatusMessage(message: ChatRoomMessage): boolean {
+  return message.membership != null;
+}
+
+function shouldKeepPersistedMessage(message: ChatRoomMessage): boolean {
+  return isMembershipStatusMessage(message) || hasVisibleMessageBody(message);
+}
+
 /** Empty stream coworker shells stay visible (avatar/name + waiting state). */
 function shouldRenderInTranscript(message: ChatRoomMessage): boolean {
-  if (hasVisibleMessageBody(message)) {
+  if (shouldKeepPersistedMessage(message)) {
     return true;
   }
   return message.id.startsWith("stream:") && message.sender.type === "coworker";
@@ -71,7 +80,7 @@ export function mergeMessagesWithStreamOverlay(
   streamOverlay: readonly ChatRoomMessage[],
 ): ChatRoomMessage[] {
   if (streamOverlay.length === 0) {
-    return persisted.filter(hasVisibleMessageBody);
+    return persisted.filter(shouldKeepPersistedMessage);
   }
 
   const overlayIds = new Set(streamOverlay.map((message) => message.id));
@@ -114,7 +123,7 @@ export function mergeMessagesWithStreamOverlay(
     if (overlayIds.has(message.id)) {
       return false;
     }
-    if (!hasVisibleMessageBody(message)) {
+    if (!shouldKeepPersistedMessage(message)) {
       return false;
     }
     // Core persists the user turn as soon as stream POST starts — drop that

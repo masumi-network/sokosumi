@@ -787,7 +787,10 @@
     "OrganizationCombobox": {
       "placeholder": "Organisation auswählen",
       "search": "Organisationen suchen…",
-      "empty": "Keine Organisationen gefunden."
+      "empty": "Keine Organisationen gefunden.",
+      "loading": "Searching…",
+      "error": "Search failed. Try again.",
+      "idle": "Type to search organizations."
     },
     "ImageViewer": {
       "title": "Bild",
@@ -809,6 +812,14 @@
       "openInNewTab": "In neuem Tab öffnen",
       "loading": "Dokument wird geladen…",
       "fetchError": "Dieses Dokument konnte nicht geladen werden."
+    },
+    "UserCombobox": {
+      "placeholder": "Select a user",
+      "search": "Search users by name or email…",
+      "empty": "No users found.",
+      "loading": "Searching…",
+      "error": "Search failed. Try again.",
+      "idle": "Type to search users."
     }
   },
   "Join": {
@@ -2611,7 +2622,12 @@
         "fullAccessBodyPrefix": "Dein Assistent kann",
         "fullAccessBodyBold": "Antworten entwerfen und in deinem Konto in deinem Auftrag handeln",
         "fullAccessBodySuffix": "Nur aktivieren, wenn es Mails senden / Termine anlegen soll.",
-        "fullAccessCta": "Verbinden (voller Zugriff — lesen + senden)"
+        "fullAccessCta": "Verbinden (voller Zugriff — lesen + senden)",
+        "reviewSkills": "Skills",
+        "reviewSkillsCount": "{count} added",
+        "reviewSkillsNone": "None yet",
+        "skillsHeading": "Add skills (optional)",
+        "skillsHelp": "Give Hermes ready-made know-how. Skills add instructions only — never code it runs. They're installed while your assistant finishes setup, and you can add more anytime from the Skills button in chat."
       },
       "OnboardingProgress": {
         "eyebrow": "Dein Agent wird vorbereitet",
@@ -2756,7 +2772,15 @@
         "pendingToast": "{name} will be added when your agent next starts.",
         "removedToast": "{name} removed.",
         "addFailed": "Couldn't add the skill.",
-        "removeFailed": "Couldn't remove the skill."
+        "removeFailed": "Couldn't remove the skill.",
+        "retry": "Try again"
+      },
+      "SkillsPanel": {
+        "chip": "Skills",
+        "title": "Skills",
+        "subtitle": "Ready-made know-how for your assistant — browse the marketplace, search, and install with one click. Skills add instructions only, never code it runs.",
+        "tooltip": "Browse and install skills",
+        "previewUnavailable": "The skills marketplace isn't available in preview mode."
       }
     },
     "Error": {
@@ -3185,7 +3209,8 @@
             "organization": "Organisation",
             "credits": "Credits",
             "expiryDays": "Ablauf (Tage)",
-            "price": "Preis pro Credit"
+            "price": "Preis pro Credit",
+            "target": "Recipient"
           },
           "organizationRequired": "Wählen Sie eine Organisation aus",
           "creditsRequired": "Geben Sie eine positive Anzahl von Credits ein",
@@ -3199,7 +3224,6 @@
           "createSuccess": "Rechnung erstellt",
           "createError": "Rechnung konnte nicht erstellt werden",
           "pricePlaceholder": "Preis auswählen",
-          "priceHelper": "Preis pro Credit für den Rechnungsbetrag.",
           "priceRequired": "Wählen Sie einen Preis aus",
           "billingLoadErrorTitle": "Rechnungsdaten konnten nicht geladen werden",
           "billingLoadError": "Rechnungsdaten des Empfängers konnten nicht geladen werden",
@@ -3225,7 +3249,12 @@
             "stripeCustomerIdLabel": "Stripe-Kunden-ID",
             "stripeCustomerIdEmpty": "Kein Stripe-Kunde hinterlegt",
             "empty": "Keine Rechnungsadresse hinterlegt"
-          }
+          },
+          "Tabs": {
+            "organization": "Organization",
+            "user": "User"
+          },
+          "targetRequired": "Select a recipient"
         },
         "Result": {
           "heading": "Rechnung",
@@ -3243,7 +3272,41 @@
           "marking": "Credits werden gewährt…",
           "paidSuccess": "Credits gewährt",
           "paidError": "Rechnung konnte nicht als bezahlt markiert werden",
-          "openInStripe": "In Stripe öffnen"
+          "openInStripe": "In Stripe öffnen",
+          "user": "User",
+          "loadError": "Failed to load invoice"
+        },
+        "InvoiceList": {
+          "empty": "No invoices match the current filters.",
+          "loadError": "Failed to load invoices",
+          "recipient": "Recipient",
+          "typeUser": "User",
+          "typeOrganization": "Organization",
+          "credits": "Credits",
+          "expiry": "Expiry",
+          "expiryDays": "{days, number} day(s)",
+          "noExpiry": "No expiry",
+          "amount": "Amount",
+          "status": "Status",
+          "created": "Created",
+          "actions": "Actions",
+          "view": "View",
+          "Filters": {
+            "status": "Status",
+            "recipient": "Recipient",
+            "recipientAll": "All recipients",
+            "tabOrganization": "Organization",
+            "tabUser": "User"
+          },
+          "Status": {
+            "unfinished": "Unfinished",
+            "all": "All statuses",
+            "draft": "Draft",
+            "open": "Open",
+            "paid": "Paid",
+            "void": "Void",
+            "uncollectible": "Uncollectible"
+          }
         }
       },
       "Tasks": {
@@ -4170,7 +4233,8 @@
             "unauthenticatedAction": "Anmelden",
             "unauthorized": "Nur Eigentümer und Admins der Organisation können Abonnements verwalten",
             "badInput": "Bitte gültige Plan- und Seat-Werte angeben",
-            "general": "Organisations-Abonnement konnte nicht verwaltet werden"
+            "general": "Organisations-Abonnement konnte nicht verwaltet werden",
+            "enterpriseContractExclusive": "This organization has an active enterprise contract, so self-serve plans aren't available. Contact support to change your plan."
           }
         },
         "Seats": {
@@ -4278,7 +4342,62 @@
           "description": "Trainiert auf echter Kampagnenarbeit – Strategie, Content, Mediaplanung und Markenkommunikation."
         },
         "others": "Sonstige",
-        "moreComingSoon": "+ Mehr folgt in Kürze"
+        "moreComingSoon": "+ Mehr folgt in Kürze",
+        "startTask": "Start a task with {name}",
+        "featuredEyebrow": "Featured coworker",
+        "all": "All",
+        "examplesTitle": "What {name} can do",
+        "startShort": "Start a task",
+        "startForCoworker": "Start New Task for {name}",
+        "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
+        "searchOffers": "Search offers, coworkers…",
+        "byCompany": "Company",
+        "offerPrefilled": "Pre-filled task",
+        "noOffers": "No offers match your filters.",
+        "offersLabel": "Quick-start offers",
+        "allCategories": "All",
+        "moreOffers": "+{count} more",
+        "searchHero": "What do you want to get done?",
+        "recommendedLabel": "Recommended",
+        "searchHint": "Search agents, coworkers, and offers",
+        "clearFilters": "Clear filters",
+        "coworkersTitle": "Your AI coworkers",
+        "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
+        "offersSectionTitle": "Ready-To-Run Tasks",
+        "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
+        "deliveredByLabel": "Delivered by",
+        "deliverableLabel": "What you'll get",
+        "startThisTask": "Start this task",
+        "viewDetails": "View details",
+        "examplePending": "Example coming soon",
+        "examplePendingHint": "A sample output (PDF or image) will appear here.",
+        "openInNewTab": "Open in new tab",
+        "offerDetails": "Offer details",
+        "heroHeadline": "What do you want to get done?",
+        "heroSubtitle": "Hand real work to your AI coworkers, or start from a ready-to-run offer.",
+        "searchPlaceholder": "Search agents, coworkers, and offers…",
+        "socialProof": "{count} agents on Sokosumi",
+        "socialProofFallback": "AI coworkers ready to work",
+        "companyWebsite": "Visit website",
+        "companyLegal": "Legal",
+        "coworkerCount": "{count, plural, one {# coworker} other {# coworkers}}",
+        "otherCompanyLabel": "Independent",
+        "showAllCoworkers": "Show all {count}",
+        "showLess": "Show less",
+        "showMoreCompanies": "Show {count, plural, one {# more company} other {# more companies}}",
+        "outputTypes": {
+          "pdf": "PDF",
+          "slides": "Slides",
+          "doc": "Document",
+          "sheet": "Spreadsheet",
+          "text": "Text",
+          "image": "Image",
+          "html": "Web"
+        },
+        "showAllOffers": "Show all {count} offers",
+        "offerCount": "{count, plural, one {# offer} other {# offers}}",
+        "noResults": "Nothing matches your search.",
+        "coworkerNoOffers": "No ready-to-run offers yet."
       },
       "FilterSection": {
         "searchPlaceholder": "Agents suchen",
@@ -4840,6 +4959,21 @@
         "skip": "Vorerst überspringen",
         "creating": "Wird erstellt…",
         "adding": "Wird hinzugefügt…"
+      },
+      "UnreadThreads": {
+        "open": "Ungelesene Threads",
+        "title": "Ungelesene Threads",
+        "markAllRead": "Alle als gelesen markieren",
+        "empty": "Keine ungelesenen Threads.",
+        "loading": "Threads werden geladen…",
+        "error": "Threads konnten nicht geladen werden. Bitte erneut versuchen.",
+        "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
+        "startedBy": "Gestartet von {name}",
+        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
+      },
+      "MembershipStatus": {
+        "joined": "{name} ist beigetreten",
+        "left": "{name} hat den Channel verlassen"
       }
     }
   },

@@ -4,6 +4,23 @@ import { NotificationKind } from "@sokosumi/database";
 import { createNotification } from "@/helpers/notifications";
 import prisma from "@/lib/db/prisma";
 
+export const MAX_HUMAN_MEMBERS_FOR_DIRECT_MESSAGE_NOTIFICATIONS = 2;
+
+export interface ShouldEmitChatDirectMessageNotificationsParams {
+  kind: string;
+  memberUserIds: readonly string[];
+}
+
+export function shouldEmitChatDirectMessageNotifications(
+  params: ShouldEmitChatDirectMessageNotificationsParams,
+): boolean {
+  return (
+    params.kind === "direct" &&
+    params.memberUserIds.length <=
+      MAX_HUMAN_MEMBERS_FOR_DIRECT_MESSAGE_NOTIFICATIONS
+  );
+}
+
 export interface EmitChatDirectMessageNotificationsParams {
   roomId: string;
   roomName: string;

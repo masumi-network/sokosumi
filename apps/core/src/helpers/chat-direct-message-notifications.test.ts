@@ -32,19 +32,76 @@ vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
-import { emitChatDirectMessageNotifications } from "./chat-direct-message-notifications";
+import {
+  emitChatDirectMessageNotifications,
+  shouldEmitChatDirectMessageNotifications,
+} from "./chat-direct-message-notifications";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
 const AUTHOR_ID = "user_author";
 const PEER_ID = "user_alice";
 const OTHER_ID = "user_bob";
+const THIRD_ID = "user_carol";
 
 beforeEach(() => {
   vi.clearAllMocks();
   createNotificationMock.mockResolvedValue({ created: true });
   workspaceFindUniqueMock.mockResolvedValue({ id: "workspace_1" });
   membershipFindManyMock.mockResolvedValue([]);
+});
+
+describe("shouldEmitChatDirectMessageNotifications", () => {
+  it("returns false for channel rooms regardless of member count", () => {
+    expect(
+      shouldEmitChatDirectMessageNotifications({
+        kind: "channel",
+        memberUserIds: [AUTHOR_ID],
+      }),
+    ).toBe(false);
+    expect(
+      shouldEmitChatDirectMessageNotifications({
+        kind: "channel",
+        memberUserIds: [AUTHOR_ID, PEER_ID],
+      }),
+    ).toBe(false);
+    expect(
+      shouldEmitChatDirectMessageNotifications({
+        kind: "channel",
+        memberUserIds: [AUTHOR_ID, PEER_ID, OTHER_ID],
+      }),
+    ).toBe(false);
+  });
+
+  it("returns true for direct rooms with fewer than 3 human members", () => {
+    expect(
+      shouldEmitChatDirectMessageNotifications({
+        kind: "direct",
+        memberUserIds: [AUTHOR_ID],
+      }),
+    ).toBe(true);
+    expect(
+      shouldEmitChatDirectMessageNotifications({
+        kind: "direct",
+        memberUserIds: [AUTHOR_ID, PEER_ID],
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for direct rooms with 3 or more human members", () => {
+    expect(
+      shouldEmitChatDirectMessageNotifications({
+        kind: "direct",
+        memberUserIds: [AUTHOR_ID, PEER_ID, OTHER_ID],
+      }),
+    ).toBe(false);
+    expect(
+      shouldEmitChatDirectMessageNotifications({
+        kind: "direct",
+        memberUserIds: [AUTHOR_ID, PEER_ID, OTHER_ID, THIRD_ID],
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("emitChatDirectMessageNotifications", () => {

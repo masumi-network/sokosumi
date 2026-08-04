@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
+import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
+import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { getSession } from "@/lib/auth/auth.server";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
@@ -48,18 +50,20 @@ export default async function AuthLayout({
   }
 
   return (
-    <div className="flex h-svh gap-6 p-6">
-      <div className="flex h-full flex-1 flex-col gap-6">
-        <Link href="/">
-          <ThemedLogo LogoComponent={SokosumiLogo} priority />
-        </Link>
-        <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
-          {children}
+    <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
+      <div className="flex h-svh gap-6 p-6">
+        <div className="flex h-full flex-1 flex-col gap-6">
+          <Link href="/">
+            <ThemedLogo LogoComponent={SokosumiLogo} priority />
+          </Link>
+          <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
+            {children}
+          </div>
+          <AuthLayoutFooter />
         </div>
-        <AuthLayoutFooter />
+        <AuthBackground />
       </div>
-      <AuthBackground />
-    </div>
+    </ClientMessageBoundary>
   );
 }
 

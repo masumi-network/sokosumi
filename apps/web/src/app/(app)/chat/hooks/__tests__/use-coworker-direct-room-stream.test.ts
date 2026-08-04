@@ -45,6 +45,7 @@ function persistedUser(content: string): ChatRoomMessage {
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
+    membership: null,
     deletedAt: null,
   };
 }

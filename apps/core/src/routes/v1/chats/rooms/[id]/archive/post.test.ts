@@ -113,55 +113,52 @@ beforeEach(() => {
 });
 
 describe("POST /chats/rooms/{id}/archive", () => {
-  it("archives a room for its creator and returns the timestamp", async () => {
+  it("rejects a creator who is only a plain member", async () => {
     roomFindFirstMock.mockResolvedValue(room());
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
 
     const response = await archive();
 
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data.id).toBe(ROOM_ID);
-    expect(typeof body.data.archivedAt).toBe("string");
-
-    const sqlParts = queryRawMock.mock.calls[0]?.[0] as TemplateStringsArray;
-    expect(sqlParts.join(" ")).toContain("FOR UPDATE");
-    expect(roomUpdateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: ROOM_ID, archivedAt: null },
-        data: { archivedAt: expect.any(Date) },
-      }),
-    );
+    expect(response.status).toBe(403);
+    const text = await response.text();
+    expect(text).toMatch(/organization owner or admin/i);
+    expect(text).not.toMatch(/creator/i);
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it.each([
     ["admin", MemberRole.ADMIN],
     ["owner", MemberRole.OWNER],
   ])(
-    "lets an organization %s archive a room they did not create",
+    "lets an organization %s archive a room and returns the timestamp",
     async (_label, role) => {
       roomFindFirstMock.mockResolvedValue(room({ createdByUserId: OTHER_ID }));
       memberFindUniqueMock.mockResolvedValue({ role });
 
-      expect((await archive()).status).toBe(200);
+      const response = await archive();
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.data.id).toBe(ROOM_ID);
+      expect(typeof body.data.archivedAt).toBe("string");
+
+      const sqlParts = queryRawMock.mock.calls[0]?.[0] as TemplateStringsArray;
+      expect(sqlParts.join(" ")).toContain("FOR UPDATE");
+      expect(roomUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ROOM_ID, archivedAt: null },
+          data: { archivedAt: expect.any(Date) },
+        }),
+      );
     },
   );
 
-  it("rejects a plain member who is not the creator", async () => {
+  it("rejects a plain member who is not elevated", async () => {
     roomFindFirstMock.mockResolvedValue(
       room({
         createdByUserId: OTHER_ID,
         memberIds: [CREATOR_ID, OTHER_ID, "user_third"],
       }),
-    );
-    memberFindUniqueMock.mockResolvedValue({ role: "member" });
-
-    expect((await archive()).status).toBe(403);
-    expect(roomUpdateManyMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects the last human member when they are not creator or elevated", async () => {
-    roomFindFirstMock.mockResolvedValue(
-      room({ createdByUserId: OTHER_ID, memberIds: [CREATOR_ID] }),
     );
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
 
@@ -194,6 +191,7 @@ describe("POST /chats/rooms/{id}/archive", () => {
 
   it("404s when a concurrent archive already set archivedAt under the lock", async () => {
     roomFindFirstMock.mockResolvedValue(room());
+    memberFindUniqueMock.mockResolvedValue({ role: MemberRole.OWNER });
     roomUpdateManyMock.mockResolvedValue({ count: 0 });
 
     expect((await archive()).status).toBe(404);

@@ -303,6 +303,11 @@ export function isMessageContinuation(
     return false;
   }
 
+  // Membership status rows are not chat bubbles; never continue across them.
+  if (previous.membership != null || current.membership != null) {
+    return false;
+  }
+
   const previousKey = messageSenderKey(previous);
   const currentKey = messageSenderKey(current);
   if (!previousKey || !currentKey || previousKey !== currentKey) {
@@ -354,30 +359,45 @@ export function getDirectRoomTarget(room: ChatRoom, currentUserId: string) {
   );
 }
 
+function compareByDisplayNameThenId(
+  a: { name: string; id: string },
+  b: { name: string; id: string },
+): number {
+  const byName = a.name.localeCompare(b.name);
+  if (byName !== 0) {
+    return byName;
+  }
+  return a.id.localeCompare(b.id);
+}
+
 export function getDirectRoomParticipants(
   room: ChatRoom,
   currentUserId: string,
 ): DirectParticipantPreview[] {
-  return [
-    ...room.userMembers
-      .filter((member) => member.id !== currentUserId)
-      .map((member) => ({
-        id: member.id,
-        name: member.name || member.email,
-        detail: member.email,
-        image: member.image,
-        presence: member.presence,
-        kind: "human" as const,
-      })),
-    ...room.coworkerMembers.map((coworker) => ({
+  const humans = room.userMembers
+    .filter((member) => member.id !== currentUserId)
+    .map((member) => ({
+      id: member.id,
+      name: member.name || member.email,
+      detail: member.email,
+      image: member.image,
+      presence: member.presence,
+      kind: "human" as const,
+    }))
+    .toSorted(compareByDisplayNameThenId);
+
+  const coworkers = room.coworkerMembers
+    .map((coworker) => ({
       id: coworker.id,
       name: coworker.name,
       detail: coworker.caption,
       image: coworker.image,
       presence: coworker.presence,
       kind: "coworker" as const,
-    })),
-  ];
+    }))
+    .toSorted(compareByDisplayNameThenId);
+
+  return [...humans, ...coworkers];
 }
 
 /**
@@ -486,8 +506,8 @@ export function getRoomDisplayName(
 export function getRoomParticipantPreviews(
   room: ChatRoom,
 ): RoomParticipantPreview[] {
-  return [
-    ...room.userMembers.map(
+  const humans = room.userMembers
+    .map(
       (member): ChatParticipantHoverProfile => ({
         kind: "human",
         id: member.id,
@@ -496,8 +516,11 @@ export function getRoomParticipantPreviews(
         image: member.image,
         presence: member.presence,
       }),
-    ),
-    ...room.coworkerMembers.map(
+    )
+    .toSorted(compareByDisplayNameThenId);
+
+  const coworkers = room.coworkerMembers
+    .map(
       (coworker): ChatParticipantHoverProfile => ({
         kind: "coworker",
         id: coworker.id,
@@ -507,8 +530,10 @@ export function getRoomParticipantPreviews(
         image: coworker.image,
         presence: coworker.presence,
       }),
-    ),
-  ];
+    )
+    .toSorted(compareByDisplayNameThenId);
+
+  return [...humans, ...coworkers];
 }
 
 export function presenceLabel(

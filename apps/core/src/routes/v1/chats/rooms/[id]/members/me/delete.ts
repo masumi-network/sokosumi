@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -12,6 +13,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { leftChatRoomSchema } from "@/schemas/chat-room.schema";
 
 import { requireChatRoomUserAccess } from "../../../helpers";
+import { recordChannelMembershipStatus } from "../../../membership-status";
 
 const paramsSchema = z.object({
   id: z
@@ -28,7 +30,7 @@ const route = withGlobalHeaderParameters(
     method: "delete",
     path: "/{id}/members/me",
     description:
-      "Leave an organization chat room. Removes only the caller's membership and read marker; the room and its messages are untouched for everyone else. Any member can leave. The last remaining member cannot leave (ask the channel creator or an organization owner/admin to archive instead), and direct rooms cannot be left.",
+      "Leave an organization chat room. Removes only the caller's membership and read marker; the room and its messages are untouched for everyone else. Any member can leave. The last remaining member cannot leave (ask an organization owner/admin to archive instead), and direct rooms cannot be left.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -48,7 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    const result = await prisma.$transaction(async (tx) => {
+    const { result, statusMessages } = await prisma.$transaction(async (tx) => {
       // Doubles as the membership check: it only resolves rooms the caller
       // actually belongs to, so leaving twice 404s.
       const existing = await requireChatRoomUserAccess(
@@ -94,13 +96,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
       // Nobody left to archive it afterwards: the room would linger with an
       // empty roster, invisible to every user yet still holding its slug.
-      // Last member cannot leave — creator or org owner/admin (who must also
+      // Last member cannot leave — an organization owner/admin (who must also
       // be members under current access rules) must archive instead.
       if (remainingUserMemberCount === 0) {
         throw badRequest(
-          "You are the last member of this room. Ask the channel creator or an organization owner or admin to archive it.",
+          "You are the last member of this room. Ask an organization owner or admin to archive it.",
         );
       }
+
+      const actor = await tx.user.findUnique({
+        where: { id: userContext.userId },
+        select: { name: true },
+      });
+      const actorName = actor?.name?.trim() || "Someone";
+
+      const createdStatus = await recordChannelMembershipStatus(tx, {
+        roomId: existing.id,
+        roomKind: existing.kind,
+        changes: [
+          {
+            action: "left",
+            subject: {
+              type: "user",
+              id: userContext.userId,
+              name: actorName,
+            },
+          },
+        ],
+      });
 
       await tx.chatRoomUserMember.deleteMany({
         where: { roomId: existing.id, userId: userContext.userId },
@@ -111,8 +134,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         where: { roomId: existing.id, userId: userContext.userId },
       });
 
-      return { id: existing.id, remainingUserMemberCount };
+      return {
+        result: { id: existing.id, remainingUserMemberCount },
+        statusMessages: createdStatus,
+      };
     });
+
+    for (const message of statusMessages) {
+      await publishChatRoomMessageRealtime(message);
+    }
 
     return ok(c, leftChatRoomSchema.parse(result));
   });
