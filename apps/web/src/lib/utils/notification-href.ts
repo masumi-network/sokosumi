@@ -1,9 +1,12 @@
 import type { NotificationKind } from "@/lib/clients/generated/core";
+import { buildVendorGrantReviewHref } from "@/lib/utils/vendor-grant-approval";
+import { resolveVendorGrantNotificationTarget } from "@/lib/utils/vendor-grant-notification";
 
 interface NotificationHrefItem {
   kind: NotificationKind;
   referenceId: string;
   metadata: Record<string, unknown> | null;
+  messageKey?: string;
 }
 
 /**
@@ -28,7 +31,24 @@ export function getNotificationHref(
     case "CHAT":
       return `/chat/rooms/${encodeURIComponent(notification.referenceId)}`;
 
-    case "SYSTEM":
+    case "SYSTEM": {
+      if (notification.messageKey) {
+        const target = resolveVendorGrantNotificationTarget({
+          messageKey: notification.messageKey,
+          referenceId: notification.referenceId,
+          metadata: notification.metadata,
+        });
+        if (target) {
+          return (
+            buildVendorGrantReviewHref({
+              organizationId: target.organizationId,
+            }) ?? `/`
+          );
+        }
+      }
+      return `/`;
+    }
+
     case "BILLING":
       return `/`;
 
