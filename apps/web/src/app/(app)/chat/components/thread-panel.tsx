@@ -178,7 +178,7 @@ export function ThreadPanel({
         <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
           <div
             ref={contentRef}
-            className="flex w-full flex-col justify-end px-4 py-4"
+            className="flex w-full flex-col justify-end px-4 pt-4 pb-0"
             style={
               contentMinHeight != null
                 ? { minHeight: contentMinHeight }
