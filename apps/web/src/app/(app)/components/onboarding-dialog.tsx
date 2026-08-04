@@ -501,6 +501,15 @@ export function OnboardingDialog({
     }
   };
 
+  function handleSubscriptionOnlySkip() {
+    track("Onboarding skipped");
+    if (loginId) {
+      writeLastSubscriptionOnboardingLoginId(loginId);
+      markSubscriptionOnboardingGateSeenSafely(loginId);
+    }
+    setOpen(false);
+  }
+
   function handleSubscriptionActionError(
     error: { code: string; message?: string | null },
     options: {
@@ -810,7 +819,13 @@ export function OnboardingDialog({
                 if (subscriptionOnly) return;
                 setStep((currentStep) => currentStep + 1);
               }}
-              onSkip={() => void handleComplete("Onboarding skipped")}
+              onSkip={() => {
+                if (subscriptionOnly) {
+                  handleSubscriptionOnlySkip();
+                  return;
+                }
+                void handleComplete("Onboarding skipped");
+              }}
               onFinish={() => void handleStartSubscription()}
             />
           </div>
