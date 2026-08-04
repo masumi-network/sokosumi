@@ -1,3 +1,4 @@
+import type { SessionUser } from "@sokosumi/utils";
 import { cacheLife, cacheTag } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import {
@@ -6,7 +7,6 @@ import {
 } from "@/app/components/account-notice-state";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import { chatRoomService, userService } from "@/lib/services";
@@ -24,7 +24,7 @@ import { AccountNoticeHydrator } from "./shell-hydrators.client";
 import Sidebar, { resolveCreditUsage } from "./sidebar";
 
 interface PrivateCachedAppSidebarProps {
-  userId: string;
+  sessionUser: SessionUser;
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
 }
@@ -36,25 +36,20 @@ interface PrivateCachedAppSidebarProps {
  * async SC children under the cached tree.
  */
 export default async function PrivateCachedAppSidebar({
-  userId,
+  sessionUser,
   activeOrganizationId,
   adminMenuEnabled,
 }: PrivateCachedAppSidebarProps) {
   "use cache: private";
   cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
-  cacheTag(privateSidebarUserTag(userId));
+  cacheTag(privateSidebarUserTag(sessionUser.id));
   if (activeOrganizationId) {
     cacheTag(privateSidebarOrgTag(activeOrganizationId));
   }
 
-  const session = await getSession();
-  if (!session || session.user.id !== userId) {
-    return null;
-  }
-
   const tCreditPromise = getTranslations("App.Header.Credit");
   const tPlanPromise = getTranslations("App.Header.Plan");
-  const hermesMenuEnabled = isHermesBetaAccessEmail(session.user.email);
+  const hermesMenuEnabled = isHermesBetaAccessEmail(sessionUser.email);
   const lowCreditsThreshold =
     getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
 
@@ -127,8 +122,8 @@ export default async function PrivateCachedAppSidebar({
   const accountNotice = resolveAccountNotice({
     credits: creditsData?.total ?? null,
     currentPlan: creditsData === null ? null : currentPlan,
-    email: session.user.email,
-    emailVerified: session.user.emailVerified,
+    email: sessionUser.email,
+    emailVerified: sessionUser.emailVerified,
     threshold: lowCreditsThreshold,
   });
 
@@ -146,13 +141,13 @@ export default async function PrivateCachedAppSidebar({
         creditsData={creditsData}
         creditUsage={resolveCreditUsage(creditsData)}
         currentTimestampMs={currentTimestampMs}
-        currentUserId={session.user.id}
+        currentUserId={sessionUser.id}
         hermesMenuEnabled={hermesMenuEnabled}
         lowCreditsThreshold={lowCreditsThreshold}
         members={members}
         planLabel={planLabel}
         planName={planName}
-        sessionUser={session.user}
+        sessionUser={sessionUser}
         showDeveloperVendors={showDeveloperVendors}
         subscriptionPeriodEndMs={subscriptionPeriodEndMs}
       />
