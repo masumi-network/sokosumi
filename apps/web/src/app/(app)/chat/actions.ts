@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { actionErrorMessage } from "@/app/chat/action-error-message";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
+import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
+import { getSession } from "@/lib/auth/auth.server";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -74,6 +76,17 @@ function cleanDiscoverability(
   return undefined;
 }
 
+async function invalidateSidebarChatList(): Promise<void> {
+  const session = await getSession();
+  if (!session) {
+    return;
+  }
+  invalidatePrivateSidebarChrome({
+    userId: session.user.id,
+    organizationId: session.session.activeOrganizationId ?? null,
+  });
+}
+
 export async function createChannelAction(
   input: CreateChannelInput,
 ): Promise<RoomActionResult<ChatRoom>> {
@@ -96,6 +109,7 @@ export async function createChannelAction(
       memberUserIds: cleanIds(input.memberUserIds),
       coworkerIds: cleanIds(input.coworkerIds),
     });
+    await invalidateSidebarChatList();
     revalidatePath("/chat");
     return { ok: true, data: room };
   } catch (error) {
@@ -140,6 +154,7 @@ export async function createDirectRoomAction(
       memberUserIds,
       coworkerIds,
     });
+    await invalidateSidebarChatList();
     revalidatePath("/chat");
     return { ok: true, data: room };
   } catch (error) {
@@ -168,6 +183,7 @@ export async function ensureCoworkerDirectRoomAction(
       memberUserIds: [],
       coworkerIds: [cleanCoworkerId],
     });
+    await invalidateSidebarChatList();
     return { ok: true, data: room };
   } catch (error) {
     return {
@@ -211,6 +227,7 @@ export async function sendNewDirectMessageAction(
       mentionedCoworkerIds: cleanIds(input.mentionedCoworkerIds),
       mentionedUserIds: cleanIds(input.mentionedUserIds),
     });
+    await invalidateSidebarChatList();
     revalidatePath("/chat");
     return { ok: true, data: { room, message } };
   } catch (error) {
@@ -241,6 +258,7 @@ export async function updateRoomAction(
 
   try {
     const room = await chatRoomService.updateRoom(roomId, body);
+    await invalidateSidebarChatList();
     revalidatePath("/chat");
     return { ok: true, data: room };
   } catch (error) {
@@ -258,6 +276,7 @@ export async function archiveRoomAction(
     const archived = await chatRoomService.archiveRoom(roomId);
     // The room disappears from every member's list, so the server-rendered
     // room list has to be rebuilt rather than patched client side.
+    await invalidateSidebarChatList();
     revalidatePath("/chat");
     return { ok: true, data: { id: archived.id } };
   } catch (error) {
@@ -273,6 +292,7 @@ export async function restoreRoomAction(
 ): Promise<RoomActionResult<ChatRoom>> {
   try {
     const restored = await chatRoomService.restoreRoom(roomId);
+    await invalidateSidebarChatList();
     revalidatePath("/chat");
     return { ok: true, data: restored };
   } catch (error) {
@@ -288,6 +308,7 @@ export async function deleteRoomAction(
 ): Promise<RoomActionResult<{ id: string }>> {
   try {
     await chatRoomService.deleteRoom(roomId);
+    await invalidateSidebarChatList();
     revalidatePath("/chat");
     return { ok: true, data: { id: roomId } };
   } catch (error) {
@@ -303,6 +324,7 @@ export async function leaveRoomAction(
 ): Promise<RoomActionResult<{ id: string }>> {
   try {
     const left = await chatRoomService.leaveRoom(roomId);
+    await invalidateSidebarChatList();
     revalidatePath("/chat");
     return { ok: true, data: { id: left.id } };
   } catch (error) {
@@ -323,6 +345,7 @@ export async function joinRoomAction(
 
   try {
     const room = await chatRoomService.joinRoom(cleanRoomId);
+    await invalidateSidebarChatList();
     revalidatePath("/chat");
     return { ok: true, data: room };
   } catch (error) {

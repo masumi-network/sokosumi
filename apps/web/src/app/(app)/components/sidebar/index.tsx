@@ -1,7 +1,4 @@
-import type { Session } from "@sokosumi/utils";
-import { getTranslations } from "next-intl/server";
-import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
-import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
+import type { SessionUser } from "@sokosumi/utils";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import {
   Sidebar as ShadcnSidebar,
@@ -10,14 +7,12 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
-import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { chatRoomService, userService } from "@/lib/services";
+import type {
+  ChatRoom,
+  GetUsersByIdCreditsResponse,
+  MemberWithOrganization,
+} from "@/lib/clients/generated/core";
 import type { CreditUsage } from "@/lib/types/credit";
-import {
-  resolvePlanName,
-  resolvePlanSecondaryLabel,
-} from "@/lib/utils/plan-label";
 
 import AdminSettingsMenuGroup from "./components/admin-settings-menu-group.client";
 import AnnouncementCards from "./components/announcement-cards";
@@ -34,7 +29,7 @@ export type SidebarCreditsData = GetUsersByIdCreditsResponse["data"]["credits"];
  * Subscription-period usage only exists once a paid period grants credits; the
  * free plan has no allowance to draw down, so the chip hides the bar entirely.
  */
-function resolveCreditUsage(
+export function resolveCreditUsage(
   creditsData: SidebarCreditsData | null,
 ): CreditUsage | null {
   const subscriptionCredits = creditsData?.subscription?.credits ?? null;
@@ -54,77 +49,46 @@ function resolveCreditUsage(
 }
 
 interface SidebarProps {
+  activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
+  archivedChatRooms: ChatRoom[];
+  buyCreditsLabel: string;
+  buyCreditsPath: string;
+  canDeleteArchivedRooms: boolean;
+  chatRooms: ChatRoom[];
   creditsData: SidebarCreditsData | null;
+  creditUsage: CreditUsage | null;
   currentTimestampMs: number;
-  organizationName: string | null;
-  session: Session;
+  currentUserId: string;
   lowCreditsThreshold: number;
+  members: MemberWithOrganization[];
+  planLabel: string;
+  planName: string | null;
+  sessionUser: SessionUser;
+  showDeveloperVendors: boolean;
+  subscriptionPeriodEndMs: number | null;
 }
 
-export default async function Sidebar({
+export default function Sidebar({
+  activeOrganizationId,
   adminMenuEnabled,
+  archivedChatRooms,
+  buyCreditsLabel,
+  buyCreditsPath,
+  canDeleteArchivedRooms,
+  chatRooms,
   creditsData,
+  creditUsage,
   currentTimestampMs,
-  organizationName,
-  session,
+  currentUserId,
   lowCreditsThreshold,
+  members,
+  planLabel,
+  planName,
+  sessionUser,
+  showDeveloperVendors,
+  subscriptionPeriodEndMs,
 }: SidebarProps) {
-  const tCreditPromise = getTranslations("App.Header.Credit");
-  const tPlanPromise = getTranslations("App.Header.Plan");
-  const currentPlan = creditsData?.subscription?.plan ?? "free";
-  const planForLabel = creditsData === null ? null : currentPlan;
-  const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
-  const activeOrganizationId = session.session.activeOrganizationId ?? null;
-
-  const membersPromise = userService
-    .getMyMembersWithOrganizations()
-    .catch(() => []);
-  // Personal coworker directs exist with no active org; Core returns those when
-  // organization context is null. Named channels still need an org (empty list then).
-  const chatRoomsPromise = chatRoomService.listRooms().catch(() => []);
-  const archivedChatRoomsPromise = activeOrganizationId
-    ? chatRoomService.listArchivedRooms().catch(() => [])
-    : Promise.resolve(
-        [] as Awaited<ReturnType<typeof chatRoomService.listArchivedRooms>>,
-      );
-  const planLabelPromise = tCreditPromise.then((tCredit) =>
-    resolvePlanSecondaryLabel({
-      plan: planForLabel,
-      organizationName: activeOrganizationId
-        ? (organizationName ?? tCredit("unavailable"))
-        : null,
-    }),
-  );
-
-  const [
-    tPlan,
-    members,
-    chatRooms,
-    archivedChatRooms,
-    { showVendors: showDeveloperVendors },
-    planLabel,
-    planName,
-  ] = await Promise.all([
-    tPlanPromise,
-    membersPromise,
-    chatRoomsPromise,
-    archivedChatRoomsPromise,
-    getDeveloperVendorAdminAccess(),
-    planLabelPromise,
-    resolvePlanName(planForLabel),
-  ]);
-  const subscriptionPeriodEnd = creditsData?.subscription?.periodEnd ?? null;
-
-  const canDeleteArchivedRooms = Boolean(
-    activeOrganizationId &&
-      members.some(
-        (membership) =>
-          membership.organizationId === activeOrganizationId &&
-          isOrganizationOwnerOrAdmin(membership.role),
-      ),
-  );
-
   return (
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-16 border-b p-0">
@@ -151,7 +115,7 @@ export default async function Sidebar({
             <OrganizationChatList
               rooms={chatRooms}
               archivedRooms={archivedChatRooms}
-              currentUserId={session.user.id}
+              currentUserId={currentUserId}
               organizationId={activeOrganizationId}
               canDeleteArchivedRooms={canDeleteArchivedRooms}
             />
@@ -165,19 +129,15 @@ export default async function Sidebar({
             grows on phones, where the home indicator sits in that 8px. */}
         <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
           <SidebarAccountChip
-            sessionUser={session.user}
+            sessionUser={sessionUser}
             planName={planName}
             totalCredits={creditsData?.total ?? null}
             extraCredits={creditsData?.buffer ?? null}
-            creditUsage={resolveCreditUsage(creditsData)}
-            subscriptionPeriodEndMs={
-              subscriptionPeriodEnd
-                ? new Date(subscriptionPeriodEnd).getTime()
-                : null
-            }
+            creditUsage={creditUsage}
+            subscriptionPeriodEndMs={subscriptionPeriodEndMs}
             currentTimestampMs={currentTimestampMs}
             lowCreditsThreshold={lowCreditsThreshold}
-            buyCreditsLabel={tPlan("getMoreCredits")}
+            buyCreditsLabel={buyCreditsLabel}
             buyCreditsPath={buyCreditsPath}
           />
         </div>

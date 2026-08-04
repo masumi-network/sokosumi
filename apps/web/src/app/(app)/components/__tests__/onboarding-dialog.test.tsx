@@ -284,4 +284,94 @@ describe("OnboardingDialog organization subscription", () => {
     expect(upgradePersonalSubscriptionMock).not.toHaveBeenCalled();
     expect(upgradeOrganizationSubscriptionMock).not.toHaveBeenCalled();
   });
+
+  it("soft-dismisses subscription-only Skip without completing onboarding", async () => {
+    render(
+      <OnboardingDialog
+        loginId="session-1"
+        paidPlans={createPaidPlans()}
+        subscriptionCheckoutMode="personal"
+        subscriptionOnly
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "navigation.skip" }),
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "navigation.skip" }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("button", { name: "navigation.subscribe" }),
+      ).not.toBeInTheDocument();
+    });
+    expect(trackMock).toHaveBeenCalledWith("Onboarding skipped");
+    expect(markSubscriptionOnboardingGateSessionSeenMock).toHaveBeenCalledWith(
+      "session-1",
+    );
+    expect(
+      window.localStorage.getItem(SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY),
+    ).toBe("session-1");
+    expect(completeOnboardingMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("OnboardingDialog full intro Skip", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    markSubscriptionOnboardingGateSessionSeenMock.mockResolvedValue(undefined);
+    window.localStorage.clear();
+    completeOnboardingMock.mockResolvedValue({
+      data: { redirectUrl: "/tasks" },
+      ok: true,
+    });
+  });
+
+  it("still completes onboarding when Skip is used on full intro", async () => {
+    render(
+      <OnboardingDialog
+        paidPlans={createPaidPlans()}
+        subscriptionCheckoutMode="personal"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "navigation.skip" }));
+
+    await waitFor(() => {
+      expect(completeOnboardingMock).toHaveBeenCalled();
+    });
+    expect(trackMock).toHaveBeenCalledWith("Onboarding skipped");
+    expect(pushMock).toHaveBeenCalledWith("/tasks");
+    expect(
+      markSubscriptionOnboardingGateSessionSeenMock,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("keeps the dialog open and toasts when completeOnboarding fails", async () => {
+    completeOnboardingMock.mockResolvedValue({
+      error: { message: "boom" },
+      ok: false,
+    });
+
+    render(
+      <OnboardingDialog
+        paidPlans={createPaidPlans()}
+        subscriptionCheckoutMode="personal"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "navigation.skip" }));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("boom");
+    });
+    expect(
+      screen.getByRole("button", { name: "navigation.skip" }),
+    ).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
 });

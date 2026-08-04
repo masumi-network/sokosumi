@@ -2,6 +2,7 @@
 
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import * as z from "zod";
+import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { toSubscriptionSeatsActionError } from "@/lib/actions/subscription/map-core-subscription-seats-error";
 import type { SubscriptionChangeResult } from "@/lib/auth/subscription.server";
@@ -61,7 +62,7 @@ interface UpdateOrganizationSubscriptionSeatsParameters
 export const updateOrganizationSubscriptionSeats = withSession<
   UpdateOrganizationSubscriptionSeatsParameters,
   Result<{ seats: number }, ActionError>
->(async ({ organizationId, seats }) => {
+>(async ({ organizationId, seats, session }) => {
   const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
     organizationId,
     seats,
@@ -77,6 +78,11 @@ export const updateOrganizationSubscriptionSeats = withSession<
       parsed.data.organizationId,
       parsed.data.seats,
     );
+
+    invalidatePrivateSidebarChrome({
+      userId: session.user.id,
+      organizationId: parsed.data.organizationId,
+    });
 
     return Ok({ seats: data.seats });
   } catch (error) {

@@ -212,6 +212,18 @@ async function fetchSession(
 
     return body;
   } catch (error) {
+    // PPR soft-abort during shell probe — not an auth failure. Rethrow so React
+    // / Cache Components can finish the boundary instead of treating this as
+    // "no session" and bouncing the user to /signin.
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "digest" in error &&
+      error.digest === "HANGING_PROMISE_REJECTION"
+    ) {
+      throw error;
+    }
+
     // Core unreachable, timed out, or returned a non-JSON body. Preserve the
     // null-returning contract callers rely on instead of throwing.
     console.error("Failed to fetch session from Core", error);

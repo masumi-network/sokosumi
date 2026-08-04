@@ -36,6 +36,80 @@ function waitForMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export type SessionValidateReason = "mount" | "resume";
+
+export type ProbeSessionResult = "session" | "missing" | "error" | "cancelled";
+
+export const SESSION_RESUME_PROBE_DELAYS_MS = [0, 250, 750] as const;
+export const SESSION_RESUME_DEBOUNCE_MS = 300;
+
+interface ProbeSessionWithRetryOptions {
+  getSession: () => Promise<unknown>;
+  delaysMs?: readonly number[];
+  waitForMs?: (ms: number) => Promise<void>;
+  shouldCancel?: () => boolean;
+}
+
+export async function probeSessionWithRetry({
+  getSession,
+  delaysMs = SESSION_RESUME_PROBE_DELAYS_MS,
+  waitForMs: waitForMsFn = waitForMs,
+  shouldCancel,
+}: ProbeSessionWithRetryOptions): Promise<ProbeSessionResult> {
+  for (let index = 0; index < delaysMs.length; index += 1) {
+    if (shouldCancel?.()) {
+      return "cancelled";
+    }
+
+    const delayMs = delaysMs[index] ?? 0;
+    if (delayMs > 0) {
+      await waitForMsFn(delayMs);
+      if (shouldCancel?.()) {
+        return "cancelled";
+      }
+    }
+
+    try {
+      const session = await getSession();
+      if (shouldCancel?.()) {
+        return "cancelled";
+      }
+      if (session) {
+        return "session";
+      }
+    } catch {
+      return "error";
+    }
+  }
+
+  return "missing";
+}
+
+export function createDebouncedScheduler(
+  fn: () => void,
+  debounceMs: number = SESSION_RESUME_DEBOUNCE_MS,
+): { schedule: () => void; cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  return {
+    schedule() {
+      if (timer !== null) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(() => {
+        timer = null;
+        fn();
+      }, debounceMs);
+    },
+    cancel() {
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    },
+  };
+}
+
 export function createAuthSessionGetter<TSession>(
   getSessionResponse: () => Promise<AuthSessionResponse<TSession> | null>,
 ): () => Promise<TSession | null> {

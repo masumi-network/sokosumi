@@ -1,36 +1,30 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 
 import {
   buildAvailableAgentWhereClause,
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import {
-  type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
-} from "@/lib/hono";
 import { categorySchema, mapCategoryForApi } from "@/schemas/category.schema";
 
-const route = withGlobalHeaderParameters(
-  createRoute({
-    method: "get",
-    path: "/",
-    description:
-      "List persisted categories that have at least one available agent. Useful for building filter UIs.",
-    tags: ["Categories"],
-    responses: {
-      200: jsonSuccessResponse(
-        z.array(categorySchema),
-        "Retrieve persisted categories with available agents",
-      ),
-      401: jsonErrorResponse("Unauthorized"),
-    },
-  }),
-);
+const route = createRoute({
+  method: "get",
+  path: "/",
+  description:
+    "List persisted categories that have at least one available agent. Useful for building filter UIs.",
+  tags: ["Categories"],
+  security: [],
+  responses: {
+    200: jsonSuccessResponse(
+      z.array(categorySchema),
+      "Retrieve persisted categories with available agents",
+    ),
+  },
+});
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const categories = await prisma.$transaction(async (tx) => {
       const creditCosts = await getCreditCostsOrThrow(tx);
