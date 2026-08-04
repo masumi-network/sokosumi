@@ -457,10 +457,7 @@ export async function listUnreadThreadsAction(
   } catch (error) {
     return {
       ok: false,
-      message: actionErrorMessage(
-        error,
-        "Could not load threads needing attention.",
-      ),
+      message: actionErrorMessage(error, "Could not load unread threads."),
     };
   }
 }

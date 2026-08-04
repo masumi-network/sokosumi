@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ThreadAttentionPanel } from "@/app/chat/components/thread-attention-panel";
+import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
 import type {
   ChatRoomMessage,
   ChatRoomThread,
@@ -66,7 +66,7 @@ function parentMessage(
   } as ChatRoomMessage;
 }
 
-function attentionItem(
+function unreadThreadItem(
   overrides: Partial<ChatRoomThread> = {},
 ): ChatRoomThread {
   return {
@@ -79,12 +79,12 @@ function attentionItem(
   };
 }
 
-describe("ThreadAttentionPanel", () => {
+describe("UnreadThreadsPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     listUnreadThreadsActionMock.mockResolvedValue({
       ok: true,
-      data: [attentionItem()],
+      data: [unreadThreadItem()],
     });
     markAllUnreadThreadsReadActionMock.mockResolvedValue({
       ok: true,
@@ -92,23 +92,23 @@ describe("ThreadAttentionPanel", () => {
     });
   });
 
-  it("opens attention surface from the header control", async () => {
+  it("opens unread threads surface from the header control", async () => {
     render(
-      <ThreadAttentionPanel
+      <UnreadThreadsPanel
         roomId="550e8400-e29b-41d4-a716-446655440000"
         labels={labels}
-        onOpenThread={vi.fn()}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
       />,
     );
 
     expect(
-      screen.queryByTestId("thread-attention-panel"),
+      screen.queryByTestId("unread-threads-panel"),
     ).not.toBeInTheDocument();
-    expect(
-      await screen.findByTestId("thread-attention-badge"),
-    ).toHaveTextContent("1");
-    fireEvent.click(screen.getByTestId("thread-attention-trigger"));
-    expect(screen.getByTestId("thread-attention-panel")).toBeInTheDocument();
+    expect(await screen.findByTestId("unread-threads-badge")).toHaveTextContent(
+      "1",
+    );
+    fireEvent.click(screen.getByTestId("unread-threads-trigger"));
+    expect(screen.getByTestId("unread-threads-panel")).toBeInTheDocument();
     expect(screen.getByText(labels.title)).toBeInTheDocument();
 
     await waitFor(() => {
@@ -117,13 +117,13 @@ describe("ThreadAttentionPanel", () => {
       );
     });
 
-    expect(
-      await screen.findByTestId("thread-attention-item"),
-    ).toHaveTextContent("Budget review parent");
+    expect(await screen.findByTestId("unread-threads-item")).toHaveTextContent(
+      "Budget review parent",
+    );
     expect(screen.getByText(/Started by Ada/)).toBeInTheDocument();
     expect(screen.getByText("2 unread replies")).toBeInTheDocument();
     expect(
-      screen.getByTestId("thread-attention-mark-all-read"),
+      screen.getByTestId("unread-threads-mark-all-read"),
     ).toHaveTextContent(labels.markAllRead);
   });
 
@@ -131,10 +131,10 @@ describe("ThreadAttentionPanel", () => {
     listUnreadThreadsActionMock.mockResolvedValue({ ok: true, data: [] });
 
     render(
-      <ThreadAttentionPanel
+      <UnreadThreadsPanel
         roomId="550e8400-e29b-41d4-a716-446655440000"
         labels={labels}
-        onOpenThread={vi.fn()}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
       />,
     );
 
@@ -142,7 +142,7 @@ describe("ThreadAttentionPanel", () => {
       expect(listUnreadThreadsActionMock).toHaveBeenCalled();
     });
     expect(
-      screen.queryByTestId("thread-attention-badge"),
+      screen.queryByTestId("unread-threads-badge"),
     ).not.toBeInTheDocument();
   });
 
@@ -150,7 +150,7 @@ describe("ThreadAttentionPanel", () => {
     listUnreadThreadsActionMock.mockResolvedValue({
       ok: true,
       data: [
-        attentionItem({
+        unreadThreadItem({
           parentMessage: parentMessage({
             content:
               "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:noodles Hello **Noodles**",
@@ -160,15 +160,15 @@ describe("ThreadAttentionPanel", () => {
     });
 
     render(
-      <ThreadAttentionPanel
+      <UnreadThreadsPanel
         roomId="550e8400-e29b-41d4-a716-446655440000"
         labels={labels}
-        onOpenThread={vi.fn()}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
       />,
     );
 
-    fireEvent.click(screen.getByTestId("thread-attention-trigger"));
-    const item = await screen.findByTestId("thread-attention-item");
+    fireEvent.click(screen.getByTestId("unread-threads-trigger"));
+    const item = await screen.findByTestId("unread-threads-item");
     expect(item).toHaveTextContent("@noodles Hello Noodles");
     expect(item).not.toHaveTextContent("019fc7e4");
     expect(item).not.toHaveTextContent("**");
@@ -178,61 +178,103 @@ describe("ThreadAttentionPanel", () => {
     listUnreadThreadsActionMock.mockResolvedValue({ ok: true, data: [] });
 
     render(
-      <ThreadAttentionPanel
+      <UnreadThreadsPanel
         roomId="550e8400-e29b-41d4-a716-446655440000"
         labels={labels}
-        onOpenThread={vi.fn()}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
       />,
     );
 
-    fireEvent.click(screen.getByTestId("thread-attention-trigger"));
+    fireEvent.click(screen.getByTestId("unread-threads-trigger"));
 
+    expect(await screen.findByTestId("unread-threads-empty")).toHaveTextContent(
+      labels.empty,
+    );
     expect(
-      await screen.findByTestId("thread-attention-empty"),
-    ).toHaveTextContent(labels.empty);
-    expect(
-      screen.queryByTestId("thread-attention-mark-all-read"),
+      screen.queryByTestId("unread-threads-mark-all-read"),
     ).not.toBeInTheDocument();
   });
 
   it("marks all unread threads as read and clears badge", async () => {
     render(
-      <ThreadAttentionPanel
+      <UnreadThreadsPanel
         roomId="550e8400-e29b-41d4-a716-446655440000"
         labels={labels}
-        onOpenThread={vi.fn()}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
       />,
     );
 
     expect(
-      await screen.findByTestId("thread-attention-badge"),
+      await screen.findByTestId("unread-threads-badge"),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("thread-attention-trigger"));
-    fireEvent.click(
-      await screen.findByTestId("thread-attention-mark-all-read"),
-    );
+    fireEvent.click(screen.getByTestId("unread-threads-trigger"));
+    fireEvent.click(await screen.findByTestId("unread-threads-mark-all-read"));
 
     await waitFor(() => {
       expect(markAllUnreadThreadsReadActionMock).toHaveBeenCalledWith(
         "550e8400-e29b-41d4-a716-446655440000",
       );
     });
+    expect(await screen.findByTestId("unread-threads-empty")).toHaveTextContent(
+      labels.empty,
+    );
     expect(
-      await screen.findByTestId("thread-attention-empty"),
-    ).toHaveTextContent(labels.empty);
-    expect(
-      screen.queryByTestId("thread-attention-badge"),
+      screen.queryByTestId("unread-threads-badge"),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByTestId("thread-attention-mark-all-read"),
+      screen.queryByTestId("unread-threads-mark-all-read"),
     ).not.toBeInTheDocument();
   });
 
-  it("opens thread and closes panel on row click", async () => {
-    const onOpenThread = vi.fn();
+  it("ignores mark-all result after the panel is closed", async () => {
+    let resolveMarkAll: ((value: unknown) => void) | undefined;
+    markAllUnreadThreadsReadActionMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveMarkAll = resolve;
+        }),
+    );
 
     render(
-      <ThreadAttentionPanel
+      <UnreadThreadsPanel
+        roomId="550e8400-e29b-41d4-a716-446655440000"
+        labels={labels}
+        onOpenThread={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    expect(
+      await screen.findByTestId("unread-threads-badge"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("unread-threads-trigger"));
+    fireEvent.click(await screen.findByTestId("unread-threads-mark-all-read"));
+
+    await waitFor(() => {
+      expect(markAllUnreadThreadsReadActionMock).toHaveBeenCalled();
+    });
+
+    // Dismiss while mark-all is in flight.
+    fireEvent.click(screen.getByTestId("unread-threads-trigger"));
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("unread-threads-panel"),
+      ).not.toBeInTheDocument();
+    });
+
+    resolveMarkAll?.({ ok: true, data: { markedCount: 1 } });
+
+    // Badge must stay until a fresh successful load clears it — late mark-all
+    // must not stomp after dismiss.
+    expect(
+      await screen.findByTestId("unread-threads-badge"),
+    ).toBeInTheDocument();
+  });
+
+  it("opens thread and decrements badge only when look-state persists", async () => {
+    const onOpenThread = vi.fn().mockResolvedValue(true);
+
+    render(
+      <UnreadThreadsPanel
         roomId="550e8400-e29b-41d4-a716-446655440000"
         labels={labels}
         onOpenThread={onOpenThread}
@@ -240,21 +282,48 @@ describe("ThreadAttentionPanel", () => {
     );
 
     expect(
-      await screen.findByTestId("thread-attention-badge"),
+      await screen.findByTestId("unread-threads-badge"),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("thread-attention-trigger"));
-    fireEvent.click(await screen.findByTestId("thread-attention-item"));
+    fireEvent.click(screen.getByTestId("unread-threads-trigger"));
+    fireEvent.click(await screen.findByTestId("unread-threads-item"));
 
     expect(onOpenThread).toHaveBeenCalledWith(
       expect.objectContaining({ id: "550e8400-e29b-41d4-a716-446655440001" }),
     );
     await waitFor(() => {
       expect(
-        screen.queryByTestId("thread-attention-panel"),
+        screen.queryByTestId("unread-threads-panel"),
       ).not.toBeInTheDocument();
     });
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("unread-threads-badge"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("keeps badge when mark-read fails", async () => {
+    const onOpenThread = vi.fn().mockResolvedValue(false);
+
+    render(
+      <UnreadThreadsPanel
+        roomId="550e8400-e29b-41d4-a716-446655440000"
+        labels={labels}
+        onOpenThread={onOpenThread}
+      />,
+    );
+
     expect(
-      screen.queryByTestId("thread-attention-badge"),
-    ).not.toBeInTheDocument();
+      await screen.findByTestId("unread-threads-badge"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("unread-threads-trigger"));
+    fireEvent.click(await screen.findByTestId("unread-threads-item"));
+
+    await waitFor(() => {
+      expect(onOpenThread).toHaveBeenCalled();
+    });
+    expect(await screen.findByTestId("unread-threads-badge")).toHaveTextContent(
+      "1",
+    );
   });
 });

@@ -58,10 +58,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const markedCount = await markAllChatRoomThreadsRead(
-      room.id,
-      userContext.userId,
-      prisma,
+    const markedCount = await prisma.$transaction((tx) =>
+      markAllChatRoomThreadsRead(room.id, userContext.userId, tx),
     );
 
     return ok(c, chatRoomThreadsMarkAllSchema.parse({ markedCount }));

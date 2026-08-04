@@ -4712,17 +4712,6 @@
         "error": "Nachrichten konnten nicht gesucht werden. Versuch es erneut.",
         "replyBadge": "Thread-Antwort"
       },
-      "ThreadAttention": {
-        "open": "Ungelesene Threads",
-        "title": "Ungelesene Threads",
-        "markAllRead": "Alle als gelesen markieren",
-        "empty": "Keine ungelesenen Threads.",
-        "loading": "Threads werden geladen…",
-        "error": "Threads konnten nicht geladen werden. Bitte erneut versuchen.",
-        "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
-        "startedBy": "Gestartet von {name}",
-        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
-      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4851,6 +4840,17 @@
         "skip": "Vorerst überspringen",
         "creating": "Wird erstellt…",
         "adding": "Wird hinzugefügt…"
+      },
+      "UnreadThreads": {
+        "open": "Ungelesene Threads",
+        "title": "Ungelesene Threads",
+        "markAllRead": "Alle als gelesen markieren",
+        "empty": "Keine ungelesenen Threads.",
+        "loading": "Threads werden geladen…",
+        "error": "Threads konnten nicht geladen werden. Bitte erneut versuchen.",
+        "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
+        "startedBy": "Gestartet von {name}",
+        "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
       }
     }
   },

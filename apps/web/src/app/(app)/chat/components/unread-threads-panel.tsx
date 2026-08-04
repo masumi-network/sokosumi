@@ -7,7 +7,7 @@ import {
   markAllUnreadThreadsReadAction,
 } from "@/app/chat/actions";
 import { messageSender } from "@/app/chat/components/room-helpers";
-import { formatThreadAttentionPreview } from "@/app/chat/utils/thread-attention-preview";
+import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -21,7 +21,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
-export interface ThreadAttentionPanelLabels {
+export interface UnreadThreadsPanelLabels {
   open: string;
   title: string;
   markAllRead: string;
@@ -33,10 +33,11 @@ export interface ThreadAttentionPanelLabels {
   unreadReplies: (count: number) => string;
 }
 
-interface ThreadAttentionPanelProps {
+interface UnreadThreadsPanelProps {
   roomId: string;
-  labels: ThreadAttentionPanelLabels;
-  onOpenThread: (parent: ChatRoomMessage) => void;
+  labels: UnreadThreadsPanelLabels;
+  /** Returns true when thread look-state was persisted successfully. */
+  onOpenThread: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
 }
 
 function UnreadThreadsBadge({ count }: { count: number }) {
@@ -48,7 +49,7 @@ function UnreadThreadsBadge({ count }: { count: number }) {
 
   return (
     <span
-      data-testid="thread-attention-badge"
+      data-testid="unread-threads-badge"
       aria-hidden="true"
       className="bg-primary text-primary-foreground absolute -top-1 -right-1 inline-flex min-w-4 items-center justify-center rounded-full px-0.5 text-[10px] leading-4 font-semibold tabular-nums"
     >
@@ -57,11 +58,11 @@ function UnreadThreadsBadge({ count }: { count: number }) {
   );
 }
 
-export function ThreadAttentionPanel({
+export function UnreadThreadsPanel({
   roomId,
   labels,
   onOpenThread,
-}: ThreadAttentionPanelProps) {
+}: UnreadThreadsPanelProps) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<ChatRoomThread[]>([]);
   const [badgeCount, setBadgeCount] = useState(0);
@@ -71,7 +72,7 @@ export function ThreadAttentionPanel({
   const requestIdRef = useRef(0);
   const { formatTimeAgo } = useLocalizedDateTime();
 
-  const loadAttention = useEffectEvent(
+  const loadUnreadThreads = useEffectEvent(
     async (options?: { forPanel?: boolean }) => {
       const forPanel = options?.forPanel === true;
       const requestId = ++requestIdRef.current;
@@ -103,14 +104,14 @@ export function ThreadAttentionPanel({
   );
 
   useEffect(() => {
-    void loadAttention({ forPanel: false });
+    void loadUnreadThreads({ forPanel: false });
   }, [roomId]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
-    void loadAttention({ forPanel: true });
+    void loadUnreadThreads({ forPanel: true });
   }, [open, roomId]);
 
   function handleOpenChange(nextOpen: boolean) {
@@ -124,10 +125,12 @@ export function ThreadAttentionPanel({
     setOpen(nextOpen);
   }
 
-  function handleSelect(item: ChatRoomThread) {
-    setBadgeCount((current) => Math.max(0, current - 1));
-    onOpenThread(item.parentMessage);
+  async function handleSelect(item: ChatRoomThread) {
     handleOpenChange(false);
+    const marked = await onOpenThread(item.parentMessage);
+    if (marked) {
+      setBadgeCount((current) => Math.max(0, current - 1));
+    }
   }
 
   async function handleMarkAllRead() {
@@ -135,9 +138,13 @@ export function ThreadAttentionPanel({
       return;
     }
 
+    const requestId = ++requestIdRef.current;
     setIsMarkingAllRead(true);
     setError(null);
     const result = await markAllUnreadThreadsReadAction(roomId);
+    if (requestId !== requestIdRef.current) {
+      return;
+    }
     if (!result.ok) {
       setError(result.message || labels.markAllReadError);
       setIsMarkingAllRead(false);
@@ -162,7 +169,7 @@ export function ThreadAttentionPanel({
           variant="ghost"
           size="icon"
           aria-label={triggerLabel}
-          data-testid="thread-attention-trigger"
+          data-testid="unread-threads-trigger"
           className="relative"
         >
           <MessagesSquare className="size-4" />
@@ -172,7 +179,7 @@ export function ThreadAttentionPanel({
       <PopoverContent
         align="end"
         className="w-[min(100vw-2rem,24rem)] p-0"
-        data-testid="thread-attention-panel"
+        data-testid="unread-threads-panel"
       >
         <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
           <p className="text-sm font-medium">{labels.title}</p>
@@ -186,7 +193,7 @@ export function ThreadAttentionPanel({
                 void handleMarkAllRead();
               }}
               disabled={isMarkingAllRead}
-              data-testid="thread-attention-mark-all-read"
+              data-testid="unread-threads-mark-all-read"
             >
               {isMarkingAllRead ? labels.loading : labels.markAllRead}
             </Button>
@@ -202,7 +209,7 @@ export function ThreadAttentionPanel({
           {!isLoading && error ? (
             <p
               className="text-muted-foreground px-2 py-6 text-center text-sm"
-              data-testid="thread-attention-error"
+              data-testid="unread-threads-error"
             >
               {error}
             </p>
@@ -210,7 +217,7 @@ export function ThreadAttentionPanel({
           {showEmpty ? (
             <p
               className="text-muted-foreground px-2 py-6 text-center text-sm"
-              data-testid="thread-attention-empty"
+              data-testid="unread-threads-empty"
             >
               {labels.empty}
             </p>
@@ -219,7 +226,7 @@ export function ThreadAttentionPanel({
             const sender = messageSender(item.parentMessage);
             const lastAt = item.lastUnreadReplyAt ?? item.lastReplyAt;
             const preview =
-              formatThreadAttentionPreview(item.parentMessage.content) ||
+              formatUnreadThreadsPreview(item.parentMessage.content) ||
               sender.name;
             return (
               <button
@@ -228,8 +235,10 @@ export function ThreadAttentionPanel({
                 className={cn(
                   "hover:bg-accent flex w-full flex-col gap-0.5 rounded-md px-2 py-2 text-left text-sm",
                 )}
-                onClick={() => handleSelect(item)}
-                data-testid="thread-attention-item"
+                onClick={() => {
+                  void handleSelect(item);
+                }}
+                data-testid="unread-threads-item"
               >
                 <div className="flex items-start gap-2">
                   <span className="line-clamp-2 min-w-0 flex-1 font-medium">

@@ -4712,17 +4712,6 @@
         "error": "无法搜索消息。请重试。",
         "replyBadge": "帖子回复"
       },
-      "ThreadAttention": {
-        "open": "未读话题",
-        "title": "未读话题",
-        "markAllRead": "全部标为已读",
-        "empty": "没有未读话题。",
-        "loading": "正在加载话题…",
-        "error": "无法加载话题，请重试。",
-        "markAllReadError": "无法将未读话题标为已读。请重试。",
-        "startedBy": "由 {name} 发起",
-        "unreadReplies": "{count, plural, one {# 条未读回复} other {# 条未读回复}}"
-      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4851,6 +4840,17 @@
         "skip": "暂时跳过",
         "creating": "正在创建…",
         "adding": "正在添加…"
+      },
+      "UnreadThreads": {
+        "open": "未读话题",
+        "title": "未读话题",
+        "markAllRead": "全部标为已读",
+        "empty": "没有未读话题。",
+        "loading": "正在加载话题…",
+        "error": "无法加载话题，请重试。",
+        "markAllReadError": "无法将未读话题标为已读。请重试。",
+        "startedBy": "由 {name} 发起",
+        "unreadReplies": "{count, plural, one {# 条未读回复} other {# 条未读回复}}"
       }
     }
   },

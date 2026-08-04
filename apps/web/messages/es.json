@@ -4712,17 +4712,6 @@
         "error": "No se pudieron buscar los mensajes. Inténtalo de nuevo.",
         "replyBadge": "Respuesta del hilo"
       },
-      "ThreadAttention": {
-        "open": "Hilos sin leer",
-        "title": "Hilos sin leer",
-        "markAllRead": "Marcar todas como leídas",
-        "empty": "No hay hilos sin leer.",
-        "loading": "Cargando hilos…",
-        "error": "No se pudieron cargar los hilos. Inténtalo de nuevo.",
-        "markAllReadError": "No se pudieron marcar los hilos no leídos como leídos. Inténtalo de nuevo.",
-        "startedBy": "Iniciado por {name}",
-        "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}"
-      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4851,6 +4840,17 @@
         "skip": "Omitir por ahora",
         "creating": "Creando…",
         "adding": "Añadiendo…"
+      },
+      "UnreadThreads": {
+        "open": "Hilos sin leer",
+        "title": "Hilos sin leer",
+        "markAllRead": "Marcar todas como leídas",
+        "empty": "No hay hilos sin leer.",
+        "loading": "Cargando hilos…",
+        "error": "No se pudieron cargar los hilos. Inténtalo de nuevo.",
+        "markAllReadError": "No se pudieron marcar los hilos no leídos como leídos. Inténtalo de nuevo.",
+        "startedBy": "Iniciado por {name}",
+        "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}"
       }
     }
   },

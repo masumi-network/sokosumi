@@ -4712,17 +4712,6 @@
         "error": "Impossible de rechercher les messages. Réessayez.",
         "replyBadge": "Réponse du fil"
       },
-      "ThreadAttention": {
-        "open": "Fils non lus",
-        "title": "Fils non lus",
-        "markAllRead": "Tout marquer comme lu",
-        "empty": "Aucun fil non lu.",
-        "loading": "Chargement des fils…",
-        "error": "Impossible de charger les fils. Réessayez.",
-        "markAllReadError": "Impossible de marquer les fils non lus comme lus. Réessayez.",
-        "startedBy": "Démarré par {name}",
-        "unreadReplies": "{count, plural, one {# réponse non lue} other {# réponses non lues}}"
-      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4851,6 +4840,17 @@
         "skip": "Passer pour l’instant",
         "creating": "Création…",
         "adding": "Ajout…"
+      },
+      "UnreadThreads": {
+        "open": "Fils non lus",
+        "title": "Fils non lus",
+        "markAllRead": "Tout marquer comme lu",
+        "empty": "Aucun fil non lu.",
+        "loading": "Chargement des fils…",
+        "error": "Impossible de charger les fils. Réessayez.",
+        "markAllReadError": "Impossible de marquer les fils non lus comme lus. Réessayez.",
+        "startedBy": "Démarré par {name}",
+        "unreadReplies": "{count, plural, one {# réponse non lue} other {# réponses non lues}}"
       }
     }
   },

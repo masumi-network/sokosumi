@@ -4831,17 +4831,6 @@
         "error": "Could not search messages. Try again.",
         "replyBadge": "Thread reply"
       },
-      "ThreadAttention": {
-        "open": "Unread threads",
-        "title": "Unread Threads",
-        "markAllRead": "Mark all as read",
-        "empty": "No unread threads.",
-        "loading": "Loading threads…",
-        "error": "Could not load threads. Try again.",
-        "markAllReadError": "Could not mark unread threads as read. Try again.",
-        "startedBy": "Started by {name}",
-        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}"
-      },
       "Toolbar": {
         "mention": "Mention coworker",
         "attach": "Attach file",
@@ -4970,6 +4959,17 @@
         "skip": "Skip for now",
         "creating": "Creating…",
         "adding": "Adding…"
+      },
+      "UnreadThreads": {
+        "open": "Unread threads",
+        "title": "Unread Threads",
+        "markAllRead": "Mark all as read",
+        "empty": "No unread threads.",
+        "loading": "Loading threads…",
+        "error": "Could not load threads. Try again.",
+        "markAllReadError": "Could not mark unread threads as read. Try again.",
+        "startedBy": "Started by {name}",
+        "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}"
       }
     }
   },

@@ -16,12 +16,14 @@ const {
   memberFindUniqueMock,
   queryRawUnsafeMock,
   threadReadUpsertMock,
+  prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
   threadReadUpsertMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -39,6 +41,7 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomThreadReadState: {
       upsert: threadReadUpsertMock,
     },
+    $transaction: prismaTransactionMock,
   },
 }));
 
@@ -48,6 +51,14 @@ const PARENT_ID_2 = "550e8400-e29b-41d4-a716-446655440002";
 const USER_ID = "user_123";
 const ORG_ID = "org_1";
 const COWORKER_ID = "cow_123";
+
+const tx = {
+  chatRoom: { findFirst: roomFindFirstMock },
+  organization: { findUnique: organizationFindUniqueMock },
+  member: { findUnique: memberFindUniqueMock },
+  $queryRawUnsafe: queryRawUnsafeMock,
+  chatRoomThreadReadState: { upsert: threadReadUpsertMock },
+};
 
 function createApp(authContext: AuthVariables["authContext"]) {
   const app = new OpenAPIHono<{
@@ -122,6 +133,7 @@ function unreadAggregate(parentMessageId: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   roomFindFirstMock.mockResolvedValue(room());
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
@@ -141,6 +153,7 @@ describe("POST /chats/rooms/{id}/threads/read", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(prismaTransactionMock).toHaveBeenCalledOnce();
     expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
     expect(threadReadUpsertMock).toHaveBeenCalledTimes(2);
     expect(threadReadUpsertMock).toHaveBeenCalledWith(
