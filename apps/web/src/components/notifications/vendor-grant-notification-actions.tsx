@@ -120,6 +120,9 @@ export function VendorGrantNotificationActions({
           event.preventDefault();
           event.stopPropagation();
         }}
+        onPointerUp={(event) => {
+          event.stopPropagation();
+        }}
         onClick={(event) => void handleAccept(event)}
       >
         {loadingAction === "accept" ? (
@@ -134,6 +137,9 @@ export function VendorGrantNotificationActions({
         disabled={loadingAction !== null}
         onPointerDown={(event) => {
           event.preventDefault();
+          event.stopPropagation();
+        }}
+        onPointerUp={(event) => {
           event.stopPropagation();
         }}
         onClick={(event) => void handleDismiss(event)}
