@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import {
   type ReactNode,
   type Ref,
@@ -14,6 +14,35 @@ import {
 } from "@/app/chat/components/room-composer";
 
 const editorFocus = vi.hoisted(() => vi.fn());
+
+async function flushAnimationFrame() {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
+function FocusHarness({ focusOnMount = false }: { focusOnMount?: boolean }) {
+  const [value, setValue] = useState("");
+  return (
+    <RoomComposer
+      value={value}
+      onValueChange={setValue}
+      mentions={{}}
+      onSelectedKeysChange={() => undefined}
+      placeholder="Message"
+      attachments={[]}
+      onAttachmentsChange={() => undefined}
+      onSubmit={(event) => event.preventDefault()}
+      isSending={false}
+      sendDisabled={false}
+      showMentionShortcut={false}
+      allowAttachments={false}
+      focusOnMount={focusOnMount}
+    />
+  );
+}
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -149,5 +178,26 @@ describe("RoomComposerHandle.focus", () => {
     await waitFor(() => {
       expect(getByTestId("ready").textContent).toBe("yes");
     });
+  });
+});
+
+describe("RoomComposer focusOnMount", () => {
+  it("focuses the editor once after mount via rAF when focusOnMount", async () => {
+    editorFocus.mockClear();
+    render(<FocusHarness focusOnMount />);
+
+    expect(editorFocus).not.toHaveBeenCalled();
+    await flushAnimationFrame();
+    await waitFor(() => {
+      expect(editorFocus).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("does not autofocus when focusOnMount is omitted", async () => {
+    editorFocus.mockClear();
+    render(<FocusHarness />);
+
+    await flushAnimationFrame();
+    expect(editorFocus).not.toHaveBeenCalled();
   });
 });
