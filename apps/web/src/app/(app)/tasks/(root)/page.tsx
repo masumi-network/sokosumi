@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
+import { TasksPageSkeleton } from "@/app/tasks/components/tasks-loading-view";
 import { TasksPendingVendorGrantBannerSlot } from "@/app/tasks/components/tasks-pending-vendor-grant-banner-slot";
 import { TasksView } from "@/app/tasks/components/tasks-view";
 import {
@@ -69,7 +71,11 @@ async function loadTasksPageData() {
   ]);
 }
 
-export default async function TasksPage({ searchParams }: TasksPageProps) {
+async function TasksPageContent({ searchParams }: TasksPageProps) {
+  // Defer before any cookies()/headers()-bound work so PPR shell probing does
+  // not soft-reject dynamic APIs while filling this Suspense hole.
+  await connection();
+
   const {
     create,
     assignee: assigneeSlugParam,
@@ -355,5 +361,13 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
         }}
       />
     </div>
+  );
+}
+
+export default function TasksPage({ searchParams }: TasksPageProps) {
+  return (
+    <Suspense fallback={<TasksPageSkeleton />}>
+      <TasksPageContent searchParams={searchParams} />
+    </Suspense>
   );
 }

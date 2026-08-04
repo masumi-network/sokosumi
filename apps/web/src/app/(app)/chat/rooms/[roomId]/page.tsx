@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 import { RoomsClient } from "@/app/chat/components/rooms-client";
 import { loadOrganizationMembers } from "@/app/chat/load-organization-members";
 import { loadRoomMessages } from "@/app/chat/load-room-messages";
+import DefaultLoading from "@/components/default-loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { chatRoomService, userService } from "@/lib/services";
@@ -36,6 +39,10 @@ function NoOrganizationCard({
   );
 }
 
+function ChatRoomPageFallback() {
+  return <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />;
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Channels.Metadata");
 
@@ -51,7 +58,11 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * Non-member / missing room → soft land on `/chat` (cutover design), not 404.
  */
-export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
+export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
+  // Defer before any cookies()/headers()-bound work so PPR shell probing does
+  // not soft-reject dynamic APIs while filling this Suspense hole.
+  await connection();
+
   const [{ roomId }, t, activeOrganization, session] = await Promise.all([
     params,
     getTranslations("App.Channels"),
@@ -137,5 +148,13 @@ export default async function ChatRoomPage({ params }: ChatRoomPageProps) {
       messages={messagePage.messages}
       messagesNextCursor={messagePage.nextCursor}
     />
+  );
+}
+
+export default function ChatRoomPage({ params }: ChatRoomPageProps) {
+  return (
+    <Suspense fallback={<ChatRoomPageFallback />}>
+      <ChatRoomPageContent params={params} />
+    </Suspense>
   );
 }
