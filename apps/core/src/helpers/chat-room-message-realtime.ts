@@ -22,7 +22,9 @@ export async function publishChatRoomMessageRealtime(
       select: { userId: true },
     });
 
-    await Promise.all(
+    // Per-member isolation: one map/parse/publish failure must not cancel
+    // fan-out to the rest of the room (Promise.all would fail-fast).
+    const results = await Promise.allSettled(
       members.map(async ({ userId }) => {
         const dto = chatRoomMessageSchema.parse(
           mapChatRoomMessage(message, userId),
@@ -33,6 +35,26 @@ export async function publishChatRoomMessageRealtime(
         });
       }),
     );
+
+    for (const [index, result] of results.entries()) {
+      if (result.status === "fulfilled") {
+        continue;
+      }
+      const userId = members[index]?.userId;
+      console.error(
+        "Failed to publish chat room message over Ably for member:",
+        userId,
+        result.reason,
+      );
+      Sentry.captureException(result.reason, {
+        extra: {
+          messageId: message.id,
+          roomId: message.roomId,
+          userId,
+          errorType: "ably-publish-chat-room-message",
+        },
+      });
+    }
   } catch (error) {
     console.error("Failed to publish chat room message over Ably:", error);
     Sentry.captureException(error, {
