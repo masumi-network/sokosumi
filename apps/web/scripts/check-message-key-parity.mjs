@@ -18,108 +18,156 @@ const messagesDir = path.join(__dirname, "../messages");
 const LOCALES = ["de", "es"];
 const write = process.argv.includes("--write");
 
-const BLOCKED_PATH_SEGMENTS = new Set([
-  "__proto__",
-  "prototype",
-  "constructor",
-]);
-
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function assertSafePathSegment(segment) {
-  if (BLOCKED_PATH_SEGMENTS.has(segment)) {
+/** Reject prototype-polluting property names before any dynamic write. */
+function isUnsafePropertyName(name) {
+  return name === "__proto__" || name === "constructor" || name === "prototype";
+}
+
+/**
+ * Nested Map tree avoids Object.prototype sinks while building catalogs.
+ * Leaf values are stored directly; children are Maps.
+ */
+function setPathInMap(root, parts, value) {
+  let current = root;
+  for (let index = 0; index < parts.length - 1; index++) {
+    const part = parts[index];
+    if (part === undefined || isUnsafePropertyName(part)) {
+      throw new Error(
+        `[messages:parity] blocked path segment "${part}" (prototype pollution guard)`,
+      );
+    }
+    let next = current.get(part);
+    if (!(next instanceof Map)) {
+      next = new Map();
+      current.set(part, next);
+    }
+    current = next;
+  }
+
+  const leaf = parts[parts.length - 1];
+  if (leaf === undefined || isUnsafePropertyName(leaf)) {
     throw new Error(
-      `[messages:parity] blocked path segment "${segment}" (prototype pollution guard)`,
+      `[messages:parity] blocked path segment "${leaf}" (prototype pollution guard)`,
     );
   }
+  current.set(leaf, value);
 }
 
-function splitSafePath(dottedPath) {
-  const parts = dottedPath.split(".");
-  for (const part of parts) {
-    assertSafePathSegment(part);
+function deletePathInMap(root, parts) {
+  if (parts.length === 0) {
+    return;
   }
-  return parts;
+
+  const stack = [{ map: root, key: null }];
+  let current = root;
+
+  for (const part of parts) {
+    if (isUnsafePropertyName(part) || !(current instanceof Map)) {
+      return;
+    }
+    if (!current.has(part)) {
+      return;
+    }
+    stack.push({ map: current, key: part });
+    current = current.get(part);
+  }
+
+  const leafFrame = stack[stack.length - 1];
+  if (leafFrame?.key != null) {
+    leafFrame.map.delete(leafFrame.key);
+  }
+
+  for (let index = stack.length - 1; index >= 1; index--) {
+    const frame = stack[index];
+    if (frame?.key == null) {
+      continue;
+    }
+    const child = frame.map.get(frame.key);
+    if (child instanceof Map && child.size === 0) {
+      frame.map.delete(frame.key);
+    }
+  }
 }
 
-function collectLeafPaths(value, prefix = "", out = []) {
+function objectToMap(value) {
   if (!isPlainObject(value)) {
+    return value;
+  }
+  const map = new Map();
+  for (const key of Object.keys(value)) {
+    if (isUnsafePropertyName(key)) {
+      throw new Error(
+        `[messages:parity] blocked path segment "${key}" (prototype pollution guard)`,
+      );
+    }
+    map.set(key, objectToMap(value[key]));
+  }
+  return map;
+}
+
+function mapToObject(node) {
+  if (!(node instanceof Map)) {
+    return node;
+  }
+  // Emit JSON text then parse. Avoids `obj[dynamicKey] =` sinks that CodeQL
+  // flags even after prototype-key guards.
+  const fields = [];
+  for (const [key, child] of node) {
+    if (isUnsafePropertyName(key)) {
+      throw new Error(
+        `[messages:parity] blocked path segment "${key}" (prototype pollution guard)`,
+      );
+    }
+    fields.push(`${JSON.stringify(key)}:${JSON.stringify(mapToObject(child))}`);
+  }
+  return JSON.parse(`{${fields.join(",")}}`);
+}
+
+function collectLeafPathsFromMap(node, prefix = "", out = []) {
+  if (!(node instanceof Map)) {
     out.push(prefix);
     return out;
   }
 
-  const keys = Object.keys(value);
-  if (keys.length === 0) {
+  if (node.size === 0) {
     if (prefix) {
       out.push(prefix);
     }
     return out;
   }
 
-  for (const key of keys) {
-    assertSafePathSegment(key);
+  for (const [key, child] of node) {
+    if (isUnsafePropertyName(key)) {
+      throw new Error(
+        `[messages:parity] blocked path segment "${key}" (prototype pollution guard)`,
+      );
+    }
     const next = prefix ? `${prefix}.${key}` : key;
-    collectLeafPaths(value[key], next, out);
+    collectLeafPathsFromMap(child, next, out);
   }
   return out;
 }
 
-function getAtPath(root, dottedPath) {
-  const parts = splitSafePath(dottedPath);
+function getAtPathInMap(root, parts) {
   let current = root;
   for (const part of parts) {
-    if (!isPlainObject(current) || !(part in current)) {
+    if (isUnsafePropertyName(part) || !(current instanceof Map)) {
       return { found: false, value: undefined };
     }
-    current = current[part];
+    if (!current.has(part)) {
+      return { found: false, value: undefined };
+    }
+    current = current.get(part);
   }
   return { found: true, value: current };
 }
 
-function setAtPath(root, dottedPath, value) {
-  const parts = splitSafePath(dottedPath);
-  let current = root;
-  for (let index = 0; index < parts.length - 1; index++) {
-    const part = parts[index];
-    if (!isPlainObject(current[part])) {
-      current[part] = Object.create(null);
-    }
-    current = current[part];
-  }
-  current[parts[parts.length - 1]] = value;
-}
-
-function deleteAtPath(root, dottedPath) {
-  const parts = splitSafePath(dottedPath);
-  const stack = [{ parent: null, key: null, node: root }];
-
-  let current = root;
-  for (const part of parts) {
-    if (!isPlainObject(current) || !(part in current)) {
-      return;
-    }
-    stack.push({ parent: current, key: part, node: current[part] });
-    current = current[part];
-  }
-
-  const leaf = stack[stack.length - 1];
-  if (leaf?.parent && leaf.key != null) {
-    delete leaf.parent[leaf.key];
-  }
-
-  for (let index = stack.length - 2; index >= 1; index--) {
-    const frame = stack[index];
-    if (
-      frame?.parent &&
-      frame.key != null &&
-      isPlainObject(frame.node) &&
-      Object.keys(frame.node).length === 0
-    ) {
-      delete frame.parent[frame.key];
-    }
-  }
+function splitPath(dottedPath) {
+  return dottedPath.split(".");
 }
 
 function readJson(locale) {
@@ -133,12 +181,20 @@ function writeJson(locale, data) {
 }
 
 const en = readJson("en");
-const enPaths = new Set(collectLeafPaths(en));
+const enMap = objectToMap(en);
+if (!(enMap instanceof Map)) {
+  throw new Error("[messages:parity] en.json root must be an object");
+}
+const enPaths = new Set(collectLeafPathsFromMap(enMap));
 let failed = false;
 
 for (const locale of LOCALES) {
   const catalog = readJson(locale);
-  const localePaths = new Set(collectLeafPaths(catalog));
+  const catalogMap = objectToMap(catalog);
+  if (!(catalogMap instanceof Map)) {
+    throw new Error(`[messages:parity] ${locale}.json root must be an object`);
+  }
+  const localePaths = new Set(collectLeafPathsFromMap(catalogMap));
   const missing = [...enPaths].filter((key) => !localePaths.has(key));
   const extra = [...localePaths].filter((key) => !enPaths.has(key));
 
@@ -162,13 +218,14 @@ for (const locale of LOCALES) {
   }
 
   for (const key of missing) {
-    const { value } = getAtPath(en, key);
-    setAtPath(catalog, key, value);
+    const parts = splitPath(key);
+    const { value } = getAtPathInMap(enMap, parts);
+    setPathInMap(catalogMap, parts, value);
   }
   for (const key of extra) {
-    deleteAtPath(catalog, key);
+    deletePathInMap(catalogMap, splitPath(key));
   }
-  writeJson(locale, catalog);
+  writeJson(locale, mapToObject(catalogMap));
   console.log(
     `[messages:parity] ${locale}: wrote +${missing.length} / -${extra.length}`,
   );
