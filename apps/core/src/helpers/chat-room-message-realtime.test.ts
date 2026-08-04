@@ -116,6 +116,34 @@ describe("publishChatRoomMessageRealtime", () => {
       publishChatRoomMessageRealtime(baseMessage as never),
     ).resolves.toBeUndefined();
   });
+
+  it("keeps publishing to other members when one fan-out fails", async () => {
+    findManyMembersMock.mockResolvedValue([
+      { userId: "user_a" },
+      { userId: "user_b" },
+    ]);
+    publishChatRoomMessageEventMock.mockImplementation(
+      async ({ userId }: { userId: string }) => {
+        if (userId === "user_a") {
+          throw new Error("ably down for user_a");
+        }
+      },
+    );
+
+    await expect(
+      publishChatRoomMessageRealtime(baseMessage as never),
+    ).resolves.toBeUndefined();
+
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledTimes(2);
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
+      userId: "user_b",
+      message: {
+        id: baseMessage.id,
+        roomId: baseMessage.roomId,
+        forUser: "user_b",
+      },
+    });
+  });
 });
 
 describe("publishChatRoomMessageRealtimeById", () => {
