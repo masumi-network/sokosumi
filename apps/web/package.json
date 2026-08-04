@@ -55,7 +55,6 @@
     "@vercel/speed-insights": "2.0.0",
     "ably": "2.26.0",
     "ai": "7.0.50",
-    "babel-plugin-react-compiler": "1.0.0",
     "better-auth": "1.6.25",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
