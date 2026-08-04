@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { defaultValidationHook, OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountGetAgentById from "./[id]/get.js";
 import mountGetAgentInputSchema from "./[id]/input-schema/get.js";
@@ -13,8 +13,11 @@ import mountGetMyAgentReview from "./[id]/reviews/me/get.js";
 import mountGetAgents from "./get.js";
 
 // GET / is public catalog — cookie-free `'use cache'` consumers need anonymous
-// access. It must NOT sit on OpenAPIHonoWithAuth.
-const publicRoutes = new OpenAPIHono();
+// access. It must NOT sit on OpenAPIHonoWithAuth. Still needs defaultValidationHook
+// so query validation returns 422 (same as OpenAPIHonoWithAuth), not raw 400.
+const publicRoutes = new OpenAPIHono({
+  defaultHook: defaultValidationHook,
+});
 mountGetAgents(publicRoutes);
 
 // Agent by-id and nested routes remain authenticated.

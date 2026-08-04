@@ -115,6 +115,15 @@ describe("agents routes auth gate", () => {
     expect(agentFindManyMock).toHaveBeenCalled();
   });
 
+  it("returns 422 for invalid category on composed public list route", async () => {
+    const response = await agentsRouter.request(
+      "http://localhost/?category=research,",
+    );
+
+    expect(response.status).toBe(422);
+    expect(agentFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("rejects anonymous GET /agents/{id}", async () => {
     const response = await agentsRouter.request("http://localhost/agent_123");
 
