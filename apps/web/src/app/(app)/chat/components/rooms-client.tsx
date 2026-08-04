@@ -1484,6 +1484,7 @@ export function RoomsClient({
                             room: selectedRoom,
                             isStreamOverlay,
                           })}
+                          isFirstOfDay={showDaySeparator}
                           isContinuation={
                             !showDaySeparator &&
                             isMessageContinuation(previousMessage, message)
