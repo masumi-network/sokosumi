@@ -1,9 +1,36 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { type ComponentType, type ReactNode, useState } from "react";
 
-const DynamicAblyProvider = dynamic(() => import("./ably-provider"), {
-  ssr: false,
-});
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
-export default DynamicAblyProvider;
+interface DynamicAblyProviderProps {
+  children: ReactNode;
+}
+
+export default function DynamicAblyProvider({
+  children,
+}: DynamicAblyProviderProps) {
+  const [Provider, setProvider] = useState<ComponentType<{
+    children: ReactNode;
+  }> | null>(null);
+
+  useMountEffect(() => {
+    let cancelled = false;
+    void import("./ably-provider").then((m) => {
+      if (cancelled) {
+        return;
+      }
+      setProvider(() => m.default);
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  if (!Provider) {
+    return children;
+  }
+
+  return <Provider>{children}</Provider>;
+}
