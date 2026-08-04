@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
@@ -33,6 +34,7 @@ export default async function AuthLayout({
 }>) {
   // Pathname from proxy (`x-pathname`). Callback/OAuth pages never redirect
   // away on an existing session, so skip the Core session read entirely.
+  await connection();
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
   const shouldSkipSessionCheck =

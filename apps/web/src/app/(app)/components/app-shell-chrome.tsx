@@ -1,5 +1,6 @@
 import type { Session } from "@sokosumi/utils";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -28,6 +29,7 @@ interface AppShellChromeProps {
 }
 
 export default async function AppShellChrome({ session }: AppShellChromeProps) {
+  await connection();
   const cookieStore = await cookies();
   const [
     shouldShowOnboarding,
