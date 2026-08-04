@@ -40,13 +40,9 @@ export const coreClient = withUnauthorizedCoreRedirect(rawCoreClient);
 /**
  * Unwrapped Core client — bypasses the session-401 → signin redirect proxy.
  *
- * The redirect proxy is session-401 only; business 403s no longer redirect.
- * This escape hatch is still useful where you want to avoid even a 401 redirect.
- *
- * Use this for endpoints where a 403/404/409 is a *business verdict about the
- * resource*, not a session-auth failure. The Hermes skills endpoints return 403
- * ("skill blocked by audit policy"), 409 ("slug conflict") and 404 ("instance
- * not found") as expected install outcomes. The page these actions run on is an
- * RSC that already guards genuine auth via the redirecting client.
+ * Prefer the redirecting `coreClient` for normal server reads. Use this when a
+ * caller must handle 401 itself (for example an action that maps auth failure
+ * to a toast) or when the surrounding RSC already proved the session via
+ * `coreClient`. Business 403s no longer redirect through the proxy.
  */
 export const coreClientNoRedirect = rawCoreClient;
