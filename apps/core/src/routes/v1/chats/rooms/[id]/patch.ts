@@ -1,7 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { MemberRole } from "@sokosumi/database";
 
-import { badRequest, conflict, forbidden } from "@/helpers/error";
+import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
@@ -18,6 +17,7 @@ import {
 } from "@/schemas/chat-room.schema";
 
 import {
+  assertChatRoomPatchAuth,
   buildUniqueRoomSlug,
   chatRoomInclude,
   mapChatRoomWithSidebarFlags,
@@ -94,24 +94,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         const organizationId = existing.organizationId;
 
-        // Membership alone only proves the caller can read the room. Editing
-        // rewrites the whole roster, so a plain member could otherwise evict
-        // everyone else from a room they merely belong to.
+        // Membership proves the caller can read the room. Settings (name/topic/
+        // discoverability) need OWNER/ADMIN; roster rewrite is open to any
+        // active channel member. Assert before any writes.
         const { role } = await resolveMemberOrganizationById({
           id: organizationId,
           userId: userContext.userId,
           tx,
         });
-        const canManageRoom =
-          existing.createdByUserId === userContext.userId ||
-          role === MemberRole.OWNER ||
-          role === MemberRole.ADMIN;
-
-        if (!canManageRoom) {
-          throw forbidden(
-            "Only the room creator or an organization owner or admin can update this room.",
-          );
-        }
+        assertChatRoomPatchAuth({ role, body });
 
         const updateData: {
           name?: string;

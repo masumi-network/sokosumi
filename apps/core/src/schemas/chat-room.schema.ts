@@ -384,7 +384,7 @@ export const leftChatRoomSchema = z
     }),
     remainingUserMemberCount: z.number().int().min(1).openapi({
       description:
-        "Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; the channel creator or an organization owner/admin must archive instead.",
+        "Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.",
       example: 3,
     }),
   })

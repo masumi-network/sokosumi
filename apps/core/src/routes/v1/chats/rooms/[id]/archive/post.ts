@@ -32,7 +32,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/archive",
     description:
-      "Archive an organization chat room. Every read filters on archivedAt, so it disappears for all members while its messages stay in the database. Only the room creator or an organization owner/admin may archive. Direct rooms cannot be archived.",
+      "Archive an organization chat room. Every read filters on archivedAt, so it disappears for all members while its messages stay in the database. Only an organization owner/admin may archive. Direct rooms cannot be archived.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -89,15 +89,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: userContext.userId,
         tx,
       });
-      if (
-        !canManageChatRoomLifecycle({
-          createdByUserId: existing.createdByUserId,
-          userId: userContext.userId,
-          role,
-        })
-      ) {
+      if (!canManageChatRoomLifecycle({ role })) {
         throw forbidden(
-          "Only the room creator or an organization owner or admin can archive this room.",
+          "Only an organization owner or admin can archive this room.",
         );
       }
 
