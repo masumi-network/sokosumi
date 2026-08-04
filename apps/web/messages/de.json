@@ -4714,7 +4714,8 @@
         "home": "Start",
         "history": "Verlauf",
         "search": "Suche",
-        "ariaLabel": "Chat"
+        "ariaLabel": "Chat",
+        "backToHome": "Zurück zur Chat-Startseite"
       },
       "Actions": {
         "more": "Nachrichtenaktionen",

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-import CustomTrigger from "./sidebar/components/custom-trigger";
+import { HeaderLeadingControl } from "./header/header-leading-control.client";
 
 interface AppHeaderFallbackProps {
   className?: string;
@@ -15,7 +15,7 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
       )}
     >
       <div className="flex size-8 shrink-0 items-center justify-center md:hidden">
-        <CustomTrigger when="invisible" />
+        <HeaderLeadingControl />
       </div>
 
       <div className="hidden min-w-0 flex-1 flex-row gap-2 sm:flex">

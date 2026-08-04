@@ -1,5 +1,7 @@
 import { History, Home, type LucideIcon, Search } from "lucide-react";
 
+import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
+
 /** Tailwind padding-bottom for bar height. Applied at shell content wrapper. */
 export const CHAT_MOBILE_TAB_BAR_CLEARANCE = "pb-16" as const;
 
@@ -13,6 +15,22 @@ export const CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET =
  */
 export const CHAT_MOBILE_HEIGHT_SHELL_CLASS =
   "h-[calc(100svh-64px)] max-md:h-[calc(100svh-64px-4rem)]" as const;
+
+/**
+ * Full shell height when the mobile tab bar is hidden (room surface).
+ * Matches desktop/`md` height — no 4rem tab-bar subtraction.
+ */
+export const CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS =
+  "h-[calc(100svh-64px)]" as const;
+
+/** Height class for chat views: room path drops tab-bar offset. */
+export function chatMobileHeightShellClass(
+  pathname: string | null | undefined,
+): string {
+  return isChatRoomPathname(pathname)
+    ? CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS
+    : CHAT_MOBILE_HEIGHT_SHELL_CLASS;
+}
 
 export type ChatMobileTabId = "home" | "history" | "search";
 export type ChatMobileTabLabelKey = "home" | "history" | "search";

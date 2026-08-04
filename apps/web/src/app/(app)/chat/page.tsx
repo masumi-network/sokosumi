@@ -4,9 +4,11 @@ import { Suspense } from "react";
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatWelcomeClient } from "@/app/chat/components/chat-welcome-client";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
+import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import DefaultLoading from "@/components/default-loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
@@ -126,17 +128,55 @@ async function ChatPageContent({ searchParams }: ChatPageProps) {
     );
   }
 
-  const coworkers = (await coworkerService.listCoworkers("chat")).map(
-    mapDbCoworkerToChatCoworker,
+  const activeOrganizationId = activeOrganization?.id ?? null;
+  const chatRoomsPromise = chatRoomService.listRooms().catch(() => []);
+  const archivedChatRoomsPromise = activeOrganizationId
+    ? chatRoomService.listArchivedRooms().catch(() => [])
+    : Promise.resolve(
+        [] as Awaited<ReturnType<typeof chatRoomService.listArchivedRooms>>,
+      );
+  const membersPromise = userService
+    .getMyMembersWithOrganizations()
+    .catch(() => []);
+  const coworkersPromise = coworkerService
+    .listCoworkers("chat")
+    .then((rows) => rows.map(mapDbCoworkerToChatCoworker));
+
+  const [coworkers, chatRooms, archivedChatRooms, members] = await Promise.all([
+    coworkersPromise,
+    chatRoomsPromise,
+    archivedChatRoomsPromise,
+    membersPromise,
+  ]);
+
+  const canDeleteArchivedRooms = Boolean(
+    activeOrganizationId &&
+      members.some(
+        (membership) =>
+          membership.organizationId === activeOrganizationId &&
+          isOrganizationOwnerOrAdmin(membership.role),
+      ),
   );
 
   return (
     <>
       {landingNotice}
-      <ChatWelcomeClient
-        coworkers={coworkers}
-        userName={session?.user.name ?? undefined}
-      />
+      <div className="hidden md:contents">
+        <ChatWelcomeClient
+          coworkers={coworkers}
+          userName={session?.user.name ?? undefined}
+        />
+      </div>
+      <div className="md:hidden min-h-0 flex-1 overflow-y-auto">
+        <OrganizationChatList
+          rooms={chatRooms}
+          archivedRooms={archivedChatRooms}
+          currentUserId={session?.user.id ?? ""}
+          organizationId={activeOrganizationId}
+          canDeleteArchivedRooms={canDeleteArchivedRooms}
+          dismissSheetOnNavigate={false}
+        />
+      </div>
     </>
   );
 }

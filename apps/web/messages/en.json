@@ -4714,7 +4714,8 @@
         "home": "Home",
         "history": "History",
         "search": "Search",
-        "ariaLabel": "Chat"
+        "ariaLabel": "Chat",
+        "backToHome": "Back to chat home"
       },
       "Actions": {
         "more": "Message actions",
