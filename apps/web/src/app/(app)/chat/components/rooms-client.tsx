@@ -47,6 +47,7 @@ import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import {
   type ChatRoomMessageEventData,
   makeUserChatRoomsChannelName,
@@ -1313,14 +1314,16 @@ export function RoomsClient({
   return (
     <div className="-m-4 flex h-[calc(100svh-64px)] min-h-0 flex-col overflow-hidden bg-background">
       {currentUserId ? (
-        <ChannelProvider
-          channelName={makeUserChatRoomsChannelName(currentUserId)}
-        >
-          <RoomMessageRealtimeBridge
-            userId={currentUserId}
-            onMessage={handleChatRoomRealtimeMessage}
-          />
-        </ChannelProvider>
+        <LazyAblyProvider>
+          <ChannelProvider
+            channelName={makeUserChatRoomsChannelName(currentUserId)}
+          >
+            <RoomMessageRealtimeBridge
+              userId={currentUserId}
+              onMessage={handleChatRoomRealtimeMessage}
+            />
+          </ChannelProvider>
+        </LazyAblyProvider>
       ) : null}
       {/* `relative` anchors the thread panel's mobile full-screen takeover. */}
       <main className="relative flex min-h-0 flex-1">

@@ -130,7 +130,7 @@ Ensure `getSessionOrRedirect` and any flag that calls `getSession()` use this ca
 
 ### 3.2 Heavy / third-party components
 
-**Observation:** Ably loads via mount-gated `import()` in `contexts/lazy-ably-provider.tsx` (Instant-safe; no `next/dynamic` + `ssr: false`). Root `ClientAnalytics` uses the same pattern for Vercel Analytics / SpeedInsights.
+**Observation:** Ably loads via mount-gated `import()` in `contexts/lazy-ably-provider.tsx` as **local islands** (notifications sibling under `NotificationProvider`, chat rooms bridge, jobs/tasks listeners) — not on `(app)/layout` / app shell. Instant-safe; no `next/dynamic` + `ssr: false`. Root `ClientAnalytics` uses the same pattern for Vercel Analytics / SpeedInsights.
 
 **Skill ref:** §2.3 Defer Non-Critical Third-Party Libraries, §2.4 Dynamic Imports for Heavy Components.
 
