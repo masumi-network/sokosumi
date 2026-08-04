@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -21,23 +20,6 @@ interface ChatPageProps {
     dm?: string | string[];
     notice?: string | string[];
   }>;
-}
-
-export async function generateMetadata({
-  searchParams,
-}: ChatPageProps): Promise<Metadata> {
-  const query = await searchParams;
-  const isDraftMode =
-    firstSearchValue(query.create) === "channel" ||
-    firstSearchValue(query.dm) === "new";
-  const t = await getTranslations(
-    isDraftMode ? "App.Channels.Metadata" : "App.Chat.Metadata",
-  );
-
-  return {
-    title: t("title"),
-    description: t("description"),
-  };
 }
 
 function ChatPageFallback() {
