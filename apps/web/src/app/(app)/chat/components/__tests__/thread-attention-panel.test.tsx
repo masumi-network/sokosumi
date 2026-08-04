@@ -93,6 +93,9 @@ describe("ThreadAttentionPanel", () => {
     expect(
       screen.queryByTestId("thread-attention-panel"),
     ).not.toBeInTheDocument();
+    expect(
+      await screen.findByTestId("thread-attention-badge"),
+    ).toHaveTextContent("1");
     fireEvent.click(screen.getByTestId("thread-attention-trigger"));
     expect(screen.getByTestId("thread-attention-panel")).toBeInTheDocument();
     expect(screen.getByText(labels.title)).toBeInTheDocument();
@@ -108,6 +111,25 @@ describe("ThreadAttentionPanel", () => {
     ).toHaveTextContent("Budget review parent");
     expect(screen.getByText(/Started by Ada/)).toBeInTheDocument();
     expect(screen.getByText("2 unread replies")).toBeInTheDocument();
+  });
+
+  it("shows no badge when there are no unread threads", async () => {
+    listThreadAttentionActionMock.mockResolvedValue({ ok: true, data: [] });
+
+    render(
+      <ThreadAttentionPanel
+        roomId="550e8400-e29b-41d4-a716-446655440000"
+        labels={labels}
+        onOpenThread={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(listThreadAttentionActionMock).toHaveBeenCalled();
+    });
+    expect(
+      screen.queryByTestId("thread-attention-badge"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows a plain-text preview instead of raw markdown mentions", async () => {
@@ -167,6 +189,9 @@ describe("ThreadAttentionPanel", () => {
       />,
     );
 
+    expect(
+      await screen.findByTestId("thread-attention-badge"),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("thread-attention-trigger"));
     fireEvent.click(await screen.findByTestId("thread-attention-item"));
 
@@ -178,5 +203,8 @@ describe("ThreadAttentionPanel", () => {
         screen.queryByTestId("thread-attention-panel"),
       ).not.toBeInTheDocument();
     });
+    expect(
+      screen.queryByTestId("thread-attention-badge"),
+    ).not.toBeInTheDocument();
   });
 });

@@ -34,6 +34,24 @@ interface ThreadAttentionPanelProps {
   onOpenThread: (parent: ChatRoomMessage) => void;
 }
 
+function UnreadThreadsBadge({ count }: { count: number }) {
+  if (count <= 0) {
+    return null;
+  }
+
+  const label = count > 99 ? "99+" : String(count);
+
+  return (
+    <span
+      data-testid="thread-attention-badge"
+      aria-hidden="true"
+      className="bg-primary text-primary-foreground absolute -top-1 -right-1 inline-flex min-w-4 items-center justify-center rounded-full px-0.5 text-[10px] leading-4 font-semibold tabular-nums"
+    >
+      {label}
+    </span>
+  );
+}
+
 export function ThreadAttentionPanel({
   roomId,
   labels,
@@ -41,37 +59,52 @@ export function ThreadAttentionPanel({
 }: ThreadAttentionPanelProps) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<ChatRoomThreadAttentionItem[]>([]);
+  const [badgeCount, setBadgeCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const requestIdRef = useRef(0);
   const { formatTimeAgo } = useLocalizedDateTime();
 
-  const loadAttention = useEffectEvent(async () => {
-    const requestId = ++requestIdRef.current;
-    setIsLoading(true);
-    setError(null);
+  const loadAttention = useEffectEvent(
+    async (options?: { forPanel?: boolean }) => {
+      const forPanel = options?.forPanel === true;
+      const requestId = ++requestIdRef.current;
+      if (forPanel) {
+        setIsLoading(true);
+        setError(null);
+      }
 
-    const result = await listThreadAttentionAction(roomId);
-    if (requestId !== requestIdRef.current) {
-      return;
-    }
+      const result = await listThreadAttentionAction(roomId);
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
 
-    if (!result.ok) {
-      setItems([]);
-      setError(result.message || labels.error);
-      setIsLoading(false);
-      return;
-    }
+      if (!result.ok) {
+        if (forPanel) {
+          setItems([]);
+          setError(result.message || labels.error);
+          setIsLoading(false);
+        }
+        return;
+      }
 
-    setItems(result.data);
-    setIsLoading(false);
-  });
+      setBadgeCount(result.data.length);
+      if (forPanel) {
+        setItems(result.data);
+        setIsLoading(false);
+      }
+    },
+  );
+
+  useEffect(() => {
+    void loadAttention({ forPanel: false });
+  }, [roomId]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
-    void loadAttention();
+    void loadAttention({ forPanel: true });
   }, [open, roomId]);
 
   function handleOpenChange(nextOpen: boolean) {
@@ -85,11 +118,14 @@ export function ThreadAttentionPanel({
   }
 
   function handleSelect(item: ChatRoomThreadAttentionItem) {
+    setBadgeCount((current) => Math.max(0, current - 1));
     onOpenThread(item.parentMessage);
     handleOpenChange(false);
   }
 
   const showEmpty = !isLoading && !error && items.length === 0;
+  const triggerLabel =
+    badgeCount > 0 ? `${labels.open} (${badgeCount})` : labels.open;
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -98,10 +134,12 @@ export function ThreadAttentionPanel({
           type="button"
           variant="ghost"
           size="icon"
-          aria-label={labels.open}
+          aria-label={triggerLabel}
           data-testid="thread-attention-trigger"
+          className="relative"
         >
           <MessagesSquare className="size-4" />
+          <UnreadThreadsBadge count={badgeCount} />
         </Button>
       </PopoverTrigger>
       <PopoverContent
