@@ -25,6 +25,7 @@ const getOrganizationBillingPlanMock = vi.fn();
 const getEnterpriseContractBillingSummaryMock = vi.fn();
 const enterpriseContractSummaryMock = vi.fn();
 const getFeaturedCoworkersMock = vi.fn();
+const subscriptionSuccessModalMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -163,6 +164,13 @@ vi.mock("@/components/billing/personal-subscription-section", () => ({
   PersonalSubscriptionSection: (props: unknown) => {
     personalSubscriptionSectionMock(props);
     return <div data-testid="personal-subscription-section" />;
+  },
+}));
+
+vi.mock("@/components/billing/subscription-success-modal", () => ({
+  SubscriptionSuccessModal: (props: unknown) => {
+    subscriptionSuccessModalMock(props);
+    return null;
   },
 }));
 
@@ -413,15 +421,20 @@ describe("BillingPage", () => {
     expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         cancelAtPeriodEnd: false,
-        coworkersPromise,
         currentPeriodEnd: "2026-03-01T00:00:00.000Z",
         returnPath: "/billing?tab=subscription",
         status: null,
       }),
     );
+    expect(subscriptionSuccessModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkersPromise,
+        status: null,
+      }),
+    );
   });
 
-  it("threads the status query param and featured-coworkers promise into the personal subscription section", async () => {
+  it("threads the status query param and featured-coworkers promise into the personal subscription success modal", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
 
     const { default: BillingPage } = await import("../page");
@@ -437,7 +450,14 @@ describe("BillingPage", () => {
 
     expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        status: "success",
+      }),
+    );
+    expect(subscriptionSuccessModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
         coworkersPromise,
+        headline: 'subscriptionTitle:{"plan":"Plans.pro.name"}',
+        returnPath: "/billing?tab=subscription",
         status: "success",
       }),
     );
@@ -475,13 +495,19 @@ describe("BillingPage", () => {
       expect.objectContaining({
         assignedSeatCount: 2,
         cancelAtPeriodEnd: false,
-        coworkersPromise,
         currentPlan: "free",
         currentPeriodEnd: new Date("2026-03-01T00:00:00.000Z"),
         currentSeats: 5,
         isEnterpriseConsumable: false,
         isEnterpriseContract: false,
         memberCount: 2,
+      }),
+    );
+    expect(subscriptionSuccessModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkersPromise,
+        headline: 'subscriptionTitle:{"plan":"Plans.free.name"}',
+        returnPath: "/billing?tab=subscription",
         status: null,
       }),
     );
@@ -489,7 +515,7 @@ describe("BillingPage", () => {
     expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
   });
 
-  it("threads the status query param into the organization subscription section", async () => {
+  it("threads the status query param into the organization subscription success modal", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: "org-1",
       name: "Org One",
@@ -511,9 +537,10 @@ describe("BillingPage", () => {
       }),
     );
 
-    expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
+    expect(subscriptionSuccessModalMock).toHaveBeenCalledWith(
       expect.objectContaining({
         coworkersPromise,
+        headline: 'subscriptionTitle:{"plan":"Plans.free.name"}',
         status: "success",
       }),
     );

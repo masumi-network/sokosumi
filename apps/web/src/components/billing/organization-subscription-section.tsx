@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { PurchaseSuccessModal } from "@/components/billing/purchase-success-modal";
 import { Card, CardContent } from "@/components/ui/card";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
@@ -16,7 +15,6 @@ import {
   updateOrganizationSubscriptionSeats,
   upgradeOrganizationSubscription,
 } from "@/lib/actions/subscription";
-import type { CoworkerOption } from "@/lib/types/coworker";
 import {
   OrganizationSeatSettingsFields,
   resolveMinimumOrganizationSeats,
@@ -26,7 +24,6 @@ import { SubscriptionEnterprisePlanCard } from "./subscription-enterprise-plan-c
 import { SubscriptionFreePlanRow } from "./subscription-free-plan-row";
 import { SubscriptionPlanCard } from "./subscription-plan-card";
 import {
-  getPlanTranslationKey,
   type SubscriptionPlanView,
   splitSubscriptionPlans,
 } from "./subscription-plan-utils";
@@ -34,7 +31,6 @@ import {
 interface OrganizationSubscriptionSectionProps {
   assignedSeatCount: number;
   cancelAtPeriodEnd: boolean;
-  coworkersPromise: Promise<CoworkerOption[]>;
   currentPlan: OrganizationBillingPlanName;
   currentPeriodEnd: Date | string | null;
   currentSeats: number;
@@ -44,13 +40,11 @@ interface OrganizationSubscriptionSectionProps {
   organizationId: string;
   plans: SubscriptionPlanView[];
   returnPath: string;
-  status: "cancel" | "success" | null;
 }
 
 export function OrganizationSubscriptionSection({
   assignedSeatCount,
   cancelAtPeriodEnd,
-  coworkersPromise,
   currentPlan,
   currentPeriodEnd,
   currentSeats,
@@ -60,29 +54,17 @@ export function OrganizationSubscriptionSection({
   organizationId,
   plans,
   returnPath,
-  status,
 }: OrganizationSubscriptionSectionProps) {
   const t = useTranslations(
     "App.Organizations.OrganizationDetail.Subscription",
   );
   const tSubscriptions = useTranslations("App.Subscriptions");
-  const tPurchaseSuccess = useTranslations("App.Billing.PurchaseSuccess");
   const formatter = useFormatter();
   const router = useRouter();
   const { freePlan, paidPlans } = useMemo(
     () => splitSubscriptionPlans(plans),
     [plans],
   );
-  const [successModalOpen, setSuccessModalOpen] = useState(
-    status === "success",
-  );
-
-  function handleSuccessModalOpenChange(open: boolean) {
-    setSuccessModalOpen(open);
-    if (!open) {
-      router.replace(returnPath);
-    }
-  }
 
   const minimumSeats = useMemo(
     () => resolveMinimumOrganizationSeats(assignedSeatCount),
@@ -316,18 +298,6 @@ export function OrganizationSubscriptionSection({
           </>
         )}
       </div>
-
-      <PurchaseSuccessModal
-        open={successModalOpen}
-        onOpenChange={handleSuccessModalOpenChange}
-        headline={tPurchaseSuccess("subscriptionTitle", {
-          plan: tSubscriptions(
-            `Plans.${getPlanTranslationKey(currentPlan)}.name`,
-          ),
-        })}
-        description={tPurchaseSuccess("subscriptionDescription")}
-        coworkersPromise={coworkersPromise}
-      />
     </div>
   );
 }

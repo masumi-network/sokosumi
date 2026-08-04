@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Suspense, use } from "react";
-
+import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,43 +14,47 @@ import { cn } from "@/lib/utils";
 interface PurchaseSuccessCoworkerRowProps {
   coworkersPromise: Promise<CoworkerOption[]>;
   className?: string;
+  /** Called right before a Link in this row navigates away, so the caller
+   * can clear its own "just purchased" URL marker in the same tick — otherwise
+   * the marker survives in browser history and the modal (plus, for credits,
+   * its GTM purchase event) replays on Back. */
+  onNavigate?: () => void;
 }
 
 export function PurchaseSuccessCoworkerRow(
   props: PurchaseSuccessCoworkerRowProps,
 ) {
   return (
-    <Suspense fallback={<CoworkerRowLoading />}>
-      <CoworkerRowInner {...props} />
-    </Suspense>
+    <DefaultErrorBoundary
+      fallback={<GoToTasksFallback className={props.className} />}
+    >
+      <Suspense fallback={<CoworkerRowLoading />}>
+        <CoworkerRowInner {...props} />
+      </Suspense>
+    </DefaultErrorBoundary>
   );
 }
 
 function CoworkerRowInner({
   coworkersPromise,
   className,
+  onNavigate,
 }: PurchaseSuccessCoworkerRowProps) {
   const t = useTranslations("App.Billing.PurchaseSuccess");
   const coworkers = use(coworkersPromise);
 
   if (coworkers.length === 0) {
-    return (
-      <Button asChild variant="outline" className={className}>
-        <Link href="/tasks">
-          {t("goToTasks")}
-          <ArrowRight className="size-4" aria-hidden />
-        </Link>
-      </Button>
-    );
+    return <GoToTasksFallback className={className} onNavigate={onNavigate} />;
   }
 
   return (
-    <div className={cn("flex justify-center gap-6", className)}>
+    <div className={cn("flex flex-wrap justify-center gap-6", className)}>
       {coworkers.map((coworker) => (
         <Link
           key={coworker.id}
           href={`/tasks?create=true&assignee=${encodeURIComponent(coworker.slug)}`}
           aria-label={t("startTaskWith", { name: coworker.name })}
+          onClick={onNavigate}
           className="group focus-visible:ring-ring flex flex-col items-center gap-2 rounded-lg p-1 outline-none focus-visible:ring-2"
         >
           <Avatar className="ring-border group-hover:ring-primary size-14 ring-1 transition-all group-hover:scale-105 group-hover:ring-2">
@@ -68,6 +72,25 @@ function CoworkerRowInner({
         </Link>
       ))}
     </div>
+  );
+}
+
+function GoToTasksFallback({
+  className,
+  onNavigate,
+}: {
+  className?: string;
+  onNavigate?: () => void;
+}) {
+  const t = useTranslations("App.Billing.PurchaseSuccess");
+
+  return (
+    <Button asChild variant="outline" className={className}>
+      <Link href="/tasks" onClick={onNavigate}>
+        {t("goToTasks")}
+        <ArrowRight className="size-4" aria-hidden />
+      </Link>
+    </Button>
   );
 }
 

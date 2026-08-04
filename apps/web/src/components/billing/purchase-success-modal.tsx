@@ -46,6 +46,7 @@ export function PurchaseSuccessModal({
           headline={headline}
           description={description}
           coworkersPromise={coworkersPromise}
+          onOpenChange={onOpenChange}
         />
       </DialogContent>
     </Dialog>
@@ -56,7 +57,8 @@ function PurchaseSuccessModalContent({
   headline,
   description,
   coworkersPromise,
-}: Omit<PurchaseSuccessModalProps, "open" | "onOpenChange">) {
+  onOpenChange,
+}: Omit<PurchaseSuccessModalProps, "open">) {
   const t = useTranslations("App.Billing.PurchaseSuccess");
   const reduceMotion = useReducedMotion();
 
@@ -112,7 +114,10 @@ function PurchaseSuccessModalContent({
             {t("coworkerRowDescription")}
           </p>
         </div>
-        <PurchaseSuccessCoworkerRow coworkersPromise={coworkersPromise} />
+        <PurchaseSuccessCoworkerRow
+          coworkersPromise={coworkersPromise}
+          onNavigate={() => onOpenChange(false)}
+        />
       </motion.div>
     </div>
   );

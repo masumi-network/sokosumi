@@ -1,15 +1,18 @@
 import CreditsCancelModal from "@/app/credits/components/cancel-modal";
 import { CreditsPurchaseSuccess } from "@/app/credits/components/credits-purchase-success";
 import PurchaseTracker from "@/app/credits/components/purchase-tracker";
-import { getFeaturedCoworkers } from "@/components/billing/get-featured-coworkers";
 import CreditsForm from "@/components/credits/credits-form";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreditTopUpPricing,
   Organization,
 } from "@/lib/clients/generated/core";
+import type { CoworkerOption } from "@/lib/types/coworker";
 
 interface CreditsSectionProps {
+  // Provided by the billing page, which creates it once and shares it across
+  // the credits/coupon/subscription tabs — avoids fetching coworkers 3x per render.
+  coworkersPromise: Promise<CoworkerOption[]>;
   isPurchaseEnabled?: boolean;
   organization: Organization | null;
   // Provided by the billing page, which already fetches the catalog to gate
@@ -23,6 +26,7 @@ interface CreditsSectionProps {
 }
 
 export default async function CreditsSection({
+  coworkersPromise,
   isPurchaseEnabled = true,
   organization,
   pricing,
@@ -32,7 +36,6 @@ export default async function CreditsSection({
   const sessionId = searchParams?.session_id;
   const cancel = searchParams?.cancel;
 
-  const coworkersPromise = getFeaturedCoworkers();
   const checkoutSession = sessionId
     ? await coreClient
         .getCheckoutSessionAnalytics(sessionId)

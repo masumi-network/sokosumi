@@ -1,7 +1,12 @@
 import { act, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
+
+const { useReducedMotionMock, confettiBurstMock } = vi.hoisted(() => ({
+  useReducedMotionMock: vi.fn(() => false),
+  confettiBurstMock: vi.fn(),
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -9,9 +14,34 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ children, href }: { children: ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    children,
+    href,
+    onClick,
+  }: {
+    children: ReactNode;
+    href: string;
+    onClick?: () => void;
+  }) => (
+    <a href={href} onClick={onClick}>
+      {children}
+    </a>
   ),
+}));
+
+vi.mock("motion/react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("motion/react")>();
+  return {
+    ...actual,
+    useReducedMotion: () => useReducedMotionMock(),
+  };
+});
+
+vi.mock("@/components/ui/confetti-burst", () => ({
+  ConfettiBurst: (props: unknown) => {
+    confettiBurstMock(props);
+    return null;
+  },
 }));
 
 import { PurchaseSuccessModal } from "../purchase-success-modal";
@@ -35,6 +65,11 @@ function createCoworker(
 }
 
 describe("PurchaseSuccessModal", () => {
+  beforeEach(() => {
+    useReducedMotionMock.mockReturnValue(false);
+    confettiBurstMock.mockClear();
+  });
+
   it("does not render its content when closed", () => {
     render(
       <PurchaseSuccessModal
@@ -135,6 +170,65 @@ describe("PurchaseSuccessModal", () => {
     await act(async () => {
       closeButton.click();
     });
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("renders the confetti burst when motion is not reduced", async () => {
+    useReducedMotionMock.mockReturnValue(false);
+
+    await act(async () => {
+      render(
+        <PurchaseSuccessModal
+          open
+          onOpenChange={() => {}}
+          headline="Headline text"
+          description="Description text"
+          coworkersPromise={Promise.resolve([])}
+        />,
+      );
+    });
+
+    expect(confettiBurstMock).toHaveBeenCalled();
+  });
+
+  it("skips the confetti burst when the user prefers reduced motion", async () => {
+    useReducedMotionMock.mockReturnValue(true);
+
+    await act(async () => {
+      render(
+        <PurchaseSuccessModal
+          open
+          onOpenChange={() => {}}
+          headline="Headline text"
+          description="Description text"
+          coworkersPromise={Promise.resolve([])}
+        />,
+      );
+    });
+
+    expect(confettiBurstMock).not.toHaveBeenCalled();
+  });
+
+  it("closes the modal (clearing the caller's success marker) when a coworker link is clicked", async () => {
+    const onOpenChange = vi.fn();
+    const coworkers = [
+      createCoworker({ id: "1", slug: "elena", name: "Elena" }),
+    ];
+
+    await act(async () => {
+      render(
+        <PurchaseSuccessModal
+          open
+          onOpenChange={onOpenChange}
+          headline="Headline text"
+          description="Description text"
+          coworkersPromise={Promise.resolve(coworkers)}
+        />,
+      );
+    });
+
+    screen.getByText("Elena").closest("a")?.click();
 
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });

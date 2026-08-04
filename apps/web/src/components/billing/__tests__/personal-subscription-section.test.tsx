@@ -3,16 +3,14 @@ import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const refreshMock = vi.fn();
-const replaceMock = vi.fn();
 const upgradePersonalSubscriptionMock = vi.fn();
 const subscriptionPlanCardMock = vi.fn();
 const subscriptionFreePlanRowMock = vi.fn();
-const purchaseSuccessModalMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
+    push: vi.fn(),
     refresh: refreshMock,
-    replace: replaceMock,
   }),
 }));
 
@@ -34,13 +32,6 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/subscription", () => ({
   upgradePersonalSubscription: (...args: unknown[]) =>
     upgradePersonalSubscriptionMock(...args),
-}));
-
-vi.mock("@/components/billing/purchase-success-modal", () => ({
-  PurchaseSuccessModal: (props: unknown) => {
-    purchaseSuccessModalMock(props);
-    return null;
-  },
 }));
 
 vi.mock("../subscription-plan-card", () => ({
@@ -85,8 +76,6 @@ function createPlans() {
   ];
 }
 
-const coworkersPromise = Promise.resolve([]);
-
 describe("PersonalSubscriptionSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -100,7 +89,6 @@ describe("PersonalSubscriptionSection", () => {
     render(
       <PersonalSubscriptionSection
         cancelAtPeriodEnd={false}
-        coworkersPromise={coworkersPromise}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
@@ -126,7 +114,6 @@ describe("PersonalSubscriptionSection", () => {
     render(
       <PersonalSubscriptionSection
         cancelAtPeriodEnd
-        coworkersPromise={coworkersPromise}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
@@ -147,7 +134,6 @@ describe("PersonalSubscriptionSection", () => {
     render(
       <PersonalSubscriptionSection
         cancelAtPeriodEnd={false}
-        coworkersPromise={coworkersPromise}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
@@ -184,7 +170,6 @@ describe("PersonalSubscriptionSection", () => {
     render(
       <PersonalSubscriptionSection
         cancelAtPeriodEnd={false}
-        coworkersPromise={coworkersPromise}
         currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
@@ -211,10 +196,9 @@ describe("PersonalSubscriptionSection", () => {
   });
 
   it("does not show a status banner when status is null", () => {
-    render(
+    const { queryByText } = render(
       <PersonalSubscriptionSection
         cancelAtPeriodEnd={false}
-        coworkersPromise={coworkersPromise}
         currentPeriodEnd={null}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
@@ -222,16 +206,13 @@ describe("PersonalSubscriptionSection", () => {
       />,
     );
 
-    expect(purchaseSuccessModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({ open: false }),
-    );
+    expect(queryByText("statusCancel")).not.toBeInTheDocument();
   });
 
-  it("shows a cancel banner (not the success modal) when status is cancel", () => {
+  it("shows a cancel banner when status is cancel", () => {
     const { getByText } = render(
       <PersonalSubscriptionSection
         cancelAtPeriodEnd={false}
-        coworkersPromise={coworkersPromise}
         currentPeriodEnd={null}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
@@ -240,16 +221,12 @@ describe("PersonalSubscriptionSection", () => {
     );
 
     expect(getByText("statusCancel")).toBeInTheDocument();
-    expect(purchaseSuccessModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({ open: false }),
-    );
   });
 
-  it("opens the purchase success modal with the current plan name when status is success", () => {
-    render(
+  it("does not show a status banner when status is success (the success modal, owned by the billing page, handles that)", () => {
+    const { queryByText } = render(
       <PersonalSubscriptionSection
         cancelAtPeriodEnd={false}
-        coworkersPromise={coworkersPromise}
         currentPeriodEnd={null}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
@@ -257,30 +234,6 @@ describe("PersonalSubscriptionSection", () => {
       />,
     );
 
-    expect(purchaseSuccessModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        open: true,
-        headline: 'subscriptionTitle:{"plan":"Plans.starter.name"}',
-        coworkersPromise,
-      }),
-    );
-  });
-
-  it("closing the success modal strips the status param via router.replace", () => {
-    render(
-      <PersonalSubscriptionSection
-        cancelAtPeriodEnd={false}
-        coworkersPromise={coworkersPromise}
-        currentPeriodEnd={null}
-        plans={createPlans()}
-        returnPath="/billing?tab=subscription"
-        status="success"
-      />,
-    );
-
-    const { onOpenChange } = purchaseSuccessModalMock.mock.calls.at(-1)?.[0];
-    onOpenChange(false);
-
-    expect(replaceMock).toHaveBeenCalledWith("/billing?tab=subscription");
+    expect(queryByText("statusCancel")).not.toBeInTheDocument();
   });
 });

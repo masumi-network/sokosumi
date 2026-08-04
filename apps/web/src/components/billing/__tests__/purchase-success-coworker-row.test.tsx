@@ -4,8 +4,18 @@ import { describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 vi.mock("next/link", () => ({
-  default: ({ children, href }: { children: ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
+  default: ({
+    children,
+    href,
+    onClick,
+  }: {
+    children: ReactNode;
+    href: string;
+    onClick?: () => void;
+  }) => (
+    <a href={href} onClick={onClick}>
+      {children}
+    </a>
   ),
 }));
 
@@ -105,5 +115,63 @@ describe("PurchaseSuccessCoworkerRow", () => {
       "href",
       "/tasks",
     );
+  });
+
+  it("calls onNavigate when a coworker link is clicked", async () => {
+    const onNavigate = vi.fn();
+    const coworkers = [
+      createCoworker({ id: "1", slug: "elena", name: "Elena" }),
+    ];
+
+    await act(async () => {
+      render(
+        <PurchaseSuccessCoworkerRow
+          coworkersPromise={Promise.resolve(coworkers)}
+          onNavigate={onNavigate}
+        />,
+      );
+    });
+
+    screen.getByText("Elena").closest("a")?.click();
+
+    expect(onNavigate).toHaveBeenCalled();
+  });
+
+  it("calls onNavigate when the 'go to tasks' fallback link is clicked", async () => {
+    const onNavigate = vi.fn();
+
+    await act(async () => {
+      render(
+        <PurchaseSuccessCoworkerRow
+          coworkersPromise={Promise.resolve([])}
+          onNavigate={onNavigate}
+        />,
+      );
+    });
+
+    screen.getByText("goToTasks").closest("a")?.click();
+
+    expect(onNavigate).toHaveBeenCalled();
+  });
+
+  it("degrades to the 'go to tasks' fallback instead of crashing when the coworkers promise rejects", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    await act(async () => {
+      render(
+        <PurchaseSuccessCoworkerRow
+          coworkersPromise={Promise.reject(new Error("boom"))}
+        />,
+      );
+    });
+
+    expect(screen.getByText("goToTasks").closest("a")).toHaveAttribute(
+      "href",
+      "/tasks",
+    );
+
+    consoleError.mockRestore();
   });
 });

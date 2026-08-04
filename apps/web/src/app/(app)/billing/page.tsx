@@ -11,9 +11,11 @@ import { getFeaturedCoworkers } from "@/components/billing/get-featured-coworker
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import {
+  getPlanTranslationKey,
   parsePlanName,
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
+import { SubscriptionSuccessModal } from "@/components/billing/subscription-success-modal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -56,8 +58,17 @@ function parseBillingTab(tab: string | undefined): BillingTab {
 }
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
-  const t = await getTranslations("App.Billing");
-  const [query, session, activeOrganization] = await Promise.all([
+  const [
+    t,
+    tSubscriptions,
+    tPurchaseSuccess,
+    query,
+    session,
+    activeOrganization,
+  ] = await Promise.all([
+    getTranslations("App.Billing"),
+    getTranslations("App.Subscriptions"),
+    getTranslations("App.Billing.PurchaseSuccess"),
     searchParams,
     getSession(),
     userService.getActiveOrganization(),
@@ -65,6 +76,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const activeTab = parseBillingTab(query.tab);
   const billingPortalReturnPath = `/billing?tab=${activeTab}`;
   const coworkersPromise = getFeaturedCoworkers();
+  const subscriptionStatus = parseStatus(query.status);
+  const subscriptionSuccessDescription = tPurchaseSuccess(
+    "subscriptionDescription",
+  );
 
   if (!session) {
     return null;
@@ -230,7 +245,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               <OrganizationSubscriptionSection
                 assignedSeatCount={seatCounts.assignedCount}
                 cancelAtPeriodEnd={billingPlan.cancelAtPeriodEnd}
-                coworkersPromise={coworkersPromise}
                 currentPlan={currentPlan}
                 currentPeriodEnd={billingPlan.periodEnd}
                 currentSeats={currentSeats}
@@ -240,11 +254,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 organizationId={activeOrganization.id}
                 plans={orgPlans}
                 returnPath="/billing?tab=subscription"
-                status={parseStatus(query.status)}
               />
             }
             creditsContent={
               <CreditsSection
+                coworkersPromise={coworkersPromise}
                 isPurchaseEnabled={canPurchaseCredits}
                 organization={activeOrganization}
                 pricing={creditPricing}
@@ -254,6 +268,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             }
             couponContent={
               <CouponSection
+                coworkersPromise={coworkersPromise}
                 organization={activeOrganization}
                 returnPath="/billing?tab=coupon"
                 searchParams={couponCheckoutParams}
@@ -261,6 +276,18 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             }
           />
         </div>
+
+        <SubscriptionSuccessModal
+          coworkersPromise={coworkersPromise}
+          description={subscriptionSuccessDescription}
+          headline={tPurchaseSuccess("subscriptionTitle", {
+            plan: tSubscriptions(
+              `Plans.${getPlanTranslationKey(currentPlan)}.name`,
+            ),
+          })}
+          returnPath="/billing?tab=subscription"
+          status={subscriptionStatus}
+        />
       </div>
     );
   }
@@ -341,15 +368,15 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               cancelAtPeriodEnd={
                 latestPersonalSubscription?.cancelAtPeriodEnd ?? false
               }
-              coworkersPromise={coworkersPromise}
               currentPeriodEnd={latestPersonalSubscription?.periodEnd ?? null}
               plans={personalPlans}
               returnPath="/billing?tab=subscription"
-              status={parseStatus(query.status)}
+              status={subscriptionStatus}
             />
           }
           creditsContent={
             <CreditsSection
+              coworkersPromise={coworkersPromise}
               isPurchaseEnabled={canPurchaseCredits}
               organization={null}
               pricing={creditPricing}
@@ -359,6 +386,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           }
           couponContent={
             <CouponSection
+              coworkersPromise={coworkersPromise}
               organization={null}
               returnPath="/billing?tab=coupon"
               searchParams={couponCheckoutParams}
@@ -366,6 +394,18 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           }
         />
       </div>
+
+      <SubscriptionSuccessModal
+        coworkersPromise={coworkersPromise}
+        description={subscriptionSuccessDescription}
+        headline={tPurchaseSuccess("subscriptionTitle", {
+          plan: tSubscriptions(
+            `Plans.${getPlanTranslationKey(currentPlan)}.name`,
+          ),
+        })}
+        returnPath="/billing?tab=subscription"
+        status={subscriptionStatus}
+      />
     </div>
   );
 }
