@@ -52,6 +52,7 @@ export const chatRoomMessageEventDataSchema = z.object({
       threadLastReplyAt: z.string().nullable(),
       metadata: z.record(z.string(), z.unknown()).nullable(),
       quote: z.unknown().nullable(),
+      membership: z.unknown().nullable(),
     })
     .passthrough(),
 });

@@ -40,16 +40,6 @@ const paramsSchema = z.object({
 });
 
 const querySchema = cursorPaginationQuerySchema.extend({
-  parentMessageId: z
-    .string()
-    .uuid()
-    .optional()
-    .openapi({
-      param: { name: "parentMessageId", in: "query" },
-      description:
-        "When provided, returns replies for this root message. Otherwise returns top-level room messages. Ignored when `q` is set.",
-      example: "550e8400-e29b-41d4-a716-446655440000",
-    }),
   q: z
     .string()
     .trim()
@@ -59,7 +49,7 @@ const querySchema = cursorPaginationQuerySchema.extend({
     .openapi({
       param: { name: "q", in: "query" },
       description:
-        "Case-insensitive substring match on message content. When set, searches top-level and thread replies and excludes soft-deleted messages. `parentMessageId` is ignored.",
+        "Case-insensitive substring match on message content. When set, searches top-level and thread replies and excludes soft-deleted messages.",
       example: "budget",
     }),
 });
@@ -110,7 +100,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
       : {
           roomId: id,
-          parentMessageId: queryParams.parentMessageId ?? null,
+          parentMessageId: null,
         };
 
     const [messages, count] = await Promise.all([

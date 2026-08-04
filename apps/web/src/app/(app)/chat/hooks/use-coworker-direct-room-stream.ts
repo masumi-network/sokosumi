@@ -98,6 +98,7 @@ export function createResumePendingCoworkerShell({
     threadLastReplyAt: null,
     metadata: { streaming: true },
     quote: null,
+    membership: null,
     deletedAt: null,
   };
 }
@@ -137,6 +138,7 @@ function uiMessageToTransientRoomMessage({
       threadLastReplyAt: null,
       metadata: { streaming: true },
       quote: null,
+      membership: null,
       deletedAt: null,
     };
   }
@@ -155,6 +157,7 @@ function uiMessageToTransientRoomMessage({
     threadLastReplyAt: null,
     metadata: { streaming: true },
     quote: null,
+    membership: null,
     deletedAt: null,
   };
 }

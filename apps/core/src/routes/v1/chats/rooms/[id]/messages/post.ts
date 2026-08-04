@@ -1,7 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { waitUntil } from "@vercel/functions";
 
-import { emitChatDirectMessageNotifications } from "@/helpers/chat-direct-message-notifications";
+import {
+  emitChatDirectMessageNotifications,
+  shouldEmitChatDirectMessageNotifications,
+} from "@/helpers/chat-direct-message-notifications";
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { conflict } from "@/helpers/error";
@@ -355,7 +358,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
-      if (room.kind === "direct") {
+      if (
+        shouldEmitChatDirectMessageNotifications({
+          kind: room.kind,
+          memberUserIds: room.memberUserIds,
+        })
+      ) {
         const mentionedUserIdSet = new Set(mentionedUserIds);
         const recipientUserIds = room.memberUserIds.filter(
           (userId) =>

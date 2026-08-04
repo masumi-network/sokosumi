@@ -72,6 +72,9 @@ function SidebarProvider({
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
+  // SSR / hydration always start from `defaultOpen` so the sync Instant Nav
+  // shell does not need `cookies()`. Restore the persisted preference in
+  // `useLayoutEffect` before paint to avoid an open/closed flash.
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
@@ -88,6 +91,26 @@ function SidebarProvider({
     },
     [setOpenProp, open],
   );
+
+  React.useLayoutEffect(() => {
+    if (openProp !== undefined) {
+      return;
+    }
+
+    const raw = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
+      ?.slice(SIDEBAR_COOKIE_NAME.length + 1);
+
+    if (raw === "true") {
+      _setOpen(true);
+      return;
+    }
+
+    if (raw === "false") {
+      _setOpen(false);
+    }
+  }, [openProp]);
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {

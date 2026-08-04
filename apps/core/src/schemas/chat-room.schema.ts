@@ -288,6 +288,29 @@ export const chatRoomMessageQuoteSchema = z
   })
   .openapi("ChatRoomMessageQuote");
 
+export const chatRoomMessageMembershipSubjectSchema = z
+  .discriminatedUnion("type", [
+    z.object({
+      type: z.literal("user"),
+      id: z.string(),
+      name: z.string(),
+    }),
+    z.object({
+      type: z.literal("coworker"),
+      id: z.string(),
+      name: z.string(),
+    }),
+  ])
+  .openapi("ChatRoomMessageMembershipSubject");
+
+/** Durable channel join/leave snapshot under metadata.membership, promoted on the DTO. */
+export const chatRoomMessageMembershipSchema = z
+  .object({
+    action: z.enum(["joined", "left"]),
+    subject: chatRoomMessageMembershipSubjectSchema,
+  })
+  .openapi("ChatRoomMessageMembership");
+
 export const chatRoomMessageSchema = z
   .object({
     id: z.string().uuid(),
@@ -304,6 +327,7 @@ export const chatRoomMessageSchema = z
     threadLastReplyAt: dateTimeSchema.nullable(),
     metadata: z.record(z.string(), z.any()).nullable(),
     quote: chatRoomMessageQuoteSchema.nullable(),
+    membership: chatRoomMessageMembershipSchema.nullable(),
   })
   .openapi("ChatRoomMessage");
 
@@ -384,7 +408,7 @@ export const leftChatRoomSchema = z
     }),
     remainingUserMemberCount: z.number().int().min(1).openapi({
       description:
-        "Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; the channel creator or an organization owner/admin must archive instead.",
+        "Human members left in the room after the caller leaves. Always at least one: the final member cannot leave; an organization owner/admin must archive instead.",
       example: 3,
     }),
   })
@@ -396,7 +420,66 @@ export const leftChatRoomSchema = z
  */
 export const restoredChatRoomSchema = chatRoomSchema;
 
+/**
+ * A top-level room message that has ≥1 non-deleted reply, with per-user look
+ * metadata. Unread counts use the look baseline (thread lastReadAt, else room
+ * read-state createdAt, else -infinity) — never room lastReadAt.
+ */
+export const chatRoomThreadSchema = z
+  .object({
+    parentMessage: chatRoomMessageSchema,
+    replyCount: z.number().int().min(1).openapi({
+      description: "Non-deleted replies under this parent.",
+      example: 5,
+    }),
+    lastReplyAt: dateTimeSchema.openapi({
+      description: "createdAt of the newest non-deleted reply.",
+      example: "2026-07-02T12:00:00.000Z",
+    }),
+    unreadReplyCount: z.number().int().min(0).openapi({
+      description:
+        "Non-deleted replies from others after the look baseline for this parent.",
+      example: 2,
+    }),
+    lastUnreadReplyAt: dateTimeSchema.nullable().openapi({
+      description:
+        "createdAt of the newest qualifying unread reply, or null when none.",
+      example: "2026-07-02T12:00:00.000Z",
+    }),
+  })
+  .openapi("ChatRoomThread");
+
+/** Result of marking a thread parent as looked (ThreadPanel open). */
+export const chatRoomThreadReadStateSchema = z
+  .object({
+    parentMessageId: z.string().uuid().openapi({
+      example: "550e8400-e29b-41d4-a716-446655440000",
+    }),
+    lastReadAt: dateTimeSchema,
+  })
+  .openapi("ChatRoomThreadReadState");
+
+/** Result of marking every unread thread in a room as looked. */
+export const chatRoomThreadsMarkAllSchema = z
+  .object({
+    markedCount: z.number().int().min(0).openapi({
+      description: "Number of parent threads whose look state was upserted.",
+      example: 3,
+    }),
+  })
+  .openapi("ChatRoomThreadsMarkAll");
+
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
 export type ChatRoomMessageQuote = z.infer<typeof chatRoomMessageQuoteSchema>;
+export type ChatRoomMessageMembership = z.infer<
+  typeof chatRoomMessageMembershipSchema
+>;
+export type ChatRoomThread = z.infer<typeof chatRoomThreadSchema>;
+export type ChatRoomThreadReadState = z.infer<
+  typeof chatRoomThreadReadStateSchema
+>;
+export type ChatRoomThreadsMarkAll = z.infer<
+  typeof chatRoomThreadsMarkAllSchema
+>;

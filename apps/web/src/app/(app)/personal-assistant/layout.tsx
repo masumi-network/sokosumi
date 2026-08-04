@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 
+import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
+import { HERMES_MESSAGE_PATHS } from "@/i18n/message-namespaces";
+
 import FullscreenEffect from "./components/fullscreen-effect";
+
+export const instant = false;
 
 interface HermesLayoutProps {
   children: ReactNode;
@@ -20,9 +25,9 @@ export default function HermesLayout({ children }: HermesLayoutProps) {
   // long pages (EmptyState) scroll normally; short pages (setup loaders)
   // don't get a phantom body scroll.
   return (
-    <>
+    <ClientMessageBoundary paths={HERMES_MESSAGE_PATHS}>
       <FullscreenEffect />
       {children}
-    </>
+    </ClientMessageBoundary>
   );
 }

@@ -18,11 +18,13 @@ import {
   editRoomMessageAction,
   listRoomMessagesAction,
   listThreadMessagesAction,
+  markThreadReadAction,
   sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
+import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
@@ -64,6 +66,7 @@ import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { CreateChannelDialog } from "./create-channel-dialog";
 import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
+import { MembershipStatusRow } from "./membership-status-row";
 import {
   openDirectWithParticipant,
   participantDirectKey,
@@ -325,16 +328,17 @@ export function RoomsClient({
   const currentMemberRole = organizationMembers.find(
     (member) => member.user.id === currentUserId,
   )?.role;
-  // Archiving hides the room for everyone: creator or org owner/admin only.
-  const canArchiveSelectedRoom = Boolean(
-    selectedRoom &&
-      !isDirectRoom &&
-      (selectedRoom.createdByUserId === currentUserId ||
-        currentMemberRole === "owner" ||
-        currentMemberRole === "admin"),
+  const isOrgOwnerOrAdmin =
+    currentMemberRole === "owner" || currentMemberRole === "admin";
+  // Any active channel member may rewrite the roster.
+  const canEditSelectedRoomMembers = Boolean(selectedRoom && !isDirectRoom);
+  // Name/topic/discoverability and archive: organization owner/admin only.
+  const canManageSelectedRoomSettings = Boolean(
+    selectedRoom && !isDirectRoom && isOrgOwnerOrAdmin,
   );
+  const canArchiveSelectedRoom = canManageSelectedRoomSettings;
   // Any member can leave, but not the last one — an empty roster could not be
-  // archived (archive requires membership of creator/owner/admin).
+  // archived (archive requires membership of an org owner/admin).
   const canLeaveSelectedRoom = Boolean(
     selectedRoom && !isDirectRoom && selectedRoom.userMembers.length > 1,
   );
@@ -970,12 +974,18 @@ export function RoomsClient({
     );
   }
 
-  function loadThreadMessages(parentMessage: ChatRoomMessage) {
-    if (!selectedRoom) return;
+  async function loadThreadMessages(
+    parentMessage: ChatRoomMessage,
+  ): Promise<boolean> {
+    if (!selectedRoom) {
+      return false;
+    }
     const roomId = selectedRoom.id;
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
+    // Thread look state is independent of room mark-read.
+    const markResult = await markThreadReadAction(roomId, parentMessage.id);
     startThreadLoadingTransition(async () => {
       const result = await listThreadMessagesAction(roomId, parentMessage.id);
       if (!result.ok) {
@@ -988,6 +998,7 @@ export function RoomsClient({
       setThreadMessages(result.data.messages);
       setThreadOlderNextCursor(result.data.nextCursor);
     });
+    return markResult.ok;
   }
 
   function handleLoadOlderMessages() {
@@ -1357,6 +1368,24 @@ export function RoomsClient({
                       replyBadge: t("RoomSearch.replyBadge"),
                     }}
                   />
+                  <UnreadThreadsPanel
+                    key={`unread-threads-${selectedRoom.id}`}
+                    roomId={selectedRoom.id}
+                    onOpenThread={loadThreadMessages}
+                    labels={{
+                      open: t("UnreadThreads.open"),
+                      title: t("UnreadThreads.title"),
+                      markAllRead: t("UnreadThreads.markAllRead"),
+                      empty: t("UnreadThreads.empty"),
+                      loading: t("UnreadThreads.loading"),
+                      error: t("UnreadThreads.error"),
+                      markAllReadError: t("UnreadThreads.markAllReadError"),
+                      startedBy: (name) =>
+                        t("UnreadThreads.startedBy", { name }),
+                      unreadReplies: (count) =>
+                        t("UnreadThreads.unreadReplies", { count }),
+                    }}
+                  />
                   <RoomParticipantStack
                     room={selectedRoom}
                     currentUserId={currentUserId}
@@ -1369,6 +1398,8 @@ export function RoomsClient({
                       channel={selectedRoom}
                       members={organizationMembers}
                       coworkers={coworkers}
+                      canEditMembers={canEditSelectedRoomMembers}
+                      canManageSettings={canManageSelectedRoomSettings}
                       canArchive={canArchiveSelectedRoom}
                       canLeave={canLeaveSelectedRoom}
                       membersLoadFailed={membersLoadFailed}
@@ -1380,7 +1411,7 @@ export function RoomsClient({
               <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
                 <div
                   ref={contentRef}
-                  className="flex w-full flex-col justify-end px-5 pt-6 pb-3"
+                  className="flex w-full flex-col justify-end px-5 pt-6 pb-0"
                   style={
                     contentMinHeight != null
                       ? { minHeight: contentMinHeight }
@@ -1441,51 +1472,56 @@ export function RoomsClient({
                             formatDaySeparator={formatDaySeparator}
                           />
                         ) : null}
-                        <ChatMessageRow
-                          message={message}
-                          coworkersById={coworkersById}
-                          coworkersBySlug={coworkersBySlug}
-                          usersById={usersById}
-                          usersBySlug={usersBySlug}
-                          currentUserId={currentUserId}
-                          canOpenHumanDirect={canOpenHumanDirect}
-                          onOpenDirectMessage={handleOpenDirectMessage}
-                          openingDirectParticipantKey={openingDirectKey}
-                          onToggleReaction={handleToggleReaction}
-                          onOpenThread={
-                            shouldShowChatRoomThreadButton({
+                        {message.membership != null ? (
+                          <MembershipStatusRow message={message} />
+                        ) : (
+                          <ChatMessageRow
+                            message={message}
+                            coworkersById={coworkersById}
+                            coworkersBySlug={coworkersBySlug}
+                            usersById={usersById}
+                            usersBySlug={usersBySlug}
+                            currentUserId={currentUserId}
+                            canOpenHumanDirect={canOpenHumanDirect}
+                            onOpenDirectMessage={handleOpenDirectMessage}
+                            openingDirectParticipantKey={openingDirectKey}
+                            onToggleReaction={handleToggleReaction}
+                            onOpenThread={
+                              shouldShowChatRoomThreadButton({
+                                room: selectedRoom,
+                                isStreamOverlay,
+                              })
+                                ? loadThreadMessages
+                                : undefined
+                            }
+                            onQuote={handleQuoteMessage}
+                            onStartEdit={handleStartEdit}
+                            onDelete={handleDeleteMessage}
+                            isEditing={editSession?.messageId === message.id}
+                            editDraft={
+                              editSession?.messageId === message.id
+                                ? editSession.draft
+                                : ""
+                            }
+                            onEditDraftChange={handleEditDraftChange}
+                            onCancelEdit={handleCancelEdit}
+                            onSaveEdit={handleSaveEdit}
+                            isSavingEdit={
+                              isSavingEdit &&
+                              editSession?.messageId === message.id
+                            }
+                            // Stream overlays never show thread chrome.
+                            showThreadButton={shouldShowChatRoomThreadButton({
                               room: selectedRoom,
                               isStreamOverlay,
-                            })
-                              ? loadThreadMessages
-                              : undefined
-                          }
-                          onQuote={handleQuoteMessage}
-                          onStartEdit={handleStartEdit}
-                          onDelete={handleDeleteMessage}
-                          isEditing={editSession?.messageId === message.id}
-                          editDraft={
-                            editSession?.messageId === message.id
-                              ? editSession.draft
-                              : ""
-                          }
-                          onEditDraftChange={handleEditDraftChange}
-                          onCancelEdit={handleCancelEdit}
-                          onSaveEdit={handleSaveEdit}
-                          isSavingEdit={
-                            isSavingEdit &&
-                            editSession?.messageId === message.id
-                          }
-                          // Stream overlays never show thread chrome.
-                          showThreadButton={shouldShowChatRoomThreadButton({
-                            room: selectedRoom,
-                            isStreamOverlay,
-                          })}
-                          isContinuation={
-                            !showDaySeparator &&
-                            isMessageContinuation(previousMessage, message)
-                          }
-                        />
+                            })}
+                            isFirstOfDay={showDaySeparator}
+                            isContinuation={
+                              !showDaySeparator &&
+                              isMessageContinuation(previousMessage, message)
+                            }
+                          />
+                        )}
                       </div>
                     );
                   })}

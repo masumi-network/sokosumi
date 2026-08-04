@@ -20,6 +20,7 @@ import {
   mapChatRoomMessage,
   requireChatRoomUserMembership,
 } from "../../../../helpers";
+import { assertChatRoomContentMessage } from "../../../../membership-status";
 
 const paramsSchema = z.object({
   id: z
@@ -93,11 +94,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const target = await tx.chatRoomMessage.findFirst({
         where: { id: messageId, roomId: id },
-        select: { deletedAt: true },
+        select: { deletedAt: true, metadata: true },
       });
       if (!target || target.deletedAt != null) {
         throw badRequest("Cannot react to a deleted message");
       }
+
+      assertChatRoomContentMessage(target.metadata);
 
       // Under the message lock, delete-then-create is a true toggle: either we
       // removed an existing row, or we insert one. `skipDuplicates` still

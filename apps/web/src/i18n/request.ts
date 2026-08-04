@@ -1,4 +1,5 @@
 import {
+  type AppLocale,
   DEFAULT_LOCALE,
   LOCALE_COOKIE_NAME,
   resolveRequestLocale,
@@ -6,32 +7,15 @@ import {
 import { cookies, headers } from "next/headers";
 import { getRequestConfig } from "next-intl/server";
 
-interface JsonRecord {
-  [key: string]: JsonValue;
-}
+import de from "../../messages/de.json";
+import en from "../../messages/en.json";
+import es from "../../messages/es.json";
 
-type JsonValue = string | number | boolean | null | JsonRecord | JsonValue[];
-
-function isJsonRecord(value: unknown): value is JsonRecord {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function mergeMessages(base: JsonRecord, override: JsonRecord): JsonRecord {
-  const output: JsonRecord = { ...base };
-
-  for (const [key, value] of Object.entries(override)) {
-    const baseValue = output[key];
-
-    if (isJsonRecord(baseValue) && isJsonRecord(value)) {
-      output[key] = mergeMessages(baseValue, value);
-      continue;
-    }
-
-    output[key] = value;
-  }
-
-  return output;
-}
+const messagesByLocale = {
+  en,
+  de,
+  es,
+} as const satisfies Record<AppLocale, typeof en>;
 
 export default getRequestConfig(async () => {
   const [headersList, cookieStore] = await Promise.all([headers(), cookies()]);
@@ -41,19 +25,8 @@ export default getRequestConfig(async () => {
     defaultLocale: DEFAULT_LOCALE,
   });
 
-  const englishMessages = (await import("../../messages/en.json"))
-    .default as JsonRecord;
-  let localeMessages: JsonRecord = {};
-
-  try {
-    localeMessages = (await import(`../../messages/${locale}.json`))
-      .default as JsonRecord;
-  } catch {
-    localeMessages = {};
-  }
-
   return {
     locale,
-    messages: mergeMessages(englishMessages, localeMessages),
+    messages: messagesByLocale[locale],
   };
 });

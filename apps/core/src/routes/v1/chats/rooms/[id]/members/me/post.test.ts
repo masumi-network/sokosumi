@@ -16,7 +16,10 @@ const {
   queryRawMock,
   organizationFindUniqueMock,
   memberFindUniqueMock,
+  userFindUniqueMock,
+  messageCreateMock,
   prismaTransactionMock,
+  publishChatRoomMessageRealtimeMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   roomFindFirstOrThrowMock: vi.fn(),
@@ -26,17 +29,50 @@ const {
   queryRawMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+  messageCreateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  publishChatRoomMessageRealtimeMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: { $transaction: prismaTransactionMock },
 }));
 
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+}));
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const SELF_ID = "user_self";
 const OTHER_ID = "user_other";
 const ORG_ID = "org_1";
+
+const MEMBERSHIP_MESSAGE = {
+  id: "550e8400-e29b-41d4-a716-446655440099",
+  roomId: ROOM_ID,
+  parentMessageId: null,
+  senderUserId: null,
+  senderCoworkerId: null,
+  content: "user_self joined",
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  deletedAt: null,
+  editedAt: null,
+  metadata: {
+    membership: {
+      action: "joined",
+      subject: { type: "user", id: SELF_ID, name: "user_self" },
+    },
+  },
+  clientMessageId: null,
+  responsesApiResponseId: null,
+  senderUser: null,
+  senderCoworker: null,
+  mentionsAsSource: [],
+  reactions: [],
+  replies: [],
+  _count: { replies: 0 },
+};
 
 const tx = {
   chatRoom: {
@@ -50,6 +86,10 @@ const tx = {
   chatRoomReadState: {
     createMany: readStateCreateManyMock,
   },
+  chatRoomMessage: {
+    create: messageCreateMock,
+  },
+  user: { findUnique: userFindUniqueMock },
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   $queryRaw: queryRawMock,
@@ -128,6 +168,9 @@ beforeEach(() => {
   userMemberFindUniqueMock.mockResolvedValue(null);
   userMemberCreateMock.mockResolvedValue({ id: "mem_1" });
   readStateCreateManyMock.mockResolvedValue({ count: 1 });
+  userFindUniqueMock.mockResolvedValue({ name: SELF_ID });
+  messageCreateMock.mockResolvedValue(MEMBERSHIP_MESSAGE);
+  publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
   const joined = publicChannel({
     userMembers: [member(OTHER_ID), member(SELF_ID)],
   });
@@ -160,6 +203,31 @@ describe("POST /chats/rooms/{id}/members/me", () => {
     });
   });
 
+  it("emits a joined membership status message and publishes after commit", async () => {
+    const response = await join();
+
+    expect(response.status).toBe(200);
+    expect(messageCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          roomId: ROOM_ID,
+          content: "user_self joined",
+          senderUserId: null,
+          senderCoworkerId: null,
+          metadata: {
+            membership: {
+              action: "joined",
+              subject: { type: "user", id: SELF_ID, name: "user_self" },
+            },
+          },
+        }),
+      }),
+    );
+    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
+      MEMBERSHIP_MESSAGE,
+    );
+  });
+
   it("is idempotent when already a member", async () => {
     userMemberFindUniqueMock.mockResolvedValue({ id: "mem_existing" });
     roomFindFirstOrThrowMock.mockResolvedValue(
@@ -173,6 +241,8 @@ describe("POST /chats/rooms/{id}/members/me", () => {
     expect(response.status).toBe(200);
     expect(userMemberCreateMock).not.toHaveBeenCalled();
     expect(readStateCreateManyMock).not.toHaveBeenCalled();
+    expect(messageCreateMock).not.toHaveBeenCalled();
+    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 for a private channel", async () => {

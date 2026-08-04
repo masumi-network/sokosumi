@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE } from "@sokosumi/utils";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -14,7 +15,10 @@ import {
 } from "@/components/ui/card";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("NotFound");
+  const t = await getTranslations({
+    locale: DEFAULT_LOCALE,
+    namespace: "NotFound",
+  });
   return {
     title: t("title"),
     description: t("description"),

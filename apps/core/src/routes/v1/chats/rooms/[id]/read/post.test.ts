@@ -17,6 +17,9 @@ const {
   readStateUpsertMock,
   notificationUpdateManyMock,
   membershipFindUniqueMock,
+  threadReadUpsertMock,
+  threadReadUpdateManyMock,
+  threadReadDeleteManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -25,6 +28,9 @@ const {
   readStateUpsertMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
   membershipFindUniqueMock: vi.fn(),
+  threadReadUpsertMock: vi.fn(),
+  threadReadUpdateManyMock: vi.fn(),
+  threadReadDeleteManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -45,6 +51,11 @@ const tx = {
   chatRoomReadState: { upsert: readStateUpsertMock },
   notification: { updateMany: notificationUpdateManyMock },
   chatRoomUserMember: { findUnique: membershipFindUniqueMock },
+  chatRoomThreadReadState: {
+    upsert: threadReadUpsertMock,
+    updateMany: threadReadUpdateManyMock,
+    deleteMany: threadReadDeleteManyMock,
+  },
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
@@ -156,5 +167,10 @@ describe("POST /chats/rooms/{id}/read", () => {
       markedUnread: false,
       pinnedAt: null,
     });
+
+    // Room mark-read must not touch per-thread look state.
+    expect(threadReadUpsertMock).not.toHaveBeenCalled();
+    expect(threadReadUpdateManyMock).not.toHaveBeenCalled();
+    expect(threadReadDeleteManyMock).not.toHaveBeenCalled();
   });
 });

@@ -71,6 +71,7 @@ function userMessage(
     threadLastReplyAt: null,
     metadata: null,
     quote: null,
+    membership: null,
     sender: {
       type: "user",
       user: {
@@ -107,6 +108,7 @@ function coworkerMessage(
 function renderRow({
   message = userMessage(),
   isContinuation = false,
+  isFirstOfDay = false,
   onQuote,
   currentUserId,
   onStartEdit,
@@ -120,6 +122,7 @@ function renderRow({
 }: {
   message?: ChatRoomMessage;
   isContinuation?: boolean;
+  isFirstOfDay?: boolean;
   onQuote?: (message: ChatRoomMessage) => void;
   currentUserId?: string;
   onStartEdit?: (message: ChatRoomMessage) => void;
@@ -148,6 +151,7 @@ function renderRow({
       onSaveEdit={onSaveEdit}
       isSavingEdit={isSavingEdit}
       isContinuation={isContinuation}
+      isFirstOfDay={isFirstOfDay}
     />,
   );
 }
@@ -228,9 +232,18 @@ describe("ChatMessageRow", () => {
     renderRow({ isContinuation: false });
 
     const article = screen.getByRole("article");
-    expect(article).toHaveClass("mt-3");
+    expect(article).toHaveClass("mt-2");
     expect(article).toHaveClass("pb-0.5");
     expect(article).not.toHaveClass("py-2.5");
+  });
+
+  it("omits top margin for first message of the day after a day separator", () => {
+    renderRow({ isContinuation: false, isFirstOfDay: true });
+
+    const article = screen.getByRole("article");
+    expect(article).toHaveClass("mt-0");
+    expect(article).not.toHaveClass("mt-2");
+    expect(article).not.toHaveClass("mt-3");
   });
 
   it("exposes message id for quote jump targets", () => {
