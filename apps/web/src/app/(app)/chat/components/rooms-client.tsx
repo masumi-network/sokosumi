@@ -1387,7 +1387,7 @@ export function RoomsClient({
                       channel={selectedRoom}
                       members={organizationMembers}
                       coworkers={coworkers}
-                      canArchive={canArchiveSelectedRoom}
+                      canManage={canArchiveSelectedRoom}
                       canLeave={canLeaveSelectedRoom}
                       membersLoadFailed={membersLoadFailed}
                     />

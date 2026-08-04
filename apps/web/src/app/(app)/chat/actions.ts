@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { actionErrorMessage } from "@/app/chat/action-error-message";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
-import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type {
   ChatRoom,
   ChatRoomMessage,
@@ -71,16 +71,6 @@ function cleanDiscoverability(
     return value;
   }
   return undefined;
-}
-
-function actionErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof CoreApiRequestError) {
-    return error.message;
-  }
-  if (error instanceof Error && error.message) {
-    return error.message;
-  }
-  return fallback;
 }
 
 export async function createChannelAction(
