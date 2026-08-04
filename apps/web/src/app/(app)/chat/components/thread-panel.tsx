@@ -172,7 +172,7 @@ export function ThreadPanel({
           </Button>
         </header>
         <ScrollArea className="min-h-0 flex-1">
-          <div className="px-4 py-4">
+          <div className="px-4 pt-4 pb-0">
             <ChatMessageRow
               message={parentMessage}
               coworkersById={coworkersById}
