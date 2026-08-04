@@ -425,6 +425,16 @@ export const chatRoomThreadReadStateSchema = z
   })
   .openapi("ChatRoomThreadReadState");
 
+/** Result of marking every attention thread in a room as looked. */
+export const chatRoomThreadAttentionMarkAllSchema = z
+  .object({
+    markedCount: z.number().int().min(0).openapi({
+      description: "Number of parent threads whose look state was upserted.",
+      example: 3,
+    }),
+  })
+  .openapi("ChatRoomThreadAttentionMarkAll");
+
 export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
@@ -434,4 +444,7 @@ export type ChatRoomThreadAttentionItem = z.infer<
 >;
 export type ChatRoomThreadReadState = z.infer<
   typeof chatRoomThreadReadStateSchema
+>;
+export type ChatRoomThreadAttentionMarkAll = z.infer<
+  typeof chatRoomThreadAttentionMarkAllSchema
 >;

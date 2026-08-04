@@ -274,6 +274,45 @@ export async function listChatRoomThreadAttention(
 }
 
 /**
+ * Upsert look state for every parent currently needing attention in the room.
+ * Does not change room ChatRoomReadState or CHAT notifications.
+ */
+export async function markAllChatRoomThreadAttentionRead(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<number> {
+  const aggregates = await getChatRoomThreadAttentionAggregates(
+    roomId,
+    userId,
+    tx,
+  );
+  if (aggregates.length === 0) {
+    return 0;
+  }
+
+  const readAt = new Date();
+  for (const aggregate of aggregates) {
+    await tx.chatRoomThreadReadState.upsert({
+      where: {
+        userId_parentMessageId: {
+          userId,
+          parentMessageId: aggregate.parentMessageId,
+        },
+      },
+      update: { lastReadAt: readAt },
+      create: {
+        userId,
+        parentMessageId: aggregate.parentMessageId,
+        lastReadAt: readAt,
+      },
+    });
+  }
+
+  return aggregates.length;
+}
+
+/**
  * Per-room count of unread CHAT notifications for the user.
  * `referenceId` is the room id (see emitChatMentionNotifications).
  */

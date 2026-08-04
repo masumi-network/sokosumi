@@ -2,7 +2,10 @@
 
 import { Loader2, MessagesSquare } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { listThreadAttentionAction } from "@/app/chat/actions";
+import {
+  listThreadAttentionAction,
+  markAllThreadAttentionReadAction,
+} from "@/app/chat/actions";
 import { messageSender } from "@/app/chat/components/room-helpers";
 import { formatThreadAttentionPreview } from "@/app/chat/utils/thread-attention-preview";
 import { Button } from "@/components/ui/button";
@@ -21,9 +24,11 @@ import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 export interface ThreadAttentionPanelLabels {
   open: string;
   title: string;
+  markAllRead: string;
   empty: string;
   loading: string;
   error: string;
+  markAllReadError: string;
   startedBy: (name: string) => string;
   unreadReplies: (count: number) => string;
 }
@@ -62,6 +67,7 @@ export function ThreadAttentionPanel({
   const [badgeCount, setBadgeCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
   const requestIdRef = useRef(0);
   const { formatTimeAgo } = useLocalizedDateTime();
 
@@ -112,6 +118,7 @@ export function ThreadAttentionPanel({
       setItems([]);
       setError(null);
       setIsLoading(false);
+      setIsMarkingAllRead(false);
       requestIdRef.current += 1;
     }
     setOpen(nextOpen);
@@ -123,7 +130,27 @@ export function ThreadAttentionPanel({
     handleOpenChange(false);
   }
 
+  async function handleMarkAllRead() {
+    if (isMarkingAllRead || badgeCount <= 0) {
+      return;
+    }
+
+    setIsMarkingAllRead(true);
+    setError(null);
+    const result = await markAllThreadAttentionReadAction(roomId);
+    if (!result.ok) {
+      setError(result.message || labels.markAllReadError);
+      setIsMarkingAllRead(false);
+      return;
+    }
+
+    setItems([]);
+    setBadgeCount(0);
+    setIsMarkingAllRead(false);
+  }
+
   const showEmpty = !isLoading && !error && items.length === 0;
+  const showMarkAll = badgeCount > 0 || items.length > 0;
   const triggerLabel =
     badgeCount > 0 ? `${labels.open} (${badgeCount})` : labels.open;
 
@@ -147,8 +174,23 @@ export function ThreadAttentionPanel({
         className="w-[min(100vw-2rem,24rem)] p-0"
         data-testid="thread-attention-panel"
       >
-        <div className="border-b px-3 py-2">
+        <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
           <p className="text-sm font-medium">{labels.title}</p>
+          {showMarkAll ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground h-auto shrink-0 px-2 py-1 text-xs font-normal"
+              onClick={() => {
+                void handleMarkAllRead();
+              }}
+              disabled={isMarkingAllRead}
+              data-testid="thread-attention-mark-all-read"
+            >
+              {isMarkingAllRead ? labels.loading : labels.markAllRead}
+            </Button>
+          ) : null}
         </div>
         <div className="max-h-80 overflow-y-auto p-1">
           {isLoading && items.length === 0 ? (

@@ -1441,6 +1441,13 @@ export type ChatRoomMessageQuoteAttachment = {
     mediaKind: 'image' | 'file';
 } | null;
 
+export type ChatRoomThreadAttentionMarkAll = {
+    /**
+     * Number of parent threads whose look state was upserted.
+     */
+    markedCount: number;
+};
+
 export type CreateChatRoomMessageRequest = {
     content: string;
     mentionedCoworkerIds?: Array<string>;
@@ -10615,6 +10622,98 @@ export type GetChatsRoomsByIdThreadAttentionResponses = {
 };
 
 export type GetChatsRoomsByIdThreadAttentionResponse = GetChatsRoomsByIdThreadAttentionResponses[keyof GetChatsRoomsByIdThreadAttentionResponses];
+
+export type PostChatsRoomsByIdThreadAttentionReadData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/thread-attention/read';
+};
+
+export type PostChatsRoomsByIdThreadAttentionReadErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdThreadAttentionReadError = PostChatsRoomsByIdThreadAttentionReadErrors[keyof PostChatsRoomsByIdThreadAttentionReadErrors];
+
+export type PostChatsRoomsByIdThreadAttentionReadResponses = {
+    /**
+     * Unread threads marked looked
+     */
+    200: {
+        data: ChatRoomThreadAttentionMarkAll;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdThreadAttentionReadResponse = PostChatsRoomsByIdThreadAttentionReadResponses[keyof PostChatsRoomsByIdThreadAttentionReadResponses];
 
 export type DeleteChatsRoomsByIdPinData = {
     body?: never;

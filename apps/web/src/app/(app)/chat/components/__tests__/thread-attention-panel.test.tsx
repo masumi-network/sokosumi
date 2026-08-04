@@ -7,10 +7,13 @@ import type {
 } from "@/lib/clients/generated/core";
 
 const listThreadAttentionActionMock = vi.fn();
+const markAllThreadAttentionReadActionMock = vi.fn();
 
 vi.mock("@/app/chat/actions", () => ({
   listThreadAttentionAction: (...args: unknown[]) =>
     listThreadAttentionActionMock(...args),
+  markAllThreadAttentionReadAction: (...args: unknown[]) =>
+    markAllThreadAttentionReadActionMock(...args),
 }));
 
 vi.mock("@/lib/utils/datetime.client", () => ({
@@ -22,9 +25,11 @@ vi.mock("@/lib/utils/datetime.client", () => ({
 const labels = {
   open: "Unread threads",
   title: "Unread Threads",
+  markAllRead: "Mark all as read",
   empty: "No unread threads.",
   loading: "Loading threads…",
   error: "Could not load threads.",
+  markAllReadError: "Could not mark unread threads as read.",
   startedBy: (name: string) => `Started by ${name}`,
   unreadReplies: (count: number) =>
     count === 1 ? "1 unread reply" : `${count} unread replies`,
@@ -79,6 +84,10 @@ describe("ThreadAttentionPanel", () => {
       ok: true,
       data: [attentionItem()],
     });
+    markAllThreadAttentionReadActionMock.mockResolvedValue({
+      ok: true,
+      data: { markedCount: 1 },
+    });
   });
 
   it("opens attention surface from the header control", async () => {
@@ -111,6 +120,9 @@ describe("ThreadAttentionPanel", () => {
     ).toHaveTextContent("Budget review parent");
     expect(screen.getByText(/Started by Ada/)).toBeInTheDocument();
     expect(screen.getByText("2 unread replies")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("thread-attention-mark-all-read"),
+    ).toHaveTextContent(labels.markAllRead);
   });
 
   it("shows no badge when there are no unread threads", async () => {
@@ -176,6 +188,42 @@ describe("ThreadAttentionPanel", () => {
     expect(
       await screen.findByTestId("thread-attention-empty"),
     ).toHaveTextContent(labels.empty);
+    expect(
+      screen.queryByTestId("thread-attention-mark-all-read"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("marks all unread threads as read and clears badge", async () => {
+    render(
+      <ThreadAttentionPanel
+        roomId="550e8400-e29b-41d4-a716-446655440000"
+        labels={labels}
+        onOpenThread={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByTestId("thread-attention-badge"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("thread-attention-trigger"));
+    fireEvent.click(
+      await screen.findByTestId("thread-attention-mark-all-read"),
+    );
+
+    await waitFor(() => {
+      expect(markAllThreadAttentionReadActionMock).toHaveBeenCalledWith(
+        "550e8400-e29b-41d4-a716-446655440000",
+      );
+    });
+    expect(
+      await screen.findByTestId("thread-attention-empty"),
+    ).toHaveTextContent(labels.empty);
+    expect(
+      screen.queryByTestId("thread-attention-badge"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("thread-attention-mark-all-read"),
+    ).not.toBeInTheDocument();
   });
 
   it("opens thread and closes panel on row click", async () => {

@@ -7,6 +7,7 @@ import type {
   ChatRoom,
   ChatRoomMessage,
   ChatRoomThreadAttentionItem,
+  ChatRoomThreadAttentionMarkAll,
   ChatRoomThreadReadState,
   DiscoverableChatRoom,
 } from "@/lib/clients/generated/core";
@@ -475,6 +476,23 @@ export async function markThreadReadAction(
     return {
       ok: false,
       message: actionErrorMessage(error, "Could not mark thread looked."),
+    };
+  }
+}
+
+export async function markAllThreadAttentionReadAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoomThreadAttentionMarkAll>> {
+  try {
+    const result = await chatRoomService.markAllThreadAttentionRead(roomId);
+    return { ok: true, data: result };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(
+        error,
+        "Could not mark unread threads as read.",
+      ),
     };
   }
 }

@@ -1368,9 +1368,11 @@ export function RoomsClient({
                     labels={{
                       open: t("ThreadAttention.open"),
                       title: t("ThreadAttention.title"),
+                      markAllRead: t("ThreadAttention.markAllRead"),
                       empty: t("ThreadAttention.empty"),
                       loading: t("ThreadAttention.loading"),
                       error: t("ThreadAttention.error"),
+                      markAllReadError: t("ThreadAttention.markAllReadError"),
                       startedBy: (name) =>
                         t("ThreadAttention.startedBy", { name }),
                       unreadReplies: (count) =>

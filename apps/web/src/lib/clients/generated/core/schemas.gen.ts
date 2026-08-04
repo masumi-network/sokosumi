@@ -5238,6 +5238,21 @@ export const ChatRoomMessageQuoteAttachmentSchema = {
     ]
 } as const;
 
+export const ChatRoomThreadAttentionMarkAllSchema = {
+    type: 'object',
+    properties: {
+        markedCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of parent threads whose look state was upserted.',
+            example: 3
+        }
+    },
+    required: [
+        'markedCount'
+    ]
+} as const;
+
 export const CreateChatRoomMessageRequestSchema = {
     type: 'object',
     properties: {

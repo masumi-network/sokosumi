@@ -231,6 +231,7 @@ import {
   postChatsRoomsByIdPin as corePostChatsRoomsByIdPin,
   postChatsRoomsByIdRead as corePostChatsRoomsByIdRead,
   postChatsRoomsByIdRestore as corePostChatsRoomsByIdRestore,
+  postChatsRoomsByIdThreadAttentionRead as corePostChatsRoomsByIdThreadAttentionRead,
   postChatsRoomsByIdUnread as corePostChatsRoomsByIdUnread,
   postCoworkersByIdImage as corePostCoworkersByIdImage,
   postCoworkersByIdUnarchive as corePostCoworkersByIdUnarchive,
@@ -785,6 +786,18 @@ export function createCoreClient(getClient: GetClient) {
           path: { id, messageId },
         }),
       "Failed to mark thread looked",
+    );
+  }
+
+  async function markChatRoomThreadAttentionRead(id: string) {
+    return executeOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdThreadAttentionRead({
+          client,
+          path: { id },
+        }),
+      "Failed to mark unread threads looked",
     );
   }
 
@@ -3797,6 +3810,7 @@ export function createCoreClient(getClient: GetClient) {
     getChatRooms,
     getDiscoverableChatRooms,
     markChatRoomRead,
+    markChatRoomThreadAttentionRead,
     markChatRoomThreadRead,
     pinChatRoom,
     unpinChatRoom,

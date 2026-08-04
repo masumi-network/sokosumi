@@ -4715,9 +4715,11 @@
       "ThreadAttention": {
         "open": "Thread non letti",
         "title": "Thread non letti",
+        "markAllRead": "Segna tutte come lette",
         "empty": "Nessun thread non letto.",
         "loading": "Caricamento thread…",
         "error": "Impossibile caricare i thread. Riprova.",
+        "markAllReadError": "Impossibile segnare i thread non letti come letti. Riprova.",
         "startedBy": "Avviato da {name}",
         "unreadReplies": "{count, plural, one {# risposta non letta} other {# risposte non lette}}"
       },

@@ -6,6 +6,7 @@ const getChatRoomsMock = vi.fn();
 const getDiscoverableChatRoomsMock = vi.fn();
 const getChatRoomThreadAttentionMock = vi.fn();
 const markChatRoomThreadReadMock = vi.fn();
+const markChatRoomThreadAttentionReadMock = vi.fn();
 const archiveChatRoomMock = vi.fn();
 const deleteChatRoomMock = vi.fn();
 const leaveChatRoomMock = vi.fn();
@@ -28,6 +29,8 @@ vi.mock("@/lib/clients/core.client", () => ({
       getChatRoomThreadAttentionMock(...args),
     markChatRoomThreadRead: (...args: unknown[]) =>
       markChatRoomThreadReadMock(...args),
+    markChatRoomThreadAttentionRead: (...args: unknown[]) =>
+      markChatRoomThreadAttentionReadMock(...args),
     archiveChatRoom: (...args: unknown[]) => archiveChatRoomMock(...args),
     deleteChatRoom: (...args: unknown[]) => deleteChatRoomMock(...args),
     leaveChatRoom: (...args: unknown[]) => leaveChatRoomMock(...args),
@@ -390,5 +393,16 @@ describe("chatRoomService thread attention", () => {
 
     expect(markChatRoomThreadReadMock).toHaveBeenCalledWith("room-1", "msg-1");
     expect(result).toEqual(state);
+  });
+
+  it("markAllThreadAttentionRead posts mark-all for room", async () => {
+    const payload = { markedCount: 3 };
+    markChatRoomThreadAttentionReadMock.mockResolvedValue({ data: payload });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const result = await chatRoomService.markAllThreadAttentionRead("room-1");
+
+    expect(markChatRoomThreadAttentionReadMock).toHaveBeenCalledWith("room-1");
+    expect(result).toEqual(payload);
   });
 });

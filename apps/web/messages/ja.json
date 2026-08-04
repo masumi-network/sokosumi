@@ -4715,9 +4715,11 @@
       "ThreadAttention": {
         "open": "未読スレッド",
         "title": "未読スレッド",
+        "markAllRead": "すべて既読にする",
         "empty": "未読のスレッドはありません。",
         "loading": "スレッドを読み込み中…",
         "error": "スレッドを読み込めませんでした。もう一度お試しください。",
+        "markAllReadError": "未読スレッドを既読にできませんでした。もう一度お試しください。",
         "startedBy": "{name} が開始",
         "unreadReplies": "{count, plural, one {未読の返信 # 件} other {未読の返信 # 件}}"
       },

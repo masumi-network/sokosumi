@@ -4715,9 +4715,11 @@
       "ThreadAttention": {
         "open": "Tópicos não lidos",
         "title": "Tópicos não lidos",
+        "markAllRead": "Marcar todas como lidas",
         "empty": "Nenhum tópico não lido.",
         "loading": "A carregar tópicos…",
         "error": "Não foi possível carregar os tópicos. Tente novamente.",
+        "markAllReadError": "Não foi possível marcar as threads não lidas como lidas. Tente novamente.",
         "startedBy": "Iniciado por {name}",
         "unreadReplies": "{count, plural, one {# resposta não lida} other {# respostas não lidas}}"
       },

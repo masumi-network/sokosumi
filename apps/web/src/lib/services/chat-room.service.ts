@@ -7,6 +7,7 @@ import type {
   ChatRoomKind,
   ChatRoomMessage,
   ChatRoomThreadAttentionItem,
+  ChatRoomThreadAttentionMarkAll,
   ChatRoomThreadReadState,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
@@ -219,6 +220,13 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function markAllThreadAttentionRead(
+    roomId: string,
+  ): Promise<ChatRoomThreadAttentionMarkAll> {
+    const response = await coreClient.markChatRoomThreadAttentionRead(roomId);
+    return response.data;
+  }
+
   async function sendMessage(
     roomId: string,
     body: CreateChatRoomMessageRequest,
@@ -275,6 +283,7 @@ export const chatRoomService = (() => {
     listThreadMessages,
     leaveRoom,
     markRead,
+    markAllThreadAttentionRead,
     markThreadRead,
     markUnread,
     pinRoom,

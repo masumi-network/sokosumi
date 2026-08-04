@@ -4715,9 +4715,11 @@
       "ThreadAttention": {
         "open": "Fils non lus",
         "title": "Fils non lus",
+        "markAllRead": "Tout marquer comme lu",
         "empty": "Aucun fil non lu.",
         "loading": "Chargement des fils…",
         "error": "Impossible de charger les fils. Réessayez.",
+        "markAllReadError": "Impossible de marquer les fils non lus comme lus. Réessayez.",
         "startedBy": "Démarré par {name}",
         "unreadReplies": "{count, plural, one {# réponse non lue} other {# réponses non lues}}"
       },
