@@ -181,4 +181,11 @@ describe("ChatMobileBottomNav", () => {
       "bg-foreground/10",
     );
   });
+
+  it("exposes a route-agnostic nav aria-label (used on hub list routes)", () => {
+    mockPathname = "/tasks";
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
+  });
 });
