@@ -7,7 +7,7 @@ import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
-import { chatRoomService, userService } from "@/lib/services";
+import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { RoomsClient } from "./components/rooms-client";
 import { loadOrganizationMembers } from "./load-organization-members";
