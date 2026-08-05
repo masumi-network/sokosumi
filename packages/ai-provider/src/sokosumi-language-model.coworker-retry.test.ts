@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { COWORKER_AGENT_ERROR_SNIPPET } from "./coworker-agent-error.js";
 import { createSokosumiLanguageModel } from "./sokosumi-language-model.js";
 
+// Coworker mode fails closed without an SSRF guard; Core injects the real one.
+const assertUrlAllowedMock = vi.fn();
+
 async function collectStreamText(
   stream: ReadableStream<import("@ai-sdk/provider").LanguageModelV4StreamPart>,
 ): Promise<string> {
@@ -62,6 +65,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
         providerOptions: {
           sokosumi: {
             mode: "coworker",
+            assertUrlAllowed: assertUrlAllowedMock,
             coworkerBaseUrl: "https://cow.example/api",
             coworkerSlug: "agent",
             sokosumiUserId: "user-1",
@@ -124,6 +128,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       providerOptions: {
         sokosumi: {
           mode: "coworker",
+          assertUrlAllowed: assertUrlAllowedMock,
           coworkerBaseUrl: "https://cow.example/api",
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
@@ -189,6 +194,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       providerOptions: {
         sokosumi: {
           mode: "coworker",
+          assertUrlAllowed: assertUrlAllowedMock,
           coworkerBaseUrl: "https://cow.example/api",
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
@@ -220,6 +226,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
         providerOptions: {
           sokosumi: {
             mode: "coworker",
+            assertUrlAllowed: assertUrlAllowedMock,
             coworkerBaseUrl: "https://cow.example/api",
             coworkerSlug: "agent",
             sokosumiUserId: "user-1",
@@ -228,6 +235,151 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
         },
       }),
     ).rejects.toThrowError(/previous_response_not_found/);
+  });
+
+  it("follows a 308 redirect and re-validates the new target", async () => {
+    const seen: string[] = [];
+    globalThis.fetch = vi.fn(async (url) => {
+      seen.push(String(url));
+      if (seen.length === 1) {
+        return new Response(null, {
+          status: 308,
+          headers: { location: "https://cow.example/api/v2/responses" },
+        });
+      }
+      return new Response(
+        'data: {"type":"response.output_text.delta","delta":"hi"}\n\n',
+        { status: 200, headers: { "Content-Type": "text/event-stream" } },
+      );
+    }) as typeof fetch;
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    await model.doStream({
+      prompt: [{ role: "user", content: [{ type: "text", text: "Hello" }] }],
+      providerOptions: {
+        sokosumi: {
+          mode: "coworker",
+          assertUrlAllowed: assertUrlAllowedMock,
+          coworkerBaseUrl: "https://cow.example/api",
+          coworkerSlug: "agent",
+          sokosumiUserId: "user-1",
+          previousResponseId: "resp_1",
+        },
+      },
+    });
+
+    expect(seen).toEqual([
+      "https://cow.example/api/responses",
+      "https://cow.example/api/v2/responses",
+    ]);
+    // Every hop is re-checked: a public host must not be able to bounce this
+    // POST — identity headers and all — at an internal address.
+    expect(assertUrlAllowedMock).toHaveBeenCalledTimes(2);
+    expect(assertUrlAllowedMock).toHaveBeenLastCalledWith(
+      "https://cow.example/api/v2/responses",
+    );
+  });
+
+  it("does not follow a 302 that would downgrade the POST to GET", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return new Response("moved", {
+        status: 302,
+        headers: { location: "https://cow.example/elsewhere" },
+      });
+    }) as typeof fetch;
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    // Following it would silently drop the request body, so the 302 surfaces
+    // as an ordinary upstream failure instead.
+    await expect(
+      model.doStream({
+        prompt: [{ role: "user", content: [{ type: "text", text: "Hello" }] }],
+        providerOptions: {
+          sokosumi: {
+            mode: "coworker",
+            assertUrlAllowed: assertUrlAllowedMock,
+            coworkerBaseUrl: "https://cow.example/api",
+            coworkerSlug: "agent",
+            sokosumiUserId: "user-1",
+            previousResponseId: "resp_1",
+          },
+        },
+      }),
+    ).rejects.toThrowError();
+    expect(assertUrlAllowedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a cross-origin redirect instead of leaking identity headers", async () => {
+    const seen: string[] = [];
+    globalThis.fetch = vi.fn(async (url) => {
+      seen.push(String(url));
+      return new Response(null, {
+        status: 307,
+        headers: { location: "https://attacker.example/responses" },
+      });
+    }) as typeof fetch;
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    // The SSRF guard only rejects private addresses; a third-party PUBLIC host
+    // would still receive the Sokosumi user/org headers and the prompt body.
+    await expect(
+      model.doStream({
+        prompt: [{ role: "user", content: [{ type: "text", text: "Hello" }] }],
+        providerOptions: {
+          sokosumi: {
+            mode: "coworker",
+            assertUrlAllowed: assertUrlAllowedMock,
+            coworkerBaseUrl: "https://cow.example/api",
+            coworkerSlug: "agent",
+            sokosumiUserId: "user-1",
+            previousResponseId: "resp_1",
+          },
+        },
+      }),
+    ).rejects.toThrowError(/different origin/);
+
+    expect(seen).toEqual(["https://cow.example/api/responses"]);
+  });
+
+  it("stops a redirect loop instead of following it forever", async () => {
+    let hops = 0;
+    globalThis.fetch = vi.fn(async () => {
+      hops += 1;
+      return new Response(null, {
+        status: 307,
+        headers: { location: "https://cow.example/api/loop" },
+      });
+    }) as typeof fetch;
+
+    const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
+      openRouterApiKey: "sk-or-test",
+    });
+
+    await expect(
+      model.doStream({
+        prompt: [{ role: "user", content: [{ type: "text", text: "Hello" }] }],
+        providerOptions: {
+          sokosumi: {
+            mode: "coworker",
+            assertUrlAllowed: assertUrlAllowedMock,
+            coworkerBaseUrl: "https://cow.example/api",
+            coworkerSlug: "agent",
+            sokosumiUserId: "user-1",
+            previousResponseId: "resp_1",
+          },
+        },
+      }),
+    ).rejects.toThrowError(/redirects/);
+    expect(hops).toBeLessThanOrEqual(4);
   });
 
   it("retries without conversation when the API rejects the conversation", async () => {
@@ -288,6 +440,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       providerOptions: {
         sokosumi: {
           mode: "coworker",
+          assertUrlAllowed: assertUrlAllowedMock,
           coworkerBaseUrl: "https://cow.example/api",
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
@@ -328,6 +481,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       providerOptions: {
         sokosumi: {
           mode: "coworker",
+          assertUrlAllowed: assertUrlAllowedMock,
           coworkerBaseUrl: "https://cow.example/api",
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
@@ -366,6 +520,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       providerOptions: {
         sokosumi: {
           mode: "coworker",
+          assertUrlAllowed: assertUrlAllowedMock,
           coworkerBaseUrl: "https://cow.example/api",
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
@@ -402,6 +557,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       providerOptions: {
         sokosumi: {
           mode: "coworker",
+          assertUrlAllowed: assertUrlAllowedMock,
           coworkerBaseUrl: "https://cow.example/api",
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",
@@ -438,6 +594,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       providerOptions: {
         sokosumi: {
           mode: "coworker",
+          assertUrlAllowed: assertUrlAllowedMock,
           coworkerBaseUrl: "https://cow.example/api",
           coworkerSlug: "agent",
           sokosumiUserId: "user-1",

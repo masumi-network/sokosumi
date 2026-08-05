@@ -11,6 +11,7 @@ import {
   IDLE_TTL_MS,
   isAgentBranchName,
   isAgentRunId,
+  requireAgentBranchName,
 } from "../names.mjs";
 import { readNeonConfig } from "../neon-api.mjs";
 
@@ -169,5 +170,26 @@ describe("auth fixtures", () => {
       );
       slugs.add(fixture.organization.slug);
     }
+  });
+});
+
+describe("requireAgentBranchName", () => {
+  it("accepts a well-formed run id", () => {
+    assert.equal(
+      requireAgentBranchName("bc-0198aabc-1234-4000-8000-000000000001"),
+      "cloud-agent-bc-0198aabc-1234-4000-8000-000000000001",
+    );
+  });
+
+  it("rejects an id that would steer teardown at another branch", () => {
+    // The workflow_dispatch surface: anything but bc-<uuid> must not resolve.
+    assert.throws(() => requireAgentBranchName("bc-1 --agent-id other"));
+    assert.throws(() => requireAgentBranchName("../main"));
+    assert.throws(() => requireAgentBranchName(""));
+  });
+
+  it("leaves the lenient constructor untouched for provisioning", () => {
+    // provision.mjs warns and proceeds on non-standard ids by design.
+    assert.equal(agentBranchName("weird-id"), "cloud-agent-weird-id");
   });
 });

@@ -21,6 +21,7 @@ import {
   agentBranchName,
   extractAgentIdsFromText,
   isAgentBranchName,
+  requireAgentBranchName,
 } from "./names.mjs";
 import { deleteBranch, findBranchByName, readNeonConfig } from "./neon-api.mjs";
 
@@ -136,8 +137,10 @@ async function main() {
     opts.branchNames.map((name) => name.trim()).filter(Boolean),
   );
 
+  // `--agent-id` is the workflow_dispatch surface: validate strictly so a
+  // caller cannot aim teardown at an arbitrary prefixed branch.
   for (const agentId of opts.agentIds) {
-    if (agentId.trim()) branchNames.add(agentBranchName(agentId.trim()));
+    if (agentId.trim()) branchNames.add(requireAgentBranchName(agentId));
   }
 
   if (opts.fromText) {

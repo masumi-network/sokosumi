@@ -59,6 +59,10 @@ export function parseSokosumiProviderOptions(
     typeof raw.onInvalidProviderConversationId === "function"
       ? (raw.onInvalidProviderConversationId as () => void | Promise<void>)
       : undefined;
+  const assertUrlAllowed =
+    typeof raw.assertUrlAllowed === "function"
+      ? (raw.assertUrlAllowed as (url: string) => void | Promise<void>)
+      : undefined;
 
   if (mode === "coworker") {
     if (!coworkerBaseUrl?.trim()) {
@@ -89,6 +93,15 @@ export function parseSokosumiProviderOptions(
           'providerOptions.sokosumi.providerConversationId or providerOptions.sokosumi.previousResponseId is required when mode is "coworker".',
       });
     }
+    // Fail closed: coworkerBaseUrl is vendor-controlled, so a caller that
+    // forgets the guard must not silently get unchecked outbound requests.
+    if (!assertUrlAllowed) {
+      throw new InvalidPromptError({
+        prompt: raw,
+        message:
+          'providerOptions.sokosumi.assertUrlAllowed is required when mode is "coworker".',
+      });
+    }
   }
 
   return {
@@ -112,5 +125,6 @@ export function parseSokosumiProviderOptions(
     onResponseCompleted,
     onInvalidPreviousResponseId,
     onInvalidProviderConversationId,
+    assertUrlAllowed,
   };
 }

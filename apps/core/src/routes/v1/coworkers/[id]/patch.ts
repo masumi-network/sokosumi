@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
-
 import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
+import { assertCoworkerBaseUrlIsPublicForWrite } from "@/helpers/coworker-base-url";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -56,6 +56,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (body.priority !== undefined) {
       requireAdminAuthContext(c.var.authContext);
+    }
+
+    // Vendor admins and assigned users can reach this route, so an internal
+    // endpoint must be refused before it is persisted (see the request-time
+    // guard in the provider path for the DNS-rebinding case).
+    if (body.baseURL) {
+      await assertCoworkerBaseUrlIsPublicForWrite(body.baseURL);
     }
 
     const coworker = await prisma.$transaction(async (tx) => {
