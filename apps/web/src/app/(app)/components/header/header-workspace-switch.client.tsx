@@ -166,17 +166,17 @@ export default function HeaderWorkspaceSwitch({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="text-foreground hover:opacity-80 flex min-w-0 items-center gap-2 text-sm transition-opacity"
+            className="text-foreground hover:opacity-80 flex min-w-0 items-center text-sm transition-opacity"
             disabled={isPending}
           >
-            <HeaderWorkspaceAvatar
-              sessionUser={sessionUser}
-              organization={activeWorkspace?.organization ?? null}
-              className="size-7 shrink-0"
-              logoSize={16}
-            />
             <div className="flex min-w-0 flex-col items-end text-right">
-              <div className="flex max-w-full items-center gap-1">
+              <div className="flex max-w-full items-center gap-1.5">
+                <HeaderWorkspaceAvatar
+                  sessionUser={sessionUser}
+                  organization={activeWorkspace?.organization ?? null}
+                  className="size-4 shrink-0"
+                  logoSize={12}
+                />
                 <span className="max-w-24 truncate font-medium md:max-w-none">
                   {activeWorkspace?.name}
                 </span>
