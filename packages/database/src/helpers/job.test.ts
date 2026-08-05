@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, it } from "vitest";
-import { JobType } from "../generated/prisma/client.js";
-import { computeJobStatus, isJobStatusSettled } from "./job.js";
+import { AgentJobStatus, JobType } from "../generated/prisma/client.js";
+import {
+  computeJobStatus,
+  getCompletedAt,
+  getResult,
+  isJobStatusSettled,
+} from "./job.js";
 
 function createPaidJob(overrides: Record<string, unknown> = {}) {
   const now = new Date();
@@ -215,5 +220,46 @@ describe("isJobStatusSettled", () => {
       ),
       true,
     );
+  });
+});
+
+describe("getCompletedAt / getResult with lean events", () => {
+  it("reads completedAt and result without blobs, links, or full input", () => {
+    const completedAt = new Date("2026-03-01T12:00:00.000Z");
+    const job = {
+      events: [
+        {
+          status: AgentJobStatus.COMPLETED,
+          createdAt: completedAt,
+          result: "done",
+          input: { id: "input-1" },
+        },
+        {
+          status: AgentJobStatus.INITIATED,
+          createdAt: new Date("2026-03-01T11:00:00.000Z"),
+          result: null,
+          input: { id: "input-0" },
+        },
+      ],
+    };
+
+    assert.equal(getCompletedAt(job), completedAt);
+    assert.equal(getResult(job), "done");
+  });
+
+  it("returns null when no completed event exists", () => {
+    const job = {
+      events: [
+        {
+          status: AgentJobStatus.INITIATED,
+          createdAt: new Date("2026-03-01T11:00:00.000Z"),
+          result: null,
+          input: { id: "input-0" },
+        },
+      ],
+    };
+
+    assert.equal(getCompletedAt(job), null);
+    assert.equal(getResult(job), null);
   });
 });

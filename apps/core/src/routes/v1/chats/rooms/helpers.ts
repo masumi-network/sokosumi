@@ -9,6 +9,7 @@ import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import {
   type ChatRoomMessageQuote,
+  type ChatRoomMessageUnfurl,
   MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@/schemas/chat-room.schema";
 
@@ -727,6 +728,7 @@ export function mapChatRoomMessage(
     metadata: isDeleted ? null : metadata,
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),
     membership: isDeleted ? null : readMembershipFromMetadata(metadata),
+    unfurls: isDeleted ? null : readUnfurlsFromMetadata(metadata),
   };
 }
 
@@ -744,6 +746,76 @@ export function mergeChatRoomMessageMetadata(
   }
 
   return Object.keys(base).length > 0 ? base : null;
+}
+
+/**
+ * Replace `metadata.unfurls` from the latest scrape while preserving
+ * quote / membership / other keys. Empty scrape removes the unfurls key.
+ */
+export function mergeUnfurlsIntoMessageMetadata(
+  existing: unknown,
+  unfurls: readonly ChatRoomMessageUnfurl[],
+): Record<string, unknown> | null {
+  const base =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? { ...(existing as Record<string, unknown>) }
+      : {};
+
+  if (unfurls.length === 0) {
+    delete base.unfurls;
+  } else {
+    base.unfurls = [...unfurls];
+  }
+
+  return Object.keys(base).length > 0 ? base : null;
+}
+
+export function readUnfurlsFromMetadata(
+  metadata: Record<string, unknown> | null,
+): ChatRoomMessageUnfurl[] | null {
+  const raw = metadata?.unfurls;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return null;
+  }
+
+  const parsed: ChatRoomMessageUnfurl[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+    const candidate = entry as Record<string, unknown>;
+    if (
+      typeof candidate.url !== "string" ||
+      typeof candidate.title !== "string" ||
+      candidate.title.trim().length === 0
+    ) {
+      continue;
+    }
+    if (
+      candidate.description !== null &&
+      typeof candidate.description !== "string"
+    ) {
+      continue;
+    }
+    if (candidate.imageUrl !== null && typeof candidate.imageUrl !== "string") {
+      continue;
+    }
+    if (candidate.siteName !== null && typeof candidate.siteName !== "string") {
+      continue;
+    }
+    parsed.push({
+      url: candidate.url,
+      title: candidate.title,
+      description: (candidate.description as string | null) ?? null,
+      imageUrl: (candidate.imageUrl as string | null) ?? null,
+      siteName: (candidate.siteName as string | null) ?? null,
+    });
+    if (parsed.length >= 3) {
+      break;
+    }
+  }
+
+  return parsed.length > 0 ? parsed : null;
 }
 
 function readQuoteAttachmentFromMetadata(

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { useSession } from "@/lib/auth/auth.client";
-import { coreClient } from "@/lib/clients/core.browser.client";
+import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
@@ -101,7 +101,7 @@ export function NotificationsPageContent({
 
     try {
       setIsLoading(true);
-      const response = await coreClient.getNotifications({
+      const response = await notificationsBrowserClient.getNotifications({
         limit: 20,
         cursor: nextCursor ?? undefined,
       });

@@ -24,7 +24,10 @@ import {
   getJumboEmojiCount,
   jumboEmojiClassName,
 } from "@/app/chat/utils/jumbo-emoji";
-import { segmentRoomMessageContent } from "@/app/chat/utils/room-message-segments";
+import {
+  type RoomMessageFilesSegment,
+  segmentRoomMessageContent,
+} from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import Markdown from "@/components/markdown";
 import {
@@ -61,9 +64,11 @@ import type {
   ChatRoomMessageQuote,
   ChatRoomMessageQuoteAttachment,
   ChatRoomMessageReaction,
+  ChatRoomMessageUnfurl,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { participantDirectKey } from "./open-direct-with-participant";
@@ -82,6 +87,23 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+function isLargeSoloImageFilesSegment(
+  segment: RoomMessageFilesSegment,
+): boolean {
+  if (segment.links.length !== 1) {
+    return false;
+  }
+  const soloLink = segment.links[0];
+  return classifyFilePreview(soloLink.url, soloLink.fileName).isImage;
+}
+
+function hasLargeSoloImageAttachment(content: string): boolean {
+  return segmentRoomMessageContent(content).some(
+    (segment) =>
+      segment.kind === "files" && isLargeSoloImageFilesSegment(segment),
+  );
+}
 
 function useClampedOverflow(resetKey: string) {
   const [expanded, setExpanded] = useState(false);
@@ -245,6 +267,84 @@ function MessageQuoteBlock({
   );
 }
 
+function MessageUnfurlImage({
+  imageUrl,
+  title,
+}: {
+  imageUrl: string;
+  title: string;
+}) {
+  const t = useTranslations("App.Channels.Unfurl");
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return null;
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={imageUrl}
+      alt={t("imageAlt", { title })}
+      className="mt-2 h-auto max-h-48 max-w-full rounded-md"
+      onError={() => {
+        setFailed(true);
+      }}
+    />
+  );
+}
+
+function MessageUnfurlCard({ unfurl }: { unfurl: ChatRoomMessageUnfurl }) {
+  const t = useTranslations("App.Channels.Unfurl");
+  const siteLabel = unfurl.siteName?.trim() || null;
+
+  return (
+    <a
+      href={unfurl.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 inline-block w-fit max-w-sm overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+      aria-label={t("openLink", { title: unfurl.title })}
+      data-testid="room-message-unfurl"
+    >
+      {siteLabel ? (
+        <div className="text-muted-foreground truncate text-[11px] font-medium tracking-wide uppercase">
+          {siteLabel}
+        </div>
+      ) : null}
+      <div className="text-foreground line-clamp-2 text-sm font-semibold leading-5">
+        {unfurl.title}
+      </div>
+      {unfurl.description?.trim() ? (
+        <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-5">
+          {unfurl.description}
+        </div>
+      ) : null}
+      {unfurl.imageUrl ? (
+        <MessageUnfurlImage imageUrl={unfurl.imageUrl} title={unfurl.title} />
+      ) : null}
+    </a>
+  );
+}
+
+function MessageUnfurlList({
+  unfurls,
+}: {
+  unfurls: ChatRoomMessageUnfurl[] | null;
+}) {
+  if (!unfurls || unfurls.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-1" data-testid="room-message-unfurls">
+      {unfurls.map((unfurl) => (
+        <MessageUnfurlCard key={unfurl.url} unfurl={unfurl} />
+      ))}
+    </div>
+  );
+}
+
 function ChannelMarkdownSegment({
   content,
   coworkersById,
@@ -317,10 +417,13 @@ function ChannelMessageText({
                 usersBySlug={usersBySlug}
               />
             );
-          case "files":
+          case "files": {
+            const useLargeImage = isLargeSoloImageFilesSegment(segment);
+            const headLink = segment.links[0];
+
             return (
               <div
-                key={`files-${i}-${segment.links[0].index}`}
+                key={`files-${i}-${headLink.index}`}
                 className="my-2 flex flex-wrap gap-2"
                 data-testid="room-message-attachment-row"
               >
@@ -329,11 +432,13 @@ function ChannelMessageText({
                     key={`${link.index}-${link.url}`}
                     url={link.url}
                     fileName={link.fileName}
-                    sizeClass="size-16"
+                    variant={useLargeImage ? "large" : "thumb"}
+                    sizeClass={useLargeImage ? undefined : "size-16"}
                   />
                 ))}
               </div>
             );
+          }
           default: {
             const _exhaustive: never = segment;
             return _exhaustive;
@@ -362,6 +467,7 @@ function ChannelMessageBody({
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
   const isJumboEmoji = jumboEmojiCount !== null;
+  const skipBodyClamp = hasLargeSoloImageAttachment(content);
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
     `${messageId}\0${content}`,
   );
@@ -387,7 +493,9 @@ function ChannelMessageBody({
       <div
         ref={contentRef}
         data-testid="room-message-body"
-        className={cn(expanded ? null : MESSAGE_BODY_CLAMP_CLASS)}
+        className={cn(
+          expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
+        )}
       >
         <ChannelMessageText
           content={content}
@@ -397,7 +505,7 @@ function ChannelMessageBody({
           usersBySlug={usersBySlug}
         />
       </div>
-      {expanded || overflows ? (
+      {!skipBodyClamp && (expanded || overflows) ? (
         <button
           type="button"
           className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"
@@ -1347,6 +1455,7 @@ export function ChatMessageRow({
                       {tChannels("Edit.edited")}
                     </span>
                   ) : null}
+                  <MessageUnfurlList unfurls={message.unfurls} />
                 </>
               )}
             </>

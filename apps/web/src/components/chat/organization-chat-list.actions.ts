@@ -4,7 +4,7 @@ import type { ChatRoom } from "@/lib/clients/generated/core";
 import { chatRoomService } from "@/lib/services";
 
 type OrganizationChatListActionResult =
-  | { ok: true; data: ChatRoom[] }
+  | { ok: true; data: ChatRoom[]; nextCursor: string | null }
   | { ok: false };
 
 type OrganizationChatRoomMutationResult =
@@ -14,8 +14,8 @@ type OrganizationChatRoomMutationResult =
 export async function listOrganizationChatRoomsAction(): Promise<OrganizationChatListActionResult> {
   try {
     // With no active org, Core lists personal coworker directs only.
-    const rooms = await chatRoomService.listRooms();
-    return { ok: true, data: rooms };
+    const page = await chatRoomService.listRooms();
+    return { ok: true, data: page.rooms, nextCursor: page.nextCursor };
   } catch {
     return { ok: false };
   }
@@ -23,8 +23,44 @@ export async function listOrganizationChatRoomsAction(): Promise<OrganizationCha
 
 export async function listOrganizationArchivedChatRoomsAction(): Promise<OrganizationChatListActionResult> {
   try {
-    const rooms = await chatRoomService.listArchivedRooms();
-    return { ok: true, data: rooms };
+    const page = await chatRoomService.listArchivedRooms();
+    return { ok: true, data: page.rooms, nextCursor: page.nextCursor };
+  } catch {
+    return { ok: false };
+  }
+}
+
+export async function loadMoreOrganizationChatRoomsAction(
+  cursor: string,
+): Promise<OrganizationChatListActionResult> {
+  const cleanCursor = cursor.trim();
+  if (!cleanCursor) {
+    return { ok: false };
+  }
+
+  try {
+    const page = await chatRoomService.listRooms(undefined, "active", {
+      cursor: cleanCursor,
+    });
+    return { ok: true, data: page.rooms, nextCursor: page.nextCursor };
+  } catch {
+    return { ok: false };
+  }
+}
+
+export async function loadMoreOrganizationArchivedChatRoomsAction(
+  cursor: string,
+): Promise<OrganizationChatListActionResult> {
+  const cleanCursor = cursor.trim();
+  if (!cleanCursor) {
+    return { ok: false };
+  }
+
+  try {
+    const page = await chatRoomService.listArchivedRooms({
+      cursor: cleanCursor,
+    });
+    return { ok: true, data: page.rooms, nextCursor: page.nextCursor };
   } catch {
     return { ok: false };
   }

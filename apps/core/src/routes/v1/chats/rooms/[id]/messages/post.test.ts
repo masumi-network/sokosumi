@@ -22,6 +22,7 @@ const {
   emitChatMentionNotificationsMock,
   emitChatDirectMessageNotificationsMock,
   waitUntilMock,
+  scheduleUnfurlsMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   roomUpdateMock: vi.fn(),
@@ -37,6 +38,7 @@ const {
   emitChatMentionNotificationsMock: vi.fn(),
   emitChatDirectMessageNotificationsMock: vi.fn(),
   waitUntilMock: vi.fn(),
+  scheduleUnfurlsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -57,6 +59,10 @@ vi.mock("@vercel/functions", () => ({
 
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: dispatchMock,
+}));
+
+vi.mock("@/services/chat-room-message-unfurl.service", () => ({
+  scheduleChatRoomMessageUnfurls: scheduleUnfurlsMock,
 }));
 
 vi.mock("@/helpers/chat-mention-notifications", () => ({
@@ -317,6 +323,11 @@ beforeEach(() => {
   readStateUpsertMock.mockResolvedValue({});
   messageFindUniqueMock.mockResolvedValue(null);
   emitChatMentionNotificationsMock.mockResolvedValue(undefined);
+  scheduleUnfurlsMock.mockResolvedValue({
+    messageId: MESSAGE_ID,
+    attempted: 0,
+    persisted: 0,
+  });
   waitUntilMock.mockImplementation(() => {});
 });
 
@@ -354,6 +365,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(createData?.senderUserId).toBeUndefined();
       expect(dispatchMock).not.toHaveBeenCalled();
       expect(readStateUpsertMock).not.toHaveBeenCalled();
+      expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
+      expect(waitUntilMock).toHaveBeenCalledTimes(1);
 
       // Membership is enforced in the room lookup itself.
       expect(roomFindFirstMock).toHaveBeenCalledWith(
@@ -406,7 +419,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
         }),
       );
       expect(dispatchMock).not.toHaveBeenCalled();
-      expect(waitUntilMock).not.toHaveBeenCalled();
+      expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
+      expect(waitUntilMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -551,8 +565,9 @@ describe("POST /chats/rooms/{id}/messages", () => {
         mentionedUserIds: [ALICE_ID],
       });
       expect(waitUntilMock).toHaveBeenCalledWith(expect.any(Promise));
-      // coworker dispatch + human mention emit both scheduled
-      expect(waitUntilMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+      // coworker dispatch + human mention emit + unfurl scrape
+      expect(waitUntilMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+      expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
     });
 
     it("does not emit human mention notifications when nobody is mentioned", async () => {
@@ -571,6 +586,7 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(response.status).toBe(201);
       expect(emitChatMentionNotificationsMock).not.toHaveBeenCalled();
       expect(emitChatDirectMessageNotificationsMock).not.toHaveBeenCalled();
+      expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
     });
 
     it("emits direct-message notifications to other humans in a direct room", async () => {
@@ -878,6 +894,8 @@ describe("POST /chats/rooms/{id}/messages", () => {
       expect(secondBody.data.id).toBe(MESSAGE_ID);
       expect(messageCreateMock).toHaveBeenCalledTimes(1);
       expect(dispatchMock).toHaveBeenCalledTimes(1);
+      // Idempotent hit must not re-schedule unfurls
+      expect(scheduleUnfurlsMock).toHaveBeenCalledTimes(1);
     });
 
     it("returns the raced message when create hits clientMessageId unique (P2002)", async () => {

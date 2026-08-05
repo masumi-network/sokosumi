@@ -12,8 +12,8 @@ import {
   jobPurchaseRepository,
 } from "@sokosumi/database/repositories";
 import {
-  type JobWithSummaryRelations,
-  jobSummaryInclude,
+  type JobWithListSummaryRelations,
+  jobListSummaryInclude,
 } from "@sokosumi/database/types/job";
 import { createAgentClient } from "@sokosumi/masumi";
 import type {
@@ -32,6 +32,7 @@ import {
   getCreditCostsOrThrow,
   toMasumiAgent,
 } from "@/helpers/agent";
+import { incrementAgentJobCount } from "@/helpers/agent-job-count";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
@@ -89,7 +90,7 @@ async function createPaidJob(
   agentJobResponse: StartPaidJobResponseSchemaType,
   identifierFromPurchaser: string,
   tx: Prisma.TransactionClient,
-): Promise<JobWithSummaryRelations> {
+): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.ownerId,
@@ -98,7 +99,7 @@ async function createPaidJob(
     tx,
   );
 
-  return await tx.job.create({
+  const job = await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
       jobType: JobType.PAID,
@@ -156,9 +157,11 @@ async function createPaidJob(
       identifierFromPurchaser,
     },
     include: {
-      ...jobSummaryInclude,
+      ...jobListSummaryInclude,
     },
   });
+  await incrementAgentJobCount(input.agentId, tx);
+  return job;
 }
 
 /**
@@ -179,9 +182,9 @@ async function createFreeJob(
   },
   agentJobResponse: StartFreeJobResponseSchemaType,
   tx: Prisma.TransactionClient,
-): Promise<JobWithSummaryRelations> {
+): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
-  return await tx.job.create({
+  const job = await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
       jobType: JobType.FREE,
@@ -220,9 +223,11 @@ async function createFreeJob(
       identifierFromPurchaser: null,
     },
     include: {
-      ...jobSummaryInclude,
+      ...jobListSummaryInclude,
     },
   });
+  await incrementAgentJobCount(input.agentId, tx);
+  return job;
 }
 
 interface CreateAgentJobInput {
@@ -249,7 +254,7 @@ export interface JobOwnerContext {
 
 export async function createAgentJobForUser(
   input: CreateAgentJobInput,
-): Promise<JobWithSummaryRelations> {
+): Promise<JobWithListSummaryRelations> {
   const { owner, agentInput, taskContext } = input;
   const maxCents =
     agentInput.maxAcceptedCents ??
@@ -538,7 +543,7 @@ export async function getUserJobs(
     cursor: cursor ? { id: cursor } : undefined,
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: {
-      ...jobSummaryInclude,
+      ...jobListSummaryInclude,
     },
   });
   const count = await tx.job.count({ where });

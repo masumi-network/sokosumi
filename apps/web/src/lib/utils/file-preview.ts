@@ -128,7 +128,27 @@ export function officeViewerUrl(url: string, extensionHint?: string): string {
   return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(src)}`;
 }
 
+/**
+ * Vercel Blob (and some CDNs) treat `?download=1` as "force Content-Disposition:
+ * attachment". That makes an iframe/`window.open` download the file instead of
+ * rendering it. Strip it before any inline preview path.
+ */
+export function stripForcedDownloadParam(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (
+      parsed.searchParams.get("download") === "1" ||
+      parsed.searchParams.get("download") === "true"
+    ) {
+      parsed.searchParams.delete("download");
+    }
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
 /** Native PDF embed with the browser's own chrome (toolbar/thumbnail rail) hidden. */
 export function pdfEmbedUrl(url: string): string {
-  return `${url}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
+  return `${stripForcedDownloadParam(url)}#toolbar=0&navpanes=0&scrollbar=0&view=FitH`;
 }

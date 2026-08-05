@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, Ref } from "react";
+import type { ClipboardEvent, ReactNode, Ref } from "react";
 import {
   useCallback,
   useEffect,
@@ -46,6 +46,11 @@ import {
   htmlToMarkdown,
   markdownToHtml,
 } from "@/lib/utils/composer-markdown-dom";
+import {
+  composerPastedHtmlToPlainText,
+  sanitizeComposerPastedHtml,
+  stripComposerInlineTextColors,
+} from "@/lib/utils/composer-paste-sanitize";
 import { tryExitComposerInlineFormatOnArrow } from "@/lib/utils/composer-wysiwyg-arrow-exit";
 import { toggleComposerInlineCode } from "@/lib/utils/composer-wysiwyg-code-format";
 import {
@@ -400,6 +405,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const handleInput = useCallback(() => {
     if (!editorRef.current) return;
 
+    // Drop clipboard/typing colors before markdown sync; they stick in the DOM
+    // while React state stays color-free until remount (hard refresh).
+    stripComposerInlineTextColors(editorRef.current);
     tryApplyComposerInputRuleAtCaret(editorRef.current);
 
     isInternalChange.current = true;
@@ -802,6 +810,79 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [],
   );
 
+  const handlePaste = useCallback(
+    (event: ClipboardEvent<HTMLDivElement>) => {
+      const clipboard = event.clipboardData;
+      if (!clipboard) return;
+
+      const html = clipboard.getData("text/html");
+      const plain = clipboard.getData("text/plain");
+      if (!html && !plain) return;
+
+      // Always own paste so light-theme clipboard colors cannot stick in the DOM.
+      event.preventDefault();
+      const editor = editorRef.current;
+      if (!editor) return;
+      editor.focus();
+
+      const sanitizedHtml = html ? sanitizeComposerPastedHtml(html) : "";
+      const htmlToInsert = sanitizedHtml.trim() ? sanitizedHtml : "";
+
+      let didInsert = false;
+      if (htmlToInsert) {
+        try {
+          didInsert = document.execCommand("insertHTML", false, htmlToInsert);
+        } catch {
+          didInsert = false;
+        }
+      }
+      if (!didInsert && plain) {
+        try {
+          didInsert = document.execCommand("insertText", false, plain);
+        } catch {
+          didInsert = false;
+        }
+      }
+      if (!didInsert) {
+        const fallbackText =
+          plain ||
+          (htmlToInsert
+            ? composerPastedHtmlToPlainText(htmlToInsert)
+            : html
+              ? composerPastedHtmlToPlainText(html)
+              : "");
+        if (fallbackText) {
+          const selection = window.getSelection();
+          const textNode = document.createTextNode(fallbackText);
+          const range =
+            selection && selection.rangeCount > 0
+              ? selection.getRangeAt(0)
+              : null;
+          const rangeInEditor =
+            range && editor.contains(range.commonAncestorContainer)
+              ? range
+              : null;
+          if (rangeInEditor && selection) {
+            rangeInEditor.deleteContents();
+            rangeInEditor.insertNode(textNode);
+            rangeInEditor.setStartAfter(textNode);
+            rangeInEditor.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(rangeInEditor);
+          } else {
+            editor.appendChild(textNode);
+          }
+          didInsert = true;
+        }
+      }
+
+      if (didInsert) {
+        handleInput();
+      }
+    },
+    [handleInput],
+  );
+
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const key = event.key.toLowerCase();
@@ -1023,6 +1104,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         contentEditable
         suppressContentEditableWarning
         onInput={handleInput}
+        onPaste={handlePaste}
         onKeyDown={handleKeyDown}
         onKeyUp={syncSuggestionsWithCaret}
         onMouseUp={syncSuggestionsWithCaret}

@@ -99,6 +99,7 @@ export function createResumePendingCoworkerShell({
     metadata: { streaming: true },
     quote: null,
     membership: null,
+    unfurls: null,
     deletedAt: null,
   };
 }
@@ -139,6 +140,7 @@ function uiMessageToTransientRoomMessage({
       metadata: { streaming: true },
       quote: null,
       membership: null,
+      unfurls: null,
       deletedAt: null,
     };
   }
@@ -158,6 +160,7 @@ function uiMessageToTransientRoomMessage({
     metadata: { streaming: true },
     quote: null,
     membership: null,
+    unfurls: null,
     deletedAt: null,
   };
 }

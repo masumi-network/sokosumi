@@ -1,4 +1,5 @@
 import {
+  type JobWithListSummaryRelations,
   type JobWithSokosumiStatus,
   type JobWithSummaryRelations,
 } from "@sokosumi/database";
@@ -18,12 +19,17 @@ import {
 import { mapWorkspaceSummary } from "@/helpers/workspace";
 
 function mapJobOwnerSummary(
-  job: JobWithSummaryRelations | JobWithSokosumiStatus,
+  job:
+    | JobWithSummaryRelations
+    | JobWithListSummaryRelations
+    | JobWithSokosumiStatus,
 ) {
   return userSummaryFromLoadedRelation(`Job ${job.id}`, job.ownerId, job.owner);
 }
 
-export function flattenJob(job: JobWithSummaryRelations) {
+export function flattenJob(
+  job: JobWithSummaryRelations | JobWithListSummaryRelations,
+) {
   const completedAt = getCompletedAt(job);
   const owner = mapJobOwnerSummary(job);
 

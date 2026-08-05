@@ -21,7 +21,7 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-import { CoreApiRequestError } from "@/lib/clients/core.shared";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 import {
   InvoiceValidationError,
