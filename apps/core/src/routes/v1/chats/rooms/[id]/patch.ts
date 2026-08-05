@@ -23,6 +23,7 @@ import {
   chatRoomInclude,
   mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
+  resolveWorkspaceIdForChatRoom,
   slugifyRoomName,
   validateChatCoworkerIds,
   validateOrganizationUserIds,
@@ -196,8 +197,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
 
         if (body.coworkerIds !== undefined) {
+          const workspaceId = await resolveWorkspaceIdForChatRoom({
+            organizationId,
+            personalUserId: userContext.userId,
+            tx,
+          });
           const coworkerIds = await validateChatCoworkerIds(
             body.coworkerIds,
+            workspaceId,
             tx,
           );
           const coworkers = await tx.coworker.findMany({

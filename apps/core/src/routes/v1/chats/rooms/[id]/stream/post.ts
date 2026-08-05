@@ -10,7 +10,7 @@ import {
   validateUIMessages,
 } from "ai";
 
-import { requireCoworkerChatCapability } from "@/helpers/access-control";
+import { requireCoworkerChatCapabilityInWorkspace } from "@/helpers/access-control";
 import {
   clearActiveUiStreamIdForRoom,
   setActiveUiStreamIdForRoom,
@@ -67,6 +67,7 @@ import {
   requireChatRoomUserWriteAccess,
   resolveRoomQuoteSnapshot,
   resolveThreadParentMessageId,
+  resolveWorkspaceIdForChatRoom,
 } from "../../helpers";
 import { ensureCoworkerProviderConversationForRoom } from "./coworker-provider-conversation";
 
@@ -194,7 +195,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
 
     const roomCoworker = room.coworkerMembers[0]!.coworker;
-    const coworker = await requireCoworkerChatCapability(roomCoworker.id);
+    const workspaceId = await resolveWorkspaceIdForChatRoom({
+      organizationId: room.organizationId,
+      personalUserId: userContext.userId,
+    });
+    const coworker = await requireCoworkerChatCapabilityInWorkspace(
+      roomCoworker.id,
+      workspaceId,
+    );
     if (!coworker.baseURL?.trim()) {
       throw serviceUnavailable(
         "Coworker chat is not available: no Responses API URL configured for this coworker.",
