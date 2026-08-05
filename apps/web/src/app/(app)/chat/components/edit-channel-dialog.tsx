@@ -41,7 +41,21 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
+import type { Discoverability } from "./create-channel-wizard";
 import { ParticipantCheckboxes } from "./participant-checkboxes";
+
+function channelDiscoverability(
+  value: ChatRoom["discoverability"],
+): Discoverability {
+  if (value === "private" || value === "external") {
+    return value;
+  }
+  return "public";
+}
+
+function isDiscoverability(value: string): value is Discoverability {
+  return value === "public" || value === "private" || value === "external";
+}
 
 export function EditChannelDialog({
   channel,
@@ -77,8 +91,8 @@ export function EditChannelDialog({
   const [isExiting, setIsExiting] = useState(false);
   const [name, setName] = useState(channel.name);
   const [topic, setTopic] = useState(channel.topic ?? "");
-  const [discoverability, setDiscoverability] = useState<"public" | "private">(
-    channel.discoverability === "private" ? "private" : "public",
+  const [discoverability, setDiscoverability] = useState<Discoverability>(
+    channelDiscoverability(channel.discoverability),
   );
   const [memberIds, setMemberIds] = useState<string[]>(
     channel.userMembers.map((member) => member.id),
@@ -94,9 +108,7 @@ export function EditChannelDialog({
     if (!open) return;
     setName(channel.name);
     setTopic(channel.topic ?? "");
-    setDiscoverability(
-      channel.discoverability === "private" ? "private" : "public",
-    );
+    setDiscoverability(channelDiscoverability(channel.discoverability));
     setMemberIds(channel.userMembers.map((member) => member.id));
     setCoworkerIds(channel.coworkerMembers.map((coworker) => coworker.id));
   }, [channel, open]);
@@ -226,7 +238,7 @@ export function EditChannelDialog({
                       <RadioGroup
                         value={discoverability}
                         onValueChange={(value) => {
-                          if (value === "public" || value === "private") {
+                          if (isDiscoverability(value)) {
                             setDiscoverability(value);
                           }
                         }}
@@ -256,11 +268,25 @@ export function EditChannelDialog({
                             {t("Visibility.private")}
                           </Label>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem
+                            value="external"
+                            id="edit-channel-external"
+                          />
+                          <Label
+                            htmlFor="edit-channel-external"
+                            className="cursor-pointer font-normal"
+                          >
+                            {t("Visibility.external")}
+                          </Label>
+                        </div>
                       </RadioGroup>
                       <p className="text-muted-foreground text-xs">
                         {discoverability === "public"
                           ? t("Visibility.publicHelp")
-                          : t("Visibility.privateHelp")}
+                          : discoverability === "private"
+                            ? t("Visibility.privateHelp")
+                            : t("Visibility.externalHelp")}
                       </p>
                     </div>
                   </>

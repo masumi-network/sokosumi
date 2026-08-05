@@ -4949,8 +4949,10 @@
         "label": "Visibilidad",
         "public": "Público",
         "private": "Privado",
+        "external": "Externo",
         "publicHelp": "Cualquiera en la organización puede encontrar y unirse a este canal.",
-        "privateHelp": "Solo los miembros invitados pueden ver este canal."
+        "privateHelp": "Solo los miembros invitados pueden ver este canal.",
+        "externalHelp": "Cualquiera en la organización puede encontrar y unirse. Los externos solo por invitación por correo."
       },
       "CreateWizard": {
         "title": "Crear un canal",

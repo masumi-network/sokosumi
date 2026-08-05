@@ -1348,6 +1348,7 @@ export function RoomsClient({
                 coworkers={coworkers}
                 organizationName={activeOrganization?.name ?? ""}
                 membersLoadFailed={membersLoadFailed}
+                canCreateExternal={isOrgOwnerOrAdmin}
               />
             </>
           ) : isNewDirectMessage ? (

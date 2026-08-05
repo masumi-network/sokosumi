@@ -4949,8 +4949,10 @@
         "label": "Visibility",
         "public": "Public",
         "private": "Private",
+        "external": "External",
         "publicHelp": "Anyone in the organization can find and join this channel.",
-        "privateHelp": "Only invited members can see this channel."
+        "privateHelp": "Only invited members can see this channel.",
+        "externalHelp": "Anyone in the organization can find and join. Outsiders can join only by email invite."
       },
       "CreateWizard": {
         "title": "Create a channel",

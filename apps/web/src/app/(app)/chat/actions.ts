@@ -19,7 +19,7 @@ export type RoomActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; message: string };
 
-type ChannelDiscoverability = "public" | "private";
+type ChannelDiscoverability = "public" | "private" | "external";
 
 interface CreateChannelInput {
   name: string;
@@ -70,7 +70,7 @@ function cleanIds(value: string[] | null | undefined): string[] {
 function cleanDiscoverability(
   value: ChannelDiscoverability | null | undefined,
 ): ChannelDiscoverability | undefined {
-  if (value === "public" || value === "private") {
+  if (value === "public" || value === "private" || value === "external") {
     return value;
   }
   return undefined;
