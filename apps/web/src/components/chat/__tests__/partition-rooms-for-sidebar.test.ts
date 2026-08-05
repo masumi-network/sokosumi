@@ -1,0 +1,110 @@
+import { describe, expect, it } from "vitest";
+
+import type { ChatRoom } from "@/lib/clients/generated/core";
+
+import { partitionRoomsForSidebar } from "../partition-rooms-for-sidebar";
+
+function makeRoom(
+  overrides: Partial<ChatRoom> & Pick<ChatRoom, "id" | "kind" | "myAccess">,
+): ChatRoom {
+  return {
+    organizationId: "org_1",
+    organizationName: "Acme",
+    name: overrides.id,
+    slug: overrides.id,
+    directKey: null,
+    topic: null,
+    discoverability: overrides.kind === "channel" ? "public" : null,
+    createdByUserId: "user_1",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    unreadCount: 0,
+    unreadMentionCount: 0,
+    pinnedAt: null,
+    mutedAt: null,
+    markedUnread: false,
+    userMembers: [],
+    coworkerMembers: [],
+    ...overrides,
+  };
+}
+
+describe("partitionRoomsForSidebar", () => {
+  it("puts guest rooms only under externalJoined, not channels", () => {
+    const guest = makeRoom({
+      id: "guest-room",
+      kind: "channel",
+      myAccess: "guest",
+      discoverability: "external",
+      organizationName: "Host Co",
+      name: "Partners",
+    });
+    const channel = makeRoom({
+      id: "host-channel",
+      kind: "channel",
+      myAccess: "member",
+      name: "General",
+    });
+    const direct = makeRoom({
+      id: "dm-1",
+      kind: "direct",
+      myAccess: "member",
+      discoverability: null,
+      organizationId: null,
+      organizationName: null,
+    });
+
+    const result = partitionRoomsForSidebar([guest, channel, direct]);
+
+    expect(result.externalJoined.map((r) => r.id)).toEqual(["guest-room"]);
+    expect(result.namedChannels.map((r) => r.id)).toEqual(["host-channel"]);
+    expect(result.directMessages.map((r) => r.id)).toEqual(["dm-1"]);
+  });
+
+  it("does not treat member external channels as externalJoined", () => {
+    const hostExternal = makeRoom({
+      id: "ext-member",
+      kind: "channel",
+      myAccess: "member",
+      discoverability: "external",
+      name: "External host view",
+    });
+
+    const result = partitionRoomsForSidebar([hostExternal]);
+
+    expect(result.externalJoined).toEqual([]);
+    expect(result.namedChannels.map((r) => r.id)).toEqual(["ext-member"]);
+  });
+
+  it("returns empty buckets for empty input", () => {
+    expect(partitionRoomsForSidebar([])).toEqual({
+      namedChannels: [],
+      directMessages: [],
+      externalJoined: [],
+    });
+  });
+
+  it("sorts each bucket by recent activity", () => {
+    const olderGuest = makeRoom({
+      id: "guest-old",
+      kind: "channel",
+      myAccess: "guest",
+      discoverability: "external",
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    const newerGuest = makeRoom({
+      id: "guest-new",
+      kind: "channel",
+      myAccess: "guest",
+      discoverability: "external",
+      updatedAt: new Date("2026-06-01T00:00:00.000Z"),
+    });
+
+    const result = partitionRoomsForSidebar([olderGuest, newerGuest]);
+
+    expect(result.externalJoined.map((r) => r.id)).toEqual([
+      "guest-new",
+      "guest-old",
+    ]);
+  });
+});

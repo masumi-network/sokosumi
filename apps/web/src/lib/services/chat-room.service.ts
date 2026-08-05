@@ -4,6 +4,7 @@ import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   ChatRoom,
+  ChatRoomInvitation,
   ChatRoomKind,
   ChatRoomMessage,
   ChatRoomThread,
@@ -87,6 +88,26 @@ export const chatRoomService = (() => {
   }): Promise<ChatRoomsPage> {
     return listRooms("channel", "archived", options);
   });
+
+  /** Pending room invitations for the signed-in invitee (External sidebar). */
+  const listPendingInvitations = cache(
+    async function listPendingInvitations(): Promise<ChatRoomInvitation[]> {
+      const response = await coreClient.getChatRoomInvitations({
+        status: "pending",
+      });
+      return response.data;
+    },
+  );
+
+  async function acceptInvitation(id: string): Promise<ChatRoomInvitation> {
+    const response = await coreClient.acceptChatRoomInvitation(id);
+    return response.data;
+  }
+
+  async function declineInvitation(id: string): Promise<ChatRoomInvitation> {
+    const response = await coreClient.declineChatRoomInvitation(id);
+    return response.data;
+  }
 
   const getRoom = cache(async function getRoom(
     id: string,
@@ -273,8 +294,10 @@ export const chatRoomService = (() => {
   }
 
   return {
+    acceptInvitation,
     archiveRoom,
     createRoom,
+    declineInvitation,
     deleteMessage,
     deleteRoom,
     editMessage,
@@ -283,6 +306,7 @@ export const chatRoomService = (() => {
     listArchivedRooms,
     listDiscoverableChannels,
     listMessages,
+    listPendingInvitations,
     listRooms,
     listUnreadThreads,
     listThreadMessages,

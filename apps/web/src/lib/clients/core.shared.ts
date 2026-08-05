@@ -15,6 +15,7 @@ import type {
   GetAgentsByIdReviewsData,
   GetAgentsData,
   GetCategoriesData,
+  GetChatsInvitationsData,
   GetChatsRoomsByIdMessagesData,
   GetChatsRoomsByIdThreadsByParentMessageIdMessagesData,
   GetChatsRoomsData,
@@ -122,6 +123,7 @@ import {
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
+  getChatsInvitations as coreGetChatsInvitations,
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
@@ -222,6 +224,8 @@ import {
   patchVendor as corePatchVendor,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
+  postChatsInvitationsByIdAccept as corePostChatsInvitationsByIdAccept,
+  postChatsInvitationsByIdDecline as corePostChatsInvitationsByIdDecline,
   postChatsRooms as corePostChatsRooms,
   postChatsRoomsByIdArchive as corePostChatsRoomsByIdArchive,
   postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
@@ -397,6 +401,45 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch chat rooms",
+    );
+  }
+
+  async function getChatRoomInvitations(
+    query?: GetChatsInvitationsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsInvitations({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch chat room invitations",
+    );
+  }
+
+  async function acceptChatRoomInvitation(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsInvitationsByIdAccept({
+          client,
+          path: { id },
+        }),
+      "Failed to accept chat room invitation",
+    );
+  }
+
+  async function declineChatRoomInvitation(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsInvitationsByIdDecline({
+          client,
+          path: { id },
+        }),
+      "Failed to decline chat room invitation",
     );
   }
 
@@ -3652,8 +3695,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchEnterpriseContract,
     previewEnterpriseContractPeriods,
     acknowledgeNotice,
+    acceptChatRoomInvitation,
     addChatRoomMessage,
     archiveChatRoom,
+    declineChatRoomInvitation,
     deleteChatRoom,
     restoreChatRoom,
     leaveChatRoom,
@@ -3680,6 +3725,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteTask,
     deleteTaskSchedule,
     getChatRoom,
+    getChatRoomInvitations,
     getChatRoomMessages,
     getChatRoomThread,
     getChatRoomThreadMessages,

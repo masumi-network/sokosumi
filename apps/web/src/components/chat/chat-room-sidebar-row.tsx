@@ -56,6 +56,8 @@ interface ChatRoomSidebarRowProps {
   room: ChatRoom;
   href: string;
   label: string;
+  /** Optional secondary line (e.g. host org name on External guest rows). */
+  subtitle?: string;
   isActive: boolean;
   leading: ReactNode;
   onRoomUpdated: (room: ChatRoom) => void;
@@ -82,6 +84,7 @@ export function ChatRoomSidebarRow({
   room,
   href,
   label,
+  subtitle,
   isActive,
   leading,
   onRoomUpdated,
@@ -156,14 +159,21 @@ export function ChatRoomSidebarRow({
             href={href}
           >
             {leading}
-            <span
-              className={cn(
-                "min-w-0 flex-1 truncate",
-                bold && "font-semibold text-foreground",
-                isMuted && !isActive && "text-muted-foreground",
-              )}
-            >
-              {label}
+            <span className="min-w-0 flex-1">
+              <span
+                className={cn(
+                  "block truncate",
+                  bold && "font-semibold text-foreground",
+                  isMuted && !isActive && "text-muted-foreground",
+                )}
+              >
+                {label}
+              </span>
+              {subtitle ? (
+                <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-[10px] leading-tight">
+                  {subtitle}
+                </span>
+              ) : null}
             </span>
             <MentionBadge count={badgeCount} />
             <span className="size-7 shrink-0" aria-hidden />

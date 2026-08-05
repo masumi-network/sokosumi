@@ -7,6 +7,7 @@ import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar
 import { getSession } from "@/lib/auth/auth.server";
 import type {
   ChatRoom,
+  ChatRoomInvitation,
   ChatRoomMessage,
   ChatRoomThread,
   ChatRoomThreadReadState,
@@ -373,6 +374,63 @@ export async function listDiscoverableChannelsAction(options?: {
     return {
       ok: false,
       message: actionErrorMessage(error, "Could not load channels."),
+    };
+  }
+}
+
+/** Pending room invitations for the signed-in invitee (External sidebar). */
+export async function listPendingChatRoomInvitationsAction(): Promise<
+  RoomActionResult<ChatRoomInvitation[]>
+> {
+  try {
+    const invitations = await chatRoomService.listPendingInvitations();
+    return { ok: true, data: invitations };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not load invitations."),
+    };
+  }
+}
+
+export async function acceptChatRoomInvitationAction(
+  invitationId: string,
+): Promise<RoomActionResult<ChatRoomInvitation>> {
+  const cleanId = cleanString(invitationId);
+  if (!cleanId) {
+    return { ok: false, message: "Invitation is required." };
+  }
+
+  try {
+    const invitation = await chatRoomService.acceptInvitation(cleanId);
+    await invalidateSidebarChatList();
+    revalidatePath("/chat");
+    return { ok: true, data: invitation };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not accept invitation."),
+    };
+  }
+}
+
+export async function declineChatRoomInvitationAction(
+  invitationId: string,
+): Promise<RoomActionResult<ChatRoomInvitation>> {
+  const cleanId = cleanString(invitationId);
+  if (!cleanId) {
+    return { ok: false, message: "Invitation is required." };
+  }
+
+  try {
+    const invitation = await chatRoomService.declineInvitation(cleanId);
+    await invalidateSidebarChatList();
+    revalidatePath("/chat");
+    return { ok: true, data: invitation };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not decline invitation."),
     };
   }
 }

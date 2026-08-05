@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sidebar";
 import type {
   ChatRoom,
+  ChatRoomInvitation,
   GetUsersByIdCreditsResponse,
   MemberWithOrganization,
 } from "@/lib/clients/generated/core";
@@ -58,6 +59,7 @@ interface SidebarProps {
   canDeleteArchivedRooms: boolean;
   chatRooms: ChatRoom[];
   chatRoomsNextCursor: string | null;
+  pendingChatRoomInvitations: ChatRoomInvitation[];
   creditsData: SidebarCreditsData | null;
   creditUsage: CreditUsage | null;
   currentTimestampMs: number;
@@ -82,6 +84,7 @@ export default function Sidebar({
   canDeleteArchivedRooms,
   chatRooms,
   chatRoomsNextCursor,
+  pendingChatRoomInvitations,
   creditsData,
   creditUsage,
   currentTimestampMs,
@@ -124,6 +127,7 @@ export default function Sidebar({
               roomsNextCursor={chatRoomsNextCursor}
               archivedRooms={archivedChatRooms}
               archivedRoomsNextCursor={archivedChatRoomsNextCursor}
+              pendingInvitations={pendingChatRoomInvitations}
               currentUserId={currentUserId}
               organizationId={activeOrganizationId}
               canDeleteArchivedRooms={canDeleteArchivedRooms}

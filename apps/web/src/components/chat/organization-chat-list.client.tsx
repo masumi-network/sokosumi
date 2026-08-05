@@ -3,6 +3,7 @@
 import {
   ChevronDown,
   Ellipsis,
+  Globe2,
   MessageCircle,
   Plus,
   RotateCcw,
@@ -20,7 +21,13 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { deleteRoomAction, restoreRoomAction } from "@/app/chat/actions";
+import {
+  acceptChatRoomInvitationAction,
+  declineChatRoomInvitationAction,
+  deleteRoomAction,
+  listPendingChatRoomInvitationsAction,
+  restoreRoomAction,
+} from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
 import {
   getDirectRoomParticipants,
@@ -58,11 +65,14 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
-import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
+import type {
+  ChatRoom,
+  ChatRoomInvitation,
+  ChatRoomPresence,
+} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
-import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
@@ -72,6 +82,7 @@ import {
   loadMoreOrganizationArchivedChatRoomsAction,
   loadMoreOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
+import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
 import {
   applyRoomReadOverlays,
   forgetRoomRead,
@@ -108,6 +119,7 @@ interface OrganizationChatListProps {
   roomsNextCursor: string | null;
   archivedRooms: ChatRoom[];
   archivedRoomsNextCursor: string | null;
+  pendingInvitations?: ChatRoomInvitation[];
   currentUserId: string;
   organizationId: string | null;
   canDeleteArchivedRooms?: boolean;
@@ -245,17 +257,20 @@ export function OrganizationChatList({
   roomsNextCursor,
   archivedRooms,
   archivedRoomsNextCursor,
+  pendingInvitations = [],
   currentUserId,
   organizationId,
   canDeleteArchivedRooms = false,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
+  const tExternal = useTranslations("App.Channels.External");
   const tActions = useTranslations("App.Channels.Actions");
   const pathname = usePathname();
   const router = useRouter();
   const hasOrganization = Boolean(organizationId);
   const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
+  const [pendingRows, setPendingRows] = useState(pendingInvitations);
   const [activeNextCursor, setActiveNextCursor] = useState(roomsNextCursor);
   const [archivedNextCursor, setArchivedNextCursor] = useState(
     archivedRoomsNextCursor,
@@ -266,16 +281,23 @@ export function OrganizationChatList({
   const [prevArchivedRooms, setPrevArchivedRooms] = useState(archivedRooms);
   const [prevArchivedRoomsNextCursor, setPrevArchivedRoomsNextCursor] =
     useState(archivedRoomsNextCursor);
+  const [prevPendingInvitations, setPrevPendingInvitations] =
+    useState(pendingInvitations);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
+  const [externalOpen, setExternalOpen] = useState(true);
   const [restoringRoomId, setRestoringRoomId] = useState<string | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [pendingDeleteRoom, setPendingDeleteRoom] = useState<ChatRoom | null>(
     null,
   );
+  const [respondingInvitationId, setRespondingInvitationId] = useState<
+    string | null
+  >(null);
   const [_isRestoring, startRestoreTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
+  const [_isRespondingInvite, startInviteResponseTransition] = useTransition();
   const [isLoadingMoreActive, startLoadMoreActiveTransition] = useTransition();
   const [isLoadingMoreArchived, startLoadMoreArchivedTransition] =
     useTransition();
@@ -307,12 +329,16 @@ export function OrganizationChatList({
       setArchivedNextCursor(archivedRoomsNextCursor);
     }
   }
+  if (pendingInvitations !== prevPendingInvitations) {
+    setPrevPendingInvitations(pendingInvitations);
+    setPendingRows(pendingInvitations);
+  }
 
   useEffect(() => {
     let cancelled = false;
 
     const refreshRooms = async () => {
-      const [activeResult, archivedResult] = await Promise.all([
+      const [activeResult, archivedResult, pendingResult] = await Promise.all([
         listOrganizationChatRoomsAction(),
         hasOrganization
           ? listOrganizationArchivedChatRoomsAction()
@@ -321,6 +347,7 @@ export function OrganizationChatList({
               data: [] as ChatRoom[],
               nextCursor: null as string | null,
             }),
+        listPendingChatRoomInvitationsAction(),
       ]);
       if (cancelled) {
         return;
@@ -342,6 +369,9 @@ export function OrganizationChatList({
         setArchivedNextCursor((prev) =>
           hasAppendedArchivedRef.current ? prev : archivedResult.nextCursor,
         );
+      }
+      if (pendingResult.ok) {
+        setPendingRows(pendingResult.data);
       }
     };
 
@@ -423,7 +453,8 @@ export function OrganizationChatList({
               data: [] as ChatRoom[],
               nextCursor: null as string | null,
             }),
-      ]).then(([activeResult, archivedResult]) => {
+        listPendingChatRoomInvitationsAction(),
+      ]).then(([activeResult, archivedResult, pendingResult]) => {
         if (cancelled) {
           return;
         }
@@ -444,6 +475,9 @@ export function OrganizationChatList({
           setArchivedNextCursor((prev) =>
             hasAppendedArchivedRef.current ? prev : archivedResult.nextCursor,
           );
+        }
+        if (pendingResult.ok) {
+          setPendingRows(pendingResult.data);
         }
       });
     };
@@ -553,27 +587,63 @@ export function OrganizationChatList({
     });
   }
 
-  const { directMessages, namedChannels } = useMemo(() => {
-    const directMessages: ChatRoom[] = [];
-    const namedChannels: ChatRoom[] = [];
-
-    for (const room of roomRows) {
-      if (room.kind === "channel") {
-        namedChannels.push(room);
-        continue;
-      }
-
-      if (room.kind === "direct") {
-        directMessages.push(room);
-      }
+  function handleAcceptInvitation(invitation: ChatRoomInvitation) {
+    if (respondingInvitationId) {
+      return;
     }
+    setRespondingInvitationId(invitation.id);
+    startInviteResponseTransition(async () => {
+      const result = await acceptChatRoomInvitationAction(invitation.id);
+      setRespondingInvitationId(null);
+      if (!result.ok) {
+        toast.error(result.message || tExternal("acceptError"));
+        return;
+      }
+      toast.success(tExternal("acceptSuccess", { name: invitation.roomName }));
+      setPendingRows((current) =>
+        current.filter((row) => row.id !== invitation.id),
+      );
+      // Guest room appears on next list refresh; pull rooms immediately.
+      const roomsResult = await listOrganizationChatRoomsAction();
+      if (roomsResult.ok) {
+        setRoomRows((current) =>
+          applyRoomReadOverlays(
+            upsertFirstPageRooms(roomsResult.data, current),
+          ),
+        );
+      }
+      router.push(`/chat/rooms/${invitation.roomId}`);
+      router.refresh();
+    });
+  }
 
-    // Unmuted → pinned → public → private → muted; activity within bucket.
-    namedChannels.sort(compareChatRoomsByRecentActivity);
-    directMessages.sort(compareChatRoomsByRecentActivity);
+  function handleDeclineInvitation(invitation: ChatRoomInvitation) {
+    if (respondingInvitationId) {
+      return;
+    }
+    setRespondingInvitationId(invitation.id);
+    startInviteResponseTransition(async () => {
+      const result = await declineChatRoomInvitationAction(invitation.id);
+      setRespondingInvitationId(null);
+      if (!result.ok) {
+        toast.error(result.message || tExternal("declineError"));
+        return;
+      }
+      toast.success(tExternal("declineSuccess"));
+      setPendingRows((current) =>
+        current.filter((row) => row.id !== invitation.id),
+      );
+      router.refresh();
+    });
+  }
 
-    return { directMessages, namedChannels };
-  }, [roomRows]);
+  const { directMessages, namedChannels, externalJoined } = useMemo(
+    () => partitionRoomsForSidebar(roomRows),
+    [roomRows],
+  );
+
+  const showExternalSection =
+    hasOrganization || pendingRows.length > 0 || externalJoined.length > 0;
 
   const sortedArchivedChannels = useMemo(() => {
     return [...archivedRows].sort((a, b) =>
@@ -839,6 +909,100 @@ export function OrganizationChatList({
             </SidebarMenu>
           </CollapsibleContent>
         </Collapsible>
+
+        {showExternalSection ? (
+          <Collapsible open={externalOpen} onOpenChange={setExternalOpen}>
+            <SectionHeader isOpen={externalOpen}>
+              {tExternal("title")}
+            </SectionHeader>
+            <CollapsibleContent>
+              <SidebarMenu className="gap-0">
+                {pendingRows.map((invitation) => {
+                  const busy = respondingInvitationId === invitation.id;
+                  const anyBusy = respondingInvitationId !== null;
+                  return (
+                    <SidebarMenuItem key={invitation.id}>
+                      <div
+                        aria-label={tExternal("pendingAria", {
+                          name: invitation.roomName,
+                          organization: invitation.organizationName,
+                        })}
+                        className="text-tertiary-foreground dark:text-muted-foreground flex min-h-auto w-full items-start gap-2 px-3 py-1.5 group-data-[collapsible=icon]:hidden"
+                      >
+                        <Globe2
+                          className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
+                          aria-hidden
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-medium text-foreground">
+                            {invitation.roomName}
+                          </div>
+                          <div className="text-muted-foreground truncate text-[10px] leading-tight">
+                            {invitation.organizationName}
+                          </div>
+                          <div className="mt-1.5 flex items-center gap-1.5">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="default"
+                              className="h-6 px-2 text-[11px]"
+                              disabled={anyBusy}
+                              onClick={() => handleAcceptInvitation(invitation)}
+                            >
+                              {busy ? t("loading") : tExternal("accept")}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-[11px]"
+                              disabled={anyBusy}
+                              onClick={() =>
+                                handleDeclineInvitation(invitation)
+                              }
+                            >
+                              {tExternal("decline")}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </SidebarMenuItem>
+                  );
+                })}
+                {externalJoined.map((room) => (
+                  <ChatRoomSidebarRow
+                    key={room.id}
+                    room={room}
+                    href={`/chat/rooms/${room.id}`}
+                    label={room.name}
+                    subtitle={
+                      room.organizationName
+                        ? tExternal("hostOrganization", {
+                            organization: room.organizationName,
+                          })
+                        : undefined
+                    }
+                    isActive={activeRoomId === room.id}
+                    leading={
+                      <Globe2
+                        className="text-muted-foreground size-3.5 shrink-0"
+                        aria-hidden
+                      />
+                    }
+                    onRoomUpdated={handleRoomUpdated}
+                  />
+                ))}
+                {pendingRows.length === 0 && externalJoined.length === 0 ? (
+                  <SidebarMenuItem>
+                    <div className="text-muted-foreground px-3 py-1.5 text-xs group-data-[collapsible=icon]:hidden">
+                      {tExternal("empty")}
+                    </div>
+                  </SidebarMenuItem>
+                ) : null}
+              </SidebarMenu>
+            </CollapsibleContent>
+          </Collapsible>
+        ) : null}
 
         {activeNextCursor ? (
           <div className="group-data-[collapsible=icon]:hidden px-3 py-1">

@@ -4762,6 +4762,18 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
       "directMessages": "Direct Messages",
+      "External": {
+        "title": "Extern",
+        "empty": "Noch keine externen Channels.",
+        "accept": "Annehmen",
+        "decline": "Ablehnen",
+        "acceptSuccess": "Du bist {name} beigetreten.",
+        "declineSuccess": "Einladung abgelehnt.",
+        "acceptError": "Einladung konnte nicht angenommen werden.",
+        "declineError": "Einladung konnte nicht abgelehnt werden.",
+        "pendingAria": "Ausstehende Einladung zu {name} von {organization}",
+        "hostOrganization": "{organization}"
+      },
       "loadMore": "Mehr laden",
       "loading": "Wird geladen...",
       "loadMoreError": "Weitere Chats konnten nicht geladen werden",
