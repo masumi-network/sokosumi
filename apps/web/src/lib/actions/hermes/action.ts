@@ -3,6 +3,8 @@
 import * as Sentry from "@sentry/nextjs";
 
 import type { ActionError } from "@/lib/actions";
+import { CommonErrorCode } from "@/lib/actions/errors";
+import { getSession } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import {
   CoreApiRequestError,
@@ -234,11 +236,12 @@ export const listHermesMessagesAction = withSession<
 });
 
 /**
- * Returns the number of agent-initiated push messages (scheduled task results,
- * reminders, …) the user hasn't seen yet. Drives the sidebar unread badge.
+ * Sidebar unread badge poll. Soft-return on missing session — do not use
+ * `withSession` (throw → HTTP 500 on the open page's action POST).
  */
-export const getHermesUnreadCountAction = withSession<
-  Record<string, never>,
+export async function getHermesUnreadCountAction(
+  _args: Record<string, never> = {},
+): Promise<
   Result<
     {
       count: number;
@@ -248,7 +251,12 @@ export const getHermesUnreadCountAction = withSession<
     },
     ActionError
   >
->(async () => {
+> {
+  const session = await getSession();
+  if (!session) {
+    return Err({ code: CommonErrorCode.UNAUTHENTICATED });
+  }
+
   try {
     const response = await coreClient.getHermesUnreadCount();
     return Ok({
@@ -260,7 +268,7 @@ export const getHermesUnreadCountAction = withSession<
   } catch (error) {
     return Err(toActionError(error));
   }
-});
+}
 
 interface MarkHermesInboxSeenArgs extends AuthenticatedRequest {
   asOfIso?: string;

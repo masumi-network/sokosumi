@@ -34,7 +34,6 @@ vi.mock("@/lib/clients/core.client", () => ({
 
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { getHermesUnreadCountAction } from "@/lib/actions/hermes";
-import { UnAuthenticatedError } from "@/lib/auth/errors";
 
 describe("getHermesUnreadCountAction", () => {
   beforeEach(() => {
@@ -54,17 +53,6 @@ describe("getHermesUnreadCountAction", () => {
       code: CommonErrorCode.UNAUTHENTICATED,
     });
     expect(getHermesUnreadCountMock).not.toHaveBeenCalled();
-  });
-
-  it("does not reject with UnAuthenticatedError when session is missing", async () => {
-    getSessionMock.mockResolvedValue(null);
-
-    await expect(getHermesUnreadCountAction({})).resolves.not.toBeInstanceOf(
-      UnAuthenticatedError,
-    );
-    await expect(getHermesUnreadCountAction({})).resolves.toMatchObject({
-      ok: false,
-    });
   });
 
   it("returns unread payload when session and Core succeed", async () => {
