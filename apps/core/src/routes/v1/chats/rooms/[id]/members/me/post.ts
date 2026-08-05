@@ -16,9 +16,11 @@ import {
   chatRoomInclude,
   mapChatRoom,
   requireActiveOrganizationId,
-  requireJoinablePublicOrgChannel,
+  requireJoinableOrgChannel,
 } from "../../../helpers";
 import { recordChannelMembershipStatus } from "../../../membership-status";
+
+const JOINABLE_DISCOVERABILITY = new Set(["public", "external"]);
 
 const paramsSchema = z.object({
   id: z
@@ -35,7 +37,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/members/me",
     description:
-      "Self-join an active public channel in the active organization. Idempotent when already a member. Private, unknown, wrong-org, direct, or archived rooms return 404 (or 400 when the locked row is no longer joinable).",
+      "Self-join an active public or external channel in the active organization. Idempotent when already a member. Private, unknown, wrong-org, direct, or archived rooms return 404 (or 400 when the locked row is no longer joinable). External-channel guests join via room invitation, not this endpoint.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -66,7 +68,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const { room, statusMessages } = await prisma.$transaction(async (tx) => {
-      const existing = await requireJoinablePublicOrgChannel(
+      const existing = await requireJoinableOrgChannel(
         id,
         userContext.userId,
         organizationId,
@@ -88,7 +90,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         !locked ||
         locked.archivedAt !== null ||
         locked.kind !== "channel" ||
-        locked.discoverability !== "public" ||
+        locked.discoverability === null ||
+        !JOINABLE_DISCOVERABILITY.has(locked.discoverability) ||
         locked.organizationId !== organizationId
       ) {
         throw notFound("Room not found");
@@ -113,6 +116,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: {
             roomId: existing.id,
             userId: userContext.userId,
+            access: "member",
           },
         });
         await tx.chatRoomReadState.createMany({

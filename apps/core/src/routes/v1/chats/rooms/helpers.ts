@@ -479,6 +479,27 @@ export interface MapChatRoomAttentionOptions {
   pinnedAt?: Date | null;
   mutedAt?: Date | null;
   markedUnread?: boolean;
+  /** Override caller's room access; otherwise derived from membership row. */
+  myAccess?: "member" | "guest";
+  /** Host org display name when batch-loaded (Task 5+); null for directs. */
+  organizationName?: string | null;
+}
+
+function resolveMyAccess(
+  room: ChatRoomWithMembers,
+  currentUserId: string | undefined,
+  override: "member" | "guest" | undefined,
+): "member" | "guest" {
+  if (override) {
+    return override;
+  }
+  if (!currentUserId) {
+    return "member";
+  }
+  const membership = room.userMembers.find(
+    (member) => member.userId === currentUserId,
+  );
+  return membership?.access === "guest" ? "guest" : "member";
 }
 
 export function mapChatRoom(
@@ -493,13 +514,14 @@ export function mapChatRoom(
     pinnedAt = null,
     mutedAt = null,
     markedUnread = false,
+    myAccess: myAccessOverride,
+    organizationName = null,
   } = attention;
 
   return {
     id: room.id,
     organizationId: room.organizationId,
-    // Temporary defaults until Task 3 wires guest-aware access + org name.
-    organizationName: null as string | null,
+    organizationName,
     name: room.name,
     slug: room.slug,
     kind: room.kind as "channel" | "direct",
@@ -517,7 +539,7 @@ export function mapChatRoom(
     pinnedAt,
     mutedAt,
     markedUnread,
-    myAccess: "member" as const,
+    myAccess: resolveMyAccess(room, currentUserId, myAccessOverride),
     userMembers: room.userMembers.map(({ user }) => ({
       id: user.id,
       name: user.name,
@@ -539,11 +561,17 @@ export function mapChatRoom(
 function mapChatRoomDiscoverability(
   kind: string,
   discoverability: string | null,
-): "public" | "private" | null {
+): "public" | "private" | "external" | null {
   if (kind === "direct") {
     return null;
   }
-  return discoverability === "public" ? "public" : "private";
+  if (discoverability === "public") {
+    return "public";
+  }
+  if (discoverability === "external") {
+    return "external";
+  }
+  return "private";
 }
 
 export interface ChatRoomSidebarFlags {
@@ -956,6 +984,29 @@ async function assertRoomOrganizationAccess(
   });
 }
 
+/**
+ * Guests hold room membership without host-org `Member`. Skip the org gate for
+ * `access=guest`; every other access (including default/legacy `member`) keeps it.
+ */
+async function assertRoomOrganizationAccessUnlessGuest(
+  organizationId: string | null,
+  userId: string,
+  membershipAccess: string | null | undefined,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  if (membershipAccess === "guest") {
+    return;
+  }
+  await assertRoomOrganizationAccess(organizationId, userId, tx);
+}
+
+function membershipAccessForUser(
+  userMembers: ReadonlyArray<{ userId: string; access?: string | null }>,
+  userId: string,
+): string | null | undefined {
+  return userMembers.find((member) => member.userId === userId)?.access;
+}
+
 export function slugifyRoomName(name: string): string {
   const slug = name
     .trim()
@@ -1142,16 +1193,22 @@ export async function requireChatRoomUserAccess(
     throw notFound("Room not found");
   }
 
-  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+  await assertRoomOrganizationAccessUnlessGuest(
+    room.organizationId,
+    userId,
+    membershipAccessForUser(room.userMembers, userId),
+    tx,
+  );
 
   return room;
 }
 
 /**
- * Active public org channel the caller may self-join. Does not require
- * membership. Unknown, private, wrong-org, direct, or archived → 404.
+ * Active public or external org channel the caller may self-join. Does not
+ * require room membership. Unknown, private, wrong-org, direct, or archived → 404.
+ * Host-org membership is still required (guests never self-join).
  */
-export async function requireJoinablePublicOrgChannel(
+export async function requireJoinableOrgChannel(
   roomId: string,
   userId: string,
   organizationId: string,
@@ -1168,7 +1225,7 @@ export async function requireJoinablePublicOrgChannel(
       id: roomId,
       organizationId,
       kind: "channel",
-      discoverability: "public",
+      discoverability: { in: ["public", "external"] },
       archivedAt: null,
     },
     include: chatRoomInclude,
@@ -1205,7 +1262,12 @@ export async function requireArchivedChatRoomUserAccess(
     throw notFound("Room not found");
   }
 
-  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+  await assertRoomOrganizationAccessUnlessGuest(
+    room.organizationId,
+    userId,
+    membershipAccessForUser(room.userMembers, userId),
+    tx,
+  );
 
   return room;
 }
@@ -1223,6 +1285,7 @@ const chatRoomWriteSelect = {
   userMembers: {
     select: {
       userId: true,
+      access: true,
       user: {
         select: {
           name: true,
@@ -1269,7 +1332,12 @@ export async function requireChatRoomUserWriteAccess(
     throw notFound("Room not found");
   }
 
-  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+  await assertRoomOrganizationAccessUnlessGuest(
+    room.organizationId,
+    userId,
+    membershipAccessForUser(room.userMembers, userId),
+    tx,
+  );
 
   return room;
 }
@@ -1318,6 +1386,11 @@ export async function requireChatRoomUserMembership(
     select: {
       id: true,
       organizationId: true,
+      userMembers: {
+        where: { userId },
+        select: { access: true },
+        take: 1,
+      },
     },
   });
 
@@ -1325,7 +1398,38 @@ export async function requireChatRoomUserMembership(
     throw notFound("Room not found");
   }
 
-  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+  await assertRoomOrganizationAccessUnlessGuest(
+    room.organizationId,
+    userId,
+    room.userMembers[0]?.access,
+    tx,
+  );
+
+  return {
+    id: room.id,
+    organizationId: room.organizationId,
+  };
+}
+
+/**
+ * Host-org room member (`access=member`) on an external channel may invite
+ * guests. Guests and non-external rooms are rejected.
+ */
+export async function requireRoomMemberCanInviteGuests(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<ChatRoomWithMembers> {
+  const room = await requireChatRoomUserAccess(roomId, userId, tx);
+
+  if (room.kind !== "channel" || room.discoverability !== "external") {
+    throw notFound("Room not found");
+  }
+
+  const access = membershipAccessForUser(room.userMembers, userId);
+  if (access === "guest") {
+    throw forbidden("Only host organization members can invite guests.");
+  }
 
   return room;
 }

@@ -195,7 +195,7 @@ describe("POST /chats/rooms/{id}/members/me", () => {
     const sql = sqlParts.join(" ");
     expect(sql).toContain("FOR UPDATE");
     expect(userMemberCreateMock).toHaveBeenCalledWith({
-      data: { roomId: ROOM_ID, userId: SELF_ID },
+      data: { roomId: ROOM_ID, userId: SELF_ID, access: "member" },
     });
     expect(readStateCreateManyMock).toHaveBeenCalledWith({
       data: [{ roomId: ROOM_ID, userId: SELF_ID }],
