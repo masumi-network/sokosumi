@@ -193,6 +193,12 @@ export function notificationReducer(
       };
     }
     case "mark_read_success": {
+      // CHAT is browser-OS only and never counted in the in-app badge.
+      // Toast click still calls markRead for room attention; ignore feed state.
+      if (action.updated.kind === "CHAT") {
+        return state;
+      }
+
       const existing = state.notifications.find(
         (notification) => notification.id === action.id,
       );

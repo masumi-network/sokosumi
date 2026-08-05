@@ -65,6 +65,33 @@ describe("notificationReducer", () => {
     expect(afterFetch.unreadCount).toBe(1);
   });
 
+  it("does not decrement in-app unread when mark-read succeeds for a CHAT not in the feed", () => {
+    const job = createNotification({
+      id: "notification-job",
+      kind: "JOB",
+    });
+    const chatRead = createNotification({
+      id: "notification-chat",
+      kind: "CHAT",
+      referenceId: "room-1",
+      messageKey: "Notifications.Chat.directMessage",
+      isRead: true,
+      readAt: new Date("2026-06-18T10:00:00.000Z"),
+    });
+
+    const afterMarkRead = notificationReducer(
+      { notifications: [job], unreadCount: 1 },
+      {
+        type: "mark_read_success",
+        id: chatRead.id,
+        updated: chatRead,
+      },
+    );
+
+    expect(afterMarkRead.notifications).toEqual([job]);
+    expect(afterMarkRead.unreadCount).toBe(1);
+  });
+
   it("applies fetch and realtime updates atomically without losing unread count", () => {
     const realtimeNotification = createNotification({
       id: "notification-realtime",
