@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyDynamicTypeRootCap,
   clampRootFontSizePx,
   DYNAMIC_TYPE_DEFAULT_ROOT_PX,
   DYNAMIC_TYPE_MAX_ROOT_PX,
@@ -41,5 +42,44 @@ describe("shouldApplyRootFontSizeInline", () => {
     expect(shouldApplyRootFontSizeInline(16)).toBe(false);
     expect(shouldApplyRootFontSizeInline(20)).toBe(false);
     expect(shouldApplyRootFontSizeInline(20.1)).toBe(true);
+  });
+});
+
+describe("applyDynamicTypeRootCap", () => {
+  it("sets inline 20px when computed size is over cap", () => {
+    const el = document.createElement("div");
+    el.style.fontSize = "28px";
+    document.body.appendChild(el);
+    // Stub getComputedStyle for this element
+    const original = globalThis.getComputedStyle;
+    globalThis.getComputedStyle = ((target: Element) => {
+      if (target === el) {
+        return { fontSize: "28px" } as CSSStyleDeclaration;
+      }
+      return original(target);
+    }) as typeof getComputedStyle;
+
+    applyDynamicTypeRootCap(el);
+    expect(el.style.fontSize).toBe("20px");
+
+    globalThis.getComputedStyle = original;
+    el.remove();
+  });
+
+  it("clears inline size when at or under cap", () => {
+    const el = document.createElement("div");
+    el.style.fontSize = "20px";
+    const original = globalThis.getComputedStyle;
+    globalThis.getComputedStyle = ((target: Element) => {
+      if (target === el) {
+        return { fontSize: "17px" } as CSSStyleDeclaration;
+      }
+      return original(target);
+    }) as typeof getComputedStyle;
+
+    applyDynamicTypeRootCap(el);
+    expect(el.style.fontSize).toBe("");
+
+    globalThis.getComputedStyle = original;
   });
 });
