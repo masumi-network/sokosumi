@@ -1,20 +1,16 @@
 import { connection } from "next/server";
-import { Suspense } from "react";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
-import DefaultLoading from "@/components/default-loading";
 import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService, userService } from "@/lib/services";
 
-function ChatChatsPageFallback() {
-  return <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />;
-}
-
 /**
  * Mobile Chats tab: Channels + DMs list (`md:hidden`).
  * Desktop keeps the sidebar list; this route shows nothing meaningful above `md`.
+ *
+ * Fully async, no route spinner — soft nav keeps the previous screen like Search.
  */
-async function ChatChatsPageContent() {
+export default async function ChatChatsPage() {
   await connection();
 
   const [activeOrganization, session] = await Promise.all([
@@ -59,13 +55,5 @@ async function ChatChatsPageContent() {
         dismissSheetOnNavigate={false}
       />
     </div>
-  );
-}
-
-export default function ChatChatsPage() {
-  return (
-    <Suspense fallback={<ChatChatsPageFallback />}>
-      <ChatChatsPageContent />
-    </Suspense>
   );
 }
