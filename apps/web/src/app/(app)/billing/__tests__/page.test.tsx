@@ -24,6 +24,9 @@ const personalSubscriptionSectionMock = vi.fn();
 const getOrganizationBillingPlanMock = vi.fn();
 const getEnterpriseContractBillingSummaryMock = vi.fn();
 const enterpriseContractSummaryMock = vi.fn();
+const getFeaturedCoworkersMock = vi.fn();
+const subscriptionSuccessModalMock = vi.fn();
+const creditsCheckoutReturnMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -98,6 +101,11 @@ vi.mock("@/lib/services/enterprise-contract-summary.service", () => ({
     getEnterpriseContractBillingSummaryMock(...args),
 }));
 
+vi.mock("@/components/billing/get-featured-coworkers", () => ({
+  getFeaturedCoworkers: (...args: unknown[]) =>
+    getFeaturedCoworkersMock(...args),
+}));
+
 vi.mock("@/components/billing/balance-section", () => ({
   BalanceSection: (props: { billingPortal?: React.ReactNode }) => (
     <div data-testid="balance-section">{props.billingPortal}</div>
@@ -160,6 +168,20 @@ vi.mock("@/components/billing/personal-subscription-section", () => ({
   },
 }));
 
+vi.mock("@/components/billing/subscription-success-modal", () => ({
+  SubscriptionSuccessModal: (props: unknown) => {
+    subscriptionSuccessModalMock(props);
+    return null;
+  },
+}));
+
+vi.mock("@/components/billing/credits-checkout-return", () => ({
+  CreditsCheckoutReturn: (props: unknown) => {
+    creditsCheckoutReturnMock(props);
+    return null;
+  },
+}));
+
 function createSubscriptionCatalog() {
   return {
     free: { credits: 250, currency: "EUR", monthlyAmount: 0 },
@@ -214,10 +236,13 @@ function mockEnterpriseOrganizationBillingPlan(
   });
 }
 
+const coworkersPromise = Promise.resolve([]);
+
 describe("BillingPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    getFeaturedCoworkersMock.mockReturnValue(coworkersPromise);
     getSessionMock.mockResolvedValue({
       user: {
         email: "member@nmkr.io",
@@ -409,6 +434,65 @@ describe("BillingPage", () => {
         status: null,
       }),
     );
+    expect(subscriptionSuccessModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkersPromise,
+        status: null,
+      }),
+    );
+  });
+
+  it("threads the status query param and featured-coworkers promise into the personal subscription success modal", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+
+    const { default: BillingPage } = await import("../page");
+
+    render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          status: "success",
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "success",
+      }),
+    );
+    expect(subscriptionSuccessModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkersPromise,
+        headline: 'subscriptionTitle:{"plan":"Plans.pro.name"}',
+        returnPath: "/billing?tab=subscription",
+        status: "success",
+      }),
+    );
+  });
+
+  it("threads credits checkout markers and coworkers into CreditsCheckoutReturn outside tabs", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+
+    const { default: BillingPage } = await import("../page");
+
+    render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          cancel: "true",
+          session_id: "cs_test_123",
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(creditsCheckoutReturnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancel: "true",
+        coworkersPromise,
+        sessionId: "cs_test_123",
+      }),
+    );
   });
 
   it("uses the local subscription row for organization seats and hides the billing portal without a Stripe customer", async () => {
@@ -451,8 +535,47 @@ describe("BillingPage", () => {
         memberCount: 2,
       }),
     );
+    expect(subscriptionSuccessModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkersPromise,
+        headline: 'subscriptionTitle:{"plan":"Plans.free.name"}',
+        returnPath: "/billing?tab=subscription",
+        status: null,
+      }),
+    );
     expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
     expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
+  });
+
+  it("threads the status query param into the organization subscription success modal", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: "org-1",
+      name: "Org One",
+      slug: "org-one",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    mockSelfServeOrganizationBillingPlan("free", 5);
+
+    const { default: BillingPage } = await import("../page");
+
+    render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          status: "success",
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(subscriptionSuccessModalMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        coworkersPromise,
+        headline: 'subscriptionTitle:{"plan":"Plans.free.name"}',
+        status: "success",
+      }),
+    );
   });
 
   it("shows the billing portal for organization plans with a Stripe customer", async () => {

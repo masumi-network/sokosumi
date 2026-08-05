@@ -773,7 +773,9 @@ export function buildRegistryAgentFields(
     openApiSpecUrl: emptyStringToNull(entry.openApiSpecUrl),
     x402ResourcesUrl: emptyStringToNull(entry.x402ResourcesUrl),
     metadataVersion: entry.metadataVersion,
-    supersededByAgentIdentifier: entry.supersededByAgentIdentifier,
+    supersededByAgentIdentifier: emptyStringToNull(
+      entry.supersededByAgentIdentifier,
+    ),
     lastUptimeCheck: entry.lastUptimeCheck,
     uptimeCount: entry.uptimeCount,
     uptimeCheckCount: entry.uptimeCheckCount,

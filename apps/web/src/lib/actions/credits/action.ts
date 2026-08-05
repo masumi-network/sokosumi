@@ -2,6 +2,7 @@
 
 import { isPositiveIntegerCredits } from "@sokosumi/utils";
 
+import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
 import {
   type ActionError,
   CommonErrorCode,
@@ -25,7 +26,7 @@ interface PurchaseCreditsParameters extends AuthenticatedRequest {
 export const purchaseCredits = withSession<
   PurchaseCreditsParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, credits, returnPath }) => {
+>(async ({ organizationId, credits, returnPath, session }) => {
   if (!isPositiveIntegerCredits(credits)) {
     return Err({
       message: "Invalid credits",
@@ -50,6 +51,13 @@ export const purchaseCredits = withSession<
       returnPath,
     });
 
+    // Clear private sidebar so soft nav after checkout return refetches credits.
+    invalidatePrivateSidebarChrome({
+      userId: session.user.id,
+      organizationId:
+        organizationId ?? session.session.activeOrganizationId ?? null,
+    });
+
     return Ok({ url: data.url });
   } catch (error) {
     console.error("Failed to purchase credits", error);
@@ -68,7 +76,7 @@ interface ClaimFreeCreditsWithCouponParameters extends AuthenticatedRequest {
 export const claimFreeCreditsWithCoupon = withSession<
   ClaimFreeCreditsWithCouponParameters,
   Result<{ url: string }, ActionError>
->(async ({ organizationId, couponId, returnPath }) => {
+>(async ({ organizationId, couponId, returnPath, session }) => {
   if (organizationId) {
     const member = await userService.getMyMemberInOrganization(organizationId);
     if (!member) {
@@ -94,6 +102,12 @@ export const claimFreeCreditsWithCoupon = withSession<
       credits: coupon.credits,
       promotionCodeId: promo.data.promotionCodeId,
       returnPath: returnPath ?? "/coupon",
+    });
+
+    invalidatePrivateSidebarChrome({
+      userId: session.user.id,
+      organizationId:
+        organizationId ?? session.session.activeOrganizationId ?? null,
     });
 
     return Ok({ url: data.url });

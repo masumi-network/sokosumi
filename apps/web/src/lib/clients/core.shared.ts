@@ -2184,25 +2184,16 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getAgents(
-    query?: GetAgentsData["query"],
-    cacheOptions?: { revalidate: number; tags?: string[] },
-  ) {
+  async function getAgents(query?: GetAgentsData["query"]) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetAgents({
           client,
           query,
-          // The agent catalog (GET /v1/agents) is global — it carries no
-          // per-user fields and is not user/workspace-scoped — so callers may
-          // opt into cross-request revalidation caching. Next keys the fetch
-          // cache by URL (not auth headers), so the cached payload is safely
-          // shared across users. Without `cacheOptions` this stays `no-store`,
-          // which every other (user-scoped) Core call must keep.
-          ...(cacheOptions
-            ? { next: cacheOptions }
-            : { cache: "no-store" as const }),
+          // Catalog sharing lives in `'use cache'` loaders via
+          // `coreCatalogClient` — keep this transport `no-store`.
+          cache: "no-store",
         }),
       "Failed to fetch agents",
     );
@@ -2322,21 +2313,16 @@ export function createCoreClient(getClient: GetClient) {
     );
   }
 
-  async function getCategories(
-    query?: GetCategoriesData["query"],
-    cacheOptions?: { revalidate: number; tags?: string[] },
-  ) {
+  async function getCategories(query?: GetCategoriesData["query"]) {
     return executeOperation(
       getClient,
       (client) =>
         coreGetCategories({
           client,
           query,
-          // Categories are global (same as GET /v1/agents) — callers may opt
-          // into cross-request revalidation. Default stays `no-store`.
-          ...(cacheOptions
-            ? { next: cacheOptions }
-            : { cache: "no-store" as const }),
+          // Catalog sharing lives in `'use cache'` loaders via
+          // `coreCatalogClient` — keep this transport `no-store`.
+          cache: "no-store",
         }),
       "Failed to fetch categories",
     );

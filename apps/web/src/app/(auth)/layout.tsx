@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
@@ -13,6 +14,11 @@ import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 import AuthBackground from "./components/auth-background";
+
+// Instant Nav prerenders a Cache Components shell that Vercel serves for
+// POST/RSC to /signin|/signup as 405 (Method Not Allowed). Auth entry must
+// stay fully dynamic — same opt-out as admin / Hermes must-block gates.
+export const instant = false;
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth.Metadata");
@@ -33,6 +39,7 @@ export default async function AuthLayout({
 }>) {
   // Pathname from proxy (`x-pathname`). Callback/OAuth pages never redirect
   // away on an existing session, so skip the Core session read entirely.
+  await connection();
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
   const shouldSkipSessionCheck =

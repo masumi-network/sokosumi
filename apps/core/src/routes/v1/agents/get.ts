@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 import {
   agentMetadataOverrideScalarsInclude,
   agentOrderBy,
@@ -25,10 +25,6 @@ import {
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import {
-  type OpenAPIHonoWithAuth,
-  withGlobalHeaderParameters,
-} from "@/lib/hono";
 import { agentsSummarySchema } from "@/schemas/agent.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { agentCategoriesInclude, agentJobsCountInclude } from "@/types/agent";
@@ -96,40 +92,38 @@ const agentsListQuerySchema = cursorPaginationQuerySchema.extend({
     }),
 });
 
-const route = withGlobalHeaderParameters(
-  createRoute({
-    method: "get",
-    path: "/",
-    description: "List all available agents (paginated)",
-    tags: ["Agents"],
-    request: {
-      query: agentsListQuerySchema,
-    },
-    responses: {
-      200: jsonPaginatedSuccessResponse(
-        agentsSummarySchema,
-        "Retrieve all agents",
-        {
-          data: [],
-          meta: {
-            timestamp: "2025-01-15T12:00:00.000Z",
-            requestId: "550e8400-e29b-41d4-a716-446655440000",
-            pagination: {
-              cursor: null,
-              limit: 20,
-              total: 100,
-              nextCursor: "cmaeygqwa000e8i0s9s7wif8i",
-            },
+const route = createRoute({
+  method: "get",
+  path: "/",
+  description: "List all available agents (paginated)",
+  tags: ["Agents"],
+  security: [],
+  request: {
+    query: agentsListQuerySchema,
+  },
+  responses: {
+    200: jsonPaginatedSuccessResponse(
+      agentsSummarySchema,
+      "Retrieve all agents",
+      {
+        data: [],
+        meta: {
+          timestamp: "2025-01-15T12:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
+          pagination: {
+            cursor: null,
+            limit: 20,
+            total: 100,
+            nextCursor: "cmaeygqwa000e8i0s9s7wif8i",
           },
         },
-      ),
-      401: jsonErrorResponse("Unauthorized"),
-      422: jsonErrorResponse("Unprocessable Entity"),
-    },
-  }),
-);
+      },
+    ),
+    422: jsonErrorResponse("Unprocessable Entity"),
+  },
+});
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);

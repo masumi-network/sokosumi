@@ -5,7 +5,11 @@
  * rather than being restated per consumer.
  */
 export function normalizeMasumiPaymentUnit(unit: string): string {
-  return unit === "" || unit.toLowerCase() === "lovelace" ? "lovelace" : unit;
+  if (unit === "" || unit.toLowerCase() === "lovelace") {
+    return "lovelace";
+  }
+  // Cardano policy-id + asset-name units are hex; casing is not meaningful.
+  return unit.toLowerCase();
 }
 
 export function aggregateMasumiPaymentAmounts(

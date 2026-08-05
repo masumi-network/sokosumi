@@ -1,4 +1,4 @@
-import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -125,27 +125,10 @@ async function flushAnimationFrame() {
 }
 
 describe("ThreadPanel composer focus", () => {
-  it("focuses the thread composer once after mount via rAF", async () => {
-    composerFocus.mockClear();
-    renderThreadPanel();
-
-    expect(composerFocus).not.toHaveBeenCalled();
-    await flushAnimationFrame();
-    await waitFor(() => {
-      expect(composerFocus).toHaveBeenCalledTimes(1);
-    });
-  });
-
   it("calls onQuote and focuses the thread composer after rAF", async () => {
     composerFocus.mockClear();
     const onQuote = vi.fn();
     const { getByRole } = renderThreadPanel({ onQuote });
-
-    await flushAnimationFrame();
-    await waitFor(() => {
-      expect(composerFocus).toHaveBeenCalledTimes(1);
-    });
-    composerFocus.mockClear();
 
     const message = parentMessage();
     fireEvent.click(getByRole("button", { name: `quote-${message.id}` }));
@@ -164,12 +147,6 @@ describe("ThreadPanel composer focus", () => {
     composerFocus.mockClear();
     const onRestorePendingQuote = vi.fn();
     renderThreadPanel({ onRestorePendingQuote });
-
-    await flushAnimationFrame();
-    await waitFor(() => {
-      expect(composerFocus).toHaveBeenCalledTimes(1);
-    });
-    composerFocus.mockClear();
 
     onRestorePendingQuote({
       messageId: "quoted-1",

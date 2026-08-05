@@ -9,21 +9,35 @@ import { useAccountNoticeHydration } from "@/contexts/account-notice-provider";
 import { useCoworkersHydration } from "@/contexts/coworkers-context";
 import type { Notice } from "@/lib/clients/generated/core";
 
-interface ShellHydratorsProps {
+interface AccountNoticeHydratorProps {
   accountNotice: AccountNotice | null;
-  coworkers: Coworker[];
 }
 
-export function ShellHydrators({
+/**
+ * Hydrates account notice independently so coworkers streaming must not wipe it.
+ */
+export function AccountNoticeHydrator({
   accountNotice,
-  coworkers,
-}: ShellHydratorsProps) {
+}: AccountNoticeHydratorProps) {
   const hydrateAccountNotice = useAccountNoticeHydration();
-  const hydrateCoworkers = useCoworkersHydration();
 
   useEffect(() => {
     hydrateAccountNotice(accountNotice);
   }, [accountNotice, hydrateAccountNotice]);
+
+  return null;
+}
+
+interface CoworkersHydratorProps {
+  coworkers: Coworker[];
+}
+
+/**
+ * Hydrates coworkers independently so account-notice private-cache stream
+ * is unaffected when overlays resolve.
+ */
+export function CoworkersHydrator({ coworkers }: CoworkersHydratorProps) {
+  const hydrateCoworkers = useCoworkersHydration();
 
   useEffect(() => {
     hydrateCoworkers(coworkers);
