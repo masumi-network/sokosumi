@@ -56,7 +56,7 @@ describe("AppMobileChrome", () => {
     mockIsApple = false;
   });
 
-  it("renders bottom nav and tab-bar clearance spacer on chat home", () => {
+  it("renders bottom nav, create FAB, and tab-bar clearance spacer on chat home", () => {
     const { container } = render(
       <AppMobileChrome>
         <div>child</div>
@@ -64,6 +64,7 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "openMenu" })).toBeTruthy();
     const spacer = getTabBarSpacer(container);
     expect(spacer?.className).toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
@@ -81,7 +82,7 @@ describe("AppMobileChrome", () => {
     expect(spacer?.className).not.toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
 
-  it("keeps bottom nav on /chat/chats", () => {
+  it("keeps bottom nav and create FAB on /chat/chats", () => {
     mockPathname = "/chat/chats";
 
     render(
@@ -91,9 +92,10 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "openMenu" })).toBeTruthy();
   });
 
-  it("shows bottom nav on main hub list routes", () => {
+  it("shows bottom nav without create FAB on main hub list routes", () => {
     mockPathname = "/tasks";
 
     const { container } = render(
@@ -103,6 +105,7 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
     expect(getTabBarSpacer(container)?.className).toContain(
       CHAT_MOBILE_TAB_BAR_CLEARANCE,
     );

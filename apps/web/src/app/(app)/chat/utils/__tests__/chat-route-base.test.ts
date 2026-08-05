@@ -75,6 +75,17 @@ describe("chat-route-base", () => {
       ).toBe("other-chat");
     });
 
+    it("returns other-chat for welcome compose on /chat", () => {
+      expect(
+        classifyChatChromeSurface("/chat", new URLSearchParams("welcome=1")),
+      ).toBe("other-chat");
+      expect(
+        classifyChatChromeSurface("/chat", {
+          get: (k) => (k === "welcome" ? "1" : null),
+        }),
+      ).toBe("other-chat");
+    });
+
     it("returns other-chat for nested non-room chat and non-chat", () => {
       expect(classifyChatChromeSurface("/chat/something")).toBe("other-chat");
       expect(classifyChatChromeSurface("/tasks")).toBe("other-chat");

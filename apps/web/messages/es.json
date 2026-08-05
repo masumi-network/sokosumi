@@ -4726,6 +4726,26 @@
         "backToHome": "Volver al inicio",
         "back": "Volver"
       },
+      "MobileCreateFab": {
+        "openMenu": "Crear",
+        "closeMenu": "Cerrar menú de creación",
+        "newChat": {
+          "title": "Nuevo chat",
+          "subtitle": "Inicia una conversación con un coworker"
+        },
+        "newTask": {
+          "title": "Nueva tarea",
+          "subtitle": "Crea una tarea en el tablero"
+        },
+        "createChannel": {
+          "title": "Crear canal",
+          "subtitle": "Inicia un canal compartido"
+        },
+        "newDm": {
+          "title": "Nuevo DM",
+          "subtitle": "Escribe a alguien directamente"
+        }
+      },
       "Actions": {
         "more": "Acciones del mensaje",
         "sectionTitle": "Gestionar canal",

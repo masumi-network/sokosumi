@@ -4726,6 +4726,26 @@
         "backToHome": "Zurück zur Startseite",
         "back": "Zurück"
       },
+      "MobileCreateFab": {
+        "openMenu": "Erstellen",
+        "closeMenu": "Erstellen-Menü schließen",
+        "newChat": {
+          "title": "Neuer Chat",
+          "subtitle": "Gespräch mit einem Coworker starten"
+        },
+        "newTask": {
+          "title": "Neue Aufgabe",
+          "subtitle": "Aufgabe im Board erstellen"
+        },
+        "createChannel": {
+          "title": "Kanal erstellen",
+          "subtitle": "Gemeinsamen Kanal starten"
+        },
+        "newDm": {
+          "title": "Neue DM",
+          "subtitle": "Jemandem direkt schreiben"
+        }
+      },
       "Actions": {
         "more": "Nachrichtenaktionen",
         "sectionTitle": "Kanal verwalten",

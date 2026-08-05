@@ -104,3 +104,14 @@ export function shouldShowMobileBrandLeading(
   const surface = classifyChatChromeSurface(pathname, searchParams);
   return surface === "home" || surface === "chats";
 }
+
+/**
+ * Floating create FAB: Home hub and Chats list only (not drafts / welcome).
+ */
+export function shouldShowMobileCreateFab(
+  pathname: string | null | undefined,
+  searchParams?: SearchParamsLike,
+): boolean {
+  const surface = classifyChatChromeSurface(pathname, searchParams);
+  return surface === "home" || surface === "chats";
+}

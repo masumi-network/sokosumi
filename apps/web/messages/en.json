@@ -4726,6 +4726,26 @@
         "backToHome": "Back to home",
         "back": "Back"
       },
+      "MobileCreateFab": {
+        "openMenu": "Create",
+        "closeMenu": "Close create menu",
+        "newChat": {
+          "title": "New Chat",
+          "subtitle": "Start a conversation with a coworker"
+        },
+        "newTask": {
+          "title": "New Task",
+          "subtitle": "Create a task on the board"
+        },
+        "createChannel": {
+          "title": "Create Channel",
+          "subtitle": "Start a shared channel"
+        },
+        "newDm": {
+          "title": "New DM",
+          "subtitle": "Message someone directly"
+        }
+      },
       "Actions": {
         "more": "Message actions",
         "sectionTitle": "Manage channel",

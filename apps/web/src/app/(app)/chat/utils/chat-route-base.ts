@@ -91,7 +91,8 @@ export function classifyChatChromeSurface(
   if (pathname === CHAT_APP_ROUTE_PREFIX) {
     const create = readSearchParam(searchParams, "create");
     const dm = readSearchParam(searchParams, "dm");
-    if (create === "channel" || dm === "new") {
+    const welcome = readSearchParam(searchParams, "welcome");
+    if (create === "channel" || dm === "new" || welcome === "1") {
       return "other-chat";
     }
     return "home";

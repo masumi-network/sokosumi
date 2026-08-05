@@ -97,8 +97,9 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     labelKey: "home",
     icon: Home,
     isActive: (pathname, searchParams) => {
-      // Draft flows (`?create=channel`, `?dm=new`) share pathname `/chat` but
-      // are not Home — classifyChatChromeSurface returns "other-chat".
+      // Draft/welcome flows (`?create=channel`, `?dm=new`, `?welcome=1`) share
+      // pathname `/chat` but are not Home — classifyChatChromeSurface returns
+      // "other-chat".
       if (classifyChatChromeSurface(pathname, searchParams) === "home") {
         return true;
       }
