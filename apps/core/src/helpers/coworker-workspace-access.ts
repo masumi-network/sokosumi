@@ -8,6 +8,7 @@ import {
 
 import { badRequest, notFound } from "@/helpers/error";
 import { createNotification } from "@/helpers/notifications";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { requireVendorAdminMembership } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
 import type { CoworkerWorkspaceAccessDto } from "@/schemas/coworker-workspace-access.schema";
@@ -220,16 +221,38 @@ export async function upsertCoworkerWorkspaceAccess(
     return existing;
   }
 
-  const access = await tx.coworkerWorkspaceAccess.create({
-    data: {
-      coworkerId: params.coworkerId,
-      workspaceId: params.workspaceId,
-      status: CoworkerWorkspaceAccessStatus.PENDING,
-      requestedByUserId: params.actorUserId,
-      resolvedAt: null,
-      resolvedById: null,
-    },
-  });
+  let access: CoworkerWorkspaceAccess;
+  try {
+    access = await tx.coworkerWorkspaceAccess.create({
+      data: {
+        coworkerId: params.coworkerId,
+        workspaceId: params.workspaceId,
+        status: CoworkerWorkspaceAccessStatus.PENDING,
+        requestedByUserId: params.actorUserId,
+        resolvedAt: null,
+        resolvedById: null,
+      },
+    });
+  } catch (error) {
+    if (!isPrismaUniqueViolation(error)) {
+      throw error;
+    }
+
+    const raced = await tx.coworkerWorkspaceAccess.findUnique({
+      where: accessUniqueWhere(params.coworkerId, params.workspaceId),
+    });
+
+    if (!raced) {
+      throw error;
+    }
+
+    if (isCoworkerAccessTerminal(raced.status)) {
+      throw badRequest("Cannot re-request after deny/revoke");
+    }
+
+    // Concurrent create won — idempotent return without re-notify
+    return raced;
+  }
 
   try {
     await notifyWorkspaceApproversOfPendingCoworkerAccess(

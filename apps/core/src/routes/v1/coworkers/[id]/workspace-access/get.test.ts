@@ -1,0 +1,156 @@
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { forbidden } from "@/helpers/error";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { AuthVariables } from "@/middleware/auth";
+
+const {
+  coworkerFindFirstMock,
+  accessFindManyMock,
+  requireVendorAdminMembershipMock,
+} = vi.hoisted(() => ({
+  coworkerFindFirstMock: vi.fn(),
+  accessFindManyMock: vi.fn(),
+  requireVendorAdminMembershipMock: vi.fn(),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    coworker: {
+      findFirst: (...args: unknown[]) => coworkerFindFirstMock(...args),
+    },
+    coworkerWorkspaceAccess: {
+      findMany: (...args: unknown[]) => accessFindManyMock(...args),
+    },
+  },
+}));
+
+vi.mock("@/helpers/vendor-membership", () => ({
+  requireVendorAdminMembership: (...args: unknown[]) =>
+    requireVendorAdminMembershipMock(...args),
+}));
+
+import mountGetCoworkerWorkspaceAccess from "./get";
+
+const coworkerId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const vendorId = "01960001-0001-7001-8001-000000000001";
+const workspaceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const accessId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const now = new Date("2026-08-05T12:00:00.000Z");
+
+function baseAccess(
+  overrides: { status?: CoworkerWorkspaceAccessStatus } = {},
+) {
+  return {
+    id: accessId,
+    coworkerId,
+    workspaceId,
+    status: overrides.status ?? CoworkerWorkspaceAccessStatus.PENDING,
+    requestedByUserId: "user_123",
+    resolvedAt: null,
+    resolvedById: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function createApp(role = "user", userId = "user_123") {
+  const app = new OpenAPIHono<{
+    Variables: AuthVariables & { requestId: string };
+  }>();
+
+  app.use("*", async (c, next) => {
+    c.set("requestId", "req_123");
+    c.set("isAuthenticated", true);
+    c.set("authContext", {
+      actor: "user",
+      userId,
+      organizationId: null,
+      role,
+    });
+    return await next();
+  });
+
+  mountGetCoworkerWorkspaceAccess(app as unknown as OpenAPIHonoWithAuth);
+  return app;
+}
+
+describe("GET /coworkers/{id}/workspace-access", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    requireVendorAdminMembershipMock.mockResolvedValue(undefined);
+  });
+
+  it("platform admin lists access rows without vendor membership check", async () => {
+    coworkerFindFirstMock.mockResolvedValue({ id: coworkerId, vendorId });
+    accessFindManyMock.mockResolvedValue([
+      baseAccess({ status: CoworkerWorkspaceAccessStatus.GRANTED }),
+      baseAccess({ status: CoworkerWorkspaceAccessStatus.PENDING }),
+    ]);
+
+    const response = await createApp("admin").request(
+      `http://localhost/${coworkerId}/workspace-access`,
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0]).toMatchObject({
+      id: accessId,
+      coworkerId,
+      workspaceId,
+      status: "GRANTED",
+    });
+    expect(requireVendorAdminMembershipMock).not.toHaveBeenCalled();
+    expect(accessFindManyMock).toHaveBeenCalledWith({
+      where: { coworkerId },
+      orderBy: { createdAt: "desc" },
+    });
+  });
+
+  it("vendor admin lists access rows for own coworker", async () => {
+    coworkerFindFirstMock.mockResolvedValue({ id: coworkerId, vendorId });
+    accessFindManyMock.mockResolvedValue([baseAccess()]);
+
+    const response = await createApp("user", "vendor_admin").request(
+      `http://localhost/${coworkerId}/workspace-access`,
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].status).toBe("PENDING");
+    expect(requireVendorAdminMembershipMock).toHaveBeenCalledWith(
+      "vendor_admin",
+      vendorId,
+    );
+  });
+
+  it("random user → 403", async () => {
+    coworkerFindFirstMock.mockResolvedValue({ id: coworkerId, vendorId });
+    requireVendorAdminMembershipMock.mockRejectedValue(
+      forbidden("Vendor admin access required"),
+    );
+
+    const response = await createApp("user", "stranger").request(
+      `http://localhost/${coworkerId}/workspace-access`,
+    );
+
+    expect(response.status).toBe(403);
+    expect(accessFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("missing coworker → 404", async () => {
+    coworkerFindFirstMock.mockResolvedValue(null);
+
+    const response = await createApp("admin").request(
+      `http://localhost/${coworkerId}/workspace-access`,
+    );
+
+    expect(response.status).toBe(404);
+    expect(requireVendorAdminMembershipMock).not.toHaveBeenCalled();
+    expect(accessFindManyMock).not.toHaveBeenCalled();
+  });
+});

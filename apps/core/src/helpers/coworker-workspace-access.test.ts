@@ -441,6 +441,45 @@ describe("coworker-workspace-access helpers", () => {
       );
     });
 
+    it("returns raced row on concurrent foreign PENDING create unique violation", async () => {
+      workspaceFindUnique
+        .mockResolvedValueOnce({
+          id: "workspace-1",
+          userId: "owner-1",
+          organizationId: null,
+        })
+        .mockResolvedValueOnce({
+          userId: "owner-1",
+          organizationId: null,
+        });
+      coworkerFindFirst.mockResolvedValue({
+        id: "coworker-1",
+        vendorId: "vendor-1",
+      });
+      accessFindUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(
+        baseAccess({
+          id: "raced-access",
+          status: CoworkerWorkspaceAccessStatus.PENDING,
+        }),
+      );
+      accessCreate.mockRejectedValue(
+        Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+      );
+
+      const result = await upsertCoworkerWorkspaceAccess({
+        coworkerId: "coworker-1",
+        workspaceId: "workspace-1",
+        actorUserId: "actor-1",
+        isPlatformAdmin: false,
+      });
+
+      expect(result).toMatchObject({
+        id: "raced-access",
+        status: CoworkerWorkspaceAccessStatus.PENDING,
+      });
+      expect(createNotificationMock).not.toHaveBeenCalled();
+    });
+
     it("forbids non vendor-admin", async () => {
       workspaceFindUnique.mockResolvedValue({
         id: "workspace-1",
