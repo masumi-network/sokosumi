@@ -264,4 +264,19 @@ describe("FileChip", () => {
       "application/zip",
     );
   });
+
+  it("preserves a title tooltip on the inline media player container", () => {
+    const { container } = render(
+      <FileChip
+        url="https://blob.example.com/uploads/clip.mp4"
+        fileName="clip.mp4"
+        title="video/mp4"
+      />,
+    );
+
+    expect(container.querySelector('[data-testid="file-chip-video"]')).toHaveAttribute(
+      "title",
+      "video/mp4",
+    );
+  });
 });

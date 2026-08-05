@@ -173,6 +173,7 @@ export function FileChip(props: FileChipProps) {
           "flex w-full max-w-full flex-col gap-2 rounded-md border p-2",
           className,
         )}
+        title={title}
         data-testid={isVideo ? "file-chip-video" : "file-chip-audio"}
       >
         <div className="flex min-w-0 items-center gap-3">

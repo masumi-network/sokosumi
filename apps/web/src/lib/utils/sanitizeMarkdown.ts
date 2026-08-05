@@ -79,6 +79,7 @@ export function sanitizeMarkdown(markdown: string): string {
       "br",
       "img",
       "video",
+      "audio",
       "code",
       "mark",
       "span",
@@ -88,6 +89,15 @@ export function sanitizeMarkdown(markdown: string): string {
       a: ["href"],
       img: ["src", "alt", "title", "width", "height"],
       video: [
+        "src",
+        "controls",
+        "autoplay",
+        "loop",
+        "muted",
+        "width",
+        "height",
+      ],
+      audio: [
         "src",
         "controls",
         "autoplay",
