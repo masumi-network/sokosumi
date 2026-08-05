@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { mobileChromeSurfaceClass } from "@/app/components/mobile-chrome-surface";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 
@@ -42,9 +43,10 @@ export function ChatMobileBottomNav(): React.ReactElement {
       aria-label={t("ariaLabel")}
       className={cn(
         "z-40 md:hidden",
+        mobileChromeSurfaceClass(isApple),
         isApple
-          ? "bg-background/45 fixed inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-full border border-border/40 shadow-lg shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:bg-background/35 dark:shadow-black/40"
-          : "border-border bg-background fixed inset-x-0 bottom-0 border-t pb-[env(safe-area-inset-bottom)]",
+          ? "fixed inset-x-4 bottom-[max(0.75rem,env(safe-area-inset-bottom))] rounded-full border border-border/40 shadow-lg shadow-black/10 dark:shadow-black/40"
+          : "border-border fixed inset-x-0 bottom-0 border-t pb-[env(safe-area-inset-bottom)]",
       )}
     >
       <ul

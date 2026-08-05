@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { cn } from "@/lib/utils";
 
+import { HeaderChrome } from "./header/header-chrome.client";
 import {
   HeaderLeadingBrandFallback,
   HeaderLeadingControl,
@@ -12,12 +12,7 @@ interface AppHeaderFallbackProps {
 
 export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
   return (
-    <header
-      className={cn(
-        "border-grid bg-sidebar fixed top-0 z-50 flex w-full items-center justify-between gap-2 border-b md:sticky md:items-center md:pl-6",
-        className,
-      )}
-    >
+    <HeaderChrome className={className}>
       <div className="flex size-8 shrink-0 items-center justify-center md:hidden">
         <Suspense fallback={<HeaderLeadingBrandFallback />}>
           <HeaderLeadingControl />
@@ -37,6 +32,6 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
           <div className="bg-muted size-8 animate-pulse rounded-full" />
         </div>
       </div>
-    </header>
+    </HeaderChrome>
   );
 }
