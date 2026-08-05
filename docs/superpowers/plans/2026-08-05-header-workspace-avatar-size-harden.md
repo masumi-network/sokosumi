@@ -40,7 +40,7 @@
 - Consumes: `UserAvatarContent({ className?: string; imageUrl?: string; imageAlt?: string })`
 - Produces: Avatar root classes where caller size fully replaces default (no leftover `md:size-10`)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 import { render } from "@testing-library/react";
@@ -69,13 +69,13 @@ describe("UserAvatarContent", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter web test src/app/\(app\)/components/user-avatar/__tests__/user-avatar-content.test.tsx`
 
 Expected: FAIL — default still has `md:size-10` and/or override still leaves `md:size-10` / fails `not.toContain("size-8")` depending on merge order.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `user-avatar-content.tsx`, change:
 
@@ -91,13 +91,13 @@ to:
 
 Leave image/fallback markup unchanged.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter web test src/app/\(app\)/components/user-avatar/__tests__/user-avatar-content.test.tsx`
 
 Expected: PASS both cases.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add \
@@ -118,7 +118,7 @@ git commit -m "fix(web): respect UserAvatarContent size className override"
 - Consumes: fixed `UserAvatarContent` from Task 1
 - Produces: no API change; personal path now actually `size-4` at `md+`
 
-- [ ] **Step 1: Grep closed-trigger sizing**
+- [x] **Step 1: Grep closed-trigger sizing**
 
 Confirm trigger still has:
 
@@ -129,17 +129,17 @@ logoSize={12}
 
 and menu rows still use `size-6` / `logoSize={14}` (out of scope, must remain).
 
-- [ ] **Step 2: No code change unless trigger regressed**
+- [x] **Step 2: No code change unless trigger regressed**
 
 If trigger lost `size-4`, restore it. Do not redesign grid.
 
-- [ ] **Step 3: Run related header tests**
+- [x] **Step 3: Run related header tests**
 
 Run: `pnpm --filter web test src/app/\(app\)/components/header/__tests__/header-profile-section.client.test.tsx`
 
 Expected: PASS (mocks only; regression smoke).
 
-- [ ] **Step 4: Commit only if header files changed**
+- [x] **Step 4: Commit only if header files changed**
 
 Otherwise skip commit.
 
