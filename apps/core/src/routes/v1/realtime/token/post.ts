@@ -1,8 +1,11 @@
 import { createRoute } from "@hono/zod-openapi";
-
+import { serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { getSubscribeRestClient } from "@/lib/ably/client";
+import {
+  getSubscribeRestClient,
+  isSubscribeClientConfigured,
+} from "@/lib/ably/client";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { ablyTokenRequestSchema } from "@/schemas/realtime.schema";
@@ -52,12 +55,19 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     500: jsonErrorResponse("Internal Server Error"),
+    503: jsonErrorResponse("Realtime is not configured"),
   },
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
+
+    // Optional capability: environments that do not serve non-browser clients
+    // need no subscribe key, and say so rather than failing at boot.
+    if (!isSubscribeClientConfigured()) {
+      throw serviceUnavailable("Realtime is not configured");
+    }
 
     const tokenRequest = await getSubscribeRestClient().auth.createTokenRequest(
       {

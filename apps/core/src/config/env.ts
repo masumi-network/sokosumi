@@ -184,7 +184,13 @@ const envSchema = z.object({
 
   // Ably
   ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
-  ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
+  /**
+   * Optional: only needed to mint subscribe tokens for non-browser clients
+   * (`POST /v1/realtime/token`). Left unset, that endpoint returns 503 and
+   * everything else is unaffected — deployments that do not serve mobile
+   * clients need no new configuration.
+   */
+  ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1).optional(),
 
   // Optional outbound webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),

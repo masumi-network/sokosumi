@@ -6,15 +6,19 @@ import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import mountCreateAblyToken from "./post";
 
-const { createTokenRequestMock, getSubscribeRestClientMock } = vi.hoisted(
-  () => ({
-    createTokenRequestMock: vi.fn(),
-    getSubscribeRestClientMock: vi.fn(),
-  }),
-);
+const {
+  createTokenRequestMock,
+  getSubscribeRestClientMock,
+  isSubscribeClientConfiguredMock,
+} = vi.hoisted(() => ({
+  createTokenRequestMock: vi.fn(),
+  getSubscribeRestClientMock: vi.fn(),
+  isSubscribeClientConfiguredMock: vi.fn(),
+}));
 
 vi.mock("@/lib/ably/client", () => ({
   getSubscribeRestClient: getSubscribeRestClientMock,
+  isSubscribeClientConfigured: isSubscribeClientConfiguredMock,
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -61,6 +65,7 @@ describe("POST /realtime/token", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createTokenRequestMock.mockResolvedValue(createTokenRequest());
+    isSubscribeClientConfiguredMock.mockReturnValue(true);
     getSubscribeRestClientMock.mockReturnValue({
       auth: { createTokenRequest: createTokenRequestMock },
     });
@@ -113,6 +118,15 @@ describe("POST /realtime/token", () => {
       expect(channel).toContain("user_456");
       expect(channel).not.toContain("user_123");
     }
+  });
+
+  it("returns 503 when no subscribe key is configured", async () => {
+    isSubscribeClientConfiguredMock.mockReturnValue(false);
+
+    const response = await createApp().request("/token", { method: "POST" });
+
+    expect(response.status).toBe(503);
+    expect(createTokenRequestMock).not.toHaveBeenCalled();
   });
 
   it("rejects non-user actors", async () => {
