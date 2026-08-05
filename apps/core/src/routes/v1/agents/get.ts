@@ -128,18 +128,21 @@ export default function mount(app: OpenAPIHono) {
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const { category: categorySlugs } = queryParams;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const creditCosts = await getCreditCostsOrThrow(tx);
-      const baseWhere = buildAvailableAgentWhereClause(creditCosts);
-      const categoryWhere = buildCategoryWhereClause(categorySlugs);
-      const where: Prisma.AgentWhereInput = categoryWhere
-        ? {
-            AND: [baseWhere, categoryWhere],
-          }
-        : baseWhere;
+    // Avoid interactive transaction on this read-only path — catalog list
+    // does not need a shared snapshot; interactive txs hold a pool connection
+    // and forbid Promise.all inside (#2559 / P2028).
+    const creditCosts = await getCreditCostsOrThrow(prisma);
+    const baseWhere = buildAvailableAgentWhereClause(creditCosts);
+    const categoryWhere = buildCategoryWhereClause(categorySlugs);
+    const where: Prisma.AgentWhereInput = categoryWhere
+      ? {
+          AND: [baseWhere, categoryWhere],
+        }
+      : baseWhere;
 
-      const takePlusOne = take + 1;
-      const agents = await tx.agent.findMany({
+    const takePlusOne = take + 1;
+    const [agents, count] = await Promise.all([
+      prisma.agent.findMany({
         where,
         take: takePlusOne,
         skip,
@@ -151,30 +154,24 @@ export default function mount(app: OpenAPIHono) {
           ...agentCategoriesInclude,
           ...agentMetadataOverrideScalarsInclude,
         },
-      });
-      const count = await tx.agent.count({ where });
+      }),
+      prisma.agent.count({ where }),
+    ]);
 
-      const agentsWithMetrics = await buildAgentSummaries(
-        agents.slice(0, take),
-        creditCosts,
-        tx,
-      );
-
-      return {
-        agents: agentsWithMetrics,
-        count,
-        hasMore: agents.length === takePlusOne,
-      };
-    });
+    const agentsWithMetrics = await buildAgentSummaries(
+      agents.slice(0, take),
+      creditCosts,
+      prisma,
+    );
 
     const paginationMeta = createPaginationMeta(
-      result.agents,
-      result.count,
+      agentsWithMetrics,
+      count,
       take,
-      result.hasMore,
+      agents.length === takePlusOne,
       cursor,
     );
 
-    return ok(c, agentsSummarySchema.parse(result.agents), paginationMeta);
+    return ok(c, agentsSummarySchema.parse(agentsWithMetrics), paginationMeta);
   });
 }
