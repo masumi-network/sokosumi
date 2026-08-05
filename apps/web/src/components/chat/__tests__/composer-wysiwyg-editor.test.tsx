@@ -309,7 +309,7 @@ describe("ComposerWysiwygEditor", () => {
     );
   });
 
-  it("strips pasted inline text colors so dark-mode text stays visible", () => {
+  it("pastes plain text only and drops rich clipboard HTML", () => {
     function Harness() {
       const [value, setValue] = useState("");
       return (
@@ -327,8 +327,8 @@ describe("ComposerWysiwygEditor", () => {
 
     const execCommand = vi.fn(
       (command: string, _showUI?: boolean, value?: string) => {
-        if (command === "insertHTML" && value) {
-          editor.innerHTML = value;
+        if (command === "insertText" && typeof value === "string") {
+          editor.textContent = (editor.textContent ?? "") + value;
           return true;
         }
         return false;
@@ -340,13 +340,13 @@ describe("ComposerWysiwygEditor", () => {
     });
 
     const html =
-      '<span style="color: rgb(10, 10, 10);">https://x.com/status/1 asdasdas</span>';
+      '<a href="https://x.com/status/1" style="color: rgb(10, 10, 10);"><strong>https://x.com/status/1</strong></a>';
     fireEvent.paste(editor, {
       clipboardData: {
         getData: (type: string) => {
           if (type === "text/html") return html;
           if (type === "text/plain") {
-            return "https://x.com/status/1 asdasdas";
+            return "https://x.com/status/1";
           }
           return "";
         },
@@ -354,15 +354,20 @@ describe("ComposerWysiwygEditor", () => {
     });
 
     expect(execCommand).toHaveBeenCalledWith(
-      "insertHTML",
+      "insertText",
       false,
-      expect.not.stringMatching(/color\s*:/i),
+      "https://x.com/status/1",
     );
-    expect(editor.innerHTML).not.toMatch(/color\s*:/i);
-    expect(editor.textContent).toContain("asdasdas");
+    expect(execCommand).not.toHaveBeenCalledWith(
+      "insertHTML",
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(editor.innerHTML).not.toMatch(/<a\b|<strong\b|color\s*:/i);
+    expect(editor.textContent).toContain("https://x.com/status/1");
   });
 
-  it("falls back to DOM insert without regex HTML stripping", () => {
+  it("falls back to DOM text insert when insertText fails", () => {
     function Harness() {
       const [value, setValue] = useState("");
       return (
@@ -385,7 +390,7 @@ describe("ComposerWysiwygEditor", () => {
     });
 
     const html =
-      '<span style="color: rgb(10, 10, 10);">fallback plain path</span>';
+      '<span style="color: rgb(10, 10, 10);"><em>fallback plain path</em></span>';
     fireEvent.paste(editor, {
       clipboardData: {
         getData: (type: string) => {
@@ -396,9 +401,58 @@ describe("ComposerWysiwygEditor", () => {
       },
     });
 
-    expect(execCommand).toHaveBeenCalled();
-    expect(editor.innerHTML).not.toMatch(/color\s*:/i);
+    expect(execCommand).toHaveBeenCalledWith(
+      "insertText",
+      false,
+      "fallback plain path",
+    );
+    expect(editor.innerHTML).not.toMatch(/<em\b|color\s*:/i);
     expect(editor.textContent).toContain("fallback plain path");
+  });
+
+  it("extracts plain text from HTML when clipboard has no text/plain", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+
+    const execCommand = vi.fn(
+      (command: string, _showUI?: boolean, value?: string) => {
+        if (command === "insertText" && typeof value === "string") {
+          editor.textContent = value;
+          return true;
+        }
+        return false;
+      },
+    );
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: execCommand,
+    });
+
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: (type: string) => {
+          if (type === "text/html") {
+            return "<b>only html</b>";
+          }
+          return "";
+        },
+      },
+    });
+
+    expect(execCommand).toHaveBeenCalledWith("insertText", false, "only html");
+    expect(editor.textContent).toBe("only html");
   });
 
   it("strips color styles left by insertHTML on input", () => {
