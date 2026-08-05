@@ -20,9 +20,9 @@ describe("extractBareHttpUrls", () => {
 
   it("strips many trailing punctuation chars without hanging", () => {
     const bangs = "!".repeat(10_000);
-    expect(
-      extractBareHttpUrls(`see https://example.com/x${bangs}`),
-    ).toEqual(["https://example.com/x"]);
+    expect(extractBareHttpUrls(`see https://example.com/x${bangs}`)).toEqual([
+      "https://example.com/x",
+    ]);
   });
 
   it("dedupes identical bare URLs", () => {
