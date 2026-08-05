@@ -43,6 +43,8 @@ interface UnreadThreadsPanelProps {
   attentionRefreshToken: number;
   /** Returns true when thread look-state was persisted successfully. */
   onOpenThread: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
+  /** After mark-all look succeeds — parent re-syncs room sidebar attention. */
+  onAllThreadsLooked?: () => void;
 }
 
 const ATTENTION_REFRESH_DEBOUNCE_MS = 300;
@@ -66,6 +68,7 @@ export function UnreadThreadsPanel({
   labels,
   attentionRefreshToken,
   onOpenThread,
+  onAllThreadsLooked,
 }: UnreadThreadsPanelProps) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<ChatRoomThread[]>([]);
@@ -172,6 +175,7 @@ export function UnreadThreadsPanel({
     setItems([]);
     setBadgeCount(0);
     setIsMarkingAllRead(false);
+    onAllThreadsLooked?.();
   }
 
   const showEmpty = !isLoading && !error && items.length === 0;
