@@ -24,7 +24,10 @@ import {
   getJumboEmojiCount,
   jumboEmojiClassName,
 } from "@/app/chat/utils/jumbo-emoji";
-import { segmentRoomMessageContent } from "@/app/chat/utils/room-message-segments";
+import {
+  type RoomMessageFilesSegment,
+  segmentRoomMessageContent,
+} from "@/app/chat/utils/room-message-segments";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import Markdown from "@/components/markdown";
 import {
@@ -83,6 +86,23 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+function isLargeSoloImageFilesSegment(
+  segment: RoomMessageFilesSegment,
+): boolean {
+  if (segment.links.length !== 1) {
+    return false;
+  }
+  const soloLink = segment.links[0];
+  return classifyFilePreview(soloLink.url, soloLink.fileName).isImage;
+}
+
+function hasLargeSoloImageAttachment(content: string): boolean {
+  return segmentRoomMessageContent(content).some(
+    (segment) =>
+      segment.kind === "files" && isLargeSoloImageFilesSegment(segment),
+  );
+}
 
 function useClampedOverflow(resetKey: string) {
   const [expanded, setExpanded] = useState(false);
@@ -319,14 +339,12 @@ function ChannelMessageText({
               />
             );
           case "files": {
-            const soloLink = segment.links[0];
-            const useLargeImage =
-              segment.links.length === 1 &&
-              classifyFilePreview(soloLink.url, soloLink.fileName).isImage;
+            const useLargeImage = isLargeSoloImageFilesSegment(segment);
+            const headLink = segment.links[0];
 
             return (
               <div
-                key={`files-${i}-${soloLink.index}`}
+                key={`files-${i}-${headLink.index}`}
                 className="my-2 flex flex-wrap gap-2"
                 data-testid="room-message-attachment-row"
               >
@@ -370,6 +388,7 @@ function ChannelMessageBody({
   const t = useTranslations("App.Channels.Message");
   const jumboEmojiCount = getJumboEmojiCount(content);
   const isJumboEmoji = jumboEmojiCount !== null;
+  const skipBodyClamp = hasLargeSoloImageAttachment(content);
   const { expanded, setExpanded, overflows, contentRef } = useClampedOverflow(
     `${messageId}\0${content}`,
   );
@@ -395,7 +414,9 @@ function ChannelMessageBody({
       <div
         ref={contentRef}
         data-testid="room-message-body"
-        className={cn(expanded ? null : MESSAGE_BODY_CLAMP_CLASS)}
+        className={cn(
+          expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
+        )}
       >
         <ChannelMessageText
           content={content}
@@ -405,7 +426,7 @@ function ChannelMessageBody({
           usersBySlug={usersBySlug}
         />
       </div>
-      {expanded || overflows ? (
+      {!skipBodyClamp && (expanded || overflows) ? (
         <button
           type="button"
           className="text-primary hover:text-primary/80 mt-1 text-xs font-medium outline-none focus-visible:underline"

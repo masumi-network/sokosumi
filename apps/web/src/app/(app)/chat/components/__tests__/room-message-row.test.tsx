@@ -695,6 +695,20 @@ describe("ChatMessageRow", () => {
     expect(chip).toHaveAttribute("data-size-class", "size-16");
   });
 
+  it("does not line-clamp bodies that include a large solo image attachment", () => {
+    renderRow({
+      message: userMessage({
+        content: "[photo.png](https://cdn.example/photo.png)\n",
+      }),
+    });
+
+    const body = screen.getByTestId("room-message-body");
+    expect(body.className).not.toContain("line-clamp-[16]");
+    expect(
+      screen.queryByRole("button", { name: "Show more" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("styles @all mention tokens in quote snippets", () => {
     renderRow({
       message: userMessage({
