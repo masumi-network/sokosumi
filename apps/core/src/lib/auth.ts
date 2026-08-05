@@ -40,6 +40,7 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
+  bearer,
   jwt,
   lastLoginMethod,
   magicLink,
@@ -584,6 +585,16 @@ export const auth = betterAuth({
     additionalFields: betterAuthUserAdditionalFields,
   },
   plugins: [
+    /**
+     * Lets non-browser clients authenticate without cookies: sign-in responses
+     * carry a `set-auth-token` header, and `Authorization: Bearer <token>` is
+     * accepted in place of the session cookie.
+     *
+     * `requireSignature` stays at its default of false — the token handed back
+     * by `set-auth-token` is the unsigned session token, which is what a mobile
+     * client stores and replays.
+     */
+    bearer(),
     magicLink({
       disableSignUp: false,
       expiresIn: 60 * 10, // 10 minutes

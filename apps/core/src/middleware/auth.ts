@@ -506,6 +506,41 @@ async function verifyOAuthToken(
   return true;
 }
 
+/**
+ * Better Auth session token presented as a bearer credential.
+ *
+ * The `bearer` plugin rewrites `Authorization: Bearer <token>` into a session
+ * cookie inside Better Auth's own pipeline, so `getSession` resolves it exactly
+ * as it would a cookie from the browser. This is what lets a mobile client sign
+ * in with email and password and then call the API without cookies, which
+ * React Native has no usable story for.
+ *
+ * Deliberately last in the chain: it costs a session lookup, and every other
+ * scheme is cheaper to reject.
+ */
+async function verifySessionBearerToken(c: Context): Promise<boolean> {
+  const response = await auth.api
+    .getSession({ headers: c.req.raw.headers })
+    .catch(() => null);
+
+  if (!response?.session || !response.user) {
+    return false;
+  }
+
+  const { session, user } = response;
+
+  setAuthContext(c, {
+    isAuthenticated: true,
+    authContext: {
+      actor: "user",
+      userId: user.id,
+      organizationId: session.activeOrganizationId ?? null,
+      role: user.role ?? DEFAULT_USER_ROLE,
+    },
+  });
+  return true;
+}
+
 const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
   verifyToken: async (token, c) => {
     // Check 1: Dedicated coworker API key
@@ -533,6 +568,12 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
     // Check 4: OAuth Access Token
     const oauthTokenValid = await verifyOAuthToken(token, c);
     if (oauthTokenValid) {
+      return true;
+    }
+
+    // Check 5: Better Auth session token (mobile / other non-browser clients)
+    const sessionValid = await verifySessionBearerToken(c);
+    if (sessionValid) {
       return true;
     }
 

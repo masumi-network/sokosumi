@@ -14,6 +14,7 @@ interface AuthorizeReferenceConfig {
 
 const {
   adminPluginMock,
+  bearerPluginMock,
   apiKeyPluginMock,
   betterAuthMock,
   getBetterAuthPublicBaseUrlMock,
@@ -76,6 +77,7 @@ const {
 
   return {
     adminPluginMock: vi.fn(),
+    bearerPluginMock: vi.fn(),
     apiKeyPluginMock: vi.fn(),
     betterAuthMock: vi.fn(),
     getBetterAuthPublicBaseUrlMock: vi.fn(),
@@ -163,6 +165,7 @@ vi.mock("@better-auth/prisma-adapter", () => ({
 
 vi.mock("better-auth/plugins", () => ({
   admin: (...args: unknown[]) => adminPluginMock(...args),
+  bearer: (...args: unknown[]) => bearerPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   lastLoginMethod: (...args: unknown[]) => lastLoginMethodPluginMock(...args),
   magicLink: (...args: unknown[]) => magicLinkPluginMock(...args),
@@ -344,6 +347,7 @@ describe("core auth config", () => {
     vi.clearAllMocks();
 
     adminPluginMock.mockReturnValue("admin-plugin");
+    bearerPluginMock.mockReturnValue("bearer-plugin");
     apiKeyPluginMock.mockReturnValue("api-key-plugin");
     i18nPluginMock.mockReturnValue("i18n-plugin");
     getEnvMock.mockReturnValue(getDefaultEnv());
@@ -559,6 +563,12 @@ describe("core auth config", () => {
       "user_123",
       "google",
     );
+  });
+
+  it("registers the bearer plugin so non-browser clients can authenticate without cookies", async () => {
+    await import("./auth");
+
+    expect(bearerPluginMock).toHaveBeenCalled();
   });
 
   it("registers the passkey plugin with the Sokosumi relying party configuration", async () => {

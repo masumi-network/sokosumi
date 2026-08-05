@@ -547,6 +547,55 @@ describe("authMiddleware", () => {
     expect(response.status).toBe(401);
   });
 
+  it("authenticates a Better Auth session token presented as a bearer credential", async () => {
+    getSessionMock.mockResolvedValue({
+      session: {
+        activeOrganizationId: "org_mobile",
+      },
+      user: {
+        id: "user_mobile",
+        role: "user",
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer session-token-from-mobile",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      actor: "user",
+      userId: "user_mobile",
+      organizationId: "org_mobile",
+      role: "user",
+    });
+  });
+
+  it("only falls back to the session token after the other bearer schemes", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: null },
+      user: { id: "user_mobile", role: "user" },
+    });
+    verifyApiKeyMock.mockResolvedValue({
+      valid: true,
+      key: { userId: "user_apikey" },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer some-api-key",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    // The API key resolved first, so the session lookup never ran.
+    expect(getSessionMock).not.toHaveBeenCalled();
+  });
+
   it("authenticates from session when authorization header is missing", async () => {
     getSessionMock.mockResolvedValue({
       session: {
