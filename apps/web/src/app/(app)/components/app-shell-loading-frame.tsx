@@ -3,6 +3,7 @@ import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-conte
 import { NotificationFallbackProvider } from "@/contexts/notification-provider";
 
 import { AppHeaderFallback } from "./app-header-fallback";
+import { AppMobileChrome } from "./app-mobile-chrome.client";
 import { AppSidebarFallback } from "./app-sidebar-fallback";
 
 /** Stub session id for Instant Nav Suspense fallback (not a real session). */
@@ -27,7 +28,7 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
             data-app-main
           >
             <div
-              className="flex h-full flex-1 flex-col overflow-visible"
+              className="flex min-h-full flex-1 flex-col overflow-visible"
               data-app-main-inner
             >
               <AccountNoticeProvider
@@ -35,7 +36,7 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
                 sessionId={INSTANT_NAV_SHELL_FALLBACK_SESSION_ID}
               >
                 <NotificationFallbackProvider>
-                  {children}
+                  <AppMobileChrome>{children}</AppMobileChrome>
                 </NotificationFallbackProvider>
               </AccountNoticeProvider>
             </div>

@@ -1,9 +1,13 @@
 import type { Session } from "@sokosumi/utils";
+import { Suspense } from "react";
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 import { cn } from "@/lib/utils";
 
+import {
+  HeaderLeadingBrandFallback,
+  HeaderLeadingControl,
+} from "./header/header-leading-control.client";
 import HeaderProfileSection from "./header/header-profile-section";
-import CustomTrigger from "./sidebar/components/custom-trigger";
 
 interface HeaderProps {
   className?: string | undefined;
@@ -19,7 +23,9 @@ export default function Header({ className, session }: HeaderProps) {
       )}
     >
       <div className="flex size-8 shrink-0 items-center justify-center md:hidden">
-        <CustomTrigger when="invisible" />
+        <Suspense fallback={<HeaderLeadingBrandFallback />}>
+          <HeaderLeadingControl />
+        </Suspense>
       </div>
 
       <div className="hidden min-w-0 flex-1 flex-row gap-2 sm:flex">

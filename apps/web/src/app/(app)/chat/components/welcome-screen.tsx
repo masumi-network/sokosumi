@@ -11,7 +11,10 @@ import type {
   Coworker,
 } from "@/app/chat/utils/types";
 import { MultimodalInput } from "@/components/chat/multimodal-input";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
+
+import { chatMobileTabBarBottomOffset } from "./chat-mobile-tab-registry";
 
 const PROMPT_KEYS = ["1", "2", "3"] as const;
 
@@ -59,6 +62,7 @@ export default function WelcomeScreen({
   onCoworkerChange,
 }: WelcomeScreenProps) {
   const t = useTranslations("App.Chat.Chat");
+  const isApple = useIsApplePlatform();
   const promptKey =
     initialCoworker?.slug?.toLowerCase() ||
     initialCoworker?.id?.toLowerCase() ||
@@ -169,7 +173,12 @@ export default function WelcomeScreen({
         aria-hidden
         className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-5 h-32 bg-linear-to-t to-transparent"
       />
-      <div className="bg-background/80 fixed inset-x-0 bottom-0 z-10 mx-auto flex w-full shrink-0 justify-center overflow-visible px-8 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0">
+      <div
+        className={cn(
+          "bg-background/80 fixed inset-x-0 z-10 mx-auto flex w-full shrink-0 justify-center overflow-visible px-8 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0",
+          chatMobileTabBarBottomOffset(isApple),
+        )}
+      >
         <div className="w-full max-w-4xl overflow-visible">
           <MultimodalInput
             blurOnSendOnMobile={mobileKeyboardOptimized}

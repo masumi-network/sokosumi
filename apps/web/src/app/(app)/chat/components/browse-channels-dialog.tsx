@@ -106,7 +106,7 @@ export function BrowseChannelsDialog({
           aria-label={t("trigger")}
           title={t("trigger")}
         >
-          <List className="size-3.5" aria-hidden />
+          <List className="size-4 md:size-3.5" aria-hidden />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden shadow-none sm:max-w-lg">

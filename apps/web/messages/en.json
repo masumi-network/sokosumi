@@ -4717,6 +4717,15 @@
       }
     },
     "Channels": {
+      "MobileNav": {
+        "home": "Home",
+        "chats": "Chats",
+        "search": "Search",
+        "ariaLabel": "Main navigation",
+        "backToChats": "Back to chats",
+        "backToHome": "Back to home",
+        "back": "Back"
+      },
       "Actions": {
         "more": "Message actions",
         "sectionTitle": "Manage channel",
