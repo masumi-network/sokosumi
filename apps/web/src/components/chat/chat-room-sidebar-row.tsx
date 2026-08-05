@@ -48,7 +48,7 @@ import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
-/** Same absolute slot for pin/mute (rest) and overflow menu (hover) so icons never jump. */
+/** Same absolute slot for pin/mute (rest) and overflow menu so icons never jump. */
 const TRAILING_CONTROL_CLASS =
   "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center";
 
@@ -185,7 +185,7 @@ export function ChatRoomSidebarRow({
           className={cn(
             TRAILING_CONTROL_CLASS,
             "text-muted-foreground pointer-events-none",
-            "group-hover/room-row:opacity-0 group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
+            "[@media(hover:none)]:opacity-0 [@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
           )}
           aria-hidden
         >
@@ -205,7 +205,7 @@ export function ChatRoomSidebarRow({
             disabled={isPending}
             className={cn(
               TRAILING_CONTROL_CLASS,
-              "text-muted-foreground opacity-0 group-focus-within/room-row:opacity-100 group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+              "text-muted-foreground opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
             )}
             aria-label={tActions("roomMenu", { name: label })}
           >
