@@ -1,5 +1,6 @@
 "use client";
 
+import { isBrowserOnlyNotificationKind } from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
 import {
   createContext,
@@ -11,7 +12,6 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
 import { NotificationToastListener } from "@/app/components/notification-toast-listener";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -23,7 +23,6 @@ import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
-import { isBrowserOnlyNotificationKind } from "@/lib/utils/notification-feed";
 
 function dismissNotificationToast(notificationId: string) {
   toast.dismiss(notificationId);
