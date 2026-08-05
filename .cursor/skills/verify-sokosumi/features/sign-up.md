@@ -11,7 +11,7 @@ Sign up creates a disposable email/password account when cloud-agent fixtures ar
 ## How to get to it (user POV)
 
 - Open `/signup` (or `/register`, which redirects to `/signup`).
-- From sign-in, follow the create-account link.
+- From sign-in, follow the **Register** link (label is Register / Registrieren — not “create account”).
 
 ## Driving it with agent-browser
 
@@ -21,10 +21,10 @@ Preconditions:
 - Fixtures unavailable or intentionally unused.
 - Choose a unique email, e.g. `verify-$(date +%s)@sokosumi.test`, and a password meeting app rules (fixture-style `Password123!` is fine).
 
-- **Open form.** Run `agent-browser open http://localhost:3000/signup` then `agent-browser snapshot -i`. Google / Microsoft / Magic Link sit **above** the email form — ignore them (same trap as sign-in).
-- **Fill required fields.** Name, email, password textboxes (locale labels vary). Prefer refs from a **fresh** snapshot taken after open (stale refs fail after navigation). Optional marketing checkbox can stay unchecked.
+- **Open form.** Run `agent-browser open http://localhost:3000/signup`, wait until the snapshot shows Name / Email / Password textboxes (a too-early snapshot can be empty or `about:blank` right after `close`). Google / Microsoft / Magic Link sit **above** the email form — ignore them (same trap as sign-in).
+- **Fill required fields.** Prefer refs from that **fresh** snapshot (`textbox "Name"` / `"Email"` / `"Password"`). CSS `[data-testid="auth-field-name|email|password"]` works once the form is interactive; they fail if you fill before the fields appear. Optional marketing checkbox can stay unchecked.
 - **Accept terms.** Prefer `agent-browser check` on the terms checkbox (accessible name about Terms / Nutzungsbedingungen, or `#termsAccepted`). Submit stays **disabled** until terms are accepted.
-- **Submit.** When `Register` / `Registrieren` is enabled, **click** the submit button (prefer click over Enter — Enter can leave the form unchanged). Wait for navigation away from `/signup` (often `/` then `/chat`).
+- **Submit.** When `Register` / `Registrieren` is enabled, **click** the snapshot ref (`@eN`, not bare `@N` — agent-browser needs the `e` prefix). Prefer click over Enter — Enter can leave the form unchanged. Wait for navigation away from `/signup` (often `/` then `/chat`). Signup has **no** `data-testid="auth-submit"` (that testid is sign-in only).
 - **Confirm session.** Open `/agents` or `/chat`; must not bounce to `/signin`.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-up` then screenshot + snapshot of the post-signup authenticated view. Record the email in `account.txt` (no password).
 
