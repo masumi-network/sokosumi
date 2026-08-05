@@ -108,6 +108,7 @@ async function JobLayoutInner({
           <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start">
             <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-64px)] lg:w-72 lg:flex-none">
               <JobsList
+                key={agentId}
                 jobs={agentJobsPage.jobs}
                 jobsNextCursor={agentJobsPage.nextCursor}
                 userId={session.user.id}

@@ -260,6 +260,12 @@ export function OrganizationChatList({
   const [archivedNextCursor, setArchivedNextCursor] = useState(
     archivedRoomsNextCursor,
   );
+  const [prevRooms, setPrevRooms] = useState(rooms);
+  const [prevRoomsNextCursor, setPrevRoomsNextCursor] =
+    useState(roomsNextCursor);
+  const [prevArchivedRooms, setPrevArchivedRooms] = useState(archivedRooms);
+  const [prevArchivedRoomsNextCursor, setPrevArchivedRoomsNextCursor] =
+    useState(archivedRoomsNextCursor);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
@@ -281,23 +287,26 @@ export function OrganizationChatList({
   });
   useChatUnreadDocumentTitle(unreadRoomCount);
 
-  useEffect(() => {
-    setRoomRows((current) =>
-      applyRoomReadOverlays(upsertFirstPageRooms(rooms, current)),
-    );
-    // After any load-more, poll/RSC must not revive first-page nextCursor
-    // (would re-show Load more after history exhausted).
-    setActiveNextCursor((prev) =>
-      hasAppendedActiveRef.current ? prev : roomsNextCursor,
-    );
-  }, [rooms, roomsNextCursor]);
-
-  useEffect(() => {
-    setArchivedRows((current) => upsertFirstPageRooms(archivedRooms, current));
-    setArchivedNextCursor((prev) =>
-      hasAppendedArchivedRef.current ? prev : archivedRoomsNextCursor,
-    );
-  }, [archivedRooms, archivedRoomsNextCursor]);
+  // Adjust local list when RSC props change (no Effect — keep load-more history).
+  if (rooms !== prevRooms || roomsNextCursor !== prevRoomsNextCursor) {
+    setPrevRooms(rooms);
+    setPrevRoomsNextCursor(roomsNextCursor);
+    setRoomRows(applyRoomReadOverlays(upsertFirstPageRooms(rooms, roomRows)));
+    if (!hasAppendedActiveRef.current) {
+      setActiveNextCursor(roomsNextCursor);
+    }
+  }
+  if (
+    archivedRooms !== prevArchivedRooms ||
+    archivedRoomsNextCursor !== prevArchivedRoomsNextCursor
+  ) {
+    setPrevArchivedRooms(archivedRooms);
+    setPrevArchivedRoomsNextCursor(archivedRoomsNextCursor);
+    setArchivedRows(upsertFirstPageRooms(archivedRooms, archivedRows));
+    if (!hasAppendedArchivedRef.current) {
+      setArchivedNextCursor(archivedRoomsNextCursor);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;

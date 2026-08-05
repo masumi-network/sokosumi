@@ -9,7 +9,11 @@ import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-ven
 import { getEnvPublicConfig } from "@/config/env.public";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-import { chatRoomService, userService } from "@/lib/services";
+import {
+  type ChatRoomsPage,
+  chatRoomService,
+  userService,
+} from "@/lib/services";
 import {
   resolvePlanName,
   resolvePlanSecondaryLabel,
@@ -28,6 +32,11 @@ interface PrivateCachedAppSidebarProps {
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
 }
+
+const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
+  rooms: [],
+  nextCursor: null,
+};
 
 /**
  * Session-aware sidebar chrome for Instant Navigations.
@@ -58,16 +67,12 @@ export default async function PrivateCachedAppSidebar({
     .catch(() => []);
   // Personal coworker directs exist with no active org; Core returns those when
   // organization context is null. Named channels still need an org (empty list then).
-  const emptyRoomsPage = {
-    rooms: [] as Awaited<ReturnType<typeof chatRoomService.listRooms>>["rooms"],
-    nextCursor: null as string | null,
-  };
   const chatRoomsPromise = chatRoomService
     .listRooms()
-    .catch(() => emptyRoomsPage);
+    .catch(() => EMPTY_ROOMS_PAGE);
   const archivedChatRoomsPromise = activeOrganizationId
-    ? chatRoomService.listArchivedRooms().catch(() => emptyRoomsPage)
-    : Promise.resolve(emptyRoomsPage);
+    ? chatRoomService.listArchivedRooms().catch(() => EMPTY_ROOMS_PAGE)
+    : Promise.resolve(EMPTY_ROOMS_PAGE);
   const activeOrganizationPromise = userService.getActiveOrganization();
   const creditsPromise = getCachedMyCredits();
 

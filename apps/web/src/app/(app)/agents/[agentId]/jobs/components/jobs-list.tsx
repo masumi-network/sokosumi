@@ -26,21 +26,18 @@ interface JobStatusUpdateData {
   jobStatusSettled: boolean;
 }
 
+interface JobStatusPatch {
+  status: SokosumiJobStatus;
+  jobStatusSettled: boolean;
+  completedAt?: Date;
+}
+
 interface JobsListProps {
   jobs: JobSummary[];
   jobsNextCursor: string | null;
   userId: string;
   agentId: string;
   selectedJobId?: string;
-}
-
-function appendUniqueJobs(
-  existing: JobSummary[],
-  incoming: JobSummary[],
-): JobSummary[] {
-  const existingIds = new Set(existing.map((job) => job.id));
-  const unique = incoming.filter((job) => !existingIds.has(job.id));
-  return [...existing, ...unique];
 }
 
 function JobsStatusRealtimeListener({
@@ -118,27 +115,44 @@ export function JobsList({
   const { locale } = useLocalizedDateTime();
   const routeParams = useParams<{ jobId?: string }>();
   const router = useRouter();
-  const [localJobs, setLocalJobs] = useState<JobSummary[]>(jobs);
+  /** Older pages loaded via Load more; first page stays the `jobs` prop (R7). */
+  const [appendedJobs, setAppendedJobs] = useState<JobSummary[]>([]);
+  /** `undefined` = still using SSR/prop cursor; after load-more, own the cursor. */
+  const [loadMoreCursor, setLoadMoreCursor] = useState<
+    string | null | undefined
+  >(undefined);
+  const [statusPatches, setStatusPatches] = useState(
+    () => new Map<string, JobStatusPatch>(),
+  );
   const [filteredJobs, setFilteredJobs] = useState<JobSummary[]>(jobs);
-  const [nextCursor, setNextCursor] = useState(jobsNextCursor);
   const [isLoadingMore, startLoadMoreTransition] = useTransition();
-  const hasAppendedViaLoadMoreRef = useRef(false);
   const activeJobId = selectedJobId ?? routeParams.jobId;
 
-  // Sync when jobs prop changes; keep load-more history (R7).
-  useEffect(() => {
-    setLocalJobs((prev) => {
-      if (!hasAppendedViaLoadMoreRef.current) {
-        return jobs;
+  const nextCursor =
+    loadMoreCursor === undefined ? jobsNextCursor : loadMoreCursor;
+
+  const localJobs = useMemo(() => {
+    const firstPageIds = new Set(jobs.map((job) => job.id));
+    const older = appendedJobs.filter((job) => !firstPageIds.has(job.id));
+    const merged = [...jobs, ...older];
+    if (statusPatches.size === 0) {
+      return merged;
+    }
+    return merged.map((job) => {
+      const patch = statusPatches.get(job.id);
+      if (!patch) {
+        return job;
       }
-      const firstPageIds = new Set(jobs.map((job) => job.id));
-      const older = prev.filter((job) => !firstPageIds.has(job.id));
-      return [...jobs, ...older];
+      return {
+        ...job,
+        status: patch.status,
+        jobStatusSettled: patch.jobStatusSettled,
+        ...(patch.completedAt !== undefined && job.completedAt === null
+          ? { completedAt: patch.completedAt }
+          : {}),
+      };
     });
-    setNextCursor((prev) =>
-      hasAppendedViaLoadMoreRef.current ? prev : jobsNextCursor,
-    );
-  }, [jobs, jobsNextCursor]);
+  }, [jobs, appendedJobs, statusPatches]);
 
   const dayGroups = useMemo(
     () => buildJobDayGroups(filteredJobs, locale),
@@ -152,37 +166,27 @@ export function JobsList({
       return;
     }
 
-    const latestByJobId = new Map<string, JobStatusUpdateData>();
-    for (const update of updates) {
-      latestByJobId.set(update.jobId, update);
-    }
-
     const completedAtFallback = new Date();
-    const updater = (prev: JobSummary[]) =>
-      prev.map((job) => {
-        const update = latestByJobId.get(job.id);
-        if (!update) {
-          return job;
-        }
-
-        const statusUnchanged = job.status === update.jobStatus;
+    setStatusPatches((prev) => {
+      const next = new Map(prev);
+      for (const update of updates) {
+        const existing = next.get(update.jobId);
+        const statusUnchanged = existing?.status === update.jobStatus;
         const settledUnchanged =
-          job.jobStatusSettled === update.jobStatusSettled;
-        if (statusUnchanged && settledUnchanged) {
-          return job;
+          existing?.jobStatusSettled === update.jobStatusSettled;
+        if (existing && statusUnchanged && settledUnchanged) {
+          continue;
         }
-
-        return {
-          ...job,
+        next.set(update.jobId, {
           status: update.jobStatus,
           jobStatusSettled: update.jobStatusSettled,
-          ...(update.jobStatus === SokosumiJobStatus.COMPLETED &&
-            job.completedAt === null && { completedAt: completedAtFallback }),
-        };
-      });
-
-    setLocalJobs(updater);
-    setFilteredJobs(updater);
+          ...(update.jobStatus === SokosumiJobStatus.COMPLETED
+            ? { completedAt: existing?.completedAt ?? completedAtFallback }
+            : {}),
+        });
+      }
+      return next;
+    });
   }
 
   function handleJobClick(job: JobSummary) {
@@ -199,9 +203,15 @@ export function JobsList({
     startLoadMoreTransition(async () => {
       try {
         const result = await loadMoreOwnedAgentJobs(agentId, cursor);
-        hasAppendedViaLoadMoreRef.current = true;
-        setLocalJobs((prev) => appendUniqueJobs(prev, result.jobs));
-        setNextCursor(result.nextCursor);
+        setAppendedJobs((prev) => {
+          const existingIds = new Set([
+            ...jobs.map((job) => job.id),
+            ...prev.map((job) => job.id),
+          ]);
+          const unique = result.jobs.filter((job) => !existingIds.has(job.id));
+          return [...prev, ...unique];
+        });
+        setLoadMoreCursor(result.nextCursor);
       } catch {
         toast.error(t("loadMoreError"));
       }
