@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { notificationFeedKindWhere } from "@/helpers/notification-feed";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -23,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "patch",
     path: "/read-all",
     description:
-      "Mark all notifications as read for the effective user (session user, or orchestrator/coworker with context headers)",
+      "Mark all in-app notification-center items as read for the effective user (session user, or orchestrator/coworker with context headers). CHAT kind is excluded so room attention stays until the room is read.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(
@@ -51,6 +52,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: {
         userId: userContext.userId,
         isRead: false,
+        kind: notificationFeedKindWhere(),
       },
       data: {
         isRead: true,

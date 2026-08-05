@@ -32,6 +32,29 @@ export function forgetRoomRead(roomId: string): void {
   overlaysByRoomId.delete(roomId);
 }
 
+/**
+ * Persist full-clear overlay only when dual-baseline attention is actually
+ * clear. Partial room mark-read (top-level only; unlooked threads remain)
+ * must forget any sticky overlay so the real unreadCount stays visible.
+ */
+export function applyRoomReadResultToOverlay(room: {
+  id: string;
+  updatedAt: string | Date;
+  unreadCount: number;
+  unreadMentionCount: number;
+  markedUnread?: boolean;
+}): void {
+  if (
+    room.unreadCount === 0 &&
+    room.unreadMentionCount === 0 &&
+    room.markedUnread !== true
+  ) {
+    rememberRoomRead(room);
+    return;
+  }
+  forgetRoomRead(room.id);
+}
+
 export function clearRoomReadOverlays(): void {
   overlaysByRoomId.clear();
 }

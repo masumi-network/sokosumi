@@ -90,6 +90,7 @@ function unreadThreadItem(
 interface RenderPanelOptions {
   attentionRefreshToken?: number;
   onOpenThread?: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
+  onAllThreadsLooked?: () => void;
 }
 
 function renderPanel(options: RenderPanelOptions = {}) {
@@ -99,6 +100,7 @@ function renderPanel(options: RenderPanelOptions = {}) {
       labels={labels}
       attentionRefreshToken={options.attentionRefreshToken ?? 0}
       onOpenThread={options.onOpenThread ?? vi.fn().mockResolvedValue(true)}
+      onAllThreadsLooked={options.onAllThreadsLooked}
     />,
   );
 }
@@ -198,7 +200,8 @@ describe("UnreadThreadsPanel", () => {
   });
 
   it("marks all unread threads as read and clears badge", async () => {
-    renderPanel();
+    const onAllThreadsLooked = vi.fn();
+    renderPanel({ onAllThreadsLooked });
 
     expect(
       await screen.findByTestId("unread-threads-badge"),
@@ -218,6 +221,7 @@ describe("UnreadThreadsPanel", () => {
     expect(
       screen.queryByTestId("unread-threads-mark-all-read"),
     ).not.toBeInTheDocument();
+    expect(onAllThreadsLooked).toHaveBeenCalledTimes(1);
   });
 
   it("ignores mark-all result after the panel is closed", async () => {
