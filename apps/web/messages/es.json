@@ -4731,19 +4731,19 @@
         "closeMenu": "Cerrar menú de creación",
         "newChat": {
           "title": "Nuevo chat",
-          "subtitle": "Inicia una conversación con un coworker"
+          "subtitle": "Inicia un chat con un coworker"
         },
         "newTask": {
           "title": "Nueva tarea",
-          "subtitle": "Crea una tarea en el tablero"
+          "subtitle": "Crea una tarea de larga duración"
         },
         "createChannel": {
           "title": "Crear canal",
-          "subtitle": "Inicia un canal compartido"
+          "subtitle": "Inicia un nuevo canal de stream"
         },
         "newDm": {
-          "title": "Nuevo DM",
-          "subtitle": "Escribe a alguien directamente"
+          "title": "Nuevo mensaje directo",
+          "subtitle": "Escribe a una o más personas"
         }
       },
       "Actions": {

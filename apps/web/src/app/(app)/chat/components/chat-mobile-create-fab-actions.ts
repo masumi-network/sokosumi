@@ -23,7 +23,7 @@ const CHATS_ACTIONS: readonly MobileCreateFabAction[] = [
   { id: "newDm", href: "/chat?dm=new" },
 ] as const;
 
-/** Create actions for the mobile FAB speed-dial (existing routes only). */
+/** Create actions for the mobile FAB overlay menu (existing routes only). */
 export function mobileCreateFabActions(
   surface: MobileCreateFabSurface,
 ): readonly MobileCreateFabAction[] {

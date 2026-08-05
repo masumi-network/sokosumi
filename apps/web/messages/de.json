@@ -4731,19 +4731,19 @@
         "closeMenu": "Erstellen-Menü schließen",
         "newChat": {
           "title": "Neuer Chat",
-          "subtitle": "Gespräch mit einem Coworker starten"
+          "subtitle": "Chat mit einem Coworker starten"
         },
         "newTask": {
           "title": "Neue Aufgabe",
-          "subtitle": "Aufgabe im Board erstellen"
+          "subtitle": "Neue langfristige Aufgabe erstellen"
         },
         "createChannel": {
           "title": "Kanal erstellen",
-          "subtitle": "Gemeinsamen Kanal starten"
+          "subtitle": "Neuen Stream-Kanal starten"
         },
         "newDm": {
-          "title": "Neue DM",
-          "subtitle": "Jemandem direkt schreiben"
+          "title": "Neue Direktnachricht",
+          "subtitle": "Einer oder mehreren Personen schreiben"
         }
       },
       "Actions": {

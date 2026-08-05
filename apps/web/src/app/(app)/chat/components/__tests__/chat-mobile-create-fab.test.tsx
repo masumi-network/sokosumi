@@ -18,42 +18,73 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => mockIsApple,
 }));
 
-vi.mock("motion/react", () => ({
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-  motion: {
-    div: ({
-      children,
-      className,
-    }: {
-      children?: React.ReactNode;
-      className?: string;
-    }) => <div className={className}>{children}</div>,
-    button: ({
-      children,
-      className,
-      onClick,
-      ...props
-    }: {
-      children?: React.ReactNode;
-      className?: string;
-      onClick?: () => void;
-    }) => (
-      <button type="button" className={className} onClick={onClick} {...props}>
-        {children}
-      </button>
+vi.mock("motion/react", () => {
+  function stripMotionProps(props: Record<string, unknown>) {
+    const {
+      initial: _initial,
+      animate: _animate,
+      exit: _exit,
+      transition: _transition,
+      ...rest
+    } = props;
+    return rest;
+  }
+
+  return {
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => (
+      <>{children}</>
     ),
-    span: ({
-      children,
-      className,
-    }: {
-      children?: React.ReactNode;
-      className?: string;
-    }) => <span className={className}>{children}</span>,
-  },
-  useReducedMotion: () => true,
-}));
+    motion: {
+      div: ({
+        children,
+        className,
+        ...props
+      }: {
+        children?: React.ReactNode;
+        className?: string;
+        [key: string]: unknown;
+      }) => (
+        <div className={className} {...stripMotionProps(props)}>
+          {children}
+        </div>
+      ),
+      button: ({
+        children,
+        className,
+        onClick,
+        ...props
+      }: {
+        children?: React.ReactNode;
+        className?: string;
+        onClick?: () => void;
+        [key: string]: unknown;
+      }) => (
+        <button
+          type="button"
+          className={className}
+          onClick={onClick}
+          {...stripMotionProps(props)}
+        >
+          {children}
+        </button>
+      ),
+      span: ({
+        children,
+        className,
+        ...props
+      }: {
+        children?: React.ReactNode;
+        className?: string;
+        [key: string]: unknown;
+      }) => (
+        <span className={className} {...stripMotionProps(props)}>
+          {children}
+        </span>
+      ),
+    },
+    useReducedMotion: () => true,
+  };
+});
 
 vi.mock("next/link", () => ({
   default: ({
@@ -81,24 +112,26 @@ describe("ChatMobileCreateFab", () => {
     mockIsApple = false;
   });
 
-  it("shows on home and opens home actions", () => {
-    render(<ChatMobileCreateFab />);
+  it("shows on home and opens overlay list menu with home actions", () => {
+    const { container } = render(<ChatMobileCreateFab />);
 
     fireEvent.click(screen.getByRole("button", { name: "openMenu" }));
 
     expect(
-      screen.getByRole("link", { name: /newChat\.title/i }),
+      container.querySelector("[data-mobile-create-fab-menu]"),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("menuitem", { name: /newChat\.title/i }),
     ).toHaveAttribute("href", "/chat?welcome=1");
     expect(
-      screen.getByRole("link", { name: /newTask\.title/i }),
+      screen.getByRole("menuitem", { name: /newTask\.title/i }),
     ).toHaveAttribute("href", "/tasks?create=true");
     expect(
-      screen.getByRole("link", { name: /createChannel\.title/i }),
+      screen.getByRole("menuitem", { name: /createChannel\.title/i }),
     ).toHaveAttribute("href", "/chat?create=channel");
-    expect(screen.getByRole("link", { name: /newDm\.title/i })).toHaveAttribute(
-      "href",
-      "/chat?dm=new",
-    );
+    expect(
+      screen.getByRole("menuitem", { name: /newDm\.title/i }),
+    ).toHaveAttribute("href", "/chat?dm=new");
   });
 
   it("shows chats actions without new chat or new task", () => {
@@ -107,12 +140,18 @@ describe("ChatMobileCreateFab", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "openMenu" }));
 
-    expect(screen.queryByRole("link", { name: /newChat\.title/i })).toBeNull();
-    expect(screen.queryByRole("link", { name: /newTask\.title/i })).toBeNull();
     expect(
-      screen.getByRole("link", { name: /createChannel\.title/i }),
+      screen.queryByRole("menuitem", { name: /newChat\.title/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: /newTask\.title/i }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("menuitem", { name: /createChannel\.title/i }),
     ).toBeTruthy();
-    expect(screen.getByRole("link", { name: /newDm\.title/i })).toBeTruthy();
+    expect(
+      screen.getByRole("menuitem", { name: /newDm\.title/i }),
+    ).toBeTruthy();
   });
 
   it("hides on welcome compose and draft query surfaces", () => {
@@ -142,5 +181,27 @@ describe("ChatMobileCreateFab", () => {
     expect(
       container.querySelector("[data-mobile-create-fab]")?.className,
     ).toContain("md:hidden");
+  });
+
+  it("anchors the open menu over the FAB footprint", () => {
+    render(<ChatMobileCreateFab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "openMenu" }));
+
+    expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
+    expect(screen.getByRole("menu")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "closeMenu" }));
+    expect(screen.getByRole("button", { name: "openMenu" })).toBeTruthy();
+  });
+
+  it("uses glassy surface classes on Apple", () => {
+    mockIsApple = true;
+    const { container } = render(<ChatMobileCreateFab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "openMenu" }));
+
+    const menu = container.querySelector("[data-mobile-create-fab-menu]");
+    expect(menu?.className).toContain("backdrop-blur-2xl");
+    expect(menu?.className).toContain("bg-background/45");
   });
 });

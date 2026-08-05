@@ -3,8 +3,8 @@
 import {
   Hash,
   ListTodo,
-  MessageCircle,
   MessageSquarePlus,
+  MessagesSquare,
   Plus,
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -31,12 +31,12 @@ const ACTION_ICONS: Record<
   newChat: MessageSquarePlus,
   newTask: ListTodo,
   createChannel: Hash,
-  newDm: MessageCircle,
+  newDm: MessagesSquare,
 };
 
 /**
- * Mobile speed-dial create FAB for Home and Chats (md:hidden).
- * Mounted outside MobileHomeHub Sheet; sits above the bottom tab bar.
+ * Mobile create FAB for Home and Chats (md:hidden).
+ * Open state is an overlay list menu anchored over the `+` (same footprint).
  */
 export function ChatMobileCreateFab(): React.ReactElement | null {
   const pathname = usePathname();
@@ -69,7 +69,7 @@ export function ChatMobileCreateFab(): React.ReactElement | null {
   return (
     <div
       className={cn(
-        "pointer-events-none fixed right-4 z-50 flex flex-col items-end md:hidden",
+        "pointer-events-none fixed inset-x-4 z-50 md:hidden",
         chatMobileCreateFabBottom(isApple),
       )}
       data-mobile-create-fab
@@ -81,7 +81,7 @@ export function ChatMobileCreateFab(): React.ReactElement | null {
             type="button"
             aria-label={t("closeMenu")}
             className={cn(
-              "pointer-events-auto fixed inset-x-0 top-0 z-40 bg-background/40 md:hidden",
+              "pointer-events-auto fixed inset-x-0 top-0 z-40 bg-background/50 md:hidden",
               chatMobileCreateFabScrimBottom(isApple),
             )}
             initial={reduceMotion ? false : { opacity: 0 }}
@@ -93,76 +93,84 @@ export function ChatMobileCreateFab(): React.ReactElement | null {
         ) : null}
       </AnimatePresence>
 
-      <div className="relative z-50 flex flex-col items-end gap-3">
+      {/*
+        Footprint stays FAB-sized. Open menu is absolute bottom-anchored so it
+        grows upward over the `+` instead of stacking extra vertical space.
+      */}
+      <div className="relative z-50 flex h-14 justify-end">
         <AnimatePresence>
-          {open
-            ? actions.map((action, index) => {
-                const Icon = ACTION_ICONS[action.id];
-                const delay = reduceMotion
-                  ? 0
-                  : (actions.length - 1 - index) * 0.04;
-                return (
-                  <motion.div
-                    key={action.id}
-                    initial={
-                      reduceMotion ? false : { opacity: 0, y: 12, scale: 0.92 }
-                    }
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={
-                      reduceMotion
-                        ? undefined
-                        : { opacity: 0, y: 8, scale: 0.92 }
-                    }
-                    transition={
-                      reduceMotion
-                        ? { duration: 0 }
-                        : { duration: 0.18, delay, ease: "easeOut" }
-                    }
-                    className="pointer-events-auto"
-                  >
-                    <Link
-                      href={action.href}
-                      onClick={handleClose}
-                      className="bg-card text-card-foreground border-border flex max-w-[min(18rem,calc(100vw-5.5rem))] items-center gap-3 rounded-full border py-2 pr-4 pl-2 shadow-md"
-                    >
-                      <span className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-full">
-                        <Icon className="size-5" aria-hidden />
-                      </span>
-                      <span className="min-w-0 text-left">
-                        <span className="block truncate text-sm font-medium">
-                          {t(`${action.id}.title`)}
+          {open ? (
+            <motion.div
+              key="menu"
+              role="menu"
+              aria-label={t("openMenu")}
+              data-mobile-create-fab-menu
+              initial={
+                reduceMotion ? false : { opacity: 0, y: 12, scale: 0.98 }
+              }
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={
+                reduceMotion ? undefined : { opacity: 0, y: 8, scale: 0.98 }
+              }
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : { duration: 0.2, ease: "easeOut" }
+              }
+              className={cn(
+                "pointer-events-auto text-card-foreground absolute inset-x-0 bottom-0 rounded-3xl p-2",
+                isApple
+                  ? "border-border/40 bg-background/45 shadow-lg shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:bg-background/35 dark:shadow-black/40 border"
+                  : "border-border bg-card shadow-lg border",
+              )}
+            >
+              <ul className="flex flex-col">
+                {actions.map((action) => {
+                  const Icon = ACTION_ICONS[action.id];
+                  return (
+                    <li key={action.id} role="none">
+                      <Link
+                        role="menuitem"
+                        href={action.href}
+                        onClick={handleClose}
+                        className="hover:bg-muted/70 flex items-start gap-3 rounded-2xl px-3 py-3 transition-colors"
+                      >
+                        <span className="text-foreground mt-0.5 flex size-6 shrink-0 items-center justify-center">
+                          <Icon
+                            className="size-5"
+                            aria-hidden
+                            strokeWidth={1.75}
+                          />
                         </span>
-                        <span className="text-muted-foreground block truncate text-xs">
-                          {t(`${action.id}.subtitle`)}
+                        <span className="min-w-0 flex-1 text-left">
+                          <span className="text-foreground block text-base font-semibold tracking-tight">
+                            {t(`${action.id}.title`)}
+                          </span>
+                          <span className="text-muted-foreground mt-0.5 block text-sm leading-snug">
+                            {t(`${action.id}.subtitle`)}
+                          </span>
                         </span>
-                      </span>
-                    </Link>
-                  </motion.div>
-                );
-              })
-            : null}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </motion.div>
+          ) : null}
         </AnimatePresence>
 
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-label={open ? t("closeMenu") : t("openMenu")}
-          onClick={handleToggle}
-          className={cn(
-            "pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg transition-colors",
-            open
-              ? "bg-secondary text-secondary-foreground"
-              : "bg-primary text-primary-foreground",
-          )}
-        >
-          <motion.span
-            animate={reduceMotion ? undefined : { rotate: open ? 45 : 0 }}
-            transition={reduceMotion ? { duration: 0 } : { duration: 0.15 }}
-            className="flex"
+        {!open ? (
+          <button
+            type="button"
+            aria-expanded={false}
+            aria-haspopup="menu"
+            aria-label={t("openMenu")}
+            onClick={handleToggle}
+            className="bg-primary text-primary-foreground pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg"
           >
             <Plus className="size-6" aria-hidden />
-          </motion.span>
-        </button>
+          </button>
+        ) : null}
       </div>
     </div>
   );
