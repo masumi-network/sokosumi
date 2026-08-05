@@ -15,21 +15,19 @@ export default function UserAvatarContent({
   imageAlt,
 }: UserAvatarContentProps) {
   return (
-    <>
-      <Avatar className={cn("size-8 md:size-10", className)}>
-        {imageUrl && (
-          <AvatarImage
-            src={imageUrl}
-            alt={imageAlt ?? "User avatar"}
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
-        )}
-        <AvatarFallback className={className}>
-          <UserIcon className="text-muted-foreground" />
-        </AvatarFallback>
-      </Avatar>
-    </>
+    <Avatar className={cn("size-8", className)}>
+      {imageUrl && (
+        <AvatarImage
+          src={imageUrl}
+          alt={imageAlt ?? "User avatar"}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      )}
+      <AvatarFallback className={className}>
+        <UserIcon className="text-muted-foreground size-[60%]" aria-hidden />
+      </AvatarFallback>
+    </Avatar>
   );
 }
