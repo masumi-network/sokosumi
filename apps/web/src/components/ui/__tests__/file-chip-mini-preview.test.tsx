@@ -112,14 +112,14 @@ describe("FileChipMiniPreviewFrame", () => {
     const imageButton = screen.getByRole("button", {
       name: "View image photo.png",
     });
-    expect(imageButton).toHaveClass("max-w-sm");
+    expect(imageButton).toHaveClass("max-w-full");
     expect(imageButton).toHaveClass("max-h-80");
     expect(imageButton).not.toHaveClass("size-20");
     expect(imageButton).not.toHaveClass("size-16");
 
     const previewImage = screen.getByRole("img", { name: "photo.png" });
     expect(previewImage).toHaveClass("object-contain");
-    expect(previewImage).toHaveClass("max-w-sm");
+    expect(previewImage).toHaveClass("max-w-full");
     expect(previewImage).toHaveClass("max-h-80");
 
     fireEvent.click(imageButton);
