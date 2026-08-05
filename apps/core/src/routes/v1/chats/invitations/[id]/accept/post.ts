@@ -146,44 +146,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw badRequest("Already a member of this room.");
         }
 
-        if (
-          row.status === "accepted" &&
-          row.acceptedByUserId === userContext.userId
-        ) {
-          // Membership missing after a prior accept — re-create guest row.
-          await tx.chatRoomUserMember.create({
-            data: {
-              roomId: room.id,
-              userId: userContext.userId,
-              access: "guest",
-            },
-          });
-          await tx.chatRoomReadState.createMany({
-            data: [{ roomId: room.id, userId: userContext.userId }],
-            skipDuplicates: true,
-          });
-          return {
-            invitation: mapChatRoomInvitation({
-              id: row.id,
-              roomId: room.id,
-              roomName: room.name ?? "",
-              organizationId: room.organizationId,
-              organizationName: room.organization?.name ?? "",
-              email: row.email,
-              status: "accepted",
-              inviter: {
-                id: row.inviter.id,
-                name: row.inviter.name,
-              },
-              expiresAt: row.expiresAt,
-              createdAt: row.createdAt,
-            }),
-            statusMessages: [] as Awaited<
-              ReturnType<typeof recordChannelMembershipStatus>
-            >,
-          };
-        }
-
+        // Leave / host-remove after accept does not revive membership via the
+        // same invitation. Host must send a new invite.
         if (row.status !== "pending") {
           throw badRequest("Invitation is no longer pending.");
         }
@@ -221,10 +185,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
 
-        await tx.chatRoomUserMember.create({
-          data: {
+        // Upsert so concurrent double-accept on the unique (roomId, userId)
+        // does not 500; create path is the normal case after the null check.
+        await tx.chatRoomUserMember.upsert({
+          where: {
+            roomId_userId: {
+              roomId: room.id,
+              userId: userContext.userId,
+            },
+          },
+          create: {
             roomId: room.id,
             userId: userContext.userId,
+            access: "guest",
+          },
+          update: {
             access: "guest",
           },
         });
