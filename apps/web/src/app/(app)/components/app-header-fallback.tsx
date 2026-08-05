@@ -1,6 +1,10 @@
-import { cn } from "@/lib/utils";
+import { Suspense } from "react";
 
-import CustomTrigger from "./sidebar/components/custom-trigger";
+import { HeaderChrome } from "./header/header-chrome.client";
+import {
+  HeaderLeadingBrandFallback,
+  HeaderLeadingControl,
+} from "./header/header-leading-control.client";
 
 interface AppHeaderFallbackProps {
   className?: string;
@@ -8,14 +12,11 @@ interface AppHeaderFallbackProps {
 
 export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
   return (
-    <header
-      className={cn(
-        "border-grid bg-sidebar fixed top-0 z-50 flex w-full items-center justify-between gap-2 border-b md:sticky md:items-center md:pl-6",
-        className,
-      )}
-    >
+    <HeaderChrome className={className}>
       <div className="flex size-8 shrink-0 items-center justify-center md:hidden">
-        <CustomTrigger when="invisible" />
+        <Suspense fallback={<HeaderLeadingBrandFallback />}>
+          <HeaderLeadingControl />
+        </Suspense>
       </div>
 
       <div className="hidden min-w-0 flex-1 flex-row gap-2 sm:flex">
@@ -31,6 +32,6 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
           <div className="bg-muted size-8 animate-pulse rounded-full" />
         </div>
       </div>
-    </header>
+    </HeaderChrome>
   );
 }

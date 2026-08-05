@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
@@ -20,6 +21,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   getJumboEmojiCount,
   jumboEmojiClassName,
@@ -87,6 +89,34 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+/**
+ * Local wall-clock time for a message. Empty until mount so SSR (Node locale/TZ)
+ * matches hydrate; then fills with `formatMessageTime` (SOKOSUMI-A).
+ */
+function MessageWallClockTime({
+  value,
+  className,
+  title,
+}: {
+  value: Date | string;
+  className?: string;
+  title?: string;
+}) {
+  const localCalendarReady = useClientLocalCalendarReady();
+  const dateTime = new Date(value).toISOString();
+  const label = localCalendarReady ? formatMessageTime(value) : null;
+
+  return (
+    <time
+      dateTime={dateTime}
+      className={className}
+      title={title ?? label ?? undefined}
+    >
+      {label}
+    </time>
+  );
+}
 
 function isLargeSoloImageFilesSegment(
   segment: RoomMessageFilesSegment,
@@ -303,12 +333,12 @@ function MessageUnfurlCard({ unfurl }: { unfurl: ChatRoomMessageUnfurl }) {
       href={unfurl.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 inline-block w-fit max-w-sm overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
       aria-label={t("openLink", { title: unfurl.title })}
       data-testid="room-message-unfurl"
     >
       {siteLabel ? (
-        <div className="text-muted-foreground truncate text-[11px] font-medium tracking-wide uppercase">
+        <div className="text-muted-foreground truncate text-[0.6875rem] font-medium tracking-wide uppercase">
           {siteLabel}
         </div>
       ) : null}
@@ -363,7 +393,7 @@ function ChannelMarkdownSegment({
   }
 
   return (
-    <Markdown className="prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
+    <Markdown className="text-base! md:text-sm! prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
       {formatRoomMarkdownMentions({
         content,
         coworkersById,
@@ -424,7 +454,7 @@ function ChannelMessageText({
             return (
               <div
                 key={`files-${i}-${headLink.index}`}
-                className="my-2 flex flex-wrap gap-2"
+                className="my-2 flex min-w-0 max-w-full flex-wrap gap-2"
                 data-testid="room-message-attachment-row"
               >
                 {segment.links.map((link) => (
@@ -479,7 +509,7 @@ function ChannelMessageBody({
         data-testid="room-message-body"
         data-jumbo-emoji={String(jumboEmojiCount)}
         className={cn(
-          "wrap-break-word whitespace-pre-wrap",
+          "min-w-0 max-w-full wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
           jumboEmojiClassName(jumboEmojiCount),
         )}
       >
@@ -489,11 +519,12 @@ function ChannelMessageBody({
   }
 
   return (
-    <div>
+    <div className="min-w-0 max-w-full wrap-anywhere [word-break:break-word]">
       <div
         ref={contentRef}
         data-testid="room-message-body"
         className={cn(
+          "min-w-0 max-w-full",
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
         )}
       >
@@ -1074,54 +1105,77 @@ function MessageEditComposer({
   value: string;
   originalContent: string;
   onChange: (value: string) => void;
-  onSave: () => void;
+  onSave: (content: string) => void;
   onCancel: () => void;
   isSaving: boolean;
 }) {
   const t = useTranslations("App.Channels");
-  const trimmed = value.trim();
-  const canSave =
-    trimmed.length > 0 && trimmed !== originalContent.trim() && !isSaving;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // autoFocus leaves the caret at 0; place it at the end so editing continues
+  // from the natural end of the message (Slack/Discord-style).
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.focus();
+    const end = el.value.length;
+    el.setSelectionRange(end, end);
+  }, []);
+
+  // Live DOM via currentTarget: parent draft can lag the last keystroke's
+  // onChange. Enter with no real change (or empty) exits edit mode — no-op
+  // after preventDefault felt like a broken keyboard.
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (!isSaving) onCancel();
+      return;
+    }
+
+    if (event.key !== "Enter") return;
+    // Shift+Enter → newline (default)
+    if (event.shiftKey) return;
+    // Alt+Enter ignored (leave default / no save)
+    if (event.altKey) return;
+
+    event.preventDefault();
+    if (isSaving) return;
+
+    const live = event.currentTarget.value;
+    const liveTrimmed = live.trim();
+    const originalTrimmed = originalContent.trim();
+    if (liveTrimmed.length > 0 && liveTrimmed !== originalTrimmed) {
+      onSave(live);
+      return;
+    }
+    onCancel();
+  }
 
   return (
-    <div className="space-y-2 pt-0.5">
+    <div className="pt-0.5">
       <Textarea
+        ref={textareaRef}
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
         }}
         disabled={isSaving}
         className="min-h-10 max-h-40 resize-none overflow-y-auto field-sizing-content px-3 py-2.5 leading-6"
-        autoFocus
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            if (!isSaving) onCancel();
-            return;
-          }
-          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-            event.preventDefault();
-            if (canSave) onSave();
+        aria-label={t("Edit.composerAria")}
+        onKeyDown={handleKeyDown}
+        onBlur={() => {
+          if (isSaving) return;
+          // Live DOM (same race as Enter): prop can lag a just-typed character.
+          const live = textareaRef.current?.value ?? value;
+          if (live.trim() === originalContent.trim()) {
+            onCancel();
           }
         }}
       />
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" disabled={!canSave} onClick={onSave}>
-          {isSaving ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : null}
-          {t("Edit.save")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={isSaving}
-          onClick={onCancel}
-        >
-          {t("Edit.cancel")}
-        </Button>
-      </div>
     </div>
   );
 }
@@ -1262,7 +1316,8 @@ export function ChatMessageRow({
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
-  onSaveEdit?: () => void;
+  /** Optional content uses the live editor value (avoids stale draft on Enter). */
+  onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
   showThreadButton?: boolean;
   showQuoteButton?: boolean;
@@ -1285,8 +1340,6 @@ export function ChatMessageRow({
     isStreamOverlay &&
     message.sender.type === "coworker" &&
     message.content.trim().length === 0;
-  const formattedTime = formatMessageTime(message.createdAt);
-  const createdAtIso = new Date(message.createdAt).toISOString();
   const canQuote =
     showQuoteButton && Boolean(onQuote) && !isStreamOverlay && !isDeleted;
   const canEdit =
@@ -1328,7 +1381,7 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
+        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"
@@ -1340,14 +1393,10 @@ export function ChatMessageRow({
     >
       {isContinuation ? (
         <div className="flex w-8 shrink-0 justify-center pt-0.5">
-          <time
-            dateTime={createdAtIso}
-            className="text-muted-foreground whitespace-nowrap text-[10px] leading-4 tabular-nums opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-            title={formattedTime}
-            suppressHydrationWarning
-          >
-            {formattedTime}
-          </time>
+          <MessageWallClockTime
+            value={message.createdAt}
+            className="text-muted-foreground whitespace-nowrap text-[0.625rem] leading-4 tabular-nums opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+          />
         </div>
       ) : (
         <ChatParticipantHoverCard
@@ -1371,7 +1420,7 @@ export function ChatMessageRow({
       )}
       <div
         className={cn(
-          "min-w-0 flex-1",
+          "min-w-0 max-w-full flex-1 overflow-x-clip",
           isContinuation ? "space-y-1" : "space-y-1.5",
         )}
       >
@@ -1388,18 +1437,15 @@ export function ChatMessageRow({
               isOpeningDirect={isOpeningDirect}
               isDirectActionBusy={isDirectActionBusy}
             >
-              <span className="truncate text-sm font-semibold">
+              <span className="truncate text-base font-semibold md:text-sm">
                 {sender.name}
               </span>
             </ChatParticipantHoverCard>
             {sender.kind === "coworker" ? <AiCoworkerIcon /> : null}
-            <time
-              dateTime={createdAtIso}
+            <MessageWallClockTime
+              value={message.createdAt}
               className="text-muted-foreground text-xs"
-              suppressHydrationWarning
-            >
-              {formattedTime}
-            </time>
+            />
             {showEdited ? (
               <span className="text-muted-foreground text-xs">
                 {tChannels("Edit.edited")}
@@ -1407,7 +1453,7 @@ export function ChatMessageRow({
             ) : null}
           </div>
         )}
-        <div className="text-foreground wrap-break-word text-sm leading-6">
+        <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
@@ -1434,7 +1480,7 @@ export function ChatMessageRow({
                 />
               ) : isThinking ? (
                 <span
-                  className="reasoning-text-shine text-sm leading-5"
+                  className="reasoning-text-shine text-base leading-5 md:text-sm"
                   role="status"
                   aria-live="polite"
                 >

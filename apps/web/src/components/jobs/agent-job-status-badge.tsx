@@ -24,7 +24,7 @@ export function AgentJobStatusBadge({
     return (
       <span
         className={cn(
-          "text-muted-foreground text-[10px] font-medium tracking-wider uppercase",
+          "text-muted-foreground text-[0.625rem] font-medium tracking-wider uppercase",
           className,
         )}
       >
@@ -39,7 +39,7 @@ export function AgentJobStatusBadge({
         className={cn("size-1.5 shrink-0 rounded-full", dotClass)}
         aria-hidden
       />
-      <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+      <span className="text-muted-foreground text-[0.625rem] font-medium tracking-wider uppercase">
         {label}
       </span>
     </div>

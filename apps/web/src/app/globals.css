@@ -472,6 +472,22 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /*
+   * Apple Dynamic Type (iOS/macOS Safari / PWA): map system body size to root
+   * rem. Inter stays the face via next/font class on <html>; re-declare family
+   * after the `font` shorthand so it is not replaced by the system text face.
+   * Cap (>20px) is applied in DynamicTypeRootCap — do not hardcode px here.
+   */
+  @supports (font: -apple-system-body) {
+    html {
+      font: -apple-system-body;
+      font-family:
+        var(--font-inter), ui-sans-serif, system-ui, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
+    }
+  }
 }
 
 /*

@@ -244,6 +244,36 @@ export function useNotifications() {
   return context;
 }
 
+async function noopAsync(): Promise<void> {}
+
+const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
+  notifications: [],
+  unreadCount: 0,
+  markRead: noopAsync,
+  markAllRead: noopAsync,
+  refetch: noopAsync,
+  isLoading: true,
+  hasFetchError: false,
+};
+
+interface NotificationFallbackProviderProps {
+  children: React.ReactNode;
+}
+
+/**
+ * Passive context for Instant Nav Suspense fallback chrome.
+ * Same shape as NotificationProvider — no REST fetch, no Ably.
+ */
+export function NotificationFallbackProvider({
+  children,
+}: NotificationFallbackProviderProps) {
+  return (
+    <NotificationContext value={NOTIFICATION_FALLBACK_VALUE}>
+      {children}
+    </NotificationContext>
+  );
+}
+
 interface NotificationProviderProps {
   userId: string;
   children: React.ReactNode;

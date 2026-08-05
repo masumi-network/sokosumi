@@ -33,7 +33,7 @@ export function TaskboardVisual({
 
   const taskCard = (
     <div className="bg-background rounded-md border p-2.5 shadow-sm">
-      <p className="text-[11px] font-medium">{taskTitle}</p>
+      <p className="text-[0.6875rem] font-medium">{taskTitle}</p>
       <div className="mt-1.5 flex items-center gap-1.5">
         <div className="relative size-4 overflow-hidden rounded-full">
           <Image
@@ -43,7 +43,7 @@ export function TaskboardVisual({
             className="object-cover"
           />
         </div>
-        <span className="text-muted-foreground text-[10px]">
+        <span className="text-muted-foreground text-[0.625rem]">
           {coworkerName}
         </span>
       </div>
@@ -56,7 +56,7 @@ export function TaskboardVisual({
         <div className="flex-1">
           <div className="mb-2.5 flex items-center gap-1.5">
             <span className="bg-muted-foreground/40 size-1.5 rounded-full" />
-            <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+            <span className="text-muted-foreground text-[0.625rem] font-medium tracking-wider uppercase">
               {todoLabel}
             </span>
           </div>
@@ -78,7 +78,7 @@ export function TaskboardVisual({
         <div className="flex-1">
           <div className="mb-2.5 flex items-center gap-1.5">
             <span className="bg-primary size-1.5 rounded-full" />
-            <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
+            <span className="text-muted-foreground text-[0.625rem] font-medium tracking-wider uppercase">
               {inProgressLabel}
             </span>
           </div>

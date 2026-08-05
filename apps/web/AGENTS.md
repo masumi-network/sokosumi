@@ -317,6 +317,8 @@ Env vars that must be set per environment (web): `STRIPE_SECRET_KEY`, `STRIPE_CR
 - Use semantic colors from `globals.css`
 - Ensure dark/light mode compatibility
 - Use `size-*` utilities instead of `h-* w-*`
+- **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See `.cursor/rules/dynamic-type.mdc` and `apps/web/src/lib/utils/dynamic-type.ts`.
+- **Font sizes**: Never use fixed `px` type in product UI (`text-[10px]`, `font-size: 12px`, `fontSize: 14`). Use Tailwind `text-*` or `rem`/`em` so type scales with root.
 
 ## Development Workflow
 

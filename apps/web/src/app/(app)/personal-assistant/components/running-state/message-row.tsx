@@ -72,7 +72,7 @@ export function MessageRow({
           </div>
           <time
             dateTime={message.createdAt}
-            className="text-tertiary-foreground px-1 text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+            className="text-tertiary-foreground px-1 text-[0.625rem] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
           >
             {timestamp}
           </time>
@@ -186,13 +186,13 @@ export function MessageRow({
             />
           ) : null}
           {durationMs !== undefined && !isStreaming ? (
-            <span className="text-tertiary-foreground text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100">
+            <span className="text-tertiary-foreground text-[0.625rem] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100">
               {t("answeredIn", { seconds: Math.round(durationMs / 1000) })}
             </span>
           ) : null}
           <time
             dateTime={message.createdAt}
-            className="text-tertiary-foreground text-[10px] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+            className="text-tertiary-foreground text-[0.625rem] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
           >
             {timestamp}
           </time>
@@ -282,7 +282,7 @@ export function CopyButton({
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="text-muted-foreground hover:text-foreground hover:bg-muted/60 border-border/70 focus-visible:ring-primary/40 inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[11px] font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className="text-muted-foreground hover:text-foreground hover:bg-muted/60 border-border/70 focus-visible:ring-primary/40 inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
       {copied ? (
         <>

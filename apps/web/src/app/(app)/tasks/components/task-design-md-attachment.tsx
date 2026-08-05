@@ -98,7 +98,7 @@ export function TaskDesignMdAttachmentField({
           className="object-cover"
         />
       ) : null}
-      <AvatarFallback className="text-[10px] font-medium">
+      <AvatarFallback className="text-[0.625rem] font-medium">
         {defaultAttachment.owner.name.slice(0, 1).toUpperCase()}
       </AvatarFallback>
     </Avatar>
