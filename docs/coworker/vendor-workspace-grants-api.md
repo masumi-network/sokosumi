@@ -104,6 +104,46 @@ and the task is **not DRAFT**.
 with context headers). Humans (session) or Hermes orchestrator with workspace
 context may create, approve, deny, or revoke.
 
+### Context requires an existing delegation
+
+Supplying `X-Context-User-Id` is not by itself authorization. A coworker key is
+issued to a third-party vendor and the header value is caller-chosen, so
+`coworkerContextMiddleware` attaches context only when the coworker already has
+a relationship with that user (`apps/core/src/middleware/coworker-delegation.ts`):
+
+- a `CoworkerAssignment` for that user, **or**
+- a **GRANTED** vendor grant on that user's personal workspace or on a workspace
+  of an organization they belong to, **or**
+- a task already assigned to that coworker and owned by that user.
+
+Otherwise the request is rejected with **403**. Orchestrator service tokens are
+first-party and exempt. Without this, any vendor key could name any user id and
+be treated as that user on every route that resolves the effective user through
+`requireUserContext` — notifications, history, projects, organization billing
+and members.
+
+A **PENDING** grant deliberately does not count. Reaching any task route with an
+existing relationship causes `requireGrantedWorkspaceAccessOrRequest` to create a
+PENDING grant on that *workspace*; accepting it here would let one member's
+engagement hand the vendor context for every other member of the same
+organization before a human approved anything.
+
+> [!IMPORTANT]
+> **Known follow-up — GRANT_PENDING cold start is currently blocked.**
+>
+> The delegated-create flow below is documented as the cold-start entry point: a
+> vendor creates the first task for a user it has no relationship with, the task
+> parks as `GRANT_PENDING`, and a human then approves. That no longer works.
+> `POST /v1/tasks` calls `requireUserContext` before it requests the grant, so
+> the middleware returns **403** first and the vendor cannot even ask for
+> permission.
+>
+> Restoring it needs two-tier context: attach an *unapproved* context that
+> reaches **only** delegated task create (which parks the task and requests
+> approval), while every other user-scoped route continues to require an
+> approved relationship. Until that lands, a vendor must be given an assignment
+> or an approved grant out of band before it can create anything.
+
 ---
 
 ## Delegated create (`POST /v1/tasks`)

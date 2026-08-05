@@ -32,6 +32,14 @@ import prisma from "@/lib/db/prisma";
  * authorization (task assignee, vendor-grant status, coworker capability)
  * still runs in the route handlers. This only stops a vendor key from
  * addressing users it has no connection to at all.
+ *
+ * KNOWN FOLLOW-UP: this currently blocks the documented GRANT_PENDING cold
+ * start, where a vendor creates the first delegated task for a new user and a
+ * human approves afterwards. `POST /v1/tasks` calls `requireUserContext`
+ * before it requests the grant, so the middleware rejects the request before
+ * the vendor can ask for permission. Restoring it needs two-tier context —
+ * an unapproved context that reaches only delegated task create. See
+ * docs/coworker/vendor-workspace-grants-api.md.
  */
 export async function hasCoworkerUserDelegation(params: {
   coworkerId: string;
