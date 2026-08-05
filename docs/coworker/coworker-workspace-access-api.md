@@ -195,7 +195,17 @@ Optional `capability` query still filters (`tasks`, `chat`, …).
 | --- | --- |
 | New `PENDING` propose | Workspace owner (personal) or org owner/admins — best-effort `NotificationKind.SYSTEM`, message key `notifications.coworkerAccess.pending` |
 | Platform / vendor direct `GRANTED` | No required notification |
-| Accept / deny / revoke | No required Core notification in v1 (UI/settings poll list) |
+| Accept / deny / revoke | No Core notify to `requestedByUserId` in v1 (settings / list API is source of truth) |
+
+### Platform force-revoke
+
+```text
+POST /v1/coworkers/{id}/workspace-access/revoke
+  body: { workspaceId }
+  auth: platform admin only
+```
+
+Force-sets `GRANTED` → `REVOKED` for that pair (ops undo of a pilot grant without workspace owner).
 
 ---
 
@@ -206,7 +216,7 @@ Optional `capability` query still filters (`tasks`, `chat`, …).
 | End user | Pickers show available-for-workspace coworkers only |
 | Workspace owner/admin | Account / org settings: coworker early access list; approve / deny / revoke |
 | Vendor admin | Vendor coworker surface: enable for member workspace; propose foreign; list statuses |
-| Platform admin | Admin coworker detail: direct grant by workspace; global whitelist toggle unchanged |
+| Platform admin | Admin coworker detail: direct grant **and force-revoke** by workspace; global whitelist toggle unchanged |
 
 ---
 

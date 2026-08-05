@@ -13,6 +13,7 @@ import mountPostCoworkerUnarchive from "./[id]/unarchive/post.js";
 import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch.js";
 import mountGetCoworkerWorkspaceAccess from "./[id]/workspace-access/get.js";
 import mountPostCoworkerWorkspaceAccess from "./[id]/workspace-access/post.js";
+import mountPostRevokeCoworkerWorkspaceAccess from "./[id]/workspace-access/revoke/post.js";
 import mountGetCoworkers from "./get.js";
 import mountGetCoworkerMeEvents from "./me/events/get.js";
 import mountGetCoworkerMe from "./me/get.js";
@@ -37,6 +38,7 @@ mountPatchCoworkerById(app);
 mountPatchCoworkerWhitelistById(app);
 mountGetCoworkerWorkspaceAccess(app);
 mountPostCoworkerWorkspaceAccess(app);
+mountPostRevokeCoworkerWorkspaceAccess(app);
 mountPostCoworkerUnarchive(app);
 mountDeleteCoworkerById(app);
 

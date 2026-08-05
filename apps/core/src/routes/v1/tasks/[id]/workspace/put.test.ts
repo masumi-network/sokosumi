@@ -15,6 +15,7 @@ const {
   mapTaskMock,
   prismaTransactionMock,
   requireMutableTaskOwnershipMock,
+  requireTaskAssignableCoworkerMock,
   upsertWorkspaceForContextMock,
   resolveMemberOrganizationByIdMock,
   taskFindFirstMock,
@@ -28,6 +29,7 @@ const {
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireMutableTaskOwnershipMock: vi.fn(),
+  requireTaskAssignableCoworkerMock: vi.fn(),
   upsertWorkspaceForContextMock: vi.fn(),
   resolveMemberOrganizationByIdMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
@@ -39,6 +41,7 @@ const {
 
 vi.mock("@/helpers/access-control", () => ({
   requireMutableTaskOwnership: requireMutableTaskOwnershipMock,
+  requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
 }));
 
 vi.mock("@/helpers/organization", () => ({
@@ -287,6 +290,7 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
     jobFindFirstMock.mockResolvedValue(null);
     jobUpdateManyMock.mockResolvedValue({ count: 0 });
+    requireTaskAssignableCoworkerMock.mockResolvedValue(undefined);
     taskFindUniqueOrThrowMock.mockResolvedValue(createTaskRecord());
     taskLinkFindFirstMock.mockResolvedValue(null);
     taskUpdateMock.mockResolvedValue(createTaskRecord());
@@ -378,6 +382,11 @@ describe("PUT /tasks/{id}/workspace", () => {
         projectId: null,
       },
     });
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
+      "cow_123",
+      "11111111-1111-4111-8111-111111111111",
+      expect.any(Object),
+    );
     expect(taskFindUniqueOrThrowMock).toHaveBeenCalledWith({
       where: { id: "tsk_123" },
       include: expect.objectContaining({
@@ -403,6 +412,42 @@ describe("PUT /tasks/{id}/workspace", () => {
         }),
       }),
     });
+  });
+
+  it("rejects moving a task when assignee is not usable in the target workspace", async () => {
+    taskFindFirstMock.mockResolvedValue(
+      createTaskRecord({
+        assigneeId: "cow_pilot",
+        organizationId: null,
+        workspaceId: "11111111-1111-7111-8111-111111111111",
+        workspace: {
+          organizationId: null,
+        },
+        status: TaskStatus.READY,
+      }),
+    );
+    requireTaskAssignableCoworkerMock.mockRejectedValue(
+      new HTTPException(404, { message: "Coworker not found" }),
+    );
+
+    const app = createApp(null);
+    const response = await app.request("http://localhost/tsk_123/workspace", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        organizationId: "org_target",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
+      "cow_pilot",
+      "11111111-1111-4111-8111-111111111111",
+      expect.any(Object),
+    );
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("moves an organization task back to the personal workspace", async () => {

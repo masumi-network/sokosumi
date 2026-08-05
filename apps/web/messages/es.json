@@ -3463,12 +3463,15 @@
           },
           "EarlyAccess": {
             "title": "Acceso anticipado de coworker",
-            "description": "Concede este coworker a un espacio de trabajo antes de la lista blanca global. Concesión directa — sin aprobación del propietario.",
+            "description": "Concede o revoca por fuerza este coworker en un espacio antes de la lista blanca global. Directo de plataforma — sin aprobación del propietario.",
             "workspaceIdLabel": "ID del espacio de trabajo",
             "workspaceIdPlaceholder": "UUID del espacio de trabajo",
             "submit": "Conceder acceso anticipado",
+            "revoke": "Revocar por fuerza",
             "success": "Acceso anticipado de coworker concedido",
-            "error": "No se pudo conceder el acceso anticipado de coworker"
+            "revokeSuccess": "Acceso anticipado de coworker revocado",
+            "error": "No se pudo conceder el acceso anticipado de coworker",
+            "revokeError": "No se pudo revocar el acceso anticipado de coworker"
           },
           "cancel": "Cancel",
           "validation": {

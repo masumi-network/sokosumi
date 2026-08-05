@@ -219,8 +219,8 @@ Web assignee / chat pickers must use availability, not pure whitelist.
 ### Notifications (v1 minimum)
 
 - `PENDING`: notify workspace owner/admins (reuse vendor-grant notification patterns if cheap)
-- Accept/deny: notify `requestedByUserId` (best-effort)
 - Platform direct `GRANTED`: no required notification
+- **Shipped v1:** no Core notify on accept/deny/revoke to `requestedByUserId` (vendor polls settings / list API). Optional follow-up.
 
 ## Web UX
 

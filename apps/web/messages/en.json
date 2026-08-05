@@ -3455,12 +3455,15 @@
           },
           "EarlyAccess": {
             "title": "Coworker early access",
-            "description": "Grant this coworker to a workspace before global whitelist. Direct grant — no owner approval.",
+            "description": "Grant or force-revoke this coworker for a workspace before global whitelist. Platform direct — no owner approval.",
             "workspaceIdLabel": "Workspace ID",
             "workspaceIdPlaceholder": "Workspace UUID",
             "submit": "Grant early access",
+            "revoke": "Force revoke",
             "success": "Coworker early access granted",
-            "error": "Failed to grant coworker early access"
+            "revokeSuccess": "Coworker early access revoked",
+            "error": "Failed to grant coworker early access",
+            "revokeError": "Failed to revoke coworker early access"
           },
           "cancel": "Cancel",
           "validation": {

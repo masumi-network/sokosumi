@@ -82,6 +82,18 @@ export const coworkerAccessService = (() => {
     return data;
   }
 
+  async function forceRevokeForCoworker(
+    coworkerId: string,
+    workspaceId: string,
+  ): Promise<CoworkerWorkspaceAccess> {
+    const { data } =
+      await coreClient.revokeCoworkerWorkspaceAccessAsPlatformAdmin(
+        coworkerId,
+        { workspaceId },
+      );
+    return data;
+  }
+
   async function listForCoworker(
     coworkerId: string,
   ): Promise<CoworkerWorkspaceAccess[]> {
@@ -96,6 +108,7 @@ export const coworkerAccessService = (() => {
     deny,
     revoke,
     createForCoworker,
+    forceRevokeForCoworker,
     listForCoworker,
   };
 })();

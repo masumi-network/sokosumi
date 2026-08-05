@@ -6,6 +6,7 @@ import { forbidden } from "@/helpers/error";
 import {
   approveCoworkerWorkspaceAccess,
   denyCoworkerWorkspaceAccess,
+  forceRevokeCoworkerWorkspaceAccessByPair,
   isCoworkerAccessTerminal,
   listCoworkerAccessForWorkspace,
   notifyWorkspaceApproversOfPendingCoworkerAccess,
@@ -826,6 +827,66 @@ describe("coworker-workspace-access helpers", () => {
         where: { workspaceId: "workspace-1" },
         orderBy: { createdAt: "desc" },
       });
+    });
+  });
+
+  describe("forceRevokeCoworkerWorkspaceAccessByPair", () => {
+    it("revokes GRANTED access by coworker/workspace pair", async () => {
+      const granted = baseAccess({
+        status: CoworkerWorkspaceAccessStatus.GRANTED,
+      });
+      accessFindUnique
+        .mockResolvedValueOnce(granted)
+        .mockResolvedValueOnce(granted);
+      accessUpdate.mockResolvedValue({
+        ...granted,
+        status: CoworkerWorkspaceAccessStatus.REVOKED,
+        resolvedById: "admin-1",
+      });
+
+      const result = await forceRevokeCoworkerWorkspaceAccessByPair({
+        coworkerId: "coworker-1",
+        workspaceId: "workspace-1",
+        resolvedById: "admin-1",
+      });
+
+      expect(result.status).toBe(CoworkerWorkspaceAccessStatus.REVOKED);
+      expect(accessUpdate).toHaveBeenCalledWith({
+        where: { id: granted.id },
+        data: expect.objectContaining({
+          status: CoworkerWorkspaceAccessStatus.REVOKED,
+          resolvedById: "admin-1",
+        }),
+      });
+    });
+
+    it("throws when access row missing", async () => {
+      accessFindUnique.mockResolvedValue(null);
+
+      await expect(
+        forceRevokeCoworkerWorkspaceAccessByPair({
+          coworkerId: "coworker-1",
+          workspaceId: "workspace-1",
+          resolvedById: "admin-1",
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("throws when status is not GRANTED", async () => {
+      const pending = baseAccess({
+        status: CoworkerWorkspaceAccessStatus.PENDING,
+      });
+      accessFindUnique
+        .mockResolvedValueOnce(pending)
+        .mockResolvedValueOnce(pending);
+
+      await expect(
+        forceRevokeCoworkerWorkspaceAccessByPair({
+          coworkerId: "coworker-1",
+          workspaceId: "workspace-1",
+          resolvedById: "admin-1",
+        }),
+      ).rejects.toMatchObject({ status: 400 });
     });
   });
 });

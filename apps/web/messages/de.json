@@ -3395,12 +3395,15 @@
           },
           "EarlyAccess": {
             "title": "Coworker-Early-Access",
-            "description": "Diesen Coworker vor der globalen Whitelist einem Workspace freigeben. Direkte Freigabe — keine Eigentümer-Genehmigung.",
+            "description": "Diesen Coworker vor der globalen Whitelist freigeben oder force-revoken. Plattform-direkt — keine Eigentümer-Genehmigung.",
             "workspaceIdLabel": "Workspace-ID",
             "workspaceIdPlaceholder": "Workspace-UUID",
             "submit": "Early Access gewähren",
+            "revoke": "Force-Revoke",
             "success": "Coworker-Early-Access gewährt",
-            "error": "Coworker-Early-Access konnte nicht gewährt werden"
+            "revokeSuccess": "Coworker-Early-Access widerrufen",
+            "error": "Coworker-Early-Access konnte nicht gewährt werden",
+            "revokeError": "Coworker-Early-Access konnte nicht widerrufen werden"
           },
           "cancel": "Cancel",
           "validation": {

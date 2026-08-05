@@ -298,6 +298,7 @@ import {
   putUsersByIdDesignMd as corePutUsersByIdDesignMd,
   putUsersByIdPreferredOrganization as corePutUsersByIdPreferredOrganization,
   removeAdminOrganizationMember as coreRemoveAdminOrganizationMember,
+  revokeCoworkerWorkspaceAccessAsPlatformAdmin as coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
@@ -1763,6 +1764,22 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to create coworker workspace access",
+    );
+  }
+
+  async function revokeCoworkerWorkspaceAccessAsPlatformAdmin(
+    coworkerId: string,
+    body: { workspaceId: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreRevokeCoworkerWorkspaceAccessAsPlatformAdmin({
+          client,
+          path: { id: coworkerId },
+          body,
+        }),
+      "Failed to revoke coworker workspace access",
     );
   }
 
@@ -3963,6 +3980,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     revokeOrganizationCoworkerAccess,
     listCoworkerWorkspaceAccess,
     createCoworkerWorkspaceAccess,
+    revokeCoworkerWorkspaceAccessAsPlatformAdmin,
     listVendors,
     listAdminVendors,
     createAdminVendor,

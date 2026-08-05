@@ -278,3 +278,30 @@ export const grantAdminCoworkerEarlyAccessAction = withSession<
     return Err(mapCoreError(error));
   }
 });
+
+export const revokeAdminCoworkerEarlyAccessAction = withSession<
+  GrantAdminCoworkerEarlyAccessParameters,
+  Result<{ accessId: string; status: string }, ActionError>
+>(async ({ session, coworkerId, workspaceId }) => {
+  try {
+    assertAdminSession(session);
+
+    const parsed = grantCoworkerEarlyAccessSchema.safeParse({
+      coworkerId,
+      workspaceId,
+    });
+    if (!parsed.success) {
+      return Err({ code: CommonErrorCode.BAD_INPUT });
+    }
+
+    const access = await coworkerAccessService.forceRevokeForCoworker(
+      parsed.data.coworkerId,
+      parsed.data.workspaceId,
+    );
+
+    revalidateAdminCoworkerRoutes(parsed.data.coworkerId);
+    return Ok({ accessId: access.id, status: access.status });
+  } catch (error) {
+    return Err(mapCoreError(error));
+  }
+});

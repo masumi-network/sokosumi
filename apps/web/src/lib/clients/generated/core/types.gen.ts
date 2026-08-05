@@ -1166,7 +1166,7 @@ export type ChatRoom = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Messages sent by others after the current user's read marker.
+     * Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.
      */
     unreadCount: number;
     /**
@@ -26255,6 +26255,94 @@ export type CreateCoworkerWorkspaceAccessResponses = {
 };
 
 export type CreateCoworkerWorkspaceAccessResponse = CreateCoworkerWorkspaceAccessResponses[keyof CreateCoworkerWorkspaceAccessResponses];
+
+export type RevokeCoworkerWorkspaceAccessAsPlatformAdminData = {
+    body?: {
+        workspaceId: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/workspace-access/revoke';
+};
+
+export type RevokeCoworkerWorkspaceAccessAsPlatformAdminErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RevokeCoworkerWorkspaceAccessAsPlatformAdminError = RevokeCoworkerWorkspaceAccessAsPlatformAdminErrors[keyof RevokeCoworkerWorkspaceAccessAsPlatformAdminErrors];
+
+export type RevokeCoworkerWorkspaceAccessAsPlatformAdminResponses = {
+    /**
+     * Coworker workspace access revoked
+     */
+    200: {
+        data: CoworkerWorkspaceAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RevokeCoworkerWorkspaceAccessAsPlatformAdminResponse = RevokeCoworkerWorkspaceAccessAsPlatformAdminResponses[keyof RevokeCoworkerWorkspaceAccessAsPlatformAdminResponses];
 
 export type PostCoworkersByIdUnarchiveData = {
     body?: never;

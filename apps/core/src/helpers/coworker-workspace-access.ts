@@ -444,3 +444,47 @@ export async function listCoworkerAccessForWorkspace(
     orderBy: { createdAt: "desc" },
   });
 }
+
+/**
+ * Platform admin only: force-revoke GRANTED access by (coworker, workspace).
+ * Ops can undo a bad pilot grant without requiring the workspace owner.
+ */
+export async function forceRevokeCoworkerWorkspaceAccessByPair(
+  params: {
+    coworkerId: string;
+    workspaceId: string;
+    resolvedById: string;
+  },
+  tx: Prisma.TransactionClient = prisma,
+): Promise<CoworkerWorkspaceAccess> {
+  const existing = await tx.coworkerWorkspaceAccess.findUnique({
+    where: accessUniqueWhere(params.coworkerId, params.workspaceId),
+  });
+
+  if (!existing) {
+    throw notFound("Coworker workspace access not found");
+  }
+
+  await lockCoworkerWorkspaceAccessById(existing.id, tx);
+
+  const locked = await tx.coworkerWorkspaceAccess.findUnique({
+    where: { id: existing.id },
+  });
+
+  if (!locked) {
+    throw notFound("Coworker workspace access not found");
+  }
+
+  if (locked.status !== CoworkerWorkspaceAccessStatus.GRANTED) {
+    throw badRequest("Only GRANTED coworker workspace access can be revoked");
+  }
+
+  return tx.coworkerWorkspaceAccess.update({
+    where: { id: locked.id },
+    data: {
+      status: CoworkerWorkspaceAccessStatus.REVOKED,
+      resolvedAt: new Date(),
+      resolvedById: params.resolvedById,
+    },
+  });
+}

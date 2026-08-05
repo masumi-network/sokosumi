@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { grantAdminCoworkerEarlyAccessAction } from "@/lib/actions/admin-coworkers/action";
+import {
+  grantAdminCoworkerEarlyAccessAction,
+  revokeAdminCoworkerEarlyAccessAction,
+} from "@/lib/actions/admin-coworkers/action";
 
 interface CoworkerEarlyAccessFormProps {
   coworkerId: string;
@@ -31,11 +34,11 @@ export function CoworkerEarlyAccessForm({
 }: CoworkerEarlyAccessFormProps) {
   const t = useTranslations("App.Admin.Coworkers.Form.EarlyAccess");
   const [workspaceId, setWorkspaceId] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGranting, setIsGranting] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (disabled || isSubmitting) {
+  async function runAction(mode: "grant" | "revoke") {
+    if (disabled || isGranting || isRevoking) {
       return;
     }
 
@@ -45,24 +48,41 @@ export function CoworkerEarlyAccessForm({
       return;
     }
 
-    setIsSubmitting(true);
+    if (mode === "grant") {
+      setIsGranting(true);
+    } else {
+      setIsRevoking(true);
+    }
+
     try {
-      const result = await grantAdminCoworkerEarlyAccessAction({
-        coworkerId,
-        workspaceId: trimmed,
-      });
+      const result =
+        mode === "grant"
+          ? await grantAdminCoworkerEarlyAccessAction({
+              coworkerId,
+              workspaceId: trimmed,
+            })
+          : await revokeAdminCoworkerEarlyAccessAction({
+              coworkerId,
+              workspaceId: trimmed,
+            });
 
       if (!result.ok) {
-        toast.error(result.error.message ?? t("error"));
+        toast.error(
+          result.error.message ??
+            (mode === "grant" ? t("error") : t("revokeError")),
+        );
         return;
       }
 
       setWorkspaceId("");
-      toast.success(t("success"));
+      toast.success(mode === "grant" ? t("success") : t("revokeSuccess"));
     } finally {
-      setIsSubmitting(false);
+      setIsGranting(false);
+      setIsRevoking(false);
     }
   }
+
+  const busy = isGranting || isRevoking;
 
   return (
     <Card id="coworker-early-access">
@@ -71,7 +91,13 @@ export function CoworkerEarlyAccessForm({
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form
+          className="space-y-4"
+          onSubmit={(event: FormEvent<HTMLFormElement>) => {
+            event.preventDefault();
+            void runAction("grant");
+          }}
+        >
           <div className="space-y-2">
             <Label htmlFor="early-access-workspace-id">
               {t("workspaceIdLabel")}
@@ -81,21 +107,40 @@ export function CoworkerEarlyAccessForm({
               value={workspaceId}
               onChange={(event) => setWorkspaceId(event.target.value)}
               placeholder={t("workspaceIdPlaceholder")}
-              disabled={disabled || isSubmitting}
+              disabled={disabled || busy}
               autoComplete="off"
               spellCheck={false}
             />
           </div>
-          <Button type="submit" disabled={disabled || isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                {t("submit")}
-              </>
-            ) : (
-              t("submit")
-            )}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={disabled || busy}>
+              {isGranting ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  {t("submit")}
+                </>
+              ) : (
+                t("submit")
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={disabled || busy}
+              onClick={() => {
+                void runAction("revoke");
+              }}
+            >
+              {isRevoking ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  {t("revoke")}
+                </>
+              ) : (
+                t("revoke")
+              )}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
