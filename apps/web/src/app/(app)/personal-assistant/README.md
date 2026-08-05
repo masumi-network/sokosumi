@@ -79,7 +79,7 @@ only opts into a full-bleed content area below the header via:
   `<body>`. A rule in `globals.css` keyed off that attribute drops
   `[data-app-main]`'s `p-4` gutter (keeping the mobile fixed-header top
   clearance) so the chat/empty-state fills the area while main keeps its
-  normal `calc(100svh-64px)` height and `overflow-y-auto`.
+  normal `calc(100svh-4rem)` height and `overflow-y-auto`.
 
 ---
 
