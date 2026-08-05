@@ -188,9 +188,62 @@ describe("FileChipMiniPreviewFrame", () => {
     expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
     expect(screen.queryByTestId("document-viewer")).not.toBeInTheDocument();
   });
+
+  it("renders an inline video player for video attachments on the sent-message frame", () => {
+    const { container } = render(
+      <FileChipMiniPreviewFrame
+        url="https://blob.example.com/uploads/clip.mp4?download=1"
+        fileName="clip.mp4"
+      />,
+    );
+
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+    expect(video).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/clip.mp4",
+    );
+    expect(video).toHaveAttribute("controls");
+    expect(video).not.toHaveAttribute("autoplay");
+    expect(screen.getByTestId("file-chip-video")).toBeInTheDocument();
+  });
+
+  it("renders an inline audio player for audio attachments on the sent-message frame", () => {
+    const { container } = render(
+      <FileChipMiniPreviewFrame
+        url="https://blob.example.com/uploads/track.mp3"
+        fileName="track.mp3"
+        mediaType="audio/mpeg"
+      />,
+    );
+
+    const audio = container.querySelector("audio");
+    expect(audio).not.toBeNull();
+    expect(audio).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/track.mp3",
+    );
+    expect(screen.getByTestId("file-chip-audio")).toBeInTheDocument();
+  });
 });
 
 describe("FileChipMiniPreview", () => {
+  it("keeps composer video drafts compact without an inline player", () => {
+    const { container } = render(
+      <FileChipMiniPreview
+        url="https://blob.example.com/uploads/clip.mp4"
+        fileName="clip.mp4"
+      />,
+    );
+
+    expect(container.querySelector("video")).toBeNull();
+    expect(screen.queryByTestId("file-chip-video")).not.toBeInTheDocument();
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "https://blob.example.com/uploads/clip.mp4",
+    );
+  });
+
   it("shows filename and size in tooltip content", () => {
     render(
       <FileChipMiniPreview

@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 
 import { DocumentViewer } from "@/components/ui/document-viewer";
+import { FileChip } from "@/components/ui/file-chip";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import {
@@ -216,7 +217,28 @@ function FileChipMiniPreviewShell({
   );
 }
 
+/**
+ * Sent-message / timeline surface. Video and audio use the full FileChip
+ * inline player; images and documents keep the compact thumbnail frame.
+ * Composer drafts use {@link FileChipMiniPreview} (always compact).
+ */
 export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewProps) {
+  const { isVideo, isAudio } = classifyFilePreview(
+    props.url,
+    props.fileName,
+    props.mediaType,
+  );
+  if (isVideo || isAudio) {
+    return (
+      <FileChip
+        url={props.url}
+        fileName={props.fileName}
+        mediaType={props.mediaType}
+        size={props.size}
+        className={props.className}
+      />
+    );
+  }
   return <FileChipMiniPreviewShell {...props} />;
 }
 

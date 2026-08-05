@@ -11,7 +11,11 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
-import { mapChatRoom, requireChatRoomUserAccess } from "../../helpers";
+import {
+  getChatRoomUnreadCounts,
+  mapChatRoom,
+  requireChatRoomUserAccess,
+} from "../../helpers";
 
 const paramsSchema = z.object({
   id: z
@@ -27,7 +31,8 @@ const route = withGlobalHeaderParameters(
   createRoute({
     method: "post",
     path: "/{id}/read",
-    description: "Mark an organization chat room as read for the current user.",
+    description:
+      "Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadCount.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -103,11 +108,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     );
 
+    // Top-level unreads are cleared by lastReadAt; thread replies still use
+    // look baseline. Return the real dual-baseline count so the sidebar does
+    // not optimistically hide unlooked threads.
+    const unreadCounts = await getChatRoomUnreadCounts(
+      [room.id],
+      userContext.userId,
+      prisma,
+    );
+
     return ok(
       c,
       chatRoomSchema.parse(
         mapChatRoom(room, userContext.userId, {
-          unreadCount: 0,
+          unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: 0,
           pinnedAt,
           mutedAt,

@@ -46,4 +46,32 @@ describe("sanitizeMarkdown", () => {
     expect(sanitized.startsWith(`${literalPlaceholder}\n\n`)).toBe(true);
     expect(sanitized).toContain("```html\n<div>safe inside code</div>\n```");
   });
+
+  it("preserves raw video and audio tags with media attributes", () => {
+    const markdown = [
+      '<video src="https://blob.example.com/clip.mp4" controls loop muted></video>',
+      '<audio src="https://blob.example.com/track.mp3" controls loop muted></audio>',
+    ].join("\n");
+
+    const sanitized = sanitizeMarkdown(markdown);
+
+    expect(sanitized).toContain("<video");
+    expect(sanitized).toContain('src="https://blob.example.com/clip.mp4"');
+    expect(sanitized).toContain("<audio");
+    expect(sanitized).toContain('src="https://blob.example.com/track.mp3"');
+    expect(sanitized).toContain("controls");
+  });
+
+  it("strips autoplay from video and audio tags", () => {
+    const markdown = [
+      '<video src="https://blob.example.com/clip.mp4" controls autoplay></video>',
+      '<audio src="https://blob.example.com/track.mp3" controls autoplay></audio>',
+    ].join("\n");
+
+    const sanitized = sanitizeMarkdown(markdown);
+
+    expect(sanitized).toContain("<video");
+    expect(sanitized).toContain("<audio");
+    expect(sanitized.toLowerCase()).not.toContain("autoplay");
+  });
 });
