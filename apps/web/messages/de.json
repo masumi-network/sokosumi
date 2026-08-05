@@ -167,7 +167,8 @@
       "personalAccount": "Persönlicher Account",
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
-      "createOrganization": "Organisation erstellen"
+      "createOrganization": "Organisation erstellen",
+      "userAvatarAlt": "Nutzer-Avatar"
     },
     "DataTable": {
       "Data": {

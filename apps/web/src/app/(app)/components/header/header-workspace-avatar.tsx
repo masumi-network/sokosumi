@@ -2,6 +2,7 @@
 
 import type { SessionUser } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
+import { useTranslations } from "next-intl";
 import UserAvatarContent from "@/app/components/user-avatar/user-avatar-content";
 import { OrganizationLogo } from "@/components/organizations";
 import { Avatar } from "@/components/ui/avatar";
@@ -27,6 +28,7 @@ export default function HeaderWorkspaceAvatar({
   logoSize = 18,
   decorative = false,
 }: HeaderWorkspaceAvatarProps) {
+  const t = useTranslations("Components.OrganizationSwitcher");
   const avatar = organization ? (
     <Avatar className={cn("bg-muted items-center justify-center", className)}>
       <OrganizationLogo organization={organization} size={logoSize} />
@@ -41,7 +43,7 @@ export default function HeaderWorkspaceAvatar({
           default: "404",
         })
       }
-      imageAlt={decorative ? "" : (sessionUser.name ?? "User avatar")}
+      imageAlt={decorative ? "" : (sessionUser.name ?? t("userAvatarAlt"))}
     />
   );
 
