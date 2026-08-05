@@ -40,6 +40,31 @@ describe("notificationReducer", () => {
     expect(afterRealtime.unreadCount).toBe(0);
   });
 
+  it("drops stale CHAT items on fetch_success instead of keeping them as pending", () => {
+    const staleChat = createNotification({
+      id: "notification-chat-stale",
+      kind: "CHAT",
+      referenceId: "room-1",
+      messageKey: "Notifications.Chat.directMessage",
+    });
+    const job = createNotification({
+      id: "notification-job",
+      kind: "JOB",
+    });
+
+    const afterFetch = notificationReducer(
+      { notifications: [staleChat], unreadCount: 1 },
+      {
+        type: "fetch_success",
+        fetched: [job],
+        serverUnreadCount: 1,
+      },
+    );
+
+    expect(afterFetch.notifications.map((n) => n.id)).toEqual([job.id]);
+    expect(afterFetch.unreadCount).toBe(1);
+  });
+
   it("applies fetch and realtime updates atomically without losing unread count", () => {
     const realtimeNotification = createNotification({
       id: "notification-realtime",

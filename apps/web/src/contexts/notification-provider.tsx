@@ -111,14 +111,19 @@ export function notificationReducer(
 ): NotificationState {
   switch (action.type) {
     case "fetch_success": {
+      // CHAT is browser-OS only; drop any that already leaked into local state
+      // so mergeNotificationList cannot keep them as "pending realtime".
+      const current = state.notifications.filter(
+        (notification) => notification.kind !== "CHAT",
+      );
       const fetched = action.fetched.filter(
         (notification) => notification.kind !== "CHAT",
       );
 
       return {
-        notifications: mergeNotificationList(state.notifications, fetched),
+        notifications: mergeNotificationList(current, fetched),
         unreadCount: mergeUnreadCount(
-          state.notifications,
+          current,
           fetched,
           action.serverUnreadCount,
         ),
