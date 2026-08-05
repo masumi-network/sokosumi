@@ -4729,10 +4729,6 @@
       "MobileCreateFab": {
         "openMenu": "Crear",
         "closeMenu": "Cerrar menú de creación",
-        "newChat": {
-          "title": "Nuevo chat",
-          "subtitle": "Inicia un chat con un coworker"
-        },
         "newTask": {
           "title": "Nueva tarea",
           "subtitle": "Crea una tarea de larga duración"

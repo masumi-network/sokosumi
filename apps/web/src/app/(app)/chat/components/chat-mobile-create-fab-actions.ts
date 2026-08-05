@@ -1,10 +1,6 @@
 export type MobileCreateFabSurface = "home" | "chats";
 
-export type MobileCreateFabActionId =
-  | "newChat"
-  | "newTask"
-  | "createChannel"
-  | "newDm";
+export type MobileCreateFabActionId = "newTask" | "createChannel" | "newDm";
 
 export interface MobileCreateFabAction {
   id: MobileCreateFabActionId;
@@ -12,7 +8,6 @@ export interface MobileCreateFabAction {
 }
 
 const HOME_ACTIONS: readonly MobileCreateFabAction[] = [
-  { id: "newChat", href: "/chat?welcome=1" },
   { id: "newTask", href: "/tasks?create=true" },
   { id: "createChannel", href: "/chat?create=channel" },
   { id: "newDm", href: "/chat?dm=new" },

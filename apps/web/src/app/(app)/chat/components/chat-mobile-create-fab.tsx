@@ -1,17 +1,17 @@
 "use client";
 
-import {
-  Hash,
-  ListTodo,
-  MessageSquarePlus,
-  MessagesSquare,
-  Plus,
-} from "lucide-react";
+import { Hash, ListTodo, MessagesSquare, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentType, type SVGProps, useState } from "react";
+import {
+  type ComponentType,
+  type KeyboardEvent,
+  type SVGProps,
+  useRef,
+  useState,
+} from "react";
 
 import { shouldShowMobileCreateFab } from "@/app/components/mobile-app-chrome";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
@@ -28,15 +28,21 @@ const ACTION_ICONS: Record<
   MobileCreateFabActionId,
   ComponentType<SVGProps<SVGSVGElement>>
 > = {
-  newChat: MessageSquarePlus,
   newTask: ListTodo,
   createChannel: Hash,
   newDm: MessagesSquare,
 };
 
+const SHELL_SPRING = {
+  type: "spring" as const,
+  stiffness: 420,
+  damping: 32,
+  mass: 0.85,
+};
+
 /**
  * Mobile create FAB for Home and Chats (md:hidden).
- * Open state is an overlay list menu anchored over the `+` (same footprint).
+ * One shell morphs from the circular dial into the overlay list panel.
  */
 export function ChatMobileCreateFab(): React.ReactElement | null {
   const pathname = usePathname();
@@ -45,6 +51,9 @@ export function ChatMobileCreateFab(): React.ReactElement | null {
   const isApple = useIsApplePlatform();
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
+  // Panel paint stays through the close morph; dial purple applies after.
+  const [panelChrome, setPanelChrome] = useState(false);
+  const openRef = useRef(false);
 
   const surface = shouldShowMobileCreateFab(pathname, searchParams)
     ? pathname === "/chat/chats"
@@ -58,12 +67,40 @@ export function ChatMobileCreateFab(): React.ReactElement | null {
 
   const actions = mobileCreateFabActions(surface);
 
+  function setMenuOpen(next: boolean) {
+    openRef.current = next;
+    setOpen(next);
+    if (next) {
+      setPanelChrome(true);
+      return;
+    }
+    if (reduceMotion) {
+      setPanelChrome(false);
+    }
+  }
+
   function handleToggle() {
-    setOpen((current) => !current);
+    setMenuOpen(!openRef.current);
   }
 
   function handleClose() {
-    setOpen(false);
+    setMenuOpen(false);
+  }
+
+  function handleLayoutAnimationComplete() {
+    if (!openRef.current) {
+      setPanelChrome(false);
+    }
+  }
+
+  function handleShellKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (open) {
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleToggle();
+    }
   }
 
   return (
@@ -94,41 +131,72 @@ export function ChatMobileCreateFab(): React.ReactElement | null {
       </AnimatePresence>
 
       {/*
-        Footprint stays FAB-sized. Open menu is absolute bottom-anchored so it
-        grows upward over the `+` instead of stacking extra vertical space.
+        Footprint stays FAB-sized when closed. Open shell is absolute
+        bottom-anchored so the same surface grows upward into the menu.
       */}
       <div className="relative z-50 flex h-14 justify-end">
-        <AnimatePresence>
-          {open ? (
-            <motion.div
-              key="menu"
-              role="menu"
-              aria-label={t("openMenu")}
-              data-mobile-create-fab-menu
-              initial={
-                reduceMotion ? false : { opacity: 0, y: 12, scale: 0.98 }
-              }
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={
-                reduceMotion ? undefined : { opacity: 0, y: 8, scale: 0.98 }
-              }
-              transition={
-                reduceMotion
-                  ? { duration: 0 }
-                  : { duration: 0.2, ease: "easeOut" }
-              }
-              className={cn(
-                "pointer-events-auto text-card-foreground absolute inset-x-0 bottom-0 rounded-3xl p-2",
-                isApple
-                  ? "border-border/40 bg-background/45 shadow-lg shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:bg-background/35 dark:shadow-black/40 border"
-                  : "border-border bg-card shadow-lg border",
-              )}
-            >
-              <ul className="flex flex-col">
-                {actions.map((action) => {
+        <motion.div
+          layout={!reduceMotion}
+          role={open ? "menu" : "button"}
+          tabIndex={open ? undefined : 0}
+          aria-expanded={open ? undefined : false}
+          aria-haspopup={open ? undefined : "menu"}
+          aria-label={t("openMenu")}
+          data-mobile-create-fab-menu={open ? "" : undefined}
+          transition={reduceMotion ? { duration: 0 } : SHELL_SPRING}
+          onLayoutAnimationComplete={handleLayoutAnimationComplete}
+          onClick={open ? undefined : handleToggle}
+          onKeyDown={handleShellKeyDown}
+          className={cn(
+            "pointer-events-auto overflow-hidden shadow-lg",
+            open
+              ? "absolute inset-x-0 bottom-0 rounded-3xl p-2"
+              : "flex size-14 cursor-pointer items-center justify-center rounded-full",
+            panelChrome
+              ? cn(
+                  "text-card-foreground",
+                  isApple
+                    ? "border-border/40 bg-background/45 shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:bg-background/35 dark:shadow-black/40 border"
+                    : "border-border bg-card border",
+                )
+              : "bg-primary text-primary-foreground",
+          )}
+          style={{
+            borderRadius: open ? 24 : 9999,
+          }}
+        >
+          <AnimatePresence initial={false} mode="popLayout">
+            {open ? (
+              <motion.ul
+                key="menu-list"
+                className="flex flex-col"
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={reduceMotion ? undefined : { opacity: 0 }}
+                transition={
+                  reduceMotion
+                    ? { duration: 0 }
+                    : { duration: 0.15, delay: 0.06 }
+                }
+              >
+                {actions.map((action, index) => {
                   const Icon = ACTION_ICONS[action.id];
                   return (
-                    <li key={action.id} role="none">
+                    <motion.li
+                      key={action.id}
+                      role="none"
+                      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={
+                        reduceMotion
+                          ? { duration: 0 }
+                          : {
+                              duration: 0.18,
+                              delay: 0.08 + index * 0.04,
+                              ease: "easeOut",
+                            }
+                      }
+                    >
                       <Link
                         role="menuitem"
                         href={action.href}
@@ -151,26 +219,24 @@ export function ChatMobileCreateFab(): React.ReactElement | null {
                           </span>
                         </span>
                       </Link>
-                    </li>
+                    </motion.li>
                   );
                 })}
-              </ul>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
-
-        {!open ? (
-          <button
-            type="button"
-            aria-expanded={false}
-            aria-haspopup="menu"
-            aria-label={t("openMenu")}
-            onClick={handleToggle}
-            className="bg-primary text-primary-foreground pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg"
-          >
-            <Plus className="size-6" aria-hidden />
-          </button>
-        ) : null}
+              </motion.ul>
+            ) : (
+              <motion.span
+                key="dial-icon"
+                className="flex size-full items-center justify-center"
+                initial={reduceMotion ? false : { opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={reduceMotion ? undefined : { opacity: 0, scale: 0.85 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.12 }}
+              >
+                <Plus className="size-6" aria-hidden />
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
     </div>
   );

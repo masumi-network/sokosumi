@@ -11,7 +11,6 @@ import {
 describe("mobileCreateFabActions", () => {
   it("returns home actions with existing create routes", () => {
     expect(mobileCreateFabActions("home")).toEqual([
-      { id: "newChat", href: "/chat?welcome=1" },
       { id: "newTask", href: "/tasks?create=true" },
       { id: "createChannel", href: "/chat?create=channel" },
       { id: "newDm", href: "/chat?dm=new" },

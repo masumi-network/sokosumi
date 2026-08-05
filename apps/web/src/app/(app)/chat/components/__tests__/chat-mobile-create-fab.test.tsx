@@ -25,6 +25,8 @@ vi.mock("motion/react", () => {
       animate: _animate,
       exit: _exit,
       transition: _transition,
+      layout: _layout,
+      layoutDependency: _layoutDependency,
       ...rest
     } = props;
     return rest;
@@ -81,11 +83,36 @@ vi.mock("motion/react", () => {
           {children}
         </span>
       ),
+      ul: ({
+        children,
+        className,
+        ...props
+      }: {
+        children?: React.ReactNode;
+        className?: string;
+        [key: string]: unknown;
+      }) => (
+        <ul className={className} {...stripMotionProps(props)}>
+          {children}
+        </ul>
+      ),
+      li: ({
+        children,
+        className,
+        ...props
+      }: {
+        children?: React.ReactNode;
+        className?: string;
+        [key: string]: unknown;
+      }) => (
+        <li className={className} {...stripMotionProps(props)}>
+          {children}
+        </li>
+      ),
     },
     useReducedMotion: () => true,
   };
 });
-
 vi.mock("next/link", () => ({
   default: ({
     children,
@@ -121,8 +148,8 @@ describe("ChatMobileCreateFab", () => {
       container.querySelector("[data-mobile-create-fab-menu]"),
     ).toBeTruthy();
     expect(
-      screen.getByRole("menuitem", { name: /newChat\.title/i }),
-    ).toHaveAttribute("href", "/chat?welcome=1");
+      screen.queryByRole("menuitem", { name: /newChat\.title/i }),
+    ).toBeNull();
     expect(
       screen.getByRole("menuitem", { name: /newTask\.title/i }),
     ).toHaveAttribute("href", "/tasks?create=true");
