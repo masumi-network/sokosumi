@@ -4663,6 +4663,23 @@
         "Metadata": {
           "title": "Coworker bearbeiten",
           "description": "Anzeigefelder zugänglicher Coworkers bearbeiten"
+        },
+        "EarlyAccess": {
+          "title": "Coworker-Early-Access",
+          "description": "Aktiviere diesen Coworker für einen Arbeitsbereich, dem du angehörst (direkte Freigabe), oder schlage Early Access für einen fremden Arbeitsbereich vor (Genehmigung durch Owner/Admin erforderlich).",
+          "listTitle": "Arbeitsbereich-Zugriff",
+          "listEmpty": "Noch keine Zugriffseinträge.",
+          "workspaceIdLabel": "Arbeitsbereich-ID",
+          "workspaceIdPlaceholder": "Arbeitsbereich-UUID",
+          "hint": "Eigener Arbeitsbereich → sofort freigegeben. Fremder Arbeitsbereich → ausstehend bis Owner/Admin akzeptiert.",
+          "submit": "Für Arbeitsbereich aktivieren",
+          "success": "Coworker-Early-Access freigegeben",
+          "pendingSuccess": "Coworker-Early-Access vorgeschlagen (Genehmigung ausstehend)",
+          "error": "Coworker-Early-Access konnte nicht aktiviert werden",
+          "statusPending": "Ausstehend",
+          "statusGranted": "Freigegeben",
+          "statusDenied": "Abgelehnt",
+          "statusRevoked": "Widerrufen"
         }
       },
       "Tasks": {

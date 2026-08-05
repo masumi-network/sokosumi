@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { DeveloperCoworkerEarlyAccessSection } from "@/app/developer/components/coworkers/developer-coworker-early-access-section";
 import { DeveloperCoworkerEditForm } from "@/app/developer/components/coworkers/developer-coworker-edit-form";
 import { Button } from "@/components/ui/button";
 import { developerCoworkerService } from "@/lib/services/developer-coworker.service";
@@ -69,6 +70,7 @@ export default async function DeveloperCoworkerEditPage({
         </div>
 
         <DeveloperCoworkerEditForm coworker={coworker} />
+        <DeveloperCoworkerEarlyAccessSection coworker={coworker} />
       </div>
     </div>
   );

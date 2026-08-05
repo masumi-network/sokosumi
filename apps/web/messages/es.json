@@ -4663,6 +4663,23 @@
         "Metadata": {
           "title": "Editar coworker",
           "description": "Editar campos de visualización de coworkers accesibles"
+        },
+        "EarlyAccess": {
+          "title": "Acceso anticipado de coworker",
+          "description": "Habilita este coworker en un espacio de trabajo al que perteneces (concesión directa) o propón acceso anticipado en un espacio ajeno (requiere aprobación del propietario o admin).",
+          "listTitle": "Acceso a espacios de trabajo",
+          "listEmpty": "Aún no hay filas de acceso.",
+          "workspaceIdLabel": "ID del espacio de trabajo",
+          "workspaceIdPlaceholder": "UUID del espacio de trabajo",
+          "hint": "Espacio miembro → concedido de inmediato. Espacio ajeno → pendiente hasta que el propietario o admin acepte.",
+          "submit": "Habilitar para espacio de trabajo",
+          "success": "Acceso anticipado de coworker concedido",
+          "pendingSuccess": "Acceso anticipado de coworker propuesto (pendiente de aprobación)",
+          "error": "No se pudo habilitar el acceso anticipado de coworker",
+          "statusPending": "Pendiente",
+          "statusGranted": "Concedido",
+          "statusDenied": "Denegado",
+          "statusRevoked": "Revocado"
         }
       },
       "Tasks": {

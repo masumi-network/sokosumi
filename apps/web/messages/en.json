@@ -4691,6 +4691,23 @@
         "Metadata": {
           "title": "Edit coworker",
           "description": "Edit accessible coworker display fields"
+        },
+        "EarlyAccess": {
+          "title": "Coworker early access",
+          "description": "Enable this coworker for a workspace you belong to (direct grant), or propose early access for a foreign workspace (owner approval required).",
+          "listTitle": "Workspace access",
+          "listEmpty": "No workspace access rows yet.",
+          "workspaceIdLabel": "Workspace ID",
+          "workspaceIdPlaceholder": "Workspace UUID",
+          "hint": "Member workspace → granted immediately. Foreign workspace → pending until the owner or admin accepts.",
+          "submit": "Enable for workspace",
+          "success": "Coworker early access granted",
+          "pendingSuccess": "Coworker early access proposed (pending approval)",
+          "error": "Failed to enable coworker early access",
+          "statusPending": "Pending",
+          "statusGranted": "Granted",
+          "statusDenied": "Denied",
+          "statusRevoked": "Revoked"
         }
       },
       "Tasks": {
