@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
+import { CoworkerEarlyAccessForm } from "@/components/admin/coworkers/coworker-early-access-form";
 import { CoworkerDisplayForm } from "@/components/coworkers/coworker-display-form";
 import {
   AlertDialog,
@@ -440,6 +441,8 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
           </form>
         </CardContent>
       </Card>
+
+      <CoworkerEarlyAccessForm coworkerId={baseline.id} disabled={isBusy} />
 
       <CoworkerDisplayForm
         coworker={baseline}

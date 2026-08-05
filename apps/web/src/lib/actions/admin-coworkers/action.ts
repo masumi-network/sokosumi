@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import * as z from "zod";
+
 import { validateCoworkerDisplayActionInput } from "@/lib/actions/coworkers/apply-display-action-input";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
@@ -14,6 +16,7 @@ import {
   type AdminCoworkerControlsPatchBody,
   adminCoworkerService,
 } from "@/lib/services/admin-coworker.service";
+import { coworkerAccessService } from "@/lib/services/coworker-access.service";
 import { type UpdateCoworkerDisplayResult } from "@/lib/services/coworker-display.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
@@ -234,6 +237,43 @@ export const unarchiveAdminCoworkerAction = withSession<
 
     revalidateAdminCoworkerRoutes(id);
     return Ok({ coworker });
+  } catch (error) {
+    return Err(mapCoreError(error));
+  }
+});
+
+const grantCoworkerEarlyAccessSchema = z.object({
+  coworkerId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+});
+
+interface GrantAdminCoworkerEarlyAccessParameters extends AuthenticatedRequest {
+  coworkerId: string;
+  workspaceId: string;
+}
+
+export const grantAdminCoworkerEarlyAccessAction = withSession<
+  GrantAdminCoworkerEarlyAccessParameters,
+  Result<{ accessId: string; status: string }, ActionError>
+>(async ({ session, coworkerId, workspaceId }) => {
+  try {
+    assertAdminSession(session);
+
+    const parsed = grantCoworkerEarlyAccessSchema.safeParse({
+      coworkerId,
+      workspaceId,
+    });
+    if (!parsed.success) {
+      return Err({ code: CommonErrorCode.BAD_INPUT });
+    }
+
+    const access = await coworkerAccessService.createForCoworker(
+      parsed.data.coworkerId,
+      parsed.data.workspaceId,
+    );
+
+    revalidateAdminCoworkerRoutes(parsed.data.coworkerId);
+    return Ok({ accessId: access.id, status: access.status });
   } catch (error) {
     return Err(mapCoreError(error));
   }

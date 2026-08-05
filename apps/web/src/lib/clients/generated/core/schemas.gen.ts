@@ -8823,6 +8823,76 @@ export const UtmAttributionRequestSchema = {
     ]
 } as const;
 
+export const CoworkerWorkspaceAccessSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        },
+        coworkerId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'GRANTED',
+                'DENIED',
+                'REVOKED'
+            ],
+            example: 'PENDING'
+        },
+        requestedByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        resolvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        resolvedById: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'coworkerId',
+        'workspaceId',
+        'status',
+        'requestedByUserId',
+        'resolvedAt',
+        'resolvedById',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
 export const VendorGrantSchema = {
     type: 'object',
     properties: {

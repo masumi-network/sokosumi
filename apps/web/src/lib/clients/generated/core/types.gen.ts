@@ -2615,6 +2615,18 @@ export type UtmAttributionRequest = {
     capturedAt: Date;
 };
 
+export type CoworkerWorkspaceAccess = {
+    id: string;
+    coworkerId: string;
+    workspaceId: string;
+    status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
+    requestedByUserId: string | null;
+    resolvedAt: Date | null;
+    resolvedById: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
 export type VendorGrant = {
     id: string;
     vendorId: string;
@@ -17941,6 +17953,374 @@ export type PostUsersByIdUtmAttributionResponses = {
 
 export type PostUsersByIdUtmAttributionResponse = PostUsersByIdUtmAttributionResponses[keyof PostUsersByIdUtmAttributionResponses];
 
+export type GetUsersByIdCoworkerAccessData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/coworker-access';
+};
+
+export type GetUsersByIdCoworkerAccessErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdCoworkerAccessError = GetUsersByIdCoworkerAccessErrors[keyof GetUsersByIdCoworkerAccessErrors];
+
+export type GetUsersByIdCoworkerAccessResponses = {
+    /**
+     * List coworker workspace access
+     */
+    200: {
+        data: Array<CoworkerWorkspaceAccess>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdCoworkerAccessResponse = GetUsersByIdCoworkerAccessResponses[keyof GetUsersByIdCoworkerAccessResponses];
+
+export type PostUsersByIdCoworkerAccessByAccessIdApproveData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+        /**
+         * Coworker workspace access ID
+         */
+        accessId: string;
+    };
+    query?: never;
+    url: '/users/{id}/coworker-access/{accessId}/approve';
+};
+
+export type PostUsersByIdCoworkerAccessByAccessIdApproveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdCoworkerAccessByAccessIdApproveError = PostUsersByIdCoworkerAccessByAccessIdApproveErrors[keyof PostUsersByIdCoworkerAccessByAccessIdApproveErrors];
+
+export type PostUsersByIdCoworkerAccessByAccessIdApproveResponses = {
+    /**
+     * Coworker workspace access approved
+     */
+    200: {
+        data: CoworkerWorkspaceAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdCoworkerAccessByAccessIdApproveResponse = PostUsersByIdCoworkerAccessByAccessIdApproveResponses[keyof PostUsersByIdCoworkerAccessByAccessIdApproveResponses];
+
+export type PostUsersByIdCoworkerAccessByAccessIdDenyData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+        /**
+         * Coworker workspace access ID
+         */
+        accessId: string;
+    };
+    query?: never;
+    url: '/users/{id}/coworker-access/{accessId}/deny';
+};
+
+export type PostUsersByIdCoworkerAccessByAccessIdDenyErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdCoworkerAccessByAccessIdDenyError = PostUsersByIdCoworkerAccessByAccessIdDenyErrors[keyof PostUsersByIdCoworkerAccessByAccessIdDenyErrors];
+
+export type PostUsersByIdCoworkerAccessByAccessIdDenyResponses = {
+    /**
+     * Coworker workspace access denied
+     */
+    200: {
+        data: CoworkerWorkspaceAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdCoworkerAccessByAccessIdDenyResponse = PostUsersByIdCoworkerAccessByAccessIdDenyResponses[keyof PostUsersByIdCoworkerAccessByAccessIdDenyResponses];
+
+export type PostUsersByIdCoworkerAccessByAccessIdRevokeData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+        /**
+         * Coworker workspace access ID
+         */
+        accessId: string;
+    };
+    query?: never;
+    url: '/users/{id}/coworker-access/{accessId}/revoke';
+};
+
+export type PostUsersByIdCoworkerAccessByAccessIdRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdCoworkerAccessByAccessIdRevokeError = PostUsersByIdCoworkerAccessByAccessIdRevokeErrors[keyof PostUsersByIdCoworkerAccessByAccessIdRevokeErrors];
+
+export type PostUsersByIdCoworkerAccessByAccessIdRevokeResponses = {
+    /**
+     * Coworker workspace access revoked
+     */
+    200: {
+        data: CoworkerWorkspaceAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdCoworkerAccessByAccessIdRevokeResponse = PostUsersByIdCoworkerAccessByAccessIdRevokeResponses[keyof PostUsersByIdCoworkerAccessByAccessIdRevokeResponses];
+
 export type GetUsersByIdVendorGrantsData = {
     body?: never;
     path: {
@@ -19738,6 +20118,374 @@ export type DeleteOrganizationsByIdInviteLinksByTokenResponses = {
 };
 
 export type DeleteOrganizationsByIdInviteLinksByTokenResponse = DeleteOrganizationsByIdInviteLinksByTokenResponses[keyof DeleteOrganizationsByIdInviteLinksByTokenResponses];
+
+export type GetOrganizationsByIdCoworkerAccessData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/coworker-access';
+};
+
+export type GetOrganizationsByIdCoworkerAccessErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetOrganizationsByIdCoworkerAccessError = GetOrganizationsByIdCoworkerAccessErrors[keyof GetOrganizationsByIdCoworkerAccessErrors];
+
+export type GetOrganizationsByIdCoworkerAccessResponses = {
+    /**
+     * List coworker workspace access
+     */
+    200: {
+        data: Array<CoworkerWorkspaceAccess>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetOrganizationsByIdCoworkerAccessResponse = GetOrganizationsByIdCoworkerAccessResponses[keyof GetOrganizationsByIdCoworkerAccessResponses];
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdApproveData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Coworker workspace access ID
+         */
+        accessId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/coworker-access/{accessId}/approve';
+};
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdApproveErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdApproveError = PostOrganizationsByIdCoworkerAccessByAccessIdApproveErrors[keyof PostOrganizationsByIdCoworkerAccessByAccessIdApproveErrors];
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdApproveResponses = {
+    /**
+     * Coworker workspace access approved
+     */
+    200: {
+        data: CoworkerWorkspaceAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdApproveResponse = PostOrganizationsByIdCoworkerAccessByAccessIdApproveResponses[keyof PostOrganizationsByIdCoworkerAccessByAccessIdApproveResponses];
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdDenyData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Coworker workspace access ID
+         */
+        accessId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/coworker-access/{accessId}/deny';
+};
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdDenyErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdDenyError = PostOrganizationsByIdCoworkerAccessByAccessIdDenyErrors[keyof PostOrganizationsByIdCoworkerAccessByAccessIdDenyErrors];
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdDenyResponses = {
+    /**
+     * Coworker workspace access denied
+     */
+    200: {
+        data: CoworkerWorkspaceAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdDenyResponse = PostOrganizationsByIdCoworkerAccessByAccessIdDenyResponses[keyof PostOrganizationsByIdCoworkerAccessByAccessIdDenyResponses];
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdRevokeData = {
+    body?: never;
+    path: {
+        /**
+         * Organization ID
+         */
+        id: string;
+        /**
+         * Coworker workspace access ID
+         */
+        accessId: string;
+    };
+    query?: never;
+    url: '/organizations/{id}/coworker-access/{accessId}/revoke';
+};
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdRevokeErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdRevokeError = PostOrganizationsByIdCoworkerAccessByAccessIdRevokeErrors[keyof PostOrganizationsByIdCoworkerAccessByAccessIdRevokeErrors];
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdRevokeResponses = {
+    /**
+     * Coworker workspace access revoked
+     */
+    200: {
+        data: CoworkerWorkspaceAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostOrganizationsByIdCoworkerAccessByAccessIdRevokeResponse = PostOrganizationsByIdCoworkerAccessByAccessIdRevokeResponses[keyof PostOrganizationsByIdCoworkerAccessByAccessIdRevokeResponses];
 
 export type GetOrganizationsByIdVendorGrantsData = {
     body?: never;
@@ -24137,9 +24885,9 @@ export type GetCoworkersData = {
     path?: never;
     query?: {
         /**
-         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers accessible via vendor membership (vendor admin: all vendor coworkers; developer: assigned coworkers only; user-authenticated only).
+         * Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' for all active coworkers, 'archived' for archived coworkers, 'owned' for active coworkers accessible via vendor membership (vendor admin: all vendor coworkers; developer: assigned only; user-authenticated only), or 'available' for coworkers usable in the active workspace (global whitelist or GRANTED workspace access; user auth + workspace context required).
          */
-        scope?: 'all' | 'whitelisted' | 'archived' | 'owned';
+        scope?: 'all' | 'whitelisted' | 'archived' | 'owned' | 'available';
         /**
          * Filter coworkers by capability. Supports repeated values and comma-separated lists. When multiple capabilities are provided, coworkers must support all of them.
          */
@@ -25347,6 +26095,166 @@ export type PatchCoworkersByIdWhitelistResponses = {
 };
 
 export type PatchCoworkersByIdWhitelistResponse = PatchCoworkersByIdWhitelistResponses[keyof PatchCoworkersByIdWhitelistResponses];
+
+export type ListCoworkerWorkspaceAccessData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/workspace-access';
+};
+
+export type ListCoworkerWorkspaceAccessErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListCoworkerWorkspaceAccessError = ListCoworkerWorkspaceAccessErrors[keyof ListCoworkerWorkspaceAccessErrors];
+
+export type ListCoworkerWorkspaceAccessResponses = {
+    /**
+     * List of coworker workspace access rows
+     */
+    200: {
+        data: Array<CoworkerWorkspaceAccess>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListCoworkerWorkspaceAccessResponse = ListCoworkerWorkspaceAccessResponses[keyof ListCoworkerWorkspaceAccessResponses];
+
+export type CreateCoworkerWorkspaceAccessData = {
+    body?: {
+        workspaceId: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/workspace-access';
+};
+
+export type CreateCoworkerWorkspaceAccessErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateCoworkerWorkspaceAccessError = CreateCoworkerWorkspaceAccessErrors[keyof CreateCoworkerWorkspaceAccessErrors];
+
+export type CreateCoworkerWorkspaceAccessResponses = {
+    /**
+     * Coworker workspace access created or upgraded
+     */
+    201: {
+        data: CoworkerWorkspaceAccess;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateCoworkerWorkspaceAccessResponse = CreateCoworkerWorkspaceAccessResponses[keyof CreateCoworkerWorkspaceAccessResponses];
 
 export type PostCoworkersByIdUnarchiveData = {
     body?: never;

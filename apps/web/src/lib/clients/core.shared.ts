@@ -86,6 +86,7 @@ import {
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createAdminVendor as coreCreateAdminVendor,
+  createCoworkerWorkspaceAccess as coreCreateCoworkerWorkspaceAccess,
   createCreditCheckoutSession as coreCreateCreditCheckoutSession,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
@@ -162,6 +163,7 @@ import {
   getOrganizationsById as coreGetOrganizationsById,
   getOrganizationsByIdBillingDetails as coreGetOrganizationsByIdBillingDetails,
   getOrganizationsByIdBillingPlan as coreGetOrganizationsByIdBillingPlan,
+  getOrganizationsByIdCoworkerAccess as coreGetOrganizationsByIdCoworkerAccess,
   getOrganizationsByIdInvitations as coreGetOrganizationsByIdInvitations,
   getOrganizationsByIdInviteLinks as coreGetOrganizationsByIdInviteLinks,
   getOrganizationsByIdMembers as coreGetOrganizationsByIdMembers,
@@ -180,6 +182,7 @@ import {
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
+  getUsersByIdCoworkerAccess as coreGetUsersByIdCoworkerAccess,
   getUsersByIdCredits as coreGetUsersByIdCredits,
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
@@ -199,6 +202,7 @@ import {
   listAdminUsers as coreListAdminUsers,
   listAdminVendors as coreListAdminVendors,
   listCoworkerAssignments as coreListCoworkerAssignments,
+  listCoworkerWorkspaceAccess as coreListCoworkerWorkspaceAccess,
   listCreditPrices as coreListCreditPrices,
   listDeveloperOwnedCoworkerTasks as coreListDeveloperOwnedCoworkerTasks,
   listMyVendorMemberships as coreListMyVendorMemberships,
@@ -252,6 +256,9 @@ import {
   postJobsByIdInputs as corePostJobsByIdInputs,
   postJobsByIdRefund as corePostJobsByIdRefund,
   postOrganizationInviteLinksByTokenAccept as corePostOrganizationInviteLinksByTokenAccept,
+  postOrganizationsByIdCoworkerAccessByAccessIdApprove as corePostOrganizationsByIdCoworkerAccessByAccessIdApprove,
+  postOrganizationsByIdCoworkerAccessByAccessIdDeny as corePostOrganizationsByIdCoworkerAccessByAccessIdDeny,
+  postOrganizationsByIdCoworkerAccessByAccessIdRevoke as corePostOrganizationsByIdCoworkerAccessByAccessIdRevoke,
   postOrganizationsByIdFiles as corePostOrganizationsByIdFiles,
   postOrganizationsByIdFilesCleanup as corePostOrganizationsByIdFilesCleanup,
   postOrganizationsByIdInviteLinks as corePostOrganizationsByIdInviteLinks,
@@ -267,6 +274,9 @@ import {
   postTasksByIdEvents as corePostTasksByIdEvents,
   postTasksByIdFiles as corePostTasksByIdFiles,
   postTasksByIdLinks as corePostTasksByIdLinks,
+  postUsersByIdCoworkerAccessByAccessIdApprove as corePostUsersByIdCoworkerAccessByAccessIdApprove,
+  postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
+  postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
   postUsersByIdFiles as corePostUsersByIdFiles,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
@@ -1617,6 +1627,142 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id: "me", grantId },
         }),
       "Failed to revoke personal vendor grant",
+    );
+  }
+
+  async function getMyCoworkerAccess() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdCoworkerAccess({
+          client,
+          path: { id: "me" },
+          cache: "no-store",
+        }),
+      "Failed to fetch personal coworker access",
+    );
+  }
+
+  async function approveMyCoworkerAccess(accessId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdCoworkerAccessByAccessIdApprove({
+          client,
+          path: { id: "me", accessId },
+        }),
+      "Failed to approve personal coworker access",
+    );
+  }
+
+  async function denyMyCoworkerAccess(accessId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdCoworkerAccessByAccessIdDeny({
+          client,
+          path: { id: "me", accessId },
+        }),
+      "Failed to deny personal coworker access",
+    );
+  }
+
+  async function revokeMyCoworkerAccess(accessId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdCoworkerAccessByAccessIdRevoke({
+          client,
+          path: { id: "me", accessId },
+        }),
+      "Failed to revoke personal coworker access",
+    );
+  }
+
+  async function getOrganizationCoworkerAccess(organizationId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsByIdCoworkerAccess({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization coworker access",
+    );
+  }
+
+  async function approveOrganizationCoworkerAccess(
+    organizationId: string,
+    accessId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdCoworkerAccessByAccessIdApprove({
+          client,
+          path: { id: organizationId, accessId },
+        }),
+      "Failed to approve organization coworker access",
+    );
+  }
+
+  async function denyOrganizationCoworkerAccess(
+    organizationId: string,
+    accessId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdCoworkerAccessByAccessIdDeny({
+          client,
+          path: { id: organizationId, accessId },
+        }),
+      "Failed to deny organization coworker access",
+    );
+  }
+
+  async function revokeOrganizationCoworkerAccess(
+    organizationId: string,
+    accessId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostOrganizationsByIdCoworkerAccessByAccessIdRevoke({
+          client,
+          path: { id: organizationId, accessId },
+        }),
+      "Failed to revoke organization coworker access",
+    );
+  }
+
+  async function listCoworkerWorkspaceAccess(coworkerId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListCoworkerWorkspaceAccess({
+          client,
+          path: { id: coworkerId },
+          cache: "no-store",
+        }),
+      "Failed to list coworker workspace access",
+    );
+  }
+
+  async function createCoworkerWorkspaceAccess(
+    coworkerId: string,
+    body: { workspaceId: string },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreCreateCoworkerWorkspaceAccess({
+          client,
+          path: { id: coworkerId },
+          body,
+        }),
+      "Failed to create coworker workspace access",
     );
   }
 
@@ -3807,6 +3953,16 @@ export function createCoreClient(getClient: GetCoreClient) {
     approveMyVendorGrant,
     denyMyVendorGrant,
     revokeMyVendorGrant,
+    getMyCoworkerAccess,
+    approveMyCoworkerAccess,
+    denyMyCoworkerAccess,
+    revokeMyCoworkerAccess,
+    getOrganizationCoworkerAccess,
+    approveOrganizationCoworkerAccess,
+    denyOrganizationCoworkerAccess,
+    revokeOrganizationCoworkerAccess,
+    listCoworkerWorkspaceAccess,
+    createCoworkerWorkspaceAccess,
     listVendors,
     listAdminVendors,
     createAdminVendor,
