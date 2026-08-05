@@ -1,13 +1,14 @@
 "use client";
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { Download, ExternalLink, FileText, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -237,7 +238,7 @@ function DocumentViewerContent({
 
   return (
     <>
-      <div className="border-border/60 flex items-center justify-between gap-2 border-b py-3 pr-14 pl-4 sm:gap-3 sm:py-4 sm:pl-6">
+      <div className="border-border/60 flex items-center justify-between gap-2 border-b py-3 pr-4 pl-4 sm:gap-3 sm:py-4 sm:pr-6 sm:pl-6">
         <div className="flex min-w-0 items-center gap-2">
           <FileText
             className="text-muted-foreground size-4 shrink-0"
@@ -281,6 +282,18 @@ function DocumentViewerContent({
               <span className="hidden sm:inline">{t("download")}</span>
             </a>
           </Button>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-8"
+              aria-label={t("close")}
+              title={t("close")}
+            >
+              <XIcon className="size-3.5" aria-hidden />
+            </Button>
+          </DialogClose>
         </div>
       </div>
       <DialogDescription className="sr-only">{t("title")}</DialogDescription>
@@ -314,6 +327,7 @@ export function DocumentViewer({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        showCloseButton={false}
         className={cn(
           "flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl lg:max-w-6xl",
           className,

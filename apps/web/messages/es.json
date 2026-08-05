@@ -812,6 +812,7 @@
     },
     "DocumentViewer": {
       "title": "Documento",
+      "close": "Cerrar",
       "viewDocument": "Ver documento {fileName}",
       "download": "Descargar documento",
       "openInNewTab": "Abrir en una pestaña nueva",

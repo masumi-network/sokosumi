@@ -820,6 +820,7 @@
     },
     "DocumentViewer": {
       "title": "Document",
+      "close": "Close",
       "viewDocument": "View document {fileName}",
       "download": "Download document",
       "openInNewTab": "Open in new tab",

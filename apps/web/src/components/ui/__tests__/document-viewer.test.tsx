@@ -14,6 +14,7 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {
     const labels: Record<string, string> = {
       title: "Document",
+      close: "Close",
       download: "Download document",
       openInNewTab: "Open in new tab",
       loading: "Loading document…",
@@ -55,7 +56,7 @@ describe("DocumentViewer", () => {
     expect(panel).not.toHaveClass("h-screen");
   });
 
-  it("shows the filename, download, and open-in-new-tab controls, and keeps the default close button", () => {
+  it("shows the filename and a single action row with open, download, and close", () => {
     render(
       <DocumentViewer
         open
@@ -68,9 +69,10 @@ describe("DocumentViewer", () => {
     );
 
     expect(screen.getByText("report.pdf")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Close" }),
-    ).toBeInTheDocument();
+
+    const close = screen.getByRole("button", { name: "Close" });
+    expect(close).toBeInTheDocument();
+    expect(close).toHaveClass("size-8");
 
     const download = screen.getByRole("link", { name: "Download document" });
     expect(download).toHaveAttribute(
@@ -91,6 +93,12 @@ describe("DocumentViewer", () => {
     expect(openInNewTab).toHaveAttribute("title", "Open in new tab");
     expect(openInNewTab.className).toMatch(/size-8/);
     expect(openInNewTab.className).toMatch(/sm:w-auto/);
+
+    // All three controls share one flex action row (not an absolute close).
+    const actionRow = close.parentElement;
+    expect(actionRow).toContainElement(download);
+    expect(actionRow).toContainElement(openInNewTab);
+    expect(actionRow?.className).toMatch(/items-center/);
   });
 
   describe("PDF embed", () => {
