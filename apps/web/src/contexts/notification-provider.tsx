@@ -111,20 +111,27 @@ export function notificationReducer(
 ): NotificationState {
   switch (action.type) {
     case "fetch_success": {
+      const fetched = action.fetched.filter(
+        (notification) => notification.kind !== "CHAT",
+      );
+
       return {
-        notifications: mergeNotificationList(
-          state.notifications,
-          action.fetched,
-        ),
+        notifications: mergeNotificationList(state.notifications, fetched),
         unreadCount: mergeUnreadCount(
           state.notifications,
-          action.fetched,
+          fetched,
           action.serverUnreadCount,
         ),
       };
     }
     case "realtime": {
       const convertedNotification = action.notification;
+
+      // CHAT is browser-OS only; room attention uses a separate path.
+      if (convertedNotification.kind === "CHAT") {
+        return state;
+      }
+
       const existing = state.notifications.find(
         (notification) => notification.id === convertedNotification.id,
       );

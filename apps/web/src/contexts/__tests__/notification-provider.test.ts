@@ -23,6 +23,23 @@ function createNotification(
 }
 
 describe("notificationReducer", () => {
+  it("ignores CHAT realtime events for the in-app feed", () => {
+    const chatNotification = createNotification({
+      id: "notification-chat",
+      kind: "CHAT",
+      referenceId: "room-1",
+      messageKey: "Notifications.Chat.directMessage",
+    });
+
+    const afterRealtime = notificationReducer(
+      { notifications: [], unreadCount: 0 },
+      { type: "realtime", notification: chatNotification },
+    );
+
+    expect(afterRealtime.notifications).toEqual([]);
+    expect(afterRealtime.unreadCount).toBe(0);
+  });
+
   it("applies fetch and realtime updates atomically without losing unread count", () => {
     const realtimeNotification = createNotification({
       id: "notification-realtime",

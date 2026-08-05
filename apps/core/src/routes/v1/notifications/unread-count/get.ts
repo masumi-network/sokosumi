@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { notificationFeedKindWhere } from "@/helpers/notification-feed";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -15,7 +16,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/unread-count",
     description:
-      "Get the count of unread notifications for the effective user (session user, or orchestrator/coworker with context headers)",
+      "Get the count of unread in-app notification-center items for the effective user (session user, or orchestrator/coworker with context headers). CHAT kind is excluded.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(unreadCountSchema, "Unread count retrieved", {
@@ -39,6 +40,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: {
         userId: userContext.userId,
         isRead: false,
+        kind: notificationFeedKindWhere(),
       },
     });
 
