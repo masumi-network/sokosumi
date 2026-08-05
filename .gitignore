@@ -19,13 +19,8 @@ node_modules
 # misc
 .DS_Store
 *.pem
-*.key
-*.p12
-*.pfx
 .env
-.env.*
-!.env.example
-!.env.*.example
+.firecrawl/
 .neon
 .vercel
 
@@ -33,6 +28,9 @@ node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# local env files
+.env*.local
 
 # reports
 lint-report.json
