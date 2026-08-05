@@ -1,7 +1,8 @@
 /**
- * Strip paste/typing styles that force text color. Dark-mode composers inherit
- * theme foreground; inline `color` from light-mode clipboard HTML (or retained
- * execCommand typing style) paints near-black text on a dark card until remount.
+ * Composer paste/typing helpers.
+ * - Plain-text extraction from clipboard HTML (line-break aware)
+ * - Strip forced text colors left in contentEditable (dark-mode composers
+ *   inherit theme foreground; retained execCommand colors paint near-black)
  */
 
 const COLOR_STYLE_PROPERTIES = [
@@ -11,6 +12,10 @@ const COLOR_STYLE_PROPERTIES = [
   "-webkit-text-fill-color",
   "caret-color",
 ] as const;
+
+/** Block tags that should introduce a newline when extracting plain text. */
+const PLAIN_TEXT_BLOCK_SELECTOR =
+  "p, div, li, blockquote, pre, h1, h2, h3, h4, h5, h6, tr, table, ul, ol";
 
 function removeColorDeclarations(styleValue: string): string {
   const declarations = styleValue
@@ -57,28 +62,30 @@ function stripColorStylesFromElement(element: Element): boolean {
   return changed;
 }
 
-/** Remove color-forcing attributes from a pasted HTML fragment. */
-export function sanitizeComposerPastedHtml(html: string): string {
-  if (!html) return "";
-
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT);
-  let node = walker.currentNode as Element | null;
-  while (node) {
-    stripColorStylesFromElement(node);
-    node = walker.nextNode() as Element | null;
-  }
-  return doc.body.innerHTML;
-}
-
 /**
  * Extract visible text from HTML without regex tag stripping (incomplete
  * multi-character sanitization). Prefer clipboard `text/plain` when available.
+ * Preserves line breaks from `<br>` and common block tags.
  */
 export function composerPastedHtmlToPlainText(html: string): string {
   if (!html) return "";
+
   const doc = new DOMParser().parseFromString(html, "text/html");
-  return doc.body.textContent ?? "";
+  const body = doc.body;
+
+  for (const br of Array.from(body.querySelectorAll("br"))) {
+    br.replaceWith(doc.createTextNode("\n"));
+  }
+  for (const block of Array.from(
+    body.querySelectorAll(PLAIN_TEXT_BLOCK_SELECTOR),
+  )) {
+    block.appendChild(doc.createTextNode("\n"));
+  }
+
+  return (body.textContent ?? "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n");
 }
 
 /**
