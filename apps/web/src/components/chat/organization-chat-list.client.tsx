@@ -15,6 +15,7 @@ import {
   type ReactNode,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -68,6 +69,8 @@ import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-event
 import {
   listOrganizationArchivedChatRoomsAction,
   listOrganizationChatRoomsAction,
+  loadMoreOrganizationArchivedChatRoomsAction,
+  loadMoreOrganizationChatRoomsAction,
 } from "./organization-chat-list.actions";
 import {
   applyRoomReadOverlays,
@@ -77,13 +80,34 @@ import {
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
+/** Upsert first-page rooms; keep older rows previously appended via load-more. */
+function upsertFirstPageRooms(
+  firstPage: ChatRoom[],
+  existing: ChatRoom[],
+): ChatRoom[] {
+  const firstPageIds = new Set(firstPage.map((room) => room.id));
+  const older = existing.filter((room) => !firstPageIds.has(room.id));
+  return [...firstPage, ...older];
+}
+
+function appendUniqueRooms(
+  existing: ChatRoom[],
+  incoming: ChatRoom[],
+): ChatRoom[] {
+  const existingIds = new Set(existing.map((room) => room.id));
+  const unique = incoming.filter((room) => !existingIds.has(room.id));
+  return [...existing, ...unique];
+}
+
 /** Same absolute slot as live room rows so archived height matches Channels/DMs. */
 const ARCHIVED_TRAILING_CONTROL_CLASS =
   "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center";
 
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
+  roomsNextCursor: string | null;
   archivedRooms: ChatRoom[];
+  archivedRoomsNextCursor: string | null;
   currentUserId: string;
   organizationId: string | null;
   canDeleteArchivedRooms?: boolean;
@@ -218,7 +242,9 @@ function getActiveRoomIdFromPathname(pathname: string | null): string | null {
 
 export function OrganizationChatList({
   rooms,
+  roomsNextCursor,
   archivedRooms,
+  archivedRoomsNextCursor,
   currentUserId,
   organizationId,
   canDeleteArchivedRooms = false,
@@ -230,6 +256,16 @@ export function OrganizationChatList({
   const hasOrganization = Boolean(organizationId);
   const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
+  const [activeNextCursor, setActiveNextCursor] = useState(roomsNextCursor);
+  const [archivedNextCursor, setArchivedNextCursor] = useState(
+    archivedRoomsNextCursor,
+  );
+  const [prevRooms, setPrevRooms] = useState(rooms);
+  const [prevRoomsNextCursor, setPrevRoomsNextCursor] =
+    useState(roomsNextCursor);
+  const [prevArchivedRooms, setPrevArchivedRooms] = useState(archivedRooms);
+  const [prevArchivedRoomsNextCursor, setPrevArchivedRoomsNextCursor] =
+    useState(archivedRoomsNextCursor);
   const [channelSectionOpen, setChannelSectionOpen] = useState(true);
   const [archivedSectionOpen, setArchivedSectionOpen] = useState(false);
   const [directOpen, setDirectOpen] = useState(true);
@@ -240,19 +276,37 @@ export function OrganizationChatList({
   );
   const [_isRestoring, startRestoreTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
+  const [isLoadingMoreActive, startLoadMoreActiveTransition] = useTransition();
+  const [isLoadingMoreArchived, startLoadMoreArchivedTransition] =
+    useTransition();
+  const hasAppendedActiveRef = useRef(false);
+  const hasAppendedArchivedRef = useRef(false);
   const activeRoomId = getActiveRoomIdFromPathname(pathname);
   const unreadRoomCount = countChatRoomsWithUnreadAttention(roomRows, {
     activeRoomId,
   });
   useChatUnreadDocumentTitle(unreadRoomCount);
 
-  useEffect(() => {
-    setRoomRows(applyRoomReadOverlays(rooms));
-  }, [rooms]);
-
-  useEffect(() => {
-    setArchivedRows(archivedRooms);
-  }, [archivedRooms]);
+  // Adjust local list when RSC props change (no Effect — keep load-more history).
+  if (rooms !== prevRooms || roomsNextCursor !== prevRoomsNextCursor) {
+    setPrevRooms(rooms);
+    setPrevRoomsNextCursor(roomsNextCursor);
+    setRoomRows(applyRoomReadOverlays(upsertFirstPageRooms(rooms, roomRows)));
+    if (!hasAppendedActiveRef.current) {
+      setActiveNextCursor(roomsNextCursor);
+    }
+  }
+  if (
+    archivedRooms !== prevArchivedRooms ||
+    archivedRoomsNextCursor !== prevArchivedRoomsNextCursor
+  ) {
+    setPrevArchivedRooms(archivedRooms);
+    setPrevArchivedRoomsNextCursor(archivedRoomsNextCursor);
+    setArchivedRows(upsertFirstPageRooms(archivedRooms, archivedRows));
+    if (!hasAppendedArchivedRef.current) {
+      setArchivedNextCursor(archivedRoomsNextCursor);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -262,16 +316,32 @@ export function OrganizationChatList({
         listOrganizationChatRoomsAction(),
         hasOrganization
           ? listOrganizationArchivedChatRoomsAction()
-          : Promise.resolve({ ok: true as const, data: [] as ChatRoom[] }),
+          : Promise.resolve({
+              ok: true as const,
+              data: [] as ChatRoom[],
+              nextCursor: null as string | null,
+            }),
       ]);
       if (cancelled) {
         return;
       }
       if (activeResult.ok) {
-        setRoomRows(applyRoomReadOverlays(activeResult.data));
+        setRoomRows((current) =>
+          applyRoomReadOverlays(
+            upsertFirstPageRooms(activeResult.data, current),
+          ),
+        );
+        setActiveNextCursor((prev) =>
+          hasAppendedActiveRef.current ? prev : activeResult.nextCursor,
+        );
       }
       if (archivedResult.ok) {
-        setArchivedRows(archivedResult.data);
+        setArchivedRows((current) =>
+          upsertFirstPageRooms(archivedResult.data, current),
+        );
+        setArchivedNextCursor((prev) =>
+          hasAppendedArchivedRef.current ? prev : archivedResult.nextCursor,
+        );
       }
     };
 
@@ -348,16 +418,32 @@ export function OrganizationChatList({
         listOrganizationChatRoomsAction(),
         hasOrganization
           ? listOrganizationArchivedChatRoomsAction()
-          : Promise.resolve({ ok: true as const, data: [] as ChatRoom[] }),
+          : Promise.resolve({
+              ok: true as const,
+              data: [] as ChatRoom[],
+              nextCursor: null as string | null,
+            }),
       ]).then(([activeResult, archivedResult]) => {
         if (cancelled) {
           return;
         }
         if (activeResult.ok) {
-          setRoomRows(applyRoomReadOverlays(activeResult.data));
+          setRoomRows((current) =>
+            applyRoomReadOverlays(
+              upsertFirstPageRooms(activeResult.data, current),
+            ),
+          );
+          setActiveNextCursor((prev) =>
+            hasAppendedActiveRef.current ? prev : activeResult.nextCursor,
+          );
         }
         if (archivedResult.ok) {
-          setArchivedRows(archivedResult.data);
+          setArchivedRows((current) =>
+            upsertFirstPageRooms(archivedResult.data, current),
+          );
+          setArchivedNextCursor((prev) =>
+            hasAppendedArchivedRef.current ? prev : archivedResult.nextCursor,
+          );
         }
       });
     };
@@ -429,6 +515,42 @@ export function OrganizationChatList({
         current.map((room) => (room.id === updated.id ? updated : room)),
       ),
     );
+  }
+
+  function handleLoadMoreActiveRooms() {
+    if (!activeNextCursor || isLoadingMoreActive) {
+      return;
+    }
+    const cursor = activeNextCursor;
+    startLoadMoreActiveTransition(async () => {
+      const result = await loadMoreOrganizationChatRoomsAction(cursor);
+      if (!result.ok) {
+        toast.error(t("loadMoreError"));
+        return;
+      }
+      hasAppendedActiveRef.current = true;
+      setRoomRows((current) =>
+        applyRoomReadOverlays(appendUniqueRooms(current, result.data)),
+      );
+      setActiveNextCursor(result.nextCursor);
+    });
+  }
+
+  function handleLoadMoreArchivedRooms() {
+    if (!archivedNextCursor || isLoadingMoreArchived) {
+      return;
+    }
+    const cursor = archivedNextCursor;
+    startLoadMoreArchivedTransition(async () => {
+      const result = await loadMoreOrganizationArchivedChatRoomsAction(cursor);
+      if (!result.ok) {
+        toast.error(t("loadMoreError"));
+        return;
+      }
+      hasAppendedArchivedRef.current = true;
+      setArchivedRows((current) => appendUniqueRooms(current, result.data));
+      setArchivedNextCursor(result.nextCursor);
+    });
   }
 
   const { directMessages, namedChannels } = useMemo(() => {
@@ -612,6 +734,22 @@ export function OrganizationChatList({
                     </SidebarMenuItem>
                   );
                 })}
+                {archivedNextCursor ? (
+                  <SidebarMenuItem>
+                    <div className="group-data-[collapsible=icon]:hidden px-3 py-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-muted-foreground hover:text-foreground w-full text-xs"
+                        disabled={isLoadingMoreArchived}
+                        onClick={handleLoadMoreArchivedRooms}
+                      >
+                        {isLoadingMoreArchived ? t("loading") : t("loadMore")}
+                      </Button>
+                    </div>
+                  </SidebarMenuItem>
+                ) : null}
               </SidebarMenu>
             </CollapsibleContent>
           </Collapsible>
@@ -701,6 +839,21 @@ export function OrganizationChatList({
             </SidebarMenu>
           </CollapsibleContent>
         </Collapsible>
+
+        {activeNextCursor ? (
+          <div className="group-data-[collapsible=icon]:hidden px-3 py-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground w-full text-xs"
+              disabled={isLoadingMoreActive}
+              onClick={handleLoadMoreActiveRooms}
+            >
+              {isLoadingMoreActive ? t("loading") : t("loadMore")}
+            </Button>
+          </div>
+        ) : null}
       </SidebarGroupContent>
     </SidebarGroup>
   );

@@ -525,11 +525,16 @@
       "JobsSearch": {
         "placeholder": "Search jobs...",
         "clear": "Clear search",
-        "resultsCount": "{found} of {total} results found"
+        "resultsCount": "{found} of {total} results found",
+        "resultsCountLoaded": "{found} of {total} loaded",
+        "loadedOnlyHint": "Search covers loaded jobs. Load more to include older ones."
       },
       "JobsList": {
         "noExecutedJobs": "No executed jobs",
-        "emptyJobs": "No jobs yet."
+        "emptyJobs": "No jobs yet.",
+        "loadMore": "Load more",
+        "loading": "Loading...",
+        "loadMoreError": "Failed to load more jobs"
       }
     },
     "Organizations": {
@@ -4756,6 +4761,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
       "directMessages": "Direct Messages",
+      "loadMore": "Load more",
+      "loading": "Loading...",
+      "loadMoreError": "Failed to load more chats",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
         "title": "Channels coming soon",

@@ -29,10 +29,16 @@ function toSearchableJob(job: JobSummary): SearchableJob {
 
 interface JobsSearchProps {
   jobs: JobSummary[];
+  /** True when older jobs exist beyond the loaded pages (load-more available). */
+  hasMoreHistory?: boolean;
   onFilteredChange?: (filtered: JobSummary[], query: string) => void;
 }
 
-export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
+export function JobsSearch({
+  jobs,
+  hasMoreHistory = false,
+  onFilteredChange,
+}: JobsSearchProps) {
   const t = useTranslations("Components.Jobs.JobsSearch");
 
   const [queryParam, setQueryParam] = useQueryState("query", {
@@ -96,14 +102,19 @@ export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
           </button>
         ) : null}
       </div>
-      {searchValue && (
-        <div className="text-muted-foreground px-1 text-xs whitespace-nowrap md:text-sm">
-          {t("resultsCount", {
-            found: filteredJobs.length,
-            total: jobs.length,
-          })}
+      {searchValue ? (
+        <div className="text-muted-foreground flex flex-col gap-0.5 px-1 text-xs md:items-end md:text-sm">
+          <span className="whitespace-nowrap">
+            {t(hasMoreHistory ? "resultsCountLoaded" : "resultsCount", {
+              found: filteredJobs.length,
+              total: jobs.length,
+            })}
+          </span>
+          {hasMoreHistory ? (
+            <span className="text-xs">{t("loadedOnlyHint")}</span>
+          ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
