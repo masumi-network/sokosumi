@@ -303,7 +303,7 @@ function MessageUnfurlCard({ unfurl }: { unfurl: ChatRoomMessageUnfurl }) {
       href={unfurl.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 block w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 inline-block w-fit max-w-sm overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
       aria-label={t("openLink", { title: unfurl.title })}
       data-testid="room-message-unfurl"
     >

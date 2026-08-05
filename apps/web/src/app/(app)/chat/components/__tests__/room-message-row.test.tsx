@@ -1254,6 +1254,9 @@ describe("ChatMessageRow", () => {
     expect(card).toHaveAttribute("href", "https://example.com/article");
     expect(card).toHaveAttribute("target", "_blank");
     expect(card).toHaveAttribute("rel", "noopener noreferrer");
+    // Hug content (thumbnail / text); do not stretch muted background full row.
+    expect(card).toHaveClass("inline-block", "w-fit", "max-w-sm");
+    expect(card).not.toHaveClass("w-full");
     expect(card).toHaveTextContent("Example");
     expect(card).toHaveTextContent("Example Article");
     expect(card).toHaveTextContent("A short summary of the page.");
