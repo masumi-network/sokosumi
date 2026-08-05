@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory";
 
-import { badRequest, forbidden } from "@/helpers/error";
+import { badRequest } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import {
   type AuthEnv,
