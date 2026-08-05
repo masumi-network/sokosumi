@@ -136,9 +136,7 @@ export function JobsList({
       return [...jobs, ...older];
     });
     setNextCursor((prev) =>
-      hasAppendedViaLoadMoreRef.current && prev !== null
-        ? prev
-        : jobsNextCursor,
+      hasAppendedViaLoadMoreRef.current ? prev : jobsNextCursor,
     );
   }, [jobs, jobsNextCursor]);
 

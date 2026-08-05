@@ -285,17 +285,17 @@ export function OrganizationChatList({
     setRoomRows((current) =>
       applyRoomReadOverlays(upsertFirstPageRooms(rooms, current)),
     );
+    // After any load-more, poll/RSC must not revive first-page nextCursor
+    // (would re-show Load more after history exhausted).
     setActiveNextCursor((prev) =>
-      hasAppendedActiveRef.current && prev !== null ? prev : roomsNextCursor,
+      hasAppendedActiveRef.current ? prev : roomsNextCursor,
     );
   }, [rooms, roomsNextCursor]);
 
   useEffect(() => {
     setArchivedRows((current) => upsertFirstPageRooms(archivedRooms, current));
     setArchivedNextCursor((prev) =>
-      hasAppendedArchivedRef.current && prev !== null
-        ? prev
-        : archivedRoomsNextCursor,
+      hasAppendedArchivedRef.current ? prev : archivedRoomsNextCursor,
     );
   }, [archivedRooms, archivedRoomsNextCursor]);
 
@@ -323,9 +323,7 @@ export function OrganizationChatList({
           ),
         );
         setActiveNextCursor((prev) =>
-          hasAppendedActiveRef.current && prev !== null
-            ? prev
-            : activeResult.nextCursor,
+          hasAppendedActiveRef.current ? prev : activeResult.nextCursor,
         );
       }
       if (archivedResult.ok) {
@@ -333,9 +331,7 @@ export function OrganizationChatList({
           upsertFirstPageRooms(archivedResult.data, current),
         );
         setArchivedNextCursor((prev) =>
-          hasAppendedArchivedRef.current && prev !== null
-            ? prev
-            : archivedResult.nextCursor,
+          hasAppendedArchivedRef.current ? prev : archivedResult.nextCursor,
         );
       }
     };
@@ -429,9 +425,7 @@ export function OrganizationChatList({
             ),
           );
           setActiveNextCursor((prev) =>
-            hasAppendedActiveRef.current && prev !== null
-              ? prev
-              : activeResult.nextCursor,
+            hasAppendedActiveRef.current ? prev : activeResult.nextCursor,
           );
         }
         if (archivedResult.ok) {
@@ -439,9 +433,7 @@ export function OrganizationChatList({
             upsertFirstPageRooms(archivedResult.data, current),
           );
           setArchivedNextCursor((prev) =>
-            hasAppendedArchivedRef.current && prev !== null
-              ? prev
-              : archivedResult.nextCursor,
+            hasAppendedArchivedRef.current ? prev : archivedResult.nextCursor,
           );
         }
       });
