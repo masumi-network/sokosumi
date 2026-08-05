@@ -8,7 +8,6 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
   calculateAgentRatings,
-  calculateAverageExecutionTimes,
   getAgentCost,
   getAgentDescription,
   getAgentIcon,
@@ -20,18 +19,14 @@ import {
   getAuthorFromAgent,
 } from "@/schemas/agent.schema";
 import { mapCategoryForApi } from "@/schemas/category.schema";
-import type {
-  agentCategoriesInclude,
-  agentJobsCountInclude,
-} from "@/types/agent";
+import type { agentCategoriesInclude } from "@/types/agent";
 
 /**
  * Agent row shape required to build a catalog-style agent summary: pricing,
- * job count, ordered categories, and optional metadata overrides.
+ * denormalized jobCount, ordered categories, and optional metadata overrides.
  */
 export type AgentSummaryRow = Prisma.AgentGetPayload<{
   include: typeof agentPricingInclude &
-    typeof agentJobsCountInclude &
     typeof agentCategoriesInclude &
     typeof agentMetadataOverrideScalarsInclude;
 }>;
@@ -41,8 +36,8 @@ export type AgentSummaryRow = Prisma.AgentGetPayload<{
  * `GET /v1/agents`: resolves overrides, computes per-agent credits from the
  * credit cost table, and attaches execution + rating metrics.
  *
- * Keeps the catalog summary computation (credits + override resolution +
- * metrics) in a single place.
+ * List path skips average-execution SQL (`averageTime` is null); detail still
+ * computes it. Execution count uses denormalized `Agent.jobCount`.
  */
 export async function buildAgentSummaries(
   agents: AgentSummaryRow[],
@@ -69,11 +64,7 @@ export async function buildAgentSummaries(
     }));
 
   const agentIds = agentsWithCredits.map((agent) => agent.id);
-
-  const [averageExecutionTimes, ratingsMap] = await Promise.all([
-    calculateAverageExecutionTimes(agentIds, tx),
-    calculateAgentRatings(agentIds, tx),
-  ]);
+  const ratingsMap = await calculateAgentRatings(agentIds, tx);
 
   return agentsWithCredits.map((agent) => {
     const ratingMetrics = ratingsMap.get(agent.id);
@@ -81,8 +72,8 @@ export async function buildAgentSummaries(
       ...agent,
       metrics: {
         executions: {
-          count: agent._count.jobs,
-          averageTime: averageExecutionTimes.get(agent.id) ?? null,
+          count: agent.jobCount,
+          averageTime: null,
         },
         ratings: {
           total: ratingMetrics?.total ?? 0,

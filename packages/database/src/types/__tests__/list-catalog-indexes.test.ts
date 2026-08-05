@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { agentOrderBy } from "../agent.js";
+
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const schemaPath = join(packageRoot, "prisma/schema.prisma");
 const migrationsDir = join(packageRoot, "prisma/migrations");
@@ -33,6 +35,11 @@ function migrationSqlFiles(): string[] {
 }
 
 describe("list and catalog performance indexes", () => {
+  it("agentOrderBy uses denormalized jobCount without jobs._count", () => {
+    expect(agentOrderBy).toEqual([{ jobCount: "desc" }, { createdAt: "desc" }]);
+    expect(JSON.stringify(agentOrderBy)).not.toContain("_count");
+  });
+
   it("schema.prisma declares TaskEvent, Job, and Agent list/catalog indexes", () => {
     const schema = readSchema();
 
@@ -43,6 +50,10 @@ describe("list and catalog performance indexes", () => {
       "@@index([workspaceId, createdAt(sort: Desc)])",
     );
     expect(modelBlock(schema, "Agent")).toContain("@@index([isShown, status])");
+    expect(modelBlock(schema, "Agent")).toContain(
+      "@@index([jobCount(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])",
+    );
+    expect(modelBlock(schema, "Agent")).toContain("jobCount Int @default(0)");
   });
 
   it("migrations create matching Postgres indexes", () => {
@@ -53,6 +64,10 @@ describe("list and catalog performance indexes", () => {
     expect(sql).toMatch(/"Agent_isShown_status_idx"/);
     expect(sql).toMatch(
       /CREATE INDEX "Job_workspaceId_createdAt_idx" ON "Job"\("workspaceId", "createdAt" DESC\)/,
+    );
+    expect(sql).toMatch(/"Agent_jobCount_createdAt_id_idx"/);
+    expect(sql).toMatch(
+      /CREATE INDEX "Agent_jobCount_createdAt_id_idx" ON "Agent"\("jobCount" DESC, "createdAt" DESC, "id" DESC\)/,
     );
   });
 });
