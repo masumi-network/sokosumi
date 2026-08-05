@@ -38,7 +38,7 @@ Inline message edit shows labeled **Save** and **Cancel** buttons under the text
 | Cmd/Ctrl+Enter | Keep as save alias (low cost, muscle memory) |
 | Mouse-only path | Keyboard only; no icon buttons, no hint chrome |
 | Blur / click-away | Cancel if draft unchanged; if dirty, stay in edit mode (no auto-save, no discard) |
-| Enter when not `canSave` | No-op (do not cancel, do not save) |
+| Enter when not `canSave` | Cancel / exit edit (unchanged or empty) — not silent no-op |
 
 ## Current behavior
 
@@ -69,18 +69,19 @@ Parent wiring (`rooms-client`, `thread-panel`) is unchanged: still passes `onSav
 
 | Key | Action |
 | --- | --- |
-| **Enter** (no Shift/Alt/Ctrl/Meta) | `preventDefault`; call `onSave` if `canSave`; otherwise no-op |
+| **Enter** (no Shift/Alt) | `preventDefault`; call `onSave` with live textarea value if dirty + non-empty; otherwise **cancel** (exit edit). Cmd/Ctrl+Enter uses the same path (save alias when dirty). |
 | **Shift+Enter** | Default newline (do not intercept) |
 | **Escape** | `preventDefault`; call `onCancel` if not `isSaving` |
-| **Cmd/Ctrl+Enter** | `preventDefault`; call `onSave` if `canSave` (alias) |
 
 While `isSaving`: textarea disabled; ignore Enter/Escape save/cancel handlers (same as today for Escape).
+
+**Post-approval UX note:** Enter when not `canSave` was originally a no-op. That left the field silent after `preventDefault` (felt broken). Shipped behavior: Enter always exits — save when valid, cancel when unchanged or empty.
 
 ### Blur / click-away
 
 | Draft state | On blur |
 | --- | --- |
-| Unchanged vs original (trim-aware, same idea as `canSave` dirty check) | Cancel edit (`onCancel`) if not saving |
+| Unchanged vs original (trim-aware; use **live DOM** value, not only React props) | Cancel edit (`onCancel`) if not saving |
 | Dirty | No-op — stay in edit mode; user must Enter or Escape |
 
 Do **not** auto-save on blur.
@@ -93,7 +94,7 @@ Unchanged from product rules:
 - Differs from original after trim.
 - Not currently saving.
 
-Empty draft + Enter → no-op (user uses Escape to exit).
+Empty draft + Enter → cancel (exit edit, restore original message view).
 
 ## Implementation sketch
 

@@ -1340,6 +1340,26 @@ describe("ChatMessageRow", () => {
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
 
+  it("saves on Ctrl+Enter as an alias while editing", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit,
+    });
+
+    screen.getByDisplayValue("Original fixed").focus();
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    expect(onSaveEdit).toHaveBeenCalledWith("Original fixed");
+  });
+
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();

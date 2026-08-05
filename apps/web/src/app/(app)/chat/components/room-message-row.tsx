@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
@@ -1110,14 +1111,6 @@ function MessageEditComposer({
 }) {
   const t = useTranslations("App.Channels");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const originalContentRef = useRef(originalContent);
-  const isSavingRef = useRef(isSaving);
-  const onSaveRef = useRef(onSave);
-  const onCancelRef = useRef(onCancel);
-  originalContentRef.current = originalContent;
-  isSavingRef.current = isSaving;
-  onSaveRef.current = onSave;
-  onCancelRef.current = onCancel;
 
   // autoFocus leaves the caret at 0; place it at the end so editing continues
   // from the natural end of the message (Slack/Discord-style).
@@ -1129,52 +1122,38 @@ function MessageEditComposer({
     el.setSelectionRange(end, end);
   }, []);
 
-  // Native listener: read the live DOM value so Enter always sees the latest
-  // text (React onKeyDown can race a just-typed character's setState). Enter
-  // with no real change (or empty) exits edit mode instead of no-op
-  // (preventDefault alone felt like a broken keyboard).
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.isComposing || event.keyCode === 229) return;
-
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!isSavingRef.current) onCancelRef.current();
-        return;
-      }
-
-      if (event.key !== "Enter") return;
-      // Shift+Enter → newline (default)
-      if (event.shiftKey) return;
-      // Alt+Enter ignored (leave default / no save)
-      if (event.altKey) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-      if (isSavingRef.current) return;
-
-      const target = event.currentTarget;
-      if (!(target instanceof HTMLTextAreaElement)) return;
-
-      const live = target.value;
-      const liveTrimmed = live.trim();
-      const originalTrimmed = originalContentRef.current.trim();
-      if (liveTrimmed.length > 0 && liveTrimmed !== originalTrimmed) {
-        onSaveRef.current(live);
-        return;
-      }
-      onCancelRef.current();
+  // Live DOM via currentTarget: parent draft can lag the last keystroke's
+  // onChange. Enter with no real change (or empty) exits edit mode — no-op
+  // after preventDefault felt like a broken keyboard.
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
+      return;
     }
 
-    el.addEventListener("keydown", handleKeyDown);
-    return () => {
-      el.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (!isSaving) onCancel();
+      return;
+    }
+
+    if (event.key !== "Enter") return;
+    // Shift+Enter → newline (default)
+    if (event.shiftKey) return;
+    // Alt+Enter ignored (leave default / no save)
+    if (event.altKey) return;
+
+    event.preventDefault();
+    if (isSaving) return;
+
+    const live = event.currentTarget.value;
+    const liveTrimmed = live.trim();
+    const originalTrimmed = originalContent.trim();
+    if (liveTrimmed.length > 0 && liveTrimmed !== originalTrimmed) {
+      onSave(live);
+      return;
+    }
+    onCancel();
+  }
 
   return (
     <div className="pt-0.5">
@@ -1187,12 +1166,13 @@ function MessageEditComposer({
         disabled={isSaving}
         className="min-h-10 max-h-40 resize-none overflow-y-auto field-sizing-content px-3 py-2.5 leading-6"
         aria-label={t("Edit.composerAria")}
+        onKeyDown={handleKeyDown}
         onBlur={() => {
-          if (isSavingRef.current) return;
+          if (isSaving) return;
           // Live DOM (same race as Enter): prop can lag a just-typed character.
           const live = textareaRef.current?.value ?? value;
-          if (live.trim() === originalContentRef.current.trim()) {
-            onCancelRef.current();
+          if (live.trim() === originalContent.trim()) {
+            onCancel();
           }
         }}
       />
