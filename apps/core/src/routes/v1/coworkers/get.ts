@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { COWORKER_CAPABILITIES } from "@/helpers/coworker-capability";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -11,6 +12,7 @@ import { buildAccessibleCoworkersWhere } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
 const capabilityQuerySchema = z
@@ -31,13 +33,13 @@ const capabilityQuerySchema = z
 
 const querySchema = z.object({
   scope: z
-    .enum(["all", "whitelisted", "archived", "owned"])
+    .enum(["all", "whitelisted", "archived", "owned", "available"])
     .optional()
     .default("whitelisted")
     .openapi({
       param: { name: "scope", in: "query" },
       description:
-        "Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' to include all active coworkers, 'archived' to include archived coworkers, or 'owned' to list active coworkers accessible via vendor membership (vendor admin: all vendor coworkers; developer: assigned coworkers only; user-authenticated only).",
+        "Coworker visibility scope. Defaults to 'whitelisted'. Use 'all' for all active coworkers, 'archived' for archived coworkers, 'owned' for active coworkers accessible via vendor membership (vendor admin: all vendor coworkers; developer: assigned only; user-authenticated only), or 'available' for coworkers usable in the active workspace (global whitelist or GRANTED workspace access; user auth + workspace context required).",
       example: "whitelisted",
     }),
   capability: capabilityQuerySchema,
@@ -77,6 +79,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         archivedAt: null,
         ...buildAccessibleCoworkersWhere(userAuthContext.userId),
       };
+    } else if (scope === "available") {
+      requireUserAuthContext(authContext);
+      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
+      baseScope = buildCoworkerUsableInWorkspaceWhere(
+        workspaceContext.workspaceId,
+      );
     } else if (scope === "archived") {
       baseScope = { archivedAt: { not: null } };
     } else {

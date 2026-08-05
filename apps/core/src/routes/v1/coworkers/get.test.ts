@@ -1,9 +1,14 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import type {
+  WorkspaceContext,
+  WorkspaceVariables,
+} from "@/middleware/workspace";
 
 import mountGetCoworkers from "./get";
 
@@ -12,6 +17,14 @@ const { coworkerFindManyMock } = vi.hoisted(() => ({
 }));
 
 const expectedOrderBy = [{ priority: "desc" }, { slug: "asc" }] as const;
+
+const personalWorkspaceId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+const personalWorkspaceContext: WorkspaceContext = {
+  workspaceId: personalWorkspaceId,
+  userId: "user_123",
+  organizationId: null,
+};
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -39,6 +52,21 @@ const sampleVendor = {
   logoDark: null,
 };
 
+const usableInWorkspaceWhere = {
+  archivedAt: null,
+  OR: [
+    { isWhitelisted: true },
+    {
+      workspaceAccess: {
+        some: {
+          workspaceId: personalWorkspaceId,
+          status: CoworkerWorkspaceAccessStatus.GRANTED,
+        },
+      },
+    },
+  ],
+};
+
 function createApp(
   authContext: AuthenticationContext = {
     actor: "user",
@@ -46,9 +74,10 @@ function createApp(
     organizationId: null,
     role: "user",
   },
+  workspaceContext: WorkspaceContext | null = null,
 ) {
   const app = new OpenAPIHono<{
-    Variables: AuthVariables;
+    Variables: AuthVariables & WorkspaceVariables;
   }>({
     defaultHook: (result) => {
       if (!result.success && result.error) {
@@ -60,6 +89,7 @@ function createApp(
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
+    c.set("workspaceContext", workspaceContext);
     return await next();
   });
 
@@ -355,5 +385,82 @@ describe("GET /coworkers", () => {
       orderBy: expectedOrderBy,
       include: coworkerInclude,
     });
+  });
+
+  it("returns coworkers usable in active workspace via scope=available", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp(
+      {
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      },
+      personalWorkspaceContext,
+    );
+    const response = await app.request("http://localhost/?scope=available");
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: usableInWorkspaceWhere,
+      orderBy: expectedOrderBy,
+      include: coworkerInclude,
+    });
+  });
+
+  it("composes available scope with capability filters", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    const app = createApp(
+      {
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      },
+      personalWorkspaceContext,
+    );
+    const response = await app.request(
+      "http://localhost/?scope=available&capability=tasks",
+    );
+
+    expect(response.status).toBe(200);
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        ...usableInWorkspaceWhere,
+        capabilities: {
+          hasEvery: ["tasks"],
+        },
+      },
+      orderBy: expectedOrderBy,
+      include: coworkerInclude,
+    });
+  });
+
+  it("rejects coworker actors for scope=available with 403", async () => {
+    const app = createApp(coworkerAuth, personalWorkspaceContext);
+
+    const response = await app.request("http://localhost/?scope=available");
+
+    expect(response.status).toBe(403);
+    expect(coworkerFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects scope=available when workspace context is missing with 403", async () => {
+    const app = createApp(
+      {
+        actor: "user",
+        userId: "user_123",
+        organizationId: null,
+        role: "user",
+      },
+      null,
+    );
+
+    const response = await app.request("http://localhost/?scope=available");
+
+    expect(response.status).toBe(403);
+    expect(coworkerFindManyMock).not.toHaveBeenCalled();
   });
 });
