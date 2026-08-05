@@ -479,7 +479,7 @@ function ChannelMessageBody({
         data-testid="room-message-body"
         data-jumbo-emoji={String(jumboEmojiCount)}
         className={cn(
-          "wrap-break-word whitespace-pre-wrap",
+          "min-w-0 max-w-full wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
           jumboEmojiClassName(jumboEmojiCount),
         )}
       >
@@ -489,11 +489,12 @@ function ChannelMessageBody({
   }
 
   return (
-    <div>
+    <div className="min-w-0 max-w-full wrap-anywhere [word-break:break-word]">
       <div
         ref={contentRef}
         data-testid="room-message-body"
         className={cn(
+          "min-w-0 max-w-full",
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
         )}
       >
@@ -1328,7 +1329,7 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
+        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"
@@ -1407,7 +1408,7 @@ export function ChatMessageRow({
             ) : null}
           </div>
         )}
-        <div className="text-foreground wrap-break-word text-base leading-6 md:text-sm">
+        <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
