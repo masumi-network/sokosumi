@@ -42,6 +42,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import type { Discoverability } from "./create-channel-wizard";
+import { GuestInviteSection } from "./guest-invite-section";
 import { ParticipantCheckboxes } from "./participant-checkboxes";
 
 function channelDiscoverability(
@@ -65,6 +66,7 @@ export function EditChannelDialog({
   canManageSettings,
   canArchive,
   canLeave,
+  canInviteGuests = false,
   membersLoadFailed = false,
 }: {
   channel: ChatRoom;
@@ -79,12 +81,20 @@ export function EditChannelDialog({
   /** Any member can leave, except the last one: an empty roster could not be
    * archived by a remaining elevated member. */
   canLeave: boolean;
+  /**
+   * Host-org room members (`myAccess=member`) on external channels may invite
+   * guests. Guests never invite.
+   */
+  canInviteGuests?: boolean;
   membersLoadFailed?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const showGuestInvite =
+    canInviteGuests &&
+    channelDiscoverability(channel.discoverability) === "external";
   const [pendingKind, setPendingKind] = useState<"archive" | "leave" | null>(
     null,
   );
@@ -199,14 +209,13 @@ export function EditChannelDialog({
             scroll. Cap the dialog to the viewport and scroll the form body rather
             than the padded dialog box, whose children do not reflow around their
             own scrollbar. */}
-        <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto shadow-none sm:max-w-2xl">
+        <DialogContent className="max-h-[calc(100svh-2rem)] space-y-4 overflow-y-auto shadow-none sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
+            <DialogDescription>{t("Dialog.editDescription")}</DialogDescription>
+          </DialogHeader>
+          {/* Settings form stays separate from guest invite (nested forms invalid). */}
           <form className="space-y-4" onSubmit={handleSubmit}>
-            <DialogHeader>
-              <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
-              <DialogDescription>
-                {t("Dialog.editDescription")}
-              </DialogDescription>
-            </DialogHeader>
             {canManageSettings || canEditMembers ? (
               <div className="grid gap-4">
                 {canManageSettings ? (
@@ -304,37 +313,61 @@ export function EditChannelDialog({
                 ) : null}
               </div>
             ) : null}
-            {canArchive || canLeave ? (
-              <div className="space-y-3 border-t pt-4">
-                <p className="text-sm font-medium">
-                  {tActions("sectionTitle")}
-                </p>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  {canLeave ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="justify-center gap-2"
-                      onClick={() => handleRequestExit("leave")}
-                    >
-                      <LogOut className="size-4" aria-hidden />
-                      {tActions("leave")}
-                    </Button>
+            {canSubmit ? (
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setOpen(false)}
+                >
+                  {t("Dialog.cancel")}
+                </Button>
+                <Button type="submit" variant="primary" disabled={isPending}>
+                  {isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
                   ) : null}
-                  {canArchive ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="text-semantic-destructive hover:text-semantic-destructive justify-center gap-2"
-                      onClick={() => handleRequestExit("archive")}
-                    >
-                      <ArchiveIcon className="size-4" aria-hidden />
-                      {tActions("archive")}
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
+                  {t("Dialog.save")}
+                </Button>
+              </DialogFooter>
             ) : null}
+          </form>
+          {showGuestInvite ? (
+            <GuestInviteSection
+              roomId={channel.id}
+              enabled={showGuestInvite}
+              open={open}
+            />
+          ) : null}
+          {canArchive || canLeave ? (
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-medium">{tActions("sectionTitle")}</p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {canLeave ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="justify-center gap-2"
+                    onClick={() => handleRequestExit("leave")}
+                  >
+                    <LogOut className="size-4" aria-hidden />
+                    {tActions("leave")}
+                  </Button>
+                ) : null}
+                {canArchive ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-semantic-destructive hover:text-semantic-destructive justify-center gap-2"
+                    onClick={() => handleRequestExit("archive")}
+                  >
+                    <ArchiveIcon className="size-4" aria-hidden />
+                    {tActions("archive")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          {!canSubmit ? (
             <DialogFooter>
               <Button
                 type="button"
@@ -343,16 +376,8 @@ export function EditChannelDialog({
               >
                 {t("Dialog.cancel")}
               </Button>
-              {canSubmit ? (
-                <Button type="submit" variant="primary" disabled={isPending}>
-                  {isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : null}
-                  {t("Dialog.save")}
-                </Button>
-              ) : null}
             </DialogFooter>
-          </form>
+          ) : null}
         </DialogContent>
       </Dialog>
 

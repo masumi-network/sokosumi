@@ -4774,6 +4774,66 @@
         "pendingAria": "Pending invitation to {name} from {organization}",
         "hostOrganization": "{organization}"
       },
+      "GuestInvite": {
+        "title": "Invite guests",
+        "description": "Invite people outside your organization by email. They join this channel only, not the organization.",
+        "emailLabel": "Email",
+        "emailPlaceholder": "guest@example.com",
+        "send": "Send invite",
+        "invalidEmail": "Enter a valid email address.",
+        "inviteSuccess": "Invitation sent to {email}.",
+        "pendingTitle": "Pending invites",
+        "empty": "No pending invites.",
+        "loading": "Loading invites…",
+        "loadError": "Could not load pending invites.",
+        "retry": "Retry",
+        "revoke": "Revoke",
+        "revokeAria": "Revoke invitation for {email}",
+        "revokeSuccess": "Invitation revoked."
+      },
+      "ChatInvite": {
+        "title": "Channel invitation",
+        "description": "You've been invited to join an external channel",
+        "hasInvitedYouToJoin": "has invited you to join",
+        "organizationLabel": "Host organization: {organizationName}",
+        "guestNote": "Accepting joins this channel only. You will not become a member of the host organization.",
+        "acceptedTitle": "Welcome to #{roomName}!",
+        "acceptedDescription": "You joined as a guest of {organizationName}.",
+        "declinedTitle": "Invitation declined",
+        "declinedDescription": "You declined the invitation to #{roomName}.",
+        "revokedTitle": "Invitation revoked",
+        "revokedDescription": "This invitation to #{roomName} is no longer valid.",
+        "expiredTitle": "Invitation expired",
+        "expiredDescription": "This invitation to #{roomName} has expired.",
+        "goToRoom": "Open channel",
+        "goToChat": "Go to chat",
+        "Actions": {
+          "accept": "Accept",
+          "decline": "Decline",
+          "Success": {
+            "accept": "Invitation accepted",
+            "decline": "Invitation declined"
+          },
+          "Error": {
+            "accept": "Could not accept invitation",
+            "decline": "Could not decline invitation"
+          }
+        },
+        "Error": {
+          "NotFound": {
+            "title": "Invitation not found",
+            "description": "There was an issue with your invitation.",
+            "content": "This invitation does not exist, was revoked, or is not for your account. Sign in with the invited email and try again.",
+            "footer": "Go to chat"
+          },
+          "Expired": {
+            "title": "Invitation expired",
+            "description": "There was an issue with your invitation.",
+            "content": "This invitation has expired. Ask the host to send a new one.",
+            "footer": "Go to chat"
+          }
+        }
+      },
       "loadMore": "Load more",
       "loading": "Loading...",
       "loadMoreError": "Failed to load more chats",

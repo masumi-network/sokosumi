@@ -342,20 +342,35 @@ export function RoomsClient({
     : "";
 
   const isDirectRoom = selectedRoom?.kind === "direct";
+  const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
   const currentMemberRole = organizationMembers.find(
     (member) => member.user.id === currentUserId,
   )?.role;
   const isOrgOwnerOrAdmin =
     currentMemberRole === "owner" || currentMemberRole === "admin";
-  // Any active channel member may rewrite the roster.
-  const canEditSelectedRoomMembers = Boolean(selectedRoom && !isDirectRoom);
+  // Host-org channel members rewrite roster; guests cannot.
+  const canEditSelectedRoomMembers = Boolean(
+    selectedRoom && !isDirectRoom && !isGuestInSelectedRoom,
+  );
   // Name/topic/discoverability and archive: organization owner/admin only.
+  // Guests never manage host channel settings.
   const canManageSelectedRoomSettings = Boolean(
-    selectedRoom && !isDirectRoom && isOrgOwnerOrAdmin,
+    selectedRoom &&
+      !isDirectRoom &&
+      !isGuestInSelectedRoom &&
+      isOrgOwnerOrAdmin,
   );
   const canArchiveSelectedRoom = canManageSelectedRoomSettings;
+  // Host members on external channels invite guests; guests never invite.
+  const canInviteGuestsToSelectedRoom = Boolean(
+    selectedRoom &&
+      !isDirectRoom &&
+      !isGuestInSelectedRoom &&
+      selectedRoom.myAccess === "member" &&
+      selectedRoom.discoverability === "external",
+  );
   // Any member can leave, but not the last one — an empty roster could not be
-  // archived (archive requires membership of an org owner/admin).
+  // archived (archive requires membership of an org owner/admin). Guests may leave.
   const canLeaveSelectedRoom = Boolean(
     selectedRoom && !isDirectRoom && selectedRoom.userMembers.length > 1,
   );
@@ -1433,6 +1448,7 @@ export function RoomsClient({
                       canManageSettings={canManageSelectedRoomSettings}
                       canArchive={canArchiveSelectedRoom}
                       canLeave={canLeaveSelectedRoom}
+                      canInviteGuests={canInviteGuestsToSelectedRoom}
                       membersLoadFailed={membersLoadFailed}
                     />
                   )}

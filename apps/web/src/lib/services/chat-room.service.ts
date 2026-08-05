@@ -109,6 +109,47 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  /** Invitee: load one invitation by id (email must match caller). */
+  async function getInvitation(id: string): Promise<ChatRoomInvitation | null> {
+    try {
+      const response = await coreClient.getChatRoomInvitation(id);
+      return response.data;
+    } catch (error) {
+      if (
+        error instanceof CoreApiRequestError &&
+        (error.status === 404 || error.status === 403)
+      ) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /** Host: pending guest invitations for an external channel. */
+  async function listRoomInvitations(
+    roomId: string,
+  ): Promise<ChatRoomInvitation[]> {
+    const response = await coreClient.listChatRoomInvitations(roomId);
+    return response.data;
+  }
+
+  /** Host: invite external guest by email. */
+  async function createRoomInvitation(
+    roomId: string,
+    email: string,
+  ): Promise<ChatRoomInvitation> {
+    const response = await coreClient.createChatRoomInvitation(roomId, email);
+    return response.data;
+  }
+
+  /** Host: revoke a pending guest invitation. */
+  async function revokeRoomInvitation(
+    roomId: string,
+    invitationId: string,
+  ): Promise<void> {
+    await coreClient.revokeChatRoomInvitation(roomId, invitationId);
+  }
+
   const getRoom = cache(async function getRoom(
     id: string,
   ): Promise<ChatRoom | null> {
@@ -297,16 +338,19 @@ export const chatRoomService = (() => {
     acceptInvitation,
     archiveRoom,
     createRoom,
+    createRoomInvitation,
     declineInvitation,
     deleteMessage,
     deleteRoom,
     editMessage,
+    getInvitation,
     getRoom,
     joinRoom,
     listArchivedRooms,
     listDiscoverableChannels,
     listMessages,
     listPendingInvitations,
+    listRoomInvitations,
     listRooms,
     listUnreadThreads,
     listThreadMessages,
@@ -317,6 +361,7 @@ export const chatRoomService = (() => {
     markUnread,
     pinRoom,
     restoreRoom,
+    revokeRoomInvitation,
     unpinRoom,
     muteRoom,
     unmuteRoom,

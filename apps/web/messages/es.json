@@ -4774,6 +4774,66 @@
         "pendingAria": "Invitación pendiente a {name} de {organization}",
         "hostOrganization": "{organization}"
       },
+      "GuestInvite": {
+        "title": "Invitar invitados",
+        "description": "Invita por correo a personas fuera de tu organización. Se unen solo a este canal, no a la organización.",
+        "emailLabel": "Correo",
+        "emailPlaceholder": "invitado@example.com",
+        "send": "Enviar invitación",
+        "invalidEmail": "Introduce un correo válido.",
+        "inviteSuccess": "Invitación enviada a {email}.",
+        "pendingTitle": "Invitaciones pendientes",
+        "empty": "No hay invitaciones pendientes.",
+        "loading": "Cargando invitaciones…",
+        "loadError": "No se pudieron cargar las invitaciones pendientes.",
+        "retry": "Reintentar",
+        "revoke": "Revocar",
+        "revokeAria": "Revocar invitación de {email}",
+        "revokeSuccess": "Invitación revocada."
+      },
+      "ChatInvite": {
+        "title": "Invitación al canal",
+        "description": "Te han invitado a un canal externo",
+        "hasInvitedYouToJoin": "te ha invitado a unirte a",
+        "organizationLabel": "Organización anfitriona: {organizationName}",
+        "guestNote": "Al aceptar te unes solo a este canal. No serás miembro de la organización anfitriona.",
+        "acceptedTitle": "¡Bienvenido a #{roomName}!",
+        "acceptedDescription": "Te uniste como invitado de {organizationName}.",
+        "declinedTitle": "Invitación rechazada",
+        "declinedDescription": "Rechazaste la invitación a #{roomName}.",
+        "revokedTitle": "Invitación revocada",
+        "revokedDescription": "Esta invitación a #{roomName} ya no es válida.",
+        "expiredTitle": "Invitación caducada",
+        "expiredDescription": "Esta invitación a #{roomName} ha caducado.",
+        "goToRoom": "Abrir canal",
+        "goToChat": "Ir al chat",
+        "Actions": {
+          "accept": "Aceptar",
+          "decline": "Rechazar",
+          "Success": {
+            "accept": "Invitación aceptada",
+            "decline": "Invitación rechazada"
+          },
+          "Error": {
+            "accept": "No se pudo aceptar la invitación",
+            "decline": "No se pudo rechazar la invitación"
+          }
+        },
+        "Error": {
+          "NotFound": {
+            "title": "Invitación no encontrada",
+            "description": "Hubo un problema con tu invitación.",
+            "content": "Esta invitación no existe, fue revocada o no es para tu cuenta. Inicia sesión con el correo invitado e inténtalo de nuevo.",
+            "footer": "Ir al chat"
+          },
+          "Expired": {
+            "title": "Invitación caducada",
+            "description": "Hubo un problema con tu invitación.",
+            "content": "Esta invitación ha caducado. Pide al anfitrión que envíe una nueva.",
+            "footer": "Ir al chat"
+          }
+        }
+      },
       "loadMore": "Cargar más",
       "loading": "Cargando...",
       "loadMoreError": "No se pudieron cargar más chats",

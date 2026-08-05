@@ -91,6 +91,7 @@ import {
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
+  deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
@@ -124,8 +125,10 @@ import {
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
   getChatsInvitations as coreGetChatsInvitations,
+  getChatsInvitationsById as coreGetChatsInvitationsById,
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
+  getChatsRoomsByIdInvitations as coreGetChatsRoomsByIdInvitations,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
   getChatsRoomsByIdThreads as coreGetChatsRoomsByIdThreads,
   getChatsRoomsByIdThreadsByParentMessageId as coreGetChatsRoomsByIdThreadsByParentMessageId,
@@ -229,6 +232,7 @@ import {
   postChatsRooms as corePostChatsRooms,
   postChatsRoomsByIdArchive as corePostChatsRoomsByIdArchive,
   postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
+  postChatsRoomsByIdInvitations as corePostChatsRoomsByIdInvitations,
   postChatsRoomsByIdMembersMe as corePostChatsRoomsByIdMembersMe,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
@@ -440,6 +444,60 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to decline chat room invitation",
+    );
+  }
+
+  async function getChatRoomInvitation(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsInvitationsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch chat room invitation",
+    );
+  }
+
+  async function listChatRoomInvitations(roomId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdInvitations({
+          client,
+          path: { id: roomId },
+          cache: "no-store",
+        }),
+      "Failed to fetch room invitations",
+    );
+  }
+
+  async function createChatRoomInvitation(roomId: string, email: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdInvitations({
+          client,
+          path: { id: roomId },
+          body: { email },
+        }),
+      "Failed to create room invitation",
+    );
+  }
+
+  async function revokeChatRoomInvitation(
+    roomId: string,
+    invitationId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdInvitationsByInvitationId({
+          client,
+          path: { id: roomId, invitationId },
+        }),
+      "Failed to revoke room invitation",
     );
   }
 
@@ -3698,6 +3756,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     acceptChatRoomInvitation,
     addChatRoomMessage,
     archiveChatRoom,
+    createChatRoomInvitation,
     declineChatRoomInvitation,
     deleteChatRoom,
     restoreChatRoom,
@@ -3707,6 +3766,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     createChatRoom,
     createAgentJob,
     createChatRoomFileUploadSession,
+    getChatRoomInvitation,
+    listChatRoomInvitations,
+    revokeChatRoomInvitation,
     cleanupOrganizationLogo,
     cleanupVendorLogo,
     createMyFileUploadSession,

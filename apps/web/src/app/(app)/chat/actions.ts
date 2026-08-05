@@ -435,6 +435,79 @@ export async function declineChatRoomInvitationAction(
   }
 }
 
+/** Host: list pending guest invitations for an external channel. */
+export async function listRoomInvitationsAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoomInvitation[]>> {
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return { ok: false, message: "Room is required." };
+  }
+
+  try {
+    const invitations = await chatRoomService.listRoomInvitations(cleanRoomId);
+    return { ok: true, data: invitations };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not load invitations."),
+    };
+  }
+}
+
+/** Host: invite an external guest by email. */
+export async function createRoomInvitationAction(
+  roomId: string,
+  email: string,
+): Promise<RoomActionResult<ChatRoomInvitation>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanEmail = cleanString(email).toLowerCase();
+  if (!cleanRoomId) {
+    return { ok: false, message: "Room is required." };
+  }
+  if (!cleanEmail) {
+    return { ok: false, message: "Email is required." };
+  }
+
+  try {
+    const invitation = await chatRoomService.createRoomInvitation(
+      cleanRoomId,
+      cleanEmail,
+    );
+    return { ok: true, data: invitation };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not send invitation."),
+    };
+  }
+}
+
+/** Host: revoke a pending guest invitation. */
+export async function revokeRoomInvitationAction(
+  roomId: string,
+  invitationId: string,
+): Promise<RoomActionResult<null>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanInvitationId = cleanString(invitationId);
+  if (!cleanRoomId) {
+    return { ok: false, message: "Room is required." };
+  }
+  if (!cleanInvitationId) {
+    return { ok: false, message: "Invitation is required." };
+  }
+
+  try {
+    await chatRoomService.revokeRoomInvitation(cleanRoomId, cleanInvitationId);
+    return { ok: true, data: null };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not revoke invitation."),
+    };
+  }
+}
+
 export async function sendRoomMessageAction(
   roomId: string,
   content: string,
