@@ -1401,7 +1401,7 @@ export async function requireChatRoomUserMembership(
   await assertRoomOrganizationAccessUnlessGuest(
     room.organizationId,
     userId,
-    room.userMembers[0]?.access,
+    room.userMembers?.[0]?.access,
     tx,
   );
 
