@@ -3,37 +3,31 @@ import { cache } from "react";
 import { coreClient } from "@/lib/clients/core.client";
 import type { JobSummary } from "@/lib/clients/generated/core";
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 20;
 
-function sortJobsByCreatedAtDesc(jobs: JobSummary[]): JobSummary[] {
-  return [...jobs].sort(
-    (firstJob, secondJob) =>
-      new Date(secondJob.createdAt).getTime() -
-      new Date(firstJob.createdAt).getTime(),
-  );
+export interface OwnedAgentJobsPage {
+  jobs: JobSummary[];
+  nextCursor: string | null;
 }
 
-async function getAllOwnedAgentJobs(agentId: string): Promise<JobSummary[]> {
-  const jobs: JobSummary[] = [];
-  let cursor: string | undefined;
+export async function getOwnedAgentJobsPage(
+  agentId: string,
+  cursor?: string | null,
+): Promise<OwnedAgentJobsPage> {
+  const response = await coreClient.getAgentJobs(agentId, {
+    ...(cursor ? { cursor } : {}),
+    limit: PAGE_SIZE,
+    scope: "owned",
+  });
 
-  do {
-    const response = await coreClient.getAgentJobs(agentId, {
-      cursor,
-      limit: PAGE_SIZE,
-      scope: "owned",
-    });
-
-    jobs.push(...response.data);
-
-    cursor = response.meta?.pagination?.nextCursor ?? undefined;
-  } while (cursor);
-
-  return sortJobsByCreatedAtDesc(jobs);
+  return {
+    jobs: response.data,
+    nextCursor: response.meta?.pagination?.nextCursor ?? null,
+  };
 }
 
 export const getCachedMyJobs = cache(
-  async (agentId: string): Promise<JobSummary[]> => {
-    return getAllOwnedAgentJobs(agentId);
+  async (agentId: string): Promise<OwnedAgentJobsPage> => {
+    return getOwnedAgentJobsPage(agentId);
   },
 );
