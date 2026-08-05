@@ -49,12 +49,13 @@ export default function Markdown({
   const sanitizedChildren = sanitizeMarkdown(normalizedChildren);
 
   const components: Components = {
-    a: ({ href, children, ...props }) => {
+    a: ({ href, children, className, ...props }) => {
       const sameTab = isSokosumiLink(href);
       return (
         <a
           href={href}
           {...props}
+          className={cn("wrap-anywhere [overflow-wrap:anywhere]", className)}
           {...(sameTab ? {} : { target: "_blank", rel: "noopener noreferrer" })}
         >
           {children}
@@ -71,7 +72,7 @@ export default function Markdown({
             controls
             playsInline
             preload="metadata"
-            className="h-auto w-full max-w-sm rounded-lg"
+            className="h-auto w-full max-w-full rounded-lg"
             aria-label={alt || undefined}
           />
         );
@@ -83,14 +84,19 @@ export default function Markdown({
             src={mediaSrc}
             controls
             preload="metadata"
-            className="w-full max-w-sm"
+            className="w-full max-w-full"
             aria-label={alt || undefined}
           />
         );
       }
       return (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={alt} className="max-w-full rounded-lg" {...props} />
+        <img
+          src={src}
+          alt={alt}
+          className="h-auto max-w-full rounded-lg"
+          {...props}
+        />
       );
     },
     video: ({ children, src, autoPlay: _autoPlay, ...props }) => {
@@ -100,7 +106,7 @@ export default function Markdown({
         <video
           {...props}
           src={srcString}
-          className="h-auto w-full max-w-sm rounded-lg"
+          className="h-auto w-full max-w-full rounded-lg"
           controls
           playsInline
           preload="metadata"
@@ -116,7 +122,7 @@ export default function Markdown({
         <audio
           {...props}
           src={srcString}
-          className="w-full max-w-sm"
+          className="w-full max-w-full"
           controls
           preload="metadata"
         >

@@ -26,6 +26,7 @@ import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-ta
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
+import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
@@ -254,6 +255,8 @@ export function RoomsClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isApple = useIsApplePlatform();
+  // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
+  const localCalendarReady = useClientLocalCalendarReady();
   const canOpenHumanDirect = Boolean(activeOrganization);
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
@@ -1532,10 +1535,10 @@ export function RoomsClient({
                 </div>
               </header>
 
-              <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
+              <ScrollArea ref={scrollerRef} className="min-h-0 min-w-0 flex-1">
                 <div
                   ref={contentRef}
-                  className="flex w-full flex-col justify-end px-5 pt-6 pb-0"
+                  className="flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0"
                   style={
                     contentMinHeight != null
                       ? { minHeight: contentMinHeight }
@@ -1583,13 +1586,16 @@ export function RoomsClient({
                   ) : null}
                   {displayMessages.map((message, index) => {
                     const previousMessage = displayMessages[index - 1];
+                    // Local calendar day keys differ UTC (SSR) vs browser TZ —
+                    // only insert separators / regroup after mount.
                     const showDaySeparator =
-                      !previousMessage ||
-                      messageDayKey(previousMessage.createdAt) !==
-                        messageDayKey(message.createdAt);
+                      localCalendarReady &&
+                      (!previousMessage ||
+                        messageDayKey(previousMessage.createdAt) !==
+                          messageDayKey(message.createdAt));
                     const isStreamOverlay = message.id.startsWith("stream:");
                     return (
-                      <div key={message.id}>
+                      <div key={message.id} className="min-w-0">
                         {showDaySeparator ? (
                           <DaySeparator
                             date={new Date(message.createdAt)}
@@ -1641,6 +1647,7 @@ export function RoomsClient({
                             })}
                             isFirstOfDay={showDaySeparator}
                             isContinuation={
+                              localCalendarReady &&
                               !showDaySeparator &&
                               isMessageContinuation(previousMessage, message)
                             }

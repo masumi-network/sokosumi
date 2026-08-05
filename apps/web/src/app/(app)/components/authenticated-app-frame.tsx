@@ -70,7 +70,10 @@ export default async function AuthenticatedAppFrame({
                     className="flex min-w-0 flex-1 flex-col overflow-clip"
                     data-app-content-inner
                   >
-                    <Header className="h-16 p-4" session={session} />
+                    <Header
+                      className="h-16 px-4 py-3 md:p-4"
+                      session={session}
+                    />
                     <main
                       className="relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:max-h-[calc(100svh-64px)] md:min-h-[calc(100svh-64px)] md:pt-4"
                       data-app-main

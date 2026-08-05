@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -43,7 +43,7 @@ export function HeaderLeadingControl(): React.ReactElement {
         aria-label={t("backToChats")}
         className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
       >
-        <ArrowLeft className="size-4" aria-hidden />
+        <ChevronLeft className="size-5" aria-hidden />
       </Link>
     );
   }
@@ -55,7 +55,7 @@ export function HeaderLeadingControl(): React.ReactElement {
         aria-label={t(appBack.labelKey)}
         className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
       >
-        <ArrowLeft className="size-4" aria-hidden />
+        <ChevronLeft className="size-5" aria-hidden />
       </Link>
     );
   }
