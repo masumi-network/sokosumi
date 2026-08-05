@@ -6,21 +6,39 @@ import {
 
 const MAX_UNFURL_CANDIDATES = 3;
 
-const AUTO_LINKS = /<((?:https?:)\/\/[^>\s]+)>/gi;
+/**
+ * GFM-style autolinks `<https://…>` / `<http://…>`.
+ * Kept linear-time: no nested quantifiers / ambiguous alternation (CodeQL).
+ */
+const AUTO_LINKS = /<https?:\/\/[^>\s]+>/gi;
 
 /** Bare http(s) URLs in prose (not inside angle brackets). */
 const BARE_HTTP_URL = /https?:\/\/[^\s<>\[\]`'"]+/gi;
 
-/** Trailing punctuation commonly glued onto URLs in chat prose. */
-const TRAILING_PUNCTUATION = /[.,;:!?)}\]]+$/;
+const TRAILING_PUNCTUATION_CHARS = new Set([
+  ".",
+  ",",
+  ";",
+  ":",
+  "!",
+  "?",
+  ")",
+  "}",
+  "]",
+]);
 
 interface UrlHit {
   url: string;
   index: number;
 }
 
+/** Strip trailing punctuation glued onto bare URLs in chat prose (no regex). */
 function normalizeBareUrl(raw: string): string {
-  return raw.replace(TRAILING_PUNCTUATION, "");
+  let end = raw.length;
+  while (end > 0 && TRAILING_PUNCTUATION_CHARS.has(raw[end - 1]!)) {
+    end -= 1;
+  }
+  return end === raw.length ? raw : raw.slice(0, end);
 }
 
 function isEligibleHttpUrl(url: string): boolean {
@@ -72,11 +90,15 @@ function collectUrlHits(markdown: string): UrlHit[] {
   }
 
   for (const match of markdown.matchAll(AUTO_LINKS)) {
-    const url = match[1];
-    if (url === undefined || match.index === undefined) {
+    if (match.index === undefined) {
       continue;
     }
-    hits.push({ url, index: match.index });
+    // Full match is `<url>`; strip the wrapping angle brackets.
+    const wrapped = match[0]!;
+    hits.push({
+      url: wrapped.slice(1, -1),
+      index: match.index,
+    });
   }
 
   for (const match of markdown.matchAll(BARE_HTTP_URL)) {
