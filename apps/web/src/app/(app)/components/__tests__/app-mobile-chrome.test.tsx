@@ -46,13 +46,17 @@ import {
 
 import { AppMobileChrome } from "../app-mobile-chrome.client";
 
+function getTabBarSpacer(container: HTMLElement): Element | null {
+  return container.querySelector("[data-mobile-bottom-nav-spacer]");
+}
+
 describe("AppMobileChrome", () => {
   beforeEach(() => {
     mockPathname = "/chat";
     mockIsApple = false;
   });
 
-  it("renders bottom nav and tab-bar clearance on chat home", () => {
+  it("renders bottom nav and tab-bar clearance spacer on chat home", () => {
     const { container } = render(
       <AppMobileChrome>
         <div>child</div>
@@ -60,8 +64,8 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
-    const wrapper = container.firstElementChild?.firstElementChild;
-    expect(wrapper?.className).toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
+    const spacer = getTabBarSpacer(container);
+    expect(spacer?.className).toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
 
   it("uses Apple float clearance on Apple platforms", () => {
@@ -72,9 +76,9 @@ describe("AppMobileChrome", () => {
       </AppMobileChrome>,
     );
 
-    const wrapper = container.firstElementChild?.firstElementChild;
-    expect(wrapper?.className).toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE_APPLE);
-    expect(wrapper?.className).not.toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
+    const spacer = getTabBarSpacer(container);
+    expect(spacer?.className).toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE_APPLE);
+    expect(spacer?.className).not.toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
 
   it("keeps bottom nav on /chat/chats", () => {
@@ -92,13 +96,16 @@ describe("AppMobileChrome", () => {
   it("shows bottom nav on main hub list routes", () => {
     mockPathname = "/tasks";
 
-    render(
+    const { container } = render(
       <AppMobileChrome>
         <div>child</div>
       </AppMobileChrome>,
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
+    expect(getTabBarSpacer(container)?.className).toContain(
+      CHAT_MOBILE_TAB_BAR_CLEARANCE,
+    );
   });
 
   it("hides bottom nav and clearance on room surface", () => {
@@ -111,8 +118,7 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
-    const wrapper = container.firstElementChild?.firstElementChild;
-    expect(wrapper?.className).not.toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
+    expect(getTabBarSpacer(container)).toBeNull();
   });
 
   it("hides bottom nav on nested detail routes", () => {

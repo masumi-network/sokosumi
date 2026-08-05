@@ -23,7 +23,7 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
             data-app-main
           >
             <div
-              className="flex h-full flex-1 flex-col overflow-visible"
+              className="flex min-h-full flex-1 flex-col overflow-visible"
               data-app-main-inner
             >
               <AppMobileChrome>{children}</AppMobileChrome>

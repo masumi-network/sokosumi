@@ -12,6 +12,10 @@ import { cn } from "@/lib/utils";
 /**
  * App-wide mobile chrome: Home/Chats/Search tab bar + content clearance.
  * Visible on chat shell (except rooms) and main Home-hub list routes.
+ *
+ * Clearance is an in-flow spacer under `{children}` so main's overflow scroll
+ * can reach past the last content item (padding on a height-locked flex child
+ * does not).
  */
 export function AppMobileChrome({
   children,
@@ -22,20 +26,27 @@ export function AppMobileChrome({
   const isApple = useIsApplePlatform();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 flex-col",
-          showBottomNav && chatMobileTabBarClearance(isApple),
-          showBottomNav && "md:pb-0",
-        )}
-      >
-        {children}
-      </div>
+    <div className="flex min-h-full flex-1 flex-col">
+      {/*
+        No min-h-0 here: list routes must grow this column so the spacer
+        below sits after the last item in main's scroll overflow. Chat shells
+        use an explicit height + their own min-h-0 chain for inner scroll.
+      */}
+      <div className="flex flex-1 flex-col">{children}</div>
       {showBottomNav ? (
-        <Suspense fallback={null}>
-          <ChatMobileBottomNav />
-        </Suspense>
+        <>
+          <div
+            aria-hidden
+            data-mobile-bottom-nav-spacer
+            className={cn(
+              "pointer-events-none shrink-0 md:hidden",
+              chatMobileTabBarClearance(isApple),
+            )}
+          />
+          <Suspense fallback={null}>
+            <ChatMobileBottomNav />
+          </Suspense>
+        </>
       ) : null}
     </div>
   );

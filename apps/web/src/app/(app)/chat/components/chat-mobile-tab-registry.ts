@@ -14,16 +14,22 @@ type SearchParamsLike =
 
 /**
  * Floating Apple tab bar sits at
- * `bottom-[max(0.75rem,env(safe-area-inset-bottom))]` with inner `h-14`/`h-16`.
+ * `bottom-[max(0.75rem,env(safe-area-inset-bottom))]` with inner `h-16`.
+ * Docked bar is `h-16` + `pb-[env(safe-area-inset-bottom)]`.
  * Clearance / offsets below must stay as full static Tailwind class strings.
  */
 
-/** Tailwind padding-bottom for docked bar height. Applied at shell content wrapper. */
-export const CHAT_MOBILE_TAB_BAR_CLEARANCE = "pb-16" as const;
+/**
+ * Spacer height for the docked tab bar (bar + home-indicator safe area).
+ * Used as an in-flow `h-*` sibling under page content — not `pb-*` on a
+ * height-locked flex child (that fails to extend main's scroll overflow).
+ */
+export const CHAT_MOBILE_TAB_BAR_CLEARANCE =
+  "h-[calc(4rem+env(safe-area-inset-bottom))]" as const;
 
-/** Extra clearance for floating Apple tab bar (bar height + float inset). */
+/** Spacer height for the floating Apple tab bar (bar + float inset). */
 export const CHAT_MOBILE_TAB_BAR_CLEARANCE_APPLE =
-  "pb-[calc(4rem+max(0.75rem,env(safe-area-inset-bottom)))]" as const;
+  "h-[calc(4rem+max(0.75rem,env(safe-area-inset-bottom)))]" as const;
 
 export function chatMobileTabBarClearance(isApple: boolean): string {
   return isApple
@@ -33,7 +39,7 @@ export function chatMobileTabBarClearance(isApple: boolean): string {
 
 /** Fixed composer bottom offset so chrome sits above the docked tab bar on mobile. */
 export const CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET =
-  "bottom-16 md:bottom-0" as const;
+  "bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0" as const;
 
 /** Composer offset above the floating Apple tab bar. */
 export const CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET_APPLE =
@@ -46,34 +52,29 @@ export function chatMobileTabBarBottomOffset(isApple: boolean): string {
 }
 
 /**
- * Viewport height shell pairing with `CHAT_MOBILE_TAB_BAR_CLEARANCE` (`4rem`).
- * Subtracts the tab bar below `md` so fixed-height chat views do not sit under it.
+ * Height shell when the mobile tab bar spacer is present.
+ * Mobile fills the flex slot above the spacer; desktop keeps the svh shell.
+ * Apple float inset lives on the spacer, not here.
  */
 export const CHAT_MOBILE_HEIGHT_SHELL_CLASS =
-  "h-[calc(100svh-64px)] max-md:h-[calc(100svh-64px-4rem)]" as const;
-
-/** Height shell when the floating Apple tab bar is visible. */
-export const CHAT_MOBILE_HEIGHT_SHELL_CLASS_APPLE =
-  "h-[calc(100svh-64px)] max-md:h-[calc(100svh-64px-4rem-max(0.75rem,env(safe-area-inset-bottom)))]" as const;
+  "h-[calc(100svh-64px)] max-md:h-full" as const;
 
 /**
  * Full shell height when the mobile tab bar is hidden (room surface).
- * Matches desktop/`md` height — no 4rem tab-bar subtraction.
+ * Matches desktop/`md` height — no tab-bar spacer below.
  */
 export const CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS =
   "h-[calc(100svh-64px)]" as const;
 
-/** Height class for chat views: room path drops tab-bar offset. */
+/** Height class for chat views: room path drops tab-bar spacer offset. */
 export function chatMobileHeightShellClass(
   pathname: string | null | undefined,
-  isApple = false,
+  _isApple = false,
 ): string {
   if (isChatRoomPathname(pathname)) {
     return CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS;
   }
-  return isApple
-    ? CHAT_MOBILE_HEIGHT_SHELL_CLASS_APPLE
-    : CHAT_MOBILE_HEIGHT_SHELL_CLASS;
+  return CHAT_MOBILE_HEIGHT_SHELL_CLASS;
 }
 
 export type ChatMobileTabId = "home" | "chats" | "search";
