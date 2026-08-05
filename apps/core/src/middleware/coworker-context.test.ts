@@ -5,21 +5,12 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 import type { AuthVariables } from "./auth";
 import { coworkerContextMiddleware } from "./coworker-context";
 
-const {
-  memberFindUniqueMock,
-  userFindUniqueMock,
-  orchestratorFindFirstMock,
-  hasCoworkerUserDelegationMock,
-} = vi.hoisted(() => ({
-  memberFindUniqueMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
-  orchestratorFindFirstMock: vi.fn(),
-  hasCoworkerUserDelegationMock: vi.fn(),
-}));
-
-vi.mock("@/middleware/coworker-delegation", () => ({
-  hasCoworkerUserDelegation: hasCoworkerUserDelegationMock,
-}));
+const { memberFindUniqueMock, userFindUniqueMock, orchestratorFindFirstMock } =
+  vi.hoisted(() => ({
+    memberFindUniqueMock: vi.fn(),
+    userFindUniqueMock: vi.fn(),
+    orchestratorFindFirstMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -52,8 +43,6 @@ describe("coworkerContextMiddleware", () => {
     memberFindUniqueMock.mockReset();
     userFindUniqueMock.mockReset();
     orchestratorFindFirstMock.mockReset();
-    hasCoworkerUserDelegationMock.mockReset();
-    hasCoworkerUserDelegationMock.mockResolvedValue(true);
   });
 
   it("does not change user authentication context when context headers are present", async () => {
@@ -137,51 +126,6 @@ describe("coworkerContextMiddleware", () => {
       vendorId: TEST_VENDOR_ID,
       context: { userId: "user_context", organizationId: null },
     });
-  });
-
-  it("rejects a coworker acting for a user it has no delegation with", async () => {
-    userFindUniqueMock.mockResolvedValue({ id: "user_victim" });
-    hasCoworkerUserDelegationMock.mockResolvedValue(false);
-
-    const app = createApp({
-      isAuthenticated: true,
-      authContext: {
-        actor: "coworker",
-        coworkerId: "cow_1",
-        vendorId: TEST_VENDOR_ID,
-      },
-    });
-
-    const res = await app.request("http://localhost/", {
-      headers: { "X-Context-User-Id": "user_victim" },
-    });
-
-    // Existence of the user is not authorization: without this a vendor key
-    // could name any user id and be treated as that user downstream.
-    expect(res.status).toBe(403);
-    expect(hasCoworkerUserDelegationMock).toHaveBeenCalledWith({
-      coworkerId: "cow_1",
-      vendorId: TEST_VENDOR_ID,
-      userId: "user_victim",
-    });
-  });
-
-  it("does not require delegation for the first-party orchestrator token", async () => {
-    userFindUniqueMock.mockResolvedValue({ id: "user_context" });
-    orchestratorFindFirstMock.mockResolvedValue({ id: "orc_1" });
-    hasCoworkerUserDelegationMock.mockResolvedValue(false);
-
-    const app = createApp({
-      isAuthenticated: true,
-      authContext: { actor: "orchestrator" },
-    });
-
-    const res = await app.request("http://localhost/", {
-      headers: { "X-Context-User-Id": "user_context" },
-    });
-
-    expect(res.status).toBe(200);
-    expect(hasCoworkerUserDelegationMock).not.toHaveBeenCalled();
   });
 
   it("accepts legacy X-Delegation-User-Id when context headers are absent", async () => {

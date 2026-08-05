@@ -12,9 +12,6 @@ const {
   memberFindFirstMock,
   userFindUniqueMock,
   memberFindUniqueMock,
-  coworkerAssignmentFindUniqueMock,
-  vendorGrantFindFirstMock,
-  taskFindFirstMock,
 } = vi.hoisted(() => ({
   captureExternalServiceErrorMock: vi.fn(),
   verifyApiKeyMock: vi.fn(),
@@ -25,9 +22,6 @@ const {
   memberFindFirstMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
-  coworkerAssignmentFindUniqueMock: vi.fn(),
-  vendorGrantFindFirstMock: vi.fn(),
-  taskFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/external-service-errors", () => ({
@@ -64,17 +58,6 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: memberFindFirstMock,
       findUnique: memberFindUniqueMock,
     },
-    // Coworker context now requires a delegation relationship with the context
-    // user (see middleware/coworker-delegation.ts).
-    coworkerAssignment: {
-      findUnique: coworkerAssignmentFindUniqueMock,
-    },
-    vendorGrant: {
-      findFirst: vendorGrantFindFirstMock,
-    },
-    task: {
-      findFirst: taskFindFirstMock,
-    },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -104,10 +87,6 @@ function createApp(includeWorkspaceContext: boolean) {
 describe("workspaceMiddleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Delegated coworker requests need a relationship with the context user.
-    coworkerAssignmentFindUniqueMock.mockResolvedValue({ id: "assign_1" });
-    vendorGrantFindFirstMock.mockResolvedValue(null);
-    taskFindFirstMock.mockResolvedValue(null);
 
     verifyApiKeyMock.mockResolvedValue({
       valid: false,

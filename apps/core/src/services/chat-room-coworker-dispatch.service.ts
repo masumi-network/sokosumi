@@ -3,7 +3,6 @@ import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import { streamText } from "ai";
 
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
-import { assertCoworkerBaseUrlIsPublic } from "@/helpers/coworker-base-url";
 import prisma from "@/lib/db/prisma";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
@@ -304,7 +303,6 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   const providerOptions: SokosumiProviderCallOptions = {
     mode: "coworker",
     coworkerBaseUrl: baseURL,
-    assertUrlAllowed: assertCoworkerBaseUrlIsPublic,
     coworkerSlug: coworker.slug,
     sokosumiUserId: userId,
     sokosumiOrganizationId: mention.message.room.organizationId,

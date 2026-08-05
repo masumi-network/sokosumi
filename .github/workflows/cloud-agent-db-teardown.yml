@@ -37,8 +37,4 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
           NEON_PARENT_BRANCH: ${{ vars.NEON_PARENT_BRANCH }}
-          # Never interpolate `inputs.*` directly into `run:` — GitHub expands it
-          # into shell source before the shell parses quotes. Pass via env, same
-          # as the PR_BODY step above.
-          AGENT_ID: ${{ inputs.agent_id }}
-        run: node scripts/cloud-agent-db/teardown.mjs --agent-id "$AGENT_ID"
+        run: node scripts/cloud-agent-db/teardown.mjs --agent-id "${{ inputs.agent_id }}"

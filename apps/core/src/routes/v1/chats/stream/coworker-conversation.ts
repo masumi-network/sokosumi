@@ -1,5 +1,3 @@
-import { SsrfError, ssrfSafeFetch } from "@sokosumi/net";
-
 import {
   forbidden,
   serviceUnavailable,
@@ -7,18 +5,6 @@ import {
 } from "@/helpers/error";
 
 const CREATE_CONVERSATION_TIMEOUT_MS = 25_000;
-
-/**
- * The conversation response is a small JSON envelope (`{ id }`). Cap it so a
- * hostile or broken coworker endpoint cannot stream an unbounded body into
- * memory — `ssrfSafeFetch` buffers, and without a cap the timeout alone bounds
- * only duration, not size.
- *
- * Sized well above any real success or error payload: the cap trips before the
- * status line can be read, so a too-tight limit would turn an ordinary
- * upstream 4xx into an opaque failure. Anything past this is pathological.
- */
-const CREATE_CONVERSATION_MAX_RESPONSE_BYTES = 512 * 1024;
 
 const COWORKER_PROVIDER_CONFIG_ERROR_CODES = new Set([
   "billing_required",
@@ -172,32 +158,15 @@ export async function createCoworkerConversation(
 
   let response: Response;
   try {
-    // `url` derives from the vendor-supplied coworker baseURL, so this must go
-    // through the SSRF-guarded client: it resolves the host and refuses
-    // private/loopback/link-local/metadata addresses (and every redirect hop)
-    // before the socket opens. A bare fetch here was a blind internal-request
-    // primitive that also leaked the Sokosumi user/org headers below.
-    response = await ssrfSafeFetch(url, {
+    response = await fetch(url, {
       method: "POST",
       headers: requestHeaders,
       body: JSON.stringify({ metadata }),
       signal: AbortSignal.timeout(CREATE_CONVERSATION_TIMEOUT_MS),
-      maxResponseBytes: CREATE_CONVERSATION_MAX_RESPONSE_BYTES,
     });
   } catch (error) {
     if (error instanceof Error && error.name === "TimeoutError") {
       throw error;
-    }
-    // Name the two guard failures instead of folding them into a generic
-    // transport error: "blocked address" and "response too large" are operator
-    // -actionable, and silently reporting them as a plain 503 hides a
-    // misconfigured or hostile coworker endpoint.
-    if (error instanceof SsrfError) {
-      throw new CoworkerConversationError(
-        `Conversations API request rejected by the outbound request guard: ${error.message}`,
-        502,
-        "coworker_endpoint_rejected",
-      );
     }
     throw new CoworkerConversationError(
       "Conversations API request failed",

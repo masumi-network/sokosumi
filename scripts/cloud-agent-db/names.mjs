@@ -19,27 +19,6 @@ export function agentBranchName(agentId) {
 }
 
 /**
- * Same, but rejects anything that is not a well-formed `bc-<uuid>` run id.
- *
- * Use at UNTRUSTED entry points (the teardown CLI's `--agent-id`, reachable via
- * workflow_dispatch) so a caller cannot steer deletion at an arbitrary branch
- * that merely carries the prefix — `isAgentBranchName` checks the prefix alone
- * and cannot catch that. Provisioning deliberately keeps using the lenient
- * `agentBranchName`: it warns and proceeds on a non-standard conversation id
- * rather than failing the environment setup.
- *
- * @param {string} agentId
- * @returns {string}
- */
-export function requireAgentBranchName(agentId) {
-  const id = agentId.trim();
-  if (!isAgentRunId(id)) {
-    throw new Error(`Invalid agent run id "${agentId}" (expected bc-<uuid>)`);
-  }
-  return agentBranchName(id);
-}
-
-/**
  * @param {string} name
  * @returns {boolean}
  */

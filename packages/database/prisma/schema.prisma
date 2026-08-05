@@ -79,7 +79,6 @@ model User {
   vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
   vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
 
-  taskPaymentClaimActions TaskPaymentClaimAction[]
 
   // Credit Buckets
   creditBuckets CreditBucket[]
@@ -1716,8 +1715,6 @@ model TaskPaymentClaim {
   refundTransactionId String?      @unique
   refundTransaction   Transaction? @relation("RefundedTransactionTaskPaymentClaim", fields: [refundTransactionId], references: [id], onDelete: Restrict)
 
-  actions TaskPaymentClaimAction[]
-
   @@unique([network, blockchainIdentifier])
   @@index([network, status, nextAttemptAt])
   @@index([network, reviewRequiredAt, nextAttemptAt])
@@ -1728,22 +1725,28 @@ model TaskPaymentClaim {
 /// These actions move money (refund/resolve) or reset recovery state (retry),
 /// and the claim's own `failureReason` is cleared by a retry — so attribution
 /// must live in rows that are never updated or deleted.
+///
+/// Deliberately FK-free: account deletion hard-deletes terminal claims and can
+/// remove the operator's User row, so a cascade would erase the financial audit
+/// trail while a restrict would block account deletion. Storing plain ids lets
+/// the record outlive both, which is the normal shape for an audit log.
 model TaskPaymentClaimAction {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
 
+  /// TaskPaymentClaim.id — intentionally not a relation (see above).
   claimId String
-  claim   TaskPaymentClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
 
   /// "refund" | "resolve" | "retry"
   action String
 
+  /// User.id of the acting administrator — intentionally not a relation.
   operatorId String
-  operator   User   @relation(fields: [operatorId], references: [id], onDelete: Restrict)
 
   reason String
 
   @@index([claimId, createdAt])
+  @@index([operatorId, createdAt])
   @@map("task_payment_claim_action")
 }
 

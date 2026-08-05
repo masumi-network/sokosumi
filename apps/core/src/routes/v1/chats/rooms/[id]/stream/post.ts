@@ -15,7 +15,6 @@ import {
   clearActiveUiStreamIdForRoom,
   setActiveUiStreamIdForRoom,
 } from "@/helpers/active-ui-stream-room-metadata";
-import { assertCoworkerBaseUrlIsPublic } from "@/helpers/coworker-base-url";
 import {
   clearPendingResponseMirror,
   getPendingResponseMirror,
@@ -456,7 +455,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const sokosumiProviderOptions: SokosumiProviderCallOptions = {
         mode: "coworker",
         coworkerBaseUrl: coworker.baseURL.trim(),
-        assertUrlAllowed: assertCoworkerBaseUrlIsPublic,
         coworkerSlug: coworker.slug,
         sokosumiUserId: userContext.userId,
         sokosumiOrganizationId: roomOrganizationId,
