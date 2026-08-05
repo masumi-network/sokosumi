@@ -361,8 +361,8 @@ web generate:core:snapshot`.
 ## Conventions
 
 - **No em-dashes** in user-visible copy. Use periods, commas, or colons.
-- **No ad-hoc text sizes** (no `text-[10px]`, `text-[15px]`). Stick to the
-  Tailwind scale.
+- **No fixed `px` font sizes** (no `text-[10px]`, `fontSize: 14`). Prefer
+  Tailwind `text-*` or rem (`text-[0.625rem]`) so type tracks Dynamic Type.
 - **Color is reserved for status** — success (emerald), warning (amber),
   destructive (red). The five accent colors (violet/cyan/amber/emerald/rose)
   are for section eyebrows + per-tier accents only; don't sprinkle them.

@@ -147,7 +147,7 @@ function DirectAvatarStack({
 
   if (participants.length === 0) {
     return (
-      <span className="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-medium">
+      <span className="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium">
         <MessageCircle className="size-3" aria-hidden />
       </span>
     );
@@ -166,7 +166,7 @@ function DirectAvatarStack({
               alt={participant.name}
               src={participant.image ?? undefined}
             />
-            <AvatarFallback className="text-[9px] font-medium">
+            <AvatarFallback className="text-[0.5625rem] font-medium">
               {getInitials(participant.name)}
             </AvatarFallback>
           </Avatar>
@@ -196,27 +196,32 @@ function SectionHeader({
   secondaryAction?: ReactNode;
   dismissSheetOnNavigate?: boolean;
 }) {
-  const hasTrailing = Boolean(secondaryAction) || Boolean(href && label);
-  const trailingCount = (secondaryAction ? 1 : 0) + (href && label ? 1 : 0);
+  // Create `+` is desktop-only (mobile uses the create FAB); Browse stays.
+  const createHref = href && label ? href : null;
+  const mobileTrailingCount = secondaryAction ? 1 : 0;
+  const desktopTrailingCount = (secondaryAction ? 1 : 0) + (createHref ? 1 : 0);
+  const hasTrailing = mobileTrailingCount > 0 || desktopTrailingCount > 0;
 
-  const createLink =
-    href && label ? (
-      <Link
-        aria-label={label}
-        className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
-        href={href}
-      >
-        <Plus className="size-4 md:size-3.5" aria-hidden />
-      </Link>
-    ) : null;
+  const createLink = createHref ? (
+    <Link
+      aria-label={label}
+      className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative hidden size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden md:flex"
+      href={createHref}
+    >
+      <Plus className="size-4 md:size-3.5" aria-hidden />
+    </Link>
+  ) : null;
 
   return (
     <div className="group-data-[collapsible=icon]:hidden relative flex h-10 items-center gap-1 px-3 md:h-8">
       <CollapsibleTrigger
         className={cn(
           "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium transition-colors md:text-xs",
-          trailingCount === 1 && "pr-8",
-          trailingCount >= 2 && "pr-14",
+          mobileTrailingCount === 1 && "pr-8",
+          mobileTrailingCount >= 2 && "pr-14",
+          desktopTrailingCount === 0 && "md:pr-0",
+          desktopTrailingCount === 1 && "md:pr-8",
+          desktopTrailingCount >= 2 && "md:pr-14",
         )}
       >
         <ChevronDown

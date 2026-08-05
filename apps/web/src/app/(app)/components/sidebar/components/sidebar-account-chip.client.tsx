@@ -180,7 +180,7 @@ export function SidebarAccountChip({
             }
             alt=""
           />
-          <AvatarFallback className="bg-muted text-muted-foreground text-[11px] font-medium">
+          <AvatarFallback className="bg-muted text-muted-foreground text-[0.6875rem] font-medium">
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>
@@ -263,7 +263,7 @@ export function SidebarAccountChip({
           {presenceLabel}
         </span>
         {planName !== null ? (
-          <span className="bg-muted rounded-full px-2 py-0.5 text-[11px] font-medium">
+          <span className="bg-muted rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
             <span className="sr-only">{`${t("planLabel")}: `}</span>
             {planName}
           </span>

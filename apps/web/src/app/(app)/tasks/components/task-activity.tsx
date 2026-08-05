@@ -579,7 +579,7 @@ export function TaskActivitySection({
                       {actorImage ? (
                         <AvatarImage src={actorImage} alt={actorName} />
                       ) : null}
-                      <AvatarFallback className="bg-muted text-[10px]">
+                      <AvatarFallback className="bg-muted text-[0.625rem]">
                         {getInitials(actorName)}
                       </AvatarFallback>
                     </Avatar>

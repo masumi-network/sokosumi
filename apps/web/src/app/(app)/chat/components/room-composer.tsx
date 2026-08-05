@@ -98,7 +98,7 @@ function RoomMentionSuggestion({
       ) : (
         <Avatar className="size-6">
           <AvatarImage src={mention.data?.image ?? undefined} alt="" />
-          <AvatarFallback className="text-[10px]">
+          <AvatarFallback className="text-[0.625rem]">
             {getInitials(mention.value)}
           </AvatarFallback>
         </Avatar>

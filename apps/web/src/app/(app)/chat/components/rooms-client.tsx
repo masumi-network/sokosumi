@@ -2,7 +2,7 @@
 
 import { ChannelProvider } from "ably/react";
 import { Hash, Loader2, MessageCircle } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -26,6 +26,7 @@ import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-ta
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
+import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
@@ -207,7 +208,7 @@ function RoomParticipantStack({
                 <AvatarImage src={participant.image ?? undefined} alt="" />
                 <AvatarFallback
                   className={cn(
-                    "text-[10px]",
+                    "text-[0.625rem]",
                     participant.kind === "coworker"
                       ? "bg-primary/10 text-primary"
                       : "bg-muted text-muted-foreground",
@@ -252,7 +253,10 @@ export function RoomsClient({
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isApple = useIsApplePlatform();
+  // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
+  const localCalendarReady = useClientLocalCalendarReady();
   const canOpenHumanDirect = Boolean(activeOrganization);
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
@@ -1207,12 +1211,24 @@ export function RoomsClient({
     setEditSession((current) => (current ? { ...current, draft } : current));
   }
 
-  function handleSaveEdit() {
+  function handleSaveEdit(contentOverride?: string) {
     if (!selectedRoom || !editSession || isSavingEdit) return;
     const roomId = selectedRoom.id;
     const { messageId, draft } = editSession;
-    const content = draft.trim();
+    // Prefer live editor text (Enter can fire before React flushes onChange).
+    const raw = contentOverride ?? draft;
+    const content = raw.trim();
     if (!content) return;
+
+    // Keep controlled draft in sync with what we submit so a failed save still
+    // shows the text the user actually confirmed (not a stale parent draft).
+    if (contentOverride !== undefined && contentOverride !== draft) {
+      setEditSession((current) =>
+        current?.messageId === messageId
+          ? { ...current, draft: contentOverride }
+          : current,
+      );
+    }
 
     startSavingEditTransition(async () => {
       const result = await editRoomMessageAction(roomId, messageId, content);
@@ -1400,7 +1416,7 @@ export function RoomsClient({
     <div
       className={cn(
         "-m-4 flex min-h-0 flex-col overflow-hidden bg-background",
-        chatMobileHeightShellClass(pathname, isApple),
+        chatMobileHeightShellClass(pathname, isApple, searchParams),
       )}
     >
       {currentUserId ? (
@@ -1531,10 +1547,10 @@ export function RoomsClient({
                 </div>
               </header>
 
-              <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
+              <ScrollArea ref={scrollerRef} className="min-h-0 min-w-0 flex-1">
                 <div
                   ref={contentRef}
-                  className="flex w-full flex-col justify-end px-5 pt-6 pb-0"
+                  className="flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0"
                   style={
                     contentMinHeight != null
                       ? { minHeight: contentMinHeight }
@@ -1582,13 +1598,16 @@ export function RoomsClient({
                   ) : null}
                   {displayMessages.map((message, index) => {
                     const previousMessage = displayMessages[index - 1];
+                    // Local calendar day keys differ UTC (SSR) vs browser TZ —
+                    // only insert separators / regroup after mount.
                     const showDaySeparator =
-                      !previousMessage ||
-                      messageDayKey(previousMessage.createdAt) !==
-                        messageDayKey(message.createdAt);
+                      localCalendarReady &&
+                      (!previousMessage ||
+                        messageDayKey(previousMessage.createdAt) !==
+                          messageDayKey(message.createdAt));
                     const isStreamOverlay = message.id.startsWith("stream:");
                     return (
-                      <div key={message.id}>
+                      <div key={message.id} className="min-w-0">
                         {showDaySeparator ? (
                           <DaySeparator
                             date={new Date(message.createdAt)}
@@ -1640,6 +1659,7 @@ export function RoomsClient({
                             })}
                             isFirstOfDay={showDaySeparator}
                             isContinuation={
+                              localCalendarReady &&
                               !showDaySeparator &&
                               isMessageContinuation(previousMessage, message)
                             }

@@ -1,9 +1,10 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 import { ChatMobileBottomNav } from "@/app/chat/components/chat-mobile-bottom-nav";
+import { ChatMobileCreateFab } from "@/app/chat/components/chat-mobile-create-fab";
 import { chatMobileTabBarClearance } from "@/app/chat/components/chat-mobile-tab-registry";
 import { shouldShowMobileBottomNav } from "@/app/components/mobile-app-chrome";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
@@ -11,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * App-wide mobile chrome: Home/Chats/Search tab bar + content clearance.
- * Visible on chat shell (except rooms) and main Home-hub list routes.
+ * Visible on chat shell (except rooms/drafts) and main Home-hub list routes.
  *
  * Clearance is an in-flow spacer under `{children}` so main's overflow scroll
  * can reach past the last content item (padding on a height-locked flex child
@@ -22,9 +23,6 @@ export function AppMobileChrome({
 }: {
   children: React.ReactNode;
 }): React.ReactElement {
-  const showBottomNav = shouldShowMobileBottomNav(usePathname());
-  const isApple = useIsApplePlatform();
-
   return (
     <div className="flex min-h-full flex-1 flex-col">
       {/*
@@ -33,21 +31,39 @@ export function AppMobileChrome({
         use an explicit height + their own min-h-0 chain for inner scroll.
       */}
       <div className="flex flex-1 flex-col">{children}</div>
-      {showBottomNav ? (
-        <>
-          <div
-            aria-hidden
-            data-mobile-bottom-nav-spacer
-            className={cn(
-              "pointer-events-none shrink-0 md:hidden",
-              chatMobileTabBarClearance(isApple),
-            )}
-          />
-          <Suspense fallback={null}>
-            <ChatMobileBottomNav />
-          </Suspense>
-        </>
-      ) : null}
+      <Suspense fallback={null}>
+        <AppMobileBottomChrome />
+      </Suspense>
     </div>
+  );
+}
+
+function AppMobileBottomChrome(): React.ReactElement | null {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const showBottomNav = shouldShowMobileBottomNav(pathname, searchParams);
+  const isApple = useIsApplePlatform();
+
+  if (!showBottomNav) {
+    return null;
+  }
+
+  return (
+    <>
+      <div
+        aria-hidden
+        data-mobile-bottom-nav-spacer
+        className={cn(
+          "pointer-events-none shrink-0 md:hidden",
+          chatMobileTabBarClearance(isApple),
+        )}
+      />
+      <Suspense fallback={null}>
+        <ChatMobileBottomNav />
+      </Suspense>
+      <Suspense fallback={null}>
+        <ChatMobileCreateFab />
+      </Suspense>
+    </>
   );
 }

@@ -5,6 +5,7 @@ import {
   resolveMobileAppBackTarget,
   shouldShowMobileBottomNav,
   shouldShowMobileBrandLeading,
+  shouldShowMobileCreateFab,
 } from "../mobile-app-chrome";
 
 describe("mobile-app-chrome", () => {
@@ -92,10 +93,22 @@ describe("mobile-app-chrome", () => {
   });
 
   describe("shouldShowMobileBottomNav", () => {
-    it("shows on chat shell except rooms", () => {
+    it("shows on chat shell except rooms and drafts", () => {
       expect(shouldShowMobileBottomNav("/chat")).toBe(true);
       expect(shouldShowMobileBottomNav("/chat/chats")).toBe(true);
       expect(shouldShowMobileBottomNav("/chat/rooms/r1")).toBe(false);
+      expect(
+        shouldShowMobileBottomNav("/chat", new URLSearchParams("dm=new")),
+      ).toBe(false);
+      expect(
+        shouldShowMobileBottomNav(
+          "/chat",
+          new URLSearchParams("create=channel"),
+        ),
+      ).toBe(false);
+      expect(
+        shouldShowMobileBottomNav("/chat", new URLSearchParams("welcome=1")),
+      ).toBe(false);
     });
 
     it("shows on main hub list routes", () => {
@@ -132,8 +145,38 @@ describe("mobile-app-chrome", () => {
           new URLSearchParams("create=channel"),
         ),
       ).toBe(false);
+      expect(
+        shouldShowMobileBrandLeading("/chat", new URLSearchParams("dm=new")),
+      ).toBe(false);
+      expect(
+        shouldShowMobileBrandLeading("/chat", new URLSearchParams("welcome=1")),
+      ).toBe(false);
       expect(shouldShowMobileBrandLeading("/tasks/t1")).toBe(false);
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);
+    });
+  });
+
+  describe("shouldShowMobileCreateFab", () => {
+    it("shows on home and chats only", () => {
+      expect(shouldShowMobileCreateFab("/chat")).toBe(true);
+      expect(shouldShowMobileCreateFab("/chat/chats")).toBe(true);
+      expect(shouldShowMobileCreateFab("/tasks")).toBe(false);
+      expect(shouldShowMobileCreateFab("/chat/rooms/r1")).toBe(false);
+    });
+
+    it("hides for drafts and welcome compose", () => {
+      expect(
+        shouldShowMobileCreateFab(
+          "/chat",
+          new URLSearchParams("create=channel"),
+        ),
+      ).toBe(false);
+      expect(
+        shouldShowMobileCreateFab("/chat", new URLSearchParams("dm=new")),
+      ).toBe(false);
+      expect(
+        shouldShowMobileCreateFab("/chat", new URLSearchParams("welcome=1")),
+      ).toBe(false);
     });
   });
 });

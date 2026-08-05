@@ -21,12 +21,12 @@ const nextErrorLayoutStyles = {
     justifyContent: "center",
   },
   desc: {
-    lineHeight: "48px",
+    lineHeight: "3rem",
   },
   h2: {
-    fontSize: 14,
+    fontSize: "0.875rem",
     fontWeight: 400,
-    lineHeight: "28px",
+    lineHeight: "1.75rem",
     margin: 0,
   },
   wrap: {

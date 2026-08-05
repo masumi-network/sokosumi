@@ -70,7 +70,7 @@ export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
               className="object-cover"
             />
           ) : null}
-          <AvatarFallback className="text-[10px] font-medium">
+          <AvatarFallback className="text-[0.625rem] font-medium">
             {coworkerName.slice(0, 1).toUpperCase()}
           </AvatarFallback>
         </Avatar>
