@@ -50,6 +50,10 @@ vi.mock("@/helpers/agent", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    agent: {
+      findMany: agentFindManyMock,
+      count: agentCountMock,
+    },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -143,14 +147,16 @@ describe("GET /agents", () => {
       },
     ]);
     agentCountMock.mockResolvedValue(1);
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        agent: {
-          findMany: agentFindManyMock,
-          count: agentCountMock,
-        },
-      });
-    });
+  });
+
+  it("lists agents without opening an interactive transaction", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(agentFindManyMock).toHaveBeenCalled();
+    expect(agentCountMock).toHaveBeenCalled();
   });
 
   it("filters by a single category slug and returns parsed category styles", async () => {
