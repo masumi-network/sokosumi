@@ -5,11 +5,13 @@ import {
   filterNormalizedMentions,
   getActiveEmojiTrigger,
   getActiveTrigger,
+  getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
   type NormalizedMention,
   POPUP_HEIGHT_PX,
   serializeEditorText,
   setEditorFromRaw,
+  VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
 
 function stubViewport(height: number) {
@@ -145,6 +147,63 @@ describe("mention-textarea utils", () => {
       );
 
       expect(position.side).toBe("bottom");
+    });
+  });
+
+  describe("getMentionPopupPositionFromAnchorRect", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("anchors flush above with card width and top side", () => {
+      stubViewport(800);
+      const left = 40;
+      const width = 360;
+      const top = 500;
+      const position = getMentionPopupPositionFromAnchorRect({
+        x: left,
+        y: top,
+        top,
+        bottom: top + 80,
+        left,
+        right: left + width,
+        width,
+        height: 80,
+        toJSON() {
+          return this;
+        },
+      });
+
+      expect(position.side).toBe("top");
+      expect(position.top).toBe(top);
+      expect(position.left).toBe(left);
+      expect(position.width).toBe(width);
+      expect(position.maxHeight).toBeGreaterThanOrEqual(80);
+      expect(position.maxHeight).toBeLessThanOrEqual(POPUP_HEIGHT_PX);
+      expect(position.maxHeight).toBe(
+        Math.min(POPUP_HEIGHT_PX, Math.max(80, top - VIEWPORT_PADDING_PX)),
+      );
+    });
+
+    it("clamps left and width into the viewport padding", () => {
+      stubViewport(800);
+      vi.stubGlobal("innerWidth", 400);
+      const position = getMentionPopupPositionFromAnchorRect({
+        x: -20,
+        y: 300,
+        top: 300,
+        bottom: 380,
+        left: -20,
+        right: 420,
+        width: 440,
+        height: 80,
+        toJSON() {
+          return this;
+        },
+      });
+
+      expect(position.left).toBe(VIEWPORT_PADDING_PX);
+      expect(position.width).toBe(400 - 2 * VIEWPORT_PADDING_PX);
     });
   });
 

@@ -15,6 +15,7 @@ import {
   type ComposerSuggestion,
   resolveComposerSuggestion,
 } from "@/components/chat/composer-suggestions";
+import { ROOM_COMPOSER_MENTION_ANCHOR_ATTR } from "@/components/chat/room-message-composer";
 import {
   createMentionSpan,
   deslugifyMentionSlug,
@@ -24,6 +25,7 @@ import {
   getActiveTrigger,
   getCaretOffset,
   getCaretRect,
+  getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
   MENTION_CLASSNAME,
   type MentionRecordEntry,
@@ -341,13 +343,24 @@ export function ComposerWysiwygEditor<TData = unknown>({
     manualMentionOpenRef.current = false;
   }, []);
 
-  const getSuggestionPopupPosition = useCallback((editor: HTMLElement) => {
-    const caretRect = getCaretRect(editor);
-    const fallbackRect = editor.getBoundingClientRect();
-    return caretRect
-      ? getPopupPositionFromRect(caretRect)
-      : getPopupPositionFromRect(fallbackRect);
-  }, []);
+  const getSuggestionPopupPosition = useCallback(
+    (editor: HTMLElement, kind: ComposerSuggestion["kind"]) => {
+      if (kind === "mention") {
+        const shell = editor.closest(`[${ROOM_COMPOSER_MENTION_ANCHOR_ATTR}]`);
+        if (shell instanceof HTMLElement) {
+          return getMentionPopupPositionFromAnchorRect(
+            shell.getBoundingClientRect(),
+          );
+        }
+      }
+      const caretRect = getCaretRect(editor);
+      const fallbackRect = editor.getBoundingClientRect();
+      return caretRect
+        ? getPopupPositionFromRect(caretRect)
+        : getPopupPositionFromRect(fallbackRect);
+    },
+    [],
+  );
 
   const syncFromEditor = useCallback(() => {
     if (!editorRef.current) {
@@ -445,7 +458,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
           query: "",
           triggerStart: caret,
         },
-        nextTriggerPosition: getSuggestionPopupPosition(editorRef.current),
+        nextTriggerPosition: getSuggestionPopupPosition(
+          editorRef.current,
+          "mention",
+        ),
         nextActiveIndex: 0,
       });
       return;
@@ -458,7 +474,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
     if (suggestion) {
       openSuggestions({
         suggestion,
-        nextTriggerPosition: getSuggestionPopupPosition(editorRef.current),
+        nextTriggerPosition: getSuggestionPopupPosition(
+          editorRef.current,
+          suggestion.kind,
+        ),
         nextActiveIndex: 0,
       });
       return;
@@ -742,7 +761,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         query: "",
         triggerStart: serializeEditor(editor).caret,
       },
-      nextTriggerPosition: getSuggestionPopupPosition(editor),
+      nextTriggerPosition: getSuggestionPopupPosition(editor, "mention"),
       nextActiveIndex: 0,
     });
   }, [getSuggestionPopupPosition, openSuggestions]);
@@ -785,7 +804,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
     openSuggestions({
       suggestion: live,
-      nextTriggerPosition: getSuggestionPopupPosition(editorRef.current),
+      nextTriggerPosition: getSuggestionPopupPosition(
+        editorRef.current,
+        live.kind,
+      ),
       nextActiveIndex: Math.min(suggestionUi.activeIndex, listLength - 1),
     });
   }, [
@@ -1121,11 +1143,15 @@ export function ComposerWysiwygEditor<TData = unknown>({
                     ...(triggerPosition.side === "top"
                       ? { transform: "translateY(-100%)" }
                       : {}),
+                    ...(triggerPosition.width != null
+                      ? { width: triggerPosition.width }
+                      : {}),
                   }
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(
-              "bg-popover text-popover-foreground fixed z-50 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
+              "bg-popover text-popover-foreground fixed z-50 overflow-y-auto rounded-md border p-1 shadow-md",
+              triggerPosition?.width == null && "w-72",
               !triggerPosition && "mt-1 max-h-60",
             )}
           >

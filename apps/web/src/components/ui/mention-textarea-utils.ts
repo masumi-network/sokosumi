@@ -27,6 +27,7 @@ export interface TriggerPosition {
   left: number;
   side: "top" | "bottom";
   maxHeight: number;
+  width?: number;
 }
 
 export interface MentionDisplay {
@@ -476,6 +477,31 @@ export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
   if (left > maxLeft && maxLeft > 0) left = maxLeft;
 
   return { top, left, side, maxHeight };
+}
+
+export function getMentionPopupPositionFromAnchorRect(
+  anchorRect: DOMRect,
+): TriggerPosition {
+  const visual = window.visualViewport;
+  const viewportTop = visual ? visual.offsetTop : 0;
+  const viewportWidth = visual ? visual.width : window.innerWidth;
+  const aboveSpace = anchorRect.top - viewportTop - VIEWPORT_PADDING_PX;
+  const maxHeight = Math.min(POPUP_HEIGHT_PX, Math.max(80, aboveSpace));
+  const top = anchorRect.top;
+  let left = anchorRect.left;
+  let width = anchorRect.width;
+
+  if (left < VIEWPORT_PADDING_PX) {
+    width -= VIEWPORT_PADDING_PX - left;
+    left = VIEWPORT_PADDING_PX;
+  }
+  const maxRight = viewportWidth - VIEWPORT_PADDING_PX;
+  if (left + width > maxRight) {
+    width = maxRight - left;
+  }
+  if (width < 0) width = 0;
+
+  return { top, left, side: "top", maxHeight, width };
 }
 
 export function getCaretRect(root: HTMLElement): DOMRect | null {
