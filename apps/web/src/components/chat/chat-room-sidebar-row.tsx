@@ -61,6 +61,8 @@ interface ChatRoomSidebarRowProps {
   isActive: boolean;
   leading: ReactNode;
   onRoomUpdated: (room: ChatRoom) => void;
+  /** When false, render plain Link (page-mounted list outside Sheet). */
+  dismissSheetOnNavigate?: boolean;
 }
 
 function MentionBadge({ count }: { count: number }) {
@@ -88,6 +90,7 @@ export function ChatRoomSidebarRow({
   isActive,
   leading,
   onRoomUpdated,
+  dismissSheetOnNavigate = true,
 }: ChatRoomSidebarRowProps) {
   const tActions = useTranslations("App.Channels.Actions");
   const router = useRouter();
@@ -141,44 +144,51 @@ export function ChatRoomSidebarRow({
     setLeaveConfirmOpen(false);
     notifyOrganizationChatRoomsChanged();
     if (isActive) {
+      // Land on chat home — `/chat/chats` is mobile-only (`md:hidden`).
       router.replace("/chat");
       router.refresh();
     }
   }
 
+  const roomLink = (
+    <Link
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3",
+        isMuted && !isActive && "opacity-60",
+      )}
+      href={href}
+    >
+      {leading}
+      <span className="min-w-0 flex-1">
+        <span
+          className={cn(
+            "block truncate",
+            bold && "font-semibold text-foreground",
+            isMuted && !isActive && "text-muted-foreground",
+          )}
+        >
+          {label}
+        </span>
+        {subtitle ? (
+          <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-[10px] leading-tight">
+            {subtitle}
+          </span>
+        ) : null}
+      </span>
+      <MentionBadge count={badgeCount} />
+      <span className="size-7 shrink-0" aria-hidden />
+    </Link>
+  );
+
   return (
     <SidebarMenuItem className="group/room-row relative">
       <SidebarMenuButton asChild isActive={isActive}>
-        <SheetClose asChild>
-          <Link
-            aria-current={isActive ? "page" : undefined}
-            className={cn(
-              "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3",
-              isMuted && !isActive && "opacity-60",
-            )}
-            href={href}
-          >
-            {leading}
-            <span className="min-w-0 flex-1">
-              <span
-                className={cn(
-                  "block truncate",
-                  bold && "font-semibold text-foreground",
-                  isMuted && !isActive && "text-muted-foreground",
-                )}
-              >
-                {label}
-              </span>
-              {subtitle ? (
-                <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-[10px] leading-tight">
-                  {subtitle}
-                </span>
-              ) : null}
-            </span>
-            <MentionBadge count={badgeCount} />
-            <span className="size-7 shrink-0" aria-hidden />
-          </Link>
-        </SheetClose>
+        {dismissSheetOnNavigate ? (
+          <SheetClose asChild>{roomLink}</SheetClose>
+        ) : (
+          roomLink
+        )}
       </SidebarMenuButton>
       {isMuted || isPinned ? (
         <span

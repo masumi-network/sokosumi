@@ -333,6 +333,11 @@ export function isMessageContinuation(
   return true;
 }
 
+/**
+ * Wall-clock HH:mm in the runtime default locale/TZ. Only call after
+ * `useClientLocalCalendarReady()` (see MessageWallClockTime) — `undefined`
+ * locale + local TZ diverge between Vercel SSR and the browser (SOKOSUMI-A).
+ */
 export function formatMessageTime(value: Date | string): string {
   return new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
@@ -340,16 +345,13 @@ export function formatMessageTime(value: Date | string): string {
   }).format(new Date(value));
 }
 
+/**
+ * Local calendar day bucket. Runtime-TZ sensitive — gate separator insertion
+ * with `useClientLocalCalendarReady()` so SSR (UTC) and hydrate agree.
+ */
 export function messageDayKey(value: Date | string): string {
   return new Date(value).toDateString();
 }
-
-/**
- * Day separators are derived from the local date, so a message written near
- * midnight can land in a different bucket on the server than in the browser.
- * The separator text itself is marked as client-resolved for the same reason
- * the timestamps are.
- */
 
 export function getDirectRoomTarget(room: ChatRoom, currentUserId: string) {
   return (

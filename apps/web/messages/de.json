@@ -4717,6 +4717,15 @@
       }
     },
     "Channels": {
+      "MobileNav": {
+        "home": "Start",
+        "chats": "Chats",
+        "search": "Suche",
+        "ariaLabel": "Hauptnavigation",
+        "backToChats": "Zurück zu Chats",
+        "backToHome": "Zurück zur Startseite",
+        "back": "Zurück"
+      },
       "Actions": {
         "more": "Nachrichtenaktionen",
         "sectionTitle": "Kanal verwalten",
