@@ -4,6 +4,12 @@ Guide for **coworker integrators** calling the Sokosumi Core API (`apps/core`). 
 manage grants via org/user vendor-grant routes; coworkers interact with grants
 implicitly through task and job endpoints.
 
+> **Related — not the same as coworker early access.** `VendorGrant` is
+> **vendor × workspace** task access for coworker **actors** (baseline /
+> `GRANT_PENDING` / delegated create). Making a non-whitelisted coworker
+> pickable in chat/tasks for humans uses `CoworkerWorkspaceAccess` instead —
+> see [`coworker-workspace-access-api.md`](./coworker-workspace-access-api.md).
+
 > **Hermes / first-party orchestrators** do **not** use this grant model. They
 > authenticate as `actor: orchestrator` (shared `ORCHESTRATOR_SERVICE_TOKEN`) and skip vendor grants /
 > whitelist. See [`docs/orchestrator/hermes-orchestrator-actor.md`](../orchestrator/hermes-orchestrator-actor.md).
@@ -167,6 +173,7 @@ wait for unpark/cancel events.
 
 ## Related docs
 
+- [Coworker workspace early access](./coworker-workspace-access-api.md) — human-side pilot grants (not VendorGrant)
 - [Coworker metadata](./../coworker-metadata.md) — marketplace profile and offers JSON
 - [Core AGENTS.md](../../apps/core/AGENTS.md) — route patterns and auth
 - PR [#3300](https://github.com/masumi-network/sokosumi/pull/3300) — full feature summary and test plan

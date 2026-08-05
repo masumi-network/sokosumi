@@ -725,12 +725,18 @@ baseline. **`GRANT_PENDING`** parks delegated creates until a human approves.
 
 **Read first:** [`docs/coworker/vendor-workspace-grants-api.md`](../../docs/coworker/vendor-workspace-grants-api.md)
 
+Coworker **early access** (human pick/use of non-whitelisted coworkers in a
+workspace) is a separate axis — see
+[`docs/coworker/coworker-workspace-access-api.md`](../../docs/coworker/coworker-workspace-access-api.md).
+
 Key implementation files:
 
 - `src/helpers/vendor-grants.ts` — grant request, unpark, error kinds
-- `src/helpers/access-control.ts` — coworker read/collaboration/comment gates
+- `src/helpers/access-control.ts` — coworker read/collaboration/comment gates; human workspace usability
+- `src/helpers/coworker-workspace-access.ts` — propose / approve / deny / revoke early access
 - `src/routes/v1/tasks/*` — list, create, mutations
 - `src/schemas/task.schema.ts` — OpenAPI task fields (`grantResumeStatus`, `pendingVendorGrantId`)
+- `src/schemas/coworker-workspace-access.schema.ts` — early-access DTO
 
 ## References
 

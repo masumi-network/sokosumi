@@ -9,8 +9,8 @@ const FEATURED_COWORKER_SLUGS = ["elena", "hannah", "alex"];
 
 /**
  * The coworkers to feature right after a purchase, in curated order. Renders
- * however many of the three actually exist/are whitelisted in this
- * environment (0-3) — no placeholder slots for missing ones.
+ * however many of the three actually exist/are available for the active
+ * workspace in this environment (0-3) — no placeholder slots for missing ones.
  */
 export async function getFeaturedCoworkers(): Promise<CoworkerOption[]> {
   const coworkers = await coworkerService
