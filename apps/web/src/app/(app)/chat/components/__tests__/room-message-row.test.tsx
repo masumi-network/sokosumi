@@ -1296,7 +1296,7 @@ describe("ChatMessageRow", () => {
     renderRow({
       message: userMessage({
         content:
-          "See [[file:report.pdf|https://files.example.com/report.pdf]] and https://example.com",
+          "[report.pdf](https://files.example.com/report.pdf)\n\nand https://example.com",
         unfurls: [
           {
             url: "https://example.com",
