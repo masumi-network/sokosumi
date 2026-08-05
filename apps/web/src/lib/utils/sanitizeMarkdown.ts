@@ -88,24 +88,9 @@ export function sanitizeMarkdown(markdown: string): string {
     allowedAttributes: {
       a: ["href"],
       img: ["src", "alt", "title", "width", "height"],
-      video: [
-        "src",
-        "controls",
-        "autoplay",
-        "loop",
-        "muted",
-        "width",
-        "height",
-      ],
-      audio: [
-        "src",
-        "controls",
-        "autoplay",
-        "loop",
-        "muted",
-        "width",
-        "height",
-      ],
+      // Intentionally omit autoplay — product requires user-started playback.
+      video: ["src", "controls", "loop", "muted", "width", "height"],
+      audio: ["src", "controls", "loop", "muted", "width", "height"],
       source: ["src"],
       mark: ["class"],
       span: ["class"],

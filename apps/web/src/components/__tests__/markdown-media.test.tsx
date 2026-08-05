@@ -44,4 +44,26 @@ describe("Markdown media", () => {
     expect(container.querySelector("video")).toBeNull();
     expect(container.querySelector("audio")).toBeNull();
   });
+
+  it("strips autoplay from raw video and audio HTML and strips download query", () => {
+    const { container } = render(
+      <Markdown>
+        {[
+          '<video src="https://blob.example.com/clip.mp4?download=1" autoplay controls></video>',
+          '<audio src="https://blob.example.com/track.mp3?download=1" autoplay controls></audio>',
+        ].join("\n")}
+      </Markdown>,
+    );
+
+    const video = container.querySelector("video");
+    const audio = container.querySelector("audio");
+    expect(video).not.toBeNull();
+    expect(audio).not.toBeNull();
+    expect(video).toHaveAttribute("src", "https://blob.example.com/clip.mp4");
+    expect(audio).toHaveAttribute("src", "https://blob.example.com/track.mp3");
+    expect(video).toHaveAttribute("controls");
+    expect(audio).toHaveAttribute("controls");
+    expect(video).not.toHaveAttribute("autoplay");
+    expect(audio).not.toHaveAttribute("autoplay");
+  });
 });
