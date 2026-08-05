@@ -24,7 +24,7 @@ interface HeaderWorkspaceAvatarProps {
 export default function HeaderWorkspaceAvatar({
   sessionUser,
   organization,
-  className = "size-8 md:size-8",
+  className = "size-8",
   logoSize = 18,
   decorative = false,
 }: HeaderWorkspaceAvatarProps) {
