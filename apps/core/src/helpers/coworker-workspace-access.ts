@@ -141,8 +141,8 @@ async function upsertGrantedAccess(
  * 2. Coworker missing/archived → notFound
  * 3. Platform admin → GRANTED (reopen terminal allowed)
  * 4. Else require vendor admin on coworker.vendorId
- * 5. Actor belongs to workspace → GRANTED
- * 6. Else terminal existing → badRequest
+ * 5. Actor belongs to workspace → GRANTED (reopen terminal allowed; check before terminal block)
+ * 6. Else terminal existing → badRequest (foreign propose only)
  * 7. Else PENDING (idempotent for existing PENDING/GRANTED)
  */
 export async function upsertCoworkerWorkspaceAccess(

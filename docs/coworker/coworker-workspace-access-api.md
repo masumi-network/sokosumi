@@ -43,11 +43,21 @@ chat). Access rows govern **human-side** pick/use in a workspace.
 | *(no row)* | Never proposed / granted | No (unless globally whitelisted) |
 | `PENDING` | Vendor proposed foreign workspace; awaiting owner | No |
 | `GRANTED` | Pilot enabled for this workspace | **Yes** (with capability rules) |
-| `DENIED` | Owner denied | No — **terminal** for vendor re-request |
-| `REVOKED` | Owner revoked a prior grant | No — **terminal** for vendor re-request |
+| `DENIED` | Owner denied | No — **terminal** for foreign vendor propose only |
+| `REVOKED` | Owner revoked a prior grant | No — **terminal** for foreign vendor propose only |
 
-**Terminal reopen (v1):** vendor cannot re-open `DENIED` / `REVOKED` via
-propose (`400`). Platform admin may force `GRANTED` on the same create path.
+**Terminal reopen (v1)** — who may force `GRANTED` on `DENIED` / `REVOKED`
+via the create path (`POST …/workspace-access`):
+
+| Actor | Terminal `DENIED` / `REVOKED` |
+| --- | --- |
+| Platform admin | May force `GRANTED` (reopen) |
+| Vendor admin + belongs to workspace | May force `GRANTED` via direct enable (reopen) |
+| Vendor admin + foreign workspace | Cannot re-request; `400` until platform or member path |
+| Workspace owner | Can deny/revoke; does **not** force reopen |
+
+Only **foreign** propose is terminal. Direct enable (platform, or vendor admin
+who belongs to the workspace) reopens the same row to `GRANTED`.
 
 **Idempotency:** duplicate create for the same `(coworkerId, workspaceId)`
 returns the existing row when status is already `PENDING` or `GRANTED`.
@@ -92,10 +102,10 @@ workspace do not leak into user B’s personal chat.
 
 | Actor | Action | Result |
 | --- | --- | --- |
-| Platform admin | `POST …/workspace-access` any coworker × any workspace | Immediate `GRANTED` (can reopen terminal) |
-| Vendor admin (own-vendor coworker) × workspace they **belong to** | Same create path | Immediate `GRANTED` |
-| Vendor admin (own-vendor coworker) × **foreign** workspace | Same create path | Upsert `PENDING` (if not terminal) |
-| Workspace owner / org owner-admin | Approve / deny / revoke on their workspace | `PENDING` → `GRANTED` or `DENIED`; `GRANTED` → `REVOKED` |
+| Platform admin | `POST …/workspace-access` any coworker × any workspace | Immediate `GRANTED` (reopens terminal) |
+| Vendor admin (own-vendor coworker) × workspace they **belong to** | Same create path | Immediate `GRANTED` (reopens terminal) |
+| Vendor admin (own-vendor coworker) × **foreign** workspace | Same create path | Upsert `PENDING` if not terminal; `400` if `DENIED` / `REVOKED` |
+| Workspace owner / org owner-admin | Approve / deny / revoke on their workspace | `PENDING` → `GRANTED` or `DENIED`; `GRANTED` → `REVOKED` (no force reopen) |
 | Anyone else | — | `403` |
 
 **Belonging to a workspace** (vendor direct grant eligibility):
@@ -171,7 +181,7 @@ Optional `capability` query still filters (`tasks`, `chat`, …).
 | Missing / archived coworker | `404` | Create path |
 | Unknown workspace | `404` | Create path |
 | Not platform/vendor admin (or not own vendor) | `403` | Create / list on coworker |
-| Vendor re-request after `DENIED` / `REVOKED` | `400` | `"Cannot re-request after deny/revoke"` |
+| Foreign vendor propose after `DENIED` / `REVOKED` | `400` | `"Cannot re-request after deny/revoke"` (member direct enable still reopens) |
 | Approve/deny non-`PENDING` | `400` | |
 | Revoke non-`GRANTED` | `400` | |
 | Use non-usable coworker (assign / chat add) | `403` or `404` | Same helpers as pre-feature whitelist gates |

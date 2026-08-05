@@ -15,7 +15,7 @@ Enable **customer pilots**, **vendor dogfood**, and optional **platform internal
 - Auto-seed rows for Serviceplan or similar public coworkers (use global whitelist or explicit grants)
 - End-user “request access” from the catalog
 - Changing coworker API-key actor auth or task baseline / `GRANT_PENDING` parking rules
-- Capability to reopen `DENIED` / `REVOKED` via vendor re-request without platform (v1: platform reopen only)
+- Foreign-vendor re-propose after `DENIED` / `REVOKED` without platform or member direct enable (v1: only platform admin or vendor admin who belongs to the workspace may force `GRANTED`; foreign propose stays terminal)
 
 ## Problem
 
@@ -39,7 +39,7 @@ There is no per-workspace exception. `VendorGrant` is a different axis (vendor m
 | Vendor admin (own coworkers) × workspace they **belong to** | **Direct** `GRANTED` |
 | Vendor admin (own coworkers) × **foreign** workspace | **PENDING** → workspace owner/admin accept/deny |
 | Workspace owner/admin | Accept / deny / revoke for their workspace |
-| Terminal statuses | `DENIED` / `REVOKED` terminal for normal vendor flows; platform may force reopen |
+| Terminal statuses | `DENIED` / `REVOKED` terminal for **foreign** vendor propose only; platform admin **or** vendor admin who belongs to the workspace may force `GRANTED` reopen |
 
 ## Domain model
 
@@ -118,15 +118,15 @@ isCoworkerUsableInWorkspace(coworker, workspace, capability):
 
 | Actor | Action | Result |
 | --- | --- | --- |
-| Platform admin | Create/update for any coworker × any workspace | Immediate `GRANTED` (or force `REVOKED` / reopen) |
-| Vendor admin | Own-vendor coworker × workspace they belong to | Immediate `GRANTED` |
-| Vendor admin | Own-vendor coworker × foreign workspace | Upsert `PENDING` (if not terminal) |
-| Workspace owner / org owner-admin | Their workspace | `PENDING` → `GRANTED` or `DENIED`; `GRANTED` → `REVOKED` |
+| Platform admin | Create/update for any coworker × any workspace | Immediate `GRANTED` (reopens terminal) |
+| Vendor admin | Own-vendor coworker × workspace they belong to | Immediate `GRANTED` (reopens terminal) |
+| Vendor admin | Own-vendor coworker × foreign workspace | Upsert `PENDING` if not terminal; 400 if `DENIED` / `REVOKED` |
+| Workspace owner / org owner-admin | Their workspace | `PENDING` → `GRANTED` or `DENIED`; `GRANTED` → `REVOKED` (no force reopen) |
 | Anyone else | — | 403 |
 
 **Idempotency:** duplicate create for same pair returns existing row when status already `PENDING` or `GRANTED`.
 
-**Terminal reopen (v1):** vendor cannot re-open `DENIED` / `REVOKED` via propose; platform admin may force `GRANTED` (or equivalent admin path).
+**Terminal reopen (v1):** only **foreign** propose is blocked on `DENIED` / `REVOKED`. Platform admin and vendor admin who **belongs** to the workspace may force `GRANTED` on the same create path. Workspace owner can deny/revoke but does not force reopen.
 
 ## Core enforcement
 
@@ -213,7 +213,7 @@ Web assignee / chat pickers must use availability, not pure whitelist.
 | --- | --- |
 | Use non-usable coworker (assign / chat add) | 403 or 404 consistent with existing helpers |
 | Vendor proposes coworker not owned by their vendor | 403 |
-| Propose when status is terminal `DENIED`/`REVOKED` | 400/409; platform may force reopen |
+| Foreign propose when status is terminal `DENIED`/`REVOKED` | 400/409; platform or member-vendor direct enable may force `GRANTED` reopen |
 | Invalid / unknown workspace | 404 |
 
 ### Notifications (v1 minimum)
@@ -281,7 +281,7 @@ No backfill: non-whitelisted coworkers remain unusable until an access row or gl
 ## Follow-ups (out of scope)
 
 - Capability-scoped access  
-- Vendor-initiated reopen after deny/revoke  
+- Foreign-vendor re-propose after deny/revoke (member direct enable already reopens)  
 - Auto-grant seeds  
 - Member-visible access lists  
 - Full public request-access flow  

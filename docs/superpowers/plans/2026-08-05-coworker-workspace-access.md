@@ -15,7 +15,7 @@
 - Do **not** overload `VendorGrant` or change task `GRANT_PENDING` / vendor-grant parking
 - Global `Coworker.isWhitelisted` still means usable in **all** workspaces
 - Access is all-or-nothing (no per-capability access rows); coworker `capabilities[]` and chat `baseURL` still apply
-- Terminal `DENIED` / `REVOKED`: vendor cannot re-open; platform admin may force `GRANTED`
+- Terminal `DENIED` / `REVOKED`: foreign vendor propose blocked (`400`); platform admin **or** vendor admin who belongs to the workspace may force `GRANTED` reopen via direct enable
 - Human pick/assign/chat-add/list: workspace-aware usability
 - Coworker **actor** capability checks (`requireCoworkerCapability` for API-key routes): require active + capability (+ baseURL for chat) **without** global whitelist so pilot API keys work once humans can pick them
 - Web never imports `@sokosumi/database` / Prisma; regenerate Core client after OpenAPI changes
@@ -150,10 +150,10 @@ interface UpsertCoworkerWorkspaceAccessParams {
 2. Coworker missing/archived → `notFound("Coworker not found")`
 3. If `isPlatformAdmin` → upsert to `GRANTED` (reopen terminal allowed), set `resolvedById`/`resolvedAt`/`requestedByUserId`
 4. Else require vendor admin on `coworker.vendorId` → else `forbidden`
-5. If `userBelongsToWorkspace(actor, workspace)` → upsert `GRANTED`
-6. Else if existing status terminal → `badRequest` / conflict “Cannot re-request after deny/revoke”
+5. If `userBelongsToWorkspace(actor, workspace)` → upsert `GRANTED` (**also** reopens terminal — order matters: check belonging **before** terminal block)
+6. Else if existing status terminal → `badRequest` / conflict “Cannot re-request after deny/revoke” (foreign-only path)
 7. Else upsert `PENDING`, `requestedByUserId = actor`, clear resolved fields if recreating from missing only
-8. Idempotent: existing `PENDING` or `GRANTED` → return as-is (platform may upgrade PENDING→GRANTED)
+8. Idempotent: existing `PENDING` or `GRANTED` → return as-is (platform/member may upgrade PENDING→GRANTED)
 
 Approve: only `PENDING` → `GRANTED`. Deny: only `PENDING` → `DENIED`. Revoke: only `GRANTED` → `REVOKED`. Wrong status → `badRequest`.
 
@@ -162,10 +162,10 @@ Approve: only `PENDING` → `GRANTED`. Deny: only `PENDING` → `DENIED`. Revoke
 Cover at least:
 
 - platform → always GRANTED (including reopen DENIED)
-- vendor admin + member workspace → GRANTED
+- vendor admin + member workspace → GRANTED (including reopen DENIED/REVOKED)
 - vendor admin + foreign → PENDING
 - non-admin / wrong vendor → forbidden
-- terminal re-request by vendor → error
+- terminal re-request by **foreign** vendor → error; member path still reopens
 - approve/deny/revoke happy + wrong status
 - `userBelongsToWorkspace` personal vs org member
 
@@ -587,7 +587,7 @@ git commit -am "docs(coworker): workspace early access API guide"
 | Vendor member direct GRANTED | 2, 4 |
 | Vendor foreign PENDING | 2, 4 |
 | Owner accept/deny/revoke | 2, 5, 10 |
-| Terminal no vendor reopen; platform force | 2 |
+| Terminal: foreign propose blocked; platform + member vendor force reopen | 2 |
 | Usability rule chat + tasks | 3, 6, 7 |
 | Catalog available | 6, 10 |
 | Grantor + owner APIs | 4, 5 |
