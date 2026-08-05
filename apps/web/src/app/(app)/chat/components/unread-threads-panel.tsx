@@ -54,16 +54,12 @@ function UnreadThreadsBadge({ count }: { count: number }) {
     return null;
   }
 
-  const label = count > 99 ? "99+" : String(count);
-
   return (
     <span
       data-testid="unread-threads-badge"
       aria-hidden="true"
-      className="bg-primary text-primary-foreground absolute -top-1 -right-1 inline-flex min-w-4 items-center justify-center rounded-full px-0.5 text-[10px] leading-4 font-semibold tabular-nums"
-    >
-      {label}
-    </span>
+      className="bg-primary absolute top-0 right-0 size-2 rounded-full ring-2 ring-background"
+    />
   );
 }
 
