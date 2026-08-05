@@ -13,6 +13,11 @@ interface HeaderWorkspaceAvatarProps {
   organization?: OrganizationRecord | null;
   className?: string;
   logoSize?: number;
+  /**
+   * When true, the avatar is purely visual (e.g. closed switcher trigger that
+   * already exposes the workspace name in text). Hides the image from AT.
+   */
+  decorative?: boolean;
 }
 
 export default function HeaderWorkspaceAvatar({
@@ -20,16 +25,13 @@ export default function HeaderWorkspaceAvatar({
   organization,
   className = "size-8 md:size-8",
   logoSize = 18,
+  decorative = false,
 }: HeaderWorkspaceAvatarProps) {
-  if (organization) {
-    return (
-      <Avatar className={cn("bg-muted items-center justify-center", className)}>
-        <OrganizationLogo organization={organization} size={logoSize} />
-      </Avatar>
-    );
-  }
-
-  return (
+  const avatar = organization ? (
+    <Avatar className={cn("bg-muted items-center justify-center", className)}>
+      <OrganizationLogo organization={organization} size={logoSize} />
+    </Avatar>
+  ) : (
     <UserAvatarContent
       className={className}
       imageUrl={
@@ -39,7 +41,13 @@ export default function HeaderWorkspaceAvatar({
           default: "404",
         })
       }
-      imageAlt={sessionUser.name ?? "User avatar"}
+      imageAlt={decorative ? "" : (sessionUser.name ?? "User avatar")}
     />
   );
+
+  if (decorative) {
+    return <span aria-hidden="true">{avatar}</span>;
+  }
+
+  return avatar;
 }

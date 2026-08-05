@@ -22,11 +22,12 @@ import {
   getNotificationIndicatorClassName,
 } from "./notification-indicator";
 
-export function HeaderNotificationAvatar() {
+export function HeaderNotificationBell() {
   const t = useTranslations("Components.NotificationCenter");
   const { unreadCount } = useNotifications();
   const { notice } = useAccountNotice();
   const [isOpen, setIsOpen] = useState(false);
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const hasAccountNotice = notice !== null;
   const indicator = getNotificationIndicator(
     unreadCount,
@@ -44,8 +45,23 @@ export function HeaderNotificationAvatar() {
           : t("notifications");
 
   return (
-    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <Tooltip open={isOpen ? false : undefined}>
+    <DropdownMenu
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open);
+        if (open) {
+          setIsTooltipOpen(false);
+        }
+      }}
+    >
+      <Tooltip
+        open={isOpen ? false : isTooltipOpen}
+        onOpenChange={(open) => {
+          if (!isOpen) {
+            setIsTooltipOpen(open);
+          }
+        }}
+      >
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
             <button
@@ -56,8 +72,9 @@ export function HeaderNotificationAvatar() {
               <Bell className="text-foreground size-4" aria-hidden />
               {indicator?.kind === "count" ? (
                 <span
+                  data-testid="notification-unread-badge"
                   className={cn(
-                    "absolute -top-0.5 -right-0.5 inline-flex min-w-4 items-center justify-center rounded-full px-0.5 text-[10px] leading-4 font-semibold tabular-nums ring-2 ring-background",
+                    "absolute -top-0.5 -right-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-0.5 text-[10px] leading-4 font-semibold tabular-nums ring-2 ring-background",
                     getNotificationIndicatorClassName(indicator.tone),
                   )}
                   aria-hidden
@@ -67,6 +84,7 @@ export function HeaderNotificationAvatar() {
               ) : null}
               {indicator?.kind === "dot" ? (
                 <span
+                  data-testid="notification-account-notice-dot"
                   className={cn(
                     "absolute top-0 right-0 size-2 rounded-full ring-2 ring-background",
                     getNotificationIndicatorClassName(indicator.tone),

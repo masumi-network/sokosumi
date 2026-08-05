@@ -6,7 +6,7 @@ import { useSession } from "@/lib/auth/auth.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
-import { HeaderNotificationAvatar } from "./header-notification-avatar.client";
+import { HeaderNotificationBell } from "./header-notification-bell.client";
 import HeaderWorkspaceSwitch from "./header-workspace-switch.client";
 
 interface HeaderProfileSectionClientProps {
@@ -52,7 +52,7 @@ export default function HeaderProfileSectionClient({
         isPending={isPending}
         onSelectWorkspace={handleSelectWorkspace}
       />
-      <HeaderNotificationAvatar />
+      <HeaderNotificationBell />
     </div>
   );
 }

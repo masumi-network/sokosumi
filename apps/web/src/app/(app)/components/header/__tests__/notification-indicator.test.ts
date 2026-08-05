@@ -69,6 +69,14 @@ describe("getNotificationIndicator", () => {
       tone: "warning",
     });
   });
+
+  it("defaults notice tone to warning on the count path when unspecified", () => {
+    expect(getNotificationIndicator(2, true)).toEqual({
+      kind: "count",
+      value: "2",
+      tone: "warning",
+    });
+  });
 });
 
 describe("getNotificationIndicatorClassName", () => {

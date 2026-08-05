@@ -176,6 +176,7 @@ export default function HeaderWorkspaceSwitch({
                   organization={activeWorkspace?.organization ?? null}
                   className="size-4 shrink-0"
                   logoSize={12}
+                  decorative
                 />
                 <span className="max-w-24 truncate font-medium md:max-w-none">
                   {activeWorkspace?.name}
