@@ -1911,6 +1911,48 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
+  it("flushes queued emails when a later sync phase throws", async () => {
+    const completedJob = createJob({
+      status: SokosumiJobStatus.COMPLETED,
+      jobStatusSettled: true,
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.COMPLETED,
+          result: "done",
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    prismaJobFindManyMock.mockReset();
+    prismaJobFindManyMock.mockResolvedValueOnce([]);
+    prismaJobFindManyMock.mockResolvedValueOnce([createJob()]);
+    prismaJobFindManyMock.mockRejectedValueOnce(new Error("refund query down"));
+
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(completedJob);
+
+    await expect(
+      jobSyncService.syncUnfinishedJobs(createExecutionOptions()),
+    ).rejects.toThrow("refund query down");
+
+    expect(sendEmailsMock).toHaveBeenCalledTimes(1);
+    expect(sendEmailsMock).toHaveBeenCalledWith([
+      expect.objectContaining({
+        to: "user@example.com",
+        tag: "job-final-status",
+      }),
+    ]);
+  });
+
   it("counts unique jobs across purchase, agent, and refund phases in the same run", async () => {
     const reconciliationJob = createJob({
       id: "job_refund",

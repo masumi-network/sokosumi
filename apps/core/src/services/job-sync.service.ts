@@ -471,8 +471,7 @@ async function finalizeJobSyncResult(
     return;
   }
 
-  // Queue emails for a single Resend batch flush at end of syncUnfinishedJobs
-  // (SOKOSUMI-CORE-2Y). Await render+enqueue so waitUntil covers the flush.
+  // Await render+enqueue; Resend batch flush runs at end of syncUnfinishedJobs.
   switch (newJobStatus) {
     case SokosumiJobStatus.COMPLETED:
     case SokosumiJobStatus.REFUND_RESOLVED:
@@ -877,37 +876,45 @@ export const jobSyncService = {
         pendingEmails.push(input);
       },
     };
-    const purchasePhase = await runSyncPhase(
-      "purchase",
-      buildJobsNeedingPurchaseSyncWhere(),
-      runOptions,
-      seenJobIds,
-      syncPurchaseState,
-    );
-    const agentPhase = await runSyncPhase(
-      "agent",
-      buildJobsNeedingAgentStatusSyncWhere(),
-      runOptions,
-      seenJobIds,
-      syncAgentStatus,
-    );
-    const refundPhase = await runSyncPhase(
-      "refund",
-      buildJobsPendingLocalRefundWhere(),
-      runOptions,
-      seenJobIds,
-      syncRefundReconciliationJob,
-    );
 
-    if (pendingEmails.length > 0) {
-      await sendEmails(pendingEmails).catch((error) => {
-        captureExternalServiceError(error, {
-          label: "job-sync-email-batch",
-          extra: {
-            emailCount: pendingEmails.length,
-          },
+    let purchasePhase: JobSyncPhaseResult = { found: 0, processed: 0 };
+    let agentPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
+    let refundPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
+
+    try {
+      purchasePhase = await runSyncPhase(
+        "purchase",
+        buildJobsNeedingPurchaseSyncWhere(),
+        runOptions,
+        seenJobIds,
+        syncPurchaseState,
+      );
+      agentPhase = await runSyncPhase(
+        "agent",
+        buildJobsNeedingAgentStatusSyncWhere(),
+        runOptions,
+        seenJobIds,
+        syncAgentStatus,
+      );
+      refundPhase = await runSyncPhase(
+        "refund",
+        buildJobsPendingLocalRefundWhere(),
+        runOptions,
+        seenJobIds,
+        syncRefundReconciliationJob,
+      );
+    } finally {
+      // Flush even if a later phase throws so already-queued emails are not dropped.
+      if (pendingEmails.length > 0) {
+        await sendEmails(pendingEmails).catch((error) => {
+          captureExternalServiceError(error, {
+            label: "job-sync-email-batch",
+            extra: {
+              emailCount: pendingEmails.length,
+            },
+          });
         });
-      });
+      }
     }
 
     return {
