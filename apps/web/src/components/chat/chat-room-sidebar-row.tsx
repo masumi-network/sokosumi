@@ -48,7 +48,10 @@ import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
-/** Absolute trailing cluster: status icon (pin/mute) then overflow, so layout does not jump. */
+/**
+ * Trailing controls. Touch: pin/mute then overflow side by side.
+ * Hover-capable: one size-7 slot that swaps status ↔ overflow on hover.
+ */
 const TRAILING_CLUSTER_CLASS =
   "absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
 
@@ -168,7 +171,10 @@ export function ChatRoomSidebarRow({
       </span>
       <MentionBadge count={badgeCount} />
       <span
-        className={cn("shrink-0", isMuted || isPinned ? "w-14" : "size-7")}
+        className={cn(
+          "h-7 w-7 shrink-0",
+          (isMuted || isPinned) && "[@media(hover:none)]:w-14",
+        )}
         aria-hidden
       />
     </Link>
@@ -186,7 +192,11 @@ export function ChatRoomSidebarRow({
       <div className={TRAILING_CLUSTER_CLASS}>
         {isMuted || isPinned ? (
           <span
-            className="text-muted-foreground pointer-events-none flex size-7 items-center justify-center"
+            className={cn(
+              "text-muted-foreground pointer-events-none flex size-7 items-center justify-center",
+              "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
+              "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
+            )}
             aria-hidden
           >
             {isMuted ? (
@@ -204,9 +214,7 @@ export function ChatRoomSidebarRow({
               size="icon"
               disabled={isPending}
               className={cn(
-                "text-muted-foreground size-7 opacity-100 data-[state=open]:opacity-100",
-                !(isMuted || isPinned) &&
-                  "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100",
+                "text-muted-foreground size-7 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
               )}
               aria-label={tActions("roomMenu", { name: label })}
             >
