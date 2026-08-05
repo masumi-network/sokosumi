@@ -41,7 +41,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/discoverable",
     description:
-      "List active public (`discoverability=public`) channels in the active organization that the caller is not already a member of. Requires an active organization. Optional `q` filters by name or slug.",
+      "List active public or external (`discoverability` in `public` | `external`) channels in the active organization that the caller is not already a member of. Requires an active organization. Optional `q` filters by name or slug.",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -49,7 +49,7 @@ const route = withGlobalHeaderParameters(
     responses: {
       200: jsonPaginatedSuccessResponse(
         z.array(discoverableChatRoomSchema),
-        "Discoverable public channels",
+        "Discoverable public and external channels",
       ),
       400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
@@ -78,7 +78,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const where = {
       organizationId,
       kind: "channel" as const,
-      discoverability: "public",
+      discoverability: { in: ["public", "external"] },
       archivedAt: null,
       userMembers: {
         none: { userId: userContext.userId },
@@ -135,7 +135,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: room.name,
           slug: room.slug,
           topic: room.topic,
-          discoverability: "public" as const,
+          discoverability:
+            room.discoverability === "external" ? "external" : "public",
           memberCount: room._count.userMembers,
           createdByUserId: room.createdByUserId,
           createdAt: room.createdAt,

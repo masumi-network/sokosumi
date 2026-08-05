@@ -105,11 +105,49 @@ describe("GET /chats/rooms/discoverable", () => {
         where: expect.objectContaining({
           organizationId: ORG_ID,
           kind: "channel",
-          discoverability: "public",
+          discoverability: { in: ["public", "external"] },
           archivedAt: null,
           userMembers: { none: { userId: USER_ID } },
         }),
         orderBy: [{ name: "asc" }, { id: "asc" }],
+      }),
+    );
+  });
+
+  it("lists external channels in discoverable", async () => {
+    roomFindManyMock.mockResolvedValue([
+      discoverableRow({
+        name: "Client External",
+        slug: "client-external",
+        topic: null,
+        discoverability: "external",
+        _count: { userMembers: 2 },
+      }),
+    ]);
+    roomCountMock.mockResolvedValue(1);
+
+    const response = await createApp(userAuthContext).request("/discoverable");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toEqual([
+      {
+        id: ROOM_ID,
+        name: "Client External",
+        slug: "client-external",
+        topic: null,
+        discoverability: "external",
+        memberCount: 2,
+        createdByUserId: "user_creator",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
+    expect(roomFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          discoverability: { in: ["public", "external"] },
+        }),
       }),
     );
   });
