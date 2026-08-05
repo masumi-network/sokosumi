@@ -46,40 +46,71 @@ describe("shouldApplyRootFontSizeInline", () => {
 });
 
 describe("applyDynamicTypeRootCap", () => {
-  it("sets inline 20px when computed size is over cap", () => {
+  it("sets inline 20px when natural computed size is over cap", () => {
     const el = document.createElement("div");
-    el.style.fontSize = "28px";
     document.body.appendChild(el);
-    // Stub getComputedStyle for this element
     const original = globalThis.getComputedStyle;
-    globalThis.getComputedStyle = ((target: Element) => {
-      if (target === el) {
-        return { fontSize: "28px" } as CSSStyleDeclaration;
-      }
-      return original(target);
-    }) as typeof getComputedStyle;
+    try {
+      // After clear, measure natural size (stub always reports over-cap).
+      globalThis.getComputedStyle = ((target: Element) => {
+        if (target === el) {
+          return { fontSize: "28px" } as CSSStyleDeclaration;
+        }
+        return original(target);
+      }) as typeof getComputedStyle;
 
-    applyDynamicTypeRootCap(el);
-    expect(el.style.fontSize).toBe("20px");
-
-    globalThis.getComputedStyle = original;
-    el.remove();
+      applyDynamicTypeRootCap(el);
+      expect(el.style.fontSize).toBe("20px");
+    } finally {
+      globalThis.getComputedStyle = original;
+      el.remove();
+    }
   });
 
-  it("clears inline size when at or under cap", () => {
+  it("leaves inline empty when natural size is at or under cap", () => {
     const el = document.createElement("div");
     el.style.fontSize = "20px";
     const original = globalThis.getComputedStyle;
-    globalThis.getComputedStyle = ((target: Element) => {
-      if (target === el) {
-        return { fontSize: "17px" } as CSSStyleDeclaration;
-      }
-      return original(target);
-    }) as typeof getComputedStyle;
+    try {
+      globalThis.getComputedStyle = ((target: Element) => {
+        if (target === el) {
+          return { fontSize: "17px" } as CSSStyleDeclaration;
+        }
+        return original(target);
+      }) as typeof getComputedStyle;
 
-    applyDynamicTypeRootCap(el);
-    expect(el.style.fontSize).toBe("");
+      applyDynamicTypeRootCap(el);
+      expect(el.style.fontSize).toBe("");
+    } finally {
+      globalThis.getComputedStyle = original;
+    }
+  });
 
-    globalThis.getComputedStyle = original;
+  it("re-applies cap on re-run when prior inline 20px masked larger natural size", () => {
+    const el = document.createElement("div");
+    // Simulate prior successful cap still on the element.
+    el.style.fontSize = "20px";
+    document.body.appendChild(el);
+    const original = globalThis.getComputedStyle;
+    try {
+      // Return natural over-cap only after clear (style empty); if stub saw 20px
+      // without clear, old bug would drop the cap.
+      globalThis.getComputedStyle = ((target: Element) => {
+        if (target === el) {
+          const inline = (target as HTMLElement).style.fontSize;
+          if (inline === "" || inline == null) {
+            return { fontSize: "28px" } as CSSStyleDeclaration;
+          }
+          return { fontSize: inline } as CSSStyleDeclaration;
+        }
+        return original(target);
+      }) as typeof getComputedStyle;
+
+      applyDynamicTypeRootCap(el);
+      expect(el.style.fontSize).toBe("20px");
+    } finally {
+      globalThis.getComputedStyle = original;
+      el.remove();
+    }
   });
 });
