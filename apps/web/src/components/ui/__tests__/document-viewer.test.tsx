@@ -93,23 +93,132 @@ describe("DocumentViewer", () => {
     expect(openInNewTab.className).toMatch(/sm:w-auto/);
   });
 
-  it("embeds a PDF natively with the toolbar hidden", () => {
-    render(
-      <DocumentViewer
-        open
-        onOpenChange={vi.fn()}
-        url="https://blob.example.com/report.pdf"
-        fileName="report.pdf"
-        kind="pdf"
-        mediaType="application/pdf"
-      />,
-    );
+  describe("PDF embed", () => {
+    const originalFetch = global.fetch;
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
 
-    const iframe = screen.getByTitle("report.pdf");
-    expect(iframe).toHaveAttribute(
-      "src",
-      "https://blob.example.com/report.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
-    );
+    beforeEach(() => {
+      global.fetch = vi.fn();
+      URL.createObjectURL = vi.fn(() => "blob:https://viewer/pdf-1");
+      URL.revokeObjectURL = vi.fn();
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+      vi.restoreAllMocks();
+    });
+
+    it("fetches the PDF and embeds a same-origin blob URL so attachment disposition cannot force a download", async () => {
+      const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]); // %PDF
+      vi.mocked(global.fetch).mockResolvedValue({
+        ok: true,
+        blob: () =>
+          Promise.resolve(
+            new Blob([pdfBytes], { type: "application/octet-stream" }),
+          ),
+      } as Response);
+
+      render(
+        <DocumentViewer
+          open
+          onOpenChange={vi.fn()}
+          url="https://blob.example.com/report.pdf"
+          fileName="report.pdf"
+          kind="pdf"
+          mediaType="application/pdf"
+        />,
+      );
+
+      expect(screen.getByLabelText("Loading document…")).toBeInTheDocument();
+
+      const iframe = await screen.findByTitle("report.pdf");
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://blob.example.com/report.pdf",
+        expect.objectContaining({ signal: expect.anything() }),
+      );
+      expect(URL.createObjectURL).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "application/pdf" }),
+      );
+      expect(iframe).toHaveAttribute(
+        "src",
+        "blob:https://viewer/pdf-1#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+      );
+      // Download / open-in-new-tab still point at the original public URL.
+      expect(
+        screen.getByRole("link", { name: "Download document" }),
+      ).toHaveAttribute("href", "https://blob.example.com/report.pdf");
+    });
+
+    it("strips ?download=1 before fetching so Vercel Blob attachment URLs still preview", async () => {
+      vi.mocked(global.fetch).mockResolvedValue({
+        ok: true,
+        blob: () =>
+          Promise.resolve(new Blob([new Uint8Array([0x25])], { type: "" })),
+      } as Response);
+
+      render(
+        <DocumentViewer
+          open
+          onOpenChange={vi.fn()}
+          url="https://blob.example.com/report.pdf?download=1"
+          fileName="report.pdf"
+          kind="pdf"
+        />,
+      );
+
+      await screen.findByTitle("report.pdf");
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://blob.example.com/report.pdf",
+        expect.objectContaining({ signal: expect.anything() }),
+      );
+    });
+
+    it("falls back to a direct iframe when fetch fails (e.g. CORS)", async () => {
+      vi.mocked(global.fetch).mockRejectedValue(new TypeError("Failed to fetch"));
+
+      render(
+        <DocumentViewer
+          open
+          onOpenChange={vi.fn()}
+          url="https://blob.example.com/report.pdf?download=1"
+          fileName="report.pdf"
+          kind="pdf"
+        />,
+      );
+
+      const iframe = await screen.findByTitle("report.pdf");
+      expect(iframe).toHaveAttribute(
+        "src",
+        "https://blob.example.com/report.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+      );
+    });
+
+    it("revokes the object URL when the viewer unmounts", async () => {
+      vi.mocked(global.fetch).mockResolvedValue({
+        ok: true,
+        blob: () =>
+          Promise.resolve(new Blob([new Uint8Array([0x25])], { type: "" })),
+      } as Response);
+
+      const { unmount } = render(
+        <DocumentViewer
+          open
+          onOpenChange={vi.fn()}
+          url="https://blob.example.com/report.pdf"
+          fileName="report.pdf"
+          kind="pdf"
+        />,
+      );
+
+      await screen.findByTitle("report.pdf");
+      unmount();
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith(
+        "blob:https://viewer/pdf-1",
+      );
+    });
   });
 
   it("routes an Office file through the Microsoft Office Online viewer", () => {
@@ -137,21 +246,37 @@ describe("DocumentViewer", () => {
     // from that prop rather than re-deriving `kind` from `url` alone, or it
     // renders an empty body for a dialog that already committed to opening.
 
-    it("still embeds the PDF viewer when the URL has no extension", () => {
-      render(
-        <DocumentViewer
-          open
-          onOpenChange={vi.fn()}
-          url="https://blob.example.com/report"
-          fileName="report.pdf"
-          kind="pdf"
-        />,
-      );
+    it("still embeds the PDF viewer when the URL has no extension", async () => {
+      const originalFetch = global.fetch;
+      const originalCreateObjectURL = URL.createObjectURL;
+      const originalRevokeObjectURL = URL.revokeObjectURL;
+      try {
+        global.fetch = vi.fn().mockResolvedValue({
+          ok: true,
+          blob: () => Promise.resolve(new Blob([new Uint8Array([0x25])])),
+        } as Response);
+        URL.createObjectURL = vi.fn(() => "blob:https://viewer/pdf-extless");
+        URL.revokeObjectURL = vi.fn();
 
-      expect(screen.getByTitle("report.pdf")).toHaveAttribute(
-        "src",
-        "https://blob.example.com/report#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
-      );
+        render(
+          <DocumentViewer
+            open
+            onOpenChange={vi.fn()}
+            url="https://blob.example.com/report"
+            fileName="report.pdf"
+            kind="pdf"
+          />,
+        );
+
+        expect(await screen.findByTitle("report.pdf")).toHaveAttribute(
+          "src",
+          "blob:https://viewer/pdf-extless#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+        );
+      } finally {
+        global.fetch = originalFetch;
+        URL.createObjectURL = originalCreateObjectURL;
+        URL.revokeObjectURL = originalRevokeObjectURL;
+      }
     });
 
     it("still routes to the Office viewer when the URL has no extension", () => {

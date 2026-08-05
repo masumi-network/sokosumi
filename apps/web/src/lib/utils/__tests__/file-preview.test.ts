@@ -12,6 +12,7 @@ import {
   officeExtensionFromMediaType,
   officeViewerUrl,
   pdfEmbedUrl,
+  stripForcedDownloadParam,
 } from "@/lib/utils/file-preview";
 
 describe("isOfficeFile", () => {
@@ -150,9 +151,34 @@ describe("officeViewerUrl", () => {
   });
 });
 
+describe("stripForcedDownloadParam", () => {
+  it("removes download=1 / download=true while keeping other query params", () => {
+    expect(
+      stripForcedDownloadParam(
+        "https://blob.example/report.pdf?download=1&token=abc",
+      ),
+    ).toBe("https://blob.example/report.pdf?token=abc");
+    expect(
+      stripForcedDownloadParam("https://blob.example/report.pdf?download=true"),
+    ).toBe("https://blob.example/report.pdf");
+  });
+
+  it("leaves URLs without a download flag unchanged", () => {
+    expect(stripForcedDownloadParam("https://blob.example/report.pdf")).toBe(
+      "https://blob.example/report.pdf",
+    );
+  });
+});
+
 describe("pdfEmbedUrl", () => {
   it("hides the browser's native PDF chrome", () => {
     expect(pdfEmbedUrl("https://blob.example/report.pdf")).toBe(
+      "https://blob.example/report.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+    );
+  });
+
+  it("strips a forced-download query param before adding the hash", () => {
+    expect(pdfEmbedUrl("https://blob.example/report.pdf?download=1")).toBe(
       "https://blob.example/report.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
     );
   });

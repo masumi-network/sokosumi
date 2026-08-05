@@ -20,6 +20,7 @@ import {
   officeExtensionFromMediaType,
   officeViewerUrl,
   pdfEmbedUrl,
+  stripForcedDownloadParam,
 } from "@/lib/utils/file-preview";
 
 interface DocumentViewerProps {
@@ -97,6 +98,90 @@ function DocumentTextBody({
   return <DocumentTextPreview title={fileName} content={state.content} />;
 }
 
+/**
+ * Fetch the remote PDF into a same-origin blob URL before embedding.
+ *
+ * Putting a remote blob-storage URL straight into an iframe inherits that
+ * response's `Content-Disposition`. When the CDN forces `attachment` (wrong
+ * MIME, legacy upload, or `?download=1`), the browser downloads the file
+ * instead of rendering it — the chip still "opens" a viewer, but the user only
+ * sees a download. Forcing `application/pdf` on a blob: URL makes the browser
+ * treat it as inline preview, matching how images always work via `<img>`.
+ *
+ * If fetch fails (CORS, network), fall back to a direct iframe of the public
+ * URL (stripped of `?download=1`) so hosts that already serve inline PDFs still
+ * preview without needing CORS.
+ */
+function DocumentPdfBody({
+  url,
+  fileName,
+}: {
+  url: string;
+  fileName: string;
+}) {
+  const t = useTranslations("Components.DocumentViewer");
+  const [state, setState] = useState<{
+    status: "loading" | "loaded";
+    embedUrl?: string;
+  }>({ status: "loading" });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    setState({ status: "loading" });
+
+    const sourceUrl = stripForcedDownloadParam(url);
+
+    fetch(sourceUrl, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Failed to fetch PDF");
+        const remoteBlob = await response.blob();
+        // Re-wrap so a mislabeled `application/octet-stream` still previews.
+        const pdfBlob = new Blob([remoteBlob], { type: "application/pdf" });
+        const nextObjectUrl = URL.createObjectURL(pdfBlob);
+        if (controller.signal.aborted) {
+          URL.revokeObjectURL(nextObjectUrl);
+          return;
+        }
+        objectUrl = nextObjectUrl;
+        setState({ status: "loaded", embedUrl: nextObjectUrl });
+      })
+      .catch(() => {
+        // CORS / network: keep preview working when the host already serves
+        // inline PDFs. Attachment-disposition hosts without CORS still download
+        // (no client-side fix without a same-origin proxy).
+        if (!controller.signal.aborted) {
+          setState({ status: "loaded", embedUrl: sourceUrl });
+        }
+      });
+
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
+
+  if (state.status === "loading" || !state.embedUrl) {
+    return (
+      <div
+        className="flex h-full w-full items-center justify-center p-6"
+        role="status"
+        aria-label={t("loading")}
+      >
+        <Skeleton className="h-full w-full max-w-2xl rounded-xl" />
+      </div>
+    );
+  }
+
+  return (
+    <iframe
+      src={pdfEmbedUrl(state.embedUrl)}
+      title={fileName}
+      className="bg-muted/40 h-full w-full"
+    />
+  );
+}
+
 function DocumentViewerBody({
   url,
   fileName,
@@ -121,13 +206,7 @@ function DocumentViewerBody({
   }
 
   if (kind === "pdf") {
-    return (
-      <iframe
-        src={pdfEmbedUrl(url)}
-        title={fileName}
-        className="bg-muted/40 h-full w-full"
-      />
-    );
+    return <DocumentPdfBody url={url} fileName={fileName} />;
   }
 
   if (kind === "text") {
@@ -170,7 +249,7 @@ function DocumentViewerContent({
             className="size-8 sm:h-8 sm:w-auto sm:gap-1.5 sm:px-3"
           >
             <a
-              href={url}
+              href={stripForcedDownloadParam(url)}
               target="_blank"
               rel="noreferrer noopener"
               aria-label={t("openInNewTab")}
