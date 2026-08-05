@@ -4790,7 +4790,12 @@
         "retry": "Reintentar",
         "revoke": "Revocar",
         "revokeAria": "Revocar invitación de {email}",
-        "revokeSuccess": "Invitación revocada."
+        "revokeSuccess": "Invitación revocada.",
+        "guestsTitle": "Invitados actuales",
+        "guestsEmpty": "Aún no hay invitados en este canal.",
+        "removeGuest": "Quitar",
+        "removeGuestAria": "Quitar invitado {name}",
+        "removeGuestSuccess": "Se quitó a {name} de este canal."
       },
       "ChatInvite": {
         "title": "Invitación al canal",

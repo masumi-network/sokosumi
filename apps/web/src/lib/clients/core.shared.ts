@@ -92,6 +92,7 @@ import {
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
   deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
+  deleteChatsRoomsByIdMembersByUserId as coreDeleteChatsRoomsByIdMembersByUserId,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
@@ -608,6 +609,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to leave chat room",
+    );
+  }
+
+  /** Host: remove an external guest from a room. */
+  async function removeChatRoomMember(roomId: string, userId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMembersByUserId({
+          client,
+          path: { id: roomId, userId },
+        }),
+      "Failed to remove room member",
     );
   }
 
@@ -3761,6 +3775,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteChatRoom,
     restoreChatRoom,
     leaveChatRoom,
+    removeChatRoomMember,
     joinChatRoom,
     assignOrganizationSeat,
     createChatRoom,

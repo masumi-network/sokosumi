@@ -95,6 +95,9 @@ export function EditChannelDialog({
   const showGuestInvite =
     canInviteGuests &&
     channelDiscoverability(channel.discoverability) === "external";
+  const [guestMembers, setGuestMembers] = useState(() =>
+    channel.userMembers.filter((member) => member.access === "guest"),
+  );
   const [pendingKind, setPendingKind] = useState<"archive" | "leave" | null>(
     null,
   );
@@ -121,6 +124,9 @@ export function EditChannelDialog({
     setDiscoverability(channelDiscoverability(channel.discoverability));
     setMemberIds(channel.userMembers.map((member) => member.id));
     setCoworkerIds(channel.coworkerMembers.map((coworker) => coworker.id));
+    setGuestMembers(
+      channel.userMembers.filter((member) => member.access === "guest"),
+    );
   }, [channel, open]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -336,6 +342,12 @@ export function EditChannelDialog({
               roomId={channel.id}
               enabled={showGuestInvite}
               open={open}
+              guests={guestMembers}
+              onGuestRemoved={(userId) => {
+                setGuestMembers((prev) =>
+                  prev.filter((member) => member.id !== userId),
+                );
+              }}
             />
           ) : null}
           {canArchive || canLeave ? (

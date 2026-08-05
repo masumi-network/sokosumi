@@ -71,17 +71,20 @@ function room(
   overrides: {
     organizationId?: string | null;
     kind?: "channel" | "direct";
+    myAccess?: "member" | "guest";
   } = {},
 ) {
   return {
     id: ROOM_ID,
     organizationId:
       "organizationId" in overrides ? overrides.organizationId : ORG_A,
+    organizationName: null,
     kind: overrides.kind ?? "channel",
     name: "general",
     slug: "general",
     topic: null,
     directKey: null,
+    discoverability: "public" as const,
     createdByUserId: USER_ID,
     createdAt: new Date("2025-01-01T00:00:00.000Z").toISOString(),
     updatedAt: new Date("2025-01-01T00:00:00.000Z").toISOString(),
@@ -93,6 +96,7 @@ function room(
     pinnedAt: null,
     mutedAt: null,
     markedUnread: false,
+    myAccess: overrides.myAccess ?? "member",
   };
 }
 
@@ -179,6 +183,38 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(element).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
     expect(roomsClientProps(element).membersLoadFailed).toBe(false);
+  });
+
+  it("renders guest room when active org is not the host org", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_B,
+      name: "Org B",
+      slug: "org-b",
+    });
+    getRoomMock.mockResolvedValue(
+      room({ organizationId: ORG_A, myAccess: "guest" }),
+    );
+
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(element).toBeTruthy();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("renders guest channel in personal workspace", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+    getRoomMock.mockResolvedValue(
+      room({ organizationId: ORG_A, myAccess: "guest" }),
+    );
+
+    const element = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+
+    expect(element).toBeTruthy();
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
   it("still renders when organization members fail to load", async () => {

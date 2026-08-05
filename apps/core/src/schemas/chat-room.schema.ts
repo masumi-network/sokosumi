@@ -32,6 +32,15 @@ export const chatRoomUserParticipantSchema = z
       .nullable()
       .openapi({ example: "https://example.com/avatar.png" }),
     presence: chatRoomPresenceSchema.openapi({ example: "online" }),
+    /**
+     * Guests on external channels are `"guest"`. Hosts and directs use
+     * `"member"`. Optional for older payloads; Core always emits it.
+     */
+    access: chatRoomAccessSchema.optional().openapi({
+      description:
+        'Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).',
+      example: "member",
+    }),
   })
   .openapi("ChatRoomUserParticipant");
 

@@ -4343,7 +4343,7 @@ export const ChatRoomSchema = {
         unreadCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Messages sent by others after the current user\'s read marker.',
+            description: 'Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.',
             example: 2
         },
         unreadMentionCount: {
@@ -4464,6 +4464,16 @@ export const ChatRoomUserParticipantSchema = {
         },
         presence: {
             $ref: '#/components/schemas/ChatRoomPresence'
+        },
+        access: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/ChatRoomAccess'
+                },
+                {
+                    description: 'Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).'
+                }
+            ]
         }
     },
     required: [

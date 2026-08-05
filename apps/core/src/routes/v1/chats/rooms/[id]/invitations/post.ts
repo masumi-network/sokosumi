@@ -6,11 +6,12 @@ import { sendEmail } from "@/clients/email.client";
 import { getWebAppBaseUrl } from "@/config/env";
 import {
   assertInviteeNotHostOrgMember,
+  assertInviteeNotRoomMember,
   invitationExpiresAt,
   mapChatRoomInvitation,
   normalizeInvitationEmail,
 } from "@/helpers/chat-room-invitation";
-import { badRequest } from "@/helpers/error";
+import { badRequest, conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
@@ -89,6 +90,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       await assertInviteeNotHostOrgMember(room.organizationId, email, tx);
+      await assertInviteeNotRoomMember(room.id, email, tx);
 
       const existingPending = await tx.chatRoomGuestInvitation.findFirst({
         where: {
@@ -99,7 +101,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: { id: true },
       });
       if (existingPending) {
-        throw badRequest(
+        throw conflict(
           "A pending invitation already exists for this email in this room.",
         );
       }
@@ -120,7 +122,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
       } catch (error) {
         if (isPrismaUniqueViolation(error)) {
-          throw badRequest(
+          throw conflict(
             "A pending invitation already exists for this email in this room.",
           );
         }

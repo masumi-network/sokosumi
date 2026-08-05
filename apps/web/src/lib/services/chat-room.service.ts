@@ -199,6 +199,11 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function removeMember(roomId: string, userId: string) {
+    const response = await coreClient.removeChatRoomMember(roomId, userId);
+    return response.data;
+  }
+
   async function joinRoom(id: string): Promise<ChatRoom> {
     const response = await coreClient.joinChatRoom(id);
     return response.data;
@@ -355,6 +360,7 @@ export const chatRoomService = (() => {
     listUnreadThreads,
     listThreadMessages,
     leaveRoom,
+    removeMember,
     markRead,
     markAllUnreadThreadsRead,
     markThreadRead,

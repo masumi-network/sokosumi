@@ -582,12 +582,14 @@ export function mapChatRoom(
     mutedAt,
     markedUnread,
     myAccess: resolveMyAccess(room, currentUserId, myAccessOverride),
-    userMembers: room.userMembers.map(({ user }) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      image: user.image ?? null,
-      presence: resolveUserPresence(user, currentUserId),
+    userMembers: room.userMembers.map((member) => ({
+      id: member.user.id,
+      name: member.user.name,
+      email: member.user.email,
+      image: member.user.image ?? null,
+      presence: resolveUserPresence(member.user, currentUserId),
+      access:
+        member.access === "guest" ? ("guest" as const) : ("member" as const),
     })),
     coworkerMembers: room.coworkerMembers.map(({ coworker }) => ({
       id: coworker.id,

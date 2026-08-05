@@ -77,6 +77,35 @@ export async function assertInviteeNotHostOrgMember(
   }
 }
 
+/**
+ * Reject invites when the email already has guest (or any) membership on the room.
+ */
+export async function assertInviteeNotRoomMember(
+  roomId: string,
+  email: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const existingMember = await tx.chatRoomUserMember.findFirst({
+    where: {
+      roomId,
+      user: {
+        email: { equals: email, mode: "insensitive" },
+      },
+    },
+    select: { id: true, access: true },
+  });
+
+  if (!existingMember) {
+    return;
+  }
+
+  if (existingMember.access === "guest") {
+    throw badRequest("User is already a guest in this channel.");
+  }
+
+  throw badRequest("User is already a member of this channel.");
+}
+
 export function invitationExpiresAt(from: Date = new Date()): Date {
   return new Date(from.getTime() + INVITE_TTL_MS);
 }

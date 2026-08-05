@@ -508,6 +508,31 @@ export async function revokeRoomInvitationAction(
   }
 }
 
+/** Host: remove a guest from an external channel. */
+export async function removeRoomGuestAction(
+  roomId: string,
+  userId: string,
+): Promise<RoomActionResult<null>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanUserId = cleanString(userId);
+  if (!cleanRoomId) {
+    return { ok: false, message: "Room is required." };
+  }
+  if (!cleanUserId) {
+    return { ok: false, message: "User is required." };
+  }
+
+  try {
+    await chatRoomService.removeMember(cleanRoomId, cleanUserId);
+    return { ok: true, data: null };
+  } catch (error) {
+    return {
+      ok: false,
+      message: actionErrorMessage(error, "Could not remove guest."),
+    };
+  }
+}
+
 export async function sendRoomMessageAction(
   roomId: string,
   content: string,

@@ -1196,7 +1196,7 @@ export type ChatRoom = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Messages sent by others after the current user's read marker.
+     * Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.
      */
     unreadCount: number;
     /**
@@ -1251,6 +1251,7 @@ export type ChatRoomUserParticipant = {
     email: string;
     image: string | null;
     presence: ChatRoomPresence;
+    access?: ChatRoomAccess & unknown;
 };
 
 export const ChatRoomPresence = {
@@ -11066,6 +11067,113 @@ export type PostChatsRoomsByIdMembersMeResponses = {
 };
 
 export type PostChatsRoomsByIdMembersMeResponse = PostChatsRoomsByIdMembersMeResponses[keyof PostChatsRoomsByIdMembersMeResponses];
+
+export type DeleteChatsRoomsByIdMembersByUserIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/members/{userId}';
+};
+
+export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMembersByUserIdError = DeleteChatsRoomsByIdMembersByUserIdErrors[keyof DeleteChatsRoomsByIdMembersByUserIdErrors];
+
+export type DeleteChatsRoomsByIdMembersByUserIdResponses = {
+    /**
+     * Guest removed
+     */
+    200: {
+        data: LeftChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMembersByUserIdResponse = DeleteChatsRoomsByIdMembersByUserIdResponses[keyof DeleteChatsRoomsByIdMembersByUserIdResponses];
 
 export type PostChatsRoomsByIdReadData = {
     body?: never;

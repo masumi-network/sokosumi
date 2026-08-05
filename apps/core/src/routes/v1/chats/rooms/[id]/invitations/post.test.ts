@@ -15,6 +15,7 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   memberFindFirstMock,
+  roomUserMemberFindFirstMock,
   invitationFindFirstMock,
   invitationCreateMock,
   prismaTransactionMock,
@@ -27,6 +28,7 @@ const {
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
+  roomUserMemberFindFirstMock: vi.fn(),
   invitationFindFirstMock: vi.fn(),
   invitationCreateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -78,6 +80,9 @@ const tx = {
   member: {
     findUnique: memberFindUniqueMock,
     findFirst: memberFindFirstMock,
+  },
+  chatRoomUserMember: {
+    findFirst: roomUserMemberFindFirstMock,
   },
   chatRoomGuestInvitation: {
     findFirst: invitationFindFirstMock,
@@ -165,6 +170,7 @@ beforeEach(() => {
     organizationId: ORG_ID,
   });
   memberFindFirstMock.mockResolvedValue(null);
+  roomUserMemberFindFirstMock.mockResolvedValue(null);
   invitationFindFirstMock.mockResolvedValue(null);
   invitationCreateMock.mockResolvedValue({
     id: INVITE_ID,
@@ -297,9 +303,27 @@ describe("POST /chats/rooms/{id}/invitations", () => {
       body: JSON.stringify({ email: "guest@example.com" }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
     const body = await response.json();
     expect(body.message).toMatch(/pending invitation already exists/i);
+    expect(invitationCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects invite when email is already a room guest", async () => {
+    roomUserMemberFindFirstMock.mockResolvedValue({
+      id: "mem_guest",
+      access: "guest",
+    });
+
+    const response = await createApp().request(`/${ROOM_ID}/invitations`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "guest@example.com" }),
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.message).toMatch(/already a guest/i);
     expect(invitationCreateMock).not.toHaveBeenCalled();
   });
 });
