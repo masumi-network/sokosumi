@@ -490,18 +490,22 @@ async function finalizeJobSyncResult(
     return;
   }
 
+  // Await notifications so waitUntil(sync) covers Resend delivery. Fire-and-
+  // forget (#3178) let concurrency-5 workers burst past Resend's 10 req/s
+  // (SOKOSUMI-CORE-2Y); sendEmail now paces, and awaiting drains that queue
+  // before the sync lock is released.
   switch (newJobStatus) {
     case SokosumiJobStatus.COMPLETED:
     case SokosumiJobStatus.REFUND_RESOLVED:
     case SokosumiJobStatus.DISPUTE_RESOLVED:
-      void dispatchFinalStatusNotification(updatedJob, newJobStatus);
+      await dispatchFinalStatusNotification(updatedJob, newJobStatus);
       break;
     case SokosumiJobStatus.INPUT_REQUIRED:
-      void dispatchInputRequiredNotification(updatedJob);
+      await dispatchInputRequiredNotification(updatedJob);
       break;
     case SokosumiJobStatus.FAILED:
     case SokosumiJobStatus.PAYMENT_FAILED:
-      void dispatchJobFailureNotification(updatedJob);
+      await dispatchJobFailureNotification(updatedJob);
       break;
     default:
       break;

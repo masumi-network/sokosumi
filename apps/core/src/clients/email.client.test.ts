@@ -161,8 +161,6 @@ describe("sendEmail", () => {
   it("keeps concurrent Resend request starts under the 10 req/s account limit", async () => {
     vi.useFakeTimers();
     const startTimestamps: number[] = [];
-    // Stay under Resend's documented 10 req/s (SOKOSUMI-CORE-2Y).
-    const maxRequestsPerSecond = 9;
 
     emailsSendMock.mockImplementation(async () => {
       startTimestamps.push(Date.now());
@@ -173,10 +171,12 @@ describe("sendEmail", () => {
     });
 
     try {
-      const { sendEmail } = await import("./email.client");
+      const { sendEmail, RESEND_MAX_REQUESTS_PER_SECOND } = await import(
+        "./email.client"
+      );
 
-      // Burst past the account limit the way job-sync fire-and-forget does.
-      const burstSize = maxRequestsPerSecond + 6;
+      // Burst past the account limit the way job-sync fire-and-forget did.
+      const burstSize = RESEND_MAX_REQUESTS_PER_SECOND + 6;
       const pending = Array.from({ length: burstSize }, (_, index) =>
         sendEmail({
           to: `user${index}@example.com`,
@@ -199,7 +199,8 @@ describe("sendEmail", () => {
         maxInWindow = Math.max(maxInWindow, inWindow);
       }
 
-      expect(maxInWindow).toBeLessThanOrEqual(maxRequestsPerSecond);
+      expect(maxInWindow).toBeLessThanOrEqual(RESEND_MAX_REQUESTS_PER_SECOND);
+      expect(RESEND_MAX_REQUESTS_PER_SECOND).toBeLessThanOrEqual(10);
     } finally {
       vi.useRealTimers();
     }

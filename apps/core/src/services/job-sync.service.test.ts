@@ -1752,6 +1752,60 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
+  it("awaits final-status email so sync waitUntil covers Resend delivery", async () => {
+    let resolveEmail: (() => void) | null = null;
+    const emailStarted = Promise.withResolvers<void>();
+    const emailGate = new Promise<void>((resolve) => {
+      resolveEmail = resolve;
+    });
+
+    const completedJob = createJob({
+      status: SokosumiJobStatus.COMPLETED,
+      jobStatusSettled: true,
+      events: [
+        createJobEvent({
+          id: "event_2",
+          status: AgentJobStatus.COMPLETED,
+          result: "done",
+          statusHash: "new-hash",
+        }),
+      ],
+    });
+
+    mockInitialJobQueries({ unfinished: [createJob()] });
+    fetchAgentJobStatusMock.mockReturnValue(
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    sendEmailMock.mockImplementation(async () => {
+      emailStarted.resolve();
+      await emailGate;
+    });
+
+    const syncPromise = jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions(),
+    );
+    let syncSettled = false;
+    void syncPromise.then(() => {
+      syncSettled = true;
+    });
+
+    await emailStarted.promise;
+    await Promise.resolve();
+    expect(syncSettled).toBe(false);
+
+    resolveEmail?.();
+    await expect(syncPromise).resolves.toEqual(
+      expect.objectContaining({ processed: 1 }),
+    );
+    expect(syncSettled).toBe(true);
+  });
+
   it("counts unique jobs across purchase, agent, and refund phases in the same run", async () => {
     const reconciliationJob = createJob({
       id: "job_refund",
