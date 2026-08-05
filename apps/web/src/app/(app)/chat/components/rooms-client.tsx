@@ -2,7 +2,7 @@
 
 import { ChannelProvider } from "ably/react";
 import { Hash, Loader2, MessageCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -22,6 +22,7 @@ import {
   sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
+import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
@@ -55,6 +56,7 @@ import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import {
   type ChatRoomMessageEventData,
   makeUserChatRoomsChannelName,
@@ -249,6 +251,8 @@ export function RoomsClient({
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const router = useRouter();
+  const pathname = usePathname();
+  const isApple = useIsApplePlatform();
   const canOpenHumanDirect = Boolean(activeOrganization);
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
@@ -1393,7 +1397,12 @@ export function RoomsClient({
   );
 
   return (
-    <div className="-m-4 flex h-[calc(100svh-64px)] min-h-0 flex-col overflow-hidden bg-background">
+    <div
+      className={cn(
+        "-m-4 flex min-h-0 flex-col overflow-hidden bg-background",
+        chatMobileHeightShellClass(pathname, isApple),
+      )}
+    >
       {currentUserId ? (
         <LazyAblyProvider>
           <ChannelProvider
