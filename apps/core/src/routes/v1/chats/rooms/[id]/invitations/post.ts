@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { renderChatRoomInvitationEmail } from "@sokosumi/email";
+import { getEmailLocale } from "@sokosumi/utils";
 
+import { sendEmail } from "@/clients/email.client";
+import { getWebAppBaseUrl } from "@/config/env";
 import {
   assertInviteeNotHostOrgMember,
   invitationExpiresAt,
@@ -11,6 +15,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { captureExternalServiceError } from "@/lib/external-service-errors";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -38,7 +43,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/invitations",
     description:
-      "Invite an external guest to an external channel by email. Caller must be a host-org room member (`access=member`). Rejects host-org member emails (they should self-join). Email send is wired in a follow-up task.",
+      "Invite an external guest to an external channel by email. Caller must be a host-org room member (`access=member`). Rejects host-org member emails (they should self-join). Sends a channel invitation email to the invitee.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -144,7 +149,36 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     });
 
-    // Email notification: Task 9 (`renderChatRoomInvitationEmail` + send).
+    const inviteLink = `${getWebAppBaseUrl()}/chat/invites/${invitation.id}`;
+    const renderedEmail = await renderChatRoomInvitationEmail({
+      channelName: invitation.roomName,
+      invitationLink: inviteLink,
+      invitorUsername: invitation.inviter.name,
+      locale: getEmailLocale(c.req.raw),
+      organizationName: invitation.organizationName,
+    });
+
+    void sendEmail({
+      to: invitation.email,
+      tag: "chat-room-invitation-email",
+      subject: renderedEmail.subject,
+      html: renderedEmail.html,
+    }).catch((error) => {
+      captureExternalServiceError(error, {
+        label: "chat_room_invitation_email",
+        sentry: {
+          tags: {
+            context: "chat_room_invitation_email",
+          },
+        },
+        extra: {
+          invitationId: invitation.id,
+          roomId: invitation.roomId,
+          organizationId: invitation.organizationId,
+        },
+      });
+    });
+
     return created(c, invitation);
   });
 }

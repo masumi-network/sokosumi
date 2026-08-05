@@ -38,6 +38,17 @@
       "footer": "Se non hai richiesto questa email, puoi ignorarla in sicurezza."
     }
   },
+  "chat": {
+    "invitation": {
+      "subject": "Sokosumi - Invito al canale",
+      "title": "Unisciti a {channelName} su {organizationName}",
+      "greeting": "Salve",
+      "message": "{invitorUsername} ti ha invitato a unirti a {channelName} ospitato da {organizationName} su Sokosumi. Clicca sul pulsante qui sotto per accettare l’invito.",
+      "button": "Accetta invito",
+      "linkInstructions": "Oppure copia e incolla questo URL nel tuo browser:",
+      "footer": "Se non hai richiesto questo invito, puoi ignorare questa email in sicurezza."
+    }
+  },
   "jobs": {
     "finalStatus": {
       "subject": "Sokosumi - Job di {agentName} {status}",

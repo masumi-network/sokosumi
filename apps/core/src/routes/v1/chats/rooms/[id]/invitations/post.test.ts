@@ -18,6 +18,10 @@ const {
   invitationFindFirstMock,
   invitationCreateMock,
   prismaTransactionMock,
+  renderChatRoomInvitationEmailMock,
+  sendEmailMock,
+  getWebAppBaseUrlMock,
+  getEmailLocaleMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
@@ -26,6 +30,10 @@ const {
   invitationFindFirstMock: vi.fn(),
   invitationCreateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  renderChatRoomInvitationEmailMock: vi.fn(),
+  sendEmailMock: vi.fn(),
+  getWebAppBaseUrlMock: vi.fn(),
+  getEmailLocaleMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -33,6 +41,30 @@ vi.mock("@/lib/db/prisma", () => ({
     $transaction: prismaTransactionMock,
   },
 }));
+
+vi.mock("@sokosumi/email", () => ({
+  renderChatRoomInvitationEmail: renderChatRoomInvitationEmailMock,
+}));
+
+vi.mock("@sokosumi/utils", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sokosumi/utils")>();
+  return {
+    ...actual,
+    getEmailLocale: getEmailLocaleMock,
+  };
+});
+
+vi.mock("@/clients/email.client", () => ({
+  sendEmail: sendEmailMock,
+}));
+
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getWebAppBaseUrl: getWebAppBaseUrlMock,
+  };
+});
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const INVITE_ID = "550e8400-e29b-41d4-a716-446655440010";
@@ -147,6 +179,13 @@ beforeEach(() => {
     updatedAt: new Date("2026-08-05T12:00:00.000Z"),
     inviter: { id: MEMBER_ID, name: "Ada Lovelace" },
   });
+  getWebAppBaseUrlMock.mockReturnValue("https://app.sokosumi.test");
+  getEmailLocaleMock.mockReturnValue("en");
+  renderChatRoomInvitationEmailMock.mockResolvedValue({
+    subject: "Sokosumi - Channel Invitation",
+    html: "<p>invite</p>",
+  });
+  sendEmailMock.mockResolvedValue({ id: "email_1" });
 });
 
 describe("POST /chats/rooms/{id}/invitations", () => {
@@ -181,6 +220,20 @@ describe("POST /chats/rooms/{id}/invitations", () => {
         }),
       }),
     );
+
+    expect(renderChatRoomInvitationEmailMock).toHaveBeenCalledWith({
+      channelName: "Client Room",
+      invitationLink: `https://app.sokosumi.test/chat/invites/${INVITE_ID}`,
+      invitorUsername: "Ada Lovelace",
+      locale: "en",
+      organizationName: "Acme Corp",
+    });
+    expect(sendEmailMock).toHaveBeenCalledWith({
+      to: "guest@example.com",
+      tag: "chat-room-invitation-email",
+      subject: "Sokosumi - Channel Invitation",
+      html: "<p>invite</p>",
+    });
   });
 
   it("rejects invite when email is already host org member", async () => {

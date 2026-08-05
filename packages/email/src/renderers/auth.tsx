@@ -1,6 +1,7 @@
 import { createEmailTranslator } from "../i18n/translate.js";
 import { renderActionEmail } from "../templates/action-email.js";
 import type {
+  ChatRoomInvitationEmailProps,
   MagicLinkEmailProps,
   OrganizationInvitationEmailProps,
   RenderedEmail,
@@ -130,5 +131,30 @@ export async function renderOrganizationInvitationEmail({
     linkInstructions: t("auth.invitation.linkInstructions"),
     subject: t("auth.invitation.subject"),
     title: t("auth.invitation.title", { invitorUsername, organizationName }),
+  });
+}
+
+export async function renderChatRoomInvitationEmail({
+  channelName,
+  invitationLink,
+  invitorUsername,
+  locale,
+  organizationName,
+}: ChatRoomInvitationEmailProps): Promise<RenderedEmail> {
+  const { t } = createEmailTranslator(locale);
+
+  return renderAuthActionEmail({
+    actionUrl: invitationLink,
+    actionLabel: t("chat.invitation.button"),
+    body: t("chat.invitation.message", {
+      channelName,
+      invitorUsername,
+      organizationName,
+    }),
+    footer: t("chat.invitation.footer"),
+    greeting: t("chat.invitation.greeting"),
+    linkInstructions: t("chat.invitation.linkInstructions"),
+    subject: t("chat.invitation.subject"),
+    title: t("chat.invitation.title", { channelName, organizationName }),
   });
 }
