@@ -1,12 +1,20 @@
 import type { Session } from "@sokosumi/utils";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
+import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
+import { getCachedMyCredits } from "@/app/components/private-sidebar-cache";
+import { resolveCreditUsage } from "@/app/components/sidebar";
+import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
+import { getEnvPublicConfig } from "@/config/env.public";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
+import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import HeaderProfileSectionClient from "./header-profile-section.client";
 
 interface HeaderProfileSectionProps {
   session: Session;
+  adminMenuEnabled: boolean;
 }
 
 function HeaderProfileSectionSkeleton() {
@@ -23,32 +31,71 @@ function HeaderProfileSectionSkeleton() {
 
 export default function HeaderProfileSection({
   session,
+  adminMenuEnabled,
 }: HeaderProfileSectionProps) {
   return (
     <Suspense fallback={<HeaderProfileSectionSkeleton />}>
-      <HeaderProfileSectionInner session={session} />
+      <HeaderProfileSectionInner
+        session={session}
+        adminMenuEnabled={adminMenuEnabled}
+      />
     </Suspense>
   );
 }
 
 async function HeaderProfileSectionInner({
   session,
+  adminMenuEnabled,
 }: HeaderProfileSectionProps) {
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
+  const lowCreditsThreshold =
+    getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
 
-  let members: MemberWithOrganization[] = [];
+  const tPlanPromise = getTranslations("App.Header.Plan");
+  const membersPromise = userService
+    .getMyMembersWithOrganizations()
+    .catch(() => [] as MemberWithOrganization[]);
+  const creditsPromise = getCachedMyCredits();
 
-  try {
-    members = await userService.getMyMembersWithOrganizations();
-  } catch (_error) {
-    members = [];
-  }
+  const [tPlan, members, { showVendors: showDeveloperVendors }, creditsResult] =
+    await Promise.all([
+      tPlanPromise,
+      membersPromise,
+      getDeveloperVendorAdminAccess(),
+      creditsPromise,
+    ]);
+
+  const creditsData = creditsResult?.data.credits ?? null;
+  const currentPlan = creditsData?.subscription?.plan ?? "free";
+  const planForLabel = creditsData === null ? null : currentPlan;
+  const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
+  const currentTimestampMs = creditsResult?.meta?.timestamp
+    ? new Date(creditsResult.meta.timestamp).getTime()
+    : 0;
+  const subscriptionPeriodEnd = creditsData?.subscription?.periodEnd ?? null;
+  const subscriptionPeriodEndMs = subscriptionPeriodEnd
+    ? new Date(subscriptionPeriodEnd).getTime()
+    : null;
+  const planName = await resolvePlanName(planForLabel);
 
   return (
     <HeaderProfileSectionClient
       sessionUser={session.user}
       members={members}
       activeOrganizationId={activeOrganizationId}
+      accountSummary={{
+        planName,
+        totalCredits: creditsData?.total ?? null,
+        extraCredits: creditsData?.buffer ?? null,
+        creditUsage: resolveCreditUsage(creditsData),
+        subscriptionPeriodEndMs,
+        currentTimestampMs,
+        lowCreditsThreshold,
+        buyCreditsLabel: tPlan("getMoreCredits"),
+        buyCreditsPath,
+        adminMenuEnabled,
+        showDeveloperVendors,
+      }}
     />
   );
 }

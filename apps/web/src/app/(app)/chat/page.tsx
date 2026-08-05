@@ -6,7 +6,6 @@ import { MobileHomeHub } from "@/app/chat/components/mobile-home-hub";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
-import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { RoomsClient } from "./components/rooms-client";
@@ -161,10 +160,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     );
   }
 
-  const adminMenuEnabled = hasAdminRole(
-    (session.user as typeof session.user & { role?: string | null }).role,
-  );
-
   return (
     <>
       {landingNotice}
@@ -177,7 +172,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       <MobileHomeHub
         sessionUser={session.user}
         activeOrganizationId={session.session.activeOrganizationId ?? null}
-        adminMenuEnabled={adminMenuEnabled}
       />
     </>
   );

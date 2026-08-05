@@ -8,6 +8,7 @@ import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 const useSessionMock = vi.fn();
 const headerWorkspaceSwitchMock = vi.fn();
 const useWorkspaceSwitcherMock = vi.fn();
+const headerAccountControlMock = vi.fn();
 
 vi.mock("@/lib/auth/auth.client", () => ({
   useSession: (...args: unknown[]) => useSessionMock(...args),
@@ -27,6 +28,13 @@ vi.mock("@/app/components/header/header-workspace-switch.client", () => ({
 
 vi.mock("@/app/components/header/header-notification-bell.client", () => ({
   HeaderNotificationBell: () => null,
+}));
+
+vi.mock("@/app/components/header/header-account-control.client", () => ({
+  HeaderAccountControl: (props: unknown) => {
+    headerAccountControlMock(props);
+    return null;
+  },
 }));
 
 const sessionUser: SessionUser = {
@@ -79,12 +87,27 @@ const members: MemberWithOrganization[] = [
   },
 ];
 
+const accountSummary = {
+  planName: "Pro",
+  totalCredits: 1000,
+  extraCredits: 0,
+  creditUsage: null,
+  subscriptionPeriodEndMs: null,
+  currentTimestampMs: 1_700_000_000_000,
+  lowCreditsThreshold: 100,
+  buyCreditsLabel: "getMoreCredits",
+  buyCreditsPath: "/billing?tab=credits",
+  adminMenuEnabled: true,
+  showDeveloperVendors: false,
+};
+
 describe("HeaderProfileSectionClient", () => {
   beforeEach(() => {
     useWorkspaceSwitcherMock.mockReturnValue({
       isPending: false,
       handleSelectWorkspace: vi.fn(),
     });
+    headerAccountControlMock.mockClear();
   });
 
   it("prefers the client session active organization when it matches the server", () => {
@@ -101,6 +124,7 @@ describe("HeaderProfileSectionClient", () => {
         sessionUser={sessionUser}
         members={members}
         activeOrganizationId="org-b"
+        accountSummary={accountSummary}
       />,
     );
 
@@ -125,6 +149,7 @@ describe("HeaderProfileSectionClient", () => {
         sessionUser={sessionUser}
         members={members}
         activeOrganizationId="org-a"
+        accountSummary={accountSummary}
       />,
     );
 
@@ -146,6 +171,7 @@ describe("HeaderProfileSectionClient", () => {
         sessionUser={sessionUser}
         members={members}
         activeOrganizationId="org-a"
+        accountSummary={accountSummary}
       />,
     );
 
@@ -170,6 +196,7 @@ describe("HeaderProfileSectionClient", () => {
         sessionUser={sessionUser}
         members={members}
         activeOrganizationId="org-a"
+        accountSummary={accountSummary}
       />,
     );
 
@@ -199,6 +226,7 @@ describe("HeaderProfileSectionClient", () => {
         sessionUser={sessionUser}
         members={members}
         activeOrganizationId="org-a"
+        accountSummary={accountSummary}
       />,
     );
 
@@ -206,6 +234,37 @@ describe("HeaderProfileSectionClient", () => {
       expect.objectContaining({
         activeOrganizationId: "org-a",
         isPending: true,
+      }),
+    );
+  });
+
+  it("mounts the mobile account control after the bell with admin settings", () => {
+    useSessionMock.mockReturnValue({
+      data: {
+        session: {
+          activeOrganizationId: "org-a",
+        },
+      },
+    });
+
+    render(
+      <HeaderProfileSectionClient
+        sessionUser={sessionUser}
+        members={members}
+        activeOrganizationId="org-a"
+        accountSummary={accountSummary}
+      />,
+    );
+
+    expect(headerAccountControlMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        className: "md:hidden",
+        planName: "Pro",
+        mobileAdminSettings: expect.objectContaining({
+          adminMenuEnabled: true,
+          activeOrganizationId: "org-a",
+          members,
+        }),
       }),
     );
   });
