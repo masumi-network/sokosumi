@@ -820,8 +820,9 @@
     },
     "DocumentViewer": {
       "title": "Document",
+      "close": "Close",
       "viewDocument": "View document {fileName}",
-      "download": "Download document",
+      "download": "Download",
       "openInNewTab": "Open in new tab",
       "loading": "Loading document…",
       "fetchError": "This document couldn't be loaded."
