@@ -4,87 +4,46 @@ import { getEnv } from "@/config/env";
 
 const resend = new Resend(getEnv().RESEND_API_KEY);
 
-/**
- * Resend account limit is 10 requests/second. Stay under that so one Core
- * isolate (e.g. GET /sync/jobs firing many job-final-status emails) cannot
- * self-inflict rate_limit_exceeded (SOKOSUMI-CORE-2Y).
- */
-export const RESEND_MAX_REQUESTS_PER_SECOND = 9;
-const RESEND_RATE_WINDOW_MS = 1000;
+export const RESEND_BATCH_MAX_SIZE = 100;
 
-const recentSendStarts: number[] = [];
-let rateLimitGate: Promise<void> = Promise.resolve();
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
-function pruneSendStarts(now: number): void {
-  while (
-    recentSendStarts.length > 0 &&
-    recentSendStarts[0]! <= now - RESEND_RATE_WINDOW_MS
-  ) {
-    recentSendStarts.shift();
-  }
-}
-
-/**
- * Serialize slot acquisition so concurrent sendEmail callers share one
- * sliding window. Actual HTTP sends may still overlap after a slot is taken.
- */
-async function acquireResendRateSlot(): Promise<void> {
-  const run = async (): Promise<void> => {
-    for (;;) {
-      const now = Date.now();
-      pruneSendStarts(now);
-      if (recentSendStarts.length < RESEND_MAX_REQUESTS_PER_SECOND) {
-        recentSendStarts.push(Date.now());
-        return;
-      }
-
-      const oldest = recentSendStarts[0];
-      const waitMs =
-        oldest === undefined
-          ? 1
-          : Math.max(oldest + RESEND_RATE_WINDOW_MS - Date.now() + 1, 1);
-      await sleep(waitMs);
-    }
-  };
-
-  const scheduled = rateLimitGate.then(run, run);
-  rateLimitGate = scheduled.then(
-    () => undefined,
-    () => undefined,
-  );
-  await scheduled;
-}
-
-export async function sendEmail(input: {
+export interface SendEmailInput {
   to: string | string[];
   subject: string;
   html: string;
   tag: string;
   bcc?: string | string[];
-}): Promise<{ id: string }> {
-  await acquireResendRateSlot();
+}
 
-  const { data, error } = await resend.emails.send({
+function toResendPayload(input: SendEmailInput) {
+  return {
     from: getEnv().RESEND_FROM_EMAIL,
     to: input.to,
     subject: input.subject,
     html: input.html,
     ...(input.bcc !== undefined ? { bcc: input.bcc } : {}),
     tags: [{ name: "category", value: input.tag }],
+  };
+}
+
+function throwResendError(error: {
+  message: string;
+  name: string;
+  statusCode: number | null;
+}): never {
+  throw Object.assign(new Error(error.message), {
+    name: error.name,
+    statusCode: error.statusCode,
+    cause: error,
   });
+}
+
+export async function sendEmail(
+  input: SendEmailInput,
+): Promise<{ id: string }> {
+  const { data, error } = await resend.emails.send(toResendPayload(input));
 
   if (error) {
-    throw Object.assign(new Error(error.message), {
-      name: error.name,
-      statusCode: error.statusCode,
-      cause: error,
-    });
+    throwResendError(error);
   }
 
   if (!data?.id) {
@@ -92,4 +51,43 @@ export async function sendEmail(input: {
   }
 
   return { id: data.id };
+}
+
+export async function sendEmails(
+  inputs: SendEmailInput[],
+): Promise<{ id: string }[]> {
+  if (inputs.length === 0) {
+    return [];
+  }
+
+  const ids: { id: string }[] = [];
+
+  for (
+    let offset = 0;
+    offset < inputs.length;
+    offset += RESEND_BATCH_MAX_SIZE
+  ) {
+    const chunk = inputs.slice(offset, offset + RESEND_BATCH_MAX_SIZE);
+    const { data, error } = await resend.batch.send(
+      chunk.map((input) => toResendPayload(input)),
+    );
+
+    if (error) {
+      throwResendError(error);
+    }
+
+    const results = data?.data;
+    if (!results || results.length !== chunk.length) {
+      throw new Error("Resend batch send returned unexpected result length");
+    }
+
+    for (const item of results) {
+      if (!item?.id) {
+        throw new Error("Resend batch send returned no id");
+      }
+      ids.push({ id: item.id });
+    }
+  }
+
+  return ids;
 }

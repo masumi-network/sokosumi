@@ -33,7 +33,7 @@ import {
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 import pLimit from "p-limit";
-import { sendEmail } from "@/clients/email.client";
+import { type SendEmailInput, sendEmails } from "@/clients/email.client";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
@@ -77,6 +77,10 @@ export interface JobSyncExecutionOptions {
   abortSignal: AbortSignal;
   deadlineMs: number;
   shouldContinue: () => boolean;
+}
+
+interface JobSyncRunOptions extends JobSyncExecutionOptions {
+  enqueueEmail: (input: SendEmailInput) => void;
 }
 
 export interface JobSyncResult {
@@ -226,6 +230,7 @@ function dispatchJobInAppNotification(
 async function dispatchFinalStatusNotification(
   job: JobWithSokosumiStatus,
   jobStatus: SokosumiJobStatus,
+  enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
   if (!job.owner.notificationsOptIn) {
     return;
@@ -244,20 +249,11 @@ async function dispatchFinalStatusNotification(
       locale: "en",
     });
 
-    await sendEmail({
+    enqueueEmail({
       to: job.owner.email,
       tag: "job-final-status",
       subject: email.subject,
       html: email.html,
-    }).catch((error) => {
-      captureExternalServiceError(error, {
-        label: "job-final-status",
-        extra: {
-          jobId: job.id,
-          userId: job.ownerId,
-          notificationType: "job-final-status",
-        },
-      });
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -272,6 +268,7 @@ async function dispatchFinalStatusNotification(
 
 async function dispatchInputRequiredNotification(
   job: JobWithSokosumiStatus,
+  enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
   if (!job.owner.notificationsOptIn) {
     return;
@@ -289,20 +286,11 @@ async function dispatchInputRequiredNotification(
       locale: "en",
     });
 
-    await sendEmail({
+    enqueueEmail({
       to: job.owner.email,
       tag: "job-input-required",
       subject: email.subject,
       html: email.html,
-    }).catch((error) => {
-      captureExternalServiceError(error, {
-        label: "job-input-required",
-        extra: {
-          jobId: job.id,
-          userId: job.ownerId,
-          notificationType: "job-input-required",
-        },
-      });
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -317,6 +305,7 @@ async function dispatchInputRequiredNotification(
 
 async function dispatchJobFailureNotification(
   job: JobWithSokosumiStatus,
+  enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
   dispatchJobInAppNotification(job, job.status);
 
@@ -374,7 +363,7 @@ async function dispatchJobFailureNotification(
       locale: "en",
     });
 
-    await sendEmail({
+    enqueueEmail({
       to: toRecipients,
       ...(bccRecipients && bccRecipients.length > 0
         ? { bcc: bccRecipients }
@@ -382,15 +371,6 @@ async function dispatchJobFailureNotification(
       tag: "job-failure-notification",
       subject: email.subject,
       html: email.html,
-    }).catch((error) => {
-      captureExternalServiceError(error, {
-        label: "job-failure-email",
-        extra: {
-          jobId: job.id,
-          userId: job.ownerId,
-          notificationType: "job-failure-email",
-        },
-      });
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -469,6 +449,7 @@ async function dispatchJobNotification(
 async function finalizeJobSyncResult(
   oldJobStatus: SokosumiJobStatus,
   transactionResult: JobSyncTransactionResult,
+  enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
   const updatedJob = transactionResult.job;
 
@@ -490,22 +471,24 @@ async function finalizeJobSyncResult(
     return;
   }
 
-  // Await notifications so waitUntil(sync) covers Resend delivery. Fire-and-
-  // forget (#3178) let concurrency-5 workers burst past Resend's 10 req/s
-  // (SOKOSUMI-CORE-2Y); sendEmail now paces, and awaiting drains that queue
-  // before the sync lock is released.
+  // Queue emails for a single Resend batch flush at end of syncUnfinishedJobs
+  // (SOKOSUMI-CORE-2Y). Await render+enqueue so waitUntil covers the flush.
   switch (newJobStatus) {
     case SokosumiJobStatus.COMPLETED:
     case SokosumiJobStatus.REFUND_RESOLVED:
     case SokosumiJobStatus.DISPUTE_RESOLVED:
-      await dispatchFinalStatusNotification(updatedJob, newJobStatus);
+      await dispatchFinalStatusNotification(
+        updatedJob,
+        newJobStatus,
+        enqueueEmail,
+      );
       break;
     case SokosumiJobStatus.INPUT_REQUIRED:
-      await dispatchInputRequiredNotification(updatedJob);
+      await dispatchInputRequiredNotification(updatedJob, enqueueEmail);
       break;
     case SokosumiJobStatus.FAILED:
     case SokosumiJobStatus.PAYMENT_FAILED:
-      await dispatchJobFailureNotification(updatedJob);
+      await dispatchJobFailureNotification(updatedJob, enqueueEmail);
       break;
     default:
       break;
@@ -526,7 +509,7 @@ async function finalizeJobSyncResult(
 
 async function syncPurchaseState(
   initialJob: JobWithSokosumiStatus,
-  options: JobSyncExecutionOptions,
+  options: JobSyncRunOptions,
 ): Promise<boolean> {
   const oldJobStatus = initialJob.status;
   let job = initialJob;
@@ -608,10 +591,14 @@ async function syncPurchaseState(
 
   const purchaseExternalIdToSync = job.purchase?.externalId ?? null;
   if (!purchaseExternalIdToSync) {
-    await finalizeJobSyncResult(oldJobStatus, {
-      job,
-      jobStatus: job.status,
-    });
+    await finalizeJobSyncResult(
+      oldJobStatus,
+      {
+        job,
+        jobStatus: job.status,
+      },
+      options.enqueueEmail,
+    );
     return true;
   }
 
@@ -672,13 +659,17 @@ async function syncPurchaseState(
     );
   }
 
-  await finalizeJobSyncResult(oldJobStatus, transactionResult);
+  await finalizeJobSyncResult(
+    oldJobStatus,
+    transactionResult,
+    options.enqueueEmail,
+  );
   return true;
 }
 
 async function syncAgentStatus(
   initialJob: JobWithSokosumiStatus,
-  options: JobSyncExecutionOptions,
+  options: JobSyncRunOptions,
 ): Promise<boolean> {
   const oldJobStatus = initialJob.status;
   const agentJobIdToSync = initialJob.agentJobId;
@@ -777,13 +768,17 @@ async function syncAgentStatus(
     JOB_SYNC_TRANSACTION_OPTIONS,
   );
 
-  await finalizeJobSyncResult(oldJobStatus, transactionResult);
+  await finalizeJobSyncResult(
+    oldJobStatus,
+    transactionResult,
+    options.enqueueEmail,
+  );
   return true;
 }
 
 async function syncRefundReconciliationJob(
   job: JobWithSokosumiStatus,
-  options: JobSyncExecutionOptions,
+  options: JobSyncRunOptions,
 ): Promise<boolean> {
   if (
     shouldStopSync(
@@ -805,11 +800,11 @@ async function syncRefundReconciliationJob(
 async function runSyncPhase(
   kind: JobSyncKind,
   where: Prisma.JobWhereInput,
-  options: JobSyncExecutionOptions,
+  options: JobSyncRunOptions,
   seenJobIds: Set<string>,
   processor: (
     job: JobWithSokosumiStatus,
-    options: JobSyncExecutionOptions,
+    options: JobSyncRunOptions,
   ) => Promise<boolean>,
 ): Promise<JobSyncPhaseResult> {
   const jobs = (
@@ -875,27 +870,45 @@ export const jobSyncService = {
   ): Promise<JobSyncResult> {
     const startedAt = Date.now();
     const seenJobIds = new Set<string>();
+    const pendingEmails: SendEmailInput[] = [];
+    const runOptions: JobSyncRunOptions = {
+      ...options,
+      enqueueEmail: (input) => {
+        pendingEmails.push(input);
+      },
+    };
     const purchasePhase = await runSyncPhase(
       "purchase",
       buildJobsNeedingPurchaseSyncWhere(),
-      options,
+      runOptions,
       seenJobIds,
       syncPurchaseState,
     );
     const agentPhase = await runSyncPhase(
       "agent",
       buildJobsNeedingAgentStatusSyncWhere(),
-      options,
+      runOptions,
       seenJobIds,
       syncAgentStatus,
     );
     const refundPhase = await runSyncPhase(
       "refund",
       buildJobsPendingLocalRefundWhere(),
-      options,
+      runOptions,
       seenJobIds,
       syncRefundReconciliationJob,
     );
+
+    if (pendingEmails.length > 0) {
+      await sendEmails(pendingEmails).catch((error) => {
+        captureExternalServiceError(error, {
+          label: "job-sync-email-batch",
+          extra: {
+            emailCount: pendingEmails.length,
+          },
+        });
+      });
+    }
 
     return {
       durationMs: Date.now() - startedAt,

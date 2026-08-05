@@ -28,6 +28,7 @@ const {
   renderJobInputRequiredEmailMock,
   requestFetchMock,
   sendEmailMock,
+  sendEmailsMock,
   sourceImportEnqueueMock,
   paymentClientFactoryMock,
   getPurchaseByBlockchainIdentifierMock,
@@ -58,6 +59,7 @@ const {
     renderJobInputRequiredEmailMock: vi.fn(),
     requestFetchMock: vi.fn(),
     sendEmailMock: vi.fn(),
+    sendEmailsMock: vi.fn(),
     sourceImportEnqueueMock: vi.fn(),
     paymentClientFactoryMock: vi.fn(),
     getPurchaseByBlockchainIdentifierMock: vi.fn(),
@@ -119,6 +121,7 @@ vi.mock("@/clients/masumi-payment.client", () => ({
 
 vi.mock("@/clients/email.client", () => ({
   sendEmail: sendEmailMock,
+  sendEmails: sendEmailsMock,
 }));
 
 vi.mock("@/config/env", () => ({
@@ -299,6 +302,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       renderJobInputRequiredEmailMock,
       requestFetchMock,
       sendEmailMock,
+      sendEmailsMock,
       sourceImportEnqueueMock,
       paymentClientFactoryMock,
       getPurchaseByBlockchainIdentifierMock,
@@ -339,6 +343,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       html: "<p>input</p>",
     });
     sendEmailMock.mockResolvedValue(undefined);
+    sendEmailsMock.mockImplementation(async (emails: unknown[]) => {
+      const results = [];
+      for (const email of emails) {
+        results.push(await sendEmailMock(email));
+      }
+      return results;
+    });
     publishJobStatusDataMock.mockResolvedValue(undefined);
     sourceImportEnqueueMock.mockResolvedValue(undefined);
     refundJobMock.mockResolvedValue(undefined);
@@ -1752,12 +1763,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
-  it("awaits final-status email so sync waitUntil covers Resend delivery", async () => {
-    let resolveEmail: (() => void) | null = null;
+  it("awaits Resend batch flush so sync waitUntil covers delivery", async () => {
+    const emailGate = Promise.withResolvers<void>();
     const emailStarted = Promise.withResolvers<void>();
-    const emailGate = new Promise<void>((resolve) => {
-      resolveEmail = resolve;
-    });
 
     const completedJob = createJob({
       status: SokosumiJobStatus.COMPLETED,
@@ -1782,9 +1790,14 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
     getJobByIdMock.mockResolvedValueOnce(completedJob);
-    sendEmailMock.mockImplementation(async () => {
+    sendEmailsMock.mockImplementation(async (emails: unknown[]) => {
       emailStarted.resolve();
-      await emailGate;
+      await emailGate.promise;
+      const results = [];
+      for (const email of emails) {
+        results.push(await sendEmailMock(email));
+      }
+      return results;
     });
 
     const syncPromise = jobSyncService.syncUnfinishedJobs(
@@ -1799,11 +1812,103 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     await Promise.resolve();
     expect(syncSettled).toBe(false);
 
-    resolveEmail?.();
+    emailGate.resolve();
     await expect(syncPromise).resolves.toEqual(
       expect.objectContaining({ processed: 1 }),
     );
     expect(syncSettled).toBe(true);
+    expect(sendEmailsMock).toHaveBeenCalled();
+  });
+
+  it("flushes pending status emails in one sendEmails batch call", async () => {
+    const completedById = new Map([
+      [
+        "job_1",
+        createJob({
+          id: "job_1",
+          status: SokosumiJobStatus.COMPLETED,
+          jobStatusSettled: true,
+          events: [
+            createJobEvent({
+              id: "event_2",
+              status: AgentJobStatus.COMPLETED,
+              result: "done-1",
+              statusHash: "new-hash",
+            }),
+          ],
+        }),
+      ],
+      [
+        "job_2",
+        createJob({
+          id: "job_2",
+          owner: {
+            id: "user_2",
+            name: "Bob",
+            email: "bob@example.com",
+            notificationsOptIn: true,
+          },
+          ownerId: "user_2",
+          status: SokosumiJobStatus.COMPLETED,
+          jobStatusSettled: true,
+          events: [
+            createJobEvent({
+              id: "event_3",
+              status: AgentJobStatus.COMPLETED,
+              result: "done-2",
+              statusHash: "new-hash",
+            }),
+          ],
+        }),
+      ],
+    ]);
+
+    mockInitialJobQueries({
+      unfinished: [
+        createJob({ id: "job_1" }),
+        createJob({
+          id: "job_2",
+          owner: {
+            id: "user_2",
+            name: "Bob",
+            email: "bob@example.com",
+            notificationsOptIn: true,
+          },
+          ownerId: "user_2",
+        }),
+      ],
+    });
+    fetchAgentJobStatusMock.mockImplementation(async () =>
+      ok({
+        status: "completed",
+        result: "done",
+        input_schema: null,
+        statusHash: "new-hash",
+      }),
+    );
+    getJobByIdMock.mockImplementation(async (jobId: string) => {
+      return completedById.get(jobId) ?? createJob({ id: jobId });
+    });
+    createJobEventForJobIdMock.mockImplementation(async (jobId: string) => ({
+      id: jobId === "job_1" ? "event_2" : "event_3",
+    }));
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(sendEmailsMock).toHaveBeenCalledTimes(1);
+    expect(sendEmailsMock.mock.calls[0]?.[0]).toHaveLength(2);
+    expect(sendEmailsMock).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({
+          to: "user@example.com",
+          tag: "job-final-status",
+        }),
+        expect.objectContaining({
+          to: "bob@example.com",
+          tag: "job-final-status",
+        }),
+      ]),
+    );
   });
 
   it("counts unique jobs across purchase, agent, and refund phases in the same run", async () => {
@@ -2028,7 +2133,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
 
     await vi.waitFor(() => {
-      expect(sendEmailMock).toHaveBeenCalled();
+      expect(sendEmailsMock).toHaveBeenCalled();
     });
     expect(captureExceptionMock).not.toHaveBeenCalled();
   });
