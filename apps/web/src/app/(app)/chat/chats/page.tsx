@@ -2,12 +2,21 @@ import { connection } from "next/server";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import { chatRoomService, userService } from "@/lib/services";
+import {
+  type ChatRoomsPage,
+  chatRoomService,
+  userService,
+} from "@/lib/services";
 
 /**
  * Soft-nav: keep previous screen (no Instant shell / route spinner).
  */
 export const instant = false;
+
+const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
+  rooms: [],
+  nextCursor: null,
+};
 
 /**
  * Mobile Chats tab: Channels + DMs list (`md:hidden`).
@@ -24,17 +33,17 @@ export default async function ChatChatsPage() {
   ]);
 
   const activeOrganizationId = activeOrganization?.id ?? null;
-  const chatRoomsPromise = chatRoomService.listRooms().catch(() => []);
+  const chatRoomsPromise = chatRoomService
+    .listRooms()
+    .catch(() => EMPTY_ROOMS_PAGE);
   const archivedChatRoomsPromise = activeOrganizationId
-    ? chatRoomService.listArchivedRooms().catch(() => [])
-    : Promise.resolve(
-        [] as Awaited<ReturnType<typeof chatRoomService.listArchivedRooms>>,
-      );
+    ? chatRoomService.listArchivedRooms().catch(() => EMPTY_ROOMS_PAGE)
+    : Promise.resolve(EMPTY_ROOMS_PAGE);
   const membersPromise = userService
     .getMyMembersWithOrganizations()
     .catch(() => []);
 
-  const [chatRooms, archivedChatRooms, members] = await Promise.all([
+  const [chatRoomsPage, archivedChatRoomsPage, members] = await Promise.all([
     chatRoomsPromise,
     archivedChatRoomsPromise,
     membersPromise,
@@ -52,8 +61,10 @@ export default async function ChatChatsPage() {
   return (
     <div className="md:hidden -m-4 min-h-0 flex-1 overflow-y-auto">
       <OrganizationChatList
-        rooms={chatRooms}
-        archivedRooms={archivedChatRooms}
+        rooms={chatRoomsPage.rooms}
+        roomsNextCursor={chatRoomsPage.nextCursor}
+        archivedRooms={archivedChatRoomsPage.rooms}
+        archivedRoomsNextCursor={archivedChatRoomsPage.nextCursor}
         currentUserId={session?.user.id ?? ""}
         organizationId={activeOrganizationId}
         canDeleteArchivedRooms={canDeleteArchivedRooms}
