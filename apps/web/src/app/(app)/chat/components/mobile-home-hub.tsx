@@ -4,7 +4,6 @@ import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-st
 import { getCachedMyCredits } from "@/app/components/private-sidebar-cache";
 import { resolveCreditUsage } from "@/app/components/sidebar";
 import AdminSettingsMenuGroup from "@/app/components/sidebar/components/admin-settings-menu-group.client";
-import AnnouncementCards from "@/app/components/sidebar/components/announcement-cards";
 import MenuItems from "@/app/components/sidebar/components/menu-items";
 import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
@@ -104,7 +103,6 @@ export async function MobileHomeHub({
           </SidebarNav>
         </div>
         <div className="mt-auto shrink-0 px-0">
-          <AnnouncementCards />
           <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)]">
             <SidebarAccountChip
               sessionUser={sessionUser}

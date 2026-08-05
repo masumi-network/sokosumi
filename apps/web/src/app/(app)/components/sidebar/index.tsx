@@ -15,7 +15,6 @@ import type {
 import type { CreditUsage } from "@/lib/types/credit";
 
 import AdminSettingsMenuGroup from "./components/admin-settings-menu-group.client";
-import AnnouncementCards from "./components/announcement-cards";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav.client";
@@ -125,7 +124,6 @@ export default function Sidebar({
         </div>
       </SidebarContent>
       <SidebarFooter className="mt-auto shrink-0 px-0">
-        <AnnouncementCards />
         {/* No bottom padding of its own: `SidebarFooter` already contributes
             8px there, matching the 8px this adds on the sides. The inset only
             grows on phones, where the home indicator sits in that 8px. */}

@@ -6,12 +6,13 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { classifyChatChromeSurface } from "@/app/chat/utils/chat-route-base";
+import { SokosumiIcon } from "@/components/masumi-logos";
 
 import CustomTrigger from "../sidebar/components/custom-trigger";
 
 /**
  * Mobile header leading slot (`md:hidden` size-8):
- * - chat home / chats list → spacer (no hamburger)
+ * - chat home / chats list → Sokosumi icon (no back / hamburger)
  * - chat room → back to `/chat/chats`
  * - otherwise → sidebar CustomTrigger
  */
@@ -22,7 +23,11 @@ export function HeaderLeadingControl(): React.ReactElement {
   const surface = classifyChatChromeSurface(pathname, searchParams);
 
   if (surface === "home" || surface === "chats") {
-    return <span className="size-8 shrink-0" aria-hidden />;
+    return (
+      <span className="inline-flex size-8 shrink-0 items-center justify-center">
+        <SokosumiIcon animated={false} className="size-8" />
+      </span>
+    );
   }
 
   if (surface === "room") {
