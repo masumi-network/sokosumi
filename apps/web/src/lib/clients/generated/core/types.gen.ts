@@ -908,6 +908,10 @@ export type RefundAdminTaskPaymentClaimBody = {
     reason: string;
 };
 
+export type ReviewedTaskPaymentClaimActionBody = {
+    reason: string;
+};
+
 export type VendorList = Array<Vendor>;
 
 export type Vendor = {
@@ -6001,7 +6005,7 @@ export type RefundAdminTaskPaymentClaimResponses = {
 export type RefundAdminTaskPaymentClaimResponse = RefundAdminTaskPaymentClaimResponses[keyof RefundAdminTaskPaymentClaimResponses];
 
 export type ResolveAdminTaskPaymentClaimData = {
-    body?: never;
+    body?: ReviewedTaskPaymentClaimActionBody;
     path: {
         /**
          * Task payment claim ID
@@ -6055,6 +6059,20 @@ export type ResolveAdminTaskPaymentClaimErrors = {
             method: string;
         };
     };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type ResolveAdminTaskPaymentClaimError = ResolveAdminTaskPaymentClaimErrors[keyof ResolveAdminTaskPaymentClaimErrors];
@@ -6076,7 +6094,7 @@ export type ResolveAdminTaskPaymentClaimResponses = {
 export type ResolveAdminTaskPaymentClaimResponse = ResolveAdminTaskPaymentClaimResponses[keyof ResolveAdminTaskPaymentClaimResponses];
 
 export type RetryAdminTaskPaymentClaimData = {
-    body?: never;
+    body?: ReviewedTaskPaymentClaimActionBody;
     path: {
         /**
          * Task payment claim ID
@@ -6120,6 +6138,20 @@ export type RetryAdminTaskPaymentClaimErrors = {
      * Conflict - claim is not available for review
      */
     409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

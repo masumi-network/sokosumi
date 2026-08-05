@@ -266,7 +266,11 @@ export const refundAdminTaskPaymentClaim = <ThrowOnError extends boolean = false
 export const resolveAdminTaskPaymentClaim = <ThrowOnError extends boolean = false>(options: Options<ResolveAdminTaskPaymentClaimData, ThrowOnError>): RequestResult<ResolveAdminTaskPaymentClaimResponses, ResolveAdminTaskPaymentClaimErrors, ThrowOnError> => (options.client ?? client).post<ResolveAdminTaskPaymentClaimResponses, ResolveAdminTaskPaymentClaimErrors, ThrowOnError>({
     responseTransformer: resolveAdminTaskPaymentClaimResponseTransformer,
     url: '/admin/task-payment-claims/{id}/resolve',
-    ...options
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**
@@ -275,7 +279,11 @@ export const resolveAdminTaskPaymentClaim = <ThrowOnError extends boolean = fals
 export const retryAdminTaskPaymentClaim = <ThrowOnError extends boolean = false>(options: Options<RetryAdminTaskPaymentClaimData, ThrowOnError>): RequestResult<RetryAdminTaskPaymentClaimResponses, RetryAdminTaskPaymentClaimErrors, ThrowOnError> => (options.client ?? client).post<RetryAdminTaskPaymentClaimResponses, RetryAdminTaskPaymentClaimErrors, ThrowOnError>({
     responseTransformer: retryAdminTaskPaymentClaimResponseTransformer,
     url: '/admin/task-payment-claims/{id}/retry',
-    ...options
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**

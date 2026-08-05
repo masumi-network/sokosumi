@@ -3376,6 +3376,20 @@ export const RefundAdminTaskPaymentClaimBodySchema = {
     ]
 } as const;
 
+export const ReviewedTaskPaymentClaimActionBodySchema = {
+    type: 'object',
+    properties: {
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        }
+    },
+    required: [
+        'reason'
+    ]
+} as const;
+
 export const VendorListSchema = {
     type: 'array',
     items: {
