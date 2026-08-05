@@ -12,7 +12,7 @@ Sign in lets a user authenticate with email and password, reach the authenticate
 ## How to get to it (user POV)
 
 - Open `/signin` (or `/login`, which redirects to `/signin`).
-- From a gated page, follow the sign-in prompt to `/signin`.
+- From a gated page, the app redirects to `/signin?returnUrl=…` (some client flows also show a Login modal).
 
 ## Driving it with agent-browser
 
