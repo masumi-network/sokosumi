@@ -2,7 +2,7 @@
 
 import { ChannelProvider } from "ably/react";
 import { Hash, Loader2, MessageCircle } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -252,6 +252,7 @@ export function RoomsClient({
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isApple = useIsApplePlatform();
   const canOpenHumanDirect = Boolean(activeOrganization);
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
@@ -1400,7 +1401,7 @@ export function RoomsClient({
     <div
       className={cn(
         "-m-4 flex min-h-0 flex-col overflow-hidden bg-background",
-        chatMobileHeightShellClass(pathname, isApple),
+        chatMobileHeightShellClass(pathname, isApple, searchParams),
       )}
     >
       {currentUserId ? (

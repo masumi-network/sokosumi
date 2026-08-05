@@ -2,11 +2,12 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let mockPathname = "/chat";
+let mockSearchParams = new URLSearchParams();
 let mockIsApple = false;
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock("next-intl", () => ({
@@ -53,6 +54,7 @@ function getTabBarSpacer(container: HTMLElement): Element | null {
 describe("AppMobileChrome", () => {
   beforeEach(() => {
     mockPathname = "/chat";
+    mockSearchParams = new URLSearchParams();
     mockIsApple = false;
   });
 
@@ -124,6 +126,21 @@ describe("AppMobileChrome", () => {
     expect(getTabBarSpacer(container)).toBeNull();
   });
 
+  it("hides bottom nav and clearance on draft DM compose", () => {
+    mockPathname = "/chat";
+    mockSearchParams = new URLSearchParams("dm=new");
+
+    const { container } = render(
+      <AppMobileChrome>
+        <div>child</div>
+      </AppMobileChrome>,
+    );
+
+    expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
+    expect(getTabBarSpacer(container)).toBeNull();
+    expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
+  });
+
   it("hides bottom nav on nested detail routes", () => {
     mockPathname = "/agents/agent-1";
 
@@ -136,7 +153,7 @@ describe("AppMobileChrome", () => {
     expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
   });
 
-  it("keeps bottom nav on /chat (drafts share this path)", () => {
+  it("keeps bottom nav on bare /chat home", () => {
     mockPathname = "/chat";
 
     render(

@@ -77,15 +77,21 @@ export function resolveMobileAppBackTarget(
 }
 
 /**
- * Fixed Home/Chats/Search tab bar: chat shell (except rooms) + main hub list routes.
+ * Fixed Home/Chats/Search tab bar: chat shell (except rooms/drafts) + main hub
+ * list routes. Drafts (`?dm=new`, `?create=channel`, `?welcome=1`) share `/chat`
+ * but hide the tab bar like rooms.
  */
 export function shouldShowMobileBottomNav(
   pathname: string | null | undefined,
+  searchParams?: SearchParamsLike,
 ): boolean {
   if (!pathname) {
     return false;
   }
   if (isChatRoomPathname(pathname)) {
+    return false;
+  }
+  if (classifyChatChromeSurface(pathname, searchParams) === "draft") {
     return false;
   }
   if (isChatShellPathname(pathname)) {

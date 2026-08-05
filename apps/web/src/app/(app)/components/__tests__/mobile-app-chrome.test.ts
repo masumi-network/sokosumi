@@ -93,10 +93,22 @@ describe("mobile-app-chrome", () => {
   });
 
   describe("shouldShowMobileBottomNav", () => {
-    it("shows on chat shell except rooms", () => {
+    it("shows on chat shell except rooms and drafts", () => {
       expect(shouldShowMobileBottomNav("/chat")).toBe(true);
       expect(shouldShowMobileBottomNav("/chat/chats")).toBe(true);
       expect(shouldShowMobileBottomNav("/chat/rooms/r1")).toBe(false);
+      expect(
+        shouldShowMobileBottomNav("/chat", new URLSearchParams("dm=new")),
+      ).toBe(false);
+      expect(
+        shouldShowMobileBottomNav(
+          "/chat",
+          new URLSearchParams("create=channel"),
+        ),
+      ).toBe(false);
+      expect(
+        shouldShowMobileBottomNav("/chat", new URLSearchParams("welcome=1")),
+      ).toBe(false);
     });
 
     it("shows on main hub list routes", () => {
@@ -132,6 +144,9 @@ describe("mobile-app-chrome", () => {
           "/chat",
           new URLSearchParams("create=channel"),
         ),
+      ).toBe(false);
+      expect(
+        shouldShowMobileBrandLeading("/chat", new URLSearchParams("dm=new")),
       ).toBe(false);
       expect(
         shouldShowMobileBrandLeading("/chat", new URLSearchParams("welcome=1")),

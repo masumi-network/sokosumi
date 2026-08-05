@@ -21,6 +21,7 @@ import {
   chatMobileCreateFabBottom,
   chatMobileCreateFabScrimBottom,
   type MobileCreateFabActionId,
+  type MobileCreateFabSurface,
   mobileCreateFabActions,
 } from "./chat-mobile-create-fab-actions";
 
@@ -43,19 +44,17 @@ const SHELL_SPRING = {
 /**
  * Mobile create FAB for Home and Chats (md:hidden).
  * One shell morphs from the circular dial into the overlay list panel.
+ *
+ * Menu state lives in a child that only mounts on FAB surfaces so hub tab
+ * switches clear an open overlay instead of restoring it later.
  */
 export function ChatMobileCreateFab(): React.ReactElement | null {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const t = useTranslations("App.Channels.MobileCreateFab");
-  const isApple = useIsApplePlatform();
-  const reduceMotion = useReducedMotion();
-  const [open, setOpen] = useState(false);
-  // Panel paint stays through the close morph; dial purple applies after.
-  const [panelChrome, setPanelChrome] = useState(false);
-  const openRef = useRef(false);
-
-  const surface = shouldShowMobileCreateFab(pathname, searchParams)
+  const surface: MobileCreateFabSurface | null = shouldShowMobileCreateFab(
+    pathname,
+    searchParams,
+  )
     ? pathname === "/chat/chats"
       ? "chats"
       : "home"
@@ -64,6 +63,24 @@ export function ChatMobileCreateFab(): React.ReactElement | null {
   if (!surface) {
     return null;
   }
+
+  return <ChatMobileCreateFabMenu key={surface} surface={surface} />;
+}
+
+interface ChatMobileCreateFabMenuProps {
+  surface: MobileCreateFabSurface;
+}
+
+function ChatMobileCreateFabMenu({
+  surface,
+}: ChatMobileCreateFabMenuProps): React.ReactElement {
+  const t = useTranslations("App.Channels.MobileCreateFab");
+  const isApple = useIsApplePlatform();
+  const reduceMotion = useReducedMotion();
+  const [open, setOpen] = useState(false);
+  // Panel paint stays through the close morph; dial purple applies after.
+  const [panelChrome, setPanelChrome] = useState(false);
+  const openRef = useRef(false);
 
   const actions = mobileCreateFabActions(surface);
 

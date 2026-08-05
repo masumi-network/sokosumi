@@ -203,6 +203,24 @@ describe("ChatMobileCreateFab", () => {
     expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
   });
 
+  it("closes the menu when leaving and returning to a FAB surface", () => {
+    const { rerender } = render(<ChatMobileCreateFab />);
+
+    fireEvent.click(screen.getByRole("button", { name: "openMenu" }));
+    expect(screen.getByRole("menu")).toBeTruthy();
+
+    mockPathname = "/tasks";
+    rerender(<ChatMobileCreateFab />);
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
+
+    mockPathname = "/chat";
+    rerender(<ChatMobileCreateFab />);
+    expect(screen.getByRole("button", { name: "openMenu" })).toBeTruthy();
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.queryByRole("button", { name: "closeMenu" })).toBeNull();
+  });
+
   it("is marked md:hidden", () => {
     const { container } = render(<ChatMobileCreateFab />);
     expect(
