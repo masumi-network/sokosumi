@@ -15,8 +15,12 @@ describe("mobile-app-chrome", () => {
       expect(isMainAppMobileChromePathname("/agents")).toBe(true);
       expect(isMainAppMobileChromePathname("/history")).toBe(true);
       expect(isMainAppMobileChromePathname("/personal-assistant")).toBe(true);
+      expect(isMainAppMobileChromePathname("/admin")).toBe(true);
+      expect(isMainAppMobileChromePathname("/notifications")).toBe(true);
       expect(isMainAppMobileChromePathname("/tasks/abc")).toBe(false);
       expect(isMainAppMobileChromePathname("/agents/abc")).toBe(false);
+      expect(isMainAppMobileChromePathname("/admin/users")).toBe(false);
+      expect(isMainAppMobileChromePathname("/notifications/n1")).toBe(false);
       expect(isMainAppMobileChromePathname("/chat")).toBe(false);
       expect(isMainAppMobileChromePathname(null)).toBe(false);
     });
@@ -33,6 +37,14 @@ describe("mobile-app-chrome", () => {
         labelKey: "backToHome",
       });
       expect(resolveMobileAppBackTarget("/history")).toEqual({
+        href: "/chat",
+        labelKey: "backToHome",
+      });
+      expect(resolveMobileAppBackTarget("/admin")).toEqual({
+        href: "/chat",
+        labelKey: "backToHome",
+      });
+      expect(resolveMobileAppBackTarget("/notifications")).toEqual({
         href: "/chat",
         labelKey: "backToHome",
       });
@@ -57,6 +69,18 @@ describe("mobile-app-chrome", () => {
         href: "/personal-assistant",
         labelKey: "back",
       });
+      expect(resolveMobileAppBackTarget("/admin/users")).toEqual({
+        href: "/admin",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/admin/coworkers/c1")).toEqual({
+        href: "/admin",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/notifications/n1")).toEqual({
+        href: "/notifications",
+        labelKey: "back",
+      });
     });
 
     it("returns null outside the main hub tree", () => {
@@ -78,11 +102,15 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBottomNav("/tasks")).toBe(true);
       expect(shouldShowMobileBottomNav("/agents")).toBe(true);
       expect(shouldShowMobileBottomNav("/history")).toBe(true);
+      expect(shouldShowMobileBottomNav("/admin")).toBe(true);
+      expect(shouldShowMobileBottomNav("/notifications")).toBe(true);
     });
 
     it("hides on nested detail and unrelated routes", () => {
       expect(shouldShowMobileBottomNav("/tasks/t1")).toBe(false);
       expect(shouldShowMobileBottomNav("/agents/a1")).toBe(false);
+      expect(shouldShowMobileBottomNav("/admin/users")).toBe(false);
+      expect(shouldShowMobileBottomNav("/notifications/n1")).toBe(false);
       expect(shouldShowMobileBottomNav("/account")).toBe(false);
       expect(shouldShowMobileBottomNav(null)).toBe(false);
     });

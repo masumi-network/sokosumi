@@ -14,6 +14,8 @@ const MAIN_APP_MOBILE_LIST_PATHS = [
   "/agents",
   "/history",
   "/personal-assistant",
+  "/admin",
+  "/notifications",
 ] as const;
 
 type MainAppMobileListPath = (typeof MAIN_APP_MOBILE_LIST_PATHS)[number];
