@@ -209,13 +209,13 @@ export function SidebarAccountChip({
       {renderAvatar({ withPresenceDot: true })}
       {isCollapsed ? null : (
         <>
-          <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
-            <span className="w-full truncate text-left text-sm leading-none font-medium">
+          <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+            <span className="w-full truncate text-left text-sm leading-tight font-medium">
               {displayName}
             </span>
             <span
               className={cn(
-                "flex w-full items-center gap-1 text-xs leading-none",
+                "flex w-full items-center gap-1 text-xs leading-tight",
                 isLowCredits
                   ? "text-semantic-warning"
                   : "text-muted-foreground",
