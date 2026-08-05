@@ -26,6 +26,7 @@ import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-ta
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
+import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
@@ -253,6 +254,8 @@ export function RoomsClient({
   const router = useRouter();
   const pathname = usePathname();
   const isApple = useIsApplePlatform();
+  // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
+  const localCalendarReady = useClientLocalCalendarReady();
   const canOpenHumanDirect = Boolean(activeOrganization);
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
@@ -1582,10 +1585,13 @@ export function RoomsClient({
                   ) : null}
                   {displayMessages.map((message, index) => {
                     const previousMessage = displayMessages[index - 1];
+                    // Local calendar day keys differ UTC (SSR) vs browser TZ —
+                    // only insert separators / regroup after mount.
                     const showDaySeparator =
-                      !previousMessage ||
-                      messageDayKey(previousMessage.createdAt) !==
-                        messageDayKey(message.createdAt);
+                      localCalendarReady &&
+                      (!previousMessage ||
+                        messageDayKey(previousMessage.createdAt) !==
+                          messageDayKey(message.createdAt));
                     const isStreamOverlay = message.id.startsWith("stream:");
                     return (
                       <div key={message.id}>
@@ -1640,6 +1646,7 @@ export function RoomsClient({
                             })}
                             isFirstOfDay={showDaySeparator}
                             isContinuation={
+                              localCalendarReady &&
                               !showDaySeparator &&
                               isMessageContinuation(previousMessage, message)
                             }

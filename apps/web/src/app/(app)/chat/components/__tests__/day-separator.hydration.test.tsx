@@ -2,27 +2,16 @@ import { act } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
-import { messageDayKey } from "@/app/chat/components/room-helpers";
+
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 
 import DaySeparator from "../day-separator";
 
 /**
- * Repro for SOKOSUMI-A on chat rooms: SSR (UTC) emits a day separator tree /
- * label that does not match the browser's local calendar on hydrate.
+ * Repro for SOKOSUMI-A on chat rooms: SSR (UTC) used to emit a local-calendar
+ * day label that disagreed with the browser TZ on hydrate (Today vs Thursday).
+ * DaySeparator must stay hydration-stable across TZ.
  */
-function RoomDaySlice({ iso }: { iso: string }) {
-  return (
-    <div data-testid="day-slice">
-      <DaySeparator
-        date={new Date(iso)}
-        formatDaySeparator={formatDaySeparator}
-      />
-      <span data-day-key={messageDayKey(iso)} />
-    </div>
-  );
-}
-
 describe("DaySeparator hydration (SOKOSUMI-A)", () => {
   const previousTz = process.env.TZ;
   const recoverable: string[] = [];
@@ -38,10 +27,12 @@ describe("DaySeparator hydration (SOKOSUMI-A)", () => {
   });
 
   it("SSR UTC HTML must hydrate under Europe/Berlin without recoverable hydration errors", async () => {
-    const evening = "2026-08-05T22:30:00.000Z";
+    const evening = new Date("2026-08-05T22:30:00.000Z");
 
     process.env.TZ = "UTC";
-    const ssrHtml = renderToString(<RoomDaySlice iso={evening} />);
+    const ssrHtml = renderToString(
+      <DaySeparator date={evening} formatDaySeparator={formatDaySeparator} />,
+    );
 
     process.env.TZ = "Europe/Berlin";
     document.body.innerHTML = `<div id="root">${ssrHtml}</div>`;
@@ -49,7 +40,7 @@ describe("DaySeparator hydration (SOKOSUMI-A)", () => {
     await act(async () => {
       hydrateRoot(
         document.getElementById("root")!,
-        <RoomDaySlice iso={evening} />,
+        <DaySeparator date={evening} formatDaySeparator={formatDaySeparator} />,
         {
           onRecoverableError(error) {
             recoverable.push(String(error));
