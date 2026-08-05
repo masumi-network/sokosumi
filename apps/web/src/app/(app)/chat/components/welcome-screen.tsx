@@ -3,6 +3,7 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { ChevronRight, Loader2 } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type Dispatch, type SetStateAction } from "react";
 import type {
@@ -10,6 +11,7 @@ import type {
   ChatComposeSubmitOptions,
   Coworker,
 } from "@/app/chat/utils/types";
+import { shouldShowMobileBottomNav } from "@/app/components/mobile-app-chrome";
 import { MultimodalInput } from "@/components/chat/multimodal-input";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
@@ -62,7 +64,10 @@ export default function WelcomeScreen({
   onCoworkerChange,
 }: WelcomeScreenProps) {
   const t = useTranslations("App.Chat.Chat");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isApple = useIsApplePlatform();
+  const liftAboveTabBar = shouldShowMobileBottomNav(pathname, searchParams);
   const promptKey =
     initialCoworker?.slug?.toLowerCase() ||
     initialCoworker?.id?.toLowerCase() ||
@@ -91,10 +96,10 @@ export default function WelcomeScreen({
       aria-busy={isOpeningRoom || undefined}
     >
       {showGreetingAndSuggestions ? (
-        <div className="mt-[-200px] flex flex-1 flex-col items-center justify-center text-center">
+        <div className="mt-[-200px] flex flex-1 flex-col items-center justify-center px-4 text-center sm:px-6">
           <div
             className={cn(
-              "welcome-message-block transition-all duration-300 ease-out",
+              "welcome-message-block w-full max-w-[33.6rem] transition-all duration-300 ease-out",
               isOpeningRoom && "opacity-60",
             )}
           >
@@ -174,9 +179,11 @@ export default function WelcomeScreen({
         className="from-background via-background/60 pointer-events-none absolute right-0 bottom-0 left-0 z-5 h-32 bg-linear-to-t to-transparent"
       />
       <div
+        data-welcome-composer-dock
         className={cn(
-          "bg-background/80 fixed inset-x-0 z-10 mx-auto flex w-full shrink-0 justify-center overflow-visible px-8 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0",
-          chatMobileTabBarBottomOffset(isApple),
+          // Match room composer outer inset (`room-composer.tsx`).
+          "bg-background/80 fixed inset-x-0 z-10 mx-auto flex w-full shrink-0 justify-center overflow-visible px-3 pb-[max(0.25rem,env(safe-area-inset-bottom))] backdrop-blur-sm md:absolute md:inset-x-0 md:bottom-0 md:px-5",
+          liftAboveTabBar ? chatMobileTabBarBottomOffset(isApple) : "bottom-0",
         )}
       >
         <div className="w-full max-w-4xl overflow-visible">

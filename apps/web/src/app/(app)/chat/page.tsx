@@ -17,6 +17,7 @@ interface ChatPageProps {
   searchParams: Promise<{
     create?: string | string[];
     dm?: string | string[];
+    welcome?: string | string[];
     notice?: string | string[];
   }>;
 }
@@ -30,7 +31,8 @@ export const instant = false;
 /**
  * `/chat` landing: mobile Home hub (sidebar minus Channels/DMs); desktop
  * classic coworker welcome. Draft modes via query: `?create=channel`,
- * `?dm=new`. Open rooms: `/chat/rooms/[roomId]`.
+ * `?dm=new`, `?welcome=1` (mobile coworker compose). Open rooms:
+ * `/chat/rooms/[roomId]`.
  *
  * Fully async, no route `loading.tsx` — soft nav keeps the previous screen
  * (same as `/history`). Opening a room uses `rooms/[roomId]/loading.tsx`.
@@ -49,6 +51,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
   const isNewDirectMessage = firstSearchValue(query.dm) === "new";
+  const isWelcomeCompose = firstSearchValue(query.welcome) === "1";
   const notice = firstSearchValue(query.notice);
   const landingNotice = <ChatLandingNotice notice={notice} />;
 
@@ -134,6 +137,18 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   const coworkers = (await coworkerService.listCoworkers("chat")).map(
     mapDbCoworkerToChatCoworker,
   );
+
+  if (isWelcomeCompose) {
+    return (
+      <>
+        {landingNotice}
+        <ChatWelcomeClient
+          coworkers={coworkers}
+          userName={session?.user.name ?? undefined}
+        />
+      </>
+    );
+  }
 
   if (!session?.user) {
     return (

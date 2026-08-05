@@ -77,15 +77,21 @@ export function resolveMobileAppBackTarget(
 }
 
 /**
- * Fixed Home/Chats/Search tab bar: chat shell (except rooms) + main hub list routes.
+ * Fixed Home/Chats/Search tab bar: chat shell (except rooms/drafts) + main hub
+ * list routes. Drafts (`?dm=new`, `?create=channel`, `?welcome=1`) share `/chat`
+ * but hide the tab bar like rooms.
  */
 export function shouldShowMobileBottomNav(
   pathname: string | null | undefined,
+  searchParams?: SearchParamsLike,
 ): boolean {
   if (!pathname) {
     return false;
   }
   if (isChatRoomPathname(pathname)) {
+    return false;
+  }
+  if (classifyChatChromeSurface(pathname, searchParams) === "draft") {
     return false;
   }
   if (isChatShellPathname(pathname)) {
@@ -98,6 +104,17 @@ export function shouldShowMobileBottomNav(
  * Leading slot shows Sokosumi brand only on Home hub and Chats list.
  */
 export function shouldShowMobileBrandLeading(
+  pathname: string | null | undefined,
+  searchParams?: SearchParamsLike,
+): boolean {
+  const surface = classifyChatChromeSurface(pathname, searchParams);
+  return surface === "home" || surface === "chats";
+}
+
+/**
+ * Floating create FAB: Home hub and Chats list only (not drafts / welcome).
+ */
+export function shouldShowMobileCreateFab(
   pathname: string | null | undefined,
   searchParams?: SearchParamsLike,
 ): boolean {

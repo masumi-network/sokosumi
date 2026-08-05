@@ -58,21 +58,32 @@ describe("chat-route-base", () => {
       );
     });
 
-    it("returns other-chat for draft query on /chat", () => {
+    it("returns draft for compose query on /chat", () => {
       expect(
         classifyChatChromeSurface(
           "/chat",
           new URLSearchParams("create=channel"),
         ),
-      ).toBe("other-chat");
+      ).toBe("draft");
       expect(
         classifyChatChromeSurface("/chat", new URLSearchParams("dm=new")),
-      ).toBe("other-chat");
+      ).toBe("draft");
       expect(
         classifyChatChromeSurface("/chat", {
           get: (k) => (k === "dm" ? "new" : null),
         }),
-      ).toBe("other-chat");
+      ).toBe("draft");
+    });
+
+    it("returns draft for welcome compose on /chat", () => {
+      expect(
+        classifyChatChromeSurface("/chat", new URLSearchParams("welcome=1")),
+      ).toBe("draft");
+      expect(
+        classifyChatChromeSurface("/chat", {
+          get: (k) => (k === "welcome" ? "1" : null),
+        }),
+      ).toBe("draft");
     });
 
     it("returns other-chat for nested non-room chat and non-chat", () => {
