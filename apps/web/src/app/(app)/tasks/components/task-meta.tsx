@@ -42,7 +42,7 @@ function AssigneeAvatar({
           }}
         />
       ) : null}
-      <AvatarFallback className="bg-muted text-[10px] font-medium">
+      <AvatarFallback className="bg-muted text-[0.625rem] font-medium">
         {assignee?.name?.slice(0, 1).toUpperCase() ?? (
           <UserCog className="size-3" aria-hidden />
         )}
@@ -120,12 +120,14 @@ export function TaskMetaDetails({
         {commentsCount > 0 && (
           <div className="flex items-center gap-1">
             <MessageSquare className="size-3" aria-hidden />
-            <span className="text-[10px] tabular-nums">{commentsCount}</span>
+            <span className="text-[0.625rem] tabular-nums">
+              {commentsCount}
+            </span>
           </div>
         )}
         <div className="flex items-center gap-1">
           <Calendar className="size-3" aria-hidden />
-          <span className="text-[10px] tabular-nums">
+          <span className="text-[0.625rem] tabular-nums">
             {formatShortDate(createdAt)}
           </span>
         </div>

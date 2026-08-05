@@ -178,7 +178,7 @@ function HistoryTypeColumn({
       >
         <HistoryTypeIcon item={item} />
       </span>
-      <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[10px] font-medium tracking-wider uppercase hidden sm:block">
+      <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium tracking-wider uppercase hidden sm:block">
         {labels.kind[item.kind]}
       </span>
     </div>

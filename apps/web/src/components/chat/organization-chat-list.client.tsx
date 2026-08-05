@@ -147,7 +147,7 @@ function DirectAvatarStack({
 
   if (participants.length === 0) {
     return (
-      <span className="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-medium">
+      <span className="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium">
         <MessageCircle className="size-3" aria-hidden />
       </span>
     );
@@ -166,7 +166,7 @@ function DirectAvatarStack({
               alt={participant.name}
               src={participant.image ?? undefined}
             />
-            <AvatarFallback className="text-[9px] font-medium">
+            <AvatarFallback className="text-[0.5625rem] font-medium">
               {getInitials(participant.name)}
             </AvatarFallback>
           </Avatar>

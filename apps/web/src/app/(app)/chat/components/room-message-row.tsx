@@ -338,7 +338,7 @@ function MessageUnfurlCard({ unfurl }: { unfurl: ChatRoomMessageUnfurl }) {
       data-testid="room-message-unfurl"
     >
       {siteLabel ? (
-        <div className="text-muted-foreground truncate text-[11px] font-medium tracking-wide uppercase">
+        <div className="text-muted-foreground truncate text-[0.6875rem] font-medium tracking-wide uppercase">
           {siteLabel}
         </div>
       ) : null}
@@ -1395,7 +1395,7 @@ export function ChatMessageRow({
         <div className="flex w-8 shrink-0 justify-center pt-0.5">
           <MessageWallClockTime
             value={message.createdAt}
-            className="text-muted-foreground whitespace-nowrap text-[10px] leading-4 tabular-nums opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+            className="text-muted-foreground whitespace-nowrap text-[0.625rem] leading-4 tabular-nums opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
           />
         </div>
       ) : (
