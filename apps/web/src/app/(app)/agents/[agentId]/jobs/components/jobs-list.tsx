@@ -3,8 +3,11 @@
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
 import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
+import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core";
@@ -23,8 +26,15 @@ interface JobStatusUpdateData {
   jobStatusSettled: boolean;
 }
 
+interface JobStatusPatch {
+  status: SokosumiJobStatus;
+  jobStatusSettled: boolean;
+  completedAt?: Date;
+}
+
 interface JobsListProps {
   jobs: JobSummary[];
+  jobsNextCursor: string | null;
   userId: string;
   agentId: string;
   selectedJobId?: string;
@@ -96,6 +106,7 @@ function JobsStatusRealtimeListener({
 
 export function JobsList({
   jobs,
+  jobsNextCursor,
   userId,
   agentId,
   selectedJobId,
@@ -104,15 +115,44 @@ export function JobsList({
   const { locale } = useLocalizedDateTime();
   const routeParams = useParams<{ jobId?: string }>();
   const router = useRouter();
-  const [localJobs, setLocalJobs] = useState<JobSummary[]>(jobs);
+  /** Older pages loaded via Load more; first page stays the `jobs` prop (R7). */
+  const [appendedJobs, setAppendedJobs] = useState<JobSummary[]>([]);
+  /** `undefined` = still using SSR/prop cursor; after load-more, own the cursor. */
+  const [loadMoreCursor, setLoadMoreCursor] = useState<
+    string | null | undefined
+  >(undefined);
+  const [statusPatches, setStatusPatches] = useState(
+    () => new Map<string, JobStatusPatch>(),
+  );
   const [filteredJobs, setFilteredJobs] = useState<JobSummary[]>(jobs);
+  const [isLoadingMore, startLoadMoreTransition] = useTransition();
   const activeJobId = selectedJobId ?? routeParams.jobId;
 
-  // Sync local state when jobs prop changes (e.g., after revalidatePath)
-  useEffect(() => {
-    setLocalJobs(jobs);
-    setFilteredJobs(jobs);
-  }, [jobs]);
+  const nextCursor =
+    loadMoreCursor === undefined ? jobsNextCursor : loadMoreCursor;
+
+  const localJobs = useMemo(() => {
+    const firstPageIds = new Set(jobs.map((job) => job.id));
+    const older = appendedJobs.filter((job) => !firstPageIds.has(job.id));
+    const merged = [...jobs, ...older];
+    if (statusPatches.size === 0) {
+      return merged;
+    }
+    return merged.map((job) => {
+      const patch = statusPatches.get(job.id);
+      if (!patch) {
+        return job;
+      }
+      return {
+        ...job,
+        status: patch.status,
+        jobStatusSettled: patch.jobStatusSettled,
+        ...(patch.completedAt !== undefined && job.completedAt === null
+          ? { completedAt: patch.completedAt }
+          : {}),
+      };
+    });
+  }, [jobs, appendedJobs, statusPatches]);
 
   const dayGroups = useMemo(
     () => buildJobDayGroups(filteredJobs, locale),
@@ -126,43 +166,56 @@ export function JobsList({
       return;
     }
 
-    const latestByJobId = new Map<string, JobStatusUpdateData>();
-    for (const update of updates) {
-      latestByJobId.set(update.jobId, update);
-    }
-
     const completedAtFallback = new Date();
-    const updater = (prev: JobSummary[]) =>
-      prev.map((job) => {
-        const update = latestByJobId.get(job.id);
-        if (!update) {
-          return job;
-        }
-
-        const statusUnchanged = job.status === update.jobStatus;
+    setStatusPatches((prev) => {
+      const next = new Map(prev);
+      for (const update of updates) {
+        const existing = next.get(update.jobId);
+        const statusUnchanged = existing?.status === update.jobStatus;
         const settledUnchanged =
-          job.jobStatusSettled === update.jobStatusSettled;
-        if (statusUnchanged && settledUnchanged) {
-          return job;
+          existing?.jobStatusSettled === update.jobStatusSettled;
+        if (existing && statusUnchanged && settledUnchanged) {
+          continue;
         }
-
-        return {
-          ...job,
+        next.set(update.jobId, {
           status: update.jobStatus,
           jobStatusSettled: update.jobStatusSettled,
-          ...(update.jobStatus === SokosumiJobStatus.COMPLETED &&
-            job.completedAt === null && { completedAt: completedAtFallback }),
-        };
-      });
-
-    setLocalJobs(updater);
-    setFilteredJobs(updater);
+          ...(update.jobStatus === SokosumiJobStatus.COMPLETED
+            ? { completedAt: existing?.completedAt ?? completedAtFallback }
+            : {}),
+        });
+      }
+      return next;
+    });
   }
 
   function handleJobClick(job: JobSummary) {
     const qs = new URLSearchParams(window.location.search).toString();
     const base = `/agents/${job.agentId}/jobs/${job.id}`;
     router.push(qs ? `${base}?${qs}` : base);
+  }
+
+  function handleLoadMore() {
+    if (!nextCursor || isLoadingMore) {
+      return;
+    }
+    const cursor = nextCursor;
+    startLoadMoreTransition(async () => {
+      try {
+        const result = await loadMoreOwnedAgentJobs(agentId, cursor);
+        setAppendedJobs((prev) => {
+          const existingIds = new Set([
+            ...jobs.map((job) => job.id),
+            ...prev.map((job) => job.id),
+          ]);
+          const unique = result.jobs.filter((job) => !existingIds.has(job.id));
+          return [...prev, ...unique];
+        });
+        setLoadMoreCursor(result.nextCursor);
+      } catch {
+        toast.error(t("loadMoreError"));
+      }
+    });
   }
 
   return (
@@ -178,6 +231,7 @@ export function JobsList({
       <aside className="lg:border-border flex h-full min-h-0 w-full flex-col py-4 lg:w-72 lg:border-r">
         <JobsSearch
           jobs={localJobs}
+          hasMoreHistory={Boolean(nextCursor)}
           onFilteredChange={(nextJobs) => setFilteredJobs(nextJobs)}
         />
 
@@ -206,6 +260,20 @@ export function JobsList({
               {t("emptyJobs")}
             </div>
           )}
+          {nextCursor ? (
+            <div className="flex justify-center px-2 pb-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground w-full text-xs"
+                disabled={isLoadingMore}
+                onClick={handleLoadMore}
+              >
+                {isLoadingMore ? t("loading") : t("loadMore")}
+              </Button>
+            </div>
+          ) : null}
         </div>
       </aside>
     </>

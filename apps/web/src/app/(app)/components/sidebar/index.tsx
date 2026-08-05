@@ -52,10 +52,12 @@ interface SidebarProps {
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
   archivedChatRooms: ChatRoom[];
+  archivedChatRoomsNextCursor: string | null;
   buyCreditsLabel: string;
   buyCreditsPath: string;
   canDeleteArchivedRooms: boolean;
   chatRooms: ChatRoom[];
+  chatRoomsNextCursor: string | null;
   creditsData: SidebarCreditsData | null;
   creditUsage: CreditUsage | null;
   currentTimestampMs: number;
@@ -74,10 +76,12 @@ export default function Sidebar({
   activeOrganizationId,
   adminMenuEnabled,
   archivedChatRooms,
+  archivedChatRoomsNextCursor,
   buyCreditsLabel,
   buyCreditsPath,
   canDeleteArchivedRooms,
   chatRooms,
+  chatRoomsNextCursor,
   creditsData,
   creditUsage,
   currentTimestampMs,
@@ -115,8 +119,11 @@ export default function Sidebar({
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
             <SidebarSeparator />
             <OrganizationChatList
+              key={activeOrganizationId ?? "personal"}
               rooms={chatRooms}
+              roomsNextCursor={chatRoomsNextCursor}
               archivedRooms={archivedChatRooms}
+              archivedRoomsNextCursor={archivedChatRoomsNextCursor}
               currentUserId={currentUserId}
               organizationId={activeOrganizationId}
               canDeleteArchivedRooms={canDeleteArchivedRooms}

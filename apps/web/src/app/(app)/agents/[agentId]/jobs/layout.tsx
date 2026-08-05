@@ -77,7 +77,7 @@ async function JobLayoutInner({
     coreAgent?.metrics.executions.averageTime ?? null;
   const disabled = !coreAgent;
 
-  const [agentJobs, canRate, existingRating, projectOptions] =
+  const [agentJobsPage, canRate, existingRating, projectOptions] =
     await Promise.all([
       getCachedMyJobs(agentId),
       coreAgent
@@ -108,7 +108,9 @@ async function JobLayoutInner({
           <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start">
             <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-64px)] lg:w-72 lg:flex-none">
               <JobsList
-                jobs={agentJobs}
+                key={agentId}
+                jobs={agentJobsPage.jobs}
+                jobsNextCursor={agentJobsPage.nextCursor}
                 userId={session.user.id}
                 agentId={agentId}
               />
