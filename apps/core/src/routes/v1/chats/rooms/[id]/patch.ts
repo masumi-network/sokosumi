@@ -113,7 +113,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name?: string;
           slug?: string;
           topic?: string | null;
-          discoverability?: "public" | "private";
+          discoverability?: "public" | "private" | "external";
         } = {};
 
         if (body.name !== undefined) {

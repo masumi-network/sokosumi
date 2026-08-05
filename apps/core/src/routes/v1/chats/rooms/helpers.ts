@@ -498,6 +498,8 @@ export function mapChatRoom(
   return {
     id: room.id,
     organizationId: room.organizationId,
+    // Temporary defaults until Task 3 wires guest-aware access + org name.
+    organizationName: null as string | null,
     name: room.name,
     slug: room.slug,
     kind: room.kind as "channel" | "direct",
@@ -515,6 +517,7 @@ export function mapChatRoom(
     pinnedAt,
     mutedAt,
     markedUnread,
+    myAccess: "member" as const,
     userMembers: room.userMembers.map(({ user }) => ({
       id: user.id,
       name: user.name,
