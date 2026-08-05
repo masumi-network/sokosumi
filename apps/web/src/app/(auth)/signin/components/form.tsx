@@ -155,7 +155,7 @@ export default function SignInForm({
           {isLastUsedEmailLogin && (
             <span
               aria-hidden="true"
-              className="bg-background text-foreground border-border pointer-events-none absolute top-1/2 right-2 z-10 -translate-y-1/2 rounded-full border px-2 py-0.5 text-[10px] font-medium"
+              className="bg-background text-foreground border-border pointer-events-none absolute top-1/2 right-2 z-10 -translate-y-1/2 rounded-full border px-2 py-0.5 text-[0.625rem] font-medium"
             >
               {t("lastUsed")}
             </span>

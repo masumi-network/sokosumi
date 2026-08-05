@@ -288,7 +288,7 @@ export function TasksEmptyStateOverlay({
         {layout && !isGetStartedStep ? (
           <div
             key={`${currentStep}-hint`}
-            className="text-primary bg-background border-primary/30 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 absolute rounded-full border px-2.5 py-1 text-[11px] font-medium shadow-sm transition-opacity duration-200"
+            className="text-primary bg-background border-primary/30 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 absolute rounded-full border px-2.5 py-1 text-[0.6875rem] font-medium shadow-sm transition-opacity duration-200"
             style={{
               left: layout.label.x,
               top: layout.label.y,
@@ -398,7 +398,7 @@ export function TasksEmptyStateOverlay({
 
         {mobileLayout && !isGetStartedStep ? (
           <div
-            className="text-primary bg-background border-primary/30 absolute rounded-full border px-2.5 py-1 text-[11px] font-medium shadow-sm"
+            className="text-primary bg-background border-primary/30 absolute rounded-full border px-2.5 py-1 text-[0.6875rem] font-medium shadow-sm"
             style={{
               left: mobileLayout.label.x,
               top: mobileLayout.label.y,

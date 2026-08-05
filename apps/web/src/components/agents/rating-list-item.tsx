@@ -37,7 +37,7 @@ export function RatingListItem({ rating }: RatingListItemProps) {
       <div className="flex items-start gap-4">
         <Avatar className="size-6 shrink-0 self-start">
           <AvatarImage src={rating.user.image ?? undefined} />
-          <AvatarFallback className="bg-muted text-[10px]">
+          <AvatarFallback className="bg-muted text-[0.625rem]">
             {userInitials}
           </AvatarFallback>
         </Avatar>

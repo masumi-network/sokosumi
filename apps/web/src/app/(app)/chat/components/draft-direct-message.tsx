@@ -337,7 +337,7 @@ export function DraftDirectMessage({
               >
                 <Avatar className="size-5">
                   <AvatarImage src={target.image ?? undefined} alt="" />
-                  <AvatarFallback className="text-[9px]">
+                  <AvatarFallback className="text-[0.5625rem]">
                     {getInitials(target.name)}
                   </AvatarFallback>
                 </Avatar>

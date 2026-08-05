@@ -75,7 +75,7 @@ function MentionBadge({ count }: { count: number }) {
   return (
     <span
       aria-label={`${label} mentions`}
-      className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] leading-4 font-semibold tabular-nums"
+      className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums"
     >
       {label}
     </span>

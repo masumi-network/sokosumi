@@ -4726,6 +4726,22 @@
         "backToHome": "Zurück zur Startseite",
         "back": "Zurück"
       },
+      "MobileCreateFab": {
+        "openMenu": "Erstellen",
+        "closeMenu": "Erstellen-Menü schließen",
+        "newTask": {
+          "title": "Neue Aufgabe",
+          "subtitle": "Neue langfristige Aufgabe erstellen"
+        },
+        "createChannel": {
+          "title": "Kanal erstellen",
+          "subtitle": "Neuen Stream-Kanal starten"
+        },
+        "newDm": {
+          "title": "Neue Direktnachricht",
+          "subtitle": "Einer oder mehreren Personen schreiben"
+        }
+      },
       "Actions": {
         "more": "Nachrichtenaktionen",
         "sectionTitle": "Kanal verwalten",
@@ -5014,8 +5030,7 @@
       },
       "Edit": {
         "action": "Bearbeiten",
-        "save": "Speichern",
-        "cancel": "Abbrechen",
+        "composerAria": "Nachricht bearbeiten. Enter speichern, Escape abbrechen, Umschalt+Enter neue Zeile.",
         "edited": "Bearbeitet"
       },
       "Browse": {

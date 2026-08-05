@@ -149,7 +149,7 @@ function renderRow({
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
-  onSaveEdit?: () => void;
+  onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
 } = {}) {
   render(
@@ -1113,11 +1113,52 @@ describe("ChatMessageRow", () => {
     expect(screen.getByText("Edit.edited")).toBeInTheDocument();
   });
 
-  it("renders inline editor when isEditing", async () => {
+  it("renders inline editor when isEditing without Save/Cancel buttons", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    expect(screen.getByDisplayValue("Original fixed")).toBeInTheDocument();
+    expect(screen.queryByText("Original")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit.save" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit.cancel" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("places the caret at the end of the draft when edit mode opens", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    const textarea = screen.getByDisplayValue(
+      "Original fixed",
+    ) as HTMLTextAreaElement;
+    expect(document.activeElement).toBe(textarea);
+    expect(textarea.selectionStart).toBe("Original fixed".length);
+    expect(textarea.selectionEnd).toBe("Original fixed".length);
+  });
+
+  it("saves on Enter and cancels on Escape while editing", async () => {
     const user = userEvent.setup();
     const onSaveEdit = vi.fn();
     const onCancelEdit = vi.fn();
-    const onEditDraftChange = vi.fn();
 
     renderRow({
       message: userMessage({ content: "Original" }),
@@ -1125,19 +1166,198 @@ describe("ChatMessageRow", () => {
       onStartEdit: vi.fn(),
       isEditing: true,
       editDraft: "Original fixed",
-      onEditDraftChange,
+      onEditDraftChange: vi.fn(),
       onCancelEdit,
       onSaveEdit,
     });
 
-    expect(screen.getByDisplayValue("Original fixed")).toBeInTheDocument();
-    expect(screen.queryByText("Original")).not.toBeInTheDocument();
+    const textarea = screen.getByDisplayValue("Original fixed");
+    textarea.focus();
 
-    await user.click(screen.getByRole("button", { name: "Edit.save" }));
-    expect(onSaveEdit).toHaveBeenCalled();
+    await user.keyboard("{Enter}");
+    expect(onSaveEdit).toHaveBeenCalledTimes(1);
+    expect(onSaveEdit).toHaveBeenCalledWith("Original fixed");
 
-    await user.click(screen.getByRole("button", { name: "Edit.cancel" }));
-    expect(onCancelEdit).toHaveBeenCalled();
+    await user.keyboard("{Escape}");
+    expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not save on Shift+Enter while editing", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+    const onCancelEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit,
+      onSaveEdit,
+    });
+
+    screen.getByDisplayValue("Original fixed").focus();
+    await user.keyboard("{Shift>}{Enter}{/Shift}");
+    expect(onSaveEdit).not.toHaveBeenCalled();
+    expect(onCancelEdit).not.toHaveBeenCalled();
+  });
+
+  it("cancels on Enter when draft is unchanged", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+    const onCancelEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit,
+      onSaveEdit,
+    });
+
+    screen.getByDisplayValue("Original").focus();
+    await user.keyboard("{Enter}");
+    expect(onSaveEdit).not.toHaveBeenCalled();
+    expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves live textarea value on Enter even if draft prop is stale", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      // Parent draft still original (stale) while DOM has been typed into.
+      editDraft: "Original",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit,
+    });
+
+    const textarea = screen.getByDisplayValue(
+      "Original",
+    ) as HTMLTextAreaElement;
+    textarea.focus();
+    // Bypass React onChange so the controlled prop stays stale while DOM updates.
+    textarea.value = "Original fixed live";
+    await user.keyboard("{Enter}");
+    expect(onSaveEdit).toHaveBeenCalledWith("Original fixed live");
+  });
+
+  it("cancels on blur when draft is unchanged", async () => {
+    const user = userEvent.setup();
+    const onCancelEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit,
+      onSaveEdit: vi.fn(),
+    });
+
+    const textarea = screen.getByDisplayValue("Original");
+    textarea.focus();
+    await user.tab(); // move focus away → blur
+    expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not cancel on blur when draft is dirty", async () => {
+    const user = userEvent.setup();
+    const onCancelEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit,
+      onSaveEdit: vi.fn(),
+    });
+
+    const textarea = screen.getByDisplayValue("Original fixed");
+    textarea.focus();
+    await user.tab();
+    expect(onCancelEdit).not.toHaveBeenCalled();
+  });
+
+  it("does not cancel on blur when live DOM is dirty but draft prop is stale", async () => {
+    const user = userEvent.setup();
+    const onCancelEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit,
+      onSaveEdit: vi.fn(),
+    });
+
+    const textarea = screen.getByDisplayValue(
+      "Original",
+    ) as HTMLTextAreaElement;
+    textarea.focus();
+    textarea.value = "Original fixed live";
+    await user.tab();
+    expect(onCancelEdit).not.toHaveBeenCalled();
+  });
+
+  it("cancels on Enter when draft is empty", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+    const onCancelEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit,
+      onSaveEdit,
+    });
+
+    screen.getByRole("textbox").focus();
+    await user.keyboard("{Enter}");
+    expect(onSaveEdit).not.toHaveBeenCalled();
+    expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves on Ctrl+Enter as an alias while editing", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit,
+    });
+
+    screen.getByDisplayValue("Original fixed").focus();
+    await user.keyboard("{Control>}{Enter}{/Control}");
+    expect(onSaveEdit).toHaveBeenCalledWith("Original fixed");
   });
 
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {

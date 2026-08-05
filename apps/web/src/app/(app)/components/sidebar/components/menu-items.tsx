@@ -41,9 +41,14 @@ interface MenuItemConfig {
 interface MenuItemsProps {
   /** Mobile Home hub: History lives on the Search tab, so omit the leaf item. */
   hideHistory?: boolean;
+  /** Mobile Home hub: New Task lives on the create FAB, so omit the leaf item. */
+  hideNewTask?: boolean;
 }
 
-export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
+export default function MenuItems({
+  hideHistory = false,
+  hideNewTask = false,
+}: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   // Soft read: `/chat` MobileHomeHub can SSR under AppShellLoadingFrame before
@@ -67,13 +72,17 @@ export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
   };
 
   const items: MenuItemConfig[] = [
-    {
-      key: "new-task",
-      href: "/tasks?create=true",
-      label: t("newTask"),
-      Icon: Plus,
-      separatorAfter: true,
-    },
+    ...(hideNewTask
+      ? []
+      : [
+          {
+            key: "new-task",
+            href: "/tasks?create=true",
+            label: t("newTask"),
+            Icon: Plus,
+            separatorAfter: true,
+          } satisfies MenuItemConfig,
+        ]),
     {
       key: "search",
       label: t("search"),
@@ -143,7 +152,7 @@ export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
                     {badge ? (
                       <span
                         className={cn(
-                          "border-border/60 text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[10px] font-medium uppercase tracking-wide leading-4",
+                          "border-border/60 text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
                           isActive &&
                             "border-primary-foreground/30 text-primary-foreground",
                         )}
@@ -154,7 +163,7 @@ export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
                     {showUnread ? (
                       <span
                         aria-label={`${unreadDisplay} unread`}
-                        className="bg-primary text-primary-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
+                        className="bg-primary text-primary-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
                       >
                         {unreadDisplay}
                       </span>

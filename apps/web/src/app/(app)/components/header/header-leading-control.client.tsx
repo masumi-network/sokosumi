@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -17,7 +17,7 @@ import CustomTrigger from "../sidebar/components/custom-trigger";
 /**
  * Mobile header leading slot (`md:hidden` size-8):
  * - chat home / chats list → Sokosumi icon (no back / hamburger)
- * - chat room → back to `/chat/chats`
+ * - chat room / draft compose → back to `/chat/chats`
  * - main hub lists + nested → back (home or list root)
  * - otherwise → sidebar CustomTrigger
  */
@@ -36,14 +36,14 @@ export function HeaderLeadingControl(): React.ReactElement {
     );
   }
 
-  if (surface === "room") {
+  if (surface === "room" || surface === "draft") {
     return (
       <Link
         href="/chat/chats"
         aria-label={t("backToChats")}
         className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
       >
-        <ArrowLeft className="size-4" aria-hidden />
+        <ChevronLeft className="size-5" aria-hidden />
       </Link>
     );
   }
@@ -55,7 +55,7 @@ export function HeaderLeadingControl(): React.ReactElement {
         aria-label={t(appBack.labelKey)}
         className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
       >
-        <ArrowLeft className="size-4" aria-hidden />
+        <ChevronLeft className="size-5" aria-hidden />
       </Link>
     );
   }
