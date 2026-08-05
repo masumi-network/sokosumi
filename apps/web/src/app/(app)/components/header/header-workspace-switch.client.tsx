@@ -169,8 +169,11 @@ export default function HeaderWorkspaceSwitch({
             className="text-foreground hover:opacity-80 flex min-w-0 items-center text-sm transition-opacity"
             disabled={isPending}
           >
-            <div className="flex min-w-0 flex-col items-end text-right">
+            <div className="flex min-w-0 flex-col items-start text-left">
               <div className="flex max-w-full items-center gap-1.5">
+                <span className="max-w-24 truncate font-medium md:max-w-none">
+                  {activeWorkspace?.name}
+                </span>
                 <HeaderWorkspaceAvatar
                   sessionUser={sessionUser}
                   organization={activeWorkspace?.organization ?? null}
@@ -178,10 +181,7 @@ export default function HeaderWorkspaceSwitch({
                   logoSize={12}
                   decorative
                 />
-                <span className="max-w-24 truncate font-medium md:max-w-none">
-                  {activeWorkspace?.name}
-                </span>
-                <ChevronsUpDown className="text-muted-foreground size-4 shrink-0" />
+                <ChevronsUpDown className="text-muted-foreground size-4.5 shrink-0" />
               </div>
               <span className="text-muted-foreground max-md:hidden max-w-full truncate text-xs">
                 {sessionUser.email}
