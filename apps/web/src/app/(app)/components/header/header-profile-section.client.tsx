@@ -36,10 +36,6 @@ export default function HeaderProfileSectionClient({
     ? serverActiveOrganizationId
     : liveActiveOrganizationId;
 
-  const activeOrganizationMember = activeOrganizationId
-    ? members.find((member) => member.organizationId === activeOrganizationId)
-    : null;
-
   return (
     <div
       className={cn(
@@ -56,10 +52,7 @@ export default function HeaderProfileSectionClient({
         isPending={isPending}
         onSelectWorkspace={handleSelectWorkspace}
       />
-      <HeaderNotificationAvatar
-        sessionUser={sessionUser}
-        organization={activeOrganizationMember?.organization ?? null}
-      />
+      <HeaderNotificationAvatar />
     </div>
   );
 }
