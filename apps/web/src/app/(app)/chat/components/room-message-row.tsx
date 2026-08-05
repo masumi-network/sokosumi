@@ -263,7 +263,7 @@ function ChannelMarkdownSegment({
   }
 
   return (
-    <Markdown className="prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
+    <Markdown className="text-base! md:text-sm! prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
       {formatRoomMarkdownMentions({
         content,
         coworkersById,
@@ -1280,7 +1280,7 @@ export function ChatMessageRow({
               isOpeningDirect={isOpeningDirect}
               isDirectActionBusy={isDirectActionBusy}
             >
-              <span className="truncate text-sm font-semibold">
+              <span className="truncate text-base font-semibold md:text-sm">
                 {sender.name}
               </span>
             </ChatParticipantHoverCard>
@@ -1299,7 +1299,7 @@ export function ChatMessageRow({
             ) : null}
           </div>
         )}
-        <div className="text-foreground wrap-break-word text-sm leading-6">
+        <div className="text-foreground wrap-break-word text-base leading-6 md:text-sm">
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
@@ -1326,7 +1326,7 @@ export function ChatMessageRow({
                 />
               ) : isThinking ? (
                 <span
-                  className="reasoning-text-shine text-sm leading-5"
+                  className="reasoning-text-shine text-base leading-5 md:text-sm"
                   role="status"
                   aria-live="polite"
                 >
