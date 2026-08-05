@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   formatMessageTime,
   messageDayKey,
@@ -14,6 +14,7 @@ describe("chat local calendar helpers (SOKOSUMI-A)", () => {
   const previousTz = process.env.TZ;
 
   afterEach(() => {
+    vi.useRealTimers();
     if (previousTz === undefined) {
       delete process.env.TZ;
     } else {
@@ -35,6 +36,9 @@ describe("chat local calendar helpers (SOKOSUMI-A)", () => {
   });
 
   it("formatDaySeparator label for an evening instant differs UTC vs Berlin when 'now' is fixed", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-15T12:00:00.000Z"));
+
     const evening = new Date("2026-08-05T22:30:00.000Z");
 
     process.env.TZ = "UTC";
