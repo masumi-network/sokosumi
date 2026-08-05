@@ -21,15 +21,31 @@ export function getRestClient() {
  * key, and Ably rejects a token request whose capability exceeds the signing
  * key's own capability. Minting subscribe tokens therefore needs its own key.
  */
+/**
+ * Key used to sign subscribe tokens.
+ *
+ * Prefers a dedicated subscribe key, falling back to the publish key so no new
+ * environment configuration is required to serve non-browser clients.
+ *
+ * The fallback works only if that key's own capability includes `subscribe`:
+ * Ably rejects a token request whose capability exceeds the signing key's. A
+ * key genuinely restricted to publish will fail here, and the fix is then to
+ * provide ABLY_SUBSCRIBE_ONLY_KEY.
+ */
+function signingKey(): string {
+  const env = getEnv();
+  return env.ABLY_SUBSCRIBE_ONLY_KEY ?? env.ABLY_PUBLISH_ONLY_KEY;
+}
+
 export function isSubscribeClientConfigured(): boolean {
-  return Boolean(getEnv().ABLY_SUBSCRIBE_ONLY_KEY);
+  return Boolean(signingKey());
 }
 
 export function getSubscribeRestClient() {
-  const key = getEnv().ABLY_SUBSCRIBE_ONLY_KEY;
+  const key = signingKey();
 
   if (!key) {
-    throw new Error("ABLY_SUBSCRIBE_ONLY_KEY is not configured");
+    throw new Error("No Ably key is configured");
   }
 
   if (!subscribeRestClient) {
