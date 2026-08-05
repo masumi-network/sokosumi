@@ -336,6 +336,17 @@ describe("classifyFilePreview", () => {
     });
   });
 
+  it("prefers audio MIME over .ogg video extension", () => {
+    expect(
+      classifyFilePreview("https://blob.example/clip.ogg", null, "audio/ogg"),
+    ).toEqual({
+      isImage: false,
+      isVideo: false,
+      isAudio: true,
+      documentKind: null,
+    });
+  });
+
   it("prefers image over video when both could match", () => {
     // image/* MIME wins even if filename looks like video (defensive)
     expect(

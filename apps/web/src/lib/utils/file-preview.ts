@@ -143,10 +143,12 @@ export function classifyFilePreview(
     };
   }
 
+  // Prefer MIME when present: audio/* beats a video-extension allowlist hit
+  // (e.g. .ogg + audio/ogg → audio). video/* MIME still classifies as video.
   const isVideo =
     isVideoMediaType(mediaType) ||
-    isVideoUrl(url) ||
-    (fileName ? isVideoUrl(fileName) : false);
+    (!isAudioMediaType(mediaType) &&
+      (isVideoUrl(url) || (fileName ? isVideoUrl(fileName) : false)));
 
   if (isVideo) {
     return {
