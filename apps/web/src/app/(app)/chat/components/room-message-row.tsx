@@ -332,7 +332,7 @@ function MessageUnfurlCard({ unfurl }: { unfurl: ChatRoomMessageUnfurl }) {
       href={unfurl.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 inline-block w-fit max-w-sm overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 inline-block w-fit max-w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
       aria-label={t("openLink", { title: unfurl.title })}
       data-testid="room-message-unfurl"
     >
@@ -453,7 +453,7 @@ function ChannelMessageText({
             return (
               <div
                 key={`files-${i}-${headLink.index}`}
-                className="my-2 flex flex-wrap gap-2"
+                className="my-2 flex min-w-0 max-w-full flex-wrap gap-2"
                 data-testid="room-message-attachment-row"
               >
                 {segment.links.map((link) => (
@@ -508,7 +508,7 @@ function ChannelMessageBody({
         data-testid="room-message-body"
         data-jumbo-emoji={String(jumboEmojiCount)}
         className={cn(
-          "wrap-break-word whitespace-pre-wrap",
+          "min-w-0 max-w-full wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
           jumboEmojiClassName(jumboEmojiCount),
         )}
       >
@@ -518,11 +518,12 @@ function ChannelMessageBody({
   }
 
   return (
-    <div>
+    <div className="min-w-0 max-w-full wrap-anywhere [word-break:break-word]">
       <div
         ref={contentRef}
         data-testid="room-message-body"
         className={cn(
+          "min-w-0 max-w-full",
           expanded || skipBodyClamp ? null : MESSAGE_BODY_CLAMP_CLASS,
         )}
       >
@@ -1355,7 +1356,7 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex gap-3.5 rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
+        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"
@@ -1394,7 +1395,7 @@ export function ChatMessageRow({
       )}
       <div
         className={cn(
-          "min-w-0 flex-1",
+          "min-w-0 max-w-full flex-1 overflow-x-clip",
           isContinuation ? "space-y-1" : "space-y-1.5",
         )}
       >
@@ -1427,7 +1428,7 @@ export function ChatMessageRow({
             ) : null}
           </div>
         )}
-        <div className="text-foreground wrap-break-word text-base leading-6 md:text-sm">
+        <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}

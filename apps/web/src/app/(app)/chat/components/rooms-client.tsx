@@ -1534,10 +1534,10 @@ export function RoomsClient({
                 </div>
               </header>
 
-              <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
+              <ScrollArea ref={scrollerRef} className="min-h-0 min-w-0 flex-1">
                 <div
                   ref={contentRef}
-                  className="flex w-full flex-col justify-end px-5 pt-6 pb-0"
+                  className="flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0"
                   style={
                     contentMinHeight != null
                       ? { minHeight: contentMinHeight }
@@ -1594,7 +1594,7 @@ export function RoomsClient({
                           messageDayKey(message.createdAt));
                     const isStreamOverlay = message.id.startsWith("stream:");
                     return (
-                      <div key={message.id}>
+                      <div key={message.id} className="min-w-0">
                         {showDaySeparator ? (
                           <DaySeparator
                             date={new Date(message.createdAt)}
