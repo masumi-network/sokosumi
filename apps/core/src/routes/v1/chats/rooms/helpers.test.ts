@@ -14,6 +14,7 @@ import {
   getChatRoomUnreadMentionCounts,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
+  mergeUnfurlsIntoMessageMetadata,
   resolveMentionedCoworkerIds,
   resolveMentionedUserIds,
 } from "./helpers";
@@ -300,6 +301,56 @@ describe("mergeChatRoomMessageMetadata", () => {
 
   it("returns null when empty and no quote", () => {
     expect(mergeChatRoomMessageMetadata(null, null)).toBeNull();
+  });
+});
+
+describe("mergeUnfurlsIntoMessageMetadata", () => {
+  const card = {
+    url: "https://example.com",
+    title: "Example",
+    description: "Desc",
+    imageUrl: "https://cdn.example/i.png",
+    siteName: "Ex",
+  };
+
+  it("sets unfurls without wiping quote or membership", () => {
+    expect(
+      mergeUnfurlsIntoMessageMetadata(
+        {
+          quote: { messageId: "q1", authorName: "A", snippet: "s" },
+          membership: {
+            action: "joined",
+            subject: { type: "user", id: "u1", name: "U" },
+          },
+        },
+        [card],
+      ),
+    ).toEqual({
+      quote: { messageId: "q1", authorName: "A", snippet: "s" },
+      membership: {
+        action: "joined",
+        subject: { type: "user", id: "u1", name: "U" },
+      },
+      unfurls: [card],
+    });
+  });
+
+  it("removes unfurls key on empty scrape while preserving quote", () => {
+    expect(
+      mergeUnfurlsIntoMessageMetadata(
+        {
+          quote: { messageId: "q1", authorName: "A", snippet: "s" },
+          unfurls: [card],
+        },
+        [],
+      ),
+    ).toEqual({
+      quote: { messageId: "q1", authorName: "A", snippet: "s" },
+    });
+  });
+
+  it("returns null when clearing the only key", () => {
+    expect(mergeUnfurlsIntoMessageMetadata({ unfurls: [card] }, [])).toBeNull();
   });
 });
 
@@ -644,5 +695,88 @@ describe("mapChatRoomMessage membership", () => {
     });
 
     expect(mapped.membership).toBeNull();
+  });
+});
+
+describe("mapChatRoomMessage unfurls", () => {
+  it("promotes metadata.unfurls onto the DTO unfurls field", () => {
+    const unfurls = [
+      {
+        url: "https://example.com/a",
+        title: "A",
+        description: "Desc",
+        imageUrl: "https://cdn.example/a.png",
+        siteName: "Example",
+      },
+    ];
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: "user_123",
+      senderCoworkerId: null,
+      content: "https://example.com/a",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: { unfurls },
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: {
+        id: "user_123",
+        name: "Patrick",
+        email: "patrick@example.com",
+        image: null,
+        sessions: [],
+      },
+      senderCoworker: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      _count: { replies: 0 },
+    });
+
+    expect(mapped.unfurls).toEqual(unfurls);
+  });
+
+  it("returns null unfurls for soft-deleted messages", () => {
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: "user_123",
+      senderCoworkerId: null,
+      content: "gone",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: new Date("2025-01-03T00:00:00.000Z"),
+      editedAt: null,
+      metadata: {
+        unfurls: [
+          {
+            url: "https://example.com",
+            title: "T",
+            description: null,
+            imageUrl: null,
+            siteName: null,
+          },
+        ],
+      },
+      clientMessageId: null,
+      responsesApiResponseId: null,
+      senderUser: {
+        id: "user_123",
+        name: "Patrick",
+        email: "patrick@example.com",
+        image: null,
+        sessions: [],
+      },
+      senderCoworker: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      _count: { replies: 0 },
+    });
+
+    expect(mapped.unfurls).toBeNull();
   });
 });

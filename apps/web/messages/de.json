@@ -4906,6 +4906,10 @@
         "showMore": "Mehr",
         "showLess": "Weniger"
       },
+      "Unfurl": {
+        "openLink": "Linkvorschau öffnen: {title}",
+        "imageAlt": "Vorschaubild für {title}"
+      },
       "Message": {
         "delete": "Löschen",
         "deleteConfirm": "Diese Nachricht löschen? Andere sehen, dass sie gelöscht wurde.",
