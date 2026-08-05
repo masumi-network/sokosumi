@@ -1294,6 +1294,52 @@ describe("ChatMessageRow", () => {
     expect(onCancelEdit).not.toHaveBeenCalled();
   });
 
+  it("does not cancel on blur when live DOM is dirty but draft prop is stale", async () => {
+    const user = userEvent.setup();
+    const onCancelEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit,
+      onSaveEdit: vi.fn(),
+    });
+
+    const textarea = screen.getByDisplayValue(
+      "Original",
+    ) as HTMLTextAreaElement;
+    textarea.focus();
+    textarea.value = "Original fixed live";
+    await user.tab();
+    expect(onCancelEdit).not.toHaveBeenCalled();
+  });
+
+  it("cancels on Enter when draft is empty", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+    const onCancelEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit,
+      onSaveEdit,
+    });
+
+    screen.getByRole("textbox").focus();
+    await user.keyboard("{Enter}");
+    expect(onSaveEdit).not.toHaveBeenCalled();
+    expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
   it("shows Delete in the sheet for the author and calls onDelete after confirm", async () => {
     const user = userEvent.setup();
     const onDelete = vi.fn();

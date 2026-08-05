@@ -1119,9 +1119,6 @@ function MessageEditComposer({
   onSaveRef.current = onSave;
   onCancelRef.current = onCancel;
 
-  const trimmed = value.trim();
-  const isUnchanged = trimmed === originalContent.trim();
-
   // autoFocus leaves the caret at 0; place it at the end so editing continues
   // from the natural end of the message (Slack/Discord-style).
   useLayoutEffect(() => {
@@ -1134,8 +1131,8 @@ function MessageEditComposer({
 
   // Native listener: read the live DOM value so Enter always sees the latest
   // text (React onKeyDown can race a just-typed character's setState). Enter
-  // with no real change exits edit mode instead of no-op (preventDefault alone
-  // felt like a broken keyboard).
+  // with no real change (or empty) exits edit mode instead of no-op
+  // (preventDefault alone felt like a broken keyboard).
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -1191,8 +1188,12 @@ function MessageEditComposer({
         className="min-h-10 max-h-40 resize-none overflow-y-auto field-sizing-content px-3 py-2.5 leading-6"
         aria-label={t("Edit.composerAria")}
         onBlur={() => {
-          if (isSaving) return;
-          if (isUnchanged) onCancel();
+          if (isSavingRef.current) return;
+          // Live DOM (same race as Enter): prop can lag a just-typed character.
+          const live = textareaRef.current?.value ?? value;
+          if (live.trim() === originalContentRef.current.trim()) {
+            onCancelRef.current();
+          }
         }}
       />
     </div>
