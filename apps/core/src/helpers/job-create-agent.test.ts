@@ -14,6 +14,7 @@ const {
   getCreditCostsOrThrowMock,
   projectFindFirstMock,
   prismaTransactionMock,
+  txAgentUpdateMock,
   txJobCreateMock,
 } = vi.hoisted(() => ({
   agentFindFirstMock: vi.fn(),
@@ -23,6 +24,7 @@ const {
   getCreditCostsOrThrowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  txAgentUpdateMock: vi.fn(),
   txJobCreateMock: vi.fn(),
 }));
 
@@ -146,11 +148,15 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       agentId: "agent_1",
       ownerId: "user_1",
     });
+    txAgentUpdateMock.mockResolvedValue({ id: "agent_1", jobCount: 1 });
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => {
         return await callback({
           job: {
             create: txJobCreateMock,
+          },
+          agent: {
+            update: txAgentUpdateMock,
           },
         });
       },
@@ -194,6 +200,10 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
         include: jobListSummaryInclude,
       }),
     );
+    expect(txAgentUpdateMock).toHaveBeenCalledWith({
+      where: { id: "agent_1" },
+      data: { jobCount: { increment: 1 } },
+    });
   });
 
   it("throws not found when projectId does not belong to the workspace", async () => {

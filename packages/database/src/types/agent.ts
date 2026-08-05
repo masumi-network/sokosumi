@@ -64,10 +64,8 @@ export const agentInclude = {
   ...agentRatingInclude,
 } as const;
 
-export const agentJobsCountOrderBy = {
-  jobs: {
-    _count: "desc",
-  },
+export const agentJobCountOrderBy = {
+  jobCount: "desc",
 } as const;
 
 export const agentCreatedAtOrderBy = {
@@ -75,7 +73,7 @@ export const agentCreatedAtOrderBy = {
 } as const;
 
 export const agentOrderBy = [
-  { ...agentJobsCountOrderBy },
+  { ...agentJobCountOrderBy },
   { ...agentCreatedAtOrderBy },
 ] as const;
 
