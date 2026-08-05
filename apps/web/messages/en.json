@@ -525,7 +525,9 @@
       "JobsSearch": {
         "placeholder": "Search jobs...",
         "clear": "Clear search",
-        "resultsCount": "{found} of {total} results found"
+        "resultsCount": "{found} of {total} results found",
+        "resultsCountLoaded": "{found} of {total} loaded",
+        "loadedOnlyHint": "Search covers loaded jobs. Load more to include older ones."
       },
       "JobsList": {
         "noExecutedJobs": "No executed jobs",

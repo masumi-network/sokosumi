@@ -509,7 +509,9 @@
       "JobsSearch": {
         "placeholder": "Jobs durchsuchen...",
         "clear": "Suche zurücksetzen",
-        "resultsCount": "{found} von {total} Ergebnissen gefunden"
+        "resultsCount": "{found} von {total} Ergebnissen gefunden",
+        "resultsCountLoaded": "{found} von {total} geladen",
+        "loadedOnlyHint": "Suche gilt für geladene Jobs. Mehr laden, um ältere einzubeziehen."
       },
       "JobsList": {
         "noExecutedJobs": "Keine ausgeführten Jobs",

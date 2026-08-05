@@ -231,6 +231,7 @@ export function JobsList({
       <aside className="lg:border-border flex h-full min-h-0 w-full flex-col py-4 lg:w-72 lg:border-r">
         <JobsSearch
           jobs={localJobs}
+          hasMoreHistory={Boolean(nextCursor)}
           onFilteredChange={(nextJobs) => setFilteredJobs(nextJobs)}
         />
 
