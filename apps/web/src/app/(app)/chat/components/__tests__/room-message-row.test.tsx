@@ -1135,6 +1135,26 @@ describe("ChatMessageRow", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("places the caret at the end of the draft when edit mode opens", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    const textarea = screen.getByDisplayValue(
+      "Original fixed",
+    ) as HTMLTextAreaElement;
+    expect(document.activeElement).toBe(textarea);
+    expect(textarea.selectionStart).toBe("Original fixed".length);
+    expect(textarea.selectionEnd).toBe("Original fixed".length);
+  });
+
   it("saves on Enter and cancels on Escape while editing", async () => {
     const user = userEvent.setup();
     const onSaveEdit = vi.fn();

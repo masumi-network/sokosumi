@@ -1109,20 +1109,31 @@ function MessageEditComposer({
   isSaving: boolean;
 }) {
   const t = useTranslations("App.Channels");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const trimmed = value.trim();
   const isUnchanged = trimmed === originalContent.trim();
   const canSave = trimmed.length > 0 && !isUnchanged && !isSaving;
 
+  // autoFocus leaves the caret at 0; place it at the end so editing continues
+  // from the natural end of the message (Slack/Discord-style).
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.focus();
+    const end = el.value.length;
+    el.setSelectionRange(end, end);
+  }, []);
+
   return (
     <div className="pt-0.5">
       <Textarea
+        ref={textareaRef}
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
         }}
         disabled={isSaving}
         className="min-h-10 max-h-40 resize-none overflow-y-auto field-sizing-content px-3 py-2.5 leading-6"
-        autoFocus
         aria-label={t("Edit.composerAria")}
         onBlur={() => {
           if (isSaving) return;
