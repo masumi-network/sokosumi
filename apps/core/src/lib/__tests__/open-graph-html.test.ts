@@ -109,7 +109,35 @@ describe("toUnfurlCard", () => {
       title: "T",
       description: null,
       imageUrl: null,
-      siteName: null,
+      siteName: "example.com",
     });
+  });
+
+  it("falls back to hostname when og:site_name is missing", () => {
+    expect(
+      toUnfurlCard(
+        {
+          title: "Example Domain",
+          description: null,
+          image: null,
+          siteName: null,
+        },
+        "https://example.com/",
+        "https://example.com/",
+      )?.siteName,
+    ).toBe("example.com");
+
+    expect(
+      toUnfurlCard(
+        {
+          title: "T",
+          description: null,
+          image: null,
+          siteName: "  ",
+        },
+        "https://requested.example/a",
+        "https://final.example/b",
+      )?.siteName,
+    ).toBe("final.example");
   });
 });

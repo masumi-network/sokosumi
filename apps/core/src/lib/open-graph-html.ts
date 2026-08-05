@@ -132,6 +132,29 @@ function resolveHttpUrl(candidate: string, baseUrl: string): string | null {
   }
 }
 
+/** Prefer OG site name; else hostname from the fetched / requested URL. */
+function resolveSiteName(
+  fields: OpenGraphFields,
+  requestedUrl: string,
+  finalUrl: string,
+): string | null {
+  const fromOg = fields.siteName?.trim() ?? "";
+  if (fromOg.length > 0) {
+    return fromOg;
+  }
+  for (const candidate of [finalUrl, requestedUrl]) {
+    try {
+      const host = new URL(candidate).hostname.trim();
+      if (host.length > 0) {
+        return host;
+      }
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+
 /**
  * Turn OG fields + fetch URL into a DTO card, or null if title missing.
  * Resolves relative image against `finalUrl`; drops non-http(s) image URLs.
@@ -153,6 +176,6 @@ export function toUnfurlCard(
     title,
     description: fields.description,
     imageUrl,
-    siteName: fields.siteName,
+    siteName: resolveSiteName(fields, requestedUrl, finalUrl),
   };
 }
