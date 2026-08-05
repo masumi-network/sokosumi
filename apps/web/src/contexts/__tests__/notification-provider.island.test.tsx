@@ -15,8 +15,8 @@ const lazyAblyProviderMock = vi.fn(
   ({ children }: { children: ReactNode }): ReactNode => <>{children}</>,
 );
 
-vi.mock("@/lib/clients/core.browser.client", () => ({
-  coreClient: {
+vi.mock("@/lib/clients/core.notifications.browser.client", () => ({
+  notificationsBrowserClient: {
     getNotifications: (...args: unknown[]) => getNotificationsMock(...args),
     getNotificationsUnreadCount: (...args: unknown[]) =>
       getNotificationsUnreadCountMock(...args),
