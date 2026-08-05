@@ -96,14 +96,20 @@ describe("GET /notifications", () => {
 
     expect(response.status).toBe(200);
     expect(notificationFindManyMock).toHaveBeenCalledWith({
-      where: { userId: "user_123" },
+      where: {
+        userId: "user_123",
+        kind: { notIn: [NotificationKind.CHAT] },
+      },
       take: LIMITS.DEFAULT_PAGINATION_LIMIT + 1,
       skip: undefined,
       cursor: undefined,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     expect(notificationCountMock).toHaveBeenCalledWith({
-      where: { userId: "user_123" },
+      where: {
+        userId: "user_123",
+        kind: { notIn: [NotificationKind.CHAT] },
+      },
     });
 
     const body = (await response.json()) as {
@@ -138,6 +144,24 @@ describe("GET /notifications", () => {
     );
   });
 
+  it("strips CHAT from an explicit kind filter", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/?kind=JOB,CHAT&isRead=false",
+    );
+
+    expect(response.status).toBe(200);
+    expect(notificationFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user_123",
+          kind: { in: [NotificationKind.JOB] },
+          isRead: false,
+        },
+      }),
+    );
+  });
+
   it("allows orchestrator with context headers as the context user", async () => {
     const app = createApp({
       actor: "orchestrator",
@@ -149,7 +173,10 @@ describe("GET /notifications", () => {
     expect(response.status).toBe(200);
     expect(notificationFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: "user_123" },
+        where: {
+          userId: "user_123",
+          kind: { notIn: [NotificationKind.CHAT] },
+        },
       }),
     );
   });
