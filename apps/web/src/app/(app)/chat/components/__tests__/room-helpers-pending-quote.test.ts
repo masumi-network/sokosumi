@@ -21,6 +21,7 @@ function userMessage(
     metadata: null,
     quote: null,
     membership: null,
+    unfurls: null,
     deletedAt: null,
     sender: {
       type: "user",

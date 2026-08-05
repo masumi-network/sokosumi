@@ -245,6 +245,10 @@ export {
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";
 export {
+  extractBareHttpUrls,
+  selectUnfurlCandidateUrls,
+} from "./unfurl-urls.js";
+export {
   buildUserMetadataWithDesignMd,
   buildUserMetadataWithUrl,
   getUserMetadata,

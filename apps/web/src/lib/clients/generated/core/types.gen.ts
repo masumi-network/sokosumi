@@ -1394,6 +1394,10 @@ export type ChatRoomMessage = {
     } | null;
     quote: ChatRoomMessageQuote;
     membership: ChatRoomMessageMembership;
+    /**
+     * Link preview cards scraped from message URLs (absent while pending).
+     */
+    unfurls: Array<ChatRoomMessageUnfurl> | null;
 };
 
 export type ChatRoomMessageSender = {
@@ -1463,6 +1467,14 @@ export type ChatRoomMessageMembershipSubject = {
     type: 'coworker';
     id: string;
     name: string;
+};
+
+export type ChatRoomMessageUnfurl = {
+    url: string;
+    title: string;
+    description: string | null;
+    imageUrl: string | null;
+    siteName: string | null;
 };
 
 export type ChatRoomThreadsMarkAll = {

@@ -42,6 +42,7 @@ function membershipMessage(
       action,
       subject: { type: subjectType, id: "subject-1", name },
     },
+    unfurls: null,
     sender: { type: "unknown" },
   };
 }
@@ -79,6 +80,7 @@ describe("MembershipStatusRow", () => {
         message={{
           ...membershipMessage("joined", "Alice"),
           membership: null,
+          unfurls: null,
         }}
       />,
     );
