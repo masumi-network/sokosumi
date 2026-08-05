@@ -4715,7 +4715,9 @@
         "chats": "Chats",
         "search": "Suche",
         "ariaLabel": "Chat",
-        "backToChats": "Zurück zu Chats"
+        "backToChats": "Zurück zu Chats",
+        "backToHome": "Zurück zur Startseite",
+        "back": "Zurück"
       },
       "Actions": {
         "more": "Nachrichtenaktionen",

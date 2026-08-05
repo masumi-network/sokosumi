@@ -1,6 +1,7 @@
 import { Home, type LucideIcon, MessageCircle, Search } from "lucide-react";
 
 import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
+import { isMainAppMobileChromePathname } from "@/app/components/mobile-app-chrome";
 
 /**
  * Floating Apple tab bar sits at
@@ -95,7 +96,8 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     href: "/chat",
     labelKey: "home",
     icon: Home,
-    isActive: (pathname) => pathname === "/chat",
+    isActive: (pathname) =>
+      pathname === "/chat" || isMainAppMobileChromePathname(pathname),
   },
   {
     id: "chats",

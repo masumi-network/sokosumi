@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { ChatMobileShell } from "./components/chat-mobile-shell";
 import { ChatRouteErrorBoundary } from "./components/chat-route-error-boundary.client";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -26,11 +25,7 @@ export default function ChatLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Shell stays outside the page error boundary so Instant Navigations can
-  // still validate the page segment if chrome throws during Suspense fallback.
-  return (
-    <ChatMobileShell>
-      <ChatRouteErrorBoundary>{children}</ChatRouteErrorBoundary>
-    </ChatMobileShell>
-  );
+  // Bottom nav lives in AppMobileChrome (app frame). Page boundary only here
+  // so Instant Navigations can still validate if page chrome throws.
+  return <ChatRouteErrorBoundary>{children}</ChatRouteErrorBoundary>;
 }

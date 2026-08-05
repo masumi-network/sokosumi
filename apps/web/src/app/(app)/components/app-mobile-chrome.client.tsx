@@ -2,20 +2,22 @@
 
 import { usePathname } from "next/navigation";
 
-import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
+import { ChatMobileBottomNav } from "@/app/chat/components/chat-mobile-bottom-nav";
+import { chatMobileTabBarClearance } from "@/app/chat/components/chat-mobile-tab-registry";
+import { shouldShowMobileBottomNav } from "@/app/components/mobile-app-chrome";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 
-import { ChatMobileBottomNav } from "./chat-mobile-bottom-nav";
-import { chatMobileTabBarClearance } from "./chat-mobile-tab-registry";
-
-export function ChatMobileShell({
+/**
+ * App-wide mobile chrome: Home/Chats/Search tab bar + content clearance.
+ * Visible on chat shell (except rooms) and main Home-hub list routes.
+ */
+export function AppMobileChrome({
   children,
 }: {
   children: React.ReactNode;
 }): React.ReactElement {
-  // Room path alone gates the tab bar; drafts share `/chat` and keep the nav.
-  const showBottomNav = !isChatRoomPathname(usePathname());
+  const showBottomNav = shouldShowMobileBottomNav(usePathname());
   const isApple = useIsApplePlatform();
 
   return (

@@ -49,8 +49,11 @@ import {
 } from "../chat-mobile-bottom-nav";
 
 describe("resolveChatMobileActiveTabId", () => {
-  it("marks Home active only for exact /chat", () => {
+  it("marks Home active for /chat and main hub list routes", () => {
     expect(resolveChatMobileActiveTabId("/chat")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/tasks")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/agents")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/history")).toBe("home");
     expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
     expect(resolveChatMobileActiveTabId("/chat/chats")).toBe("chats");
   });
@@ -61,8 +64,8 @@ describe("resolveChatMobileActiveTabId", () => {
   });
 
   it("returns null when no link tab matches", () => {
-    expect(resolveChatMobileActiveTabId("/tasks")).toBeNull();
-    expect(resolveChatMobileActiveTabId("/history")).toBeNull();
+    expect(resolveChatMobileActiveTabId("/tasks/t1")).toBeNull();
+    expect(resolveChatMobileActiveTabId("/account")).toBeNull();
   });
 });
 

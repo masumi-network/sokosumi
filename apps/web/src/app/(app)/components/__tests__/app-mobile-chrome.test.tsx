@@ -38,13 +38,14 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-import { ChatMobileShell } from "../chat-mobile-shell";
 import {
   CHAT_MOBILE_TAB_BAR_CLEARANCE,
   CHAT_MOBILE_TAB_BAR_CLEARANCE_APPLE,
-} from "../chat-mobile-tab-registry";
+} from "@/app/chat/components/chat-mobile-tab-registry";
 
-describe("ChatMobileShell", () => {
+import { AppMobileChrome } from "../app-mobile-chrome.client";
+
+describe("AppMobileChrome", () => {
   beforeEach(() => {
     mockPathname = "/chat";
     mockIsApple = false;
@@ -52,9 +53,9 @@ describe("ChatMobileShell", () => {
 
   it("renders bottom nav and tab-bar clearance on chat home", () => {
     const { container } = render(
-      <ChatMobileShell>
+      <AppMobileChrome>
         <div>child</div>
-      </ChatMobileShell>,
+      </AppMobileChrome>,
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
@@ -65,9 +66,9 @@ describe("ChatMobileShell", () => {
   it("uses Apple float clearance on Apple platforms", () => {
     mockIsApple = true;
     const { container } = render(
-      <ChatMobileShell>
+      <AppMobileChrome>
         <div>child</div>
-      </ChatMobileShell>,
+      </AppMobileChrome>,
     );
 
     const wrapper = container.firstElementChild?.firstElementChild;
@@ -79,9 +80,21 @@ describe("ChatMobileShell", () => {
     mockPathname = "/chat/chats";
 
     render(
-      <ChatMobileShell>
+      <AppMobileChrome>
         <div>child</div>
-      </ChatMobileShell>,
+      </AppMobileChrome>,
+    );
+
+    expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
+  });
+
+  it("shows bottom nav on main hub list routes", () => {
+    mockPathname = "/tasks";
+
+    render(
+      <AppMobileChrome>
+        <div>child</div>
+      </AppMobileChrome>,
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
@@ -91,9 +104,9 @@ describe("ChatMobileShell", () => {
     mockPathname = "/chat/rooms/room-1";
 
     const { container } = render(
-      <ChatMobileShell>
+      <AppMobileChrome>
         <div>child</div>
-      </ChatMobileShell>,
+      </AppMobileChrome>,
     );
 
     expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
@@ -101,13 +114,25 @@ describe("ChatMobileShell", () => {
     expect(wrapper?.className).not.toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
 
+  it("hides bottom nav on nested detail routes", () => {
+    mockPathname = "/agents/agent-1";
+
+    render(
+      <AppMobileChrome>
+        <div>child</div>
+      </AppMobileChrome>,
+    );
+
+    expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
+  });
+
   it("keeps bottom nav on /chat (drafts share this path)", () => {
     mockPathname = "/chat";
 
     render(
-      <ChatMobileShell>
+      <AppMobileChrome>
         <div>child</div>
-      </ChatMobileShell>,
+      </AppMobileChrome>,
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
