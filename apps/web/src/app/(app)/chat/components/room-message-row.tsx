@@ -1110,11 +1110,11 @@ function MessageEditComposer({
 }) {
   const t = useTranslations("App.Channels");
   const trimmed = value.trim();
-  const canSave =
-    trimmed.length > 0 && trimmed !== originalContent.trim() && !isSaving;
+  const isUnchanged = trimmed === originalContent.trim();
+  const canSave = trimmed.length > 0 && !isUnchanged && !isSaving;
 
   return (
-    <div className="space-y-2 pt-0.5">
+    <div className="pt-0.5">
       <Textarea
         value={value}
         onChange={(event) => {
@@ -1123,35 +1123,26 @@ function MessageEditComposer({
         disabled={isSaving}
         className="min-h-10 max-h-40 resize-none overflow-y-auto field-sizing-content px-3 py-2.5 leading-6"
         autoFocus
+        aria-label={t("Edit.composerAria")}
+        onBlur={() => {
+          if (isSaving) return;
+          if (isUnchanged) onCancel();
+        }}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
             if (!isSaving) onCancel();
             return;
           }
-          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-            event.preventDefault();
-            if (canSave) onSave();
-          }
+          if (event.key !== "Enter") return;
+          // Shift+Enter → newline (default)
+          if (event.shiftKey) return;
+          // Cmd/Ctrl+Enter keeps working as save alias; Alt+Enter ignored
+          if (event.altKey) return;
+          event.preventDefault();
+          if (canSave) onSave();
         }}
       />
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" disabled={!canSave} onClick={onSave}>
-          {isSaving ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : null}
-          {t("Edit.save")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={isSaving}
-          onClick={onCancel}
-        >
-          {t("Edit.cancel")}
-        </Button>
-      </div>
     </div>
   );
 }

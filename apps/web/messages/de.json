@@ -4937,8 +4937,7 @@
       },
       "Edit": {
         "action": "Bearbeiten",
-        "save": "Speichern",
-        "cancel": "Abbrechen",
+        "composerAria": "Nachricht bearbeiten. Enter speichern, Escape abbrechen, Umschalt+Enter neue Zeile.",
         "edited": "Bearbeitet"
       },
       "Browse": {

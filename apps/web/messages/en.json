@@ -4930,8 +4930,7 @@
       },
       "Edit": {
         "action": "Edit",
-        "save": "Save",
-        "cancel": "Cancel",
+        "composerAria": "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line.",
         "edited": "Edited"
       },
       "MentionAll": {
