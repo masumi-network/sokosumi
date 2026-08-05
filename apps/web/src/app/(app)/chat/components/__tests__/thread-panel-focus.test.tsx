@@ -73,6 +73,7 @@ function parentMessage(
     metadata: null,
     quote: null,
     membership: null,
+    unfurls: null,
     sender: {
       type: "user",
       user: {

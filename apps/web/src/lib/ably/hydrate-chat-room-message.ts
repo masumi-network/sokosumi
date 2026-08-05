@@ -31,5 +31,6 @@ export function hydrateChatRoomMessageFromRealtime(
     metadata: message.metadata,
     quote: message.quote as ChatRoomMessage["quote"],
     membership: message.membership as ChatRoomMessage["membership"],
+    unfurls: message.unfurls as ChatRoomMessage["unfurls"],
   };
 }

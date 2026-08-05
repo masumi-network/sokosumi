@@ -4898,6 +4898,10 @@
         "showMore": "More",
         "showLess": "Less"
       },
+      "Unfurl": {
+        "openLink": "Open link preview: {title}",
+        "imageAlt": "Preview image for {title}"
+      },
       "Message": {
         "delete": "Delete",
         "deleteConfirm": "Delete this message? Others will see that it was deleted.",

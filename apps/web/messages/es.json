@@ -4898,6 +4898,10 @@
         "showMore": "Más",
         "showLess": "Menos"
       },
+      "Unfurl": {
+        "openLink": "Abrir vista previa del enlace: {title}",
+        "imageAlt": "Imagen de vista previa de {title}"
+      },
       "Message": {
         "delete": "Eliminar",
         "deleteConfirm": "¿Eliminar este mensaje? Los demás verán que fue eliminado.",

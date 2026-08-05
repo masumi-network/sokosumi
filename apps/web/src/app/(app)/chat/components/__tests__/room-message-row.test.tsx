@@ -27,6 +27,12 @@ vi.mock("next-intl", () => ({
       if (key === "showLess") {
         return namespace === "App.Channels.Message" ? "Show less" : "Less";
       }
+      if (key === "openLink" && values) {
+        return `Open link preview: ${values.title}`;
+      }
+      if (key === "imageAlt" && values) {
+        return `Preview image for ${values.title}`;
+      }
       return key;
     };
   },
@@ -83,6 +89,7 @@ function userMessage(
     metadata: null,
     quote: null,
     membership: null,
+    unfurls: null,
     sender: {
       type: "user",
       user: {
@@ -1225,5 +1232,89 @@ describe("ChatMessageRow", () => {
     expect(
       screen.queryByRole("button", { name: "Message.delete" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders Slack-style unfurl cards below the message body", () => {
+    renderRow({
+      message: userMessage({
+        content: "Check https://example.com/article",
+        unfurls: [
+          {
+            url: "https://example.com/article",
+            title: "Example Article",
+            description: "A short summary of the page.",
+            imageUrl: "https://cdn.example.com/og.png",
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    const card = screen.getByTestId("room-message-unfurl");
+    expect(card).toHaveAttribute("href", "https://example.com/article");
+    expect(card).toHaveAttribute("target", "_blank");
+    expect(card).toHaveAttribute("rel", "noopener noreferrer");
+    expect(card).toHaveTextContent("Example");
+    expect(card).toHaveTextContent("Example Article");
+    expect(card).toHaveTextContent("A short summary of the page.");
+    expect(
+      screen.getByRole("img", { name: /Example Article/ }),
+    ).toHaveAttribute("src", "https://cdn.example.com/og.png");
+    // Markdown body still present (links stay clickable in body).
+    expect(screen.getByTestId("room-message-body")).toHaveTextContent(
+      "Check https://example.com/article",
+    );
+  });
+
+  it("omits unfurl cards when unfurls are null or empty", () => {
+    const { rerender } = render(
+      <ChatMessageRow
+        message={userMessage({ unfurls: null })}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByTestId("room-message-unfurls"),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={userMessage({ unfurls: [] })}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByTestId("room-message-unfurls"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps file chips unchanged when unfurls are present", () => {
+    renderRow({
+      message: userMessage({
+        content:
+          "See [[file:report.pdf|https://files.example.com/report.pdf]] and https://example.com",
+        unfurls: [
+          {
+            url: "https://example.com",
+            title: "Example",
+            description: null,
+            imageUrl: null,
+            siteName: null,
+          },
+        ],
+      }),
+    });
+
+    expect(
+      screen.getByTestId("room-message-attachment-row"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("chip")).toHaveTextContent("report.pdf");
+    expect(screen.getByTestId("room-message-unfurl")).toHaveTextContent(
+      "Example",
+    );
   });
 });

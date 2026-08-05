@@ -64,6 +64,7 @@ import type {
   ChatRoomMessageQuote,
   ChatRoomMessageQuoteAttachment,
   ChatRoomMessageReaction,
+  ChatRoomMessageUnfurl,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -262,6 +263,84 @@ function MessageQuoteBlock({
           {expanded ? t("showLess") : t("showMore")}
         </button>
       ) : null}
+    </div>
+  );
+}
+
+function MessageUnfurlImage({
+  imageUrl,
+  title,
+}: {
+  imageUrl: string;
+  title: string;
+}) {
+  const t = useTranslations("App.Channels.Unfurl");
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    return null;
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={imageUrl}
+      alt={t("imageAlt", { title })}
+      className="mt-2 max-h-40 w-full rounded-md object-cover object-center"
+      onError={() => {
+        setFailed(true);
+      }}
+    />
+  );
+}
+
+function MessageUnfurlCard({ unfurl }: { unfurl: ChatRoomMessageUnfurl }) {
+  const t = useTranslations("App.Channels.Unfurl");
+  const siteLabel = unfurl.siteName?.trim() || null;
+
+  return (
+    <a
+      href={unfurl.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="border-border bg-muted/40 hover:bg-muted/60 focus-visible:ring-ring mt-1.5 block w-full overflow-hidden rounded-md border-l-2 border-l-primary/60 px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+      aria-label={t("openLink", { title: unfurl.title })}
+      data-testid="room-message-unfurl"
+    >
+      {siteLabel ? (
+        <div className="text-muted-foreground truncate text-[11px] font-medium tracking-wide uppercase">
+          {siteLabel}
+        </div>
+      ) : null}
+      <div className="text-foreground line-clamp-2 text-sm font-semibold leading-5">
+        {unfurl.title}
+      </div>
+      {unfurl.description?.trim() ? (
+        <div className="text-muted-foreground mt-0.5 line-clamp-2 text-xs leading-5">
+          {unfurl.description}
+        </div>
+      ) : null}
+      {unfurl.imageUrl ? (
+        <MessageUnfurlImage imageUrl={unfurl.imageUrl} title={unfurl.title} />
+      ) : null}
+    </a>
+  );
+}
+
+function MessageUnfurlList({
+  unfurls,
+}: {
+  unfurls: ChatRoomMessageUnfurl[] | null;
+}) {
+  if (!unfurls || unfurls.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-1" data-testid="room-message-unfurls">
+      {unfurls.map((unfurl) => (
+        <MessageUnfurlCard key={unfurl.url} unfurl={unfurl} />
+      ))}
     </div>
   );
 }
@@ -1376,6 +1455,7 @@ export function ChatMessageRow({
                       {tChannels("Edit.edited")}
                     </span>
                   ) : null}
+                  <MessageUnfurlList unfurls={message.unfurls} />
                 </>
               )}
             </>

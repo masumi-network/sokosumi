@@ -32,6 +32,7 @@ function message(id: string, createdAt: string, content = id): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    unfurls: null,
     deletedAt: null,
   };
 }
