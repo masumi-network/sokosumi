@@ -12,7 +12,10 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { leftChatRoomSchema } from "@/schemas/chat-room.schema";
 
-import { requireChatRoomUserAccess } from "../../../helpers";
+import {
+  membershipAccessForUser,
+  requireChatRoomUserAccess,
+} from "../../../helpers";
 import { recordChannelMembershipStatus } from "../../../membership-status";
 
 const paramsSchema = z.object({
@@ -102,6 +105,45 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest(
           "You are the last member of this room. Ask an organization owner or admin to archive it.",
         );
+      }
+
+      // Last host (access=member) leaving while guests / pending invites remain
+      // would orphan guest lifecycle with no host to manage the room.
+      const callerAccess = membershipAccessForUser(
+        existing.userMembers,
+        userContext.userId,
+      );
+      if (callerAccess !== "guest") {
+        const remainingHostMembers = await tx.chatRoomUserMember.count({
+          where: {
+            roomId: existing.id,
+            userId: { not: userContext.userId },
+            access: "member",
+          },
+        });
+        if (remainingHostMembers === 0) {
+          const remainingGuests = await tx.chatRoomUserMember.count({
+            where: {
+              roomId: existing.id,
+              userId: { not: userContext.userId },
+              access: "guest",
+            },
+          });
+          const pendingInviteCount =
+            remainingGuests > 0
+              ? 0
+              : await tx.chatRoomGuestInvitation.count({
+                  where: {
+                    roomId: existing.id,
+                    status: "pending",
+                  },
+                });
+          if (remainingGuests > 0 || pendingInviteCount > 0) {
+            throw badRequest(
+              "You are the last host member of this room. Archive the room or remove guests and pending invitations before leaving.",
+            );
+          }
+        }
       }
 
       const actor = await tx.user.findUnique({

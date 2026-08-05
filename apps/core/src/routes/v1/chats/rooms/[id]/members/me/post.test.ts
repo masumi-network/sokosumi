@@ -12,6 +12,7 @@ const {
   roomFindFirstOrThrowMock,
   userMemberFindUniqueMock,
   userMemberCreateMock,
+  userMemberUpdateMock,
   readStateCreateManyMock,
   queryRawMock,
   organizationFindUniqueMock,
@@ -25,6 +26,7 @@ const {
   roomFindFirstOrThrowMock: vi.fn(),
   userMemberFindUniqueMock: vi.fn(),
   userMemberCreateMock: vi.fn(),
+  userMemberUpdateMock: vi.fn(),
   readStateCreateManyMock: vi.fn(),
   queryRawMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
@@ -82,6 +84,7 @@ const tx = {
   chatRoomUserMember: {
     findUnique: userMemberFindUniqueMock,
     create: userMemberCreateMock,
+    update: userMemberUpdateMock,
   },
   chatRoomReadState: {
     createMany: readStateCreateManyMock,
@@ -229,7 +232,10 @@ describe("POST /chats/rooms/{id}/members/me", () => {
   });
 
   it("is idempotent when already a member", async () => {
-    userMemberFindUniqueMock.mockResolvedValue({ id: "mem_existing" });
+    userMemberFindUniqueMock.mockResolvedValue({
+      id: "mem_existing",
+      access: "member",
+    });
     roomFindFirstOrThrowMock.mockResolvedValue(
       publicChannel({
         userMembers: [member(OTHER_ID), member(SELF_ID)],
@@ -240,7 +246,39 @@ describe("POST /chats/rooms/{id}/members/me", () => {
 
     expect(response.status).toBe(200);
     expect(userMemberCreateMock).not.toHaveBeenCalled();
+    expect(userMemberUpdateMock).not.toHaveBeenCalled();
     expect(readStateCreateManyMock).not.toHaveBeenCalled();
+    expect(messageCreateMock).not.toHaveBeenCalled();
+    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+  });
+
+  it("upgrades guest to member when host-org member self-joins", async () => {
+    userMemberFindUniqueMock.mockResolvedValue({
+      id: "mem_guest",
+      access: "guest",
+    });
+    userMemberUpdateMock.mockResolvedValue({
+      id: "mem_guest",
+      access: "member",
+    });
+    roomFindFirstOrThrowMock.mockResolvedValue(
+      publicChannel({
+        discoverability: "external",
+        userMembers: [member(OTHER_ID), member(SELF_ID)],
+      }),
+    );
+
+    const response = await join();
+
+    expect(response.status).toBe(200);
+    expect(userMemberUpdateMock).toHaveBeenCalledWith({
+      where: {
+        roomId_userId: { roomId: ROOM_ID, userId: SELF_ID },
+      },
+      data: { access: "member" },
+    });
+    expect(userMemberCreateMock).not.toHaveBeenCalled();
+    // Already in the room as guest — no second join status.
     expect(messageCreateMock).not.toHaveBeenCalled();
     expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
   });

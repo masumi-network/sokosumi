@@ -11,6 +11,7 @@ const {
   roomFindFirstMock,
   userMemberCountMock,
   userMemberDeleteManyMock,
+  guestInvitationCountMock,
   readStateDeleteManyMock,
   queryRawMock,
   organizationFindUniqueMock,
@@ -23,6 +24,7 @@ const {
   roomFindFirstMock: vi.fn(),
   userMemberCountMock: vi.fn(),
   userMemberDeleteManyMock: vi.fn(),
+  guestInvitationCountMock: vi.fn(),
   readStateDeleteManyMock: vi.fn(),
   queryRawMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
@@ -77,6 +79,9 @@ const tx = {
     count: userMemberCountMock,
     deleteMany: userMemberDeleteManyMock,
   },
+  chatRoomGuestInvitation: {
+    count: guestInvitationCountMock,
+  },
   chatRoomReadState: { deleteMany: readStateDeleteManyMock },
   chatRoomMessage: { create: messageCreateMock },
   user: { findUnique: userFindUniqueMock },
@@ -103,8 +108,10 @@ function createApp() {
   return app;
 }
 
-function member(id: string) {
+function member(id: string, access: "member" | "guest" = "member") {
   return {
+    userId: id,
+    access,
     user: {
       id,
       name: id,
@@ -115,7 +122,13 @@ function member(id: string) {
   };
 }
 
-function room(overrides: { kind?: string; memberIds?: string[] } = {}) {
+function room(
+  overrides: {
+    kind?: string;
+    memberIds?: string[];
+    userMembers?: ReturnType<typeof member>[];
+  } = {},
+) {
   return {
     id: ROOM_ID,
     organizationId: "org_1",
@@ -128,7 +141,9 @@ function room(overrides: { kind?: string; memberIds?: string[] } = {}) {
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     archivedAt: null,
-    userMembers: (overrides.memberIds ?? [SELF_ID, OTHER_ID]).map(member),
+    userMembers:
+      overrides.userMembers ??
+      (overrides.memberIds ?? [SELF_ID, OTHER_ID]).map((id) => member(id)),
     coworkerMembers: [],
   };
 }
@@ -143,8 +158,20 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
   memberFindUniqueMock.mockResolvedValue({ role: "member" });
   queryRawMock.mockResolvedValue([{ id: ROOM_ID, archivedAt: null }]);
-  userMemberCountMock.mockResolvedValue(1);
+  // Default happy path: another host remains after leave.
+  userMemberCountMock.mockImplementation(
+    async ({
+      where,
+    }: {
+      where: { roomId: string; userId: { not: string }; access?: string };
+    }) => {
+      if (where.access === "member") return 1;
+      if (where.access === "guest") return 0;
+      return 1;
+    },
+  );
   userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+  guestInvitationCountMock.mockResolvedValue(0);
   readStateDeleteManyMock.mockResolvedValue({ count: 1 });
   userFindUniqueMock.mockResolvedValue({ name: SELF_ID });
   messageCreateMock.mockResolvedValue(MEMBERSHIP_MESSAGE);
@@ -154,7 +181,6 @@ beforeEach(() => {
 describe("DELETE /chats/rooms/{id}/members/me", () => {
   it("removes only the caller's membership and read marker", async () => {
     roomFindFirstMock.mockResolvedValue(room());
-    userMemberCountMock.mockResolvedValue(1);
 
     const response = await leave();
 
@@ -186,7 +212,13 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
       room({ memberIds: [SELF_ID, OTHER_ID, "user_third"] }),
     );
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
-    userMemberCountMock.mockResolvedValue(2);
+    userMemberCountMock.mockImplementation(
+      async ({ where }: { where: { access?: string } }) => {
+        if (where.access === "member") return 2;
+        if (where.access === "guest") return 0;
+        return 2;
+      },
+    );
 
     const response = await leave();
 
@@ -203,9 +235,32 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
     expect(readStateDeleteManyMock).not.toHaveBeenCalled();
   });
 
+  it("refuses last host leave while guests remain", async () => {
+    const guestId = "user_guest";
+    roomFindFirstMock.mockResolvedValue(
+      room({
+        userMembers: [member(SELF_ID, "member"), member(guestId, "guest")],
+      }),
+    );
+    userMemberCountMock.mockImplementation(
+      async ({ where }: { where: { access?: string } }) => {
+        // Total remaining includes the guest.
+        if (where.access === "member") return 0;
+        if (where.access === "guest") return 1;
+        return 1;
+      },
+    );
+
+    const response = await leave();
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toMatch(/last host member/i);
+    expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
+    expect(readStateDeleteManyMock).not.toHaveBeenCalled();
+  });
+
   it("emits a left membership status message and publishes after commit", async () => {
     roomFindFirstMock.mockResolvedValue(room());
-    userMemberCountMock.mockResolvedValue(1);
 
     const response = await leave();
 

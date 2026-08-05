@@ -19,6 +19,8 @@ const {
   coworkerFindManyMock,
   userFindManyMock,
   userMemberDeleteManyMock,
+  userMemberUpdateManyMock,
+  userMemberFindManyMock,
   userMemberCreateManyMock,
   readStateDeleteManyMock,
   readStateCreateManyMock,
@@ -41,6 +43,8 @@ const {
   coworkerFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
   userMemberDeleteManyMock: vi.fn(),
+  userMemberUpdateManyMock: vi.fn(),
+  userMemberFindManyMock: vi.fn(),
   userMemberCreateManyMock: vi.fn(),
   readStateDeleteManyMock: vi.fn(),
   readStateCreateManyMock: vi.fn(),
@@ -97,6 +101,8 @@ const tx = {
   },
   chatRoomUserMember: {
     deleteMany: userMemberDeleteManyMock,
+    updateMany: userMemberUpdateManyMock,
+    findMany: userMemberFindManyMock,
     createMany: userMemberCreateManyMock,
   },
   chatRoomReadState: {
@@ -228,6 +234,8 @@ beforeEach(() => {
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
   guestInvitationCountMock.mockResolvedValue(0);
+  userMemberUpdateManyMock.mockResolvedValue({ count: 0 });
+  userMemberFindManyMock.mockResolvedValue([]);
 });
 
 describe("PATCH /chats/rooms/{id}", () => {
@@ -664,6 +672,136 @@ describe("PATCH /chats/rooms/{id}", () => {
       expect.objectContaining({
         data: { discoverability: "public" },
       }),
+    );
+  });
+
+  it("preserves guest rows when PATCH rewrites memberUserIds without the guest", async () => {
+    const guestId = "user_guest";
+    const existing = channelRoom({
+      discoverability: "external",
+      userMembers: [
+        {
+          userId: USER_ID,
+          access: "member",
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          userId: guestId,
+          access: "guest",
+          user: {
+            id: guestId,
+            name: "Guest",
+            email: "guest@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    const updated = channelRoom({
+      discoverability: "external",
+      userMembers: [
+        {
+          userId: USER_ID,
+          access: "member",
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          userId: OTHER_USER_ID,
+          access: "member",
+          user: {
+            id: OTHER_USER_ID,
+            name: "Bob",
+            email: "bob@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          userId: guestId,
+          access: "guest",
+          user: {
+            id: guestId,
+            name: "Guest",
+            email: "guest@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberFindManyMock.mockResolvedValue([{ userId: guestId }]);
+    userMemberCreateManyMock.mockResolvedValue({ count: 2 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        // Host roster only — guest intentionally omitted (web always sends members).
+        memberUserIds: [USER_ID, OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    // Must not wipe the whole roster (would silent-evict guests).
+    expect(userMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, access: "member" },
+    });
+    expect(userMemberDeleteManyMock).not.toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID },
+    });
+    // Recreate only host members; guest row stays access=guest.
+    expect(userMemberCreateManyMock).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          roomId: ROOM_ID,
+          userId: USER_ID,
+          access: "member",
+        }),
+        expect.objectContaining({
+          roomId: ROOM_ID,
+          userId: OTHER_USER_ID,
+          access: "member",
+        }),
+      ]),
+    });
+    const createdIds = userMemberCreateManyMock.mock.calls[0][0].data.map(
+      (row: { userId: string }) => row.userId,
+    );
+    expect(createdIds).not.toContain(guestId);
+    // Guest read state must not be swept when not in memberUserIds.
+    expect(readStateDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: ROOM_ID,
+        userId: {
+          notIn: expect.arrayContaining([USER_ID, OTHER_USER_ID, guestId]),
+        },
+      },
+    });
+    // Guest must not appear as left in membership status.
+    expect(
+      messageCreateMock.mock.calls.map((call) => call[0].data.content),
+    ).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/Guest left/i)]),
     );
   });
 });

@@ -175,12 +175,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           updateData.discoverability = body.discoverability;
         }
 
-        const priorUsers =
+        // Roster rewrites only cover host-org members. Guests are room-scoped
+        // and must survive PATCH (web always sends memberUserIds on save).
+        let priorUsers =
           body.memberUserIds !== undefined
-            ? existing.userMembers.map((member) => ({
-                id: member.user.id,
-                name: member.user.name,
-              }))
+            ? existing.userMembers
+                .filter((member) => member.access !== "guest")
+                .map((member) => ({
+                  id: member.user.id,
+                  name: member.user.name,
+                }))
             : [];
         const priorCoworkers =
           body.coworkerIds !== undefined
@@ -209,20 +213,66 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             name: nameById.get(userId) ?? userId,
           }));
 
+          // Guests already in the room who appear on the host roster (e.g. they
+          // later joined the host org) count as already present for status diffs.
+          const memberIdSet = new Set(memberUserIds);
+          priorUsers = existing.userMembers
+            .filter(
+              (member) =>
+                member.access !== "guest" || memberIdSet.has(member.user.id),
+            )
+            .map((member) => ({
+              id: member.user.id,
+              name: member.user.name,
+            }));
+
+          const preservedGuestIds = existing.userMembers
+            .filter(
+              (member) =>
+                member.access === "guest" && !memberIdSet.has(member.userId),
+            )
+            .map((member) => member.userId);
+
+          // Rewrite only host members; never delete access=guest rows omitted
+          // from memberUserIds (silent guest eviction).
           await tx.chatRoomUserMember.deleteMany({
-            where: { roomId: existing.id },
+            where: { roomId: existing.id, access: "member" },
           });
+          // Guest who is now on the host roster → upgrade in place (unique roomId+userId).
+          await tx.chatRoomUserMember.updateMany({
+            where: {
+              roomId: existing.id,
+              userId: { in: memberUserIds },
+              access: "guest",
+            },
+            data: { access: "member" },
+          });
+          const remainingAfterDelete = await tx.chatRoomUserMember.findMany({
+            where: { roomId: existing.id },
+            select: { userId: true },
+          });
+          const remainingIds = new Set(
+            remainingAfterDelete.map((row) => row.userId),
+          );
+          const membersToCreate = memberUserIds.filter(
+            (userId) => !remainingIds.has(userId),
+          );
+          if (membersToCreate.length > 0) {
+            await tx.chatRoomUserMember.createMany({
+              data: membersToCreate.map((memberUserId) => ({
+                roomId: existing.id,
+                userId: memberUserId,
+                access: "member",
+              })),
+            });
+          }
+
+          const keepUserIds = [...memberUserIds, ...preservedGuestIds];
           await tx.chatRoomReadState.deleteMany({
             where: {
               roomId: existing.id,
-              userId: { notIn: memberUserIds },
+              userId: { notIn: keepUserIds },
             },
-          });
-          await tx.chatRoomUserMember.createMany({
-            data: memberUserIds.map((memberUserId) => ({
-              roomId: existing.id,
-              userId: memberUserId,
-            })),
           });
           await tx.chatRoomReadState.createMany({
             data: memberUserIds.map((memberUserId) => ({
