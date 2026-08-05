@@ -170,8 +170,8 @@ export function FileChip(props: FileChipProps) {
     return (
       <div
         className={cn(
-          // Cap like large solo image thumbs (`max-w-sm`) — not full message width.
-          "flex w-full max-w-sm flex-col gap-2 rounded-md border p-2",
+          // Stay inside the message column (thread can be narrower than 24rem).
+          "flex w-full max-w-full flex-col gap-2 rounded-md border p-2",
           className,
         )}
         title={title}
