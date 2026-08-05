@@ -2,7 +2,7 @@
 
 import { ChannelProvider } from "ably/react";
 import { Hash, Loader2, MessageCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   useCallback,
@@ -22,7 +22,7 @@ import {
   sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
-import { CHAT_MOBILE_HEIGHT_SHELL_CLASS } from "@/app/chat/components/chat-mobile-tab-registry";
+import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
@@ -243,6 +243,7 @@ export function RoomsClient({
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const router = useRouter();
+  const pathname = usePathname();
   const canOpenHumanDirect = Boolean(activeOrganization);
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
@@ -1316,7 +1317,7 @@ export function RoomsClient({
     <div
       className={cn(
         "-m-4 flex min-h-0 flex-col overflow-hidden bg-background",
-        CHAT_MOBILE_HEIGHT_SHELL_CLASS,
+        chatMobileHeightShellClass(pathname),
       )}
     >
       {currentUserId ? (

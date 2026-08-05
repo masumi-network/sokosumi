@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 
+import { HeaderLeadingControl } from "./header/header-leading-control.client";
 import CustomTrigger from "./sidebar/components/custom-trigger";
 
 interface AppHeaderFallbackProps {
@@ -15,7 +17,9 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
       )}
     >
       <div className="flex size-8 shrink-0 items-center justify-center md:hidden">
-        <CustomTrigger when="invisible" />
+        <Suspense fallback={<CustomTrigger when="invisible" />}>
+          <HeaderLeadingControl />
+        </Suspense>
       </div>
 
       <div className="hidden min-w-0 flex-1 flex-row gap-2 sm:flex">

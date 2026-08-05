@@ -13,7 +13,7 @@ import {
 
 export function resolveChatMobileActiveTabId(
   pathname: string,
-): Extract<ChatMobileTabId, "home" | "history"> | null {
+): Extract<ChatMobileTabId, "home" | "chats"> | null {
   for (const tab of CHAT_MOBILE_TABS) {
     if (tab.kind !== "link" || !tab.isActive(pathname)) {
       continue;

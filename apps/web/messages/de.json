@@ -4712,9 +4712,10 @@
     "Channels": {
       "MobileNav": {
         "home": "Start",
-        "history": "Verlauf",
+        "chats": "Chats",
         "search": "Suche",
-        "ariaLabel": "Chat"
+        "ariaLabel": "Chat",
+        "backToChats": "Zurück zu Chats"
       },
       "Actions": {
         "more": "Nachrichtenaktionen",

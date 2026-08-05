@@ -3,10 +3,12 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatWelcomeClient } from "@/app/chat/components/chat-welcome-client";
+import { MobileHomeHub } from "@/app/chat/components/mobile-home-hub";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import DefaultLoading from "@/components/default-loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
+import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { chatRoomService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
@@ -27,8 +29,9 @@ function ChatPageFallback() {
 }
 
 /**
- * `/chat` landing = classic coworker welcome. Draft modes via query:
- * `?create=channel`, `?dm=new`. Open rooms: `/chat/rooms/[roomId]`.
+ * `/chat` landing: mobile Home hub (sidebar minus Channels/DMs); desktop
+ * classic coworker welcome. Draft modes via query: `?create=channel`,
+ * `?dm=new`. Open rooms: `/chat/rooms/[roomId]`.
  */
 async function ChatPageContent({ searchParams }: ChatPageProps) {
   // Defer before any cookies()/headers()-bound work so PPR shell probing does
@@ -130,12 +133,34 @@ async function ChatPageContent({ searchParams }: ChatPageProps) {
     mapDbCoworkerToChatCoworker,
   );
 
+  if (!session?.user) {
+    return (
+      <>
+        {landingNotice}
+        <div className="hidden md:contents">
+          <ChatWelcomeClient coworkers={coworkers} />
+        </div>
+      </>
+    );
+  }
+
+  const adminMenuEnabled = hasAdminRole(
+    (session.user as typeof session.user & { role?: string | null }).role,
+  );
+
   return (
     <>
       {landingNotice}
-      <ChatWelcomeClient
-        coworkers={coworkers}
-        userName={session?.user.name ?? undefined}
+      <div className="hidden md:contents">
+        <ChatWelcomeClient
+          coworkers={coworkers}
+          userName={session.user.name ?? undefined}
+        />
+      </div>
+      <MobileHomeHub
+        sessionUser={session.user}
+        activeOrganizationId={session.session.activeOrganizationId ?? null}
+        adminMenuEnabled={adminMenuEnabled}
       />
     </>
   );

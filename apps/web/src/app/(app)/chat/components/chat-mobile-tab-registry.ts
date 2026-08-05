@@ -1,4 +1,6 @@
-import { History, Home, type LucideIcon, Search } from "lucide-react";
+import { Home, type LucideIcon, MessageCircle, Search } from "lucide-react";
+
+import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
 
 /** Tailwind padding-bottom for bar height. Applied at shell content wrapper. */
 export const CHAT_MOBILE_TAB_BAR_CLEARANCE = "pb-16" as const;
@@ -14,8 +16,24 @@ export const CHAT_MOBILE_TAB_BAR_BOTTOM_OFFSET =
 export const CHAT_MOBILE_HEIGHT_SHELL_CLASS =
   "h-[calc(100svh-64px)] max-md:h-[calc(100svh-64px-4rem)]" as const;
 
-export type ChatMobileTabId = "home" | "history" | "search";
-export type ChatMobileTabLabelKey = "home" | "history" | "search";
+/**
+ * Full shell height when the mobile tab bar is hidden (room surface).
+ * Matches desktop/`md` height — no 4rem tab-bar subtraction.
+ */
+export const CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS =
+  "h-[calc(100svh-64px)]" as const;
+
+/** Height class for chat views: room path drops tab-bar offset. */
+export function chatMobileHeightShellClass(
+  pathname: string | null | undefined,
+): string {
+  return isChatRoomPathname(pathname)
+    ? CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS
+    : CHAT_MOBILE_HEIGHT_SHELL_CLASS;
+}
+
+export type ChatMobileTabId = "home" | "chats" | "search";
+export type ChatMobileTabLabelKey = "home" | "chats" | "search";
 
 interface ChatMobileTabBase {
   labelKey: ChatMobileTabLabelKey;
@@ -24,8 +42,8 @@ interface ChatMobileTabBase {
 
 export interface ChatMobileLinkTab extends ChatMobileTabBase {
   kind: "link";
-  id: "home" | "history";
-  href: "/chat" | "/history";
+  id: "home" | "chats";
+  href: "/chat" | "/chat/chats";
   isActive: (pathname: string) => boolean;
 }
 
@@ -43,16 +61,15 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     href: "/chat",
     labelKey: "home",
     icon: Home,
-    isActive: (pathname) =>
-      pathname === "/chat" || pathname.startsWith("/chat/"),
+    isActive: (pathname) => pathname === "/chat",
   },
   {
-    id: "history",
+    id: "chats",
     kind: "link",
-    href: "/history",
-    labelKey: "history",
-    icon: History,
-    isActive: (pathname) => pathname === "/history",
+    href: "/chat/chats",
+    labelKey: "chats",
+    icon: MessageCircle,
+    isActive: (pathname) => pathname === "/chat/chats",
   },
   {
     id: "search",

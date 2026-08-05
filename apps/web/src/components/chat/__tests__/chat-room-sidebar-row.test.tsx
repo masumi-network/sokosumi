@@ -406,7 +406,7 @@ describe("ChatRoomSidebarRow leave menu", () => {
     });
     expect(toast.success).toHaveBeenCalledWith("You left general.");
     expect(notifyMock).toHaveBeenCalledWith();
-    expect(replaceMock).toHaveBeenCalledWith("/chat");
+    expect(replaceMock).toHaveBeenCalledWith("/chat/chats");
     expect(refreshMock).toHaveBeenCalled();
   });
 });

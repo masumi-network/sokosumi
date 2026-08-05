@@ -40,18 +40,20 @@ import {
 } from "../chat-mobile-bottom-nav";
 
 describe("resolveChatMobileActiveTabId", () => {
-  it("marks Home active for /chat and nested chat routes", () => {
+  it("marks Home active only for exact /chat", () => {
     expect(resolveChatMobileActiveTabId("/chat")).toBe("home");
-    expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
+    expect(resolveChatMobileActiveTabId("/chat/chats")).toBe("chats");
   });
 
-  it("marks History active only on /history", () => {
-    expect(resolveChatMobileActiveTabId("/history")).toBe("history");
-    expect(resolveChatMobileActiveTabId("/history/extra")).toBeNull();
+  it("marks Chats active only on /chat/chats", () => {
+    expect(resolveChatMobileActiveTabId("/chat/chats")).toBe("chats");
+    expect(resolveChatMobileActiveTabId("/chat/chats/extra")).toBeNull();
   });
 
   it("returns null when no link tab matches", () => {
     expect(resolveChatMobileActiveTabId("/tasks")).toBeNull();
+    expect(resolveChatMobileActiveTabId("/history")).toBeNull();
   });
 });
 
@@ -59,6 +61,21 @@ describe("ChatMobileBottomNav", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPathname = "/chat";
+  });
+
+  it("renders Home, Chats, and Search — not History", () => {
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+      "href",
+      "/chat",
+    );
+    expect(screen.getByRole("link", { name: "chats" })).toHaveAttribute(
+      "href",
+      "/chat/chats",
+    );
+    expect(screen.getByRole("button", { name: "search" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "history" })).toBeNull();
   });
 
   it("calls openHistorySearch when Search is clicked", () => {
@@ -69,15 +86,28 @@ describe("ChatMobileBottomNav", () => {
     expect(openHistorySearchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("sets aria-current on the Home link for chat routes", () => {
-    mockPathname = "/chat/rooms/1";
+  it("sets aria-current on the Home link for exact /chat", () => {
+    mockPathname = "/chat";
     render(<ChatMobileBottomNav />);
 
     expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: "history" })).not.toHaveAttribute(
+    expect(screen.getByRole("link", { name: "chats" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("sets aria-current on the Chats link for /chat/chats", () => {
+    mockPathname = "/chat/chats";
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("link", { name: "chats" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "home" })).not.toHaveAttribute(
       "aria-current",
     );
   });
