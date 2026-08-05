@@ -3,6 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { agentOrderBy } from "../agent.js";
+
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const schemaPath = join(packageRoot, "prisma/schema.prisma");
 const migrationsDir = join(packageRoot, "prisma/migrations");
@@ -33,6 +35,11 @@ function migrationSqlFiles(): string[] {
 }
 
 describe("list and catalog performance indexes", () => {
+  it("agentOrderBy is createdAt-only without jobs._count", () => {
+    expect(agentOrderBy).toEqual([{ createdAt: "desc" }]);
+    expect(JSON.stringify(agentOrderBy)).not.toContain("_count");
+  });
+
   it("schema.prisma declares TaskEvent, Job, and Agent list/catalog indexes", () => {
     const schema = readSchema();
 

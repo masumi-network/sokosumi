@@ -159,6 +159,36 @@ describe("GET /agents", () => {
     expect(agentCountMock).toHaveBeenCalled();
   });
 
+  it("orders by createdAt without live jobs._count and skips average execution SQL", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: expect.arrayContaining([
+          { createdAt: "desc" },
+          { id: "desc" },
+        ]),
+      }),
+    );
+    const findManyArg = agentFindManyMock.mock.calls[0]?.[0] as {
+      orderBy: unknown[];
+    };
+    expect(JSON.stringify(findManyArg.orderBy)).not.toContain("_count");
+    expect(calculateAverageExecutionTimesMock).not.toHaveBeenCalled();
+    expect(body.data[0]?.metrics.executions).toMatchObject({
+      count: 2,
+      averageTime: null,
+    });
+    expect(body.data[0]?.metrics.ratings).toMatchObject({
+      total: 3,
+      average: 4.5,
+    });
+    expect(calculateAgentRatingsMock).toHaveBeenCalled();
+  });
+
   it("filters by a single category slug and returns parsed category styles", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/?category=research");

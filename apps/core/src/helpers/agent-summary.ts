@@ -8,7 +8,6 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
   calculateAgentRatings,
-  calculateAverageExecutionTimes,
   getAgentCost,
   getAgentDescription,
   getAgentIcon,
@@ -69,11 +68,7 @@ export async function buildAgentSummaries(
     }));
 
   const agentIds = agentsWithCredits.map((agent) => agent.id);
-
-  const [averageExecutionTimes, ratingsMap] = await Promise.all([
-    calculateAverageExecutionTimes(agentIds, tx),
-    calculateAgentRatings(agentIds, tx),
-  ]);
+  const ratingsMap = await calculateAgentRatings(agentIds, tx);
 
   return agentsWithCredits.map((agent) => {
     const ratingMetrics = ratingsMap.get(agent.id);
@@ -82,7 +77,7 @@ export async function buildAgentSummaries(
       metrics: {
         executions: {
           count: agent._count.jobs,
-          averageTime: averageExecutionTimes.get(agent.id) ?? null,
+          averageTime: null,
         },
         ratings: {
           total: ratingMetrics?.total ?? 0,
