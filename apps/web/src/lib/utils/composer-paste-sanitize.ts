@@ -72,6 +72,16 @@ export function sanitizeComposerPastedHtml(html: string): string {
 }
 
 /**
+ * Extract visible text from HTML without regex tag stripping (incomplete
+ * multi-character sanitization). Prefer clipboard `text/plain` when available.
+ */
+export function composerPastedHtmlToPlainText(html: string): string {
+  if (!html) return "";
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  return doc.body.textContent ?? "";
+}
+
+/**
  * Strip color styles already in the contentEditable DOM (paste leftovers or
  * retained typing style). Returns whether the DOM changed.
  */

@@ -362,6 +362,45 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor.textContent).toContain("asdasdas");
   });
 
+  it("falls back to DOM insert without regex HTML stripping", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+
+    const execCommand = vi.fn(() => false);
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: execCommand,
+    });
+
+    const html =
+      '<span style="color: rgb(10, 10, 10);">fallback plain path</span>';
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: (type: string) => {
+          if (type === "text/html") return html;
+          if (type === "text/plain") return "fallback plain path";
+          return "";
+        },
+      },
+    });
+
+    expect(execCommand).toHaveBeenCalled();
+    expect(editor.innerHTML).not.toMatch(/color\s*:/i);
+    expect(editor.textContent).toContain("fallback plain path");
+  });
+
   it("strips color styles left by insertHTML on input", () => {
     function Harness() {
       const [value, setValue] = useState("");

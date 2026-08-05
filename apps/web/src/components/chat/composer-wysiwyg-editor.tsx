@@ -47,6 +47,7 @@ import {
   markdownToHtml,
 } from "@/lib/utils/composer-markdown-dom";
 import {
+  composerPastedHtmlToPlainText,
   sanitizeComposerPastedHtml,
   stripComposerInlineTextColors,
 } from "@/lib/utils/composer-paste-sanitize";
@@ -843,25 +844,34 @@ export function ComposerWysiwygEditor<TData = unknown>({
         }
       }
       if (!didInsert) {
-        const selection = window.getSelection();
-        const fallbackText = plain || htmlToInsert.replace(/<[^>]+>/g, "");
-        if (selection && selection.rangeCount > 0 && fallbackText) {
-          const range = selection.getRangeAt(0);
-          range.deleteContents();
-          if (htmlToInsert) {
-            const template = document.createElement("template");
-            template.innerHTML = htmlToInsert;
-            const fragment = template.content;
-            range.insertNode(fragment);
+        const fallbackText =
+          plain ||
+          (htmlToInsert
+            ? composerPastedHtmlToPlainText(htmlToInsert)
+            : html
+              ? composerPastedHtmlToPlainText(html)
+              : "");
+        if (fallbackText) {
+          const selection = window.getSelection();
+          const textNode = document.createTextNode(fallbackText);
+          const range =
+            selection && selection.rangeCount > 0
+              ? selection.getRangeAt(0)
+              : null;
+          const rangeInEditor =
+            range && editor.contains(range.commonAncestorContainer)
+              ? range
+              : null;
+          if (rangeInEditor && selection) {
+            rangeInEditor.deleteContents();
+            rangeInEditor.insertNode(textNode);
+            rangeInEditor.setStartAfter(textNode);
+            rangeInEditor.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(rangeInEditor);
           } else {
-            range.insertNode(document.createTextNode(fallbackText));
+            editor.appendChild(textNode);
           }
-          range.collapse(false);
-          selection.removeAllRanges();
-          selection.addRange(range);
-          didInsert = true;
-        } else if (fallbackText) {
-          editor.insertAdjacentHTML("beforeend", htmlToInsert || fallbackText);
           didInsert = true;
         }
       }
