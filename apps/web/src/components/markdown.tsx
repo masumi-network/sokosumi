@@ -8,6 +8,11 @@ import remarkGfm from "remark-gfm";
 import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
 import { cn } from "@/lib/utils";
 import { normalizeLooseInlineMarkdown } from "@/lib/utils/composer-markdown-dom";
+import {
+  isAudioUrl,
+  isVideoUrl,
+  stripForcedDownloadParam,
+} from "@/lib/utils/file-preview";
 import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
 
 function isSokosumiLink(href: string | undefined): boolean {
@@ -58,32 +63,71 @@ export default function Markdown({
     },
     img: ({ src, alt, ...props }) => {
       const srcString = typeof src === "string" ? src : undefined;
-      const isVideo = srcString?.match(/\.(mp4|webm|ogg)$/i);
-
-      if (isVideo && srcString) {
+      if (srcString && isVideoUrl(srcString)) {
+        const mediaSrc = stripForcedDownloadParam(srcString);
         return (
           <video
-            src={srcString}
+            src={mediaSrc}
             controls
+            playsInline
+            preload="metadata"
             className="w-full max-w-3xl rounded-lg"
+            aria-label={alt || undefined}
           >
-            <source src={srcString} type="video/mp4" />
-            {"Your browser does not support the video tag."}
             <a href={srcString}>{"Download video"}</a>
           </video>
         );
       }
-
+      if (srcString && isAudioUrl(srcString)) {
+        const mediaSrc = stripForcedDownloadParam(srcString);
+        return (
+          <audio
+            src={mediaSrc}
+            controls
+            preload="metadata"
+            className="w-full max-w-3xl"
+            aria-label={alt || undefined}
+          >
+            <a href={srcString}>{"Download audio"}</a>
+          </audio>
+        );
+      }
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt={alt} className="max-w-full rounded-lg" {...props} />
       );
     },
-    video: ({ children, ...props }) => (
-      <video {...props} className="w-full max-w-3xl rounded-lg" controls>
-        {children}
-      </video>
-    ),
+    video: ({ children, src, autoPlay: _autoPlay, ...props }) => {
+      const srcString =
+        typeof src === "string" ? stripForcedDownloadParam(src) : src;
+      return (
+        <video
+          {...props}
+          src={srcString}
+          className="w-full max-w-3xl rounded-lg"
+          controls
+          playsInline
+          preload="metadata"
+        >
+          {children}
+        </video>
+      );
+    },
+    audio: ({ children, src, autoPlay: _autoPlay, ...props }) => {
+      const srcString =
+        typeof src === "string" ? stripForcedDownloadParam(src) : src;
+      return (
+        <audio
+          {...props}
+          src={srcString}
+          className="w-full max-w-3xl"
+          controls
+          preload="metadata"
+        >
+          {children}
+        </audio>
+      );
+    },
     table: ({ children, className, ...props }) => (
       <div className="border-border my-3 overflow-x-auto rounded-md border">
         <table
