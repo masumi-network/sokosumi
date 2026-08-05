@@ -46,6 +46,12 @@ interface CreatePaidJobData extends CreateJobBase {
 
 interface CreateFreeJobData extends CreateJobBase {
   jobType: typeof JobType.FREE;
+  /**
+   * Narrowed to non-null: a FREE job has no purchase to reconcile against, so
+   * the endpoint snapshot is the only way sync can reach the seller afterwards.
+   * A FREE job created without one can never be polled to completion.
+   */
+  agentApiBaseUrl: string;
 }
 
 type CreateJobData = CreatePaidJobData | CreateFreeJobData;
