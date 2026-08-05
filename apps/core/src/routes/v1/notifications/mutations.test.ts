@@ -196,6 +196,7 @@ describe("PATCH /notifications/read-all", () => {
       where: {
         userId: "user_123",
         isRead: false,
+        kind: { notIn: [NotificationKind.CHAT] },
       },
       data: {
         isRead: true,
@@ -223,6 +224,7 @@ describe("PATCH /notifications/read-all", () => {
         where: {
           userId: "user_123",
           isRead: false,
+          kind: { notIn: [NotificationKind.CHAT] },
         },
       }),
     );
@@ -244,6 +246,7 @@ describe("GET /notifications/unread-count", () => {
       where: {
         userId: "user_123",
         isRead: false,
+        kind: { notIn: [NotificationKind.CHAT] },
       },
     });
 
@@ -264,6 +267,7 @@ describe("GET /notifications/unread-count", () => {
       where: {
         userId: "user_123",
         isRead: false,
+        kind: { notIn: [NotificationKind.CHAT] },
       },
     });
   });

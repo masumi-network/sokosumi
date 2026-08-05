@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   applyRoomReadOverlays,
+  applyRoomReadResultToOverlay,
   clearRoomReadOverlays,
   forgetRoomRead,
   rememberRoomRead,
@@ -85,5 +86,43 @@ describe("room-read-overlay", () => {
     ]);
 
     expect(rows[0]?.markedUnread).toBe(true);
+  });
+
+  it("applyRoomReadResultToOverlay only sticky-clears fully clear rooms", () => {
+    applyRoomReadResultToOverlay(
+      room({
+        unreadCount: 2,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    );
+
+    const stillUnread = applyRoomReadOverlays([
+      room({
+        unreadCount: 2,
+        unreadMentionCount: 0,
+      }),
+    ]);
+    expect(stillUnread[0]).toMatchObject({ unreadCount: 2 });
+
+    applyRoomReadResultToOverlay(
+      room({
+        unreadCount: 0,
+        unreadMentionCount: 0,
+        markedUnread: false,
+      }),
+    );
+
+    const cleared = applyRoomReadOverlays([
+      room({
+        unreadCount: 4,
+        unreadMentionCount: 1,
+      }),
+    ]);
+    expect(cleared[0]).toMatchObject({
+      unreadCount: 0,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
   });
 });

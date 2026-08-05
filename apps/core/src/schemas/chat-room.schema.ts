@@ -83,7 +83,7 @@ export const chatRoomSchema = z
     updatedAt: dateTimeSchema,
     unreadCount: z.number().int().min(0).openapi({
       description:
-        "Messages sent by others after the current user's read marker.",
+        "Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.",
       example: 2,
     }),
     unreadMentionCount: z.number().int().min(0).openapi({

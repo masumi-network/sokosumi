@@ -1,5 +1,6 @@
 "use client";
 
+import { isBrowserOnlyNotificationKind } from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
 import {
   createContext,
@@ -11,7 +12,6 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
 import { NotificationToastListener } from "@/app/components/notification-toast-listener";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -111,20 +111,32 @@ export function notificationReducer(
 ): NotificationState {
   switch (action.type) {
     case "fetch_success": {
+      // Browser-only kinds never belong in local feed state; drop leaks so
+      // mergeNotificationList cannot keep them as "pending realtime".
+      const current = state.notifications.filter(
+        (notification) => !isBrowserOnlyNotificationKind(notification.kind),
+      );
+      const fetched = action.fetched.filter(
+        (notification) => !isBrowserOnlyNotificationKind(notification.kind),
+      );
+
       return {
-        notifications: mergeNotificationList(
-          state.notifications,
-          action.fetched,
-        ),
+        notifications: mergeNotificationList(current, fetched),
         unreadCount: mergeUnreadCount(
-          state.notifications,
-          action.fetched,
+          current,
+          fetched,
           action.serverUnreadCount,
         ),
       };
     }
     case "realtime": {
       const convertedNotification = action.notification;
+
+      // Browser-OS only; room attention uses a separate path.
+      if (isBrowserOnlyNotificationKind(convertedNotification.kind)) {
+        return state;
+      }
+
       const existing = state.notifications.find(
         (notification) => notification.id === convertedNotification.id,
       );
@@ -181,6 +193,12 @@ export function notificationReducer(
       };
     }
     case "mark_read_success": {
+      // Browser-only kinds are never counted in the in-app badge. Toast click
+      // still calls markRead for room attention; ignore feed state.
+      if (isBrowserOnlyNotificationKind(action.updated.kind)) {
+        return state;
+      }
+
       const existing = state.notifications.find(
         (notification) => notification.id === action.id,
       );
