@@ -99,6 +99,9 @@ function DocumentTextBody({
   return <DocumentTextPreview title={fileName} content={state.content} />;
 }
 
+/** Bound so a hung connection cannot pin the viewer on the loading skeleton. */
+const PDF_FETCH_TIMEOUT_MS = 15_000;
+
 /**
  * Fetch the remote PDF into a same-origin blob URL before embedding.
  *
@@ -109,9 +112,9 @@ function DocumentTextBody({
  * sees a download. Forcing `application/pdf` on a blob: URL makes the browser
  * treat it as inline preview, matching how images always work via `<img>`.
  *
- * If fetch fails (CORS, network), fall back to a direct iframe of the public
- * URL (stripped of `?download=1`) so hosts that already serve inline PDFs still
- * preview without needing CORS.
+ * If fetch fails (CORS, network, timeout), fall back to a direct iframe of the
+ * public URL (stripped of `?download=1`) so hosts that already serve inline
+ * PDFs still preview without needing CORS.
  */
 function DocumentPdfBody({
   url,
@@ -129,40 +132,44 @@ function DocumentPdfBody({
   useEffect(() => {
     const controller = new AbortController();
     let objectUrl: string | null = null;
+    let unmounted = false;
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, PDF_FETCH_TIMEOUT_MS);
     setState({ status: "loading" });
 
     const sourceUrl = stripForcedDownloadParam(url);
 
-    // async IIFE (not bare fetch().then) so a test double that returns
-    // `undefined` / a non-Promise still falls through to the iframe fallback
-    // instead of throwing "Cannot read properties of undefined (reading 'then')".
     void (async () => {
       try {
         const response = await fetch(sourceUrl, {
           signal: controller.signal,
         });
-        if (!response?.ok) throw new Error("Failed to fetch PDF");
+        if (!response.ok) throw new Error("Failed to fetch PDF");
         const remoteBlob = await response.blob();
         // Re-wrap so a mislabeled `application/octet-stream` still previews.
         const pdfBlob = new Blob([remoteBlob], { type: "application/pdf" });
         const nextObjectUrl = URL.createObjectURL(pdfBlob);
-        if (controller.signal.aborted) {
+        if (unmounted) {
           URL.revokeObjectURL(nextObjectUrl);
           return;
         }
         objectUrl = nextObjectUrl;
         setState({ status: "loaded", embedUrl: nextObjectUrl });
       } catch {
-        // CORS / network / incomplete fetch mock: keep preview working when
-        // the host already serves inline PDFs. Attachment-disposition hosts
+        // Unmount: do not setState. Timeout/CORS/network: fall back so the
+        // viewer is not stuck on the skeleton. Attachment-disposition hosts
         // without CORS still download (no client-side fix without a proxy).
-        if (!controller.signal.aborted) {
-          setState({ status: "loaded", embedUrl: sourceUrl });
-        }
+        if (unmounted) return;
+        setState({ status: "loaded", embedUrl: sourceUrl });
+      } finally {
+        clearTimeout(timeoutId);
       }
     })();
 
     return () => {
+      unmounted = true;
+      clearTimeout(timeoutId);
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };

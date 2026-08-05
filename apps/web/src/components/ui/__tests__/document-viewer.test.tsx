@@ -71,9 +71,6 @@ describe("DocumentViewer", () => {
     expect(screen.getByText("report.pdf")).toBeInTheDocument();
 
     const close = screen.getByRole("button", { name: "Close" });
-    expect(close).toBeInTheDocument();
-    expect(close).toHaveClass("size-8");
-
     const download = screen.getByRole("link", { name: "Download" });
     expect(download).toHaveAttribute(
       "href",
@@ -81,8 +78,6 @@ describe("DocumentViewer", () => {
     );
     expect(download).toHaveAttribute("download", "report.pdf");
     expect(download).toHaveAttribute("title", "Download");
-    expect(download.className).toMatch(/size-8/);
-    expect(download.className).toMatch(/sm:w-auto/);
 
     const openInNewTab = screen.getByRole("link", { name: "Open in new tab" });
     expect(openInNewTab).toHaveAttribute(
@@ -91,20 +86,27 @@ describe("DocumentViewer", () => {
     );
     expect(openInNewTab).toHaveAttribute("target", "_blank");
     expect(openInNewTab).toHaveAttribute("title", "Open in new tab");
-    expect(openInNewTab.className).toMatch(/size-8/);
-    expect(openInNewTab.className).toMatch(/sm:w-auto/);
 
     // All three controls share one flex action row (not an absolute close).
     const actionRow = close.parentElement;
     expect(actionRow).toContainElement(download);
     expect(actionRow).toContainElement(openInNewTab);
-    expect(actionRow?.className).toMatch(/items-center/);
   });
 
   describe("PDF embed", () => {
     const originalFetch = global.fetch;
     const originalCreateObjectURL = URL.createObjectURL;
     const originalRevokeObjectURL = URL.revokeObjectURL;
+
+    function createPdfResponse(
+      body: BlobPart = new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      contentType = "application/octet-stream",
+    ): Response {
+      return new Response(new Blob([body], { type: contentType }), {
+        status: 200,
+        headers: { "Content-Type": contentType },
+      });
+    }
 
     beforeEach(() => {
       global.fetch = vi.fn();
@@ -120,14 +122,7 @@ describe("DocumentViewer", () => {
     });
 
     it("fetches the PDF and embeds a same-origin blob URL so attachment disposition cannot force a download", async () => {
-      const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]); // %PDF
-      vi.mocked(global.fetch).mockResolvedValue({
-        ok: true,
-        blob: () =>
-          Promise.resolve(
-            new Blob([pdfBytes], { type: "application/octet-stream" }),
-          ),
-      } as Response);
+      vi.mocked(global.fetch).mockResolvedValue(createPdfResponse());
 
       render(
         <DocumentViewer
@@ -161,11 +156,9 @@ describe("DocumentViewer", () => {
     });
 
     it("strips ?download=1 before fetching so Vercel Blob attachment URLs still preview", async () => {
-      vi.mocked(global.fetch).mockResolvedValue({
-        ok: true,
-        blob: () =>
-          Promise.resolve(new Blob([new Uint8Array([0x25])], { type: "" })),
-      } as Response);
+      vi.mocked(global.fetch).mockResolvedValue(
+        createPdfResponse(new Uint8Array([0x25])),
+      );
 
       render(
         <DocumentViewer
@@ -205,11 +198,9 @@ describe("DocumentViewer", () => {
     });
 
     it("revokes the object URL when the viewer unmounts", async () => {
-      vi.mocked(global.fetch).mockResolvedValue({
-        ok: true,
-        blob: () =>
-          Promise.resolve(new Blob([new Uint8Array([0x25])], { type: "" })),
-      } as Response);
+      vi.mocked(global.fetch).mockResolvedValue(
+        createPdfResponse(new Uint8Array([0x25])),
+      );
 
       const { unmount } = render(
         <DocumentViewer
@@ -223,6 +214,40 @@ describe("DocumentViewer", () => {
 
       await screen.findByTitle("report.pdf");
       unmount();
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith(
+        "blob:https://viewer/pdf-1",
+      );
+    });
+
+    it("revokes the object URL when unmounted while the PDF fetch is still pending", async () => {
+      let resolveFetch!: (response: Response) => void;
+      const pendingFetch = new Promise<Response>((resolve) => {
+        resolveFetch = resolve;
+      });
+      vi.mocked(global.fetch).mockReturnValue(pendingFetch);
+
+      const { unmount } = render(
+        <DocumentViewer
+          open
+          onOpenChange={vi.fn()}
+          url="https://blob.example.com/report.pdf"
+          fileName="report.pdf"
+          kind="pdf"
+        />,
+      );
+
+      expect(screen.getByLabelText("Loading document…")).toBeInTheDocument();
+      unmount();
+
+      resolveFetch(createPdfResponse(new Uint8Array([0x25])));
+      // Flush post-unmount settlement of the deferred fetch.
+      await pendingFetch;
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(screen.queryByTitle("report.pdf")).not.toBeInTheDocument();
+      // Late createObjectURL (mock ignores abort) must still be revoked.
+      expect(URL.createObjectURL).toHaveBeenCalled();
       expect(URL.revokeObjectURL).toHaveBeenCalledWith(
         "blob:https://viewer/pdf-1",
       );

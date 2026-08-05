@@ -168,6 +168,12 @@ describe("stripForcedDownloadParam", () => {
       "https://blob.example/report.pdf",
     );
   });
+
+  it("returns the input unchanged when the URL cannot be parsed", () => {
+    expect(stripForcedDownloadParam("/uploads/report.pdf?download=1")).toBe(
+      "/uploads/report.pdf?download=1",
+    );
+  });
 });
 
 describe("pdfEmbedUrl", () => {

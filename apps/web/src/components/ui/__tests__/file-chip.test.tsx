@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FileChip } from "../file-chip";
 
@@ -31,6 +31,11 @@ vi.mock("next-intl", () => ({
 }));
 
 describe("FileChip", () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
   it("opens an image viewer instead of navigating away for image files", () => {
     render(
       <FileChip
