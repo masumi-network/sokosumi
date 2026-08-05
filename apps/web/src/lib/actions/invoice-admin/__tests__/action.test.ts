@@ -42,7 +42,7 @@ vi.mock("@/lib/services/invoice-admin.service", () => {
 });
 
 import { CommonErrorCode } from "@/lib/actions/errors";
-import { CoreApiRequestError } from "@/lib/clients/core.shared";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 import { InvoiceValidationError } from "@/lib/services/invoice-admin.service";
 
 import {

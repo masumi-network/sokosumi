@@ -20,7 +20,7 @@ import {
   type NotificationEventData,
 } from "@/lib/ably";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
-import { coreClient } from "@/lib/clients/core.browser.client";
+import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 
@@ -278,8 +278,10 @@ export function NotificationProvider({
 
     try {
       const [listResponse, countResponse] = await Promise.all([
-        coreClient.getNotifications({ limit: NOTIFICATION_LIST_LIMIT }),
-        coreClient.getNotificationsUnreadCount(),
+        notificationsBrowserClient.getNotifications({
+          limit: NOTIFICATION_LIST_LIMIT,
+        }),
+        notificationsBrowserClient.getNotificationsUnreadCount(),
       ]);
 
       if (generation !== fetchGenerationRef.current) {
@@ -310,7 +312,7 @@ export function NotificationProvider({
     dismissAllNotificationToasts();
 
     try {
-      await coreClient.patchNotificationsReadAll();
+      await notificationsBrowserClient.patchNotificationsReadAll();
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error);
       void fetchNotifications();
@@ -326,7 +328,9 @@ export function NotificationProvider({
       dismissNotificationToast(id);
 
       try {
-        const response = await coreClient.patchNotificationRead({ id });
+        const response = await notificationsBrowserClient.patchNotificationRead(
+          { id },
+        );
 
         dispatch({
           type: "mark_read_success",
