@@ -958,7 +958,7 @@ export function OrganizationChatList({
                           <div className="truncate font-medium text-foreground">
                             {invitation.roomName}
                           </div>
-                          <div className="text-muted-foreground truncate text-[10px] leading-tight">
+                          <div className="text-muted-foreground truncate text-xs leading-tight">
                             {invitation.organizationName}
                           </div>
                           <div className="mt-1.5 flex items-center gap-1.5">
@@ -966,7 +966,7 @@ export function OrganizationChatList({
                               type="button"
                               size="sm"
                               variant="default"
-                              className="h-6 px-2 text-[11px]"
+                              className="h-6 px-2 text-xs"
                               disabled={anyBusy}
                               onClick={() => handleAcceptInvitation(invitation)}
                             >
@@ -976,7 +976,7 @@ export function OrganizationChatList({
                               type="button"
                               size="sm"
                               variant="outline"
-                              className="h-6 px-2 text-[11px]"
+                              className="h-6 px-2 text-xs"
                               disabled={anyBusy}
                               onClick={() =>
                                 handleDeclineInvitation(invitation)

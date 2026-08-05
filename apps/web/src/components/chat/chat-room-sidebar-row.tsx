@@ -171,7 +171,7 @@ export function ChatRoomSidebarRow({
           {label}
         </span>
         {subtitle ? (
-          <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-[10px] leading-tight">
+          <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-xs leading-tight">
             {subtitle}
           </span>
         ) : null}
