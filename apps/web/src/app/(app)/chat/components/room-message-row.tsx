@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   getJumboEmojiCount,
   jumboEmojiClassName,
@@ -87,6 +88,34 @@ type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
 /** Collapsed preview height for primary message bodies (taller than quotes). */
 const MESSAGE_BODY_CLAMP_CLASS = "line-clamp-[16]";
+
+/**
+ * Local wall-clock time for a message. Empty until mount so SSR (Node locale/TZ)
+ * matches hydrate; then fills with `formatMessageTime` (SOKOSUMI-A).
+ */
+function MessageWallClockTime({
+  value,
+  className,
+  title,
+}: {
+  value: Date | string;
+  className?: string;
+  title?: string;
+}) {
+  const localCalendarReady = useClientLocalCalendarReady();
+  const dateTime = new Date(value).toISOString();
+  const label = localCalendarReady ? formatMessageTime(value) : null;
+
+  return (
+    <time
+      dateTime={dateTime}
+      className={className}
+      title={title ?? label ?? undefined}
+    >
+      {label}
+    </time>
+  );
+}
 
 function isLargeSoloImageFilesSegment(
   segment: RoomMessageFilesSegment,
@@ -1286,8 +1315,6 @@ export function ChatMessageRow({
     isStreamOverlay &&
     message.sender.type === "coworker" &&
     message.content.trim().length === 0;
-  const formattedTime = formatMessageTime(message.createdAt);
-  const createdAtIso = new Date(message.createdAt).toISOString();
   const canQuote =
     showQuoteButton && Boolean(onQuote) && !isStreamOverlay && !isDeleted;
   const canEdit =
@@ -1341,14 +1368,10 @@ export function ChatMessageRow({
     >
       {isContinuation ? (
         <div className="flex w-8 shrink-0 justify-center pt-0.5">
-          <time
-            dateTime={createdAtIso}
+          <MessageWallClockTime
+            value={message.createdAt}
             className="text-muted-foreground whitespace-nowrap text-[10px] leading-4 tabular-nums opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-            title={formattedTime}
-            suppressHydrationWarning
-          >
-            {formattedTime}
-          </time>
+          />
         </div>
       ) : (
         <ChatParticipantHoverCard
@@ -1394,13 +1417,10 @@ export function ChatMessageRow({
               </span>
             </ChatParticipantHoverCard>
             {sender.kind === "coworker" ? <AiCoworkerIcon /> : null}
-            <time
-              dateTime={createdAtIso}
+            <MessageWallClockTime
+              value={message.createdAt}
               className="text-muted-foreground text-xs"
-              suppressHydrationWarning
-            >
-              {formattedTime}
-            </time>
+            />
             {showEdited ? (
               <span className="text-muted-foreground text-xs">
                 {tChannels("Edit.edited")}
