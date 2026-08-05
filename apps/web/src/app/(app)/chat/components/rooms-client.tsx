@@ -30,6 +30,11 @@ import {
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
+import {
+  isTopLevelChatRoomMessage,
+  shouldApplyRealtimeMessageToOpenThread,
+  shouldMergeRealtimeMessageIntoRoomTimeline,
+} from "@/app/chat/utils/chat-room-message-scope";
 import { composeDraftKey } from "@/app/chat/utils/compose-draft-storage";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
@@ -444,7 +449,11 @@ export function RoomsClient({
         return;
       }
 
-      setMessagesState((current) => mergeRoomMessages(current, [message]));
+      // Thread replies must not enter the main room list — otherwise a send
+      // from the thread panel shows in both the room transcript and the panel.
+      if (shouldMergeRealtimeMessageIntoRoomTimeline(message)) {
+        setMessagesState((current) => mergeRoomMessages(current, [message]));
+      }
       setThreadParentMessage((current) =>
         current?.id === message.id ? message : current,
       );
@@ -456,13 +465,7 @@ export function RoomsClient({
       }
 
       const openThreadParentId = threadParentMessageIdRef.current;
-      if (!openThreadParentId) {
-        return;
-      }
-      if (
-        message.id === openThreadParentId ||
-        message.parentMessageId === openThreadParentId
-      ) {
+      if (shouldApplyRealtimeMessageToOpenThread(message, openThreadParentId)) {
         setThreadMessages((current) => mergeRoomMessages(current, [message]));
       }
     },
@@ -470,19 +473,23 @@ export function RoomsClient({
   );
 
   const topLevelStreamOverlayMessages = useMemo(
-    () =>
-      streamOverlayMessages.filter(
-        (message) => message.parentMessageId == null,
-      ),
+    () => streamOverlayMessages.filter(isTopLevelChatRoomMessage),
     [streamOverlayMessages],
+  );
+
+  // Defense in depth: never render thread replies in the main room timeline,
+  // even if stale state still holds a leaked reply from before this fix.
+  const topLevelRoomMessages = useMemo(
+    () => messagesState.filter(isTopLevelChatRoomMessage),
+    [messagesState],
   );
 
   const displayMessages = useMemo(() => {
     return mergeMessagesWithStreamOverlay(
-      messagesState,
+      topLevelRoomMessages,
       topLevelStreamOverlayMessages,
     );
-  }, [messagesState, topLevelStreamOverlayMessages]);
+  }, [topLevelRoomMessages, topLevelStreamOverlayMessages]);
 
   const threadStreamOverlayMessages = useMemo(() => {
     if (!threadParentMessage) {

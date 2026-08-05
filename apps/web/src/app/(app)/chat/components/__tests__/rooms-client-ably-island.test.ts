@@ -15,4 +15,19 @@ describe("RoomsClient Ably island", () => {
     );
     expect(source).toContain('<main className="relative flex min-h-0 flex-1">');
   });
+
+  it("keeps thread replies out of the main room timeline on realtime + display", () => {
+    const source = readFileSync(
+      join(import.meta.dirname, "../rooms-client.tsx"),
+      "utf8",
+    );
+
+    // Regression: thread panel send must not also paint in the room list.
+    expect(source).toContain("shouldMergeRealtimeMessageIntoRoomTimeline");
+    expect(source).toContain("shouldApplyRealtimeMessageToOpenThread");
+    expect(source).toContain("isTopLevelChatRoomMessage");
+    expect(source).toMatch(
+      /messagesState\.filter\(\s*isTopLevelChatRoomMessage\s*\)/,
+    );
+  });
 });
