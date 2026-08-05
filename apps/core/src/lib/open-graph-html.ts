@@ -111,6 +111,10 @@ export function parseOpenGraphFields(html: string): OpenGraphFields {
   if (titleMatch?.[1] !== undefined) {
     documentTitle = decodeEntities(titleMatch[1]).trim() || null;
   }
+  // YouTube bot interstitial: `<title> - YouTube</title>` with no OG tags.
+  if (documentTitle !== null && /^-\s*YouTube$/i.test(documentTitle)) {
+    documentTitle = null;
+  }
 
   return {
     title: firstNonEmpty(ogTitle, twitterTitle, documentTitle),

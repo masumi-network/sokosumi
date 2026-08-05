@@ -42,6 +42,14 @@ describe("parseOpenGraphFields", () => {
       "Only Title",
     );
   });
+
+  it("ignores YouTube bot-interstitial placeholder title", () => {
+    expect(
+      parseOpenGraphFields(
+        `<html><head><title> - YouTube</title></head></html>`,
+      ).title,
+    ).toBeNull();
+  });
 });
 
 describe("toUnfurlCard", () => {

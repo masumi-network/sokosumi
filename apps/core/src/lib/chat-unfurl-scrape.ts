@@ -13,9 +13,16 @@ const PAGE_TIMEOUT_MS = 8_000;
 /** Parallel scrapes within one message (max 3 candidates). */
 const SCRAPE_CONCURRENCY = 2;
 
+/**
+ * Link-preview UA that major sites (YouTube, etc.) whitelist for OG tags.
+ * Plain SokosumiBot alone gets bot interstitials without og:title.
+ * Keep SokosumiBot in the string so operators can still identify us.
+ */
 const REQUEST_HEADERS = {
-  "User-Agent": "SokosumiBot/1.0 (+https://sokosumi.com)",
+  "User-Agent":
+    "facebookexternalhit/1.1; SokosumiBot/1.0 (+https://sokosumi.com)",
   Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
+  "Accept-Language": "en",
 } as const;
 
 function isHtmlContentType(contentType: string | null): boolean {
