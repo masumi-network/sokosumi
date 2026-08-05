@@ -87,6 +87,11 @@ interface OrganizationChatListProps {
   currentUserId: string;
   organizationId: string | null;
   canDeleteArchivedRooms?: boolean;
+  /**
+   * Wrap room/section links in Radix `SheetClose` (sidebar Sheet).
+   * Set false when the list is page-mounted outside a Sheet.
+   */
+  dismissSheetOnNavigate?: boolean;
 }
 
 function presenceLabel(
@@ -159,21 +164,34 @@ function SectionHeader({
   isOpen,
   label,
   secondaryAction,
+  dismissSheetOnNavigate = true,
 }: {
   children: ReactNode;
   href?: string;
   isOpen: boolean;
   label?: string;
   secondaryAction?: ReactNode;
+  dismissSheetOnNavigate?: boolean;
 }) {
   const hasTrailing = Boolean(secondaryAction) || Boolean(href && label);
   const trailingCount = (secondaryAction ? 1 : 0) + (href && label ? 1 : 0);
 
+  const createLink =
+    href && label ? (
+      <Link
+        aria-label={label}
+        className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
+        href={href}
+      >
+        <Plus className="size-4 md:size-3.5" aria-hidden />
+      </Link>
+    ) : null;
+
   return (
-    <div className="group-data-[collapsible=icon]:hidden relative flex h-8 items-center gap-1 px-3">
+    <div className="group-data-[collapsible=icon]:hidden relative flex h-10 items-center gap-1 px-3 md:h-8">
       <CollapsibleTrigger
         className={cn(
-          "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-xs font-medium transition-colors",
+          "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium transition-colors md:text-xs",
           trailingCount === 1 && "pr-8",
           trailingCount >= 2 && "pr-14",
         )}
@@ -181,7 +199,7 @@ function SectionHeader({
         <ChevronDown
           aria-hidden
           className={cn(
-            "size-3 shrink-0 transition-transform",
+            "size-4 shrink-0 transition-transform md:size-3",
             !isOpen && "-rotate-90",
           )}
         />
@@ -190,16 +208,12 @@ function SectionHeader({
       {hasTrailing ? (
         <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
           {secondaryAction}
-          {href && label ? (
-            <SheetClose asChild>
-              <Link
-                aria-label={label}
-                className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
-                href={href}
-              >
-                <Plus className="size-3.5" aria-hidden />
-              </Link>
-            </SheetClose>
+          {createLink ? (
+            dismissSheetOnNavigate ? (
+              <SheetClose asChild>{createLink}</SheetClose>
+            ) : (
+              createLink
+            )
           ) : null}
         </div>
       ) : null}
@@ -222,6 +236,7 @@ export function OrganizationChatList({
   currentUserId,
   organizationId,
   canDeleteArchivedRooms = false,
+  dismissSheetOnNavigate = true,
 }: OrganizationChatListProps) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
@@ -473,6 +488,7 @@ export function OrganizationChatList({
             secondaryAction={
               hasOrganization ? <BrowseChannelsDialog /> : undefined
             }
+            dismissSheetOnNavigate={dismissSheetOnNavigate}
           >
             {t("title")}
           </SectionHeader>
@@ -491,6 +507,7 @@ export function OrganizationChatList({
                     />
                   }
                   onRoomUpdated={handleRoomUpdated}
+                  dismissSheetOnNavigate={dismissSheetOnNavigate}
                 />
               ))}
               {namedChannels.length === 0 ? (
@@ -670,6 +687,7 @@ export function OrganizationChatList({
             href="/chat?dm=new"
             isOpen={directOpen}
             label={t("Draft.title")}
+            dismissSheetOnNavigate={dismissSheetOnNavigate}
           >
             {t("directMessages")}
           </SectionHeader>
@@ -689,6 +707,7 @@ export function OrganizationChatList({
                     />
                   }
                   onRoomUpdated={handleRoomUpdated}
+                  dismissSheetOnNavigate={dismissSheetOnNavigate}
                 />
               ))}
               {directMessages.length === 0 ? (

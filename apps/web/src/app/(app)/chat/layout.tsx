@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import DefaultErrorBoundary from "@/components/default-error-boundary";
 
-import { ChatErrorFallback } from "./components/chat-error-fallback";
-import { ChatMobileShell } from "./components/chat-mobile-shell";
+import { ChatRouteErrorBoundary } from "./components/chat-route-error-boundary.client";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Channels.Metadata");
@@ -27,9 +25,7 @@ export default function ChatLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <DefaultErrorBoundary fallback={<ChatErrorFallback />}>
-      <ChatMobileShell>{children}</ChatMobileShell>
-    </DefaultErrorBoundary>
-  );
+  // Bottom nav lives in AppMobileChrome (app frame). Page boundary only here
+  // so Instant Navigations can still validate if page chrome throws.
+  return <ChatRouteErrorBoundary>{children}</ChatRouteErrorBoundary>;
 }

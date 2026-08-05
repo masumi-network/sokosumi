@@ -27,6 +27,11 @@ interface HistoryPageProps {
   }>;
 }
 
+/**
+ * Soft-nav: keep previous screen (no Instant shell / route spinner).
+ */
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.History.Metadata");
 
