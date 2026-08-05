@@ -71,7 +71,7 @@ export default function Markdown({
             controls
             playsInline
             preload="metadata"
-            className="w-full max-w-3xl rounded-lg"
+            className="h-auto w-full max-w-sm rounded-lg"
             aria-label={alt || undefined}
           >
             <a href={srcString}>{"Download video"}</a>
@@ -85,7 +85,7 @@ export default function Markdown({
             src={mediaSrc}
             controls
             preload="metadata"
-            className="w-full max-w-3xl"
+            className="w-full max-w-sm"
             aria-label={alt || undefined}
           >
             <a href={srcString}>{"Download audio"}</a>
@@ -104,7 +104,7 @@ export default function Markdown({
         <video
           {...props}
           src={srcString}
-          className="w-full max-w-3xl rounded-lg"
+          className="h-auto w-full max-w-sm rounded-lg"
           controls
           playsInline
           preload="metadata"
@@ -120,7 +120,7 @@ export default function Markdown({
         <audio
           {...props}
           src={srcString}
-          className="w-full max-w-3xl"
+          className="w-full max-w-sm"
           controls
           preload="metadata"
         >

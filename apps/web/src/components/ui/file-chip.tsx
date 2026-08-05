@@ -170,7 +170,8 @@ export function FileChip(props: FileChipProps) {
     return (
       <div
         className={cn(
-          "flex w-full max-w-full flex-col gap-2 rounded-md border p-2",
+          // Cap like large solo image thumbs (`max-w-sm`) — not full message width.
+          "flex w-full max-w-sm flex-col gap-2 rounded-md border p-2",
           className,
         )}
         title={title}
@@ -211,7 +212,7 @@ export function FileChip(props: FileChipProps) {
             controls
             playsInline
             preload="metadata"
-            className="w-full max-w-3xl rounded-lg"
+            className="h-auto w-full rounded-lg"
             aria-label={fileName}
           >
             <a href={url}>Download video</a>
