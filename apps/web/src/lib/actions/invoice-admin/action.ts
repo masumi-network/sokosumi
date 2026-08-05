@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
-import { CoreApiRequestError } from "@/lib/clients/core.shared";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 import {
   type InvoiceListItem,

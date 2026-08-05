@@ -5,6 +5,7 @@ const headersMock = vi.fn();
 const captureMessageMock = vi.fn();
 const setTagMock = vi.fn();
 const setContextMock = vi.fn();
+const callOrder: string[] = [];
 
 const SESSION_COOKIE =
   "sokosumi-localhost-preprod.session_token=session-token-value";
@@ -47,8 +48,66 @@ describe("auth.server", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    headersMock.mockResolvedValue(new Headers({ cookie: SESSION_COOKIE }));
+    callOrder.length = 0;
+    headersMock.mockImplementation(async () => {
+      callOrder.push("headers");
+      return new Headers({ cookie: SESSION_COOKIE });
+    });
+    fetchMock.mockImplementation(async () => {
+      callOrder.push("fetch");
+      return {
+        ok: true,
+        json: async () => ({
+          session: { activeOrganizationId: null },
+          user: { id: "user_123" },
+        }),
+      };
+    });
     vi.stubGlobal("fetch", fetchMock);
+  });
+
+  it("uses headers then fetch for getSession", async () => {
+    const { getSession } = await import("../auth.server");
+
+    await getSession();
+
+    expect(callOrder.slice(0, 2)).toEqual(["headers", "fetch"]);
+  });
+
+  it("uses headers then fetch for refreshed getSession", async () => {
+    const { getSession } = await import("../auth.server");
+
+    await getSession({ refresh: true });
+
+    expect(callOrder.slice(0, 2)).toEqual(["headers", "fetch"]);
+  });
+
+  it("rethrows hanging-promise aborts from headers for refreshed getSession", async () => {
+    const hanging = Object.assign(new Error("Hanging promise rejection"), {
+      digest: "HANGING_PROMISE_REJECTION",
+    });
+    headersMock.mockRejectedValue(hanging);
+
+    const { getSession } = await import("../auth.server");
+
+    await expect(getSession({ refresh: true })).rejects.toBe(hanging);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses headers for listUserAccounts", async () => {
+    fetchMock.mockImplementation(async () => {
+      callOrder.push("fetch");
+      return {
+        ok: true,
+        json: async () => [],
+      };
+    });
+
+    const { listUserAccounts } = await import("../auth.server");
+
+    await listUserAccounts();
+
+    expect(callOrder.slice(0, 2)).toEqual(["headers", "fetch"]);
   });
 
   it("skips Core when no session cookie is present", async () => {

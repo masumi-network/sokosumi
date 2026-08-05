@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-02-03
 
-This profile applies the **performance-focused** rules from the [Vercel React Best Practices](.cursor/skills/vercel-react-best-practices/AGENTS.md) skill only: §1 Eliminating Waterfalls, §2 Bundle Size Optimization, §3 Server-Side Performance, §4 Client-Side Data Fetching, §5 Re-render Optimization, §6 Rendering Performance, and §7 JavaScript Performance. Non-performance rules (e.g. auth or API design) are out of scope for now.
+This profile applies the **performance-focused** rules from the [Vercel React Best Practices](../.agents/skills/vercel-react-best-practices/REFERENCE.md) skill only: §1 Eliminating Waterfalls, §2 Bundle Size Optimization, §3 Server-Side Performance, §4 Client-Side Data Fetching, §5 Re-render Optimization, §6 Rendering Performance, and §7 JavaScript Performance. Non-performance rules (e.g. auth or API design) are out of scope for now.
 
 ---
 
@@ -130,7 +130,7 @@ Ensure `getSessionOrRedirect` and any flag that calls `getSession()` use this ca
 
 ### 3.2 Heavy / third-party components
 
-**Observation:** Ably loads via mount-gated `import()` in `contexts/lazy-ably-provider.tsx` (Instant-safe; no `next/dynamic` + `ssr: false`). Root `ClientAnalytics` uses the same pattern for Vercel Analytics / SpeedInsights.
+**Observation:** Ably loads via mount-gated `import()` in `contexts/lazy-ably-provider.tsx` as **local islands** (notifications sibling under `NotificationProvider`, chat rooms bridge, jobs/tasks listeners) — not on `(app)/layout` / app shell. Instant-safe; no `next/dynamic` + `ssr: false`. Root `ClientAnalytics` uses the same pattern for Vercel Analytics / SpeedInsights.
 
 **Skill ref:** §2.3 Defer Non-Critical Third-Party Libraries, §2.4 Dynamic Imports for Heavy Components.
 

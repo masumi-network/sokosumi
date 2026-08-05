@@ -1,3 +1,4 @@
+import type { SessionUser } from "@sokosumi/utils";
 import { cacheLife, cacheTag } from "next/cache";
 import { getTranslations } from "next-intl/server";
 import {
@@ -6,10 +7,13 @@ import {
 } from "@/app/components/account-notice-state";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-import { chatRoomService, userService } from "@/lib/services";
+import {
+  type ChatRoomsPage,
+  chatRoomService,
+  userService,
+} from "@/lib/services";
 import {
   resolvePlanName,
   resolvePlanSecondaryLabel,
@@ -24,10 +28,15 @@ import { AccountNoticeHydrator } from "./shell-hydrators.client";
 import Sidebar, { resolveCreditUsage } from "./sidebar";
 
 interface PrivateCachedAppSidebarProps {
-  userId: string;
+  sessionUser: SessionUser;
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
 }
+
+const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
+  rooms: [],
+  nextCursor: null,
+};
 
 /**
  * Session-aware sidebar chrome for Instant Navigations.
@@ -36,25 +45,20 @@ interface PrivateCachedAppSidebarProps {
  * async SC children under the cached tree.
  */
 export default async function PrivateCachedAppSidebar({
-  userId,
+  sessionUser,
   activeOrganizationId,
   adminMenuEnabled,
 }: PrivateCachedAppSidebarProps) {
   "use cache: private";
   cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
-  cacheTag(privateSidebarUserTag(userId));
+  cacheTag(privateSidebarUserTag(sessionUser.id));
   if (activeOrganizationId) {
     cacheTag(privateSidebarOrgTag(activeOrganizationId));
   }
 
-  const session = await getSession();
-  if (!session || session.user.id !== userId) {
-    return null;
-  }
-
   const tCreditPromise = getTranslations("App.Header.Credit");
   const tPlanPromise = getTranslations("App.Header.Plan");
-  const hermesMenuEnabled = isHermesBetaAccessEmail(session.user.email);
+  const hermesMenuEnabled = isHermesBetaAccessEmail(sessionUser.email);
   const lowCreditsThreshold =
     getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
 
@@ -63,12 +67,12 @@ export default async function PrivateCachedAppSidebar({
     .catch(() => []);
   // Personal coworker directs exist with no active org; Core returns those when
   // organization context is null. Named channels still need an org (empty list then).
-  const chatRoomsPromise = chatRoomService.listRooms().catch(() => []);
+  const chatRoomsPromise = chatRoomService
+    .listRooms()
+    .catch(() => EMPTY_ROOMS_PAGE);
   const archivedChatRoomsPromise = activeOrganizationId
-    ? chatRoomService.listArchivedRooms().catch(() => [])
-    : Promise.resolve(
-        [] as Awaited<ReturnType<typeof chatRoomService.listArchivedRooms>>,
-      );
+    ? chatRoomService.listArchivedRooms().catch(() => EMPTY_ROOMS_PAGE)
+    : Promise.resolve(EMPTY_ROOMS_PAGE);
   const activeOrganizationPromise = userService.getActiveOrganization();
   const creditsPromise = getCachedMyCredits();
 
@@ -76,8 +80,8 @@ export default async function PrivateCachedAppSidebar({
     tCredit,
     tPlan,
     members,
-    chatRooms,
-    archivedChatRooms,
+    chatRoomsPage,
+    archivedChatRoomsPage,
     { showVendors: showDeveloperVendors },
     activeOrganization,
     creditsResult,
@@ -91,6 +95,11 @@ export default async function PrivateCachedAppSidebar({
     activeOrganizationPromise,
     creditsPromise,
   ]);
+
+  const chatRooms = chatRoomsPage.rooms;
+  const chatRoomsNextCursor = chatRoomsPage.nextCursor;
+  const archivedChatRooms = archivedChatRoomsPage.rooms;
+  const archivedChatRoomsNextCursor = archivedChatRoomsPage.nextCursor;
 
   const creditsData = creditsResult?.data.credits ?? null;
   const currentPlan = creditsData?.subscription?.plan ?? "free";
@@ -127,8 +136,8 @@ export default async function PrivateCachedAppSidebar({
   const accountNotice = resolveAccountNotice({
     credits: creditsData?.total ?? null,
     currentPlan: creditsData === null ? null : currentPlan,
-    email: session.user.email,
-    emailVerified: session.user.emailVerified,
+    email: sessionUser.email,
+    emailVerified: sessionUser.emailVerified,
     threshold: lowCreditsThreshold,
   });
 
@@ -139,20 +148,22 @@ export default async function PrivateCachedAppSidebar({
         activeOrganizationId={activeOrganizationId}
         adminMenuEnabled={adminMenuEnabled}
         archivedChatRooms={archivedChatRooms}
+        archivedChatRoomsNextCursor={archivedChatRoomsNextCursor}
         buyCreditsLabel={tPlan("getMoreCredits")}
         buyCreditsPath={buyCreditsPath}
         canDeleteArchivedRooms={canDeleteArchivedRooms}
         chatRooms={chatRooms}
+        chatRoomsNextCursor={chatRoomsNextCursor}
         creditsData={creditsData}
         creditUsage={resolveCreditUsage(creditsData)}
         currentTimestampMs={currentTimestampMs}
-        currentUserId={session.user.id}
+        currentUserId={sessionUser.id}
         hermesMenuEnabled={hermesMenuEnabled}
         lowCreditsThreshold={lowCreditsThreshold}
         members={members}
         planLabel={planLabel}
         planName={planName}
-        sessionUser={session.user}
+        sessionUser={sessionUser}
         showDeveloperVendors={showDeveloperVendors}
         subscriptionPeriodEndMs={subscriptionPeriodEndMs}
       />

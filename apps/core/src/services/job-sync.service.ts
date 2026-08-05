@@ -38,7 +38,7 @@ import {
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 import pLimit from "p-limit";
-import { sendEmail } from "@/clients/email.client";
+import { type SendEmailInput, sendEmails } from "@/clients/email.client";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
@@ -82,6 +82,10 @@ export interface JobSyncExecutionOptions {
   abortSignal: AbortSignal;
   deadlineMs: number;
   shouldContinue: () => boolean;
+}
+
+interface JobSyncRunOptions extends JobSyncExecutionOptions {
+  enqueueEmail: (input: SendEmailInput) => void;
 }
 
 export interface JobSyncResult {
@@ -232,6 +236,7 @@ function dispatchJobInAppNotification(
 async function dispatchFinalStatusNotification(
   job: JobWithSokosumiStatus,
   jobStatus: SokosumiJobStatus,
+  enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
   if (!job.owner.notificationsOptIn) {
     return;
@@ -250,20 +255,11 @@ async function dispatchFinalStatusNotification(
       locale: "en",
     });
 
-    await sendEmail({
+    enqueueEmail({
       to: job.owner.email,
       tag: "job-final-status",
       subject: email.subject,
       html: email.html,
-    }).catch((error) => {
-      captureExternalServiceError(error, {
-        label: "job-final-status",
-        extra: {
-          jobId: job.id,
-          userId: job.ownerId,
-          notificationType: "job-final-status",
-        },
-      });
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -278,6 +274,7 @@ async function dispatchFinalStatusNotification(
 
 async function dispatchInputRequiredNotification(
   job: JobWithSokosumiStatus,
+  enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
   if (!job.owner.notificationsOptIn) {
     return;
@@ -295,20 +292,11 @@ async function dispatchInputRequiredNotification(
       locale: "en",
     });
 
-    await sendEmail({
+    enqueueEmail({
       to: job.owner.email,
       tag: "job-input-required",
       subject: email.subject,
       html: email.html,
-    }).catch((error) => {
-      captureExternalServiceError(error, {
-        label: "job-input-required",
-        extra: {
-          jobId: job.id,
-          userId: job.ownerId,
-          notificationType: "job-input-required",
-        },
-      });
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -323,6 +311,7 @@ async function dispatchInputRequiredNotification(
 
 async function dispatchJobFailureNotification(
   job: JobWithSokosumiStatus,
+  enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
   dispatchJobInAppNotification(job, job.status);
 
@@ -380,7 +369,7 @@ async function dispatchJobFailureNotification(
       locale: "en",
     });
 
-    await sendEmail({
+    enqueueEmail({
       to: toRecipients,
       ...(bccRecipients && bccRecipients.length > 0
         ? { bcc: bccRecipients }
@@ -388,15 +377,6 @@ async function dispatchJobFailureNotification(
       tag: "job-failure-notification",
       subject: email.subject,
       html: email.html,
-    }).catch((error) => {
-      captureExternalServiceError(error, {
-        label: "job-failure-email",
-        extra: {
-          jobId: job.id,
-          userId: job.ownerId,
-          notificationType: "job-failure-email",
-        },
-      });
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -475,6 +455,7 @@ async function dispatchJobNotification(
 async function finalizeJobSyncResult(
   oldJobStatus: SokosumiJobStatus,
   transactionResult: JobSyncTransactionResult,
+  enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
   const updatedJob = transactionResult.job;
 
@@ -496,18 +477,23 @@ async function finalizeJobSyncResult(
     return;
   }
 
+  // Await render+enqueue; Resend batch flush runs at end of syncUnfinishedJobs.
   switch (newJobStatus) {
     case SokosumiJobStatus.COMPLETED:
     case SokosumiJobStatus.REFUND_RESOLVED:
     case SokosumiJobStatus.DISPUTE_RESOLVED:
-      void dispatchFinalStatusNotification(updatedJob, newJobStatus);
+      await dispatchFinalStatusNotification(
+        updatedJob,
+        newJobStatus,
+        enqueueEmail,
+      );
       break;
     case SokosumiJobStatus.INPUT_REQUIRED:
-      void dispatchInputRequiredNotification(updatedJob);
+      await dispatchInputRequiredNotification(updatedJob, enqueueEmail);
       break;
     case SokosumiJobStatus.FAILED:
     case SokosumiJobStatus.PAYMENT_FAILED:
-      void dispatchJobFailureNotification(updatedJob);
+      await dispatchJobFailureNotification(updatedJob, enqueueEmail);
       break;
     default:
       break;
@@ -561,7 +547,7 @@ function getExpectedPurchaseMetadata(job: {
 
 async function syncPurchaseState(
   initialJob: JobWithSokosumiStatus,
-  options: JobSyncExecutionOptions,
+  options: JobSyncRunOptions,
 ): Promise<boolean> {
   const oldJobStatus = initialJob.status;
   let job = initialJob;
@@ -707,12 +693,19 @@ async function syncPurchaseState(
   }
 
   const purchaseExternalIdToSync = job.purchase?.externalId ?? null;
+  // Both guards are required: main batches the completion email through
+  // `enqueueEmail`, and the V2 poll below looks the purchase up by blockchain
+  // identifier, so a job without one can never be polled.
   const jobBlockchainIdentifier = job.blockchainIdentifier;
   if (!purchaseExternalIdToSync || !jobBlockchainIdentifier) {
-    await finalizeJobSyncResult(oldJobStatus, {
-      job,
-      jobStatus: job.status,
-    });
+    await finalizeJobSyncResult(
+      oldJobStatus,
+      {
+        job,
+        jobStatus: job.status,
+      },
+      options.enqueueEmail,
+    );
     return true;
   }
 
@@ -777,13 +770,17 @@ async function syncPurchaseState(
     );
   }
 
-  await finalizeJobSyncResult(oldJobStatus, transactionResult);
+  await finalizeJobSyncResult(
+    oldJobStatus,
+    transactionResult,
+    options.enqueueEmail,
+  );
   return true;
 }
 
 async function syncAgentStatus(
   initialJob: JobWithSokosumiStatus,
-  options: JobSyncExecutionOptions,
+  options: JobSyncRunOptions,
 ): Promise<boolean> {
   const oldJobStatus = initialJob.status;
   const agentJobIdToSync = initialJob.agentJobId;
@@ -893,13 +890,17 @@ async function syncAgentStatus(
     JOB_SYNC_TRANSACTION_OPTIONS,
   );
 
-  await finalizeJobSyncResult(oldJobStatus, transactionResult);
+  await finalizeJobSyncResult(
+    oldJobStatus,
+    transactionResult,
+    options.enqueueEmail,
+  );
   return true;
 }
 
 async function syncRefundReconciliationJob(
   job: JobWithSokosumiStatus,
-  options: JobSyncExecutionOptions,
+  options: JobSyncRunOptions,
 ): Promise<boolean> {
   if (
     shouldStopSync(
@@ -921,11 +922,11 @@ async function syncRefundReconciliationJob(
 async function runSyncPhase(
   kind: JobSyncKind,
   where: Prisma.JobWhereInput,
-  options: JobSyncExecutionOptions,
+  options: JobSyncRunOptions,
   seenJobIds: Set<string>,
   processor: (
     job: JobWithSokosumiStatus,
-    options: JobSyncExecutionOptions,
+    options: JobSyncRunOptions,
   ) => Promise<boolean>,
 ): Promise<JobSyncPhaseResult> {
   // Deliberately unbounded and unordered. A cap combined with a stable order
@@ -998,27 +999,53 @@ export const jobSyncService = {
   ): Promise<JobSyncResult> {
     const startedAt = Date.now();
     const seenJobIds = new Set<string>();
-    const purchasePhase = await runSyncPhase(
-      "purchase",
-      buildJobsNeedingPurchaseSyncWhere(),
-      options,
-      seenJobIds,
-      syncPurchaseState,
-    );
-    const agentPhase = await runSyncPhase(
-      "agent",
-      buildJobsNeedingAgentStatusSyncWhere(),
-      options,
-      seenJobIds,
-      syncAgentStatus,
-    );
-    const refundPhase = await runSyncPhase(
-      "refund",
-      buildJobsPendingLocalRefundWhere(),
-      options,
-      seenJobIds,
-      syncRefundReconciliationJob,
-    );
+    const pendingEmails: SendEmailInput[] = [];
+    const runOptions: JobSyncRunOptions = {
+      ...options,
+      enqueueEmail: (input) => {
+        pendingEmails.push(input);
+      },
+    };
+
+    let purchasePhase: JobSyncPhaseResult = { found: 0, processed: 0 };
+    let agentPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
+    let refundPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
+
+    try {
+      purchasePhase = await runSyncPhase(
+        "purchase",
+        buildJobsNeedingPurchaseSyncWhere(),
+        runOptions,
+        seenJobIds,
+        syncPurchaseState,
+      );
+      agentPhase = await runSyncPhase(
+        "agent",
+        buildJobsNeedingAgentStatusSyncWhere(),
+        runOptions,
+        seenJobIds,
+        syncAgentStatus,
+      );
+      refundPhase = await runSyncPhase(
+        "refund",
+        buildJobsPendingLocalRefundWhere(),
+        runOptions,
+        seenJobIds,
+        syncRefundReconciliationJob,
+      );
+    } finally {
+      // Flush even if a later phase throws so already-queued emails are not dropped.
+      if (pendingEmails.length > 0) {
+        await sendEmails(pendingEmails).catch((error) => {
+          captureExternalServiceError(error, {
+            label: "job-sync-email-batch",
+            extra: {
+              emailCount: pendingEmails.length,
+            },
+          });
+        });
+      }
+    }
 
     return {
       durationMs: Date.now() - startedAt,

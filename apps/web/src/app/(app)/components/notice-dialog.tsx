@@ -1,10 +1,10 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,17 +17,20 @@ import {
 import { acknowledgeNoticeAction } from "@/lib/actions/notice";
 import type { Notice } from "@/lib/clients/generated/core";
 import { NoticeKind } from "@/lib/clients/generated/core";
+import { isVideoUrl } from "@/lib/utils/notice-media";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
+
+const Markdown = dynamic(() => import("@/components/markdown"), {
+  loading: () => (
+    <div className="bg-muted h-24 w-full animate-pulse rounded" aria-hidden />
+  ),
+});
 
 interface NoticeDialogProps {
   pendingNotices: Notice[];
   noticeToShow?: Notice | null;
   onNoticeClose?: () => void;
   onNoticeAcknowledged?: () => Promise<void>;
-}
-
-export function isVideoUrl(url: string): boolean {
-  return /\.(mp4|webm|ogg)(\?|#|$)/i.test(url);
 }
 
 export function NoticeDialog({

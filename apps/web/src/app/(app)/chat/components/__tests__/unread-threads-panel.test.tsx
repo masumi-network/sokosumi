@@ -90,6 +90,7 @@ function unreadThreadItem(
 interface RenderPanelOptions {
   attentionRefreshToken?: number;
   onOpenThread?: (parent: ChatRoomMessage) => boolean | Promise<boolean>;
+  onAllThreadsLooked?: () => void;
 }
 
 function renderPanel(options: RenderPanelOptions = {}) {
@@ -99,6 +100,7 @@ function renderPanel(options: RenderPanelOptions = {}) {
       labels={labels}
       attentionRefreshToken={options.attentionRefreshToken ?? 0}
       onOpenThread={options.onOpenThread ?? vi.fn().mockResolvedValue(true)}
+      onAllThreadsLooked={options.onAllThreadsLooked}
     />,
   );
 }
@@ -126,9 +128,9 @@ describe("UnreadThreadsPanel", () => {
     expect(
       screen.queryByTestId("unread-threads-panel"),
     ).not.toBeInTheDocument();
-    expect(await screen.findByTestId("unread-threads-badge")).toHaveTextContent(
-      "1",
-    );
+    expect(
+      await screen.findByTestId("unread-threads-badge"),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("unread-threads-trigger"));
     expect(screen.getByTestId("unread-threads-panel")).toBeInTheDocument();
     expect(screen.getByText(labels.title)).toBeInTheDocument();
@@ -198,7 +200,8 @@ describe("UnreadThreadsPanel", () => {
   });
 
   it("marks all unread threads as read and clears badge", async () => {
-    renderPanel();
+    const onAllThreadsLooked = vi.fn();
+    renderPanel({ onAllThreadsLooked });
 
     expect(
       await screen.findByTestId("unread-threads-badge"),
@@ -218,6 +221,7 @@ describe("UnreadThreadsPanel", () => {
     expect(
       screen.queryByTestId("unread-threads-mark-all-read"),
     ).not.toBeInTheDocument();
+    expect(onAllThreadsLooked).toHaveBeenCalledTimes(1);
   });
 
   it("ignores mark-all result after the panel is closed", async () => {
@@ -298,9 +302,9 @@ describe("UnreadThreadsPanel", () => {
     await waitFor(() => {
       expect(onOpenThread).toHaveBeenCalled();
     });
-    expect(await screen.findByTestId("unread-threads-badge")).toHaveTextContent(
-      "1",
-    );
+    expect(
+      await screen.findByTestId("unread-threads-badge"),
+    ).toBeInTheDocument();
   });
 
   it("coalesces rapid attentionRefreshToken bumps into one fetch after 300ms", async () => {
@@ -403,8 +407,12 @@ describe("UnreadThreadsPanel", () => {
     vi.useRealTimers();
 
     await waitFor(() => {
-      expect(screen.getByTestId("unread-threads-badge")).toHaveTextContent("2");
+      expect(screen.getByTestId("unread-threads-badge")).toBeInTheDocument();
     });
+    // Count stays available to AT via the trigger label, not the visual badge.
+    expect(
+      screen.getByRole("button", { name: `${labels.open} (2)` }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByTestId("unread-threads-panel"),
     ).not.toBeInTheDocument();

@@ -1,15 +1,21 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
-import { isVideoUrl } from "@/app/components/notice-dialog";
 import { useNoticeDialog } from "@/app/components/notice-dialog-context";
-import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import type { Notice } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { isVideoUrl } from "@/lib/utils/notice-media";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
+
+const Markdown = dynamic(() => import("@/components/markdown"), {
+  loading: () => (
+    <div className="bg-muted h-3 w-full animate-pulse rounded" aria-hidden />
+  ),
+});
 
 const MAX_VISIBLE_ANNOUNCEMENTS = 3;
 

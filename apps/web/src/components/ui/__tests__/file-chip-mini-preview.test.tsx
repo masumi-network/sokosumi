@@ -27,7 +27,7 @@ vi.mock("next-intl", () => ({
         const documentLabels: Record<string, string> = {
           title: "Document",
           viewDocument: `View document ${values?.fileName ?? ""}`,
-          download: "Download document",
+          download: "Download",
           openInNewTab: "Open in new tab",
           loading: "Loading document…",
           fetchError: "This document couldn't be loaded.",
@@ -99,6 +99,51 @@ describe("FileChipMiniPreviewFrame", () => {
     ).toHaveAttribute("href", "https://blob.example.com/uploads/photo.png");
   });
 
+  it("renders large image variant with object-contain and still opens viewer", () => {
+    render(
+      <FileChipMiniPreviewFrame
+        url="https://blob.example.com/uploads/photo.png"
+        fileName="photo.png"
+        mediaType="image/png"
+        variant="large"
+      />,
+    );
+
+    const imageButton = screen.getByRole("button", {
+      name: "View image photo.png",
+    });
+    expect(imageButton).toHaveClass("max-w-sm");
+    expect(imageButton).toHaveClass("max-h-80");
+    expect(imageButton).not.toHaveClass("size-20");
+    expect(imageButton).not.toHaveClass("size-16");
+
+    const previewImage = screen.getByRole("img", { name: "photo.png" });
+    expect(previewImage).toHaveClass("object-contain");
+    expect(previewImage).toHaveClass("max-w-sm");
+    expect(previewImage).toHaveClass("max-h-80");
+
+    fireEvent.click(imageButton);
+    expect(screen.getByTestId("image-viewer")).toBeInTheDocument();
+  });
+
+  it("falls back to thumb layout when large variant is used for non-images", () => {
+    render(
+      <FileChipMiniPreviewFrame
+        url="https://blob.example.com/uploads/notes.pdf"
+        fileName="notes.pdf"
+        mediaType="application/pdf"
+        variant="large"
+        sizeClass="size-16"
+      />,
+    );
+
+    const documentButton = screen.getByRole("button", {
+      name: "View document notes.pdf",
+    });
+    expect(documentButton).toHaveClass("size-16");
+    expect(documentButton).not.toHaveClass("max-w-sm");
+  });
+
   it("opens a document viewer instead of navigating away for previewable documents", () => {
     render(
       <FileChipMiniPreviewFrame
@@ -120,7 +165,7 @@ describe("FileChipMiniPreviewFrame", () => {
 
     expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Download document" }),
+      screen.getByRole("link", { name: "Download" }),
     ).toHaveAttribute("href", "https://blob.example.com/uploads/notes.pdf");
   });
 
@@ -143,9 +188,62 @@ describe("FileChipMiniPreviewFrame", () => {
     expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
     expect(screen.queryByTestId("document-viewer")).not.toBeInTheDocument();
   });
+
+  it("renders an inline video player for video attachments on the sent-message frame", () => {
+    const { container } = render(
+      <FileChipMiniPreviewFrame
+        url="https://blob.example.com/uploads/clip.mp4?download=1"
+        fileName="clip.mp4"
+      />,
+    );
+
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+    expect(video).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/clip.mp4",
+    );
+    expect(video).toHaveAttribute("controls");
+    expect(video).not.toHaveAttribute("autoplay");
+    expect(screen.getByTestId("file-chip-video")).toBeInTheDocument();
+  });
+
+  it("renders an inline audio player for audio attachments on the sent-message frame", () => {
+    const { container } = render(
+      <FileChipMiniPreviewFrame
+        url="https://blob.example.com/uploads/track.mp3"
+        fileName="track.mp3"
+        mediaType="audio/mpeg"
+      />,
+    );
+
+    const audio = container.querySelector("audio");
+    expect(audio).not.toBeNull();
+    expect(audio).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/track.mp3",
+    );
+    expect(screen.getByTestId("file-chip-audio")).toBeInTheDocument();
+  });
 });
 
 describe("FileChipMiniPreview", () => {
+  it("keeps composer video drafts compact without an inline player", () => {
+    const { container } = render(
+      <FileChipMiniPreview
+        url="https://blob.example.com/uploads/clip.mp4"
+        fileName="clip.mp4"
+      />,
+    );
+
+    expect(container.querySelector("video")).toBeNull();
+    expect(screen.queryByTestId("file-chip-video")).not.toBeInTheDocument();
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "https://blob.example.com/uploads/clip.mp4",
+    );
+  });
+
   it("shows filename and size in tooltip content", () => {
     render(
       <FileChipMiniPreview
@@ -221,7 +319,7 @@ describe("FileChipMiniPreview", () => {
 
     expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Download document" }),
+      screen.getByRole("link", { name: "Download" }),
     ).toHaveAttribute("href", "https://blob.example.com/uploads/notes.pdf");
   });
 

@@ -545,7 +545,7 @@ export const postChatsRoomsByIdMembersMe = <ThrowOnError extends boolean = false
 });
 
 /**
- * Mark an organization chat room as read for the current user.
+ * Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadCount.
  */
 export const postChatsRoomsByIdRead = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdReadData, ThrowOnError>): RequestResult<PostChatsRoomsByIdReadResponses, PostChatsRoomsByIdReadErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdReadResponses, PostChatsRoomsByIdReadErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdReadResponseTransformer,
@@ -2026,7 +2026,7 @@ export const putJobsByIdWorkspace = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * List notifications for the effective user (session user, or orchestrator/coworker with context headers) with cursor pagination
+ * List in-app notification-center items for the effective user (session user, or orchestrator/coworker with context headers) with cursor pagination. CHAT kind is excluded (browser OS alerts + room attention only).
  */
 export const getNotifications = <ThrowOnError extends boolean = false>(options?: Options<GetNotificationsData, ThrowOnError>): RequestResult<GetNotificationsResponses, GetNotificationsErrors, ThrowOnError> => (options?.client ?? client).get<GetNotificationsResponses, GetNotificationsErrors, ThrowOnError>({
     responseTransformer: getNotificationsResponseTransformer,
@@ -2035,7 +2035,7 @@ export const getNotifications = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * Get the count of unread notifications for the effective user (session user, or orchestrator/coworker with context headers)
+ * Get the count of unread in-app notification-center items for the effective user (session user, or orchestrator/coworker with context headers). CHAT kind is excluded.
  */
 export const getNotificationsUnreadCount = <ThrowOnError extends boolean = false>(options?: Options<GetNotificationsUnreadCountData, ThrowOnError>): RequestResult<GetNotificationsUnreadCountResponses, GetNotificationsUnreadCountErrors, ThrowOnError> => (options?.client ?? client).get<GetNotificationsUnreadCountResponses, GetNotificationsUnreadCountErrors, ThrowOnError>({
     responseTransformer: getNotificationsUnreadCountResponseTransformer,
@@ -2044,7 +2044,7 @@ export const getNotificationsUnreadCount = <ThrowOnError extends boolean = false
 });
 
 /**
- * Mark a single notification as read for the effective user (session user, or orchestrator/coworker with context headers; owner only)
+ * Mark a single notification as read for the effective user (session user, or orchestrator/coworker with context headers; owner only). Includes CHAT: browser OS clicks and room attention still clear individual CHAT rows even though CHAT is excluded from the in-app center list, unread badge, and mark-all-read.
  */
 export const patchNotificationsByIdRead = <ThrowOnError extends boolean = false>(options: Options<PatchNotificationsByIdReadData, ThrowOnError>): RequestResult<PatchNotificationsByIdReadResponses, PatchNotificationsByIdReadErrors, ThrowOnError> => (options.client ?? client).patch<PatchNotificationsByIdReadResponses, PatchNotificationsByIdReadErrors, ThrowOnError>({
     responseTransformer: patchNotificationsByIdReadResponseTransformer,
@@ -2053,7 +2053,7 @@ export const patchNotificationsByIdRead = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Mark all notifications as read for the effective user (session user, or orchestrator/coworker with context headers)
+ * Mark all in-app notification-center items as read for the effective user (session user, or orchestrator/coworker with context headers). CHAT kind is excluded so room attention stays until the room is read.
  */
 export const patchNotificationsReadAll = <ThrowOnError extends boolean = false>(options?: Options<PatchNotificationsReadAllData, ThrowOnError>): RequestResult<PatchNotificationsReadAllResponses, PatchNotificationsReadAllErrors, ThrowOnError> => (options?.client ?? client).patch<PatchNotificationsReadAllResponses, PatchNotificationsReadAllErrors, ThrowOnError>({
     responseTransformer: patchNotificationsReadAllResponseTransformer,

@@ -565,9 +565,6 @@ function PureMultimodalInput({
             ROOM_COMPOSER_TEXTAREA_CLASSNAME,
           )}
           data-testid="multimodal-input"
-          disableAutoResize={true}
-          maxHeight={160}
-          minHeight={80}
           onClick={(event) => event.stopPropagation()}
           onChange={handleInput}
           placeholder={placeholder}
@@ -595,9 +592,6 @@ function PureMultimodalInput({
         ROOM_COMPOSER_TEXTAREA_CLASSNAME,
       )}
       data-testid="multimodal-input"
-      disableAutoResize={true}
-      maxHeight={160}
-      minHeight={80}
       onChange={handleInput}
       placeholder={placeholder}
       ref={textareaRef}

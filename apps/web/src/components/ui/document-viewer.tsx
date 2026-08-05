@@ -1,13 +1,14 @@
 "use client";
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { Download, ExternalLink, FileText, XIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogTitle,
@@ -20,6 +21,7 @@ import {
   officeExtensionFromMediaType,
   officeViewerUrl,
   pdfEmbedUrl,
+  stripForcedDownloadParam,
 } from "@/lib/utils/file-preview";
 
 interface DocumentViewerProps {
@@ -97,6 +99,103 @@ function DocumentTextBody({
   return <DocumentTextPreview title={fileName} content={state.content} />;
 }
 
+/** Bound so a hung connection cannot pin the viewer on the loading skeleton. */
+const PDF_FETCH_TIMEOUT_MS = 15_000;
+
+/**
+ * Fetch the remote PDF into a same-origin blob URL before embedding.
+ *
+ * Putting a remote blob-storage URL straight into an iframe inherits that
+ * response's `Content-Disposition`. When the CDN forces `attachment` (wrong
+ * MIME, legacy upload, or `?download=1`), the browser downloads the file
+ * instead of rendering it — the chip still "opens" a viewer, but the user only
+ * sees a download. Forcing `application/pdf` on a blob: URL makes the browser
+ * treat it as inline preview, matching how images always work via `<img>`.
+ *
+ * If fetch fails (CORS, network, timeout), fall back to a direct iframe of the
+ * public URL (stripped of `?download=1`) so hosts that already serve inline
+ * PDFs still preview without needing CORS.
+ */
+function DocumentPdfBody({
+  url,
+  fileName,
+}: {
+  url: string;
+  fileName: string;
+}) {
+  const t = useTranslations("Components.DocumentViewer");
+  const [state, setState] = useState<{
+    status: "loading" | "loaded";
+    embedUrl?: string;
+  }>({ status: "loading" });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    let unmounted = false;
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, PDF_FETCH_TIMEOUT_MS);
+    setState({ status: "loading" });
+
+    const sourceUrl = stripForcedDownloadParam(url);
+
+    void (async () => {
+      try {
+        const response = await fetch(sourceUrl, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("Failed to fetch PDF");
+        const remoteBlob = await response.blob();
+        // Re-wrap so a mislabeled `application/octet-stream` still previews.
+        const pdfBlob = new Blob([remoteBlob], { type: "application/pdf" });
+        const nextObjectUrl = URL.createObjectURL(pdfBlob);
+        if (unmounted) {
+          URL.revokeObjectURL(nextObjectUrl);
+          return;
+        }
+        objectUrl = nextObjectUrl;
+        setState({ status: "loaded", embedUrl: nextObjectUrl });
+      } catch {
+        // Unmount: do not setState. Timeout/CORS/network: fall back so the
+        // viewer is not stuck on the skeleton. Attachment-disposition hosts
+        // without CORS still download (no client-side fix without a proxy).
+        if (unmounted) return;
+        setState({ status: "loaded", embedUrl: sourceUrl });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    })();
+
+    return () => {
+      unmounted = true;
+      clearTimeout(timeoutId);
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
+
+  if (state.status === "loading" || !state.embedUrl) {
+    return (
+      <div
+        className="flex h-full w-full items-center justify-center p-6"
+        role="status"
+        aria-label={t("loading")}
+      >
+        <Skeleton className="h-full w-full max-w-2xl rounded-xl" />
+      </div>
+    );
+  }
+
+  return (
+    <iframe
+      src={pdfEmbedUrl(state.embedUrl)}
+      title={fileName}
+      className="bg-muted/40 h-full w-full"
+    />
+  );
+}
+
 function DocumentViewerBody({
   url,
   fileName,
@@ -121,13 +220,7 @@ function DocumentViewerBody({
   }
 
   if (kind === "pdf") {
-    return (
-      <iframe
-        src={pdfEmbedUrl(url)}
-        title={fileName}
-        className="bg-muted/40 h-full w-full"
-      />
-    );
+    return <DocumentPdfBody url={url} fileName={fileName} />;
   }
 
   if (kind === "text") {
@@ -152,7 +245,7 @@ function DocumentViewerContent({
 
   return (
     <>
-      <div className="border-border/60 flex items-center justify-between gap-2 border-b py-3 pr-14 pl-4 sm:gap-3 sm:py-4 sm:pl-6">
+      <div className="border-border/60 flex items-center justify-between gap-2 border-b py-3 pr-4 pl-4 sm:gap-3 sm:py-4 sm:pr-6 sm:pl-6">
         <div className="flex min-w-0 items-center gap-2">
           <FileText
             className="text-muted-foreground size-4 shrink-0"
@@ -170,7 +263,7 @@ function DocumentViewerContent({
             className="size-8 sm:h-8 sm:w-auto sm:gap-1.5 sm:px-3"
           >
             <a
-              href={url}
+              href={stripForcedDownloadParam(url)}
               target="_blank"
               rel="noreferrer noopener"
               aria-label={t("openInNewTab")}
@@ -196,6 +289,18 @@ function DocumentViewerContent({
               <span className="hidden sm:inline">{t("download")}</span>
             </a>
           </Button>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-8"
+              aria-label={t("close")}
+              title={t("close")}
+            >
+              <XIcon className="size-3.5" aria-hidden />
+            </Button>
+          </DialogClose>
         </div>
       </div>
       <DialogDescription className="sr-only">{t("title")}</DialogDescription>
@@ -229,6 +334,7 @@ export function DocumentViewer({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        showCloseButton={false}
         className={cn(
           "flex max-h-[92dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl lg:max-w-6xl",
           className,

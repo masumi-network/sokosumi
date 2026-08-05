@@ -1,4 +1,3 @@
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 import type {
   ActivateEnterpriseContractRequest,
@@ -296,7 +295,11 @@ import {
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
   NoticeKind,
 } from "@/lib/clients/generated/core";
-import type { Client } from "@/lib/clients/generated/core/client";
+import {
+  CoreApiRequestError,
+  executeCoreOperation,
+  type GetCoreClient,
+} from "./core.request";
 
 export type CoreApiPagination = PaginationMetadata;
 
@@ -311,37 +314,6 @@ export interface CoreApiResponse<T> {
   meta?: CoreApiMeta;
 }
 
-export class CoreApiRequestError extends Error {
-  details?: unknown;
-  /**
-   * Stable machine-readable error kind from the Core error envelope (e.g.
-   * `organization_not_found`). Prefer matching on this over `message`, which
-   * may be reworded at any time. See `CORE_API_ERROR_KINDS` in
-   * `@sokosumi/utils`.
-   */
-  kind?: string;
-  status?: number;
-
-  constructor(
-    message: string,
-    options?: { details?: unknown; kind?: string; status?: number },
-  ) {
-    super(message);
-    this.name = "CoreApiRequestError";
-    this.details = options?.details;
-    this.kind = options?.kind;
-    this.status = options?.status;
-  }
-}
-
-type CoreOperationResult<TData, TError> = {
-  data?: TData;
-  error?: TError;
-  /** Present for HTTP outcomes; omitted when the client reports a network-level failure. */
-  response?: Response;
-};
-
-type GetClient = () => Client | Promise<Client>;
 const CURRENT_USER_PATH_ID = "me";
 
 function toDate(value: Date | string): Date {
@@ -414,137 +386,9 @@ function transformTaskResponseEnvelope(data: any) {
   return data;
 }
 
-function extractErrorMessage(error: unknown, status?: number): string {
-  if (typeof error === "string" && error.length > 0) {
-    return error;
-  }
-
-  if (error && typeof error === "object") {
-    const typedError = error as {
-      error?: unknown;
-      message?: unknown;
-    };
-
-    if (
-      typeof typedError.message === "string" &&
-      typedError.message.length > 0
-    ) {
-      return typedError.message;
-    }
-
-    if (typeof typedError.error === "string" && typedError.error.length > 0) {
-      return typedError.error;
-    }
-  }
-
-  if (typeof status === "number") {
-    return `API error: ${status}`;
-  }
-
-  return "Failed to communicate with Core API";
-}
-
-function extractErrorKind(error: unknown): string | undefined {
-  if (error && typeof error === "object") {
-    const typedError = error as { kind?: unknown };
-
-    if (typeof typedError.kind === "string" && typedError.kind.length > 0) {
-      return typedError.kind;
-    }
-  }
-
-  return undefined;
-}
-
-async function executeOperation<TData, TError>(
-  getClient: GetClient,
-  operation: (client: Client) => Promise<CoreOperationResult<TData, TError>>,
-  fallbackMessage: string,
-): Promise<TData> {
-  const client = await getClient();
-
-  let result: CoreOperationResult<TData, TError>;
-  try {
-    result = await operation(client);
-  } catch (error) {
-    throw new CoreApiRequestError(
-      error instanceof Error ? error.message : fallbackMessage,
-      { details: error },
-    );
-  }
-
-  if (result.error) {
-    const message = extractErrorMessage(result.error, result.response?.status);
-    throw new CoreApiRequestError(message, {
-      details: result.error,
-      kind: extractErrorKind(result.error),
-      status: result.response?.status,
-    });
-  }
-
-  const isNoContentSuccess =
-    result.response?.ok === true &&
-    (result.response.status === 204 || result.response.status === 205);
-
-  if (result.data == null && !isNoContentSuccess) {
-    const message = extractErrorMessage(result.error, result.response?.status);
-    throw new CoreApiRequestError(message, {
-      details: result.error,
-      kind: extractErrorKind(result.error),
-      status: result.response?.status,
-    });
-  }
-
-  return result.data as TData;
-}
-
-export function mapCoreApiStatusToCommonErrorCode(
-  status?: number,
-): CommonErrorCode {
-  switch (status) {
-    case 401:
-    case 403:
-      return CommonErrorCode.UNAUTHORIZED;
-    case 404:
-      return CommonErrorCode.NOT_FOUND;
-    case 400:
-    case 409:
-    case 422:
-      return CommonErrorCode.BAD_INPUT;
-    default:
-      return CommonErrorCode.INTERNAL_SERVER_ERROR;
-  }
-}
-
-export function toCoreApiActionError(error: unknown): ActionError {
-  if (error instanceof CoreApiRequestError) {
-    let message = error.message;
-
-    if (
-      error.status === 503 &&
-      !message.toLowerCase().includes("unavailable")
-    ) {
-      message = "The service is currently unavailable.";
-    }
-
-    return {
-      message,
-      code: mapCoreApiStatusToCommonErrorCode(error.status),
-    };
-  }
-
-  return {
-    message:
-      error instanceof Error
-        ? error.message
-        : "Failed to communicate with Core API",
-    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-  };
-}
-
-export function createCoreClient(getClient: GetClient) {
+export function createCoreClient(getClient: GetCoreClient) {
   async function getChatRooms(query?: GetChatsRoomsData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetChatsRooms({
@@ -559,7 +403,7 @@ export function createCoreClient(getClient: GetClient) {
   async function getDiscoverableChatRooms(
     query?: GetChatsRoomsDiscoverableData["query"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetChatsRoomsDiscoverable({
@@ -578,7 +422,7 @@ export function createCoreClient(getClient: GetClient) {
   async function createChatRoom(
     body: CreateChatRoomRequest & NonNullable<PostChatsRoomsData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRooms({
@@ -590,7 +434,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getChatRoom(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetChatsRoomsById({
@@ -606,7 +450,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PatchChatsRoomsByIdData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchChatsRoomsById({
@@ -619,7 +463,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function archiveChatRoom(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdArchive({
@@ -631,7 +475,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function restoreChatRoom(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdRestore({
@@ -643,7 +487,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteChatRoom(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteChatsRoomsById({
@@ -655,7 +499,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function leaveChatRoom(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteChatsRoomsByIdMembersMe({
@@ -667,7 +511,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function joinChatRoom(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdMembersMe({
@@ -679,7 +523,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function markChatRoomRead(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdRead({
@@ -691,7 +535,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function pinChatRoom(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdPin({
@@ -703,7 +547,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function unpinChatRoom(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteChatsRoomsByIdPin({
@@ -715,7 +559,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function muteChatRoom(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdMute({
@@ -727,7 +571,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function unmuteChatRoom(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteChatsRoomsByIdMute({
@@ -739,7 +583,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function markChatRoomUnread(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdUnread({
@@ -754,7 +598,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     query?: GetChatsRoomsByIdMessagesData["query"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetChatsRoomsByIdMessages({
@@ -771,7 +615,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     query?: { unread?: "true" | "false" },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetChatsRoomsByIdThreads({
@@ -785,7 +629,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getChatRoomThread(id: string, parentMessageId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetChatsRoomsByIdThreadsByParentMessageId({
@@ -802,7 +646,7 @@ export function createCoreClient(getClient: GetClient) {
     parentMessageId: string,
     query?: GetChatsRoomsByIdThreadsByParentMessageIdMessagesData["query"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetChatsRoomsByIdThreadsByParentMessageIdMessages({
@@ -816,7 +660,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function markChatRoomThreadRead(id: string, parentMessageId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdThreadsByParentMessageIdRead({
@@ -828,7 +672,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function markChatRoomThreadsRead(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdThreadsRead({
@@ -844,7 +688,7 @@ export function createCoreClient(getClient: GetClient) {
     body: CreateChatRoomMessageRequest &
       NonNullable<PostChatsRoomsByIdMessagesData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdMessages({
@@ -863,7 +707,7 @@ export function createCoreClient(getClient: GetClient) {
       PostChatsRoomsByIdMessagesByMessageIdReactionsData["body"]
     >,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdMessagesByMessageIdReactions({
@@ -876,7 +720,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteChatRoomMessage(id: string, messageId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteChatsRoomsByIdMessagesByMessageId({
@@ -892,7 +736,7 @@ export function createCoreClient(getClient: GetClient) {
     messageId: string,
     body: NonNullable<PatchChatsRoomsByIdMessagesByMessageIdData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchChatsRoomsByIdMessagesByMessageId({
@@ -905,7 +749,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getTasks(query?: GetTasksData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetTasks({
@@ -920,7 +764,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getHistory(query?: GetHistoryData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetHistory({
@@ -935,7 +779,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getNotifications(query?: GetNotificationsData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetNotifications({
@@ -948,7 +792,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getNotificationsUnreadCount() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetNotificationsUnreadCount({
@@ -962,7 +806,7 @@ export function createCoreClient(getClient: GetClient) {
   async function patchNotificationRead(
     path: PatchNotificationsByIdReadData["path"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchNotificationsByIdRead({
@@ -975,7 +819,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function patchNotificationsReadAll() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchNotificationsReadAll({
@@ -987,7 +831,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getTaskById(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetTasksById({
@@ -1002,7 +846,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getTaskWorkspace(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetTasksByIdWorkspace({
@@ -1015,7 +859,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getJobs(query?: GetJobsData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetJobs({
@@ -1040,7 +884,7 @@ export function createCoreClient(getClient: GetClient) {
     recipientId?: string;
     limit?: number;
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListAdminInvoices({
@@ -1059,7 +903,7 @@ export function createCoreClient(getClient: GetClient) {
     ttlDays: number | null;
     priceId: string | null;
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreCreateAdminInvoice({
@@ -1078,7 +922,7 @@ export function createCoreClient(getClient: GetClient) {
     ttlDays: number | null;
     referenceNote: string | null;
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreCreateAdminFreeCreditGrant({
@@ -1091,7 +935,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getAdminInvoice(invoiceId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAdminInvoice({
@@ -1104,7 +948,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function markAdminInvoicePaid(invoiceId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreMarkAdminInvoicePaid({
@@ -1117,7 +961,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteAdminInvoice(invoiceId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteAdminInvoice({
@@ -1130,7 +974,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function listCreditPrices() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListCreditPrices({
@@ -1142,7 +986,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getCreditTopUpPriceCatalog() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetCreditTopUpPriceCatalog({
@@ -1154,7 +998,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getSubscriptionCatalog() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetSubscriptionCatalog({
@@ -1171,7 +1015,7 @@ export function createCoreClient(getClient: GetClient) {
     returnPath?: string;
     promotionCodeId?: string;
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreCreateCreditCheckoutSession({
@@ -1184,7 +1028,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getCheckoutSessionAnalytics(sessionId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetCheckoutSessionAnalytics({
@@ -1197,7 +1041,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getCouponDetails(couponId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetCouponDetails({
@@ -1213,7 +1057,7 @@ export function createCoreClient(getClient: GetClient) {
     couponId: string,
     body: { organizationId?: string | null } = {},
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreClaimCoupon({
@@ -1231,7 +1075,7 @@ export function createCoreClient(getClient: GetClient) {
     cursor?: string;
     limit?: number;
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListAdminUsers({
@@ -1256,7 +1100,7 @@ export function createCoreClient(getClient: GetClient) {
       | "createdAt";
     sortOrder?: "asc" | "desc";
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListAdminAgents({
@@ -1269,7 +1113,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getAdminAgent(agentId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAdminAgent({
@@ -1285,7 +1129,7 @@ export function createCoreClient(getClient: GetClient) {
     agentId: string,
     body: Parameters<typeof corePatchAdminAgentMetadataOverride>[0]["body"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchAdminAgentMetadataOverride({
@@ -1299,7 +1143,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteAdminAgentMetadataOverride(agentId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteAdminAgentMetadataOverride({
@@ -1316,7 +1160,7 @@ export function createCoreClient(getClient: GetClient) {
     cursor?: string;
     limit?: number;
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListAdminTasks({
@@ -1329,7 +1173,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getAdminTask(taskId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAdminTask({
@@ -1346,7 +1190,7 @@ export function createCoreClient(getClient: GetClient) {
     cursor?: string;
     limit?: number;
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListDeveloperOwnedCoworkerTasks({
@@ -1359,7 +1203,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getDeveloperOwnedCoworkerTask(taskId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetDeveloperOwnedCoworkerTask({
@@ -1372,7 +1216,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function searchAdminUsers(query: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreSearchAdminUsers({
@@ -1385,7 +1229,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function searchAdminOrganizations(query: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreSearchAdminOrganizations({
@@ -1398,7 +1242,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getAdminOrganizationBySlug(slug: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAdminOrganizationBySlug({
@@ -1415,7 +1259,7 @@ export function createCoreClient(getClient: GetClient) {
     cursor?: string;
     limit?: number;
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListAdminOrganizations({
@@ -1431,7 +1275,7 @@ export function createCoreClient(getClient: GetClient) {
     slug: string,
     query: { cursor?: string; limit?: number },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListAdminOrganizationMembers({
@@ -1448,7 +1292,7 @@ export function createCoreClient(getClient: GetClient) {
     slug: string,
     body: { userId: string; role: "owner" | "admin" | "member" },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreAddAdminOrganizationMember({
@@ -1462,7 +1306,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function removeAdminOrganizationMember(slug: string, memberId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreRemoveAdminOrganizationMember({
@@ -1479,7 +1323,7 @@ export function createCoreClient(getClient: GetClient) {
     memberId: string,
     body: { role: "owner" | "admin" | "member" },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreUpdateAdminOrganizationMemberRole({
@@ -1496,7 +1340,7 @@ export function createCoreClient(getClient: GetClient) {
     slug: string,
     memberId: string,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreAssignAdminOrganizationMemberSeat({
@@ -1512,7 +1356,7 @@ export function createCoreClient(getClient: GetClient) {
     slug: string,
     memberId: string,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreUnassignAdminOrganizationMemberSeat({
@@ -1525,7 +1369,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getOrganizationEnterpriseContractSummary(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationEnterpriseContractSummary({
@@ -1538,7 +1382,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getJobById(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetJobsById({
@@ -1551,7 +1395,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getProjects(query?: GetProjectsData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetProjects({
@@ -1564,7 +1408,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getProjectsStats(query?: GetProjectsStatsData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetProjectsStats({
@@ -1577,7 +1421,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function postProjects(body: NonNullable<PostProjectsData["body"]>) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostProjects({
@@ -1589,7 +1433,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getOrganizationMembers(organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationsByIdMembers({
@@ -1602,7 +1446,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getOrganizationPendingInvitations(organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationsByIdInvitations({
@@ -1615,7 +1459,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getOrganizationInviteLinks(organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationsByIdInviteLinks({
@@ -1634,7 +1478,7 @@ export function createCoreClient(getClient: GetClient) {
       vendorId?: string;
     },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationsByIdVendorGrants({
@@ -1653,7 +1497,7 @@ export function createCoreClient(getClient: GetClient) {
       vendorId: string;
     },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostOrganizationsByIdVendorGrants({
@@ -1669,7 +1513,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     grantId: string,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostOrganizationsByIdVendorGrantsByGrantIdApprove({
@@ -1684,7 +1528,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     grantId: string,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostOrganizationsByIdVendorGrantsByGrantIdDeny({
@@ -1699,7 +1543,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     grantId: string,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostOrganizationsByIdVendorGrantsByGrantIdRevoke({
@@ -1714,7 +1558,7 @@ export function createCoreClient(getClient: GetClient) {
     status?: "PENDING" | "GRANTED" | "DENIED" | "REVOKED";
     vendorId?: string;
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetUsersByIdVendorGrants({
@@ -1728,7 +1572,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function createMyVendorGrant(body: { vendorId: string }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostUsersByIdVendorGrants({
@@ -1741,7 +1585,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function approveMyVendorGrant(grantId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostUsersByIdVendorGrantsByGrantIdApprove({
@@ -1753,7 +1597,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function denyMyVendorGrant(grantId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostUsersByIdVendorGrantsByGrantIdDeny({
@@ -1765,7 +1609,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function revokeMyVendorGrant(grantId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostUsersByIdVendorGrantsByGrantIdRevoke({
@@ -1781,7 +1625,7 @@ export function createCoreClient(getClient: GetClient) {
    * assigned and purchased seat counts alongside the resolved paid plan.
    */
   async function getOrganizationSeatSummary(organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationsByIdSeatSummary({
@@ -1803,7 +1647,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     memberId: string,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePutOrganizationsByIdMembersByMemberIdSeat({
@@ -1823,7 +1667,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     memberId: string,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteOrganizationsByIdMembersByMemberIdSeat({
@@ -1845,7 +1689,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     seats: number,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePutOrganizationsByIdSubscriptionSeats({
@@ -1858,7 +1702,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getInvitationById(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetInvitationsById({
@@ -1871,7 +1715,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getOrganizationStripeCustomer(organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationsByIdStripeCustomer({
@@ -1890,7 +1734,7 @@ export function createCoreClient(getClient: GetClient) {
    * `customer.created` webhook.
    */
   async function createOrganizationStripeCustomer(organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostOrganizationsByIdStripeCustomer({
@@ -1903,7 +1747,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getOrganizationBillingDetails(organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationsByIdBillingDetails({
@@ -1916,7 +1760,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getOrganizationBillingPlan(organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationsByIdBillingPlan({
@@ -1929,7 +1773,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getOrganizationActiveSubscription(organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationsByIdSubscription({
@@ -1942,7 +1786,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getMyActiveSubscription() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetUsersByIdSubscription({
@@ -1955,7 +1799,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getMyOrganizationCredits(organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetUsersByIdOrganizationsByOrganizationIdCredits({
@@ -1968,7 +1812,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getMyStripeCustomer() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetUsersByIdStripeCustomer({
@@ -1986,7 +1830,7 @@ export function createCoreClient(getClient: GetClient) {
    * id. Local persistence happens via the Stripe `customer.created` webhook.
    */
   async function createMyStripeCustomer() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostUsersByIdStripeCustomer({
@@ -1999,7 +1843,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getMyBillingDetails() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetUsersByIdBillingDetails({
@@ -2012,7 +1856,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getUserBillingDetails(userId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetUsersByIdBillingDetails({
@@ -2030,7 +1874,7 @@ export function createCoreClient(getClient: GetClient) {
    * single transaction.
    */
   async function revokeMyOauthConsent(consentId: string, clientId: string) {
-    await executeOperation(
+    await executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteUsersByIdOauthConsentsByConsentId({
@@ -2043,7 +1887,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getProjectsById(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetProjectsById({
@@ -2059,7 +1903,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PatchProjectsByIdData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchProjectsById({
@@ -2072,7 +1916,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteProjectsById(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteProjectsById({
@@ -2087,7 +1931,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PostProjectsByIdJobsData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostProjectsByIdJobs({
@@ -2102,7 +1946,7 @@ export function createCoreClient(getClient: GetClient) {
   async function deleteProjectsByIdJobsByJobId(
     path: DeleteProjectsByIdJobsByJobIdData["path"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteProjectsByIdJobsByJobId({
@@ -2117,7 +1961,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PostProjectsByIdTasksData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostProjectsByIdTasks({
@@ -2132,7 +1976,7 @@ export function createCoreClient(getClient: GetClient) {
   async function deleteProjectsByIdTasksByTaskId(
     path: DeleteProjectsByIdTasksByTaskIdData["path"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteProjectsByIdTasksByTaskId({
@@ -2147,7 +1991,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PatchJobsByIdData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchJobsById({
@@ -2160,7 +2004,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function requestJobRefund(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostJobsByIdRefund({
@@ -2172,7 +2016,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getAgentById(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAgentsById({
@@ -2185,7 +2029,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getAgents(query?: GetAgentsData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAgents({
@@ -2203,7 +2047,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     query?: GetAgentsByIdJobsData["query"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAgentsByIdJobs({
@@ -2220,7 +2064,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     query?: GetAgentsByIdReviewsData["query"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAgentsByIdReviews({
@@ -2234,7 +2078,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getMyAgentReview(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAgentsByIdReviewsMe({
@@ -2247,7 +2091,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getAgentRatingEligibility(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAgentsByIdRatingsEligibility({
@@ -2263,7 +2107,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PostAgentsByIdRatingsData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostAgentsByIdRatings({
@@ -2279,7 +2123,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PostAgentsByIdJobsData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       async (client) => {
         const result = await corePostAgentsByIdJobs({
@@ -2302,7 +2146,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getAgentInputSchema(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAgentsByIdInputSchema({
@@ -2314,7 +2158,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getCategories(query?: GetCategoriesData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetCategories({
@@ -2329,7 +2173,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function listVendors() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListVendors({
@@ -2341,7 +2185,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function listAdminVendors() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListAdminVendors({
@@ -2355,7 +2199,7 @@ export function createCoreClient(getClient: GetClient) {
   async function createAdminVendor(
     body: NonNullable<CreateAdminVendorData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreCreateAdminVendor({
@@ -2371,7 +2215,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PatchAdminVendorData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchAdminVendor({
@@ -2385,7 +2229,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function listMyVendorMemberships() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListMyVendorMemberships({
@@ -2400,7 +2244,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PatchVendorData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchVendor({
@@ -2414,7 +2258,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function listVendorMembers(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListVendorMembers({
@@ -2427,7 +2271,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function listCoworkerAssignments(vendorId: string, coworkerId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreListCoworkerAssignments({
@@ -2444,7 +2288,7 @@ export function createCoreClient(getClient: GetClient) {
     coworkerId: string,
     userId: string,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreAssignCoworkerDeveloper({
@@ -2462,7 +2306,7 @@ export function createCoreClient(getClient: GetClient) {
     coworkerId: string,
     userId: string,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreUnassignCoworkerDeveloper({
@@ -2475,7 +2319,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function createTask(body: NonNullable<PostTasksData["body"]>) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostTasks({
@@ -2509,7 +2353,7 @@ export function createCoreClient(getClient: GetClient) {
       comment?: string;
     },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostTasksByIdEvents({
@@ -2525,7 +2369,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PatchTasksByIdData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchTasksById({
@@ -2540,7 +2384,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getTaskLinks(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetTasksByIdLinks({
@@ -2556,7 +2400,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PostTasksByIdLinksData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostTasksByIdLinks({
@@ -2569,7 +2413,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteTaskLink(id: string, linkId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteTasksByIdLinksByLinkId({
@@ -2581,7 +2425,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteTask(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteTasksById({
@@ -2595,7 +2439,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function putTaskSchedule(id: string, body: PutTaskScheduleRequest) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePutTasksByIdSchedule({
@@ -2610,7 +2454,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteTaskSchedule(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteTasksByIdSchedule({
@@ -2624,7 +2468,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getCoworkers(query?: GetCoworkersData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetCoworkers({
@@ -2637,7 +2481,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getOwnedCoworkers() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetCoworkers({
@@ -2650,7 +2494,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getCoworkerById(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetCoworkersById({
@@ -2666,7 +2510,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PatchCoworkersByIdData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchCoworkersById({
@@ -2679,7 +2523,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function uploadCoworkerImage(id: string, file: Blob | File) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostCoworkersByIdImage({
@@ -2693,7 +2537,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteCoworkerImage(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteCoworkersByIdImage({
@@ -2709,7 +2553,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PatchCoworkersByIdWhitelistData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchCoworkersByIdWhitelist({
@@ -2722,7 +2566,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function archiveCoworker(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteCoworkersById({
@@ -2734,7 +2578,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function unarchiveCoworker(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostCoworkersByIdUnarchive({
@@ -2746,7 +2590,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getPendingNotices(kind?: NoticeKind): Promise<Notice[]> {
-    const response = await executeOperation(
+    const response = await executeCoreOperation(
       getClient,
       (client) =>
         coreGetUsersByIdNoticesPending({
@@ -2764,7 +2608,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function acknowledgeNotice(id: string) {
-    const response = await executeOperation(
+    const response = await executeCoreOperation(
       getClient,
       (client) =>
         corePostUsersByIdNoticesByNoticeIdAcknowledge({
@@ -2778,7 +2622,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getMyCredits() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetUsersByIdCredits({
@@ -2791,7 +2635,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getMyOrganizations() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetUsersByIdOrganizations({
@@ -2804,7 +2648,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getMyMembersWithOrganizations() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetUsersByIdMembers({
@@ -2822,7 +2666,7 @@ export function createCoreClient(getClient: GetClient) {
    */
   async function getMyMemberInOrganization(organizationId: string) {
     try {
-      return await executeOperation(
+      return await executeCoreOperation(
         getClient,
         (client) =>
           coreGetUsersByIdOrganizationsByOrganizationIdMember({
@@ -2846,7 +2690,7 @@ export function createCoreClient(getClient: GetClient) {
    * the personal workspace when none).
    */
   async function getWorkspaceDesignMd() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetWorkspacesDesignMd({
@@ -2865,7 +2709,7 @@ export function createCoreClient(getClient: GetClient) {
   async function storeAdHocDesignMd(
     body: NonNullable<PostWorkspacesDesignMdAdhocData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostWorkspacesDesignMdAdhoc({
@@ -2877,7 +2721,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getWorkspaceOrganizationId(workspaceId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetWorkspacesById({
@@ -2895,7 +2739,7 @@ export function createCoreClient(getClient: GetClient) {
   async function setMyDesignMd(
     body: NonNullable<PutUsersByIdDesignMdData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePutUsersByIdDesignMd({
@@ -2914,7 +2758,7 @@ export function createCoreClient(getClient: GetClient) {
    * the user is not a member of the organization.
    */
   async function setMyPreferredOrganization(organizationId: string | null) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePutUsersByIdPreferredOrganization({
@@ -2935,7 +2779,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     body: NonNullable<PutOrganizationsByIdDesignMdData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePutOrganizationsByIdDesignMd({
@@ -2956,7 +2800,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     body: NonNullable<PostOrganizationsByIdInviteLinksData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostOrganizationsByIdInviteLinks({
@@ -2977,7 +2821,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     token: string,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteOrganizationsByIdInviteLinksByToken({
@@ -2994,7 +2838,7 @@ export function createCoreClient(getClient: GetClient) {
    * organization preview (name, slug, logo).
    */
   async function resolveOrganizationInviteLink(token: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetOrganizationInviteLinksByToken({
@@ -3012,7 +2856,7 @@ export function createCoreClient(getClient: GetClient) {
    * treats a concurrent/duplicate join as `already_member`.
    */
   async function acceptOrganizationInviteLink(token: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostOrganizationInviteLinksByTokenAccept({
@@ -3029,7 +2873,7 @@ export function createCoreClient(getClient: GetClient) {
    * icon was found). Core performs the SSRF-guarded fetch server-side.
    */
   async function resolveSiteIcon(url: string, organizationId: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetToolsSiteIcon({
@@ -3047,7 +2891,7 @@ export function createCoreClient(getClient: GetClient) {
    */
   async function getOrganizationById(organizationId: string) {
     try {
-      return await executeOperation(
+      return await executeCoreOperation(
         getClient,
         (client) =>
           coreGetOrganizationsById({
@@ -3072,7 +2916,7 @@ export function createCoreClient(getClient: GetClient) {
    */
   async function getOrganizationBySlug(slug: string) {
     try {
-      return await executeOperation(
+      return await executeCoreOperation(
         getClient,
         (client) =>
           coreGetOrganizationBySlug({
@@ -3091,7 +2935,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getHermesInstance() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetHermesMeInstance({
@@ -3103,7 +2947,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function provisionHermesInstance() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostHermesMeInstance({
@@ -3114,7 +2958,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function updateHermesInstance(body: HermesUpdateInstanceRequest) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchHermesMeInstance({
@@ -3126,7 +2970,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function destroyHermesInstance() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteHermesMeInstance({
@@ -3137,7 +2981,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getHermesMessages(query?: GetHermesMeMessagesData["query"]) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetHermesMeMessages({
@@ -3150,7 +2994,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getHermesUnreadCount() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetHermesMeUnreadCount({
@@ -3162,7 +3006,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function markHermesInboxSeen(body?: MarkHermesInboxSeenRequest) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostHermesMeInboxSeen({
@@ -3174,7 +3018,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function setHermesSecret(body: SetHermesSecretRequest) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostHermesMeSecrets({
@@ -3186,7 +3030,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function startHermesOnboarding(body: HermesStartOnboardingRequest) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostHermesMeInstanceOnboard({
@@ -3198,7 +3042,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getHermesOnboardingProgress() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetHermesMeInstanceOnboardingProgress({
@@ -3210,7 +3054,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function listHermesIntegrations() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetHermesMeInstanceIntegrations({
@@ -3222,7 +3066,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function listHermesSchedules() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetHermesMeInstanceSchedules({
@@ -3237,7 +3081,7 @@ export function createCoreClient(getClient: GetClient) {
     scheduleId: string,
     body: HermesPatchScheduleRequest,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchHermesMeInstanceSchedulesByScheduleId({
@@ -3253,7 +3097,7 @@ export function createCoreClient(getClient: GetClient) {
     confirmationId: string,
     body?: HermesApproveConfirmationRequest,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostHermesMeInstanceConfirmationsByConfirmationIdApprove({
@@ -3269,7 +3113,7 @@ export function createCoreClient(getClient: GetClient) {
     confirmationId: string,
     body: HermesRejectConfirmationRequest,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostHermesMeInstanceConfirmationsByConfirmationIdReject({
@@ -3284,7 +3128,7 @@ export function createCoreClient(getClient: GetClient) {
   async function disconnectHermesIntegration(
     path: DeleteHermesMeInstanceIntegrationsByProviderData["path"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteHermesMeInstanceIntegrationsByProvider({
@@ -3298,7 +3142,7 @@ export function createCoreClient(getClient: GetClient) {
   async function initiateHermesIntegration(
     body: HermesInitiateIntegrationRequest,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostHermesMeInstanceIntegrationsInitiate({
@@ -3314,7 +3158,7 @@ export function createCoreClient(getClient: GetClient) {
     page?: number;
     perPage?: number;
   }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) => coreGetHermesMeInstanceSkillsCatalog({ client, query }),
       "Failed to load skills catalog",
@@ -3322,7 +3166,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function searchSkillsCatalog(query: { q: string; limit?: number }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) => coreGetHermesMeInstanceSkillsCatalogSearch({ client, query }),
       "Failed to search skills",
@@ -3330,7 +3174,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getCuratedSkills() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) => coreGetHermesMeInstanceSkillsCatalogCurated({ client }),
       "Failed to load curated skills",
@@ -3338,7 +3182,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getSkillDetail(query: { source: string; slug: string }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) => coreGetHermesMeInstanceSkillsCatalogDetail({ client, query }),
       "Failed to load skill",
@@ -3346,7 +3190,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getInstalledSkills() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) => coreGetHermesMeInstanceSkills({ client }),
       "Failed to list installed skills",
@@ -3354,7 +3198,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getPreinstalledSkills() {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) => coreGetHermesMeInstanceSkillsPreinstalled({ client }),
       "Failed to list pre-installed skills",
@@ -3362,7 +3206,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function installSkill(body: { source: string; slug: string }) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) => corePostHermesMeInstanceSkills({ client, body }),
       "Failed to install skill",
@@ -3370,7 +3214,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function removeSkill(slug: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreDeleteHermesMeInstanceSkillsBySlug({ client, path: { slug } }),
@@ -3381,7 +3225,7 @@ export function createCoreClient(getClient: GetClient) {
   async function finalizeHermesIntegration(
     body: HermesFinalizeIntegrationRequest,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostHermesMeInstanceIntegrationsFinalize({
@@ -3395,7 +3239,7 @@ export function createCoreClient(getClient: GetClient) {
   async function createMyFileUploadSession(
     body: NonNullable<PostUsersByIdFilesData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostUsersByIdFiles({
@@ -3412,7 +3256,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     body: NonNullable<PostOrganizationsByIdFilesData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostOrganizationsByIdFiles({
@@ -3429,7 +3273,7 @@ export function createCoreClient(getClient: GetClient) {
     organizationId: string,
     body: NonNullable<PostOrganizationsByIdFilesCleanupData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostOrganizationsByIdFilesCleanup({
@@ -3446,7 +3290,7 @@ export function createCoreClient(getClient: GetClient) {
     vendorId: string,
     body: NonNullable<PostVendorsByIdFilesData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostVendorsByIdFiles({
@@ -3463,7 +3307,7 @@ export function createCoreClient(getClient: GetClient) {
     vendorId: string,
     body: NonNullable<PostVendorsByIdFilesCleanupData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostVendorsByIdFilesCleanup({
@@ -3480,7 +3324,7 @@ export function createCoreClient(getClient: GetClient) {
     taskId: string,
     body: NonNullable<PostTasksByIdFilesData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostTasksByIdFiles({
@@ -3497,7 +3341,7 @@ export function createCoreClient(getClient: GetClient) {
     roomId: string,
     body: NonNullable<PostChatsRoomsByIdFilesData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostChatsRoomsByIdFiles({
@@ -3514,7 +3358,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: { organizationId: string | null },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePutTasksByIdWorkspace({
@@ -3532,7 +3376,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: { organizationId: string | null },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePutJobsByIdWorkspace({
@@ -3548,7 +3392,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: NonNullable<PostJobsByIdInputsData["body"]>,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostJobsByIdInputs({
@@ -3564,7 +3408,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: { allowSearchIndexing: boolean },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       async (client) => {
         const result = await corePutJobsByIdShare({
@@ -3590,7 +3434,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteJobShare(id: string) {
-    await executeOperation(
+    await executeCoreOperation(
       getClient,
       async (client) => {
         const result = await coreDeleteJobsByIdShare({
@@ -3619,7 +3463,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: { allowSearchIndexing: boolean },
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       async (client) => {
         const result = await corePutTasksByIdShare({
@@ -3645,7 +3489,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function deleteTaskShare(id: string) {
-    await executeOperation(
+    await executeCoreOperation(
       getClient,
       async (client) => {
         const result = await coreDeleteTasksByIdShare({
@@ -3671,7 +3515,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getSharedResourceByToken(token: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       async (client) => {
         const result = await coreGetShareByToken({
@@ -3699,7 +3543,7 @@ export function createCoreClient(getClient: GetClient) {
   async function listEnterpriseContracts(
     query?: GetEnterpriseContractsData["query"],
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetEnterpriseContracts({
@@ -3714,7 +3558,7 @@ export function createCoreClient(getClient: GetClient) {
   async function createEnterpriseContract(
     body: CreateEnterpriseContractRequest,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostEnterpriseContracts({
@@ -3726,7 +3570,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function getEnterpriseContract(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetEnterpriseContractsById({
@@ -3742,7 +3586,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body: PatchEnterpriseContractRequest,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePatchEnterpriseContractsById({
@@ -3758,7 +3602,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     activatedAt: Date,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         coreGetEnterpriseContractsByIdPeriodsPreview({
@@ -3775,7 +3619,7 @@ export function createCoreClient(getClient: GetClient) {
     id: string,
     body?: ActivateEnterpriseContractRequest,
   ) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostEnterpriseContractsByIdActivate({
@@ -3788,7 +3632,7 @@ export function createCoreClient(getClient: GetClient) {
   }
 
   async function cancelEnterpriseContract(id: string) {
-    return executeOperation(
+    return executeCoreOperation(
       getClient,
       (client) =>
         corePostEnterpriseContractsByIdCancel({

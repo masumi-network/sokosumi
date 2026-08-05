@@ -154,6 +154,11 @@ export {
   stringifyMetadataRecord,
 } from "./metadata-record.js";
 export {
+  BROWSER_ONLY_NOTIFICATION_KINDS,
+  type BrowserOnlyNotificationKind,
+  isBrowserOnlyNotificationKind,
+} from "./notification-feed-kinds.js";
+export {
   type BuildOAuthClientScopeParamOptions,
   buildOAuthClientGrantTypes,
   buildOAuthClientScopeParam,
@@ -244,6 +249,10 @@ export {
   type UserTransitionTaskStatus,
   userTaskStatusTransitionRequiresComment,
 } from "./task-status-transitions.js";
+export {
+  extractBareHttpUrls,
+  selectUnfurlCandidateUrls,
+} from "./unfurl-urls.js";
 export {
   buildUserMetadataWithDesignMd,
   buildUserMetadataWithUrl,

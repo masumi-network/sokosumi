@@ -25,6 +25,7 @@ import {
   createChatRoomMessageRequestSchema,
 } from "@/schemas/chat-room.schema";
 import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
+import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unfurl.service";
 
 import {
   chatRoomMessageInclude,
@@ -123,6 +124,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       await publishChatRoomMessageRealtime(message);
+
+      waitUntil(scheduleChatRoomMessageUnfurls(message.id));
 
       return created(
         c,
@@ -383,6 +386,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
       }
+
+      waitUntil(scheduleChatRoomMessageUnfurls(message.id));
     }
 
     await publishChatRoomMessageRealtime(message);

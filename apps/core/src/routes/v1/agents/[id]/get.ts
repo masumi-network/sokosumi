@@ -94,7 +94,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const averageExecutionTime = await calculateAverageExecutionTime(id, tx);
       const executionMetrics = {
-        count: agent._count.jobs,
+        count: agent.jobCount,
         averageTime: averageExecutionTime ?? null,
       };
 

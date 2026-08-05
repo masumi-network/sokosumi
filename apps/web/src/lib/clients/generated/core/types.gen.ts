@@ -1235,7 +1235,7 @@ export type ChatRoom = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Messages sent by others after the current user's read marker.
+     * Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.
      */
     unreadCount: number;
     /**
@@ -1463,6 +1463,10 @@ export type ChatRoomMessage = {
     } | null;
     quote: ChatRoomMessageQuote;
     membership: ChatRoomMessageMembership;
+    /**
+     * Link preview cards scraped from message URLs (absent while pending).
+     */
+    unfurls: Array<ChatRoomMessageUnfurl> | null;
 };
 
 export type ChatRoomMessageSender = {
@@ -1532,6 +1536,14 @@ export type ChatRoomMessageMembershipSubject = {
     type: 'coworker';
     id: string;
     name: string;
+};
+
+export type ChatRoomMessageUnfurl = {
+    url: string;
+    title: string;
+    description: string | null;
+    imageUrl: string | null;
+    siteName: string | null;
 };
 
 export type ChatRoomThreadsMarkAll = {

@@ -745,6 +745,11 @@ model Agent {
 
   // Summary
   summary String?
+
+  jobCount Int @default(0)
+
+  @@index([isShown, status])
+  @@index([jobCount(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model AgentMetadataOverride {
@@ -1015,6 +1020,7 @@ model Job {
   @@index([projectId])
   @@index([agentId])
   @@index([agentId, createdAt])
+  @@index([workspaceId, createdAt(sort: Desc)])
 }
 
 model JobPurchase {
@@ -1685,6 +1691,7 @@ model TaskEvent {
 
   @@index([transactionId])
   @@index([orchestratorId])
+  @@index([taskId, createdAt])
   @@map("taskEvent")
 }
 

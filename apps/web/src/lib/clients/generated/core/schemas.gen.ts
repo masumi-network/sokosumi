@@ -4527,7 +4527,7 @@ export const ChatRoomSchema = {
         unreadCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Messages sent by others after the current user\'s read marker.',
+            description: 'Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.',
             example: 2
         },
         unreadMentionCount: {
@@ -5295,6 +5295,17 @@ export const ChatRoomMessageSchema = {
         },
         membership: {
             $ref: '#/components/schemas/ChatRoomMessageMembership'
+        },
+        unfurls: {
+            type: [
+                'array',
+                'null'
+            ],
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageUnfurl'
+            },
+            maxItems: 3,
+            description: 'Link preview cards scraped from message URLs (absent while pending).'
         }
     },
     required: [
@@ -5312,7 +5323,8 @@ export const ChatRoomMessageSchema = {
         'threadLastReplyAt',
         'metadata',
         'quote',
-        'membership'
+        'membership',
+        'unfurls'
     ]
 } as const;
 
@@ -5598,6 +5610,51 @@ export const ChatRoomMessageMembershipSubjectSchema = {
                 'name'
             ]
         }
+    ]
+} as const;
+
+export const ChatRoomMessageUnfurlSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://example.com/article'
+        },
+        title: {
+            type: 'string',
+            minLength: 1,
+            example: 'Example Article'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'A short summary of the page.'
+        },
+        imageUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://cdn.example.com/og.png'
+        },
+        siteName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Example'
+        }
+    },
+    required: [
+        'url',
+        'title',
+        'description',
+        'imageUrl',
+        'siteName'
     ]
 } as const;
 

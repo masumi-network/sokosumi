@@ -111,7 +111,7 @@ describe("GET /agents/{id}", () => {
       icon: null,
       summary: "A short summary",
       riskClassification: "HIGH",
-      _count: { jobs: 2 },
+      jobCount: 2,
       categories: [
         {
           id: "cat_123",

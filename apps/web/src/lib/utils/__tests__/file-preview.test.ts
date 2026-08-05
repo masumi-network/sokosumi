@@ -3,15 +3,20 @@ import { describe, expect, it } from "vitest";
 import {
   classifyFilePreview,
   getDocumentPreviewKind,
+  isAudioMediaType,
+  isAudioUrl,
   isOfficeFile,
   isOfficeMediaType,
   isPdfMediaType,
   isPdfUrl,
   isTextPreviewMediaType,
   isTextPreviewUrl,
+  isVideoMediaType,
+  isVideoUrl,
   officeExtensionFromMediaType,
   officeViewerUrl,
   pdfEmbedUrl,
+  stripForcedDownloadParam,
 } from "@/lib/utils/file-preview";
 
 describe("isOfficeFile", () => {
@@ -90,6 +95,47 @@ describe("isTextPreviewUrl / isTextPreviewMediaType", () => {
   });
 });
 
+describe("isVideoUrl / isVideoMediaType", () => {
+  it("recognizes video extensions", () => {
+    expect(isVideoUrl("https://blob.example/clip.mp4")).toBe(true);
+    expect(isVideoUrl("https://blob.example/clip.webm")).toBe(true);
+    expect(isVideoUrl("https://blob.example/clip.ogg")).toBe(true);
+    expect(isVideoUrl("https://blob.example/clip.mov")).toBe(true);
+    expect(isVideoUrl("https://blob.example/clip.m4v")).toBe(true);
+    expect(isVideoUrl("https://blob.example/clip.mp3")).toBe(false);
+  });
+
+  it("recognizes video/* MIME types", () => {
+    expect(isVideoMediaType("video/mp4")).toBe(true);
+    expect(isVideoMediaType("VIDEO/WEBM; codecs=vp9")).toBe(true);
+    expect(isVideoMediaType("audio/mp4")).toBe(false);
+    expect(isVideoMediaType(null)).toBe(false);
+  });
+});
+
+describe("isAudioUrl / isAudioMediaType", () => {
+  it("recognizes audio extensions", () => {
+    expect(isAudioUrl("https://blob.example/track.mp3")).toBe(true);
+    expect(isAudioUrl("https://blob.example/track.wav")).toBe(true);
+    expect(isAudioUrl("https://blob.example/track.m4a")).toBe(true);
+    expect(isAudioUrl("https://blob.example/track.aac")).toBe(true);
+    expect(isAudioUrl("https://blob.example/track.flac")).toBe(true);
+    expect(isAudioUrl("https://blob.example/track.opus")).toBe(true);
+    expect(isAudioUrl("https://blob.example/track.oga")).toBe(true);
+    // .ogg is video-extension allowlist, not audio
+    expect(isAudioUrl("https://blob.example/track.ogg")).toBe(false);
+    expect(isAudioUrl("https://blob.example/clip.mp4")).toBe(false);
+  });
+
+  it("recognizes audio/* MIME types", () => {
+    expect(isAudioMediaType("audio/mpeg")).toBe(true);
+    expect(isAudioMediaType("audio/ogg")).toBe(true);
+    expect(isAudioMediaType("audio/ogg; codecs=opus")).toBe(true);
+    expect(isAudioMediaType("video/mp4")).toBe(false);
+    expect(isAudioMediaType(null)).toBe(false);
+  });
+});
+
 describe("getDocumentPreviewKind", () => {
   it("returns 'office' for Office files by extension or MIME type", () => {
     expect(getDocumentPreviewKind("https://blob.example/report.docx")).toBe(
@@ -150,9 +196,40 @@ describe("officeViewerUrl", () => {
   });
 });
 
+describe("stripForcedDownloadParam", () => {
+  it("removes download=1 / download=true while keeping other query params", () => {
+    expect(
+      stripForcedDownloadParam(
+        "https://blob.example/report.pdf?download=1&token=abc",
+      ),
+    ).toBe("https://blob.example/report.pdf?token=abc");
+    expect(
+      stripForcedDownloadParam("https://blob.example/report.pdf?download=true"),
+    ).toBe("https://blob.example/report.pdf");
+  });
+
+  it("leaves URLs without a download flag unchanged", () => {
+    expect(stripForcedDownloadParam("https://blob.example/report.pdf")).toBe(
+      "https://blob.example/report.pdf",
+    );
+  });
+
+  it("returns the input unchanged when the URL cannot be parsed", () => {
+    expect(stripForcedDownloadParam("/uploads/report.pdf?download=1")).toBe(
+      "/uploads/report.pdf?download=1",
+    );
+  });
+});
+
 describe("pdfEmbedUrl", () => {
   it("hides the browser's native PDF chrome", () => {
     expect(pdfEmbedUrl("https://blob.example/report.pdf")).toBe(
+      "https://blob.example/report.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+    );
+  });
+
+  it("strips a forced-download query param before adding the hash", () => {
+    expect(pdfEmbedUrl("https://blob.example/report.pdf?download=1")).toBe(
       "https://blob.example/report.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
     );
   });
@@ -162,6 +239,8 @@ describe("classifyFilePreview", () => {
   it("classifies an image by URL extension", () => {
     expect(classifyFilePreview("https://blob.example/photo.png")).toEqual({
       isImage: true,
+      isVideo: false,
+      isAudio: false,
       documentKind: null,
     });
   });
@@ -169,12 +248,19 @@ describe("classifyFilePreview", () => {
   it("classifies an image by media type when the URL has no extension", () => {
     expect(
       classifyFilePreview("https://blob.example/photo", null, "image/png"),
-    ).toEqual({ isImage: true, documentKind: null });
+    ).toEqual({
+      isImage: true,
+      isVideo: false,
+      isAudio: false,
+      documentKind: null,
+    });
   });
 
   it("classifies a document when it isn't an image", () => {
     expect(classifyFilePreview("https://blob.example/report.pdf")).toEqual({
       isImage: false,
+      isVideo: false,
+      isAudio: false,
       documentKind: "pdf",
     });
   });
@@ -182,12 +268,102 @@ describe("classifyFilePreview", () => {
   it("falls back to the filename when the URL has no extension", () => {
     expect(
       classifyFilePreview("https://blob.example/report", "report.docx"),
-    ).toEqual({ isImage: false, documentKind: "office" });
+    ).toEqual({
+      isImage: false,
+      isVideo: false,
+      isAudio: false,
+      documentKind: "office",
+    });
   });
 
-  it("classifies unsupported file types as neither image nor document", () => {
+  it("classifies video by extension", () => {
+    expect(classifyFilePreview("https://blob.example/clip.mp4")).toEqual({
+      isImage: false,
+      isVideo: true,
+      isAudio: false,
+      documentKind: null,
+    });
+  });
+
+  it("classifies video by mediaType when URL has no extension", () => {
+    expect(
+      classifyFilePreview("https://blob.example/abcdef", null, "video/mp4"),
+    ).toEqual({
+      isImage: false,
+      isVideo: true,
+      isAudio: false,
+      documentKind: null,
+    });
+  });
+
+  it("classifies video via fileName fallback", () => {
+    expect(
+      classifyFilePreview("https://blob.example/abcdef", "movie.mp4"),
+    ).toEqual({
+      isImage: false,
+      isVideo: true,
+      isAudio: false,
+      documentKind: null,
+    });
+  });
+
+  it("classifies audio by extension", () => {
+    expect(classifyFilePreview("https://blob.example/track.mp3")).toEqual({
+      isImage: false,
+      isVideo: false,
+      isAudio: true,
+      documentKind: null,
+    });
+  });
+
+  it("classifies audio by mediaType (including audio/ogg)", () => {
+    expect(
+      classifyFilePreview("https://blob.example/abcdef", null, "audio/ogg"),
+    ).toEqual({
+      isImage: false,
+      isVideo: false,
+      isAudio: true,
+      documentKind: null,
+    });
+  });
+
+  it("treats extension-only .ogg as video", () => {
+    expect(classifyFilePreview("https://blob.example/clip.ogg")).toEqual({
+      isImage: false,
+      isVideo: true,
+      isAudio: false,
+      documentKind: null,
+    });
+  });
+
+  it("prefers audio MIME over .ogg video extension", () => {
+    expect(
+      classifyFilePreview("https://blob.example/clip.ogg", null, "audio/ogg"),
+    ).toEqual({
+      isImage: false,
+      isVideo: false,
+      isAudio: true,
+      documentKind: null,
+    });
+  });
+
+  it("prefers image over video when both could match", () => {
+    // image/* MIME wins even if filename looks like video (defensive)
+    expect(
+      classifyFilePreview("https://blob.example/file", "file.mp4", "image/png"),
+    ).toEqual({
+      isImage: true,
+      isVideo: false,
+      isAudio: false,
+      documentKind: null,
+    });
+  });
+
+  it("classifies unsupported file types as neither image, media, nor document", () => {
     expect(classifyFilePreview("https://blob.example/archive.zip")).toEqual({
       isImage: false,
+      isVideo: false,
+      isAudio: false,
       documentKind: null,
     });
   });

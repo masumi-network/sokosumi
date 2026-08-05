@@ -27,7 +27,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { agentsSummarySchema } from "@/schemas/agent.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { agentCategoriesInclude, agentJobsCountInclude } from "@/types/agent";
+import { agentCategoriesInclude } from "@/types/agent";
 
 const UNCATEGORIZED_CATEGORY_FILTER = "uncategorized";
 
@@ -129,22 +129,31 @@ export default function mount(app: OpenAPIHono) {
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const { category: categorySlugs } = queryParams;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const creditCosts = await getCreditCostsOrThrow(tx);
-      const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
-      const baseWhere = buildAvailableAgentWhereClause(
-        creditCosts,
-        cardanoV2ReadySources,
-      );
-      const categoryWhere = buildCategoryWhereClause(categorySlugs);
-      const where: Prisma.AgentWhereInput = categoryWhere
-        ? {
-            AND: [baseWhere, categoryWhere],
-          }
-        : baseWhere;
+    // Avoid interactive transaction on this read-only path — catalog list
+    // does not need a shared snapshot; interactive txs hold a pool connection
+    // and forbid Promise.all inside (#2559 / P2028).
+    //
+    // The V2 readiness lookup joins that same read: it only reads the cached
+    // readiness row, so it needs no shared snapshot either and can run
+    // alongside the credit costs.
+    const [creditCosts, cardanoV2ReadySources] = await Promise.all([
+      getCreditCostsOrThrow(prisma),
+      getCardanoV2ReadySources(prisma),
+    ]);
+    const baseWhere = buildAvailableAgentWhereClause(
+      creditCosts,
+      cardanoV2ReadySources,
+    );
+    const categoryWhere = buildCategoryWhereClause(categorySlugs);
+    const where: Prisma.AgentWhereInput = categoryWhere
+      ? {
+          AND: [baseWhere, categoryWhere],
+        }
+      : baseWhere;
 
-      const takePlusOne = take + 1;
-      const agents = await tx.agent.findMany({
+    const takePlusOne = take + 1;
+    const [agents, count] = await Promise.all([
+      prisma.agent.findMany({
         where,
         take: takePlusOne,
         skip,
@@ -152,35 +161,31 @@ export default function mount(app: OpenAPIHono) {
         orderBy: [...agentOrderBy, { id: "desc" }],
         include: {
           ...agentPricingInclude,
-          ...agentJobsCountInclude,
           ...agentCategoriesInclude,
           ...agentMetadataOverrideScalarsInclude,
         },
-      });
-      const count = await tx.agent.count({ where });
+      }),
+      prisma.agent.count({ where }),
+    ]);
 
-      const agentsWithMetrics = await buildAgentSummaries(
-        agents.slice(0, take),
-        creditCosts,
-        tx,
-      );
-
-      return {
-        agents: agentsWithMetrics,
-        paginationRows: agents.slice(0, take),
-        count,
-        hasMore: agents.length === takePlusOne,
-      };
-    });
+    // Paginate from the RAW rows, not the summaries: buildAgentSummaries can
+    // skip a row (transient pricing rewrite), and cursoring off the filtered
+    // list would leave the cursor parked on the skipped agent forever.
+    const paginationRows = agents.slice(0, take);
+    const agentsWithMetrics = await buildAgentSummaries(
+      paginationRows,
+      creditCosts,
+      prisma,
+    );
 
     const paginationMeta = createPaginationMeta(
-      result.paginationRows,
-      result.count,
+      paginationRows,
+      count,
       take,
-      result.hasMore,
+      agents.length === takePlusOne,
       cursor,
     );
 
-    return ok(c, agentsSummarySchema.parse(result.agents), paginationMeta);
+    return ok(c, agentsSummarySchema.parse(agentsWithMetrics), paginationMeta);
   });
 }

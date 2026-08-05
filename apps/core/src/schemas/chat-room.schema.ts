@@ -74,7 +74,7 @@ export const chatRoomSchema = z
     updatedAt: dateTimeSchema,
     unreadCount: z.number().int().min(0).openapi({
       description:
-        "Messages sent by others after the current user's read marker.",
+        "Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.",
       example: 2,
     }),
     unreadMentionCount: z.number().int().min(0).openapi({
@@ -311,6 +311,24 @@ export const chatRoomMessageMembershipSchema = z
   })
   .openapi("ChatRoomMessageMembership");
 
+/** One successful page preview stored under metadata.unfurls and promoted on the DTO. */
+export const chatRoomMessageUnfurlSchema = z
+  .object({
+    url: z.string().url().openapi({ example: "https://example.com/article" }),
+    title: z.string().min(1).openapi({ example: "Example Article" }),
+    description: z
+      .string()
+      .nullable()
+      .openapi({ example: "A short summary of the page." }),
+    imageUrl: z
+      .string()
+      .url()
+      .nullable()
+      .openapi({ example: "https://cdn.example.com/og.png" }),
+    siteName: z.string().nullable().openapi({ example: "Example" }),
+  })
+  .openapi("ChatRoomMessageUnfurl");
+
 export const chatRoomMessageSchema = z
   .object({
     id: z.string().uuid(),
@@ -328,6 +346,10 @@ export const chatRoomMessageSchema = z
     metadata: z.record(z.string(), z.any()).nullable(),
     quote: chatRoomMessageQuoteSchema.nullable(),
     membership: chatRoomMessageMembershipSchema.nullable(),
+    unfurls: z.array(chatRoomMessageUnfurlSchema).max(3).nullable().openapi({
+      description:
+        "Link preview cards scraped from message URLs (absent while pending).",
+    }),
   })
   .openapi("ChatRoomMessage");
 
@@ -473,6 +495,7 @@ export type ChatRoom = z.infer<typeof chatRoomSchema>;
 export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
 export type ChatRoomMessageQuote = z.infer<typeof chatRoomMessageQuoteSchema>;
+export type ChatRoomMessageUnfurl = z.infer<typeof chatRoomMessageUnfurlSchema>;
 export type ChatRoomMessageMembership = z.infer<
   typeof chatRoomMessageMembershipSchema
 >;

@@ -140,6 +140,10 @@ export const jobRepository = {
           },
           include: jobInclude,
         });
+        await tx.agent.update({
+          where: { id: data.agentId },
+          data: { jobCount: { increment: 1 } },
+        });
         return mapJobWithStatus(freeJob);
       }
       case JobType.PAID: {
@@ -189,6 +193,10 @@ export const jobRepository = {
             identifierFromPurchaser: data.identifierFromPurchaser,
           },
           include: jobInclude,
+        });
+        await tx.agent.update({
+          where: { id: data.agentId },
+          data: { jobCount: { increment: 1 } },
         });
         return mapJobWithStatus(paidJob);
       }

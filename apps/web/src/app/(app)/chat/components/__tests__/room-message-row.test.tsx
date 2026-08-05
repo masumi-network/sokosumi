@@ -27,6 +27,12 @@ vi.mock("next-intl", () => ({
       if (key === "showLess") {
         return namespace === "App.Channels.Message" ? "Show less" : "Less";
       }
+      if (key === "openLink" && values) {
+        return `Open link preview: ${values.title}`;
+      }
+      if (key === "imageAlt" && values) {
+        return `Preview image for ${values.title}`;
+      }
       return key;
     };
   },
@@ -39,11 +45,22 @@ vi.mock("@/components/markdown", () => ({
 vi.mock("@/components/ui/file-chip-mini-preview", () => ({
   FileChipMiniPreviewFrame: ({
     fileName,
+    sizeClass,
+    variant,
   }: {
     fileName: string;
     url: string;
     sizeClass?: string;
-  }) => <span data-testid="chip">{fileName}</span>,
+    variant?: "thumb" | "large";
+  }) => (
+    <span
+      data-testid="chip"
+      data-variant={variant ?? "thumb"}
+      data-size-class={sizeClass ?? ""}
+    >
+      {fileName}
+    </span>
+  ),
 }));
 
 vi.mock("@/components/ui/tooltip", () => ({
@@ -72,6 +89,7 @@ function userMessage(
     metadata: null,
     quote: null,
     membership: null,
+    unfurls: null,
     sender: {
       type: "user",
       user: {
@@ -642,6 +660,62 @@ describe("ChatMessageRow", () => {
     expect(within(rows[0]).getAllByTestId("chip")).toHaveLength(2);
   });
 
+  it("uses large variant for a single image attachment", () => {
+    renderRow({
+      message: userMessage({
+        content: "[photo.png](https://cdn.example/photo.png)\n",
+      }),
+    });
+
+    const chip = screen.getByTestId("chip");
+    expect(chip).toHaveAttribute("data-variant", "large");
+    expect(chip).toHaveAttribute("data-size-class", "");
+  });
+
+  it("keeps thumb size-16 for multiple consecutive image attachments", () => {
+    renderRow({
+      message: userMessage({
+        content:
+          "[a.png](https://cdn.example/a.png)\n[b.png](https://cdn.example/b.png)\n",
+      }),
+    });
+
+    const chips = within(
+      screen.getByTestId("room-message-attachment-row"),
+    ).getAllByTestId("chip");
+    expect(chips).toHaveLength(2);
+    for (const chip of chips) {
+      expect(chip).toHaveAttribute("data-variant", "thumb");
+      expect(chip).toHaveAttribute("data-size-class", "size-16");
+    }
+  });
+
+  it("keeps thumb size-16 for a single non-image attachment", () => {
+    renderRow({
+      message: userMessage({
+        content: "[notes.pdf](https://cdn.example/notes.pdf)\n",
+      }),
+    });
+
+    const chip = screen.getByTestId("chip");
+    expect(chip).toHaveAttribute("data-variant", "thumb");
+    expect(chip).toHaveAttribute("data-size-class", "size-16");
+  });
+
+  it("does not line-clamp bodies that include a large solo image attachment", () => {
+    renderRow({
+      message: userMessage({
+        content: "[photo.png](https://cdn.example/photo.png)\n",
+      }),
+    });
+
+    const body = screen.getByTestId("room-message-body");
+    expect(body.className).not.toContain("line-clamp-[16]");
+    expect(
+      screen.queryByRole("button", { name: "Show more" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("styles @all mention tokens in quote snippets", () => {
     renderRow({
       message: userMessage({
@@ -1158,5 +1232,97 @@ describe("ChatMessageRow", () => {
     expect(
       screen.queryByRole("button", { name: "Message.delete" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders Slack-style unfurl cards below the message body", () => {
+    renderRow({
+      message: userMessage({
+        content: "Check https://example.com/article",
+        unfurls: [
+          {
+            url: "https://example.com/article",
+            title: "Example Article",
+            description: "A short summary of the page.",
+            imageUrl: "https://cdn.example.com/og.png",
+            siteName: "Example",
+          },
+        ],
+      }),
+    });
+
+    const card = screen.getByTestId("room-message-unfurl");
+    expect(card).toHaveAttribute("href", "https://example.com/article");
+    expect(card).toHaveAttribute("target", "_blank");
+    expect(card).toHaveAttribute("rel", "noopener noreferrer");
+    // Hug content (thumbnail / text); do not stretch muted background full row.
+    expect(card).toHaveClass("inline-block", "w-fit", "max-w-sm");
+    expect(card).not.toHaveClass("w-full");
+    expect(card).toHaveTextContent("Example");
+    expect(card).toHaveTextContent("Example Article");
+    expect(card).toHaveTextContent("A short summary of the page.");
+    const unfurlImage = screen.getByRole("img", { name: /Example Article/ });
+    expect(unfurlImage).toHaveAttribute(
+      "src",
+      "https://cdn.example.com/og.png",
+    );
+    // Keep intrinsic aspect ratio (do not force w-full + max-h + object-cover).
+    expect(unfurlImage).toHaveClass("h-auto", "max-h-48", "max-w-full");
+    expect(unfurlImage).not.toHaveClass("w-full", "object-cover");
+    // Markdown body still present (links stay clickable in body).
+    expect(screen.getByTestId("room-message-body")).toHaveTextContent(
+      "Check https://example.com/article",
+    );
+  });
+
+  it("omits unfurl cards when unfurls are null or empty", () => {
+    const { rerender } = render(
+      <ChatMessageRow
+        message={userMessage({ unfurls: null })}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByTestId("room-message-unfurls"),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={userMessage({ unfurls: [] })}
+        coworkersById={new Map()}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByTestId("room-message-unfurls"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps file chips unchanged when unfurls are present", () => {
+    renderRow({
+      message: userMessage({
+        content:
+          "[report.pdf](https://files.example.com/report.pdf)\n\nand https://example.com",
+        unfurls: [
+          {
+            url: "https://example.com",
+            title: "Example",
+            description: null,
+            imageUrl: null,
+            siteName: null,
+          },
+        ],
+      }),
+    });
+
+    expect(
+      screen.getByTestId("room-message-attachment-row"),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("chip")).toHaveTextContent("report.pdf");
+    expect(screen.getByTestId("room-message-unfurl")).toHaveTextContent(
+      "Example",
+    );
   });
 });

@@ -8,6 +8,12 @@ interface LazyAblyProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Mount-gated Ably island gate. Returns null until `ably-provider` loads, then
+ * wraps children. Use as a sibling of paint-critical UI — not as an app-shell
+ * parent — so Instant chrome is never blocked on the Ably chunk.
+ * Multiple instances share one realtime client via `getAblyRealtimeClient()`.
+ */
 export default function LazyAblyProvider({ children }: LazyAblyProviderProps) {
   const [Provider, setProvider] = useState<ComponentType<{
     children: ReactNode;
