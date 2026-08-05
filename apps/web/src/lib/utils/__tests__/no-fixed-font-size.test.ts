@@ -12,10 +12,12 @@ const SRC_ROOT = path.resolve(
 /** Paths relative to apps/web/src that may keep px font sizes (non-product UI). */
 const ALLOWLIST = new Set(["app/api/export/pdf/route.ts"]);
 
-const TEXT_PX_CLASS = /text-\[\d+px\]/;
-const FONT_SIZE_PX = /font-size:\s*\d+px/i;
-const FONT_SIZE_STYLE_NUM = /fontSize:\s*\d+\b/;
-const FONT_SIZE_STYLE_PX = /fontSize:\s*["']\d+px["']/;
+// Decimal px allowed in the pattern (e.g. text-[10.5px]). Intentional limits:
+// does not scan template assignments like root.style.fontSize = `${n}px`.
+const TEXT_PX_CLASS = /text-\[\d+(?:\.\d+)?px\]/;
+const FONT_SIZE_PX = /font-size:\s*\d+(?:\.\d+)?px/i;
+const FONT_SIZE_STYLE_NUM = /fontSize:\s*\d+(?:\.\d+)?\b/;
+const FONT_SIZE_STYLE_PX = /fontSize:\s*["']\d+(?:\.\d+)?px["']/;
 
 const EXTENSIONS = new Set([".ts", ".tsx", ".css"]);
 
@@ -42,9 +44,8 @@ describe("no fixed px font sizes in product UI", () => {
     for (const file of walk(SRC_ROOT)) {
       const rel = path.relative(SRC_ROOT, file).split(path.sep).join("/");
       if (ALLOWLIST.has(rel)) continue;
-      // Skip this test file and the dynamic-type helper (cap uses "20px" string intentionally)
+      // Self + apply unit tests mock { fontSize: "28px" } style objects.
       if (rel.endsWith("no-fixed-font-size.test.ts")) continue;
-      if (rel === "lib/utils/dynamic-type.ts") continue;
       if (rel.endsWith("dynamic-type.test.ts")) continue;
 
       const content = readFileSync(file, "utf8");

@@ -16,13 +16,22 @@ export function shouldApplyRootFontSizeInline(computedPx: number): boolean {
 export function applyDynamicTypeRootCap(
   root: HTMLElement = document.documentElement,
 ): void {
-  // Clear first so re-runs (pageshow / visibilitychange) measure natural size,
-  // not a prior 20px cap that would incorrectly drop the override.
-  root.style.fontSize = "";
-  const computedPx = Number.parseFloat(
-    globalThis.getComputedStyle(root).fontSize,
-  );
-  if (shouldApplyRootFontSizeInline(computedPx)) {
-    root.style.fontSize = `${DYNAMIC_TYPE_MAX_ROOT_PX}px`;
+  try {
+    // Clear first so re-runs (pageshow / visibilitychange) measure natural size,
+    // not a prior 20px cap that would incorrectly drop the override.
+    root.style.fontSize = "";
+    const computedPx = Number.parseFloat(
+      globalThis.getComputedStyle(root).fontSize,
+    );
+    if (shouldApplyRootFontSizeInline(computedPx)) {
+      root.style.fontSize = `${clampRootFontSizePx(computedPx)}px`;
+    }
+  } catch {
+    // Spec: leave CSS Dynamic Type uncapped rather than force a wrong size.
+    try {
+      root.style.fontSize = "";
+    } catch {
+      // ignore secondary failure (detached node, etc.)
+    }
   }
 }

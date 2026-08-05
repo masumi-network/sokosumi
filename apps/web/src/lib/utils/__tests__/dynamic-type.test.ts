@@ -113,4 +113,20 @@ describe("applyDynamicTypeRootCap", () => {
       el.remove();
     }
   });
+
+  it("leaves root uncapped when measurement throws", () => {
+    const el = document.createElement("div");
+    el.style.fontSize = "20px";
+    const original = globalThis.getComputedStyle;
+    try {
+      globalThis.getComputedStyle = (() => {
+        throw new Error("computed style unavailable");
+      }) as typeof getComputedStyle;
+
+      expect(() => applyDynamicTypeRootCap(el)).not.toThrow();
+      expect(el.style.fontSize).toBe("");
+    } finally {
+      globalThis.getComputedStyle = original;
+    }
+  });
 });

@@ -8,16 +8,21 @@ export function DynamicTypeRootCap() {
   useEffect(() => {
     applyDynamicTypeRootCap();
 
-    function handleResume() {
+    function handlePageshow() {
       applyDynamicTypeRootCap();
     }
 
-    window.addEventListener("pageshow", handleResume);
-    document.addEventListener("visibilitychange", handleResume);
+    function handleVisibilityChange() {
+      if (document.visibilityState !== "visible") return;
+      applyDynamicTypeRootCap();
+    }
+
+    window.addEventListener("pageshow", handlePageshow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.removeEventListener("pageshow", handleResume);
-      document.removeEventListener("visibilitychange", handleResume);
+      window.removeEventListener("pageshow", handlePageshow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
