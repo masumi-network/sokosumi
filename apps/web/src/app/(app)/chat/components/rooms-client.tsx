@@ -1210,11 +1210,12 @@ export function RoomsClient({
     setEditSession((current) => (current ? { ...current, draft } : current));
   }
 
-  function handleSaveEdit() {
+  function handleSaveEdit(contentOverride?: string) {
     if (!selectedRoom || !editSession || isSavingEdit) return;
     const roomId = selectedRoom.id;
     const { messageId, draft } = editSession;
-    const content = draft.trim();
+    // Prefer live editor text (Enter can fire before React flushes onChange).
+    const content = (contentOverride ?? draft).trim();
     if (!content) return;
 
     startSavingEditTransition(async () => {

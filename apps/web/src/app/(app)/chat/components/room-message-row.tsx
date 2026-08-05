@@ -1104,15 +1104,23 @@ function MessageEditComposer({
   value: string;
   originalContent: string;
   onChange: (value: string) => void;
-  onSave: () => void;
+  onSave: (content: string) => void;
   onCancel: () => void;
   isSaving: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const originalContentRef = useRef(originalContent);
+  const isSavingRef = useRef(isSaving);
+  const onSaveRef = useRef(onSave);
+  const onCancelRef = useRef(onCancel);
+  originalContentRef.current = originalContent;
+  isSavingRef.current = isSaving;
+  onSaveRef.current = onSave;
+  onCancelRef.current = onCancel;
+
   const trimmed = value.trim();
   const isUnchanged = trimmed === originalContent.trim();
-  const canSave = trimmed.length > 0 && !isUnchanged && !isSaving;
 
   // autoFocus leaves the caret at 0; place it at the end so editing continues
   // from the natural end of the message (Slack/Discord-style).
@@ -1122,6 +1130,53 @@ function MessageEditComposer({
     el.focus();
     const end = el.value.length;
     el.setSelectionRange(end, end);
+  }, []);
+
+  // Native listener: read the live DOM value so Enter always sees the latest
+  // text (React onKeyDown can race a just-typed character's setState). Enter
+  // with no real change exits edit mode instead of no-op (preventDefault alone
+  // felt like a broken keyboard).
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.isComposing || event.keyCode === 229) return;
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!isSavingRef.current) onCancelRef.current();
+        return;
+      }
+
+      if (event.key !== "Enter") return;
+      // Shift+Enter → newline (default)
+      if (event.shiftKey) return;
+      // Alt+Enter ignored (leave default / no save)
+      if (event.altKey) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (isSavingRef.current) return;
+
+      const target = event.currentTarget;
+      if (!(target instanceof HTMLTextAreaElement)) return;
+
+      const live = target.value;
+      const liveTrimmed = live.trim();
+      const originalTrimmed = originalContentRef.current.trim();
+      if (liveTrimmed.length > 0 && liveTrimmed !== originalTrimmed) {
+        onSaveRef.current(live);
+        return;
+      }
+      onCancelRef.current();
+    }
+
+    el.addEventListener("keydown", handleKeyDown);
+    return () => {
+      el.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   return (
@@ -1138,20 +1193,6 @@ function MessageEditComposer({
         onBlur={() => {
           if (isSaving) return;
           if (isUnchanged) onCancel();
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            if (!isSaving) onCancel();
-            return;
-          }
-          if (event.key !== "Enter") return;
-          // Shift+Enter → newline (default)
-          if (event.shiftKey) return;
-          // Cmd/Ctrl+Enter keeps working as save alias; Alt+Enter ignored
-          if (event.altKey) return;
-          event.preventDefault();
-          if (canSave) onSave();
         }}
       />
     </div>
@@ -1294,7 +1335,8 @@ export function ChatMessageRow({
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
-  onSaveEdit?: () => void;
+  /** Optional content uses the live editor value (avoids stale draft on Enter). */
+  onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
   showThreadButton?: boolean;
   showQuoteButton?: boolean;

@@ -149,7 +149,7 @@ function renderRow({
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
-  onSaveEdit?: () => void;
+  onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
 } = {}) {
   render(
@@ -1176,6 +1176,7 @@ describe("ChatMessageRow", () => {
 
     await user.keyboard("{Enter}");
     expect(onSaveEdit).toHaveBeenCalledTimes(1);
+    expect(onSaveEdit).toHaveBeenCalledWith("Original fixed");
 
     await user.keyboard("{Escape}");
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
@@ -1184,6 +1185,7 @@ describe("ChatMessageRow", () => {
   it("does not save on Shift+Enter while editing", async () => {
     const user = userEvent.setup();
     const onSaveEdit = vi.fn();
+    const onCancelEdit = vi.fn();
 
     renderRow({
       message: userMessage({ content: "Original" }),
@@ -1192,18 +1194,20 @@ describe("ChatMessageRow", () => {
       isEditing: true,
       editDraft: "Original fixed",
       onEditDraftChange: vi.fn(),
-      onCancelEdit: vi.fn(),
+      onCancelEdit,
       onSaveEdit,
     });
 
     screen.getByDisplayValue("Original fixed").focus();
     await user.keyboard("{Shift>}{Enter}{/Shift}");
     expect(onSaveEdit).not.toHaveBeenCalled();
+    expect(onCancelEdit).not.toHaveBeenCalled();
   });
 
-  it("does not save on Enter when draft is unchanged", async () => {
+  it("cancels on Enter when draft is unchanged", async () => {
     const user = userEvent.setup();
     const onSaveEdit = vi.fn();
+    const onCancelEdit = vi.fn();
 
     renderRow({
       message: userMessage({ content: "Original" }),
@@ -1212,13 +1216,40 @@ describe("ChatMessageRow", () => {
       isEditing: true,
       editDraft: "Original",
       onEditDraftChange: vi.fn(),
-      onCancelEdit: vi.fn(),
+      onCancelEdit,
       onSaveEdit,
     });
 
     screen.getByDisplayValue("Original").focus();
     await user.keyboard("{Enter}");
     expect(onSaveEdit).not.toHaveBeenCalled();
+    expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves live textarea value on Enter even if draft prop is stale", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      // Parent draft still original (stale) while DOM has been typed into.
+      editDraft: "Original",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit,
+    });
+
+    const textarea = screen.getByDisplayValue(
+      "Original",
+    ) as HTMLTextAreaElement;
+    textarea.focus();
+    // Bypass React onChange so the controlled prop stays stale while DOM updates.
+    textarea.value = "Original fixed live";
+    await user.keyboard("{Enter}");
+    expect(onSaveEdit).toHaveBeenCalledWith("Original fixed live");
   });
 
   it("cancels on blur when draft is unchanged", async () => {
