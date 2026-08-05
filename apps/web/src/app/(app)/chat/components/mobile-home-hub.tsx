@@ -12,7 +12,6 @@ import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-ven
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import { userService } from "@/lib/services";
 import {
   resolvePlanName,
@@ -36,7 +35,6 @@ export async function MobileHomeHub({
 }: MobileHomeHubProps) {
   const tCreditPromise = getTranslations("App.Header.Credit");
   const tPlanPromise = getTranslations("App.Header.Plan");
-  const hermesMenuEnabled = isHermesBetaAccessEmail(sessionUser.email);
   const lowCreditsThreshold =
     getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
 
@@ -95,8 +93,8 @@ export async function MobileHomeHub({
             planLabel={planLabel}
             showDeveloperVendors={showDeveloperVendors}
           >
-            <PersonalAssistantNav enabled={hermesMenuEnabled} />
-            {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+            <PersonalAssistantNav />
+            <SidebarSeparator className="-mt-px" />
             <MenuItems hideHistory hideNewTask />
             <SidebarSeparator />
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
