@@ -167,10 +167,7 @@ describe("GET /agents", () => {
     expect(response.status).toBe(200);
     expect(agentFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: expect.arrayContaining([
-          { createdAt: "desc" },
-          { id: "desc" },
-        ]),
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       }),
     );
     const findManyArg = agentFindManyMock.mock.calls[0]?.[0] as {
