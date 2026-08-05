@@ -75,6 +75,10 @@ vi.mock("@/helpers/agent", () => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    agent: {
+      findMany: agentFindManyMock,
+      count: agentCountMock,
+    },
     $transaction: prismaTransactionMock,
   },
 }));
@@ -98,14 +102,6 @@ describe("agents routes auth gate", () => {
     calculateAgentRatingsMock.mockResolvedValue(new Map());
     agentFindManyMock.mockResolvedValue([]);
     agentCountMock.mockResolvedValue(0);
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        agent: {
-          findMany: agentFindManyMock,
-          count: agentCountMock,
-        },
-      });
-    });
   });
 
   it("allows anonymous GET /agents list", async () => {
@@ -113,6 +109,7 @@ describe("agents routes auth gate", () => {
 
     expect(response.status).toBe(200);
     expect(agentFindManyMock).toHaveBeenCalled();
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("returns 422 for invalid category on composed public list route", async () => {
