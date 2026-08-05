@@ -20,6 +20,9 @@ import type {
   Coworker,
 } from "@/app/chat/utils/types";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import { cn } from "@/lib/utils";
+
+import { CHAT_MOBILE_HEIGHT_SHELL_CLASS } from "./chat-mobile-tab-registry";
 
 function composeMessageText(message: ChatComposeMessage): string {
   if (typeof message === "string") {
@@ -111,7 +114,12 @@ export function ChatWelcomeClient({
   );
 
   return (
-    <div className="-m-4 flex h-[calc(100svh-64px)] min-h-0 flex-col overflow-hidden bg-background">
+    <div
+      className={cn(
+        "-m-4 flex min-h-0 flex-col overflow-hidden bg-background",
+        CHAT_MOBILE_HEIGHT_SHELL_CLASS,
+      )}
+    >
       <WelcomeScreen
         mobileKeyboardOptimized
         userName={userName}

@@ -1,6 +1,7 @@
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 
 import { AppHeaderFallback } from "./app-header-fallback";
+import { AppMobileChrome } from "./app-mobile-chrome.client";
 import { AppSidebarFallback } from "./app-sidebar-fallback";
 
 interface AppShellLoadingFrameProps {
@@ -22,10 +23,10 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
             data-app-main
           >
             <div
-              className="flex h-full flex-1 flex-col overflow-visible"
+              className="flex min-h-full flex-1 flex-col overflow-visible"
               data-app-main-inner
             >
-              {children}
+              <AppMobileChrome>{children}</AppMobileChrome>
             </div>
           </main>
         </div>

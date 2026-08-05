@@ -10,6 +10,7 @@ import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import type { Notice } from "@/lib/clients/generated/core";
 
+import { AppMobileChrome } from "./app-mobile-chrome.client";
 import AppShellOverlays from "./app-shell-overlays";
 import { AppSidebarFallback } from "./app-sidebar-fallback";
 import Header from "./header";
@@ -76,10 +77,10 @@ export default async function AuthenticatedAppFrame({
                     >
                       <EmergencyDialog />
                       <div
-                        className="flex h-full flex-1 flex-col overflow-visible"
+                        className="flex min-h-full flex-1 flex-col overflow-visible"
                         data-app-main-inner
                       >
-                        {children}
+                        <AppMobileChrome>{children}</AppMobileChrome>
                       </div>
                     </main>
                   </div>
