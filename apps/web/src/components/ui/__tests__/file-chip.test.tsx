@@ -143,6 +143,50 @@ describe("FileChip", () => {
     expect(screen.getByTestId("image-viewer")).toBeInTheDocument();
   });
 
+  it("renders an inline video player for video files instead of a download link", () => {
+    const { container } = render(
+      <FileChip
+        url="https://blob.example.com/uploads/clip.mp4?download=1"
+        fileName="clip.mp4"
+      />,
+    );
+
+    expect(screen.queryByRole("link", { name: /clip\.mp4/i })).not.toBeInTheDocument();
+
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+    expect(video).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/clip.mp4",
+    );
+    expect(video).toHaveAttribute("controls");
+    expect(video).not.toHaveAttribute("autoplay");
+    // download secondary still available (exact name avoids nested media fallback)
+    expect(screen.getByRole("link", { name: /^download$/i })).toHaveAttribute(
+      "href",
+      "https://blob.example.com/uploads/clip.mp4?download=1",
+    );
+  });
+
+  it("renders an inline audio player for audio files", () => {
+    const { container } = render(
+      <FileChip
+        url="https://blob.example.com/uploads/track.mp3"
+        fileName="track.mp3"
+        mediaType="audio/mpeg"
+      />,
+    );
+
+    const audio = container.querySelector("audio");
+    expect(audio).not.toBeNull();
+    expect(audio).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/track.mp3",
+    );
+    expect(audio).toHaveAttribute("controls");
+    expect(audio).not.toHaveAttribute("autoplay");
+  });
+
   it("keeps a plain download/open link for unsupported file types", () => {
     render(
       <FileChip
@@ -159,6 +203,8 @@ describe("FileChip", () => {
     expect(link).toHaveAttribute("target", "_blank");
     expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
     expect(screen.queryByTestId("document-viewer")).not.toBeInTheDocument();
+    expect(document.querySelector("video")).toBeNull();
+    expect(document.querySelector("audio")).toBeNull();
   });
 
   it("shows the filename and formatted size", () => {
