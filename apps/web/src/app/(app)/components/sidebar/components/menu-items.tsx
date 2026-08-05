@@ -12,7 +12,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ComponentType, Fragment, type SVGProps } from "react";
-import { useHistorySearch } from "@/app/components/history-search-dialog-provider";
+import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -46,11 +46,13 @@ interface MenuItemsProps {
 export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
-  const { openHistorySearch, searchShortcutLabel } = useHistorySearch();
+  // Soft read: `/chat` MobileHomeHub can SSR under AppShellLoadingFrame before
+  // HistorySearchDialogProvider mounts (Instant Navigations shell).
+  const historySearch = useOptionalHistorySearch();
   const { isMobile, setOpenMobile } = useSidebar();
 
   function handleSearchClick() {
-    openHistorySearch();
+    historySearch?.openHistorySearch();
     if (isMobile) {
       setOpenMobile(false);
     }
@@ -77,8 +79,8 @@ export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
       label: t("search"),
       Icon: Search,
       onClick: handleSearchClick,
-      shortcutLabel: searchShortcutLabel,
-      ariaKeyshortcuts: "Meta+K Control+K",
+      shortcutLabel: historySearch?.searchShortcutLabel,
+      ariaKeyshortcuts: historySearch ? "Meta+K Control+K" : undefined,
     },
     {
       key: "task-manager",

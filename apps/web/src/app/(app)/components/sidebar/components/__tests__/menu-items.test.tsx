@@ -12,11 +12,16 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+let historySearchValue: {
+  openHistorySearch: typeof openHistorySearchMock;
+  searchShortcutLabel: string;
+} | null = {
+  openHistorySearch: openHistorySearchMock,
+  searchShortcutLabel: "Ctrl+K",
+};
+
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
-  useHistorySearch: () => ({
-    openHistorySearch: openHistorySearchMock,
-    searchShortcutLabel: "Ctrl+K",
-  }),
+  useOptionalHistorySearch: () => historySearchValue,
 }));
 
 vi.mock("@/lib/actions/hermes", () => ({
@@ -73,6 +78,10 @@ import MenuItems from "@/app/components/sidebar/components/menu-items";
 describe("MenuItems search action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    historySearchValue = {
+      openHistorySearch: openHistorySearchMock,
+      searchShortcutLabel: "Ctrl+K",
+    };
   });
 
   it("opens history search and closes the mobile sidebar when search is clicked", () => {
@@ -81,6 +90,16 @@ describe("MenuItems search action", () => {
     fireEvent.click(screen.getByRole("button", { name: /search/i }));
 
     expect(openHistorySearchMock).toHaveBeenCalledTimes(1);
+    expect(setOpenMobileMock).toHaveBeenCalledWith(false);
+  });
+
+  it("still closes the mobile sidebar when history search is unavailable", () => {
+    historySearchValue = null;
+    render(<MenuItems />);
+
+    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+
+    expect(openHistorySearchMock).not.toHaveBeenCalled();
     expect(setOpenMobileMock).toHaveBeenCalledWith(false);
   });
 
