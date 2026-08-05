@@ -6,15 +6,6 @@ import {
 
 const MAX_UNFURL_CANDIDATES = 3;
 
-/**
- * GFM-style autolinks `<https://…>` / `<http://…>`.
- * Kept linear-time: no nested quantifiers / ambiguous alternation (CodeQL).
- */
-const AUTO_LINKS = /<https?:\/\/[^>\s]+>/gi;
-
-/** Bare http(s) URLs in prose (not inside angle brackets). */
-const BARE_HTTP_URL = /https?:\/\/[^\s<>\[\]`'"]+/gi;
-
 const TRAILING_PUNCTUATION_CHARS = new Set([
   ".",
   ",",
@@ -53,6 +44,88 @@ function isEligibleHttpUrl(url: string): boolean {
   }
 }
 
+function isBareUrlStopChar(ch: string): boolean {
+  return (
+    ch === " " ||
+    ch === "\t" ||
+    ch === "\n" ||
+    ch === "\r" ||
+    ch === "<" ||
+    ch === ">" ||
+    ch === "[" ||
+    ch === "]" ||
+    ch === "`" ||
+    ch === "'" ||
+    ch === '"'
+  );
+}
+
+/**
+ * Linear scan for bare `http://` / `https://` URLs (no regex — CodeQL ReDoS).
+ */
+function findBareHttpUrlHits(text: string): UrlHit[] {
+  const hits: UrlHit[] = [];
+  let i = 0;
+  while (i < text.length) {
+    const httpsIndex = text.indexOf("https://", i);
+    const httpIndex = text.indexOf("http://", i);
+    let start = -1;
+    if (httpsIndex === -1) {
+      start = httpIndex;
+    } else if (httpIndex === -1) {
+      start = httpsIndex;
+    } else {
+      start = Math.min(httpsIndex, httpIndex);
+    }
+    if (start === -1) {
+      break;
+    }
+
+    let end = start;
+    while (end < text.length && !isBareUrlStopChar(text[end]!)) {
+      end += 1;
+    }
+    const raw = text.slice(start, end);
+    const url = normalizeBareUrl(raw);
+    if (url.length > 0) {
+      hits.push({ url, index: start });
+    }
+    i = Math.max(end, start + 1);
+  }
+  return hits;
+}
+
+/**
+ * Linear scan for GFM autolinks `<http://…>` / `<https://…>` (no regex).
+ */
+function findAngleAutolinkHits(markdown: string): UrlHit[] {
+  const hits: UrlHit[] = [];
+  let i = 0;
+  while (i < markdown.length) {
+    const open = markdown.indexOf("<", i);
+    if (open === -1) {
+      break;
+    }
+    const rest = markdown.slice(open + 1);
+    const isHttp = rest.startsWith("http://") || rest.startsWith("https://");
+    if (!isHttp) {
+      i = open + 1;
+      continue;
+    }
+
+    const close = markdown.indexOf(">", open + 1);
+    if (close === -1) {
+      break;
+    }
+    const url = markdown.slice(open + 1, close);
+    if (!url.includes(" ") && !url.includes("\t") && !url.includes("\n")) {
+      hits.push({ url, index: open });
+    }
+    i = close + 1;
+  }
+  return hits;
+}
+
 /**
  * Finds bare http(s) URLs in text (prose), stripped of trailing punctuation.
  * Does not exclude file-like URLs — callers filter via {@link selectUnfurlCandidateUrls}.
@@ -60,8 +133,7 @@ function isEligibleHttpUrl(url: string): boolean {
 export function extractBareHttpUrls(text: string): string[] {
   const results: string[] = [];
   const seen = new Set<string>();
-  for (const match of text.matchAll(BARE_HTTP_URL)) {
-    const url = normalizeBareUrl(match[0]!);
+  for (const { url } of findBareHttpUrlHits(text)) {
     if (!url || seen.has(url)) {
       continue;
     }
@@ -89,27 +161,8 @@ function collectUrlHits(markdown: string): UrlHit[] {
     });
   }
 
-  for (const match of markdown.matchAll(AUTO_LINKS)) {
-    if (match.index === undefined) {
-      continue;
-    }
-    // Full match is `<url>`; strip the wrapping angle brackets.
-    const wrapped = match[0]!;
-    hits.push({
-      url: wrapped.slice(1, -1),
-      index: match.index,
-    });
-  }
-
-  for (const match of markdown.matchAll(BARE_HTTP_URL)) {
-    if (match.index === undefined) {
-      continue;
-    }
-    hits.push({
-      url: normalizeBareUrl(match[0]!),
-      index: match.index,
-    });
-  }
+  hits.push(...findAngleAutolinkHits(markdown));
+  hits.push(...findBareHttpUrlHits(markdown));
 
   return hits;
 }

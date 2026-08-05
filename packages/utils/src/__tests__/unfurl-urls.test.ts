@@ -57,6 +57,13 @@ describe("selectUnfurlCandidateUrls", () => {
     ).toEqual(["https://1.example", "https://2.example", "https://3.example"]);
   });
 
+  it("handles many incomplete <http:// prefixes without hanging", () => {
+    const noise = "<http://".repeat(5_000);
+    expect(selectUnfurlCandidateUrls(`${noise}<https://ok.example>`)).toEqual([
+      "https://ok.example",
+    ]);
+  });
+
   it("dedupes across markdown and bare forms", () => {
     expect(
       selectUnfurlCandidateUrls(
