@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const openHistorySearchMock = vi.fn();
 let mockPathname = "/chat";
+let mockIsApple = false;
 let mockHistorySearch: {
   openHistorySearch: typeof openHistorySearchMock;
   searchShortcutLabel: string;
@@ -21,6 +22,10 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
   useOptionalHistorySearch: () => mockHistorySearch,
+}));
+
+vi.mock("@/hooks/use-is-apple-platform", () => ({
+  default: () => mockIsApple,
 }));
 
 vi.mock("next/link", () => ({
@@ -65,6 +70,7 @@ describe("ChatMobileBottomNav", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPathname = "/chat";
+    mockIsApple = false;
     mockHistorySearch = {
       openHistorySearch: openHistorySearchMock,
       searchShortcutLabel: "Ctrl+K",
@@ -124,6 +130,33 @@ describe("ChatMobileBottomNav", () => {
     );
     expect(screen.getByRole("link", { name: "home" })).not.toHaveAttribute(
       "aria-current",
+    );
+  });
+
+  it("uses a docked full-width bar when not on Apple", () => {
+    render(<ChatMobileBottomNav />);
+
+    const nav = screen.getByRole("navigation", { name: "ariaLabel" });
+    expect(nav.className).toContain("inset-x-0");
+    expect(nav.className).toContain("border-t");
+    expect(nav.className).not.toContain("rounded-full");
+  });
+
+  it("uses a floating capsule bar on Apple platforms", () => {
+    mockIsApple = true;
+    render(<ChatMobileBottomNav />);
+
+    const nav = screen.getByRole("navigation", { name: "ariaLabel" });
+    expect(nav.className).toContain("rounded-full");
+    expect(nav.className).toContain("inset-x-4");
+    expect(nav.className).toContain("backdrop-blur-2xl");
+    expect(nav.className).not.toContain("border-t");
+
+    expect(screen.getByRole("link", { name: "home" }).className).toContain(
+      "rounded-full",
+    );
+    expect(screen.getByRole("link", { name: "home" }).className).toContain(
+      "bg-foreground/10",
     );
   });
 });

@@ -49,6 +49,7 @@ import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import {
   type ChatRoomMessageEventData,
   makeUserChatRoomsChannelName,
@@ -244,6 +245,7 @@ export function RoomsClient({
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
   const router = useRouter();
   const pathname = usePathname();
+  const isApple = useIsApplePlatform();
   const canOpenHumanDirect = Boolean(activeOrganization);
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
@@ -1317,7 +1319,7 @@ export function RoomsClient({
     <div
       className={cn(
         "-m-4 flex min-h-0 flex-col overflow-hidden bg-background",
-        chatMobileHeightShellClass(pathname),
+        chatMobileHeightShellClass(pathname, isApple),
       )}
     >
       {currentUserId ? (

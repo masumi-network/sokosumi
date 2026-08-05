@@ -20,9 +20,13 @@ import type {
   Coworker,
 } from "@/app/chat/utils/types";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 
-import { CHAT_MOBILE_HEIGHT_SHELL_CLASS } from "./chat-mobile-tab-registry";
+import {
+  CHAT_MOBILE_HEIGHT_SHELL_CLASS,
+  CHAT_MOBILE_HEIGHT_SHELL_CLASS_APPLE,
+} from "./chat-mobile-tab-registry";
 
 function composeMessageText(message: ChatComposeMessage): string {
   if (typeof message === "string") {
@@ -50,6 +54,7 @@ export function ChatWelcomeClient({
 }: ChatWelcomeClientProps) {
   const t = useTranslations("App.Chat.Chat");
   const router = useRouter();
+  const isApple = useIsApplePlatform();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [selectedCoworker, setSelectedCoworker] = useState<
@@ -117,7 +122,9 @@ export function ChatWelcomeClient({
     <div
       className={cn(
         "-m-4 flex min-h-0 flex-col overflow-hidden bg-background",
-        CHAT_MOBILE_HEIGHT_SHELL_CLASS,
+        isApple
+          ? CHAT_MOBILE_HEIGHT_SHELL_CLASS_APPLE
+          : CHAT_MOBILE_HEIGHT_SHELL_CLASS,
       )}
     >
       <WelcomeScreen

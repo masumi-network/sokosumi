@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let mockPathname = "/chat";
+let mockIsApple = false;
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
@@ -16,6 +17,10 @@ vi.mock("@/app/components/history-search-dialog-provider", () => ({
     openHistorySearch: vi.fn(),
     searchShortcutLabel: "Ctrl+K",
   }),
+}));
+
+vi.mock("@/hooks/use-is-apple-platform", () => ({
+  default: () => mockIsApple,
 }));
 
 vi.mock("next/link", () => ({
@@ -34,11 +39,15 @@ vi.mock("next/link", () => ({
 }));
 
 import { ChatMobileShell } from "../chat-mobile-shell";
-import { CHAT_MOBILE_TAB_BAR_CLEARANCE } from "../chat-mobile-tab-registry";
+import {
+  CHAT_MOBILE_TAB_BAR_CLEARANCE,
+  CHAT_MOBILE_TAB_BAR_CLEARANCE_APPLE,
+} from "../chat-mobile-tab-registry";
 
 describe("ChatMobileShell", () => {
   beforeEach(() => {
     mockPathname = "/chat";
+    mockIsApple = false;
   });
 
   it("renders bottom nav and tab-bar clearance on chat home", () => {
@@ -51,6 +60,19 @@ describe("ChatMobileShell", () => {
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
     const wrapper = container.firstElementChild?.firstElementChild;
     expect(wrapper?.className).toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
+  });
+
+  it("uses Apple float clearance on Apple platforms", () => {
+    mockIsApple = true;
+    const { container } = render(
+      <ChatMobileShell>
+        <div>child</div>
+      </ChatMobileShell>,
+    );
+
+    const wrapper = container.firstElementChild?.firstElementChild;
+    expect(wrapper?.className).toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE_APPLE);
+    expect(wrapper?.className).not.toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
 
   it("keeps bottom nav on /chat/chats", () => {
