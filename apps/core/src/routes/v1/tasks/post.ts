@@ -8,7 +8,10 @@ import {
 } from "@sokosumi/database";
 
 import { LIMITS } from "@/config/constants";
-import { requireTaskAssignableCoworker } from "@/helpers/access-control";
+import {
+  requireTaskAssignableCoworker,
+  requireWhitelistedCoworkerForColdStart,
+} from "@/helpers/access-control";
 import { errorResponseSchema, notFound } from "@/helpers/error";
 import {
   jsonContent,
@@ -288,6 +291,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserContext(authContext, {
       allowUnapprovedDelegation: true,
     });
+
+    // Bootstrap tier: no relationship with this user yet. The create below
+    // still writes a row and notifies approvers with caller-supplied text, so
+    // restrict first contact to platform-approved coworkers rather than any
+    // vendor key. Approved delegations skip this entirely.
+    const isBootstrapDelegation =
+      isCoworkerAuthContext(authContext) &&
+      Boolean(authContext.context) &&
+      authContext.isDelegationApproved !== true;
+
+    if (isBootstrapDelegation) {
+      await requireWhitelistedCoworkerForColdStart(authContext.coworkerId);
+    }
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 

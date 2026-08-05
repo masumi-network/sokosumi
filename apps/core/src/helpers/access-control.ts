@@ -223,6 +223,34 @@ export async function requireCoworkerCapability(
   }
 }
 
+/**
+ * Gate for the bootstrap tier: a coworker with NO existing relationship to the
+ * context user, cold-starting a parked task.
+ *
+ * That path writes a task row and notifies the workspace's approvers with
+ * caller-supplied text, so leaving it open to any vendor key is a spam and
+ * phishing primitive against arbitrary users. Restrict it to platform-approved
+ * coworkers — `isWhitelisted` is admin-controlled and defaults to false.
+ *
+ * Only bootstrap creates go through here. A coworker that already holds an
+ * assignment, a GRANTED grant, or an assigned task is unaffected.
+ */
+export async function requireWhitelistedCoworkerForColdStart(
+  coworkerId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const coworker = await tx.coworker.findFirst({
+    where: { id: coworkerId, archivedAt: null, isWhitelisted: true },
+    select: { id: true },
+  });
+
+  if (!coworker) {
+    throw forbidden(
+      "Coworker must be approved by Sokosumi before creating tasks for a user it has no delegation with",
+    );
+  }
+}
+
 export async function requireCoworkerChatCapability(
   coworkerId: string,
   tx: Prisma.TransactionClient = prisma,

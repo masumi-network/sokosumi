@@ -22,7 +22,7 @@ One **workspace** grant per `(vendorId, workspaceId)`:
 
 | Grant status | Coworker effect |
 | --- | --- |
-| **None / PENDING** | Baseline task access only (see below). Out-of-scope read/comment → upsert **PENDING** grant, return **403** `grant_required`. Delegated create → task parked as **`GRANT_PENDING`**. |
+| **None / PENDING** | Baseline task access only (see below). Out-of-scope read/comment → upsert **PENDING** grant, return **403** `grant_required`. Delegated create → task parked as **`GRANT_PENDING`** (a coworker with no relationship to the user must also be whitelisted). |
 | **GRANTED** | Read, list, comment, and create across the whole workspace (all non-DRAFT tasks). |
 | **DENIED / REVOKED** | **403** `grant_denied` / `grant_revoked`. Terminal — Core does not auto-reopen. |
 
@@ -66,6 +66,10 @@ propagate to the generated web client via `pnpm --filter web generate:core:snaps
 | **Baseline** | Assignee + same-vendor sibling (non-DRAFT) | Same OR filter | Parks as **`GRANT_PENDING`** if no **GRANTED** grant | Baseline tasks only |
 | **PENDING** grant | **403** `grant_required` (grant row upserted) | Still baseline-only | **201** + `GRANT_PENDING` + `pendingVendorGrantId` | **403** on out-of-scope |
 | **GRANTED** grant | Any non-DRAFT task in workspace | All non-DRAFT workspace tasks | Create at requested `DRAFT`/`READY` | Any readable non-parked task |
+
+All rows above assume an **approved** delegation. A bootstrap context (no
+relationship with the context user) reaches only `POST /v1/tasks`, always parks,
+and requires a whitelisted coworker — see [Two tiers](#two-tiers-approved-and-bootstrap).
 
 **Unchanged:**
 
@@ -116,11 +120,12 @@ a relationship with that user (`apps/core/src/middleware/coworker-delegation.ts`
   of an organization they belong to, **or**
 - a task already assigned to that coworker and owned by that user.
 
-Otherwise the request is rejected with **403**. Orchestrator service tokens are
-first-party and exempt. Without this, any vendor key could name any user id and
-be treated as that user on every route that resolves the effective user through
-`requireUserContext` — notifications, history, projects, organization billing
-and members.
+Without a relationship the context is marked **bootstrap** rather than approved,
+and every route except delegated create rejects it with **403** (see the two
+tiers below). Orchestrator service tokens are first-party and exempt. Without
+this, any vendor key could name any user id and be treated as that user on every
+route that resolves the effective user through `requireUserContext` —
+notifications, history, projects, organization billing and members.
 
 A **PENDING** grant deliberately does not count. Reaching any task route with an
 existing relationship causes `requireGrantedWorkspaceAccessOrRequest` to create a
@@ -147,6 +152,13 @@ from it even if the grant lookup were to disagree.
 The flag is fail-closed: only an explicit approval from the middleware counts,
 so a context assembled any other way is treated as bootstrap.
 
+Bootstrap create additionally requires the coworker to be **whitelisted**
+(`Coworker.isWhitelisted`, platform-admin controlled, default `false`). Cold
+start writes a task row and notifies the workspace's approvers with
+caller-supplied text, so it is limited to platform-approved coworkers rather than
+any vendor key. A non-whitelisted vendor needs an assignment or an approved grant
+arranged out of band first.
+
 ---
 
 ## Delegated create (`POST /v1/tasks`)
@@ -154,8 +166,11 @@ so a context assembled any other way is treated as bootstrap.
 Applies when auth is coworker **with** user context. Session-only user create is
 unchanged (no grant gate).
 
+0. **Bootstrap contexts only:** the coworker must be whitelisted, else **403**
+   before anything is written or notified. Approved delegations skip this.
 1. Single transaction: validate project → `requestWorkspaceGrant` → insert task.
-2. **`GRANTED`** → create at `body.status` (`DRAFT` or `READY`).
+2. **`GRANTED`** → create at `body.status` (`DRAFT` or `READY`) — but only when
+   the delegation is approved. A bootstrap context always parks, even here.
 3. **`PENDING`** → `status: GRANT_PENDING`, `grantResumeStatus` ← `body.status`,
    `pendingVendorGrantId` ← grant id; approvers notified post-commit (best-effort).
 4. **`DENIED` / `REVOKED`** → **403**, no task row.

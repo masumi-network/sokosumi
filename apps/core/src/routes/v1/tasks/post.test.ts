@@ -17,6 +17,7 @@ const {
   prismaTransactionMock,
   requestWorkspaceGrantMock,
   requireTaskAssignableCoworkerMock,
+  requireWhitelistedCoworkerForColdStartMock,
   taskCreateMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
@@ -28,6 +29,7 @@ const {
   prismaTransactionMock: vi.fn(),
   requestWorkspaceGrantMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
+  requireWhitelistedCoworkerForColdStartMock: vi.fn(),
   taskCreateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
 }));
@@ -117,6 +119,8 @@ function buildMapTaskResponse(task: {
 
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  requireWhitelistedCoworkerForColdStart:
+    requireWhitelistedCoworkerForColdStartMock,
 }));
 
 vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
@@ -824,6 +828,55 @@ describe("POST /tasks delegated coworker create grant", () => {
         }),
       }),
     );
+  });
+
+  it("requires a whitelisted coworker for an UNAPPROVED cold start", async () => {
+    // Cold start writes a row and notifies approvers with caller-supplied
+    // text, so it must not be open to any vendor key.
+    requireWhitelistedCoworkerForColdStartMock.mockRejectedValueOnce(
+      Object.assign(new Error("not whitelisted"), { status: 403 }),
+    );
+
+    const response = await createDelegatedCoworkerApp(false).request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Spam",
+          description: null,
+          assigneeId: null,
+          status: TaskStatus.DRAFT,
+          channel: Channel.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).not.toBe(201);
+    expect(taskCreateMock).not.toHaveBeenCalled();
+    expect(notifyWorkspaceApproversOfPendingGrantMock).not.toHaveBeenCalled();
+  });
+
+  it("does not gate an APPROVED delegation on the whitelist", async () => {
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.GRANTED, false);
+
+    const response = await createDelegatedCoworkerApp(true).request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Normal",
+          description: null,
+          assigneeId: null,
+          status: TaskStatus.DRAFT,
+          channel: Channel.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(requireWhitelistedCoworkerForColdStartMock).not.toHaveBeenCalled();
   });
 
   it("lets an UNAPPROVED delegation cold-start a parked task", async () => {
