@@ -208,7 +208,7 @@ function RoomParticipantStack({
                 <AvatarImage src={participant.image ?? undefined} alt="" />
                 <AvatarFallback
                   className={cn(
-                    "text-[10px]",
+                    "text-[0.625rem]",
                     participant.kind === "coworker"
                       ? "bg-primary/10 text-primary"
                       : "bg-muted text-muted-foreground",

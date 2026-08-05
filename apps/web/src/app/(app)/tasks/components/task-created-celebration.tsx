@@ -122,7 +122,7 @@ export function TaskCreatedCelebration({
                   >
                     <span
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[9px] font-medium",
+                        "inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-medium",
                         cardStyles.badge,
                       )}
                     >
@@ -135,11 +135,11 @@ export function TaskCreatedCelebration({
                       />
                       {statusLabel}
                     </span>
-                    <p className="text-foreground line-clamp-2 text-[11px] leading-snug font-medium">
+                    <p className="text-foreground line-clamp-2 text-[0.6875rem] leading-snug font-medium">
                       {name}
                     </p>
                     {isQueued && scheduleLabel ? (
-                      <div className="text-muted-foreground flex min-w-0 items-center gap-1 text-[9px] leading-none">
+                      <div className="text-muted-foreground flex min-w-0 items-center gap-1 text-[0.5625rem] leading-none">
                         <Clock className="size-2.5 shrink-0" aria-hidden />
                         <span className="truncate">{scheduleLabel}</span>
                       </div>

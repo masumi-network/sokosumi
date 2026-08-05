@@ -24,7 +24,7 @@ const nextErrorLayoutStyles = {
     lineHeight: "48px",
   },
   h2: {
-    fontSize: 14,
+    fontSize: "0.875rem",
     fontWeight: 400,
     lineHeight: "28px",
     margin: 0,

@@ -143,7 +143,7 @@ export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
                     {badge ? (
                       <span
                         className={cn(
-                          "border-border/60 text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[10px] font-medium uppercase tracking-wide leading-4",
+                          "border-border/60 text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
                           isActive &&
                             "border-primary-foreground/30 text-primary-foreground",
                         )}
@@ -154,7 +154,7 @@ export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
                     {showUnread ? (
                       <span
                         aria-label={`${unreadDisplay} unread`}
-                        className="bg-primary text-primary-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
+                        className="bg-primary text-primary-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
                       >
                         {unreadDisplay}
                       </span>
