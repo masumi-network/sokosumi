@@ -5,6 +5,10 @@ import {
   usersPathUserContextMiddleware,
 } from "../user-route-context.js";
 import mountGetUserBillingDetails from "./billing-details/get.js";
+import mountApproveUserCoworkerAccess from "./coworker-access/[accessId]/approve/post.js";
+import mountDenyUserCoworkerAccess from "./coworker-access/[accessId]/deny/post.js";
+import mountRevokeUserCoworkerAccess from "./coworker-access/[accessId]/revoke/post.js";
+import mountGetUserCoworkerAccess from "./coworker-access/get.js";
 import mountGetUserCredits from "./credits/get.js";
 import mountGetUserDesignMd from "./design-md/get.js";
 import mountPutUserDesignMd from "./design-md/put.js";
@@ -56,6 +60,10 @@ mountPostUserNoticeAcknowledge(app);
 mountGetUserFiles(app);
 mountPostUserFiles(app);
 mountPostUserUtmAttribution(app);
+mountGetUserCoworkerAccess(app);
+mountApproveUserCoworkerAccess(app);
+mountDenyUserCoworkerAccess(app);
+mountRevokeUserCoworkerAccess(app);
 mountGetUserVendorGrants(app);
 mountPostUserVendorGrants(app);
 mountApproveUserVendorGrant(app);
