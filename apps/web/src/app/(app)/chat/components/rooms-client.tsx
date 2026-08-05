@@ -42,10 +42,7 @@ import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-sign
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
-import {
-  forgetRoomRead,
-  rememberRoomRead,
-} from "@/components/chat/room-read-overlay";
+import { applyRoomReadResultToOverlay } from "@/components/chat/room-read-overlay";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
@@ -296,6 +293,9 @@ export function RoomsClient({
   selectedRoomIdRef.current = selectedRoomId;
   const currentUserIdRef = useRef(currentUserId);
   currentUserIdRef.current = currentUserId;
+  const syncRoomAttentionAfterThreadLookRef = useRef<
+    (roomId: string) => Promise<void>
+  >(async () => {});
   const [attentionRefreshToken, setAttentionRefreshToken] = useState(0);
   const [syncedAttentionRoomId, setSyncedAttentionRoomId] =
     useState(selectedRoomId);
@@ -468,15 +468,17 @@ export function RoomsClient({
         message.parentMessageId === openThreadParentId
       ) {
         setThreadMessages((current) => mergeRoomMessages(current, [message]));
-        // Keep look state current while the panel is open so dual-baseline
-        // room unreadCount drops this reply after leave/poll.
+        // Look first, then room re-sync — mark-read effect can race if it
+        // runs before look lands; open path uses the same order.
         if (message.parentMessageId === openThreadParentId) {
           const roomId = message.roomId;
           void markThreadReadAction(roomId, openThreadParentId).then(
-            (result) => {
-              if (result.ok) {
-                setAttentionRefreshToken((token) => token + 1);
+            async (result) => {
+              if (!result.ok) {
+                return;
               }
+              setAttentionRefreshToken((token) => token + 1);
+              await syncRoomAttentionAfterThreadLookRef.current(roomId);
             },
           );
         }
@@ -752,16 +754,7 @@ export function RoomsClient({
       if (!result.ok) {
         return;
       }
-      // Only overlay full-clear when dual-baseline count is actually 0.
-      // Room mark-read does not clear unlooked threads — do not hide them.
-      if (
-        result.data.unreadCount === 0 &&
-        result.data.unreadMentionCount === 0
-      ) {
-        rememberRoomRead(result.data);
-      } else {
-        forgetRoomRead(result.data.id);
-      }
+      applyRoomReadResultToOverlay(result.data);
       if (cancelled) {
         return;
       }
@@ -1042,20 +1035,15 @@ export function RoomsClient({
     if (!roomResult.ok) {
       return;
     }
-    if (
-      roomResult.data.unreadCount === 0 &&
-      roomResult.data.unreadMentionCount === 0
-    ) {
-      rememberRoomRead(roomResult.data);
-    } else {
-      forgetRoomRead(roomResult.data.id);
-    }
+    applyRoomReadResultToOverlay(roomResult.data);
     window.dispatchEvent(
       new CustomEvent("organization-chat-room-read", {
         detail: { room: roomResult.data, roomId },
       }),
     );
   }
+  syncRoomAttentionAfterThreadLookRef.current =
+    syncRoomAttentionAfterThreadLook;
 
   async function loadThreadMessages(
     parentMessage: ChatRoomMessage,
