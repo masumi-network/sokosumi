@@ -479,9 +479,12 @@ export function RoomsClient({
         setThreadMessages((current) => mergeRoomMessages(current, [message]));
         // Look first, then room re-sync — mark-read effect can race if it
         // runs before look lands; open path uses the same order.
-        if (message.parentMessageId === openThreadParentId) {
-          const roomId = message.roomId;
-          void markThreadReadAction(roomId, openThreadParentId).then(
+        // Use the ref (not openThreadParentId) so this []-deps handler stays
+        // current, and narrow null before calling markThreadReadAction.
+        const openParentId = threadParentMessageIdRef.current;
+        const roomId = message.roomId;
+        if (openParentId != null && message.parentMessageId === openParentId) {
+          void markThreadReadAction(roomId, openParentId).then(
             async (result) => {
               if (!result.ok) {
                 return;
