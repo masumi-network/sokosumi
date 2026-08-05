@@ -816,12 +816,16 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
       const plain = clipboard.getData("text/plain");
       const html = clipboard.getData("text/html");
+      // Own any text/html paste so the browser never injects rich clipboard
+      // markup. File-only pastes leave both empty and bubble to the drop zone.
+      if (!plain && !html) return;
+
+      event.preventDefault();
       // Always paste plain text — never keep rich clipboard HTML (links, bold,
       // colors). Toolbar / markdown input rules still apply after paste.
       const text = plain || (html ? composerPastedHtmlToPlainText(html) : "");
       if (!text) return;
 
-      event.preventDefault();
       const editor = editorRef.current;
       if (!editor) return;
       editor.focus();

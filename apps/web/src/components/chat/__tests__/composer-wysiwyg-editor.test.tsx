@@ -455,6 +455,46 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor.textContent).toBe("only html");
   });
 
+  it("prevents default for HTML-only paste even when extractable text is empty", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.innerHTML = "";
+
+    const execCommand = vi.fn(() => true);
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: execCommand,
+    });
+
+    const pasteEvent = fireEvent.paste(editor, {
+      clipboardData: {
+        getData: (type: string) => {
+          if (type === "text/html") {
+            return '<img src="https://example.com/x.png" alt="">';
+          }
+          return "";
+        },
+      },
+    });
+
+    // fireEvent.paste returns false when preventDefault was called
+    expect(pasteEvent).toBe(false);
+    expect(execCommand).not.toHaveBeenCalled();
+    expect(editor.innerHTML).not.toMatch(/<img\b/i);
+  });
+
   it("strips color styles left by insertHTML on input", () => {
     function Harness() {
       const [value, setValue] = useState("");
