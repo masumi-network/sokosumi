@@ -278,6 +278,7 @@ function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
   return {
     id: "room-1",
     organizationId: "org-1",
+    organizationName: null,
     name: "general",
     slug: "general",
     kind: "channel",
@@ -292,6 +293,7 @@ function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     pinnedAt: null,
     mutedAt: null,
     markedUnread: false,
+    myAccess: "member",
     userMembers: [makeUser("user-1"), makeUser("user-2")],
     coworkerMembers: [],
     ...overrides,

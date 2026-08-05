@@ -4189,6 +4189,84 @@ export const AgentRatingRequestSchema = {
     ]
 } as const;
 
+export const ChatRoomInvitationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomName: {
+            type: 'string'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        organizationName: {
+            type: 'string'
+        },
+        email: {
+            type: 'string',
+            format: 'email'
+        },
+        status: {
+            $ref: '#/components/schemas/ChatRoomInvitationStatus'
+        },
+        inviter: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'roomId',
+        'roomName',
+        'organizationId',
+        'organizationName',
+        'email',
+        'status',
+        'inviter',
+        'expiresAt',
+        'createdAt'
+    ]
+} as const;
+
+export const ChatRoomInvitationStatusSchema = {
+    type: 'string',
+    enum: [
+        'pending',
+        'accepted',
+        'revoked',
+        'declined',
+        'expired'
+    ]
+} as const;
+
 export const ChatRoomSchema = {
     type: 'object',
     properties: {
@@ -4205,6 +4283,14 @@ export const ChatRoomSchema = {
             ],
             description: 'Active organization at create time for channels and directs. Null only for coworker 1:1 DMs created with no active organization.',
             example: 'org_123'
+        },
+        organizationName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Host organization display name. Required for guest rows in list; may be null for personal directs.',
+            example: 'Acme Corp'
         },
         name: {
             type: 'string',
@@ -4289,6 +4375,9 @@ export const ChatRoomSchema = {
             description: 'True when the current user marked this room unread. Cleared on mark-read.',
             example: false
         },
+        myAccess: {
+            $ref: '#/components/schemas/ChatRoomAccess'
+        },
         userMembers: {
             type: 'array',
             items: {
@@ -4305,6 +4394,7 @@ export const ChatRoomSchema = {
     required: [
         'id',
         'organizationId',
+        'organizationName',
         'name',
         'slug',
         'kind',
@@ -4319,6 +4409,7 @@ export const ChatRoomSchema = {
         'pinnedAt',
         'mutedAt',
         'markedUnread',
+        'myAccess',
         'userMembers',
         'coworkerMembers'
     ]
@@ -4332,10 +4423,21 @@ export const ChatRoomDiscoverabilitySchema = {
     enum: [
         'public',
         'private',
+        'external',
         null
     ],
-    description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.',
+    description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable), `"private"` (roster-only), or `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests). Null for direct rooms.',
     example: 'public'
+} as const;
+
+export const ChatRoomAccessSchema = {
+    type: 'string',
+    enum: [
+        'member',
+        'guest'
+    ],
+    description: 'Caller\'s membership on this room. Guests are not host-org members.',
+    example: 'member'
 } as const;
 
 export const ChatRoomUserParticipantSchema = {
@@ -4491,7 +4593,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'channel'
                     ],
-                    description: 'Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.'
+                    description: 'Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only. External channels are org-discoverable / self-joinable for host-org members; outsiders join only via room invitation as guests (owner/admin create only).'
                 },
                 name: {
                     type: 'string',
@@ -4508,10 +4610,11 @@ export const CreateChatRoomRequestSchema = {
                     type: 'string',
                     enum: [
                         'public',
-                        'private'
+                        'private',
+                        'external'
                     ],
                     default: 'public',
-                    description: 'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.',
+                    description: 'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only. `"external"` is org-discoverable for host members; guests join only via room invitation (owner/admin create only).',
                     example: 'public'
                 },
                 memberUserIds: {
@@ -4615,7 +4718,8 @@ export const DiscoverableChatRoomSchema = {
         discoverability: {
             type: 'string',
             enum: [
-                'public'
+                'public',
+                'external'
             ],
             example: 'public'
         },
@@ -4829,7 +4933,7 @@ export const UpdateChatRoomRequestSchema = {
                     $ref: '#/components/schemas/ChatRoomDiscoverability'
                 },
                 {
-                    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable; `"private"` hides it from the discoverable listing.',
+                    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable; `"private"` hides it from the discoverable listing; `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.',
                     example: 'private'
                 }
             ]
@@ -4877,6 +4981,20 @@ export const ArchivedChatRoomSchema = {
     required: [
         'id',
         'archivedAt'
+    ]
+} as const;
+
+export const CreateChatRoomInvitationRequestSchema = {
+    type: 'object',
+    properties: {
+        email: {
+            type: 'string',
+            format: 'email',
+            example: 'guest@example.com'
+        }
+    },
+    required: [
+        'email'
     ]
 } as const;
 

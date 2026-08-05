@@ -2,7 +2,7 @@ import { Hash, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChannelDiscoverabilityIconProps {
-  discoverability?: "public" | "private" | null;
+  discoverability?: "public" | "private" | "external" | null;
   className?: string;
 }
 
