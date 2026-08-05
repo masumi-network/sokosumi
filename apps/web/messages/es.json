@@ -4953,8 +4953,7 @@
       },
       "Edit": {
         "action": "Editar",
-        "save": "Guardar",
-        "cancel": "Cancelar",
+        "composerAria": "Editar mensaje. Intro para guardar, Escape para cancelar, Mayús+Intro para nueva línea.",
         "edited": "Editado"
       },
       "Browse": {
