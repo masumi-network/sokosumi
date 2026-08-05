@@ -8,6 +8,7 @@ import {
   forbidCoworkerActor,
   requireAdminAuthContext,
   requireOwnerUserContext,
+  requireUserContext,
 } from "./auth";
 
 const {
@@ -685,6 +686,69 @@ describe("forbidCoworkerActor", () => {
         context: { userId: "user_123", organizationId: null },
       }),
     ).toThrowError("Coworker authentication cannot perform this owner action");
+  });
+});
+
+describe("requireUserContext delegation tiers", () => {
+  const unapprovedCoworker = {
+    actor: "coworker" as const,
+    coworkerId: "cow_1",
+    vendorId: TEST_VENDOR_ID,
+    isDelegationApproved: false,
+    context: { userId: "user_victim", organizationId: null },
+  };
+
+  it("rejects an unapproved coworker context by default", () => {
+    // This is the impersonation gate: every user-scoped route resolves the
+    // effective user through here, so an unapproved vendor must not pass.
+    expect(() => requireUserContext(unapprovedCoworker)).toThrow(
+      expect.objectContaining({ status: 403 }),
+    );
+  });
+
+  it("fails closed when the flag is absent entirely", () => {
+    // A context built without going through the middleware must not be
+    // mistaken for an approved one.
+    const { isDelegationApproved: _omitted, ...noFlag } = unapprovedCoworker;
+    expect(() => requireUserContext(noFlag)).toThrow(
+      expect.objectContaining({ status: 403 }),
+    );
+  });
+
+  it("accepts an unapproved context only when explicitly opted in", () => {
+    // Delegated task create opts in; it parks the task pending approval.
+    expect(
+      requireUserContext(unapprovedCoworker, {
+        allowUnapprovedDelegation: true,
+      }),
+    ).toEqual({
+      source: "context",
+      userId: "user_victim",
+      organizationId: null,
+    });
+  });
+
+  it("accepts an approved coworker context", () => {
+    expect(
+      requireUserContext({ ...unapprovedCoworker, isDelegationApproved: true }),
+    ).toEqual({
+      source: "context",
+      userId: "user_victim",
+      organizationId: null,
+    });
+  });
+
+  it("does not require the flag for first-party orchestrator tokens", () => {
+    expect(
+      requireUserContext({
+        actor: "orchestrator",
+        context: { userId: "user_1", organizationId: null },
+      }),
+    ).toEqual({
+      source: "context",
+      userId: "user_1",
+      organizationId: null,
+    });
   });
 });
 

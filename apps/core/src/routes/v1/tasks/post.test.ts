@@ -718,7 +718,7 @@ describe("POST /tasks orchestrator create", () => {
 });
 
 describe("POST /tasks delegated coworker create grant", () => {
-  function createDelegatedCoworkerApp() {
+  function createDelegatedCoworkerApp(isDelegationApproved = true) {
     const app = new OpenAPIHono<{
       Variables: AuthVariables & WorkspaceVariables;
     }>();
@@ -729,6 +729,7 @@ describe("POST /tasks delegated coworker create grant", () => {
         actor: "coworker",
         coworkerId: "cow_123",
         vendorId: "vendor_123",
+        isDelegationApproved,
         context: {
           userId: "user_123",
           organizationId: "org_123",
@@ -821,6 +822,69 @@ describe("POST /tasks delegated coworker create grant", () => {
           grantResumeStatus: TaskStatus.DRAFT,
           pendingVendorGrantId: CREATE_GRANT_ID,
         }),
+      }),
+    );
+  });
+
+  it("lets an UNAPPROVED delegation cold-start a parked task", async () => {
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.PENDING, true);
+    notifyWorkspaceApproversOfPendingGrantMock.mockResolvedValue(undefined);
+
+    // The documented cold start: a vendor with no relationship to this user
+    // makes first contact. It must be able to ASK — the task parks and a human
+    // approves — otherwise the vendor can never obtain a grant at all.
+    const response = await createDelegatedCoworkerApp(false).request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Cold start",
+          description: null,
+          assigneeId: null,
+          status: TaskStatus.DRAFT,
+          channel: Channel.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: TaskStatus.GRANT_PENDING,
+          pendingVendorGrantId: CREATE_GRANT_ID,
+        }),
+      }),
+    );
+  });
+
+  it("parks an UNAPPROVED delegation even if the grant reads GRANTED", async () => {
+    mockWorkspaceGrantInTransaction(VendorGrantStatus.GRANTED, false);
+
+    // Defense in depth: a GRANTED grant on this workspace is one of the things
+    // that marks the delegation approved, so the two should never disagree.
+    // They are separate queries though, so if they ever drift, park rather than
+    // hand an unapproved vendor a live task.
+    const response = await createDelegatedCoworkerApp(false).request(
+      "http://localhost/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Divergent",
+          description: null,
+          assigneeId: null,
+          status: TaskStatus.DRAFT,
+          channel: Channel.SOKOSUMI,
+        }),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: TaskStatus.GRANT_PENDING }),
       }),
     );
   });

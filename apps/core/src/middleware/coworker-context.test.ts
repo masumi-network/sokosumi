@@ -135,11 +135,12 @@ describe("coworkerContextMiddleware", () => {
       actor: "coworker",
       coworkerId: "cow_1",
       vendorId: TEST_VENDOR_ID,
+      isDelegationApproved: true,
       context: { userId: "user_context", organizationId: null },
     });
   });
 
-  it("rejects a coworker acting for a user it has no delegation with", async () => {
+  it("marks the context unapproved when the coworker has no delegation", async () => {
     userFindUniqueMock.mockResolvedValue({ id: "user_victim" });
     hasCoworkerUserDelegationMock.mockResolvedValue(false);
 
@@ -156,9 +157,18 @@ describe("coworkerContextMiddleware", () => {
       headers: { "X-Context-User-Id": "user_victim" },
     });
 
-    // Existence of the user is not authorization: without this a vendor key
-    // could name any user id and be treated as that user downstream.
-    expect(res.status).toBe(403);
+    // The context is attached but flagged: it reaches ONLY delegated task
+    // create (which parks and asks a human), and requireUserContext rejects it
+    // everywhere else. Existence of the user is never authorization.
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      authContext: AuthVariables["authContext"];
+    };
+    expect(body.authContext).toMatchObject({
+      actor: "coworker",
+      isDelegationApproved: false,
+      context: { userId: "user_victim" },
+    });
     expect(hasCoworkerUserDelegationMock).toHaveBeenCalledWith({
       coworkerId: "cow_1",
       vendorId: TEST_VENDOR_ID,
@@ -208,6 +218,7 @@ describe("coworkerContextMiddleware", () => {
       actor: "coworker",
       coworkerId: "cow_1",
       vendorId: TEST_VENDOR_ID,
+      isDelegationApproved: true,
       context: { userId: "user_legacy", organizationId: null },
     });
   });
@@ -239,6 +250,7 @@ describe("coworkerContextMiddleware", () => {
       actor: "coworker",
       coworkerId: "cow_1",
       vendorId: TEST_VENDOR_ID,
+      isDelegationApproved: true,
       context: { userId: "context_wins", organizationId: null },
     });
     expect(userFindUniqueMock).toHaveBeenCalledWith({
@@ -275,6 +287,7 @@ describe("coworkerContextMiddleware", () => {
       actor: "coworker",
       coworkerId: "cow_1",
       vendorId: TEST_VENDOR_ID,
+      isDelegationApproved: true,
       context: { userId: "u1", organizationId: "org_1" },
     });
   });

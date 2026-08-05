@@ -156,6 +156,7 @@ describe("GET /jobs", () => {
         actor: "coworker",
         coworkerId: "cow_123",
         vendorId: TEST_VENDOR_ID,
+        isDelegationApproved: true,
         context: {
           userId: "user_123",
           organizationId: "org_123",

@@ -34,6 +34,25 @@ export interface CoworkerAuthenticationContext {
   coworkerId: string;
   vendorId: string;
   context?: WorkspaceActorRequestContext;
+  /**
+   * Whether this coworker is actually delegated to act for `context.userId`.
+   * Set by `coworkerContextMiddleware` whenever `context` is present.
+   *
+   * `true` means a real relationship exists — an assignment, a GRANTED
+   * workspace grant, or a task already assigned to this coworker.
+   *
+   * Anything else is the bootstrap tier: a vendor naming a user it has no
+   * relationship with. Such a context reaches ONLY delegated task create,
+   * which parks the task and requests human approval — every other
+   * user-scoped route rejects it (see {@link requireUserContext}). Without
+   * this tier the documented GRANT_PENDING cold start is impossible, because
+   * the vendor cannot even ask for permission.
+   *
+   * Optional and fail-closed: an absent value is NOT approved, so a context
+   * built without going through the middleware cannot bypass the gate.
+   * Orchestrator service tokens are first-party and carry no such flag.
+   */
+  isDelegationApproved?: boolean;
 }
 
 export interface OrchestratorAuthenticationContext {
@@ -164,13 +183,29 @@ export type UserContext =
       organizationId: string | null;
     };
 
+export interface RequireUserContextOptions {
+  /**
+   * Accept a context whose delegation has NOT been approved yet.
+   *
+   * Only the delegated task-create path may set this: it parks the task as
+   * `GRANT_PENDING` and requests human approval, which is the documented way a
+   * vendor makes first contact. Anything that reads or mutates existing user
+   * data must leave this off, or an unapproved vendor could act as the user.
+   */
+  allowUnapprovedDelegation?: boolean;
+}
+
 /**
  * Resolves the effective user context for this request (session user or
  * coworker/orchestrator with workspace context). Contextual actors must send
  * `X-Context-User-Id` (and optional org header validated in middleware).
+ *
+ * Contexts come in two tiers — see {@link WorkspaceActorRequestContext}. An
+ * unapproved one is rejected here unless the caller explicitly opts in.
  */
 export function requireUserContext(
   authContext: AuthenticationContext,
+  options: RequireUserContextOptions = {},
 ): UserContext {
   if (isUserAuthContext(authContext)) {
     return { source: "session", ...authContext };
@@ -184,6 +219,18 @@ export function requireUserContext(
     if (!context) {
       throw forbidden(
         "Context headers (X-Context-User-Id) are required for this resource",
+      );
+    }
+
+    // Fail closed: only an explicit `true` from the middleware counts.
+    // Orchestrator service tokens are first-party and skip this entirely.
+    if (
+      isCoworkerAuthContext(authContext) &&
+      authContext.isDelegationApproved !== true &&
+      !options.allowUnapprovedDelegation
+    ) {
+      throw forbidden(
+        "Coworker is not delegated to act for the specified context user",
       );
     }
 

@@ -107,29 +107,26 @@ export const coworkerContextMiddleware = createMiddleware<AuthEnv>(
       }
     }
 
-    const context = {
+    const baseContext = {
       userId,
       organizationId: organizationIdTrimmed ? organizationIdTrimmed : null,
     };
 
     if (isCoworkerAuthContext(authContext)) {
       // Existence of the context user is not authorization. A coworker key is
-      // vendor-issued and the header is caller-chosen, so without this check
-      // any vendor could name any user id and read/act as them on every route
-      // that resolves the effective user via `requireUserContext`.
-      // Orchestrator keys are exempt: that is a first-party service token, not
-      // a third-party credential.
-      const hasDelegation = await hasCoworkerUserDelegation({
+      // vendor-issued and the header is caller-chosen, so an unchecked context
+      // would let any vendor name any user id and read/act as them on every
+      // route that resolves the effective user via `requireUserContext`.
+      //
+      // Rather than rejecting outright, record WHICH tier this is: an
+      // unapproved context still reaches delegated task create, which parks the
+      // task and asks a human for approval — the documented cold start. Every
+      // other user-scoped route rejects it in `requireUserContext`.
+      const isDelegationApproved = await hasCoworkerUserDelegation({
         coworkerId: authContext.coworkerId,
         vendorId: authContext.vendorId,
         userId,
       });
-
-      if (!hasDelegation) {
-        throw forbidden(
-          "Coworker is not delegated to act for the specified context user",
-        );
-      }
 
       setAuthContext(c, {
         isAuthenticated,
@@ -137,7 +134,8 @@ export const coworkerContextMiddleware = createMiddleware<AuthEnv>(
           actor: "coworker",
           coworkerId: authContext.coworkerId,
           vendorId: authContext.vendorId,
-          context,
+          context: baseContext,
+          isDelegationApproved,
         },
       });
       return await next();
@@ -152,7 +150,7 @@ export const coworkerContextMiddleware = createMiddleware<AuthEnv>(
     const nextAuthContext: OrchestratorAuthenticationContext = {
       actor: "orchestrator",
       orchestratorId: orchestrator?.id,
-      context,
+      context: baseContext,
     };
 
     setAuthContext(c, {

@@ -145,6 +145,7 @@ describe("GET /tasks/{id}/workspace", () => {
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: TEST_VENDOR_ID,
+      isDelegationApproved: true,
       context: {
         userId: "user_123",
         organizationId: "org_123",
@@ -180,6 +181,7 @@ describe("GET /tasks/{id}/workspace", () => {
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: TEST_VENDOR_ID,
+      isDelegationApproved: true,
     }).request("/tsk_123/workspace");
     const body = await response.json();
 

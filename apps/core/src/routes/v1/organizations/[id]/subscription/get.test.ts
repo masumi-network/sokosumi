@@ -53,6 +53,7 @@ const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_1",
   vendorId: TEST_VENDOR_ID,
+  isDelegationApproved: true,
 };
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
@@ -100,6 +101,7 @@ describe("GET /organizations/{id}/subscription", () => {
       actor: "coworker",
       coworkerId: "cow_1",
       vendorId: TEST_VENDOR_ID,
+      isDelegationApproved: true,
       context: { userId: "user_1", organizationId: "org_1" },
     }).request("http://localhost/org_1/subscription");
 

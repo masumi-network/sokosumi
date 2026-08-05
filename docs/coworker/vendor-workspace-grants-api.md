@@ -128,21 +128,24 @@ PENDING grant on that *workspace*; accepting it here would let one member's
 engagement hand the vendor context for every other member of the same
 organization before a human approved anything.
 
-> [!IMPORTANT]
-> **Known follow-up — GRANT_PENDING cold start is currently blocked.**
->
-> The delegated-create flow below is documented as the cold-start entry point: a
-> vendor creates the first task for a user it has no relationship with, the task
-> parks as `GRANT_PENDING`, and a human then approves. That no longer works.
-> `POST /v1/tasks` calls `requireUserContext` before it requests the grant, so
-> the middleware returns **403** first and the vendor cannot even ask for
-> permission.
->
-> Restoring it needs two-tier context: attach an *unapproved* context that
-> reaches **only** delegated task create (which parks the task and requests
-> approval), while every other user-scoped route continues to require an
-> approved relationship. Until that lands, a vendor must be given an assignment
-> or an approved grant out of band before it can create anything.
+### Two tiers: approved and bootstrap
+
+Context comes in two tiers, so the check above does not break first contact:
+
+| Tier | When | Reaches |
+| --- | --- | --- |
+| **Approved** | one of the relationships above holds | every user-scoped route, as before |
+| **Bootstrap** | none of them hold | **only** `POST /v1/tasks` (delegated create) |
+
+A bootstrap context is what makes the `GRANT_PENDING` cold start below possible:
+a vendor with no relationship can create its first task, which parks as
+`GRANT_PENDING` and notifies approvers — it can *ask* for access, but it cannot
+read or mutate anything. Every other route rejects it with **403** inside
+`requireUserContext`, and delegated create refuses to produce an unparked task
+from it even if the grant lookup were to disagree.
+
+The flag is fail-closed: only an explicit approval from the middleware counts,
+so a context assembled any other way is treated as bootstrap.
 
 ---
 

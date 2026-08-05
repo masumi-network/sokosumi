@@ -100,12 +100,14 @@ const BARE_COWORKER: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
   vendorId: TEST_VENDOR_ID,
+  isDelegationApproved: true,
 };
 
 const CONTEXT_COWORKER: AuthenticationContext = {
   actor: "coworker",
   coworkerId: "cow_123",
   vendorId: TEST_VENDOR_ID,
+  isDelegationApproved: true,
   context: { userId: "user_123", organizationId: null },
 };
 

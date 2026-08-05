@@ -92,6 +92,7 @@ describe("usersPathUserContextMiddleware", () => {
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: "01960001-0001-7001-8001-000000000001",
+      isDelegationApproved: true,
       context: { userId: "user_123", organizationId: null },
     });
 
@@ -110,6 +111,7 @@ describe("usersPathUserContextMiddleware", () => {
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: "01960001-0001-7001-8001-000000000001",
+      isDelegationApproved: true,
       context: { userId: "user_123", organizationId: null },
     });
 
@@ -127,6 +129,7 @@ describe("usersPathUserContextMiddleware", () => {
       actor: "coworker",
       coworkerId: "cow_123",
       vendorId: "01960001-0001-7001-8001-000000000001",
+      isDelegationApproved: true,
       context: { userId: "user_other", organizationId: null },
     });
 

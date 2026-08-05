@@ -280,7 +280,14 @@ async function createTaskRecord(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const authContext = c.var.authContext;
-    const userContext = requireUserContext(authContext);
+    // The ONLY route that accepts an unapproved delegation. A vendor with no
+    // relationship to this user can reach exactly this path, and the grant gate
+    // below parks whatever it creates as GRANT_PENDING until a human approves —
+    // that is the documented cold start. Every other user-scoped route rejects
+    // an unapproved context inside requireUserContext.
+    const userContext = requireUserContext(authContext, {
+      allowUnapprovedDelegation: true,
+    });
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const body = c.req.valid("json");
 
@@ -340,7 +347,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throwGrantAccessError(grant.status);
       }
 
-      if (grant.status === VendorGrantStatus.GRANTED) {
+      // An unapproved delegation must never produce an unparked task. Today
+      // that is already implied — a GRANTED grant on this workspace is one of
+      // the things that marks the delegation approved — but the two checks are
+      // separate queries, so assert it here rather than trusting they stay in
+      // agreement. Parking is the fail-safe direction.
+      const isDelegationApproved =
+        !isCoworkerAuthContext(authContext) ||
+        authContext.isDelegationApproved === true;
+
+      if (grant.status === VendorGrantStatus.GRANTED && isDelegationApproved) {
         return createTaskRecord(
           {
             ownerId: userContext.userId,

@@ -317,6 +317,8 @@ describe("workspaceMiddleware", () => {
         actor: "coworker",
         coworkerId: "cow_123",
         vendorId: TEST_VENDOR_ID,
+        // Bare coworker: no context headers, so the middleware returns before
+        // it evaluates delegation and the flag is never set.
       },
       workspaceContext: null,
     });
@@ -354,6 +356,7 @@ describe("workspaceMiddleware", () => {
         actor: "coworker",
         coworkerId: "cow_123",
         vendorId: TEST_VENDOR_ID,
+        isDelegationApproved: true,
         context: {
           userId: "user_delegate",
           organizationId: null,
