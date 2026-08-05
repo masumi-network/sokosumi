@@ -1,7 +1,12 @@
+import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
+import { NotificationFallbackProvider } from "@/contexts/notification-provider";
 
 import { AppHeaderFallback } from "./app-header-fallback";
 import { AppSidebarFallback } from "./app-sidebar-fallback";
+
+/** Stub session id for Instant Nav Suspense fallback (not a real session). */
+const INSTANT_NAV_SHELL_FALLBACK_SESSION_ID = "instant-nav-shell-fallback";
 
 interface AppShellLoadingFrameProps {
   children: React.ReactNode;
@@ -25,7 +30,14 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
               className="flex h-full flex-1 flex-col overflow-visible"
               data-app-main-inner
             >
-              {children}
+              <AccountNoticeProvider
+                notice={null}
+                sessionId={INSTANT_NAV_SHELL_FALLBACK_SESSION_ID}
+              >
+                <NotificationFallbackProvider>
+                  {children}
+                </NotificationFallbackProvider>
+              </AccountNoticeProvider>
             </div>
           </main>
         </div>
