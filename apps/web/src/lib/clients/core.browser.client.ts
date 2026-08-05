@@ -4,12 +4,15 @@ import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.
 import { createCoreClient } from "./core.shared";
 
 export {
-  type CoreApiMeta,
-  type CoreApiPagination,
   CoreApiRequestError,
-  type CoreApiResponse,
   mapCoreApiStatusToCommonErrorCode,
   toCoreApiActionError,
+} from "./core.request";
+
+export {
+  type CoreApiMeta,
+  type CoreApiPagination,
+  type CoreApiResponse,
 } from "./core.shared";
 
 let browserGeneratedClient: ReturnType<typeof createClient> | undefined;
