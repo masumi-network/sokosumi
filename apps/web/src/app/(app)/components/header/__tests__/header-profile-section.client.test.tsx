@@ -25,8 +25,8 @@ vi.mock("@/app/components/header/header-workspace-switch.client", () => ({
   },
 }));
 
-vi.mock("@/app/components/header/header-notification-avatar.client", () => ({
-  HeaderNotificationAvatar: () => null,
+vi.mock("@/app/components/header/header-notification-bell.client", () => ({
+  HeaderNotificationBell: () => null,
 }));
 
 const sessionUser: SessionUser = {

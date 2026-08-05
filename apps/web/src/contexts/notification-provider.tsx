@@ -1,5 +1,6 @@
 "use client";
 
+import { isBrowserOnlyNotificationKind } from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
 import {
   createContext,
@@ -11,7 +12,6 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
 import { NotificationToastListener } from "@/app/components/notification-toast-listener";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -20,7 +20,7 @@ import {
   type NotificationEventData,
 } from "@/lib/ably";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
-import { coreClient } from "@/lib/clients/core.browser.client";
+import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 
@@ -111,20 +111,32 @@ export function notificationReducer(
 ): NotificationState {
   switch (action.type) {
     case "fetch_success": {
+      // Browser-only kinds never belong in local feed state; drop leaks so
+      // mergeNotificationList cannot keep them as "pending realtime".
+      const current = state.notifications.filter(
+        (notification) => !isBrowserOnlyNotificationKind(notification.kind),
+      );
+      const fetched = action.fetched.filter(
+        (notification) => !isBrowserOnlyNotificationKind(notification.kind),
+      );
+
       return {
-        notifications: mergeNotificationList(
-          state.notifications,
-          action.fetched,
-        ),
+        notifications: mergeNotificationList(current, fetched),
         unreadCount: mergeUnreadCount(
-          state.notifications,
-          action.fetched,
+          current,
+          fetched,
           action.serverUnreadCount,
         ),
       };
     }
     case "realtime": {
       const convertedNotification = action.notification;
+
+      // Browser-OS only; room attention uses a separate path.
+      if (isBrowserOnlyNotificationKind(convertedNotification.kind)) {
+        return state;
+      }
+
       const existing = state.notifications.find(
         (notification) => notification.id === convertedNotification.id,
       );
@@ -181,6 +193,12 @@ export function notificationReducer(
       };
     }
     case "mark_read_success": {
+      // Browser-only kinds are never counted in the in-app badge. Toast click
+      // still calls markRead for room attention; ignore feed state.
+      if (isBrowserOnlyNotificationKind(action.updated.kind)) {
+        return state;
+      }
+
       const existing = state.notifications.find(
         (notification) => notification.id === action.id,
       );
@@ -278,8 +296,10 @@ export function NotificationProvider({
 
     try {
       const [listResponse, countResponse] = await Promise.all([
-        coreClient.getNotifications({ limit: NOTIFICATION_LIST_LIMIT }),
-        coreClient.getNotificationsUnreadCount(),
+        notificationsBrowserClient.getNotifications({
+          limit: NOTIFICATION_LIST_LIMIT,
+        }),
+        notificationsBrowserClient.getNotificationsUnreadCount(),
       ]);
 
       if (generation !== fetchGenerationRef.current) {
@@ -310,7 +330,7 @@ export function NotificationProvider({
     dismissAllNotificationToasts();
 
     try {
-      await coreClient.patchNotificationsReadAll();
+      await notificationsBrowserClient.patchNotificationsReadAll();
     } catch (error) {
       console.error("Failed to mark all notifications as read:", error);
       void fetchNotifications();
@@ -326,7 +346,9 @@ export function NotificationProvider({
       dismissNotificationToast(id);
 
       try {
-        const response = await coreClient.patchNotificationRead({ id });
+        const response = await notificationsBrowserClient.patchNotificationRead(
+          { id },
+        );
 
         dispatch({
           type: "mark_read_success",

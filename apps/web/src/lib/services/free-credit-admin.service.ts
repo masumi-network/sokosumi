@@ -3,7 +3,7 @@ import "server-only";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { coreClient } from "@/lib/clients/core.client";
-import { CoreApiRequestError } from "@/lib/clients/core.shared";
+import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 export type FreeCreditTargetType = "user" | "organization";
 

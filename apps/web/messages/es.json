@@ -167,7 +167,8 @@
       "personalAccount": "Cuenta personal",
       "organizationsHeading": "Organizaciones",
       "createOrJoinOrganization": "Crear o unirse a una organización",
-      "createOrganization": "Crear organización"
+      "createOrganization": "Crear organización",
+      "userAvatarAlt": "Avatar del usuario"
     },
     "DataTable": {
       "Data": {
@@ -509,11 +510,16 @@
       "JobsSearch": {
         "placeholder": "Buscar jobs...",
         "clear": "Limpiar búsqueda",
-        "resultsCount": "{found} de {total} resultados encontrados"
+        "resultsCount": "{found} de {total} resultados encontrados",
+        "resultsCountLoaded": "{found} de {total} cargados",
+        "loadedOnlyHint": "La búsqueda cubre jobs cargados. Carga más para incluir antiguos."
       },
       "JobsList": {
         "noExecutedJobs": "No hay jobs ejecutados",
-        "emptyJobs": "Aún sin jobs."
+        "emptyJobs": "Aún sin jobs.",
+        "loadMore": "Cargar más",
+        "loading": "Cargando...",
+        "loadMoreError": "No se pudieron cargar más jobs"
       }
     },
     "Organizations": {
@@ -807,8 +813,9 @@
     },
     "DocumentViewer": {
       "title": "Documento",
+      "close": "Cerrar",
       "viewDocument": "Ver documento {fileName}",
-      "download": "Descargar documento",
+      "download": "Descargar",
       "openInNewTab": "Abrir en una pestaña nueva",
       "loading": "Cargando documento…",
       "fetchError": "No se pudo cargar este documento."
@@ -4765,6 +4772,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
       "directMessages": "Direct Messages",
+      "loadMore": "Cargar más",
+      "loading": "Cargando...",
+      "loadMoreError": "No se pudieron cargar más chats",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
         "title": "Canales próximamente",
@@ -4906,6 +4916,10 @@
         "jump": "Ir al mensaje de {author}",
         "showMore": "Más",
         "showLess": "Menos"
+      },
+      "Unfurl": {
+        "openLink": "Abrir vista previa del enlace: {title}",
+        "imageAlt": "Imagen de vista previa de {title}"
       },
       "Message": {
         "delete": "Eliminar",

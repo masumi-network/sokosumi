@@ -35,6 +35,14 @@ export const notificationEventDataSchema = z.object({
 
 export type NotificationEventData = z.infer<typeof notificationEventDataSchema>;
 
+const chatRoomMessageUnfurlEventSchema = z.object({
+  url: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().nullable(),
+  imageUrl: z.string().nullable(),
+  siteName: z.string().nullable(),
+});
+
 export const chatRoomMessageEventDataSchema = z.object({
   message: z
     .object({
@@ -53,6 +61,7 @@ export const chatRoomMessageEventDataSchema = z.object({
       metadata: z.record(z.string(), z.unknown()).nullable(),
       quote: z.unknown().nullable(),
       membership: z.unknown().nullable(),
+      unfurls: z.array(chatRoomMessageUnfurlEventSchema).max(3).nullable(),
     })
     .passthrough(),
 });

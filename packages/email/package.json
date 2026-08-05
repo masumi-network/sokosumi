@@ -38,7 +38,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-email": "6.9.1",
-    "use-intl": "4.13.4"
+    "use-intl": "4.13.5"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

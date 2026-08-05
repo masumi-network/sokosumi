@@ -167,7 +167,8 @@
       "personalAccount": "Persönlicher Account",
       "organizationsHeading": "Organisationen",
       "createOrJoinOrganization": "Organisation erstellen oder beitreten",
-      "createOrganization": "Organisation erstellen"
+      "createOrganization": "Organisation erstellen",
+      "userAvatarAlt": "Nutzer-Avatar"
     },
     "DataTable": {
       "Data": {
@@ -509,11 +510,16 @@
       "JobsSearch": {
         "placeholder": "Jobs durchsuchen...",
         "clear": "Suche zurücksetzen",
-        "resultsCount": "{found} von {total} Ergebnissen gefunden"
+        "resultsCount": "{found} von {total} Ergebnissen gefunden",
+        "resultsCountLoaded": "{found} von {total} geladen",
+        "loadedOnlyHint": "Suche gilt für geladene Jobs. Mehr laden, um ältere einzubeziehen."
       },
       "JobsList": {
         "noExecutedJobs": "Keine ausgeführten Jobs",
-        "emptyJobs": "Noch keine Jobs."
+        "emptyJobs": "Noch keine Jobs.",
+        "loadMore": "Mehr laden",
+        "loading": "Wird geladen...",
+        "loadMoreError": "Weitere Jobs konnten nicht geladen werden"
       }
     },
     "Organizations": {
@@ -807,8 +813,9 @@
     },
     "DocumentViewer": {
       "title": "Dokument",
+      "close": "Schließen",
       "viewDocument": "Dokument ansehen {fileName}",
-      "download": "Dokument herunterladen",
+      "download": "Herunterladen",
       "openInNewTab": "In neuem Tab öffnen",
       "loading": "Dokument wird geladen…",
       "fetchError": "Dieses Dokument konnte nicht geladen werden."
@@ -4765,6 +4772,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
       "directMessages": "Direct Messages",
+      "loadMore": "Mehr laden",
+      "loading": "Wird geladen...",
+      "loadMoreError": "Weitere Chats konnten nicht geladen werden",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
         "title": "Channels kommen bald",
@@ -4906,6 +4916,10 @@
         "jump": "Zur Nachricht von {author} springen",
         "showMore": "Mehr",
         "showLess": "Weniger"
+      },
+      "Unfurl": {
+        "openLink": "Linkvorschau öffnen: {title}",
+        "imageAlt": "Vorschaubild für {title}"
       },
       "Message": {
         "delete": "Löschen",

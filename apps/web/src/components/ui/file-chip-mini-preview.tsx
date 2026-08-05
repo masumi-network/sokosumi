@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 
 import { DocumentViewer } from "@/components/ui/document-viewer";
+import { FileChip } from "@/components/ui/file-chip";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import {
@@ -18,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
+export type FileChipMiniPreviewVariant = "thumb" | "large";
+
 export interface FileChipMiniPreviewProps {
   url: string;
   fileName?: string | null;
@@ -25,6 +28,7 @@ export interface FileChipMiniPreviewProps {
   size?: number | bigint | null;
   className?: string;
   sizeClass?: string;
+  variant?: FileChipMiniPreviewVariant;
   onRemove?: () => void;
   removeLabel?: string;
 }
@@ -32,11 +36,14 @@ export interface FileChipMiniPreviewProps {
 const previewTriggerClassName =
   "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
 
+const largeImageTriggerClassName = "max-h-80 max-w-sm";
+
 function FileChipMiniPreviewTrigger({
   url,
   fileName,
   mediaType,
   sizeClass,
+  variant,
   onOpenImage,
   onOpenDocument,
 }: {
@@ -44,6 +51,7 @@ function FileChipMiniPreviewTrigger({
   fileName?: string | null;
   mediaType?: string | null;
   sizeClass: string;
+  variant: FileChipMiniPreviewVariant;
   onOpenImage: () => void;
   onOpenDocument: () => void;
 }) {
@@ -56,8 +64,27 @@ function FileChipMiniPreviewTrigger({
     mediaType,
   );
   const extension = getExtensionFromUrl(fileName ?? url);
+  const useLargeImage = variant === "large" && isImage;
 
   if (isImage) {
+    if (useLargeImage) {
+      return (
+        <button
+          type="button"
+          aria-label={t("viewImage", { fileName: resolvedFileName })}
+          className={cn(previewTriggerClassName, largeImageTriggerClassName)}
+          onClick={onOpenImage}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={resolvedFileName}
+            className="max-h-80 max-w-sm object-contain object-center"
+          />
+        </button>
+      );
+    }
+
     return (
       <button
         type="button"
@@ -117,6 +144,7 @@ function FileChipMiniPreviewShell({
   mediaType,
   className,
   sizeClass = "size-20",
+  variant = "thumb",
   onRemove,
   removeLabel = "Remove file",
   wrapTrigger,
@@ -138,6 +166,7 @@ function FileChipMiniPreviewShell({
       fileName={fileName}
       mediaType={mediaType}
       sizeClass={sizeClass}
+      variant={variant}
       onOpenImage={() => {
         setIsViewerOpen(true);
       }}
@@ -188,7 +217,28 @@ function FileChipMiniPreviewShell({
   );
 }
 
+/**
+ * Sent-message / timeline surface. Video and audio use the full FileChip
+ * inline player; images and documents keep the compact thumbnail frame.
+ * Composer drafts use {@link FileChipMiniPreview} (always compact).
+ */
 export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewProps) {
+  const { isVideo, isAudio } = classifyFilePreview(
+    props.url,
+    props.fileName,
+    props.mediaType,
+  );
+  if (isVideo || isAudio) {
+    return (
+      <FileChip
+        url={props.url}
+        fileName={props.fileName}
+        mediaType={props.mediaType}
+        size={props.size}
+        className={props.className}
+      />
+    );
+  }
   return <FileChipMiniPreviewShell {...props} />;
 }
 

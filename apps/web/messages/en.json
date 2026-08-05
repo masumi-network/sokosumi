@@ -167,7 +167,8 @@
       "personalAccount": "Personal Account",
       "createOrganization": "Create Organization",
       "organizationsHeading": "Organizations",
-      "createOrJoinOrganization": "Create or Join Organization"
+      "createOrJoinOrganization": "Create or Join Organization",
+      "userAvatarAlt": "User avatar"
     },
     "DataTable": {
       "Data": {
@@ -525,11 +526,16 @@
       "JobsSearch": {
         "placeholder": "Search jobs...",
         "clear": "Clear search",
-        "resultsCount": "{found} of {total} results found"
+        "resultsCount": "{found} of {total} results found",
+        "resultsCountLoaded": "{found} of {total} loaded",
+        "loadedOnlyHint": "Search covers loaded jobs. Load more to include older ones."
       },
       "JobsList": {
         "noExecutedJobs": "No executed jobs",
-        "emptyJobs": "No jobs yet."
+        "emptyJobs": "No jobs yet.",
+        "loadMore": "Load more",
+        "loading": "Loading...",
+        "loadMoreError": "Failed to load more jobs"
       }
     },
     "Organizations": {
@@ -815,8 +821,9 @@
     },
     "DocumentViewer": {
       "title": "Document",
+      "close": "Close",
       "viewDocument": "View document {fileName}",
-      "download": "Download document",
+      "download": "Download",
       "openInNewTab": "Open in new tab",
       "loading": "Loading document…",
       "fetchError": "This document couldn't be loaded."
@@ -4765,6 +4772,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
       "directMessages": "Direct Messages",
+      "loadMore": "Load more",
+      "loading": "Loading...",
+      "loadMoreError": "Failed to load more chats",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
         "title": "Channels coming soon",
@@ -4906,6 +4916,10 @@
         "jump": "Jump to message from {author}",
         "showMore": "More",
         "showLess": "Less"
+      },
+      "Unfurl": {
+        "openLink": "Open link preview: {title}",
+        "imageAlt": "Preview image for {title}"
       },
       "Message": {
         "delete": "Delete",

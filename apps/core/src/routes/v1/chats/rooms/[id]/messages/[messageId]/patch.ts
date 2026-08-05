@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { waitUntil } from "@vercel/functions";
 
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { forbidden, notFound } from "@/helpers/error";
@@ -14,6 +15,7 @@ import {
   chatRoomMessageSchema,
   updateChatRoomMessageRequestSchema,
 } from "@/schemas/chat-room.schema";
+import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unfurl.service";
 
 import {
   chatRoomMessageInclude,
@@ -72,6 +74,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id, messageId } = c.req.valid("param");
     const body = c.req.valid("json");
 
+    let contentChanged = false;
+
     const message = await prisma.$transaction(async (tx) => {
       await requireChatRoomUserWriteAccess(id, userContext.userId, tx);
 
@@ -105,6 +109,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return existing;
       }
 
+      contentChanged = true;
+
       return tx.chatRoomMessage.update({
         where: { id: messageId },
         data: {
@@ -116,6 +122,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     await publishChatRoomMessageRealtime(message);
+
+    if (contentChanged) {
+      waitUntil(scheduleChatRoomMessageUnfurls(message.id));
+    }
 
     return ok(
       c,

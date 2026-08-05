@@ -9,7 +9,11 @@ import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-ven
 import { getEnvPublicConfig } from "@/config/env.public";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-import { chatRoomService, userService } from "@/lib/services";
+import {
+  type ChatRoomsPage,
+  chatRoomService,
+  userService,
+} from "@/lib/services";
 import {
   resolvePlanName,
   resolvePlanSecondaryLabel,
@@ -28,6 +32,11 @@ interface PrivateCachedAppSidebarProps {
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
 }
+
+const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
+  rooms: [],
+  nextCursor: null,
+};
 
 /**
  * Session-aware sidebar chrome for Instant Navigations.
@@ -58,12 +67,12 @@ export default async function PrivateCachedAppSidebar({
     .catch(() => []);
   // Personal coworker directs exist with no active org; Core returns those when
   // organization context is null. Named channels still need an org (empty list then).
-  const chatRoomsPromise = chatRoomService.listRooms().catch(() => []);
+  const chatRoomsPromise = chatRoomService
+    .listRooms()
+    .catch(() => EMPTY_ROOMS_PAGE);
   const archivedChatRoomsPromise = activeOrganizationId
-    ? chatRoomService.listArchivedRooms().catch(() => [])
-    : Promise.resolve(
-        [] as Awaited<ReturnType<typeof chatRoomService.listArchivedRooms>>,
-      );
+    ? chatRoomService.listArchivedRooms().catch(() => EMPTY_ROOMS_PAGE)
+    : Promise.resolve(EMPTY_ROOMS_PAGE);
   const activeOrganizationPromise = userService.getActiveOrganization();
   const creditsPromise = getCachedMyCredits();
 
@@ -71,8 +80,8 @@ export default async function PrivateCachedAppSidebar({
     tCredit,
     tPlan,
     members,
-    chatRooms,
-    archivedChatRooms,
+    chatRoomsPage,
+    archivedChatRoomsPage,
     { showVendors: showDeveloperVendors },
     activeOrganization,
     creditsResult,
@@ -86,6 +95,11 @@ export default async function PrivateCachedAppSidebar({
     activeOrganizationPromise,
     creditsPromise,
   ]);
+
+  const chatRooms = chatRoomsPage.rooms;
+  const chatRoomsNextCursor = chatRoomsPage.nextCursor;
+  const archivedChatRooms = archivedChatRoomsPage.rooms;
+  const archivedChatRoomsNextCursor = archivedChatRoomsPage.nextCursor;
 
   const creditsData = creditsResult?.data.credits ?? null;
   const currentPlan = creditsData?.subscription?.plan ?? "free";
@@ -134,10 +148,12 @@ export default async function PrivateCachedAppSidebar({
         activeOrganizationId={activeOrganizationId}
         adminMenuEnabled={adminMenuEnabled}
         archivedChatRooms={archivedChatRooms}
+        archivedChatRoomsNextCursor={archivedChatRoomsNextCursor}
         buyCreditsLabel={tPlan("getMoreCredits")}
         buyCreditsPath={buyCreditsPath}
         canDeleteArchivedRooms={canDeleteArchivedRooms}
         chatRooms={chatRooms}
+        chatRoomsNextCursor={chatRoomsNextCursor}
         creditsData={creditsData}
         creditUsage={resolveCreditUsage(creditsData)}
         currentTimestampMs={currentTimestampMs}

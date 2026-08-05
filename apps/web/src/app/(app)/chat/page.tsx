@@ -9,7 +9,6 @@ import { getSession } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { chatRoomService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
-
 import { RoomsClient } from "./components/rooms-client";
 import { loadOrganizationMembers } from "./load-organization-members";
 import { firstSearchValue } from "./load-room-messages";
@@ -103,20 +102,20 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       );
     }
 
-    const [listedRooms, membersPage, coworkers, currentMember] =
-      await Promise.all([
-        chatRoomService.listRooms(),
-        loadOrganizationMembers(activeOrganization.id),
-        coworkerService.listCoworkers("chat"),
-        userService.getMyMemberInOrganization(activeOrganization.id),
-      ]);
+    // Create/DM drafts do not need a rooms list — RoomsClient only looks up
+    // selectedRoom by id, and sidebar already owns paginated room history.
+    const [membersPage, coworkers, currentMember] = await Promise.all([
+      loadOrganizationMembers(activeOrganization.id),
+      coworkerService.listCoworkers("chat"),
+      userService.getMyMemberInOrganization(activeOrganization.id),
+    ]);
 
     return (
       <>
         {landingNotice}
         <RoomsClient
           activeOrganization={activeOrganization}
-          rooms={listedRooms}
+          rooms={[]}
           organizationMembers={membersPage.members}
           currentUserId={currentMember?.userId ?? ""}
           coworkers={coworkers}

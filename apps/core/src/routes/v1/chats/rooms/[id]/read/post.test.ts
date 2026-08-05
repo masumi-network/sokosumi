@@ -21,6 +21,7 @@ const {
   threadReadUpdateManyMock,
   threadReadDeleteManyMock,
   prismaTransactionMock,
+  queryRawUnsafeMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
@@ -32,11 +33,13 @@ const {
   threadReadUpdateManyMock: vi.fn(),
   threadReadDeleteManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  queryRawUnsafeMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
+    $queryRawUnsafe: queryRawUnsafeMock,
   },
 }));
 
@@ -121,6 +124,8 @@ beforeEach(() => {
   readStateUpsertMock.mockResolvedValue({});
   notificationUpdateManyMock.mockResolvedValue({ count: 2 });
   membershipFindUniqueMock.mockResolvedValue({ pinnedAt: null, mutedAt: null });
+  // Dual-baseline unread: room mark-read leaves unlooked thread replies.
+  queryRawUnsafeMock.mockResolvedValue([]);
 });
 
 describe("POST /chats/rooms/{id}/read", () => {
@@ -167,10 +172,29 @@ describe("POST /chats/rooms/{id}/read", () => {
       markedUnread: false,
       pinnedAt: null,
     });
+    expect(queryRawUnsafeMock).toHaveBeenCalled();
 
     // Room mark-read must not touch per-thread look state.
     expect(threadReadUpsertMock).not.toHaveBeenCalled();
     expect(threadReadUpdateManyMock).not.toHaveBeenCalled();
     expect(threadReadDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns remaining thread unreadCount after room mark-read", async () => {
+    queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toMatchObject({
+      id: ROOM_ID,
+      unreadCount: 2,
+      unreadMentionCount: 0,
+      markedUnread: false,
+    });
   });
 });

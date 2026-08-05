@@ -9,6 +9,7 @@ import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import {
   type ChatRoomMessageQuote,
+  type ChatRoomMessageUnfurl,
   MAX_LISTED_CHAT_REACTION_REACTORS,
 } from "@/schemas/chat-room.schema";
 
@@ -126,6 +127,18 @@ function resolveUserPresence(
   return "offline";
 }
 
+/**
+ * Per-room unread message counts for sidebar attention.
+ *
+ * Dual baseline (matches the two read-state tables):
+ * - Top-level messages (`parentMessageId IS NULL`): after room `lastReadAt`
+ * - Thread replies: after per-thread look baseline
+ *   (`ChatRoomThreadReadState.lastReadAt`, else room read-state `createdAt`,
+ *   else -infinity) — same as `getChatRoomThreadAggregates`. Room mark-read
+ *   must not clear thread look contribution; looking a thread must.
+ *
+ * Soft-deleted messages and the viewer's own user messages are excluded.
+ */
 export async function getChatRoomUnreadCounts(
   roomIds: readonly string[],
   userId: string,
@@ -146,16 +159,46 @@ export async function getChatRoomUnreadCounts(
   >(
     `
     SELECT
-      message."roomId" AS "roomId",
+      combined."roomId" AS "roomId",
       COUNT(*)::int AS "unreadCount"
-    FROM "chat_room_message" message
-    LEFT JOIN "chat_room_read_state" read_state
-      ON read_state."roomId" = message."roomId"
-      AND read_state."userId" = ${userIdPlaceholder}
-    WHERE message."roomId" IN (${roomIdPlaceholders})
-      AND message."createdAt" > COALESCE(read_state."lastReadAt", '-infinity'::timestamp)
-      AND (message."senderUserId" IS NULL OR message."senderUserId" <> ${userIdPlaceholder})
-    GROUP BY message."roomId"
+    FROM (
+      SELECT message.id, message."roomId"
+      FROM "chat_room_message" message
+      LEFT JOIN "chat_room_read_state" read_state
+        ON read_state."roomId" = message."roomId"
+        AND read_state."userId" = ${userIdPlaceholder}
+      WHERE message."roomId" IN (${roomIdPlaceholders})
+        AND message."parentMessageId" IS NULL
+        AND message."deletedAt" IS NULL
+        AND message."createdAt" > COALESCE(read_state."lastReadAt", '-infinity'::timestamp)
+        AND (message."senderUserId" IS NULL OR message."senderUserId" <> ${userIdPlaceholder})
+
+      UNION ALL
+
+      SELECT reply.id, reply."roomId"
+      FROM "chat_room_message" reply
+      INNER JOIN "chat_room_message" parent
+        ON parent.id = reply."parentMessageId"
+        AND parent."roomId" = reply."roomId"
+      LEFT JOIN "chat_room_thread_read_state" thread_read
+        ON thread_read."parentMessageId" = parent.id
+        AND thread_read."userId" = ${userIdPlaceholder}
+      LEFT JOIN "chat_room_read_state" room_read
+        ON room_read."roomId" = reply."roomId"
+        AND room_read."userId" = ${userIdPlaceholder}
+      WHERE reply."roomId" IN (${roomIdPlaceholders})
+        AND reply."parentMessageId" IS NOT NULL
+        AND reply."deletedAt" IS NULL
+        AND parent."deletedAt" IS NULL
+        AND parent."parentMessageId" IS NULL
+        AND reply."createdAt" > COALESCE(
+          thread_read."lastReadAt",
+          room_read."createdAt",
+          '-infinity'::timestamp
+        )
+        AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> ${userIdPlaceholder})
+    ) combined
+    GROUP BY combined."roomId"
   `,
     ...uniqueRoomIds,
     userId,
@@ -727,6 +770,7 @@ export function mapChatRoomMessage(
     metadata: isDeleted ? null : metadata,
     quote: isDeleted ? null : readQuoteFromMetadata(metadata),
     membership: isDeleted ? null : readMembershipFromMetadata(metadata),
+    unfurls: isDeleted ? null : readUnfurlsFromMetadata(metadata),
   };
 }
 
@@ -744,6 +788,76 @@ export function mergeChatRoomMessageMetadata(
   }
 
   return Object.keys(base).length > 0 ? base : null;
+}
+
+/**
+ * Replace `metadata.unfurls` from the latest scrape while preserving
+ * quote / membership / other keys. Empty scrape removes the unfurls key.
+ */
+export function mergeUnfurlsIntoMessageMetadata(
+  existing: unknown,
+  unfurls: readonly ChatRoomMessageUnfurl[],
+): Record<string, unknown> | null {
+  const base =
+    existing && typeof existing === "object" && !Array.isArray(existing)
+      ? { ...(existing as Record<string, unknown>) }
+      : {};
+
+  if (unfurls.length === 0) {
+    delete base.unfurls;
+  } else {
+    base.unfurls = [...unfurls];
+  }
+
+  return Object.keys(base).length > 0 ? base : null;
+}
+
+export function readUnfurlsFromMetadata(
+  metadata: Record<string, unknown> | null,
+): ChatRoomMessageUnfurl[] | null {
+  const raw = metadata?.unfurls;
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return null;
+  }
+
+  const parsed: ChatRoomMessageUnfurl[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+    const candidate = entry as Record<string, unknown>;
+    if (
+      typeof candidate.url !== "string" ||
+      typeof candidate.title !== "string" ||
+      candidate.title.trim().length === 0
+    ) {
+      continue;
+    }
+    if (
+      candidate.description !== null &&
+      typeof candidate.description !== "string"
+    ) {
+      continue;
+    }
+    if (candidate.imageUrl !== null && typeof candidate.imageUrl !== "string") {
+      continue;
+    }
+    if (candidate.siteName !== null && typeof candidate.siteName !== "string") {
+      continue;
+    }
+    parsed.push({
+      url: candidate.url,
+      title: candidate.title,
+      description: (candidate.description as string | null) ?? null,
+      imageUrl: (candidate.imageUrl as string | null) ?? null,
+      siteName: (candidate.siteName as string | null) ?? null,
+    });
+    if (parsed.length >= 3) {
+      break;
+    }
+  }
+
+  return parsed.length > 0 ? parsed : null;
 }
 
 function readQuoteAttachmentFromMetadata(
