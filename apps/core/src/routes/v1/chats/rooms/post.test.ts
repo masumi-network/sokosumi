@@ -239,6 +239,106 @@ describe("POST /chats/rooms", () => {
     );
   });
 
+  it("creates external channel for owner", async () => {
+    memberFindUniqueMock.mockResolvedValue({ role: "owner" });
+    roomCreateMock.mockResolvedValue(
+      channelRoom({ discoverability: "external", name: "Client" }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Client",
+        discoverability: "external",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.discoverability).toBe("external");
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          discoverability: "external",
+          userMembers: {
+            create: [{ userId: USER_ID, access: "member" }],
+          },
+        }),
+      }),
+    );
+  });
+
+  it("creates external channel for admin", async () => {
+    memberFindUniqueMock.mockResolvedValue({ role: "admin" });
+    roomCreateMock.mockResolvedValue(
+      channelRoom({ discoverability: "external", name: "Client" }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Client",
+        discoverability: "external",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.data.discoverability).toBe("external");
+  });
+
+  it("rejects external channel create for plain member", async () => {
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Client",
+        discoverability: "external",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.text()).toBe(
+      "Only an organization owner or admin can create external channels.",
+    );
+    expect(roomCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("seeds channel members with access member on public create", async () => {
+    roomCreateMock.mockResolvedValue(channelRoom());
+
+    const app = createApp(userAuthContext);
+    const response = await app.request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "channel",
+        name: "Launch Room",
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userMembers: {
+            create: [{ userId: USER_ID, access: "member" }],
+          },
+        }),
+      }),
+    );
+  });
+
   it("rejects discoverability on direct create", async () => {
     const app = createApp(userAuthContext);
     const response = await app.request("/", {
