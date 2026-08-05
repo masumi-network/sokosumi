@@ -308,4 +308,119 @@ describe("ComposerWysiwygEditor", () => {
       "hello 😀world",
     );
   });
+
+  it("strips pasted inline text colors so dark-mode text stays visible", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+
+    const execCommand = vi.fn(
+      (command: string, _showUI?: boolean, value?: string) => {
+        if (command === "insertHTML" && value) {
+          editor.innerHTML = value;
+          return true;
+        }
+        return false;
+      },
+    );
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: execCommand,
+    });
+
+    const html =
+      '<span style="color: rgb(10, 10, 10);">https://x.com/status/1 asdasdas</span>';
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: (type: string) => {
+          if (type === "text/html") return html;
+          if (type === "text/plain") {
+            return "https://x.com/status/1 asdasdas";
+          }
+          return "";
+        },
+      },
+    });
+
+    expect(execCommand).toHaveBeenCalledWith(
+      "insertHTML",
+      false,
+      expect.not.stringMatching(/color\s*:/i),
+    );
+    expect(editor.innerHTML).not.toMatch(/color\s*:/i);
+    expect(editor.textContent).toContain("asdasdas");
+  });
+
+  it("falls back to DOM insert without regex HTML stripping", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+
+    const execCommand = vi.fn(() => false);
+    Object.defineProperty(document, "execCommand", {
+      configurable: true,
+      value: execCommand,
+    });
+
+    const html =
+      '<span style="color: rgb(10, 10, 10);">fallback plain path</span>';
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: (type: string) => {
+          if (type === "text/html") return html;
+          if (type === "text/plain") return "fallback plain path";
+          return "";
+        },
+      },
+    });
+
+    expect(execCommand).toHaveBeenCalled();
+    expect(editor.innerHTML).not.toMatch(/color\s*:/i);
+    expect(editor.textContent).toContain("fallback plain path");
+  });
+
+  it("strips color styles left by insertHTML on input", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.innerHTML =
+      '<span style="color: rgb(10, 10, 10);">stuck dark</span>';
+    fireEvent.input(editor);
+
+    expect(editor.innerHTML).not.toMatch(/color\s*:/i);
+    expect(editor.textContent).toBe("stuck dark");
+  });
 });
