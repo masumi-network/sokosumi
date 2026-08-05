@@ -671,7 +671,10 @@ model Agent {
   // Summary
   summary String?
 
+  jobCount Int @default(0)
+
   @@index([isShown, status])
+  @@index([jobCount(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model AgentMetadataOverride {
