@@ -21,4 +21,10 @@ describe("UserAvatarContent", () => {
     expect(avatar?.className).not.toContain("size-8");
     expect(avatar?.className).not.toContain("md:size-10");
   });
+
+  it("scales the fallback icon relative to the avatar box", () => {
+    const { container } = render(<UserAvatarContent imageAlt="User" />);
+    const icon = container.querySelector("svg");
+    expect(icon?.className).toContain("size-[60%]");
+  });
 });
