@@ -183,7 +183,7 @@ function SectionHeader({
         className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
         href={href}
       >
-        <Plus className="size-3.5" aria-hidden />
+        <Plus className="size-4 md:size-3.5" aria-hidden />
       </Link>
     ) : null;
 
@@ -199,7 +199,7 @@ function SectionHeader({
         <ChevronDown
           aria-hidden
           className={cn(
-            "size-3 shrink-0 transition-transform",
+            "size-4 shrink-0 transition-transform md:size-3",
             !isOpen && "-rotate-90",
           )}
         />
