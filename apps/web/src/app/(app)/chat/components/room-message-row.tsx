@@ -286,7 +286,7 @@ function MessageUnfurlImage({
     <img
       src={imageUrl}
       alt={t("imageAlt", { title })}
-      className="mt-2 max-h-40 w-full rounded-md object-cover object-center"
+      className="mt-2 h-auto max-h-48 max-w-full rounded-md"
       onError={() => {
         setFailed(true);
       }}

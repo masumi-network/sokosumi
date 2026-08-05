@@ -1257,9 +1257,14 @@ describe("ChatMessageRow", () => {
     expect(card).toHaveTextContent("Example");
     expect(card).toHaveTextContent("Example Article");
     expect(card).toHaveTextContent("A short summary of the page.");
-    expect(
-      screen.getByRole("img", { name: /Example Article/ }),
-    ).toHaveAttribute("src", "https://cdn.example.com/og.png");
+    const unfurlImage = screen.getByRole("img", { name: /Example Article/ });
+    expect(unfurlImage).toHaveAttribute(
+      "src",
+      "https://cdn.example.com/og.png",
+    );
+    // Keep intrinsic aspect ratio (do not force w-full + max-h + object-cover).
+    expect(unfurlImage).toHaveClass("h-auto", "max-h-48", "max-w-full");
+    expect(unfurlImage).not.toHaveClass("w-full", "object-cover");
     // Markdown body still present (links stay clickable in body).
     expect(screen.getByTestId("room-message-body")).toHaveTextContent(
       "Check https://example.com/article",
