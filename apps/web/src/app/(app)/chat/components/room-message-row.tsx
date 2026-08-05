@@ -64,6 +64,7 @@ import type {
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { participantDirectKey } from "./open-direct-with-participant";
@@ -317,10 +318,15 @@ function ChannelMessageText({
                 usersBySlug={usersBySlug}
               />
             );
-          case "files":
+          case "files": {
+            const soloLink = segment.links[0];
+            const useLargeImage =
+              segment.links.length === 1 &&
+              classifyFilePreview(soloLink.url, soloLink.fileName).isImage;
+
             return (
               <div
-                key={`files-${i}-${segment.links[0].index}`}
+                key={`files-${i}-${soloLink.index}`}
                 className="my-2 flex flex-wrap gap-2"
                 data-testid="room-message-attachment-row"
               >
@@ -329,11 +335,13 @@ function ChannelMessageText({
                     key={`${link.index}-${link.url}`}
                     url={link.url}
                     fileName={link.fileName}
-                    sizeClass="size-16"
+                    variant={useLargeImage ? "large" : "thumb"}
+                    sizeClass={useLargeImage ? undefined : "size-16"}
                   />
                 ))}
               </div>
             );
+          }
           default: {
             const _exhaustive: never = segment;
             return _exhaustive;

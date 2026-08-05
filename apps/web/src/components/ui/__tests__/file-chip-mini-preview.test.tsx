@@ -99,6 +99,51 @@ describe("FileChipMiniPreviewFrame", () => {
     ).toHaveAttribute("href", "https://blob.example.com/uploads/photo.png");
   });
 
+  it("renders large image variant with object-contain and still opens viewer", () => {
+    render(
+      <FileChipMiniPreviewFrame
+        url="https://blob.example.com/uploads/photo.png"
+        fileName="photo.png"
+        mediaType="image/png"
+        variant="large"
+      />,
+    );
+
+    const imageButton = screen.getByRole("button", {
+      name: "View image photo.png",
+    });
+    expect(imageButton).toHaveClass("max-w-sm");
+    expect(imageButton).toHaveClass("max-h-80");
+    expect(imageButton).not.toHaveClass("size-20");
+    expect(imageButton).not.toHaveClass("size-16");
+
+    const previewImage = screen.getByRole("img", { name: "photo.png" });
+    expect(previewImage).toHaveClass("object-contain");
+    expect(previewImage).toHaveClass("max-w-sm");
+    expect(previewImage).toHaveClass("max-h-80");
+
+    fireEvent.click(imageButton);
+    expect(screen.getByTestId("image-viewer")).toBeInTheDocument();
+  });
+
+  it("falls back to thumb layout when large variant is used for non-images", () => {
+    render(
+      <FileChipMiniPreviewFrame
+        url="https://blob.example.com/uploads/notes.pdf"
+        fileName="notes.pdf"
+        mediaType="application/pdf"
+        variant="large"
+        sizeClass="size-16"
+      />,
+    );
+
+    const documentButton = screen.getByRole("button", {
+      name: "View document notes.pdf",
+    });
+    expect(documentButton).toHaveClass("size-16");
+    expect(documentButton).not.toHaveClass("max-w-sm");
+  });
+
   it("opens a document viewer instead of navigating away for previewable documents", () => {
     render(
       <FileChipMiniPreviewFrame

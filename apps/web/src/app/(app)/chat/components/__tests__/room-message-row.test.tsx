@@ -39,11 +39,22 @@ vi.mock("@/components/markdown", () => ({
 vi.mock("@/components/ui/file-chip-mini-preview", () => ({
   FileChipMiniPreviewFrame: ({
     fileName,
+    sizeClass,
+    variant,
   }: {
     fileName: string;
     url: string;
     sizeClass?: string;
-  }) => <span data-testid="chip">{fileName}</span>,
+    variant?: "thumb" | "large";
+  }) => (
+    <span
+      data-testid="chip"
+      data-variant={variant ?? "thumb"}
+      data-size-class={sizeClass ?? ""}
+    >
+      {fileName}
+    </span>
+  ),
 }));
 
 vi.mock("@/components/ui/tooltip", () => ({
@@ -640,6 +651,48 @@ describe("ChatMessageRow", () => {
     const rows = screen.getAllByTestId("room-message-attachment-row");
     expect(rows).toHaveLength(1);
     expect(within(rows[0]).getAllByTestId("chip")).toHaveLength(2);
+  });
+
+  it("uses large variant for a single image attachment", () => {
+    renderRow({
+      message: userMessage({
+        content: "[photo.png](https://cdn.example/photo.png)\n",
+      }),
+    });
+
+    const chip = screen.getByTestId("chip");
+    expect(chip).toHaveAttribute("data-variant", "large");
+    expect(chip).toHaveAttribute("data-size-class", "");
+  });
+
+  it("keeps thumb size-16 for multiple consecutive image attachments", () => {
+    renderRow({
+      message: userMessage({
+        content:
+          "[a.png](https://cdn.example/a.png)\n[b.png](https://cdn.example/b.png)\n",
+      }),
+    });
+
+    const chips = within(
+      screen.getByTestId("room-message-attachment-row"),
+    ).getAllByTestId("chip");
+    expect(chips).toHaveLength(2);
+    for (const chip of chips) {
+      expect(chip).toHaveAttribute("data-variant", "thumb");
+      expect(chip).toHaveAttribute("data-size-class", "size-16");
+    }
+  });
+
+  it("keeps thumb size-16 for a single non-image attachment", () => {
+    renderRow({
+      message: userMessage({
+        content: "[notes.pdf](https://cdn.example/notes.pdf)\n",
+      }),
+    });
+
+    const chip = screen.getByTestId("chip");
+    expect(chip).toHaveAttribute("data-variant", "thumb");
+    expect(chip).toHaveAttribute("data-size-class", "size-16");
   });
 
   it("styles @all mention tokens in quote snippets", () => {
