@@ -37,11 +37,15 @@ import {
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
 import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-signal-unread-threads-attention";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
-import { rememberRoomRead } from "@/components/chat/room-read-overlay";
+import {
+  forgetRoomRead,
+  rememberRoomRead,
+} from "@/components/chat/room-read-overlay";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
@@ -464,6 +468,18 @@ export function RoomsClient({
         message.parentMessageId === openThreadParentId
       ) {
         setThreadMessages((current) => mergeRoomMessages(current, [message]));
+        // Keep look state current while the panel is open so dual-baseline
+        // room unreadCount drops this reply after leave/poll.
+        if (message.parentMessageId === openThreadParentId) {
+          const roomId = message.roomId;
+          void markThreadReadAction(roomId, openThreadParentId).then(
+            (result) => {
+              if (result.ok) {
+                setAttentionRefreshToken((token) => token + 1);
+              }
+            },
+          );
+        }
       }
     },
     [],
@@ -708,7 +724,9 @@ export function RoomsClient({
     );
   }, [messages, messagesNextCursor, selectedRoomId]);
 
-  const latestVisibleMessageId = displayMessages.at(-1)?.id ?? "empty";
+  const latestTopLevelMessageId = displayMessages.at(-1)?.id ?? null;
+  const latestOpenThreadMessageId = displayThreadMessages.at(-1)?.id ?? null;
+  const openThreadParentId = threadParentMessage?.id ?? null;
   const selectedRoomReadId = selectedRoom?.id ?? null;
 
   useEffect(() => {
@@ -716,7 +734,14 @@ export function RoomsClient({
       return;
     }
 
-    const marker = `${selectedRoomReadId}:${latestVisibleMessageId}`;
+    // Include open-thread activity: thread replies count toward room unread
+    // via look baseline, but top-level-only markers never re-fired mark-read.
+    const marker = roomReadAttentionMarker({
+      roomId: selectedRoomReadId,
+      latestTopLevelMessageId,
+      openThreadParentId,
+      latestOpenThreadMessageId,
+    });
     if (readMarkerRef.current === marker) {
       return;
     }
@@ -727,10 +752,16 @@ export function RoomsClient({
       if (!result.ok) {
         return;
       }
-      // Persist before the cancelled check: mobile Sheet unmounts the sidebar
-      // list so the event below often has no listener, and remount would
-      // otherwise rehydrate unread from stale RSC props.
-      rememberRoomRead(result.data);
+      // Only overlay full-clear when dual-baseline count is actually 0.
+      // Room mark-read does not clear unlooked threads — do not hide them.
+      if (
+        result.data.unreadCount === 0 &&
+        result.data.unreadMentionCount === 0
+      ) {
+        rememberRoomRead(result.data);
+      } else {
+        forgetRoomRead(result.data.id);
+      }
       if (cancelled) {
         return;
       }
@@ -744,7 +775,12 @@ export function RoomsClient({
     return () => {
       cancelled = true;
     };
-  }, [latestVisibleMessageId, selectedRoomReadId]);
+  }, [
+    latestOpenThreadMessageId,
+    latestTopLevelMessageId,
+    openThreadParentId,
+    selectedRoomReadId,
+  ]);
 
   const hasPendingRoomCoworkerMention = useMemo(
     () => hasPendingCoworkerMention(messagesState),
@@ -1001,6 +1037,26 @@ export function RoomsClient({
     );
   }
 
+  async function syncRoomAttentionAfterThreadLook(roomId: string) {
+    const roomResult = await markOrganizationChatRoomReadAction(roomId);
+    if (!roomResult.ok) {
+      return;
+    }
+    if (
+      roomResult.data.unreadCount === 0 &&
+      roomResult.data.unreadMentionCount === 0
+    ) {
+      rememberRoomRead(roomResult.data);
+    } else {
+      forgetRoomRead(roomResult.data.id);
+    }
+    window.dispatchEvent(
+      new CustomEvent("organization-chat-room-read", {
+        detail: { room: roomResult.data, roomId },
+      }),
+    );
+  }
+
   async function loadThreadMessages(
     parentMessage: ChatRoomMessage,
   ): Promise<boolean> {
@@ -1011,8 +1067,13 @@ export function RoomsClient({
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
-    // Thread look state is independent of room mark-read.
+    // Look state first, then room mark-read so dual-baseline unreadCount
+    // already excludes this thread when the sidebar event lands.
     const markResult = await markThreadReadAction(roomId, parentMessage.id);
+    if (markResult.ok) {
+      setAttentionRefreshToken((token) => token + 1);
+      await syncRoomAttentionAfterThreadLook(roomId);
+    }
     startThreadLoadingTransition(async () => {
       const result = await listThreadMessagesAction(roomId, parentMessage.id);
       if (!result.ok) {
@@ -1402,6 +1463,9 @@ export function RoomsClient({
                     roomId={selectedRoom.id}
                     attentionRefreshToken={attentionRefreshToken}
                     onOpenThread={loadThreadMessages}
+                    onAllThreadsLooked={() => {
+                      void syncRoomAttentionAfterThreadLook(selectedRoom.id);
+                    }}
                     labels={{
                       open: t("UnreadThreads.open"),
                       title: t("UnreadThreads.title"),

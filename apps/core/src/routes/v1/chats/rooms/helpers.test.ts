@@ -11,6 +11,7 @@ import {
   canPermanentlyDeleteChatRoom,
   contentIncludesRoomAllMention,
   getChatRoomThreadAggregates,
+  getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
@@ -351,6 +352,32 @@ describe("mergeUnfurlsIntoMessageMetadata", () => {
 
   it("returns null when clearing the only key", () => {
     expect(mergeUnfurlsIntoMessageMetadata({ unfurls: [card] }, [])).toBeNull();
+  });
+});
+
+describe("getChatRoomUnreadCounts", () => {
+  it("counts top-level by room lastReadAt and thread replies by look baseline", async () => {
+    const queryRawUnsafe = vi
+      .fn()
+      .mockResolvedValue([{ roomId: "room-a", unreadCount: 3 }]);
+    const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
+
+    const counts = await getChatRoomUnreadCounts(["room-a"], "user_1", tx);
+
+    expect(counts.get("room-a")).toBe(3);
+    const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
+    // Top-level leg uses room lastReadAt
+    expect(sql).toContain('message."parentMessageId" IS NULL');
+    expect(sql).toMatch(/read_state\."lastReadAt"/);
+    // Thread leg uses look baseline, not room lastReadAt
+    expect(sql).toContain('thread_read."lastReadAt"');
+    expect(sql).toContain('room_read."createdAt"');
+    expect(sql).toContain('reply."parentMessageId" IS NOT NULL');
+    expect(sql).not.toMatch(
+      /reply\."createdAt" > COALESCE\(\s*read_state\."lastReadAt"/,
+    );
+    expect(sql).toContain('message."deletedAt" IS NULL');
+    expect(sql).toContain('reply."deletedAt" IS NULL');
   });
 });
 
