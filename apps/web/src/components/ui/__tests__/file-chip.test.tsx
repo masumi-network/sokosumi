@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FileChip } from "../file-chip";
@@ -73,11 +73,15 @@ describe("FileChip", () => {
     ).toHaveAttribute("href", "https://blob.example.com/uploads/brief.docx");
   });
 
-  it("actually previews an extensionless URL recognized only via the filename fallback", () => {
+  it("actually previews an extensionless URL recognized only via the filename fallback", async () => {
     // Regression: FileChip decides to open the viewer via classifyFilePreview's
     // fileName fallback (the URL alone has no extension) — the opened
     // DocumentViewer must render real preview content from that same
     // decision, not a blank body.
+    // Force the CORS/network fallback so the iframe src is the public URL
+    // (not a blob: object URL).
+    vi.spyOn(global, "fetch").mockRejectedValue(new TypeError("Failed to fetch"));
+
     render(
       <FileChip
         url="https://blob.example.com/uploads/report"
@@ -88,13 +92,17 @@ describe("FileChip", () => {
     const trigger = screen.getByRole("button", { name: /report\.pdf/i });
     fireEvent.click(trigger);
 
-    expect(screen.getByTitle("report.pdf")).toHaveAttribute(
-      "src",
-      "https://blob.example.com/uploads/report#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
-    );
+    await waitFor(() => {
+      expect(screen.getByTitle("report.pdf")).toHaveAttribute(
+        "src",
+        "https://blob.example.com/uploads/report#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+      );
+    });
   });
 
-  it("opens a document viewer for an extensionless URL when mediaType is a previewable MIME", () => {
+  it("opens a document viewer for an extensionless URL when mediaType is a previewable MIME", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValue(new TypeError("Failed to fetch"));
+
     render(
       <FileChip
         url="https://blob.example.com/uploads/abcdef012345"
@@ -108,10 +116,12 @@ describe("FileChip", () => {
     fireEvent.click(trigger);
 
     expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
-    expect(screen.getByTitle("abcdef012345")).toHaveAttribute(
-      "src",
-      "https://blob.example.com/uploads/abcdef012345#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
-    );
+    await waitFor(() => {
+      expect(screen.getByTitle("abcdef012345")).toHaveAttribute(
+        "src",
+        "https://blob.example.com/uploads/abcdef012345#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+      );
+    });
   });
 
   it("opens an image viewer for an extensionless URL when mediaType is image/*", () => {

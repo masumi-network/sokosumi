@@ -132,9 +132,15 @@ function DocumentPdfBody({
 
     const sourceUrl = stripForcedDownloadParam(url);
 
-    fetch(sourceUrl, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Failed to fetch PDF");
+    // async IIFE (not bare fetch().then) so a test double that returns
+    // `undefined` / a non-Promise still falls through to the iframe fallback
+    // instead of throwing "Cannot read properties of undefined (reading 'then')".
+    void (async () => {
+      try {
+        const response = await fetch(sourceUrl, {
+          signal: controller.signal,
+        });
+        if (!response?.ok) throw new Error("Failed to fetch PDF");
         const remoteBlob = await response.blob();
         // Re-wrap so a mislabeled `application/octet-stream` still previews.
         const pdfBlob = new Blob([remoteBlob], { type: "application/pdf" });
@@ -145,15 +151,15 @@ function DocumentPdfBody({
         }
         objectUrl = nextObjectUrl;
         setState({ status: "loaded", embedUrl: nextObjectUrl });
-      })
-      .catch(() => {
-        // CORS / network: keep preview working when the host already serves
-        // inline PDFs. Attachment-disposition hosts without CORS still download
-        // (no client-side fix without a same-origin proxy).
+      } catch {
+        // CORS / network / incomplete fetch mock: keep preview working when
+        // the host already serves inline PDFs. Attachment-disposition hosts
+        // without CORS still download (no client-side fix without a proxy).
         if (!controller.signal.aborted) {
           setState({ status: "loaded", embedUrl: sourceUrl });
         }
-      });
+      }
+    })();
 
     return () => {
       controller.abort();

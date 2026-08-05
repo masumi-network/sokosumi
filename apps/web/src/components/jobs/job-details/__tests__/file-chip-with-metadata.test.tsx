@@ -186,14 +186,18 @@ describe("FileChipWithMetadata", () => {
   });
 
   it("opens a document viewer for an extensionless URL after HEAD returns application/pdf", async () => {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      headers: createHeaders({
-        "content-disposition": null,
-        "content-length": "4096",
-        "content-type": "application/pdf",
-      }),
-    });
+    // HEAD for metadata, then GET for DocumentPdfBody — fail the GET so the
+    // viewer falls back to a direct public-URL iframe (stable assertion).
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        headers: createHeaders({
+          "content-disposition": null,
+          "content-length": "4096",
+          "content-type": "application/pdf",
+        }),
+      })
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
     render(
       <FileChipWithMetadata
@@ -215,9 +219,11 @@ describe("FileChipWithMetadata", () => {
     fireEvent.click(screen.getByRole("button", { name: /report/i }));
 
     expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
-    expect(screen.getByTitle("report")).toHaveAttribute(
-      "src",
-      "https://files.example/abcdef012345#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
-    );
+    await waitFor(() => {
+      expect(screen.getByTitle("report")).toHaveAttribute(
+        "src",
+        "https://files.example/abcdef012345#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+      );
+    });
   });
 });
