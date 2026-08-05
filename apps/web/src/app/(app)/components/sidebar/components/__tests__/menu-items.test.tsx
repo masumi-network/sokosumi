@@ -117,4 +117,19 @@ describe("MenuItems search action", () => {
 
     expect(screen.queryByRole("link", { name: /history/i })).toBeNull();
   });
+
+  it("shows New Task by default", () => {
+    render(<MenuItems />);
+
+    expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
+      "href",
+      "/tasks?create=true",
+    );
+  });
+
+  it("hides New Task when hideNewTask is set", () => {
+    render(<MenuItems hideNewTask />);
+
+    expect(screen.queryByRole("link", { name: /newTask/i })).toBeNull();
+  });
 });

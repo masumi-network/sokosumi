@@ -41,9 +41,14 @@ interface MenuItemConfig {
 interface MenuItemsProps {
   /** Mobile Home hub: History lives on the Search tab, so omit the leaf item. */
   hideHistory?: boolean;
+  /** Mobile Home hub: New Task lives on the create FAB, so omit the leaf item. */
+  hideNewTask?: boolean;
 }
 
-export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
+export default function MenuItems({
+  hideHistory = false,
+  hideNewTask = false,
+}: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   // Soft read: `/chat` MobileHomeHub can SSR under AppShellLoadingFrame before
@@ -67,13 +72,17 @@ export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
   };
 
   const items: MenuItemConfig[] = [
-    {
-      key: "new-task",
-      href: "/tasks?create=true",
-      label: t("newTask"),
-      Icon: Plus,
-      separatorAfter: true,
-    },
+    ...(hideNewTask
+      ? []
+      : [
+          {
+            key: "new-task",
+            href: "/tasks?create=true",
+            label: t("newTask"),
+            Icon: Plus,
+            separatorAfter: true,
+          } satisfies MenuItemConfig,
+        ]),
     {
       key: "search",
       label: t("search"),
