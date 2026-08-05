@@ -180,8 +180,8 @@ export default function HeaderWorkspaceSwitch({
                 logoSize={12}
                 decorative
               />
-              <ChevronsUpDown className="text-muted-foreground size-4.5 shrink-0" />
-              <span className="text-muted-foreground col-start-1 max-md:hidden max-w-full truncate text-right text-xs">
+              <ChevronsUpDown className="text-muted-foreground row-span-2 size-4.5 shrink-0 self-center" />
+              <span className="text-muted-foreground col-span-2 col-start-1 max-md:hidden max-w-full truncate text-right text-xs">
                 {sessionUser.email}
               </span>
             </div>
