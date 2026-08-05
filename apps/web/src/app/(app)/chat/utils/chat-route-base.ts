@@ -11,7 +11,12 @@ export const CHAT_APP_ROUTE_PREFIX = "/chat" as const;
 export const CHAT_API_PATH = "/api/chat" as const;
 
 /** Mobile chrome surface for pathname-driven shell/header behavior. */
-export type ChatChromeSurface = "home" | "chats" | "room" | "other-chat";
+export type ChatChromeSurface =
+  | "home"
+  | "chats"
+  | "room"
+  | "draft"
+  | "other-chat";
 
 const CHAT_ROOM_PATHNAME_RE = /^\/chat\/rooms\/[^/]+/;
 const CHAT_CHATS_PATH = `${CHAT_APP_ROUTE_PREFIX}/chats` as const;
@@ -91,8 +96,10 @@ export function classifyChatChromeSurface(
   if (pathname === CHAT_APP_ROUTE_PREFIX) {
     const create = readSearchParam(searchParams, "create");
     const dm = readSearchParam(searchParams, "dm");
-    if (create === "channel" || dm === "new") {
-      return "other-chat";
+    const welcome = readSearchParam(searchParams, "welcome");
+    // Compose flows share `/chat` but use room-style chrome (no tab bar, back).
+    if (create === "channel" || dm === "new" || welcome === "1") {
+      return "draft";
     }
     return "home";
   }

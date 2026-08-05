@@ -17,7 +17,7 @@ import CustomTrigger from "../sidebar/components/custom-trigger";
 /**
  * Mobile header leading slot (`md:hidden` size-8):
  * - chat home / chats list → Sokosumi icon (no back / hamburger)
- * - chat room → back to `/chat/chats`
+ * - chat room / draft compose → back to `/chat/chats`
  * - main hub lists + nested → back (home or list root)
  * - otherwise → sidebar CustomTrigger
  */
@@ -36,7 +36,7 @@ export function HeaderLeadingControl(): React.ReactElement {
     );
   }
 
-  if (surface === "room") {
+  if (surface === "room" || surface === "draft") {
     return (
       <Link
         href="/chat/chats"
