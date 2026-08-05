@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-02-03
 
-This profile applies the **performance-focused** rules from the [Vercel React Best Practices](.cursor/skills/vercel-react-best-practices/AGENTS.md) skill only: §1 Eliminating Waterfalls, §2 Bundle Size Optimization, §3 Server-Side Performance, §4 Client-Side Data Fetching, §5 Re-render Optimization, §6 Rendering Performance, and §7 JavaScript Performance. Non-performance rules (e.g. auth or API design) are out of scope for now.
+This profile applies the **performance-focused** rules from the [Vercel React Best Practices](../.agents/skills/vercel-react-best-practices/REFERENCE.md) skill only: §1 Eliminating Waterfalls, §2 Bundle Size Optimization, §3 Server-Side Performance, §4 Client-Side Data Fetching, §5 Re-render Optimization, §6 Rendering Performance, and §7 JavaScript Performance. Non-performance rules (e.g. auth or API design) are out of scope for now.
 
 ---
 
