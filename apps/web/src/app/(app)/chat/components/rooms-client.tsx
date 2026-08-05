@@ -31,9 +31,10 @@ import {
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import {
+  filterTopLevelChatRoomMessages,
+  isReplyUnderThreadParent,
   isTopLevelChatRoomMessage,
-  shouldApplyRealtimeMessageToOpenThread,
-  shouldMergeRealtimeMessageIntoRoomTimeline,
+  routeRealtimeChatRoomMessage,
 } from "@/app/chat/utils/chat-room-message-scope";
 import { composeDraftKey } from "@/app/chat/utils/compose-draft-storage";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
@@ -451,8 +452,14 @@ export function RoomsClient({
 
       // Thread replies must not enter the main room list — otherwise a send
       // from the thread panel shows in both the room transcript and the panel.
-      if (shouldMergeRealtimeMessageIntoRoomTimeline(message)) {
-        setMessagesState((current) => mergeRoomMessages(current, [message]));
+      const route = routeRealtimeChatRoomMessage(
+        message,
+        threadParentMessageIdRef.current,
+      );
+      if (route.mergeIntoRoomTimeline) {
+        setMessagesState((current) =>
+          filterTopLevelChatRoomMessages(mergeRoomMessages(current, [message])),
+        );
       }
       setThreadParentMessage((current) =>
         current?.id === message.id ? message : current,
@@ -464,8 +471,7 @@ export function RoomsClient({
         setAttentionRefreshToken((token) => token + 1);
       }
 
-      const openThreadParentId = threadParentMessageIdRef.current;
-      if (shouldApplyRealtimeMessageToOpenThread(message, openThreadParentId)) {
+      if (route.mergeIntoOpenThread) {
         setThreadMessages((current) => mergeRoomMessages(current, [message]));
       }
     },
@@ -480,9 +486,18 @@ export function RoomsClient({
   // Defense in depth: never render thread replies in the main room timeline,
   // even if stale state still holds a leaked reply from before this fix.
   const topLevelRoomMessages = useMemo(
-    () => messagesState.filter(isTopLevelChatRoomMessage),
+    () => filterTopLevelChatRoomMessages(messagesState),
     [messagesState],
   );
+
+  // Purge leaked thread replies from room state so consumers of messagesState
+  // (pending-mention poll, search props) never see them after a prior leak.
+  useEffect(() => {
+    if (topLevelRoomMessages.length === messagesState.length) {
+      return;
+    }
+    setMessagesState(topLevelRoomMessages);
+  }, [messagesState, topLevelRoomMessages]);
 
   const displayMessages = useMemo(() => {
     return mergeMessagesWithStreamOverlay(
@@ -495,8 +510,9 @@ export function RoomsClient({
     if (!threadParentMessage) {
       return [];
     }
-    return streamOverlayMessages.filter(
-      (message) => message.parentMessageId === threadParentMessage.id,
+    const parentId = threadParentMessage.id;
+    return streamOverlayMessages.filter((message) =>
+      isReplyUnderThreadParent(message, parentId),
     );
   }, [streamOverlayMessages, threadParentMessage]);
 
@@ -535,7 +551,7 @@ export function RoomsClient({
       return;
     }
     const parent =
-      messagesState.find(
+      topLevelRoomMessages.find(
         (message) => message.id === activeStreamParentMessageId,
       ) ?? null;
     if (!parent) {
@@ -547,7 +563,7 @@ export function RoomsClient({
     selectedRoom,
     activeStreamParentMessageId,
     threadParentMessage?.id,
-    messagesState,
+    topLevelRoomMessages,
   ]);
 
   // Pending draft stays in sessionStorage until stream settles successfully
@@ -754,8 +770,8 @@ export function RoomsClient({
   }, [latestVisibleMessageId, selectedRoomReadId]);
 
   const hasPendingRoomCoworkerMention = useMemo(
-    () => hasPendingCoworkerMention(messagesState),
-    [messagesState],
+    () => hasPendingCoworkerMention(topLevelRoomMessages),
+    [topLevelRoomMessages],
   );
   const hasPendingThreadCoworkerMention = useMemo(
     () => hasPendingCoworkerMention(threadMessages),
@@ -974,11 +990,17 @@ export function RoomsClient({
   ]);
 
   function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
-    setMessagesState((current) =>
-      current.map((message) =>
-        message.id === updatedMessage.id ? updatedMessage : message,
-      ),
-    );
+    setMessagesState((current) => {
+      // Thread replies never belong in the room list (edit/delete/reaction).
+      if (!isTopLevelChatRoomMessage(updatedMessage)) {
+        return current.filter((message) => message.id !== updatedMessage.id);
+      }
+      return filterTopLevelChatRoomMessages(
+        current.map((message) =>
+          message.id === updatedMessage.id ? updatedMessage : message,
+        ),
+      );
+    });
     setThreadMessages((current) =>
       current.map((message) =>
         message.id === updatedMessage.id ? updatedMessage : message,
@@ -1392,7 +1414,7 @@ export function RoomsClient({
                   <RoomSearchPanel
                     key={selectedRoom.id}
                     roomId={selectedRoom.id}
-                    loadedMessages={messagesState}
+                    loadedMessages={topLevelRoomMessages}
                     onOpenThread={loadThreadMessages}
                     labels={{
                       open: t("RoomSearch.open"),

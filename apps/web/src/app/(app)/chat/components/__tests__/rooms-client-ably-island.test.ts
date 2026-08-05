@@ -16,18 +16,29 @@ describe("RoomsClient Ably island", () => {
     expect(source).toContain('<main className="relative flex min-h-0 flex-1">');
   });
 
-  it("keeps thread replies out of the main room timeline on realtime + display", () => {
+  it("routes realtime through scope helper and only merges room on top-level", () => {
     const source = readFileSync(
       join(import.meta.dirname, "../rooms-client.tsx"),
       "utf8",
     );
 
     // Regression: thread panel send must not also paint in the room list.
-    expect(source).toContain("shouldMergeRealtimeMessageIntoRoomTimeline");
-    expect(source).toContain("shouldApplyRealtimeMessageToOpenThread");
-    expect(source).toContain("isTopLevelChatRoomMessage");
+    // Assert control flow, not mere identifier presence (identifier-only can
+    // pass while setMessagesState still always runs).
+    expect(source).toContain("routeRealtimeChatRoomMessage");
+    expect(source).toContain("filterTopLevelChatRoomMessages");
+    expect(source).toContain("isReplyUnderThreadParent");
     expect(source).toMatch(
-      /messagesState\.filter\(\s*isTopLevelChatRoomMessage\s*\)/,
+      /const route = routeRealtimeChatRoomMessage\(\s*message,\s*threadParentMessageIdRef\.current,\s*\)/,
+    );
+    expect(source).toMatch(
+      /if \(route\.mergeIntoRoomTimeline\) \{\s*setMessagesState/,
+    );
+    expect(source).toMatch(
+      /if \(route\.mergeIntoOpenThread\) \{\s*setThreadMessages/,
+    );
+    expect(source).toMatch(
+      /filterTopLevelChatRoomMessages\(\s*messagesState\s*\)/,
     );
   });
 });

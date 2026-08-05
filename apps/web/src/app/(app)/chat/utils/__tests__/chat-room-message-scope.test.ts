@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  filterTopLevelChatRoomMessages,
+  isReplyUnderThreadParent,
   isTopLevelChatRoomMessage,
+  routeRealtimeChatRoomMessage,
   shouldApplyRealtimeMessageToOpenThread,
-  shouldMergeRealtimeMessageIntoRoomTimeline,
 } from "../chat-room-message-scope";
 
 describe("isTopLevelChatRoomMessage", () => {
@@ -22,18 +24,30 @@ describe("isTopLevelChatRoomMessage", () => {
   });
 });
 
-describe("shouldMergeRealtimeMessageIntoRoomTimeline", () => {
-  it("accepts top-level messages for the main room transcript", () => {
+describe("filterTopLevelChatRoomMessages", () => {
+  it("keeps only top-level rows and drops thread replies", () => {
+    const filtered = filterTopLevelChatRoomMessages([
+      { id: "a", parentMessageId: null },
+      { id: "b", parentMessageId: "parent-1" },
+      { id: "c" },
+    ]);
+    expect(filtered.map((message) => message.id)).toEqual(["a", "c"]);
+  });
+});
+
+describe("isReplyUnderThreadParent", () => {
+  it("matches direct replies to the parent", () => {
     expect(
-      shouldMergeRealtimeMessageIntoRoomTimeline({ parentMessageId: null }),
+      isReplyUnderThreadParent({ parentMessageId: "parent-1" }, "parent-1"),
     ).toBe(true);
   });
 
-  it("rejects thread replies so they do not appear in the room and thread", () => {
+  it("rejects top-level and other threads", () => {
     expect(
-      shouldMergeRealtimeMessageIntoRoomTimeline({
-        parentMessageId: "parent-1",
-      }),
+      isReplyUnderThreadParent({ parentMessageId: null }, "parent-1"),
+    ).toBe(false);
+    expect(
+      isReplyUnderThreadParent({ parentMessageId: "other" }, "parent-1"),
     ).toBe(false);
   });
 });
@@ -73,5 +87,64 @@ describe("shouldApplyRealtimeMessageToOpenThread", () => {
         "parent-1",
       ),
     ).toBe(false);
+  });
+});
+
+describe("routeRealtimeChatRoomMessage", () => {
+  it("routes a top-level message to the room only when no thread is open", () => {
+    expect(
+      routeRealtimeChatRoomMessage(
+        { id: "msg-1", parentMessageId: null },
+        null,
+      ),
+    ).toEqual({
+      mergeIntoRoomTimeline: true,
+      mergeIntoOpenThread: false,
+    });
+  });
+
+  it("routes a top-level open-thread parent to room and thread", () => {
+    expect(
+      routeRealtimeChatRoomMessage(
+        { id: "parent-1", parentMessageId: null },
+        "parent-1",
+      ),
+    ).toEqual({
+      mergeIntoRoomTimeline: true,
+      mergeIntoOpenThread: true,
+    });
+  });
+
+  it("routes a thread reply only to the open thread, never the room", () => {
+    expect(
+      routeRealtimeChatRoomMessage(
+        { id: "reply-1", parentMessageId: "parent-1" },
+        "parent-1",
+      ),
+    ).toEqual({
+      mergeIntoRoomTimeline: false,
+      mergeIntoOpenThread: true,
+    });
+  });
+
+  it("routes a reply under a closed/other thread nowhere", () => {
+    expect(
+      routeRealtimeChatRoomMessage(
+        { id: "reply-1", parentMessageId: "parent-1" },
+        null,
+      ),
+    ).toEqual({
+      mergeIntoRoomTimeline: false,
+      mergeIntoOpenThread: false,
+    });
+    expect(
+      routeRealtimeChatRoomMessage(
+        { id: "reply-1", parentMessageId: "parent-1" },
+        "other-parent",
+      ),
+    ).toEqual({
+      mergeIntoRoomTimeline: false,
+      mergeIntoOpenThread: false,
+    });
   });
 });
