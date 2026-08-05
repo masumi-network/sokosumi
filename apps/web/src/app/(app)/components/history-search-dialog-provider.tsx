@@ -33,6 +33,16 @@ export function useHistorySearch() {
   return context;
 }
 
+/**
+ * Soft read for layout chrome that may SSR under the app Suspense fallback
+ * (`AppShellLoadingFrame`) before `HistorySearchDialogProvider` mounts.
+ * Instant Navigations validation uses that path — throwing there drops the
+ * page segment and fails `instant` checks.
+ */
+export function useOptionalHistorySearch(): HistorySearchContextValue | null {
+  return useContext(HistorySearchContext);
+}
+
 interface HistorySearchDialogProviderProps {
   activeOrganizationId: string | null;
   children: ReactNode;
