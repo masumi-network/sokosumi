@@ -48,11 +48,13 @@ describe("coworker base URL guard", () => {
       new TestSsrfError("Blocked host: localhost"),
     );
 
-    // An operator setting a bad endpoint should learn why, not get a 500.
+    // An operator setting a bad endpoint should learn why, not get a 500 — so
+    // assert the guard's reason survives, not just the status code.
     await expect(
       assertCoworkerBaseUrlIsPublicForWrite("http://localhost:8080"),
     ).rejects.toMatchObject({
       status: 422,
+      message: expect.stringContaining("Blocked host: localhost"),
     });
   });
 
