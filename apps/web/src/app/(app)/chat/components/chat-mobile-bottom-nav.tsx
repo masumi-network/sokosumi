@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
@@ -11,11 +11,18 @@ import {
   type ChatMobileTabId,
 } from "./chat-mobile-tab-registry";
 
+type SearchParamsLike =
+  | URLSearchParams
+  | { get?: (key: string) => string | null }
+  | null
+  | undefined;
+
 export function resolveChatMobileActiveTabId(
   pathname: string,
+  searchParams?: SearchParamsLike,
 ): ChatMobileTabId | null {
   for (const tab of CHAT_MOBILE_TABS) {
-    if (!tab.isActive(pathname)) {
+    if (!tab.isActive(pathname, searchParams)) {
       continue;
     }
     return tab.id;
@@ -25,8 +32,9 @@ export function resolveChatMobileActiveTabId(
 
 export function ChatMobileBottomNav(): React.ReactElement {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const t = useTranslations("App.Channels.MobileNav");
-  const activeTabId = resolveChatMobileActiveTabId(pathname);
+  const activeTabId = resolveChatMobileActiveTabId(pathname, searchParams);
   const isApple = useIsApplePlatform();
 
   return (

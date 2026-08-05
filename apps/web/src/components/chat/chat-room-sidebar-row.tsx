@@ -141,7 +141,8 @@ export function ChatRoomSidebarRow({
     setLeaveConfirmOpen(false);
     notifyOrganizationChatRoomsChanged();
     if (isActive) {
-      router.replace("/chat/chats");
+      // Land on chat home — `/chat/chats` is mobile-only (`md:hidden`).
+      router.replace("/chat");
       router.refresh();
     }
   }

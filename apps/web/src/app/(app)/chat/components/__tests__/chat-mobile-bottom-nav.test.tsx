@@ -2,10 +2,12 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let mockPathname = "/chat";
+let mockSearchParams = new URLSearchParams();
 let mockIsApple = false;
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
+  useSearchParams: () => mockSearchParams,
 }));
 
 vi.mock("next-intl", () => ({
@@ -46,6 +48,18 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/chat/chats")).toBe("chats");
   });
 
+  it("does not mark Home active on draft create/dm query routes", () => {
+    expect(
+      resolveChatMobileActiveTabId(
+        "/chat",
+        new URLSearchParams("create=channel"),
+      ),
+    ).toBeNull();
+    expect(
+      resolveChatMobileActiveTabId("/chat", new URLSearchParams("dm=new")),
+    ).toBeNull();
+  });
+
   it("marks Chats active only on /chat/chats", () => {
     expect(resolveChatMobileActiveTabId("/chat/chats")).toBe("chats");
     expect(resolveChatMobileActiveTabId("/chat/chats/extra")).toBeNull();
@@ -64,6 +78,7 @@ describe("resolveChatMobileActiveTabId", () => {
 describe("ChatMobileBottomNav", () => {
   beforeEach(() => {
     mockPathname = "/chat";
+    mockSearchParams = new URLSearchParams();
     mockIsApple = false;
   });
 
@@ -97,6 +112,19 @@ describe("ChatMobileBottomNav", () => {
       "aria-current",
     );
     expect(screen.getByRole("link", { name: "search" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("does not set aria-current on Home for draft query routes", () => {
+    mockPathname = "/chat";
+    mockSearchParams = new URLSearchParams("create=channel");
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("link", { name: "home" })).not.toHaveAttribute(
+      "aria-current",
+    );
+    expect(screen.getByRole("link", { name: "chats" })).not.toHaveAttribute(
       "aria-current",
     );
   });

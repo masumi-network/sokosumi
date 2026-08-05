@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 import { ChatMobileBottomNav } from "@/app/chat/components/chat-mobile-bottom-nav";
 import { chatMobileTabBarClearance } from "@/app/chat/components/chat-mobile-tab-registry";
@@ -31,7 +32,11 @@ export function AppMobileChrome({
       >
         {children}
       </div>
-      {showBottomNav ? <ChatMobileBottomNav /> : null}
+      {showBottomNav ? (
+        <Suspense fallback={null}>
+          <ChatMobileBottomNav />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

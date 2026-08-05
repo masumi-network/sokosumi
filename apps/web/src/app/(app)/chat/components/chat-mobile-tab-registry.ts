@@ -1,7 +1,16 @@
 import { Home, type LucideIcon, MessageCircle, Search } from "lucide-react";
 
-import { isChatRoomPathname } from "@/app/chat/utils/chat-route-base";
+import {
+  classifyChatChromeSurface,
+  isChatRoomPathname,
+} from "@/app/chat/utils/chat-route-base";
 import { isMainAppMobileChromePathname } from "@/app/components/mobile-app-chrome";
+
+type SearchParamsLike =
+  | URLSearchParams
+  | { get?: (key: string) => string | null }
+  | null
+  | undefined;
 
 /**
  * Floating Apple tab bar sits at
@@ -76,7 +85,7 @@ export interface ChatMobileTab {
   href: "/chat" | "/chat/chats" | "/history";
   labelKey: ChatMobileTabLabelKey;
   icon: LucideIcon;
-  isActive: (pathname: string) => boolean;
+  isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
 }
 
 export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
@@ -86,9 +95,14 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     href: "/chat",
     labelKey: "home",
     icon: Home,
-    isActive: (pathname) =>
-      pathname === "/chat" ||
-      (isMainAppMobileChromePathname(pathname) && pathname !== "/history"),
+    isActive: (pathname, searchParams) => {
+      // Draft flows (`?create=channel`, `?dm=new`) share pathname `/chat` but
+      // are not Home — classifyChatChromeSurface returns "other-chat".
+      if (classifyChatChromeSurface(pathname, searchParams) === "home") {
+        return true;
+      }
+      return isMainAppMobileChromePathname(pathname) && pathname !== "/history";
+    },
   },
   {
     id: "chats",
