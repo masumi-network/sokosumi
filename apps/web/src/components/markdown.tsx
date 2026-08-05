@@ -73,9 +73,7 @@ export default function Markdown({
             preload="metadata"
             className="h-auto w-full max-w-sm rounded-lg"
             aria-label={alt || undefined}
-          >
-            <a href={srcString}>{"Download video"}</a>
-          </video>
+          />
         );
       }
       if (srcString && isAudioUrl(srcString)) {
@@ -87,9 +85,7 @@ export default function Markdown({
             preload="metadata"
             className="w-full max-w-sm"
             aria-label={alt || undefined}
-          >
-            <a href={srcString}>{"Download audio"}</a>
-          </audio>
+          />
         );
       }
       return (

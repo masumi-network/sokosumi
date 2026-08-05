@@ -214,9 +214,7 @@ export function FileChip(props: FileChipProps) {
             preload="metadata"
             className="h-auto w-full rounded-lg"
             aria-label={fileName}
-          >
-            <a href={url}>Download video</a>
-          </video>
+          />
         ) : (
           <audio
             src={mediaSrc}
@@ -224,9 +222,7 @@ export function FileChip(props: FileChipProps) {
             preload="metadata"
             className="w-full"
             aria-label={fileName}
-          >
-            <a href={url}>Download audio</a>
-          </audio>
+          />
         )}
       </div>
     );

@@ -80,7 +80,7 @@ Keep helpers web-local in v1 (parallel to PDF helpers). Optional later: move `is
 
 ### Data flow
 
-```
+```text
 attachment | markdown src
         ↓
 classifyFilePreview(url, fileName?, mediaType?)
