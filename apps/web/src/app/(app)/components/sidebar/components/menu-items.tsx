@@ -38,7 +38,12 @@ interface MenuItemConfig {
   separatorAfter?: boolean;
 }
 
-export default function MenuItems() {
+interface MenuItemsProps {
+  /** Mobile Home hub: History lives on the Search tab, so omit the leaf item. */
+  hideHistory?: boolean;
+}
+
+export default function MenuItems({ hideHistory = false }: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   const { openHistorySearch, searchShortcutLabel } = useHistorySearch();
@@ -93,12 +98,16 @@ export default function MenuItems() {
       label: t("exploreAgents"),
       Icon: Bot,
     },
-    {
-      key: "history",
-      href: "/history",
-      label: t("history"),
-      Icon: History,
-    },
+    ...(hideHistory
+      ? []
+      : [
+          {
+            key: "history",
+            href: "/history",
+            label: t("history"),
+            Icon: History,
+          } satisfies MenuItemConfig,
+        ]),
   ];
 
   return (

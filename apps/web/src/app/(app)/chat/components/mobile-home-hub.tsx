@@ -97,7 +97,7 @@ export async function MobileHomeHub({
           >
             <PersonalAssistantNav enabled={hermesMenuEnabled} />
             {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
-            <MenuItems />
+            <MenuItems hideHistory />
             <SidebarSeparator />
             <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
           </SidebarNav>

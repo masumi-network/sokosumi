@@ -1,16 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const openHistorySearchMock = vi.fn();
 let mockPathname = "/chat";
 let mockIsApple = false;
-let mockHistorySearch: {
-  openHistorySearch: typeof openHistorySearchMock;
-  searchShortcutLabel: string;
-} | null = {
-  openHistorySearch: openHistorySearchMock,
-  searchShortcutLabel: "Ctrl+K",
-};
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
@@ -18,10 +10,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
-}));
-
-vi.mock("@/app/components/history-search-dialog-provider", () => ({
-  useOptionalHistorySearch: () => mockHistorySearch,
 }));
 
 vi.mock("@/hooks/use-is-apple-platform", () => ({
@@ -49,11 +37,11 @@ import {
 } from "../chat-mobile-bottom-nav";
 
 describe("resolveChatMobileActiveTabId", () => {
-  it("marks Home active for /chat and main hub list routes", () => {
+  it("marks Home active for /chat and main hub list routes except history", () => {
     expect(resolveChatMobileActiveTabId("/chat")).toBe("home");
     expect(resolveChatMobileActiveTabId("/tasks")).toBe("home");
     expect(resolveChatMobileActiveTabId("/agents")).toBe("home");
-    expect(resolveChatMobileActiveTabId("/history")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/history")).toBe("search");
     expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
     expect(resolveChatMobileActiveTabId("/chat/chats")).toBe("chats");
   });
@@ -61,6 +49,10 @@ describe("resolveChatMobileActiveTabId", () => {
   it("marks Chats active only on /chat/chats", () => {
     expect(resolveChatMobileActiveTabId("/chat/chats")).toBe("chats");
     expect(resolveChatMobileActiveTabId("/chat/chats/extra")).toBeNull();
+  });
+
+  it("marks Search active on /history", () => {
+    expect(resolveChatMobileActiveTabId("/history")).toBe("search");
   });
 
   it("returns null when no link tab matches", () => {
@@ -71,16 +63,11 @@ describe("resolveChatMobileActiveTabId", () => {
 
 describe("ChatMobileBottomNav", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mockPathname = "/chat";
     mockIsApple = false;
-    mockHistorySearch = {
-      openHistorySearch: openHistorySearchMock,
-      searchShortcutLabel: "Ctrl+K",
-    };
   });
 
-  it("renders Home, Chats, and Search — not History", () => {
+  it("renders Home, Chats, and Search as links — Search goes to /history", () => {
     render(<ChatMobileBottomNav />);
 
     expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
@@ -91,23 +78,11 @@ describe("ChatMobileBottomNav", () => {
       "href",
       "/chat/chats",
     );
-    expect(screen.getByRole("button", { name: "search" })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "history" })).toBeNull();
-  });
-
-  it("calls openHistorySearch when Search is clicked", () => {
-    render(<ChatMobileBottomNav />);
-
-    fireEvent.click(screen.getByRole("button", { name: "search" }));
-
-    expect(openHistorySearchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("disables Search when HistorySearch provider is absent", () => {
-    mockHistorySearch = null;
-    render(<ChatMobileBottomNav />);
-
-    expect(screen.getByRole("button", { name: "search" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "search" })).toHaveAttribute(
+      "href",
+      "/history",
+    );
+    expect(screen.queryByRole("button", { name: "search" })).toBeNull();
   });
 
   it("sets aria-current on the Home link for exact /chat", () => {
@@ -121,6 +96,9 @@ describe("ChatMobileBottomNav", () => {
     expect(screen.getByRole("link", { name: "chats" })).not.toHaveAttribute(
       "aria-current",
     );
+    expect(screen.getByRole("link", { name: "search" })).not.toHaveAttribute(
+      "aria-current",
+    );
   });
 
   it("sets aria-current on the Chats link for /chat/chats", () => {
@@ -128,6 +106,19 @@ describe("ChatMobileBottomNav", () => {
     render(<ChatMobileBottomNav />);
 
     expect(screen.getByRole("link", { name: "chats" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(screen.getByRole("link", { name: "home" })).not.toHaveAttribute(
+      "aria-current",
+    );
+  });
+
+  it("sets aria-current on the Search link for /history", () => {
+    mockPathname = "/history";
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("link", { name: "search" })).toHaveAttribute(
       "aria-current",
       "page",
     );

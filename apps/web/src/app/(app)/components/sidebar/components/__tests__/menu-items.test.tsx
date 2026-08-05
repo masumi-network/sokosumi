@@ -83,4 +83,19 @@ describe("MenuItems search action", () => {
     expect(openHistorySearchMock).toHaveBeenCalledTimes(1);
     expect(setOpenMobileMock).toHaveBeenCalledWith(false);
   });
+
+  it("shows History by default", () => {
+    render(<MenuItems />);
+
+    expect(screen.getByRole("link", { name: /history/i })).toHaveAttribute(
+      "href",
+      "/history",
+    );
+  });
+
+  it("hides History when hideHistory is set", () => {
+    render(<MenuItems hideHistory />);
+
+    expect(screen.queryByRole("link", { name: /history/i })).toBeNull();
+  });
 });

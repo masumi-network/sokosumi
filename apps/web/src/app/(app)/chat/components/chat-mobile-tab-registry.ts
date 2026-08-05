@@ -70,24 +70,14 @@ export function chatMobileHeightShellClass(
 export type ChatMobileTabId = "home" | "chats" | "search";
 export type ChatMobileTabLabelKey = "home" | "chats" | "search";
 
-interface ChatMobileTabBase {
+export interface ChatMobileTab {
+  kind: "link";
+  id: ChatMobileTabId;
+  href: "/chat" | "/chat/chats" | "/history";
   labelKey: ChatMobileTabLabelKey;
   icon: LucideIcon;
-}
-
-export interface ChatMobileLinkTab extends ChatMobileTabBase {
-  kind: "link";
-  id: "home" | "chats";
-  href: "/chat" | "/chat/chats";
   isActive: (pathname: string) => boolean;
 }
-
-export interface ChatMobileSearchTab extends ChatMobileTabBase {
-  kind: "search-action";
-  id: "search";
-}
-
-export type ChatMobileTab = ChatMobileLinkTab | ChatMobileSearchTab;
 
 export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
   {
@@ -97,7 +87,8 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     labelKey: "home",
     icon: Home,
     isActive: (pathname) =>
-      pathname === "/chat" || isMainAppMobileChromePathname(pathname),
+      pathname === "/chat" ||
+      (isMainAppMobileChromePathname(pathname) && pathname !== "/history"),
   },
   {
     id: "chats",
@@ -109,8 +100,10 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
   },
   {
     id: "search",
-    kind: "search-action",
+    kind: "link",
+    href: "/history",
     labelKey: "search",
     icon: Search,
+    isActive: (pathname) => pathname === "/history",
   },
 ];

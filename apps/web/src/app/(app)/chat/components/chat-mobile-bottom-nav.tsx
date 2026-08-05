@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 
@@ -14,9 +13,9 @@ import {
 
 export function resolveChatMobileActiveTabId(
   pathname: string,
-): Extract<ChatMobileTabId, "home" | "chats"> | null {
+): ChatMobileTabId | null {
   for (const tab of CHAT_MOBILE_TABS) {
-    if (tab.kind !== "link" || !tab.isActive(pathname)) {
+    if (!tab.isActive(pathname)) {
       continue;
     }
     return tab.id;
@@ -27,9 +26,6 @@ export function resolveChatMobileActiveTabId(
 export function ChatMobileBottomNav(): React.ReactElement {
   const pathname = usePathname();
   const t = useTranslations("App.Channels.MobileNav");
-  // Optional: Instant Navigations / app Suspense fallback render this nav
-  // before HistorySearchDialogProvider exists.
-  const historySearch = useOptionalHistorySearch();
   const activeTabId = resolveChatMobileActiveTabId(pathname);
   const isApple = useIsApplePlatform();
 
@@ -52,28 +48,6 @@ export function ChatMobileBottomNav(): React.ReactElement {
         {CHAT_MOBILE_TABS.map((tab) => {
           const Icon = tab.icon;
           const label = t(tab.labelKey);
-
-          if (tab.kind === "search-action") {
-            return (
-              <li key={tab.id} className="flex min-w-0 flex-1">
-                <button
-                  type="button"
-                  disabled={!historySearch}
-                  onClick={() => {
-                    historySearch?.openHistorySearch();
-                  }}
-                  className={cn(
-                    "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs disabled:pointer-events-none disabled:opacity-50",
-                    isApple && "rounded-full px-1",
-                  )}
-                >
-                  <Icon className="size-5" aria-hidden />
-                  <span className="truncate">{label}</span>
-                </button>
-              </li>
-            );
-          }
-
           const isActive = activeTabId === tab.id;
 
           return (
