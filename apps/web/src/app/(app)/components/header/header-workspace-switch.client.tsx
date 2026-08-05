@@ -169,14 +169,19 @@ export default function HeaderWorkspaceSwitch({
             className="text-foreground hover:opacity-80 flex min-w-0 items-center text-sm transition-opacity"
             disabled={isPending}
           >
-            <div className="flex min-w-0 flex-col items-end text-right">
-              <div className="flex max-w-full items-center gap-1">
-                <span className="max-w-24 truncate font-medium md:max-w-none">
-                  {activeWorkspace?.name}
-                </span>
-                <ChevronsUpDown className="text-muted-foreground size-4 shrink-0" />
-              </div>
-              <span className="text-muted-foreground max-md:hidden max-w-full truncate text-xs">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1.5">
+              <span className="max-w-24 truncate text-right font-medium md:max-w-none">
+                {activeWorkspace?.name}
+              </span>
+              <HeaderWorkspaceAvatar
+                sessionUser={sessionUser}
+                organization={activeWorkspace?.organization ?? null}
+                className="size-4 shrink-0"
+                logoSize={12}
+                decorative
+              />
+              <ChevronsUpDown className="text-muted-foreground row-span-2 size-4.5 shrink-0 self-center" />
+              <span className="text-muted-foreground col-span-2 col-start-1 max-md:hidden max-w-full truncate text-right text-xs">
                 {sessionUser.email}
               </span>
             </div>

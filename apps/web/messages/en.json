@@ -167,7 +167,8 @@
       "personalAccount": "Personal Account",
       "createOrganization": "Create Organization",
       "organizationsHeading": "Organizations",
-      "createOrJoinOrganization": "Create or Join Organization"
+      "createOrJoinOrganization": "Create or Join Organization",
+      "userAvatarAlt": "User avatar"
     },
     "DataTable": {
       "Data": {
@@ -4718,6 +4719,31 @@
       }
     },
     "Channels": {
+      "MobileNav": {
+        "home": "Home",
+        "chats": "Chats",
+        "search": "Search",
+        "ariaLabel": "Main navigation",
+        "backToChats": "Back to chats",
+        "backToHome": "Back to home",
+        "back": "Back"
+      },
+      "MobileCreateFab": {
+        "openMenu": "Create",
+        "closeMenu": "Close create menu",
+        "newTask": {
+          "title": "New Task",
+          "subtitle": "Create a new long running task"
+        },
+        "createChannel": {
+          "title": "Create channel",
+          "subtitle": "Start a new stream channel"
+        },
+        "newDm": {
+          "title": "New direct message",
+          "subtitle": "Message one or more people"
+        }
+      },
       "Actions": {
         "more": "Message actions",
         "sectionTitle": "Manage channel",
@@ -4922,8 +4948,7 @@
       },
       "Edit": {
         "action": "Edit",
-        "save": "Save",
-        "cancel": "Cancel",
+        "composerAria": "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line.",
         "edited": "Edited"
       },
       "MentionAll": {

@@ -1,0 +1,16 @@
+---
+description: "Apple Dynamic Type and no fixed px font sizes in apps/web"
+alwaysApply: true
+---
+
+## Dynamic Type (iOS / macOS)
+
+Sokosumi web opts into Apple Dynamic Type for whole-UI rem scaling.
+
+1. **Root size** may come from `-apple-system-body` on `html` (see `apps/web/src/app/globals.css`). Brand face stays **Inter** (`next/font`).
+2. **Cap is 1.25×** default (`DYNAMIC_TYPE_MAX_SCALE = 1.25`, max root **20px** when default is 16px). Implemented in `apps/web/src/lib/utils/dynamic-type.ts` + `DynamicTypeRootCap`. Do not raise the cap without product decision.
+3. **No fixed `px` font sizes** in product UI. Use Tailwind `text-*` or `rem`/`em` (e.g. `text-[0.625rem]` not `text-[10px]`). Guard: `apps/web/src/lib/utils/__tests__/no-fixed-font-size.test.ts`.
+4. Do **not** set viewport `maximum-scale=1` or `user-scalable=no`.
+5. Do **not** set `html`/`body` `font-size` to a fixed `px` that kills Dynamic Type, except the documented 20px cap path.
+
+Allowlist for px font sizes: true non-interactive export/print only (e.g. PDF Puppeteer chrome), named in the guard test.

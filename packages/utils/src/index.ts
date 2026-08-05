@@ -154,6 +154,11 @@ export {
   stringifyMetadataRecord,
 } from "./metadata-record.js";
 export {
+  BROWSER_ONLY_NOTIFICATION_KINDS,
+  type BrowserOnlyNotificationKind,
+  isBrowserOnlyNotificationKind,
+} from "./notification-feed-kinds.js";
+export {
   type BuildOAuthClientScopeParamOptions,
   buildOAuthClientGrantTypes,
   buildOAuthClientScopeParam,

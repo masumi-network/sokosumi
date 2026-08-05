@@ -34,8 +34,8 @@ export function DocumentTextPreview({
             className={cn(
               "prose-h2:text-xl prose-h2:mb-3 prose-h2:tracking-tight",
               "prose-h3:text-foreground prose-h3:mt-7 prose-h3:mb-2 prose-h3:text-base",
-              "prose-p:text-foreground/90 prose-p:text-[15px] prose-p:leading-7",
-              "prose-li:text-foreground/90 prose-li:my-1.5 prose-li:text-[15px] prose-li:leading-7",
+              "prose-p:text-foreground/90 prose-p:text-[0.9375rem] prose-p:leading-7",
+              "prose-li:text-foreground/90 prose-li:my-1.5 prose-li:text-[0.9375rem] prose-li:leading-7",
               "prose-ul:my-3 prose-ol:my-3 prose-strong:text-foreground",
             )}
           >

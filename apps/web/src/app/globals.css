@@ -472,6 +472,22 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /*
+   * Apple Dynamic Type (iOS/macOS Safari / PWA): map system body size to root
+   * rem. Inter stays the face via next/font class on <html>; re-declare family
+   * after the `font` shorthand so it is not replaced by the system text face.
+   * Cap (>20px) is applied in DynamicTypeRootCap — do not hardcode px here.
+   */
+  @supports (font: -apple-system-body) {
+    html {
+      font: -apple-system-body;
+      font-family:
+        var(--font-inter), ui-sans-serif, system-ui, sans-serif,
+        "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+        "Noto Color Emoji";
+    }
+  }
 }
 
 /*
@@ -819,78 +835,4 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
     background-clip: border-box;
     color: var(--foreground);
   }
-}
-
-/* Notification reminder: avatar ↔ bell slide swap */
-.notification-reminder-avatar-panel {
-  transform: translateX(0);
-}
-
-.notification-reminder-bell-panel {
-  transform: translateX(100%);
-}
-
-.notification-reminder-bell-panel-primary {
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
-
-.notification-reminder-bell-panel-warning {
-  background: var(--semantic-warning);
-  color: var(--semantic-warning-foreground);
-}
-
-.notification-reminder-bell-panel-destructive {
-  background: var(--semantic-destructive);
-  color: var(--semantic-destructive-foreground);
-}
-
-.notification-reminder-bell-active .notification-reminder-avatar-panel {
-  transform: translateX(-100%);
-}
-
-.notification-reminder-bell-active .notification-reminder-bell-panel {
-  transform: translateX(0);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .notification-reminder-avatar-panel,
-  .notification-reminder-bell-panel {
-    transition: transform 0.55s cubic-bezier(0.33, 1, 0.68, 1);
-  }
-}
-
-/* Bell ring for notification reminder — pendulum swing from the top. */
-@keyframes notification-bell-ring {
-  0%,
-  100% {
-    transform: rotate(0deg);
-  }
-  12% {
-    transform: rotate(18deg);
-  }
-  24% {
-    transform: rotate(-15deg);
-  }
-  36% {
-    transform: rotate(12deg);
-  }
-  48% {
-    transform: rotate(-9deg);
-  }
-  60% {
-    transform: rotate(6deg);
-  }
-  72% {
-    transform: rotate(-4deg);
-  }
-  84% {
-    transform: rotate(2deg);
-  }
-}
-
-.animate-notification-bell-ring {
-  display: block;
-  transform-origin: 50% 12%;
-  animation: notification-bell-ring 1.1s ease-in-out 0.6s 2;
 }

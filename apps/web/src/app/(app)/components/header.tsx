@@ -1,9 +1,13 @@
 import type { Session } from "@sokosumi/utils";
+import { Suspense } from "react";
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
-import { cn } from "@/lib/utils";
 
+import { HeaderChrome } from "./header/header-chrome.client";
+import {
+  HeaderLeadingBrandFallback,
+  HeaderLeadingControl,
+} from "./header/header-leading-control.client";
 import HeaderProfileSection from "./header/header-profile-section";
-import CustomTrigger from "./sidebar/components/custom-trigger";
 
 interface HeaderProps {
   className?: string | undefined;
@@ -12,14 +16,11 @@ interface HeaderProps {
 
 export default function Header({ className, session }: HeaderProps) {
   return (
-    <header
-      className={cn(
-        "border-grid bg-sidebar fixed top-0 z-50 flex w-full items-center justify-between gap-2 border-b md:sticky md:items-center md:pl-6",
-        className,
-      )}
-    >
+    <HeaderChrome className={className}>
       <div className="flex size-8 shrink-0 items-center justify-center md:hidden">
-        <CustomTrigger when="invisible" />
+        <Suspense fallback={<HeaderLeadingBrandFallback />}>
+          <HeaderLeadingControl />
+        </Suspense>
       </div>
 
       <div className="hidden min-w-0 flex-1 flex-row gap-2 sm:flex">
@@ -29,6 +30,6 @@ export default function Header({ className, session }: HeaderProps) {
       <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
         <HeaderProfileSection session={session} />
       </div>
-    </header>
+    </HeaderChrome>
   );
 }

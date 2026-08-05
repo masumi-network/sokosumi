@@ -86,7 +86,7 @@ function CoworkerRefChip({
           className="border-border size-4 shrink-0 rounded-full border"
         />
       ) : (
-        <span className="bg-muted text-muted-foreground inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold">
+        <span className="bg-muted text-muted-foreground inline-flex size-4 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-semibold">
           {coworker.name.charAt(0).toUpperCase()}
         </span>
       )}

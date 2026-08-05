@@ -59,6 +59,8 @@ interface ChatRoomSidebarRowProps {
   isActive: boolean;
   leading: ReactNode;
   onRoomUpdated: (room: ChatRoom) => void;
+  /** When false, render plain Link (page-mounted list outside Sheet). */
+  dismissSheetOnNavigate?: boolean;
 }
 
 function MentionBadge({ count }: { count: number }) {
@@ -71,7 +73,7 @@ function MentionBadge({ count }: { count: number }) {
   return (
     <span
       aria-label={`${label} mentions`}
-      className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] leading-4 font-semibold tabular-nums"
+      className="bg-primary text-primary-foreground group-data-[collapsible=icon]:hidden inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums"
     >
       {label}
     </span>
@@ -85,6 +87,7 @@ export function ChatRoomSidebarRow({
   isActive,
   leading,
   onRoomUpdated,
+  dismissSheetOnNavigate = true,
 }: ChatRoomSidebarRowProps) {
   const tActions = useTranslations("App.Channels.Actions");
   const router = useRouter();
@@ -138,37 +141,44 @@ export function ChatRoomSidebarRow({
     setLeaveConfirmOpen(false);
     notifyOrganizationChatRoomsChanged();
     if (isActive) {
+      // Land on chat home — `/chat/chats` is mobile-only (`md:hidden`).
       router.replace("/chat");
       router.refresh();
     }
   }
 
+  const roomLink = (
+    <Link
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3",
+        isMuted && !isActive && "opacity-60",
+      )}
+      href={href}
+    >
+      {leading}
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate",
+          bold && "font-semibold text-foreground",
+          isMuted && !isActive && "text-muted-foreground",
+        )}
+      >
+        {label}
+      </span>
+      <MentionBadge count={badgeCount} />
+      <span className="size-7 shrink-0" aria-hidden />
+    </Link>
+  );
+
   return (
     <SidebarMenuItem className="group/room-row relative">
       <SidebarMenuButton asChild isActive={isActive}>
-        <SheetClose asChild>
-          <Link
-            aria-current={isActive ? "page" : undefined}
-            className={cn(
-              "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex min-h-auto w-full items-center gap-2 px-3",
-              isMuted && !isActive && "opacity-60",
-            )}
-            href={href}
-          >
-            {leading}
-            <span
-              className={cn(
-                "min-w-0 flex-1 truncate",
-                bold && "font-semibold text-foreground",
-                isMuted && !isActive && "text-muted-foreground",
-              )}
-            >
-              {label}
-            </span>
-            <MentionBadge count={badgeCount} />
-            <span className="size-7 shrink-0" aria-hidden />
-          </Link>
-        </SheetClose>
+        {dismissSheetOnNavigate ? (
+          <SheetClose asChild>{roomLink}</SheetClose>
+        ) : (
+          roomLink
+        )}
       </SidebarMenuButton>
       {isMuted || isPinned ? (
         <span

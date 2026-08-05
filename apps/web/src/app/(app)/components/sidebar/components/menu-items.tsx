@@ -12,7 +12,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ComponentType, Fragment, type SVGProps } from "react";
-import { useHistorySearch } from "@/app/components/history-search-dialog-provider";
+import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -38,14 +38,26 @@ interface MenuItemConfig {
   separatorAfter?: boolean;
 }
 
-export default function MenuItems() {
+interface MenuItemsProps {
+  /** Mobile Home hub: History lives on the Search tab, so omit the leaf item. */
+  hideHistory?: boolean;
+  /** Mobile Home hub: New Task lives on the create FAB, so omit the leaf item. */
+  hideNewTask?: boolean;
+}
+
+export default function MenuItems({
+  hideHistory = false,
+  hideNewTask = false,
+}: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
-  const { openHistorySearch, searchShortcutLabel } = useHistorySearch();
+  // Soft read: `/chat` MobileHomeHub can SSR under AppShellLoadingFrame before
+  // HistorySearchDialogProvider mounts (Instant Navigations shell).
+  const historySearch = useOptionalHistorySearch();
   const { isMobile, setOpenMobile } = useSidebar();
 
   function handleSearchClick() {
-    openHistorySearch();
+    historySearch?.openHistorySearch();
     if (isMobile) {
       setOpenMobile(false);
     }
@@ -60,20 +72,24 @@ export default function MenuItems() {
   };
 
   const items: MenuItemConfig[] = [
-    {
-      key: "new-task",
-      href: "/tasks?create=true",
-      label: t("newTask"),
-      Icon: Plus,
-      separatorAfter: true,
-    },
+    ...(hideNewTask
+      ? []
+      : [
+          {
+            key: "new-task",
+            href: "/tasks?create=true",
+            label: t("newTask"),
+            Icon: Plus,
+            separatorAfter: true,
+          } satisfies MenuItemConfig,
+        ]),
     {
       key: "search",
       label: t("search"),
       Icon: Search,
       onClick: handleSearchClick,
-      shortcutLabel: searchShortcutLabel,
-      ariaKeyshortcuts: "Meta+K Control+K",
+      shortcutLabel: historySearch?.searchShortcutLabel,
+      ariaKeyshortcuts: historySearch ? "Meta+K Control+K" : undefined,
     },
     {
       key: "task-manager",
@@ -93,12 +109,16 @@ export default function MenuItems() {
       label: t("exploreAgents"),
       Icon: Bot,
     },
-    {
-      key: "history",
-      href: "/history",
-      label: t("history"),
-      Icon: History,
-    },
+    ...(hideHistory
+      ? []
+      : [
+          {
+            key: "history",
+            href: "/history",
+            label: t("history"),
+            Icon: History,
+          } satisfies MenuItemConfig,
+        ]),
   ];
 
   return (
@@ -132,7 +152,7 @@ export default function MenuItems() {
                     {badge ? (
                       <span
                         className={cn(
-                          "border-border/60 text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[10px] font-medium uppercase tracking-wide leading-4",
+                          "border-border/60 text-tertiary-foreground dark:text-muted-foreground rounded border px-1 py-0 text-[0.625rem] font-medium uppercase tracking-wide leading-4",
                           isActive &&
                             "border-primary-foreground/30 text-primary-foreground",
                         )}
@@ -143,7 +163,7 @@ export default function MenuItems() {
                     {showUnread ? (
                       <span
                         aria-label={`${unreadDisplay} unread`}
-                        className="bg-primary text-primary-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-4 tabular-nums"
+                        className="bg-primary text-primary-foreground inline-flex min-w-4.5 shrink-0 items-center justify-center rounded-full px-1 text-[0.625rem] font-semibold leading-4 tabular-nums"
                       >
                         {unreadDisplay}
                       </span>

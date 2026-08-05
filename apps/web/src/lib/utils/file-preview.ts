@@ -25,6 +25,16 @@ const TEXT_PREVIEW_MEDIA_TYPES = new Set([
   "text/markdown",
   "text/x-markdown",
 ]);
+const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "ogg", "mov", "m4v"]);
+const AUDIO_EXTENSIONS = new Set([
+  "mp3",
+  "wav",
+  "m4a",
+  "aac",
+  "flac",
+  "opus",
+  "oga",
+]);
 
 /** Strip parameters (`text/plain; charset=utf-8` → `text/plain`) for allowlist checks. */
 export function normalizeMediaType(mediaType?: string | null): string | null {
@@ -67,13 +77,30 @@ export function isTextPreviewMediaType(mediaType?: string | null): boolean {
   return normalized ? TEXT_PREVIEW_MEDIA_TYPES.has(normalized) : false;
 }
 
+export function isVideoUrl(url: string): boolean {
+  return VIDEO_EXTENSIONS.has(getExtensionFromUrl(url));
+}
+
+export function isVideoMediaType(mediaType?: string | null): boolean {
+  return normalizeMediaType(mediaType)?.startsWith("video/") ?? false;
+}
+
+export function isAudioUrl(url: string): boolean {
+  return AUDIO_EXTENSIONS.has(getExtensionFromUrl(url));
+}
+
+export function isAudioMediaType(mediaType?: string | null): boolean {
+  return normalizeMediaType(mediaType)?.startsWith("audio/") ?? false;
+}
+
 export type DocumentPreviewKind = "office" | "pdf" | "text";
 
 /**
  * Positive allowlist only — unlike a curated offer's output (a closed,
- * known-safe type enum), a real attachment can be a zip/csv/video/unknown
- * binary that must keep falling through to a plain download link rather than
- * being force-embedded in an iframe.
+ * known-safe type enum), a real attachment can be a zip/csv/unknown binary
+ * that must keep falling through to a plain download link rather than being
+ * force-embedded in an iframe. Video/audio are classified by
+ * `classifyFilePreview` and do not use this document helper.
  */
 export function getDocumentPreviewKind(
   url: string,
@@ -87,14 +114,15 @@ export function getDocumentPreviewKind(
 
 export interface FilePreviewClassification {
   isImage: boolean;
+  isVideo: boolean;
+  isAudio: boolean;
   documentKind: DocumentPreviewKind | null;
 }
 
 /**
- * Classifies a file as an image, a previewable document, or neither — the
- * single check every file-chip component needs to decide which viewer (if
- * any) to open on click. Falls back to `fileName` when `url` itself has no
- * useful extension (e.g. an extensionless blob key).
+ * Classifies a file for chip/markdown preview: image, video, audio,
+ * previewable document, or none (download link). Falls back to `fileName`
+ * when `url` has no useful extension.
  */
 export function classifyFilePreview(
   url: string,
@@ -106,12 +134,55 @@ export function classifyFilePreview(
     isImageUrl(url) ||
     (fileName ? isImageUrl(fileName) : false);
 
-  const documentKind = isImage
-    ? null
-    : (getDocumentPreviewKind(url, mediaType) ??
-      (fileName ? getDocumentPreviewKind(fileName, mediaType) : null));
+  if (isImage) {
+    return {
+      isImage: true,
+      isVideo: false,
+      isAudio: false,
+      documentKind: null,
+    };
+  }
 
-  return { isImage, documentKind };
+  // Prefer MIME when present: audio/* beats a video-extension allowlist hit
+  // (e.g. .ogg + audio/ogg → audio). video/* MIME still classifies as video.
+  const isVideo =
+    isVideoMediaType(mediaType) ||
+    (!isAudioMediaType(mediaType) &&
+      (isVideoUrl(url) || (fileName ? isVideoUrl(fileName) : false)));
+
+  if (isVideo) {
+    return {
+      isImage: false,
+      isVideo: true,
+      isAudio: false,
+      documentKind: null,
+    };
+  }
+
+  const isAudio =
+    isAudioMediaType(mediaType) ||
+    isAudioUrl(url) ||
+    (fileName ? isAudioUrl(fileName) : false);
+
+  if (isAudio) {
+    return {
+      isImage: false,
+      isVideo: false,
+      isAudio: true,
+      documentKind: null,
+    };
+  }
+
+  const documentKind =
+    getDocumentPreviewKind(url, mediaType) ??
+    (fileName ? getDocumentPreviewKind(fileName, mediaType) : null);
+
+  return {
+    isImage: false,
+    isVideo: false,
+    isAudio: false,
+    documentKind,
+  };
 }
 
 /**

@@ -94,7 +94,7 @@ export function ThreadPanel({
   editSession?: { messageId: string; draft: string } | null;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
-  onSaveEdit?: () => void;
+  onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
   pendingQuote?: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
@@ -189,10 +189,10 @@ export function ThreadPanel({
             <X className="size-4" aria-hidden />
           </Button>
         </header>
-        <ScrollArea ref={scrollerRef} className="min-h-0 flex-1">
+        <ScrollArea ref={scrollerRef} className="min-h-0 min-w-0 flex-1">
           <div
             ref={contentRef}
-            className="flex w-full flex-col justify-end px-4 pt-4 pb-0"
+            className="flex min-w-0 w-full flex-col justify-end px-4 pt-4 pb-0"
             style={
               contentMinHeight != null
                 ? { minHeight: contentMinHeight }

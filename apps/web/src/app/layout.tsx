@@ -10,6 +10,7 @@ import { Suspense } from "react";
 
 import { ClientAnalytics } from "@/components/analytics/client-analytics";
 import { DeploymentRefreshHandler } from "@/components/deployment-refresh-handler";
+import { DynamicTypeRootCap } from "@/components/dynamic-type-root-cap";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { ThemeProvider } from "@/contexts/theme-context";
@@ -20,6 +21,7 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   fallback: ["sans-serif"],
+  variable: "--font-inter",
 });
 
 export function generateMetadata(): Metadata {
@@ -50,7 +52,7 @@ export default function RootLayout({
     <html
       lang={DEFAULT_LOCALE}
       suppressHydrationWarning
-      className={inter.className}
+      className={`${inter.className} ${inter.variable}`}
     >
       <head>
         <ApplePwaHead />
@@ -58,6 +60,7 @@ export default function RootLayout({
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       {gaId && <GoogleAnalytics gaId={gaId} />}
       <body className="bg-background min-h-svh max-w-dvw antialiased">
+        <DynamicTypeRootCap />
         <NuqsAdapter>
           <ThemeProvider>
             <Suspense fallback={<div className="bg-background min-h-svh" />}>

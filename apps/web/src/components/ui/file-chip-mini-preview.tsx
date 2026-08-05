@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useState } from "react";
 
 import { DocumentViewer } from "@/components/ui/document-viewer";
+import { FileChip } from "@/components/ui/file-chip";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { ImageViewer } from "@/components/ui/image-viewer";
 import {
@@ -35,7 +36,8 @@ export interface FileChipMiniPreviewProps {
 const previewTriggerClassName =
   "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
 
-const largeImageTriggerClassName = "max-h-80 max-w-sm";
+const largeImageTriggerClassName =
+  "min-w-0 max-h-80 w-full max-w-full shrink";
 
 function FileChipMiniPreviewTrigger({
   url,
@@ -78,7 +80,7 @@ function FileChipMiniPreviewTrigger({
           <img
             src={url}
             alt={resolvedFileName}
-            className="max-h-80 max-w-sm object-contain object-center"
+            className="max-h-80 w-full max-w-full object-contain object-center"
           />
         </button>
       );
@@ -216,7 +218,28 @@ function FileChipMiniPreviewShell({
   );
 }
 
+/**
+ * Sent-message / timeline surface. Video and audio use the full FileChip
+ * inline player; images and documents keep the compact thumbnail frame.
+ * Composer drafts use {@link FileChipMiniPreview} (always compact).
+ */
 export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewProps) {
+  const { isVideo, isAudio } = classifyFilePreview(
+    props.url,
+    props.fileName,
+    props.mediaType,
+  );
+  if (isVideo || isAudio) {
+    return (
+      <FileChip
+        url={props.url}
+        fileName={props.fileName}
+        mediaType={props.mediaType}
+        size={props.size}
+        className={props.className}
+      />
+    );
+  }
   return <FileChipMiniPreviewShell {...props} />;
 }
 

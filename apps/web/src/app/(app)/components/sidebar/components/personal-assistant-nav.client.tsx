@@ -120,7 +120,7 @@ export default function PersonalAssistantNav() {
             {showNewBadge ? (
               <span
                 aria-hidden
-                className="bg-primary text-primary-foreground pointer-events-none absolute -top-1.5 -right-1 z-10 rounded-full px-1.5 py-px text-[9px] font-bold tracking-widest uppercase group-data-[collapsible=icon]:hidden"
+                className="bg-primary text-primary-foreground pointer-events-none absolute -top-1.5 -right-1 z-10 rounded-full px-1.5 py-px text-[0.5625rem] font-bold tracking-widest uppercase group-data-[collapsible=icon]:hidden"
               >
                 {t("hermesNew")}
               </span>
