@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { shouldSuppressSentryForExternalError } from "@/lib/external-service-errors";
 
-const { emailsSendMock, resendConstructorMock } = vi.hoisted(() => ({
-  emailsSendMock: vi.fn(),
-  resendConstructorMock: vi.fn(),
-}));
+const { emailsSendMock, batchSendMock, resendConstructorMock } = vi.hoisted(
+  () => ({
+    emailsSendMock: vi.fn(),
+    batchSendMock: vi.fn(),
+    resendConstructorMock: vi.fn(),
+  }),
+);
 
 vi.mock("resend", () => ({
   Resend: function Resend(...args: unknown[]) {
@@ -13,6 +16,9 @@ vi.mock("resend", () => ({
     return {
       emails: {
         send: (...sendArgs: unknown[]) => emailsSendMock(...sendArgs),
+      },
+      batch: {
+        send: (...sendArgs: unknown[]) => batchSendMock(...sendArgs),
       },
     };
   },
@@ -156,5 +162,200 @@ describe("sendEmail", () => {
         tag: "reset-password",
       }),
     ).rejects.toThrow("Resend email send returned no id");
+  });
+});
+
+describe("sendEmails", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it("returns empty without calling Resend when given no emails", async () => {
+    const { sendEmails } = await import("./email.client");
+
+    await expect(sendEmails([])).resolves.toEqual([]);
+    expect(batchSendMock).not.toHaveBeenCalled();
+    expect(emailsSendMock).not.toHaveBeenCalled();
+  });
+
+  it("sends one batch with category tags and returns ids in order", async () => {
+    batchSendMock.mockResolvedValue({
+      data: { data: [{ id: "email_1" }, { id: "email_2" }] },
+      error: null,
+    });
+
+    const { sendEmails } = await import("./email.client");
+
+    await expect(
+      sendEmails([
+        {
+          to: "a@example.com",
+          subject: "A",
+          html: "<p>A</p>",
+          tag: "job-final-status",
+        },
+        {
+          to: "b@example.com",
+          subject: "B",
+          html: "<p>B</p>",
+          tag: "job-input-required",
+        },
+      ]),
+    ).resolves.toEqual([{ id: "email_1" }, { id: "email_2" }]);
+
+    expect(batchSendMock).toHaveBeenCalledTimes(1);
+    expect(batchSendMock).toHaveBeenCalledWith([
+      {
+        from: "no-reply@example.com",
+        to: "a@example.com",
+        subject: "A",
+        html: "<p>A</p>",
+        tags: [{ name: "category", value: "job-final-status" }],
+      },
+      {
+        from: "no-reply@example.com",
+        to: "b@example.com",
+        subject: "B",
+        html: "<p>B</p>",
+        tags: [{ name: "category", value: "job-input-required" }],
+      },
+    ]);
+    expect(emailsSendMock).not.toHaveBeenCalled();
+  });
+
+  it("passes bcc through on batch items", async () => {
+    batchSendMock.mockResolvedValue({
+      data: { data: [{ id: "email_bcc" }] },
+      error: null,
+    });
+
+    const { sendEmails } = await import("./email.client");
+
+    await sendEmails([
+      {
+        to: ["author@example.com"],
+        bcc: ["ops@example.com"],
+        subject: "Failure",
+        html: "<p>Failed</p>",
+        tag: "job-failure-notification",
+      },
+    ]);
+
+    expect(batchSendMock).toHaveBeenCalledWith([
+      {
+        from: "no-reply@example.com",
+        to: ["author@example.com"],
+        bcc: ["ops@example.com"],
+        subject: "Failure",
+        html: "<p>Failed</p>",
+        tags: [{ name: "category", value: "job-failure-notification" }],
+      },
+    ]);
+  });
+
+  it("chunks at RESEND_BATCH_MAX_SIZE so large sync bursts stay one request per 100", async () => {
+    batchSendMock.mockImplementation(async (payload: unknown[]) => ({
+      data: {
+        data: payload.map((_, index) => ({ id: `email_${index}` })),
+      },
+      error: null,
+    }));
+
+    const { sendEmails, RESEND_BATCH_MAX_SIZE } = await import(
+      "./email.client"
+    );
+
+    const inputs = Array.from(
+      { length: RESEND_BATCH_MAX_SIZE + 1 },
+      (_, index) => ({
+        to: `user${index}@example.com`,
+        subject: "Hello",
+        html: "<p>Hi</p>",
+        tag: "job-final-status",
+      }),
+    );
+
+    const result = await sendEmails(inputs);
+
+    expect(RESEND_BATCH_MAX_SIZE).toBe(100);
+    expect(batchSendMock).toHaveBeenCalledTimes(2);
+    expect(batchSendMock.mock.calls[0]?.[0]).toHaveLength(100);
+    expect(batchSendMock.mock.calls[1]?.[0]).toHaveLength(1);
+    expect(result).toHaveLength(RESEND_BATCH_MAX_SIZE + 1);
+  });
+
+  it("throws ErrorResponse fields when Resend batch returns an API error", async () => {
+    batchSendMock.mockResolvedValue({
+      data: null,
+      error: {
+        message: "rate_limit_exceeded",
+        name: "rate_limit_exceeded",
+        statusCode: 429,
+      },
+    });
+
+    const { sendEmails } = await import("./email.client");
+
+    await expect(
+      sendEmails([
+        {
+          to: "user@example.com",
+          subject: "Hello",
+          html: "<p>Hi</p>",
+          tag: "job-final-status",
+        },
+      ]),
+    ).rejects.toMatchObject({
+      message: "rate_limit_exceeded",
+      name: "rate_limit_exceeded",
+      statusCode: 429,
+    });
+  });
+
+  it("throws when batch result length mismatches the chunk", async () => {
+    batchSendMock.mockResolvedValue({
+      data: { data: [{ id: "email_1" }] },
+      error: null,
+    });
+
+    const { sendEmails } = await import("./email.client");
+
+    await expect(
+      sendEmails([
+        {
+          to: "a@example.com",
+          subject: "A",
+          html: "<p>A</p>",
+          tag: "job-final-status",
+        },
+        {
+          to: "b@example.com",
+          subject: "B",
+          html: "<p>B</p>",
+          tag: "job-final-status",
+        },
+      ]),
+    ).rejects.toThrow("Resend batch send returned unexpected result length");
+  });
+
+  it("throws when a batch item has no id", async () => {
+    batchSendMock.mockResolvedValue({
+      data: { data: [{}] },
+      error: null,
+    });
+
+    const { sendEmails } = await import("./email.client");
+
+    await expect(
+      sendEmails([
+        {
+          to: "user@example.com",
+          subject: "Hello",
+          html: "<p>Hi</p>",
+          tag: "job-final-status",
+        },
+      ]),
+    ).rejects.toThrow("Resend batch send returned no id");
   });
 });
