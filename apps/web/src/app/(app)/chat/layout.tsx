@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import DefaultErrorBoundary from "@/components/default-error-boundary";
 
-import { ChatErrorFallback } from "./components/chat-error-fallback";
 import { ChatMobileShell } from "./components/chat-mobile-shell";
+import { ChatRouteErrorBoundary } from "./components/chat-route-error-boundary.client";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Channels.Metadata");
@@ -27,9 +26,11 @@ export default function ChatLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Shell stays outside the page error boundary so Instant Navigations can
+  // still validate the page segment if chrome throws during Suspense fallback.
   return (
-    <DefaultErrorBoundary fallback={<ChatErrorFallback />}>
-      <ChatMobileShell>{children}</ChatMobileShell>
-    </DefaultErrorBoundary>
+    <ChatMobileShell>
+      <ChatRouteErrorBoundary>{children}</ChatRouteErrorBoundary>
+    </ChatMobileShell>
   );
 }

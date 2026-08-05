@@ -12,7 +12,7 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
-  useHistorySearch: () => ({
+  useOptionalHistorySearch: () => ({
     openHistorySearch: vi.fn(),
     searchShortcutLabel: "Ctrl+K",
   }),

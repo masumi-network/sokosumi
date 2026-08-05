@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useHistorySearch } from "@/app/components/history-search-dialog-provider";
+import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { cn } from "@/lib/utils";
 
 import {
@@ -26,7 +26,9 @@ export function resolveChatMobileActiveTabId(
 export function ChatMobileBottomNav(): React.ReactElement {
   const pathname = usePathname();
   const t = useTranslations("App.Channels.MobileNav");
-  const { openHistorySearch } = useHistorySearch();
+  // Optional: Instant Navigations / app Suspense fallback render this nav
+  // before HistorySearchDialogProvider exists.
+  const historySearch = useOptionalHistorySearch();
   const activeTabId = resolveChatMobileActiveTabId(pathname);
 
   return (
@@ -44,10 +46,11 @@ export function ChatMobileBottomNav(): React.ReactElement {
               <li key={tab.id} className="flex min-w-0 flex-1">
                 <button
                   type="button"
+                  disabled={!historySearch}
                   onClick={() => {
-                    openHistorySearch();
+                    historySearch?.openHistorySearch();
                   }}
-                  className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs"
+                  className="text-muted-foreground hover:text-foreground flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-xs disabled:pointer-events-none disabled:opacity-50"
                 >
                   <Icon className="size-5" aria-hidden />
                   <span className="truncate">{label}</span>

@@ -3,6 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const openHistorySearchMock = vi.fn();
 let mockPathname = "/chat";
+let mockHistorySearch: {
+  openHistorySearch: typeof openHistorySearchMock;
+  searchShortcutLabel: string;
+} | null = {
+  openHistorySearch: openHistorySearchMock,
+  searchShortcutLabel: "Ctrl+K",
+};
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
@@ -13,10 +20,7 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
-  useHistorySearch: () => ({
-    openHistorySearch: openHistorySearchMock,
-    searchShortcutLabel: "Ctrl+K",
-  }),
+  useOptionalHistorySearch: () => mockHistorySearch,
 }));
 
 vi.mock("next/link", () => ({
@@ -61,6 +65,10 @@ describe("ChatMobileBottomNav", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPathname = "/chat";
+    mockHistorySearch = {
+      openHistorySearch: openHistorySearchMock,
+      searchShortcutLabel: "Ctrl+K",
+    };
   });
 
   it("renders Home, Chats, and Search — not History", () => {
@@ -84,6 +92,13 @@ describe("ChatMobileBottomNav", () => {
     fireEvent.click(screen.getByRole("button", { name: "search" }));
 
     expect(openHistorySearchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables Search when HistorySearch provider is absent", () => {
+    mockHistorySearch = null;
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByRole("button", { name: "search" })).toBeDisabled();
   });
 
   it("sets aria-current on the Home link for exact /chat", () => {
