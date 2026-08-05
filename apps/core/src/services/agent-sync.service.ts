@@ -51,6 +51,33 @@ interface SyncExecutionOptions {
   shouldContinue: () => boolean;
 }
 
+/**
+ * Ids of Agent rows whose `blockchainIdentifier` equals `agentIdentifier`
+ * case-insensitively. The casing genuinely can differ: a rollback-era binary
+ * stored the registry's spelling verbatim, while this release normalizes V2
+ * identifiers to lowercase, and the registry may serve either over time.
+ *
+ * Deliberately NOT Prisma's `mode: "insensitive"`. On PostgreSQL that compiles
+ * to ILIKE with the value used as an UNESCAPED PATTERN, so a `%` or `_` in a
+ * registry-supplied identifier would match unrelated agents — and one caller
+ * below writes `status: INVALID`, another adopts a row as canonical. `lower()`
+ * on both sides is a plain equality test with no pattern semantics, and the
+ * value stays a bound parameter. Same reasoning as the exact-match comment in
+ * `buildAvailableAgentWhereClause`.
+ *
+ * The scan is unindexed, which is fine at catalog scale (a few thousand rows);
+ * add a `lower("blockchainIdentifier")` functional index if Agent ever grows
+ * by an order of magnitude.
+ */
+async function findAgentIdsByIdentifierCaseInsensitive(
+  agentIdentifier: string,
+): Promise<string[]> {
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "Agent"
+    WHERE lower("blockchainIdentifier") = lower(${agentIdentifier})`;
+  return rows.map((row) => row.id);
+}
+
 async function quarantineInvalidRegistryEntry(
   entry: RegistryDiffEntry,
   issue: string,
@@ -83,6 +110,8 @@ async function quarantineInvalidRegistryEntry(
   console.error(
     `[sync/agents] Quarantining registry entry ${normalizedEntry.agentIdentifier}: ${issue}`,
   );
+  const identifierMatchIds =
+    await findAgentIdsByIdentifierCaseInsensitive(agentIdentifier);
 
   // Invalidate only this revision or an older canonical row. Preserve
   // administrator visibility choice: a later corrected registry entry can
@@ -98,12 +127,9 @@ async function quarantineInvalidRegistryEntry(
               },
             ]
           : []),
-        {
-          blockchainIdentifier: {
-            equals: normalizedEntry.agentIdentifier,
-            mode: "insensitive",
-          },
-        },
+        ...(identifierMatchIds.length > 0
+          ? [{ id: { in: identifierMatchIds } }]
+          : []),
       ],
     },
     data: { status: AgentStatus.INVALID },
@@ -209,9 +235,10 @@ async function upsertRegistryAgent(
     (isV2RegistryIdentifier(entry.agentIdentifier)
       ? await prisma.agent.findFirst({
           where: {
-            blockchainIdentifier: {
-              equals: entry.agentIdentifier,
-              mode: "insensitive",
+            id: {
+              in: await findAgentIdsByIdentifierCaseInsensitive(
+                entry.agentIdentifier,
+              ),
             },
           },
           select: existingAgentSelect,
@@ -249,13 +276,10 @@ async function upsertRegistryAgent(
         registryVersion: version.registryVersion,
         ...registryFields,
         tags: { connect: tagReferences },
-        ...(curation.categoryIds.length > 0
-          ? {
-              categories: {
-                connect: curation.categoryIds.map((id) => ({ id })),
-              },
-            }
-          : {}),
+        // Categories are deliberately NOT inherited from a curated twin — see
+        // resolveCuratedTwinDefaults: the twin lookup keys on registry-controlled
+        // fields, so carrying placement across would hand an impostor curated
+        // placement. A new row starts uncategorized until an admin says otherwise.
         riskClassification: curation.riskClassification,
         isShown: curation.isShown,
         pricing: {
@@ -346,9 +370,10 @@ async function upsertRegistryAgent(
     existing.blockchainIdentifier !== entry.agentIdentifier
       ? await prisma.agent.findFirst({
           where: {
-            blockchainIdentifier: {
-              equals: entry.agentIdentifier,
-              mode: "insensitive",
+            id: {
+              in: await findAgentIdsByIdentifierCaseInsensitive(
+                entry.agentIdentifier,
+              ),
             },
           },
           select: {

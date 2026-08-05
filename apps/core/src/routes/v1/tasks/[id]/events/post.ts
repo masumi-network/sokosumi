@@ -33,7 +33,7 @@ import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
   type CascadedCancelChild,
@@ -713,7 +713,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         cascadedChildTaskIds: cascadedChildren,
       };
     }, "Task changed by a concurrent request. Please retry.").catch((error) => {
-      if (body.masumiPayment && isPrismaUniqueViolation(error)) {
+      if (
+        body.masumiPayment &&
+        isBlockchainIdentifierUniqueConstraintError(error)
+      ) {
         throw conflict(
           "A task payment with this blockchainIdentifier already exists",
         );

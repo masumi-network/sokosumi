@@ -15,6 +15,7 @@ const {
   claimUpdateMock,
   createPurchaseMock,
   captureMessageMock,
+  captureExceptionMock,
   resolvePurchaseMock,
   prismaTransactionMock,
   claimActionCreateMock,
@@ -28,6 +29,7 @@ const {
   claimUpdateMock: vi.fn(),
   createPurchaseMock: vi.fn(),
   captureMessageMock: vi.fn(),
+  captureExceptionMock: vi.fn(),
   resolvePurchaseMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   claimActionCreateMock: vi.fn(),
@@ -35,6 +37,7 @@ const {
 
 vi.mock("@sentry/node", () => ({
   captureMessage: captureMessageMock,
+  captureException: captureExceptionMock,
 }));
 
 vi.mock("@/config/env", () => ({
@@ -607,6 +610,42 @@ describe("task payment claims", () => {
       expect.objectContaining({
         level: "warning",
         extra: expect.objectContaining({ eligible: 51, reviewRequired: 3 }),
+      }),
+    );
+  });
+
+  it("keeps draining the batch when one claim throws", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    claimFindManyMock.mockResolvedValue([
+      { id: "claim-boom" },
+      { id: "claim-ok" },
+    ]);
+    claimCountMock.mockResolvedValueOnce(2).mockResolvedValueOnce(0);
+    // The first acquisition blows up; every later one reports "not mine".
+    // Without the per-claim guard the throw would abort the loop and the
+    // charged-but-unpaid claims behind it would never be attempted.
+    claimUpdateManyMock
+      .mockRejectedValueOnce(new Error("connection terminated"))
+      .mockResolvedValue({ count: 0 });
+
+    try {
+      await expect(syncPendingTaskPaymentClaims()).resolves.toEqual({
+        processed: 1,
+        eligible: 2,
+        reviewRequired: 0,
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+
+    expect(claimUpdateManyMock).toHaveBeenCalledTimes(2);
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        tags: { error_type: "task_payment_claim_process_failed" },
+        extra: { claimId: "claim-boom" },
       }),
     );
   });

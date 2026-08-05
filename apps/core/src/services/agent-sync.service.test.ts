@@ -20,6 +20,7 @@ const {
   overrideFindUniqueMock,
   overrideUpdateMock,
   executeRawMock,
+  queryRawMock,
   agentFindManyMock,
   agentFindUniqueMock,
   agentFixedPricingDeleteMock,
@@ -53,6 +54,7 @@ const {
   overrideFindUniqueMock: vi.fn(),
   overrideUpdateMock: vi.fn(),
   executeRawMock: vi.fn(),
+  queryRawMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   agentFindUniqueMock: vi.fn(),
   agentFixedPricingDeleteMock: vi.fn(),
@@ -148,6 +150,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $transaction: transactionMock,
     $executeRaw: executeRawMock,
+    $queryRaw: queryRawMock,
   },
 }));
 
@@ -309,6 +312,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     overrideFindUniqueMock.mockResolvedValue(null);
     overrideUpdateMock.mockResolvedValue(undefined);
     executeRawMock.mockResolvedValue(0);
+    queryRawMock.mockResolvedValue([]);
     agentFindUniqueMock.mockResolvedValue(null);
     agentCreateMock.mockResolvedValue(undefined);
     agentUpdateMock.mockResolvedValue(undefined);
@@ -408,6 +412,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
         return null;
       },
     );
+    // The stored row keeps the registry's ROLLBACK-ERA uppercase spelling
+    // while the registry now serves lowercase, so the lookup has to match
+    // case-insensitively — it resolves ids through lower() in SQL.
+    queryRawMock.mockResolvedValue([{ id: "agent-rollback-dup" }]);
     agentFindFirstMock.mockResolvedValue({
       id: "agent-rollback-dup",
       blockchainIdentifier: rollbackDuplicateIdentifier,
@@ -424,10 +432,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentFindFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          blockchainIdentifier: {
-            equals: createV2AgentIdentifier(2),
-            mode: "insensitive",
-          },
+          id: { in: ["agent-rollback-dup"] },
         },
       }),
     );
@@ -2363,6 +2368,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     ];
     getAgentsDiffMock.mockResolvedValue(ok(entries));
 
+    queryRawMock.mockResolvedValue([{ id: "agent-quarantine-match" }]);
     const agentSyncService = await getAgentSyncService();
     await agentSyncService.syncRegistryAgents(
       AGENTS_SYNC_METADATA_KEY,
@@ -2377,12 +2383,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
             registryIdentity: V2_AGENT_ROOT,
             registryVersion: { lte: 1 },
           },
-          {
-            blockchainIdentifier: {
-              equals: createV2AgentIdentifier(1),
-              mode: "insensitive",
-            },
-          },
+          { id: { in: ["agent-quarantine-match"] } },
         ],
       },
       data: { status: AgentStatus.INVALID },
@@ -2553,6 +2554,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
       ]),
     );
 
+    queryRawMock.mockResolvedValue([{ id: "agent-quarantine-match" }]);
     const agentSyncService = await getAgentSyncService();
     await agentSyncService.syncRegistryAgents(
       AGENTS_SYNC_METADATA_KEY,
@@ -2566,12 +2568,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
             registryIdentity: V2_AGENT_ROOT,
             registryVersion: { lte: 1 },
           },
-          {
-            blockchainIdentifier: {
-              equals: createV2AgentIdentifier(1),
-              mode: "insensitive",
-            },
-          },
+          { id: { in: ["agent-quarantine-match"] } },
         ],
       },
       data: { status: AgentStatus.INVALID },

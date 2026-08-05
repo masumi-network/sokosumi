@@ -623,10 +623,11 @@ export async function resolveReviewedTaskPaymentClaim(
     throw new Error(`Task payment claim ${claim.id} has no processing token`);
   }
 
-  // AFTER acquisition: the audit row FKs to the claim, so writing it first
-  // would turn an unknown id into a foreign-key 500 instead of the intended
-  // 409, and would log decisions on claims that were never acquired. Still
-  // before the remote call, so a crash mid-resolve leaves the intent recorded.
+  // AFTER acquisition: the audit table is deliberately FK-free (see migration
+  // 20260804130000), so nothing stops a row being written for an id that does
+  // not exist or for a claim another worker holds. Writing only once the lease
+  // is ours keeps the log to decisions that actually took effect. Still before
+  // the remote call, so a crash mid-resolve leaves the intent recorded.
   await recordTaskPaymentClaimAction({
     claimId: claim.id,
     action: "resolve",
@@ -731,10 +732,27 @@ export async function syncPendingTaskPaymentClaims(
     if (options.abortSignal?.aborted || options.shouldContinue?.() === false) {
       break;
     }
-    await processTaskPaymentClaim(claim.id, {
-      abortSignal: options.abortSignal,
-    });
-    processed += 1;
+    try {
+      await processTaskPaymentClaim(claim.id, {
+        abortSignal: options.abortSignal,
+      });
+      processed += 1;
+    } catch (error) {
+      // One claim must not take the batch down with it. A throw here (lost
+      // lease, a row that stopped being PENDING mid-flight, any database
+      // error) leaves `nextAttemptAt` untouched, so the row keeps sorting
+      // first and would poison every later tick once its lease expires —
+      // starving the claims behind it, each of which is a charged-but-unpaid
+      // debit.
+      console.error(
+        `[sync/task-payment-claims] Failed to process claim ${claim.id}:`,
+        error,
+      );
+      Sentry.captureException(error, {
+        tags: { error_type: "task_payment_claim_process_failed" },
+        extra: { claimId: claim.id },
+      });
+    }
   }
   return { processed, eligible, reviewRequired };
 }

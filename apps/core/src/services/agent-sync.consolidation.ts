@@ -151,7 +151,6 @@ const RISK_CLASSIFICATION_SEVERITY: Record<RiskClassification, number> = {
 };
 
 interface CuratedTwinDefaults {
-  categoryIds: string[];
   isShown: boolean;
   riskClassification: RiskClassification;
 }
@@ -171,7 +170,6 @@ export async function resolveCuratedTwinDefaults(
   entry: RegistryDiffEntry,
 ): Promise<CuratedTwinDefaults> {
   const fallback: CuratedTwinDefaults = {
-    categoryIds: [],
     isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
     riskClassification: RiskClassification.MINIMAL,
   };
@@ -189,7 +187,7 @@ export async function resolveCuratedTwinDefaults(
         // INVALID as bookkeeping, not as an admin decision. Treating them as
         // curation twins would pin every future registration of that agent to
         // hidden forever — and since parking bumps updatedAt they would
-        // usually also win the risk/category inheritance below.
+        // usually also win the risk inheritance below.
         // The parked prefix alone identifies bookkeeping rows. Filtering on
         // INVALID as well would discard genuinely invalid twins that may
         // still carry the admin curation this lookup exists to preserve.
@@ -201,7 +199,6 @@ export async function resolveCuratedTwinDefaults(
         isShown: true,
         riskClassification: true,
         updatedAt: true,
-        categories: { select: { id: true } },
       },
       orderBy: { updatedAt: "desc" },
     });
@@ -217,7 +214,6 @@ export async function resolveCuratedTwinDefaults(
     // categories or a *lower* risk rating is not: that hands the impostor
     // curated placement and launders an admin's rating onto an unrelated entry.
     return {
-      categoryIds: [],
       isShown: twins.every((twin) => twin.isShown) && fallback.isShown,
       riskClassification: twins.reduce(
         (mostSevere, twin) =>

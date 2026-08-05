@@ -50,35 +50,34 @@ export async function syncCardanoV2RailReadiness(
       "[sync/agents] Cardano V2 rail readiness check failed:",
       readinessResult.error,
     );
-    if (isCardanoV2Enabled) {
-      try {
-        // createMany + skipDuplicates is an atomic cross-instance latch:
-        // exactly one serverless worker creates the marker and reports the
-        // failure; later workers see count=0 until a successful check clears it.
-        const marker = await prisma.syncMetadata.createMany({
-          data: [
-            {
-              key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
-              cursorId: "failed",
-              lastSyncedAt: new Date(),
-            },
-          ],
-          skipDuplicates: true,
-        });
-        if (marker.count > 0) {
-          Sentry.captureException(
-            new Error(
-              `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
-            ),
-          );
-        }
-      } catch (markerError) {
-        // Readiness is advisory and must never crash the registry sync loop.
-        console.warn(
-          "[sync/agents] Failed to persist Cardano V2 readiness failure marker:",
-          markerError,
+    // The flag is known enabled here — the disabled branch returned above.
+    try {
+      // createMany + skipDuplicates is an atomic cross-instance latch:
+      // exactly one serverless worker creates the marker and reports the
+      // failure; later workers see count=0 until a successful check clears it.
+      const marker = await prisma.syncMetadata.createMany({
+        data: [
+          {
+            key: CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
+            cursorId: "failed",
+            lastSyncedAt: new Date(),
+          },
+        ],
+        skipDuplicates: true,
+      });
+      if (marker.count > 0) {
+        Sentry.captureException(
+          new Error(
+            `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
+          ),
         );
       }
+    } catch (markerError) {
+      // Readiness is advisory and must never crash the registry sync loop.
+      console.warn(
+        "[sync/agents] Failed to persist Cardano V2 readiness failure marker:",
+        markerError,
+      );
     }
     return false;
   }
@@ -146,7 +145,7 @@ export async function syncCardanoV2RailReadiness(
     );
   }
 
-  if (isCardanoV2Enabled && readySources.length === 0) {
+  if (readySources.length === 0) {
     console.warn(
       "[sync/agents] No Cardano V2 source is purchase-ready; V2 agents stay unavailable despite ENABLE_CARDANO_V2_AGENTS",
     );
