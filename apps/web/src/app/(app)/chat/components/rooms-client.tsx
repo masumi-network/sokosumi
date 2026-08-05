@@ -30,6 +30,12 @@ import {
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
+import {
+  filterTopLevelChatRoomMessages,
+  isReplyUnderThreadParent,
+  isTopLevelChatRoomMessage,
+  routeRealtimeChatRoomMessage,
+} from "@/app/chat/utils/chat-room-message-scope";
 import { composeDraftKey } from "@/app/chat/utils/compose-draft-storage";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
@@ -37,11 +43,12 @@ import {
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
+import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
 import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-signal-unread-threads-attention";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
-import { rememberRoomRead } from "@/components/chat/room-read-overlay";
+import { applyRoomReadResultToOverlay } from "@/components/chat/room-read-overlay";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
@@ -292,6 +299,9 @@ export function RoomsClient({
   selectedRoomIdRef.current = selectedRoomId;
   const currentUserIdRef = useRef(currentUserId);
   currentUserIdRef.current = currentUserId;
+  const syncRoomAttentionAfterThreadLookRef = useRef<
+    (roomId: string) => Promise<void>
+  >(async () => {});
   const [attentionRefreshToken, setAttentionRefreshToken] = useState(0);
   const [syncedAttentionRoomId, setSyncedAttentionRoomId] =
     useState(selectedRoomId);
@@ -444,7 +454,17 @@ export function RoomsClient({
         return;
       }
 
-      setMessagesState((current) => mergeRoomMessages(current, [message]));
+      // Thread replies must not enter the main room list — otherwise a send
+      // from the thread panel shows in both the room transcript and the panel.
+      const route = routeRealtimeChatRoomMessage(
+        message,
+        threadParentMessageIdRef.current,
+      );
+      if (route.mergeIntoRoomTimeline) {
+        setMessagesState((current) =>
+          filterTopLevelChatRoomMessages(mergeRoomMessages(current, [message])),
+        );
+      }
       setThreadParentMessage((current) =>
         current?.id === message.id ? message : current,
       );
@@ -455,41 +475,65 @@ export function RoomsClient({
         setAttentionRefreshToken((token) => token + 1);
       }
 
-      const openThreadParentId = threadParentMessageIdRef.current;
-      if (!openThreadParentId) {
-        return;
-      }
-      if (
-        message.id === openThreadParentId ||
-        message.parentMessageId === openThreadParentId
-      ) {
+      if (route.mergeIntoOpenThread) {
         setThreadMessages((current) => mergeRoomMessages(current, [message]));
+        // Look first, then room re-sync — mark-read effect can race if it
+        // runs before look lands; open path uses the same order.
+        // Use the ref (not openThreadParentId) so this []-deps handler stays
+        // current, and narrow null before calling markThreadReadAction.
+        const openParentId = threadParentMessageIdRef.current;
+        const roomId = message.roomId;
+        if (openParentId != null && message.parentMessageId === openParentId) {
+          void markThreadReadAction(roomId, openParentId).then(
+            async (result) => {
+              if (!result.ok) {
+                return;
+              }
+              setAttentionRefreshToken((token) => token + 1);
+              await syncRoomAttentionAfterThreadLookRef.current(roomId);
+            },
+          );
+        }
       }
     },
     [],
   );
 
   const topLevelStreamOverlayMessages = useMemo(
-    () =>
-      streamOverlayMessages.filter(
-        (message) => message.parentMessageId == null,
-      ),
+    () => streamOverlayMessages.filter(isTopLevelChatRoomMessage),
     [streamOverlayMessages],
   );
 
+  // Defense in depth: never render thread replies in the main room timeline,
+  // even if stale state still holds a leaked reply from before this fix.
+  const topLevelRoomMessages = useMemo(
+    () => filterTopLevelChatRoomMessages(messagesState),
+    [messagesState],
+  );
+
+  // Purge leaked thread replies from room state so consumers of messagesState
+  // (pending-mention poll, search props) never see them after a prior leak.
+  useEffect(() => {
+    if (topLevelRoomMessages.length === messagesState.length) {
+      return;
+    }
+    setMessagesState(topLevelRoomMessages);
+  }, [messagesState, topLevelRoomMessages]);
+
   const displayMessages = useMemo(() => {
     return mergeMessagesWithStreamOverlay(
-      messagesState,
+      topLevelRoomMessages,
       topLevelStreamOverlayMessages,
     );
-  }, [messagesState, topLevelStreamOverlayMessages]);
+  }, [topLevelRoomMessages, topLevelStreamOverlayMessages]);
 
   const threadStreamOverlayMessages = useMemo(() => {
     if (!threadParentMessage) {
       return [];
     }
-    return streamOverlayMessages.filter(
-      (message) => message.parentMessageId === threadParentMessage.id,
+    const parentId = threadParentMessage.id;
+    return streamOverlayMessages.filter((message) =>
+      isReplyUnderThreadParent(message, parentId),
     );
   }, [streamOverlayMessages, threadParentMessage]);
 
@@ -528,7 +572,7 @@ export function RoomsClient({
       return;
     }
     const parent =
-      messagesState.find(
+      topLevelRoomMessages.find(
         (message) => message.id === activeStreamParentMessageId,
       ) ?? null;
     if (!parent) {
@@ -540,7 +584,7 @@ export function RoomsClient({
     selectedRoom,
     activeStreamParentMessageId,
     threadParentMessage?.id,
-    messagesState,
+    topLevelRoomMessages,
   ]);
 
   // Pending draft stays in sessionStorage until stream settles successfully
@@ -708,7 +752,9 @@ export function RoomsClient({
     );
   }, [messages, messagesNextCursor, selectedRoomId]);
 
-  const latestVisibleMessageId = displayMessages.at(-1)?.id ?? "empty";
+  const latestTopLevelMessageId = displayMessages.at(-1)?.id ?? null;
+  const latestOpenThreadMessageId = displayThreadMessages.at(-1)?.id ?? null;
+  const openThreadParentId = threadParentMessage?.id ?? null;
   const selectedRoomReadId = selectedRoom?.id ?? null;
 
   useEffect(() => {
@@ -716,7 +762,14 @@ export function RoomsClient({
       return;
     }
 
-    const marker = `${selectedRoomReadId}:${latestVisibleMessageId}`;
+    // Include open-thread activity: thread replies count toward room unread
+    // via look baseline, but top-level-only markers never re-fired mark-read.
+    const marker = roomReadAttentionMarker({
+      roomId: selectedRoomReadId,
+      latestTopLevelMessageId,
+      openThreadParentId,
+      latestOpenThreadMessageId,
+    });
     if (readMarkerRef.current === marker) {
       return;
     }
@@ -727,10 +780,7 @@ export function RoomsClient({
       if (!result.ok) {
         return;
       }
-      // Persist before the cancelled check: mobile Sheet unmounts the sidebar
-      // list so the event below often has no listener, and remount would
-      // otherwise rehydrate unread from stale RSC props.
-      rememberRoomRead(result.data);
+      applyRoomReadResultToOverlay(result.data);
       if (cancelled) {
         return;
       }
@@ -744,11 +794,16 @@ export function RoomsClient({
     return () => {
       cancelled = true;
     };
-  }, [latestVisibleMessageId, selectedRoomReadId]);
+  }, [
+    latestOpenThreadMessageId,
+    latestTopLevelMessageId,
+    openThreadParentId,
+    selectedRoomReadId,
+  ]);
 
   const hasPendingRoomCoworkerMention = useMemo(
-    () => hasPendingCoworkerMention(messagesState),
-    [messagesState],
+    () => hasPendingCoworkerMention(topLevelRoomMessages),
+    [topLevelRoomMessages],
   );
   const hasPendingThreadCoworkerMention = useMemo(
     () => hasPendingCoworkerMention(threadMessages),
@@ -967,11 +1022,17 @@ export function RoomsClient({
   ]);
 
   function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
-    setMessagesState((current) =>
-      current.map((message) =>
-        message.id === updatedMessage.id ? updatedMessage : message,
-      ),
-    );
+    setMessagesState((current) => {
+      // Thread replies never belong in the room list (edit/delete/reaction).
+      if (!isTopLevelChatRoomMessage(updatedMessage)) {
+        return current.filter((message) => message.id !== updatedMessage.id);
+      }
+      return filterTopLevelChatRoomMessages(
+        current.map((message) =>
+          message.id === updatedMessage.id ? updatedMessage : message,
+        ),
+      );
+    });
     setThreadMessages((current) =>
       current.map((message) =>
         message.id === updatedMessage.id ? updatedMessage : message,
@@ -1001,6 +1062,21 @@ export function RoomsClient({
     );
   }
 
+  async function syncRoomAttentionAfterThreadLook(roomId: string) {
+    const roomResult = await markOrganizationChatRoomReadAction(roomId);
+    if (!roomResult.ok) {
+      return;
+    }
+    applyRoomReadResultToOverlay(roomResult.data);
+    window.dispatchEvent(
+      new CustomEvent("organization-chat-room-read", {
+        detail: { room: roomResult.data, roomId },
+      }),
+    );
+  }
+  syncRoomAttentionAfterThreadLookRef.current =
+    syncRoomAttentionAfterThreadLook;
+
   async function loadThreadMessages(
     parentMessage: ChatRoomMessage,
   ): Promise<boolean> {
@@ -1011,8 +1087,13 @@ export function RoomsClient({
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
-    // Thread look state is independent of room mark-read.
+    // Look state first, then room mark-read so dual-baseline unreadCount
+    // already excludes this thread when the sidebar event lands.
     const markResult = await markThreadReadAction(roomId, parentMessage.id);
+    if (markResult.ok) {
+      setAttentionRefreshToken((token) => token + 1);
+      await syncRoomAttentionAfterThreadLook(roomId);
+    }
     startThreadLoadingTransition(async () => {
       const result = await listThreadMessagesAction(roomId, parentMessage.id);
       if (!result.ok) {
@@ -1385,7 +1466,7 @@ export function RoomsClient({
                   <RoomSearchPanel
                     key={selectedRoom.id}
                     roomId={selectedRoom.id}
-                    loadedMessages={messagesState}
+                    loadedMessages={topLevelRoomMessages}
                     onOpenThread={loadThreadMessages}
                     labels={{
                       open: t("RoomSearch.open"),
@@ -1402,6 +1483,9 @@ export function RoomsClient({
                     roomId={selectedRoom.id}
                     attentionRefreshToken={attentionRefreshToken}
                     onOpenThread={loadThreadMessages}
+                    onAllThreadsLooked={() => {
+                      void syncRoomAttentionAfterThreadLook(selectedRoom.id);
+                    }}
                     labels={{
                       open: t("UnreadThreads.open"),
                       title: t("UnreadThreads.title"),

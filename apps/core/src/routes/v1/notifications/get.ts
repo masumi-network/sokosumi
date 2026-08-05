@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { type NotificationKind, type Prisma } from "@sokosumi/database";
 
 import { badRequest } from "@/helpers/error";
+import { notificationFeedKindWhere } from "@/helpers/notification-feed";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -65,7 +66,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List notifications for the effective user (session user, or orchestrator/coworker with context headers) with cursor pagination",
+      "List in-app notification-center items for the effective user (session user, or orchestrator/coworker with context headers) with cursor pagination. CHAT kind is excluded (browser OS alerts + room attention only).",
     tags: ["Notifications"],
     request: {
       query,
@@ -153,11 +154,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const where: Prisma.NotificationWhereInput = {
       userId: userContext.userId,
+      kind: notificationFeedKindWhere(queryParams.kind),
     };
-
-    if (queryParams.kind) {
-      where.kind = { in: queryParams.kind };
-    }
 
     if (queryParams.isRead !== undefined) {
       where.isRead = queryParams.isRead;
