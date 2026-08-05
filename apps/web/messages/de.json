@@ -782,7 +782,9 @@
       "browserPermissionDeniedTitle": "Browser-Benachrichtigungen sind blockiert",
       "browserPermissionDeniedDescription": "Benachrichtigungen für diese Website sind in deinem Browser blockiert. Öffne die Browser-Benachrichtigungseinstellungen für Sokosumi, um sie zuzulassen.",
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
-      "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden"
+      "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
+      "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
+      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden"
     },
     "HashValue": {
       "copy": "Kopieren",
@@ -3390,6 +3392,15 @@
               "description": "Whitelistete Coworker sind im Standard-Marktplatz sichtbar."
             }
           },
+          "EarlyAccess": {
+            "title": "Coworker-Early-Access",
+            "description": "Diesen Coworker vor der globalen Whitelist einem Workspace freigeben. Direkte Freigabe — keine Eigentümer-Genehmigung.",
+            "workspaceIdLabel": "Workspace-ID",
+            "workspaceIdPlaceholder": "Workspace-UUID",
+            "submit": "Early Access gewähren",
+            "success": "Coworker-Early-Access gewährt",
+            "error": "Coworker-Early-Access konnte nicht gewährt werden"
+          },
           "cancel": "Cancel",
           "validation": {
             "priorityInteger": "Priorität muss eine ganze Zahl sein.",
@@ -4177,6 +4188,27 @@
           "grantSuccess": "Vendor-Zugriff gewährt",
           "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
         }
+      },
+      "CoworkerAccess": {
+        "title": "Coworker-Early-Access",
+        "description": "Genehmige Coworker-Early-Access für deinen persönlichen Workspace (Chat und Aufgaben vor der globalen Whitelist).",
+        "coworkersTitle": "Coworker",
+        "coworkersEmpty": "Noch kein Coworker-Early-Access.",
+        "statusPending": "Ausstehend",
+        "statusGranted": "Gewährt",
+        "statusDenied": "Abgelehnt",
+        "statusRevoked": "Widerrufen",
+        "Actions": {
+          "approve": "Genehmigen",
+          "deny": "Ablehnen",
+          "revoke": "Widerrufen",
+          "approveSuccess": "Coworker-Early-Access genehmigt",
+          "denySuccess": "Coworker-Early-Access abgelehnt",
+          "revokeSuccess": "Coworker-Early-Access widerrufen",
+          "approveError": "Coworker-Early-Access konnte nicht genehmigt werden",
+          "denyError": "Coworker-Early-Access konnte nicht abgelehnt werden",
+          "revokeError": "Coworker-Early-Access konnte nicht widerrufen werden"
+        }
       }
     },
     "Organizations": {
@@ -4280,6 +4312,27 @@
             "grant": "Gewähren",
             "grantSuccess": "Vendor-Zugriff gewährt",
             "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
+          }
+        },
+        "CoworkerAccess": {
+          "title": "Coworker-Early-Access",
+          "description": "Genehmige Coworker-Early-Access für diese Organisation (Chat und Aufgaben vor der globalen Whitelist).",
+          "coworkersTitle": "Coworker",
+          "coworkersEmpty": "Noch kein Coworker-Early-Access.",
+          "statusPending": "Ausstehend",
+          "statusGranted": "Gewährt",
+          "statusDenied": "Abgelehnt",
+          "statusRevoked": "Widerrufen",
+          "Actions": {
+            "approve": "Genehmigen",
+            "deny": "Ablehnen",
+            "revoke": "Widerrufen",
+            "approveSuccess": "Coworker-Early-Access genehmigt",
+            "denySuccess": "Coworker-Early-Access abgelehnt",
+            "revokeSuccess": "Coworker-Early-Access widerrufen",
+            "approveError": "Coworker-Early-Access konnte nicht genehmigt werden",
+            "denyError": "Coworker-Early-Access konnte nicht abgelehnt werden",
+            "revokeError": "Coworker-Early-Access konnte nicht widerrufen werden"
           }
         },
         "InviteLinks": {
@@ -5217,6 +5270,9 @@
   "notifications": {
     "vendorGrant": {
       "pending": "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert"
+    },
+    "coworkerAccess": {
+      "pending": "{coworkerName} hat Coworker-Early-Access für deinen Workspace angefordert"
     }
   }
 }

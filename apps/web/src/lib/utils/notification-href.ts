@@ -1,4 +1,8 @@
 import type { NotificationKind } from "@/lib/clients/generated/core";
+import {
+  buildCoworkerAccessReviewHref,
+  resolveCoworkerAccessNotificationTarget,
+} from "@/lib/utils/coworker-access-notification";
 import { buildVendorGrantReviewHref } from "@/lib/utils/vendor-grant-approval";
 import { resolveVendorGrantNotificationTarget } from "@/lib/utils/vendor-grant-notification";
 
@@ -33,15 +37,28 @@ export function getNotificationHref(
 
     case "SYSTEM": {
       if (notification.messageKey) {
-        const target = resolveVendorGrantNotificationTarget({
+        const vendorTarget = resolveVendorGrantNotificationTarget({
           messageKey: notification.messageKey,
           referenceId: notification.referenceId,
           metadata: notification.metadata,
         });
-        if (target) {
+        if (vendorTarget) {
           return (
             buildVendorGrantReviewHref({
-              organizationId: target.organizationId,
+              organizationId: vendorTarget.organizationId,
+            }) ?? `/`
+          );
+        }
+
+        const coworkerTarget = resolveCoworkerAccessNotificationTarget({
+          messageKey: notification.messageKey,
+          referenceId: notification.referenceId,
+          metadata: notification.metadata,
+        });
+        if (coworkerTarget) {
+          return (
+            buildCoworkerAccessReviewHref({
+              organizationId: coworkerTarget.organizationId,
             }) ?? `/`
           );
         }

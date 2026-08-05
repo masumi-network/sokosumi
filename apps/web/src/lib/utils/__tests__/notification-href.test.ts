@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/lib/utils/coworker-access-notification";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/vendor-grant-notification";
 
@@ -77,6 +78,31 @@ describe("getNotificationHref", () => {
         },
       }),
     ).toBe("/organizations/org_1#vendor-workspace-access");
+  });
+
+  it("deep-links pending coworker access SYSTEM to personal review", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "access-1",
+        messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+        metadata: { coworkerId: "c-1", workspaceId: "ws-1" },
+      }),
+    ).toBe("/account#coworker-early-access");
+  });
+
+  it("deep-links pending coworker access SYSTEM to org review", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "access-1",
+        messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+        metadata: {
+          coworkerId: "c-1",
+          organizationId: "org_1",
+        },
+      }),
+    ).toBe("/organizations/org_1#coworker-early-access");
   });
 
   it("falls back to home for non-pending SYSTEM notifications", () => {

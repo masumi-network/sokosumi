@@ -782,7 +782,9 @@
       "browserPermissionDeniedTitle": "Las notificaciones del navegador están bloqueadas",
       "browserPermissionDeniedDescription": "Las notificaciones de este sitio están bloqueadas en tu navegador. Abre la configuración de notificaciones del navegador para Sokosumi y permítelas.",
       "vendorGrantAcceptSuccess": "Acceso de proveedor aprobado",
-      "vendorGrantAcceptError": "No se pudo aprobar el acceso de proveedor"
+      "vendorGrantAcceptError": "No se pudo aprobar el acceso de proveedor",
+      "coworkerAccessAcceptSuccess": "Acceso anticipado de coworker aprobado",
+      "coworkerAccessAcceptError": "No se pudo aprobar el acceso anticipado de coworker"
     },
     "HashValue": {
       "copy": "Copiar",
@@ -3458,6 +3460,15 @@
               "description": "Los coworkers en lista blanca son visibles en el alcance predeterminado del marketplace."
             }
           },
+          "EarlyAccess": {
+            "title": "Acceso anticipado de coworker",
+            "description": "Concede este coworker a un espacio de trabajo antes de la lista blanca global. Concesión directa — sin aprobación del propietario.",
+            "workspaceIdLabel": "ID del espacio de trabajo",
+            "workspaceIdPlaceholder": "UUID del espacio de trabajo",
+            "submit": "Conceder acceso anticipado",
+            "success": "Acceso anticipado de coworker concedido",
+            "error": "No se pudo conceder el acceso anticipado de coworker"
+          },
           "cancel": "Cancel",
           "validation": {
             "priorityInteger": "La prioridad debe ser un número entero.",
@@ -4177,6 +4188,27 @@
           "grantSuccess": "Acceso de proveedor concedido",
           "grantError": "No se pudo conceder acceso de proveedor"
         }
+      },
+      "CoworkerAccess": {
+        "title": "Acceso anticipado de coworker",
+        "description": "Aprueba el acceso anticipado de coworkers a tu espacio de trabajo personal (chat y tareas antes de la lista blanca global).",
+        "coworkersTitle": "Coworkers",
+        "coworkersEmpty": "Aún no hay acceso anticipado de coworker.",
+        "statusPending": "Pendiente",
+        "statusGranted": "Concedido",
+        "statusDenied": "Denegado",
+        "statusRevoked": "Revocado",
+        "Actions": {
+          "approve": "Aprobar",
+          "deny": "Denegar",
+          "revoke": "Revocar",
+          "approveSuccess": "Acceso anticipado de coworker aprobado",
+          "denySuccess": "Acceso anticipado de coworker denegado",
+          "revokeSuccess": "Acceso anticipado de coworker revocado",
+          "approveError": "No se pudo aprobar el acceso anticipado de coworker",
+          "denyError": "No se pudo denegar el acceso anticipado de coworker",
+          "revokeError": "No se pudo revocar el acceso anticipado de coworker"
+        }
       }
     },
     "Organizations": {
@@ -4280,6 +4312,27 @@
             "grant": "Conceder",
             "grantSuccess": "Acceso de proveedor concedido",
             "grantError": "No se pudo conceder acceso de proveedor"
+          }
+        },
+        "CoworkerAccess": {
+          "title": "Acceso anticipado de coworker",
+          "description": "Aprueba el acceso anticipado de coworkers a esta organización (chat y tareas antes de la lista blanca global).",
+          "coworkersTitle": "Coworkers",
+          "coworkersEmpty": "Aún no hay acceso anticipado de coworker.",
+          "statusPending": "Pendiente",
+          "statusGranted": "Concedido",
+          "statusDenied": "Denegado",
+          "statusRevoked": "Revocado",
+          "Actions": {
+            "approve": "Aprobar",
+            "deny": "Denegar",
+            "revoke": "Revocar",
+            "approveSuccess": "Acceso anticipado de coworker aprobado",
+            "denySuccess": "Acceso anticipado de coworker denegado",
+            "revokeSuccess": "Acceso anticipado de coworker revocado",
+            "approveError": "No se pudo aprobar el acceso anticipado de coworker",
+            "denyError": "No se pudo denegar el acceso anticipado de coworker",
+            "revokeError": "No se pudo revocar el acceso anticipado de coworker"
           }
         },
         "InviteLinks": {
@@ -5217,6 +5270,9 @@
   "notifications": {
     "vendorGrant": {
       "pending": "{vendorName} solicitó acceso de proveedor al workspace de la organización"
+    },
+    "coworkerAccess": {
+      "pending": "{coworkerName} solicitó acceso anticipado de coworker a tu espacio de trabajo"
     }
   }
 }

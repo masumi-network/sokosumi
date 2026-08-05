@@ -309,6 +309,11 @@ export async function notifyWorkspaceApproversOfPendingCoworkerAccess(
     return;
   }
 
+  const coworker = await tx.coworker.findUnique({
+    where: { id: params.coworkerId },
+    select: { name: true, slug: true },
+  });
+
   for (const userId of recipientUserIds) {
     await createNotification(
       {
@@ -318,7 +323,8 @@ export async function notifyWorkspaceApproversOfPendingCoworkerAccess(
         eventId: params.accessId,
         messageKey: "notifications.coworkerAccess.pending",
         messageParams: {
-          coworkerId: params.coworkerId,
+          coworkerName: coworker?.name ?? params.coworkerId,
+          coworkerSlug: coworker?.slug ?? null,
           workspaceId: params.workspaceId,
           organizationId: workspace.organizationId,
         },

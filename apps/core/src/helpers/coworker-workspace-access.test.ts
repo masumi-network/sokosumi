@@ -22,6 +22,7 @@ const accessCreate = vi.fn();
 const accessUpsert = vi.fn();
 const accessUpdate = vi.fn();
 const coworkerFindFirst = vi.fn();
+const coworkerFindUnique = vi.fn();
 const memberFindFirst = vi.fn();
 const memberFindMany = vi.fn();
 const workspaceFindUnique = vi.fn();
@@ -41,6 +42,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     coworker: {
       findFirst: (...args: unknown[]) => coworkerFindFirst(...args),
+      findUnique: (...args: unknown[]) => coworkerFindUnique(...args),
     },
     member: {
       findFirst: (...args: unknown[]) => memberFindFirst(...args),
@@ -723,6 +725,10 @@ describe("coworker-workspace-access helpers", () => {
         userId: "owner-1",
         organizationId: null,
       });
+      coworkerFindUnique.mockResolvedValue({
+        name: "Pilot Coworker",
+        slug: "pilot-coworker",
+      });
 
       await notifyWorkspaceApproversOfPendingCoworkerAccess({
         coworkerId: "coworker-1",
@@ -738,7 +744,8 @@ describe("coworker-workspace-access helpers", () => {
           eventId: "access-1",
           messageKey: "notifications.coworkerAccess.pending",
           messageParams: {
-            coworkerId: "coworker-1",
+            coworkerName: "Pilot Coworker",
+            coworkerSlug: "pilot-coworker",
             workspaceId: "workspace-1",
             organizationId: null,
           },
@@ -752,6 +759,30 @@ describe("coworker-workspace-access helpers", () => {
       );
     });
 
+    it("falls back to coworkerId when coworker row missing", async () => {
+      workspaceFindUnique.mockResolvedValue({
+        userId: "owner-1",
+        organizationId: null,
+      });
+      coworkerFindUnique.mockResolvedValue(null);
+
+      await notifyWorkspaceApproversOfPendingCoworkerAccess({
+        coworkerId: "coworker-1",
+        workspaceId: "workspace-1",
+        accessId: "access-1",
+      });
+
+      expect(createNotificationMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageParams: expect.objectContaining({
+            coworkerName: "coworker-1",
+            coworkerSlug: null,
+          }),
+        }),
+        expect.anything(),
+      );
+    });
+
     it("notifies org OWNER and ADMIN members", async () => {
       workspaceFindUnique.mockResolvedValue({
         userId: null,
@@ -761,6 +792,10 @@ describe("coworker-workspace-access helpers", () => {
         { userId: "admin-1" },
         { userId: "owner-1" },
       ]);
+      coworkerFindUnique.mockResolvedValue({
+        name: "Pilot Coworker",
+        slug: "pilot-coworker",
+      });
 
       await notifyWorkspaceApproversOfPendingCoworkerAccess({
         coworkerId: "coworker-1",
