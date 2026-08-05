@@ -1211,12 +1211,24 @@ export function RoomsClient({
     setEditSession((current) => (current ? { ...current, draft } : current));
   }
 
-  function handleSaveEdit() {
+  function handleSaveEdit(contentOverride?: string) {
     if (!selectedRoom || !editSession || isSavingEdit) return;
     const roomId = selectedRoom.id;
     const { messageId, draft } = editSession;
-    const content = draft.trim();
+    // Prefer live editor text (Enter can fire before React flushes onChange).
+    const raw = contentOverride ?? draft;
+    const content = raw.trim();
     if (!content) return;
+
+    // Keep controlled draft in sync with what we submit so a failed save still
+    // shows the text the user actually confirmed (not a stale parent draft).
+    if (contentOverride !== undefined && contentOverride !== draft) {
+      setEditSession((current) =>
+        current?.messageId === messageId
+          ? { ...current, draft: contentOverride }
+          : current,
+      );
+    }
 
     startSavingEditTransition(async () => {
       const result = await editRoomMessageAction(roomId, messageId, content);

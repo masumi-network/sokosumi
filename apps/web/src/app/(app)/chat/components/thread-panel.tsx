@@ -94,7 +94,7 @@ export function ThreadPanel({
   editSession?: { messageId: string; draft: string } | null;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
-  onSaveEdit?: () => void;
+  onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
   pendingQuote?: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;

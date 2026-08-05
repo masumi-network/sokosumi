@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
@@ -1104,54 +1105,77 @@ function MessageEditComposer({
   value: string;
   originalContent: string;
   onChange: (value: string) => void;
-  onSave: () => void;
+  onSave: (content: string) => void;
   onCancel: () => void;
   isSaving: boolean;
 }) {
   const t = useTranslations("App.Channels");
-  const trimmed = value.trim();
-  const canSave =
-    trimmed.length > 0 && trimmed !== originalContent.trim() && !isSaving;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // autoFocus leaves the caret at 0; place it at the end so editing continues
+  // from the natural end of the message (Slack/Discord-style).
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.focus();
+    const end = el.value.length;
+    el.setSelectionRange(end, end);
+  }, []);
+
+  // Live DOM via currentTarget: parent draft can lag the last keystroke's
+  // onChange. Enter with no real change (or empty) exits edit mode — no-op
+  // after preventDefault felt like a broken keyboard.
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (!isSaving) onCancel();
+      return;
+    }
+
+    if (event.key !== "Enter") return;
+    // Shift+Enter → newline (default)
+    if (event.shiftKey) return;
+    // Alt+Enter ignored (leave default / no save)
+    if (event.altKey) return;
+
+    event.preventDefault();
+    if (isSaving) return;
+
+    const live = event.currentTarget.value;
+    const liveTrimmed = live.trim();
+    const originalTrimmed = originalContent.trim();
+    if (liveTrimmed.length > 0 && liveTrimmed !== originalTrimmed) {
+      onSave(live);
+      return;
+    }
+    onCancel();
+  }
 
   return (
-    <div className="space-y-2 pt-0.5">
+    <div className="pt-0.5">
       <Textarea
+        ref={textareaRef}
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
         }}
         disabled={isSaving}
         className="min-h-10 max-h-40 resize-none overflow-y-auto field-sizing-content px-3 py-2.5 leading-6"
-        autoFocus
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            if (!isSaving) onCancel();
-            return;
-          }
-          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-            event.preventDefault();
-            if (canSave) onSave();
+        aria-label={t("Edit.composerAria")}
+        onKeyDown={handleKeyDown}
+        onBlur={() => {
+          if (isSaving) return;
+          // Live DOM (same race as Enter): prop can lag a just-typed character.
+          const live = textareaRef.current?.value ?? value;
+          if (live.trim() === originalContent.trim()) {
+            onCancel();
           }
         }}
       />
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" disabled={!canSave} onClick={onSave}>
-          {isSaving ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : null}
-          {t("Edit.save")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={isSaving}
-          onClick={onCancel}
-        >
-          {t("Edit.cancel")}
-        </Button>
-      </div>
     </div>
   );
 }
@@ -1292,7 +1316,8 @@ export function ChatMessageRow({
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
-  onSaveEdit?: () => void;
+  /** Optional content uses the live editor value (avoids stale draft on Enter). */
+  onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
   showThreadButton?: boolean;
   showQuoteButton?: boolean;
