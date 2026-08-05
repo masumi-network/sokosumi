@@ -23,6 +23,12 @@ interface ChatPageProps {
 }
 
 /**
+ * Soft-nav: keep previous screen (no Instant shell / route spinner).
+ * Rooms still use Instant via `rooms/[roomId]`.
+ */
+export const instant = false;
+
+/**
  * `/chat` landing: mobile Home hub (sidebar minus Channels/DMs); desktop
  * classic coworker welcome. Draft modes via query: `?create=channel`,
  * `?dm=new`. Open rooms: `/chat/rooms/[roomId]`.

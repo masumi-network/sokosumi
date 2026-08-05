@@ -366,12 +366,9 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   );
 }
 
-export default async function TasksPage({ searchParams }: TasksPageProps) {
-  await connection();
-  const defaultViewMode = await getDefaultTasksViewMode();
-
+export default function TasksPage({ searchParams }: TasksPageProps) {
   return (
-    <Suspense fallback={<TasksPageSkeleton viewMode={defaultViewMode} />}>
+    <Suspense fallback={<TasksPageSkeleton />}>
       <TasksPageContent searchParams={searchParams} />
     </Suspense>
   );

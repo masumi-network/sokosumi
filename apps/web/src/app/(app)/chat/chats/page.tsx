@@ -5,6 +5,11 @@ import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService, userService } from "@/lib/services";
 
 /**
+ * Soft-nav: keep previous screen (no Instant shell / route spinner).
+ */
+export const instant = false;
+
+/**
  * Mobile Chats tab: Channels + DMs list (`md:hidden`).
  * Desktop keeps the sidebar list; this route shows nothing meaningful above `md`.
  *
