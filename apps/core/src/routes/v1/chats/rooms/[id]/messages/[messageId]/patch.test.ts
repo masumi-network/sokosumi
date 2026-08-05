@@ -14,6 +14,8 @@ const {
   messageFindFirstMock,
   messageUpdateMock,
   prismaTransactionMock,
+  waitUntilMock,
+  scheduleUnfurlsMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
@@ -21,12 +23,22 @@ const {
   messageFindFirstMock: vi.fn(),
   messageUpdateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  waitUntilMock: vi.fn(),
+  scheduleUnfurlsMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: prismaTransactionMock,
   },
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: waitUntilMock,
+}));
+
+vi.mock("@/services/chat-room-message-unfurl.service", () => ({
+  scheduleChatRoomMessageUnfurls: scheduleUnfurlsMock,
 }));
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
@@ -145,6 +157,12 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
       content: "hello fixed",
       editedAt: new Date("2026-07-01T12:05:00.000Z"),
     });
+    scheduleUnfurlsMock.mockResolvedValue({
+      messageId: MESSAGE_ID,
+      attempted: 0,
+      persisted: 0,
+    });
+    waitUntilMock.mockImplementation(() => {});
   });
 
   it("updates content and sets editedAt when content changes", async () => {
@@ -163,6 +181,8 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     const body = await response.json();
     expect(body.data.content).toBe("hello fixed");
     expect(body.data.editedAt).toBe("2026-07-01T12:05:00.000Z");
+    expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
+    expect(waitUntilMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns current DTO without bumping editedAt when content is unchanged", async () => {
@@ -174,6 +194,8 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     const body = await response.json();
     expect(body.data.content).toBe("hello");
     expect(body.data.editedAt).toBeNull();
+    expect(scheduleUnfurlsMock).not.toHaveBeenCalled();
+    expect(waitUntilMock).not.toHaveBeenCalled();
   });
 
   it("trims content before comparing and updating", async () => {
