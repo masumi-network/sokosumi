@@ -24,6 +24,7 @@ import organizationInviteLinksRouter from "./organization-invite-links/index.js"
 import organizationsRouter from "./organizations/index.js";
 import productsRouter from "./products/index.js";
 import projectsRouter from "./projects/index.js";
+import realtimeRouter from "./realtime/index.js";
 import shareRouter from "./share/index.js";
 import tasksRouter from "./tasks/index.js";
 import toolsRouter from "./tools/index.js";
@@ -160,6 +161,7 @@ app.route("/users", usersRouter);
 app.route("/organizations", organizationsRouter);
 app.route("/organization-invite-links", organizationInviteLinksRouter);
 app.route("/projects", projectsRouter);
+app.route("/realtime", realtimeRouter);
 app.route("/jobs", jobsRouter);
 app.route("/notifications", notificationsRouter);
 app.route("/invitations", invitationsRouter);

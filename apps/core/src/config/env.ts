@@ -184,6 +184,7 @@ const envSchema = z.object({
 
   // Ably
   ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
+  ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
 
   // Optional outbound webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),
