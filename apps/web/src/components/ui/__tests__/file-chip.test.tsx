@@ -16,7 +16,7 @@ vi.mock("next-intl", () => ({
       if (namespace === "Components.DocumentViewer") {
         const documentLabels: Record<string, string> = {
           title: "Document",
-          download: "Download document",
+          download: "Download",
           openInNewTab: "Open in new tab",
           loading: "Loading document…",
           fetchError: "This document couldn't be loaded.",
@@ -69,7 +69,7 @@ describe("FileChip", () => {
 
     expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Download document" }),
+      screen.getByRole("link", { name: "Download" }),
     ).toHaveAttribute("href", "https://blob.example.com/uploads/brief.docx");
   });
 

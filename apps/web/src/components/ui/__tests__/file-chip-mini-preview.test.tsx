@@ -27,7 +27,7 @@ vi.mock("next-intl", () => ({
         const documentLabels: Record<string, string> = {
           title: "Document",
           viewDocument: `View document ${values?.fileName ?? ""}`,
-          download: "Download document",
+          download: "Download",
           openInNewTab: "Open in new tab",
           loading: "Loading document…",
           fetchError: "This document couldn't be loaded.",
@@ -165,7 +165,7 @@ describe("FileChipMiniPreviewFrame", () => {
 
     expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Download document" }),
+      screen.getByRole("link", { name: "Download" }),
     ).toHaveAttribute("href", "https://blob.example.com/uploads/notes.pdf");
   });
 
@@ -266,7 +266,7 @@ describe("FileChipMiniPreview", () => {
 
     expect(screen.getByTestId("document-viewer")).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Download document" }),
+      screen.getByRole("link", { name: "Download" }),
     ).toHaveAttribute("href", "https://blob.example.com/uploads/notes.pdf");
   });
 

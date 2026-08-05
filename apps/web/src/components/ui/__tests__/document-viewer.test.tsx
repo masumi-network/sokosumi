@@ -15,7 +15,7 @@ vi.mock("next-intl", () => ({
     const labels: Record<string, string> = {
       title: "Document",
       close: "Close",
-      download: "Download document",
+      download: "Download",
       openInNewTab: "Open in new tab",
       loading: "Loading document…",
       fetchError: "This document couldn't be loaded.",
@@ -74,13 +74,13 @@ describe("DocumentViewer", () => {
     expect(close).toBeInTheDocument();
     expect(close).toHaveClass("size-8");
 
-    const download = screen.getByRole("link", { name: "Download document" });
+    const download = screen.getByRole("link", { name: "Download" });
     expect(download).toHaveAttribute(
       "href",
       "https://blob.example.com/report.pdf",
     );
     expect(download).toHaveAttribute("download", "report.pdf");
-    expect(download).toHaveAttribute("title", "Download document");
+    expect(download).toHaveAttribute("title", "Download");
     expect(download.className).toMatch(/size-8/);
     expect(download.className).toMatch(/sm:w-auto/);
 
@@ -156,7 +156,7 @@ describe("DocumentViewer", () => {
       );
       // Download / open-in-new-tab still point at the original public URL.
       expect(
-        screen.getByRole("link", { name: "Download document" }),
+        screen.getByRole("link", { name: "Download" }),
       ).toHaveAttribute("href", "https://blob.example.com/report.pdf");
     });
 

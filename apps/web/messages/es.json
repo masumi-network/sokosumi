@@ -814,7 +814,7 @@
       "title": "Documento",
       "close": "Cerrar",
       "viewDocument": "Ver documento {fileName}",
-      "download": "Descargar documento",
+      "download": "Descargar",
       "openInNewTab": "Abrir en una pestaña nueva",
       "loading": "Cargando documento…",
       "fetchError": "No se pudo cargar este documento."

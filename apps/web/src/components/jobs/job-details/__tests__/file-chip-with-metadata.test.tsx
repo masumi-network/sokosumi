@@ -22,7 +22,7 @@ vi.mock("next-intl", () => ({
       if (namespace === "Components.DocumentViewer") {
         const documentLabels: Record<string, string> = {
           title: "Document",
-          download: "Download document",
+          download: "Download",
           openInNewTab: "Open in new tab",
           loading: "Loading document…",
           fetchError: "This document couldn't be loaded.",
