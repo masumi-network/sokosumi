@@ -1,9 +1,6 @@
 import { Home, type LucideIcon, MessageCircle, Search } from "lucide-react";
 
-import {
-  classifyChatChromeSurface,
-  isChatRoomPathname,
-} from "@/app/chat/utils/chat-route-base";
+import { classifyChatChromeSurface } from "@/app/chat/utils/chat-route-base";
 import { isMainAppMobileChromePathname } from "@/app/components/mobile-app-chrome";
 
 type SearchParamsLike =
@@ -60,18 +57,20 @@ export const CHAT_MOBILE_HEIGHT_SHELL_CLASS =
   "h-[calc(100svh-64px)] max-md:h-full" as const;
 
 /**
- * Full shell height when the mobile tab bar is hidden (room surface).
+ * Full shell height when the mobile tab bar is hidden (room / draft compose).
  * Matches desktop/`md` height — no tab-bar spacer below.
  */
 export const CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS =
   "h-[calc(100svh-64px)]" as const;
 
-/** Height class for chat views: room path drops tab-bar spacer offset. */
+/** Height class for chat views: room and draft compose drop tab-bar spacer offset. */
 export function chatMobileHeightShellClass(
   pathname: string | null | undefined,
   _isApple = false,
+  searchParams?: SearchParamsLike,
 ): string {
-  if (isChatRoomPathname(pathname)) {
+  const surface = classifyChatChromeSurface(pathname, searchParams);
+  if (surface === "room" || surface === "draft") {
     return CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS;
   }
   return CHAT_MOBILE_HEIGHT_SHELL_CLASS;
@@ -97,8 +96,9 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     labelKey: "home",
     icon: Home,
     isActive: (pathname, searchParams) => {
-      // Draft flows (`?create=channel`, `?dm=new`) share pathname `/chat` but
-      // are not Home — classifyChatChromeSurface returns "other-chat".
+      // Draft/welcome flows (`?create=channel`, `?dm=new`, `?welcome=1`) share
+      // pathname `/chat` but are not Home — classifyChatChromeSurface returns
+      // "draft".
       if (classifyChatChromeSurface(pathname, searchParams) === "home") {
         return true;
       }
