@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
-import { badRequest, conflict } from "@/helpers/error";
+import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
@@ -22,6 +22,7 @@ import {
   buildUniqueRoomSlug,
   chatRoomInclude,
   mapChatRoomWithSidebarFlags,
+  membershipAccessForUser,
   requireChatRoomUserAccess,
   slugifyRoomName,
   validateChatCoworkerIds,
@@ -99,15 +100,52 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         const organizationId = existing.organizationId;
 
-        // Membership proves the caller can read the room. Settings (name/topic/
-        // discoverability) need OWNER/ADMIN; roster rewrite is open to any
-        // active channel member. Assert before any writes.
+        // Guests may read/write messages but cannot manage settings or roster.
+        // Fail before host-org role resolution so the message is guest-specific.
+        const callerAccess = membershipAccessForUser(
+          existing.userMembers,
+          userContext.userId,
+        );
+        if (callerAccess === "guest") {
+          throw forbidden("Guests cannot update channel settings or roster.");
+        }
+
+        // Membership + host-org role: settings need OWNER/ADMIN; roster rewrite
+        // is open to any access=member channel participant. Assert before writes.
         const { role } = await resolveMemberOrganizationById({
           id: organizationId,
           userId: userContext.userId,
           tx,
         });
         assertChatRoomPatchAuth({ role, body });
+
+        // external → public/private only when no guests remain and no pending
+        // room invitations (convert would orphan invite lifecycle).
+        if (
+          body.discoverability !== undefined &&
+          existing.discoverability === "external" &&
+          body.discoverability !== "external"
+        ) {
+          const hasGuestMember = existing.userMembers.some(
+            (member) => member.access === "guest",
+          );
+          if (hasGuestMember) {
+            throw badRequest(
+              "Cannot change discoverability while guest members or pending invitations exist.",
+            );
+          }
+          const pendingInviteCount = await tx.chatRoomGuestInvitation.count({
+            where: {
+              roomId: existing.id,
+              status: "pending",
+            },
+          });
+          if (pendingInviteCount > 0) {
+            throw badRequest(
+              "Cannot change discoverability while guest members or pending invitations exist.",
+            );
+          }
+        }
 
         const updateData: {
           name?: string;

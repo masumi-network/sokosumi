@@ -1000,7 +1000,7 @@ async function assertRoomOrganizationAccessUnlessGuest(
   await assertRoomOrganizationAccess(organizationId, userId, tx);
 }
 
-function membershipAccessForUser(
+export function membershipAccessForUser(
   userMembers: ReadonlyArray<{ userId: string; access?: string | null }>,
   userId: string,
 ): string | null | undefined {
@@ -1149,9 +1149,9 @@ export function chatRoomPatchTouchesSettings(body: {
 }
 
 /**
- * Split PATCH gates: settings (name/topic/discoverability) need OWNER/ADMIN;
- * roster rewrite is allowed for any active channel member (membership already
- * proven by the access helper). Fail settings before any writes.
+ * Split PATCH gates (after caller proven access=member, not guest):
+ * settings (name/topic/discoverability) need OWNER/ADMIN; roster rewrite is
+ * allowed for any host-org room member. Fail settings before any writes.
  */
 export function assertChatRoomPatchAuth(options: {
   role: string;
