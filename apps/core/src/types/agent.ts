@@ -5,18 +5,6 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 
-export const agentJobsCountInclude = {
-  _count: {
-    select: {
-      jobs: true,
-    },
-  },
-} as const;
-
-export type AgentWithJobsCount = Prisma.AgentGetPayload<{
-  include: typeof agentJobsCountInclude;
-}>;
-
 /** Catalog list needs stable category order; shared package include is unordered. */
 export const agentCategoriesInclude = {
   categories: {
@@ -33,7 +21,6 @@ export type AgentWithCategories = Prisma.AgentGetPayload<{
 
 export const agentDetailInclude = {
   ...agentPricingInclude,
-  ...agentJobsCountInclude,
   ...agentCategoriesInclude,
   ...agentTagsInclude,
   ...agentExampleOutputInclude,

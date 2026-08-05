@@ -32,6 +32,7 @@ import {
   getCreditCostsOrThrow,
   toMasumiAgent,
 } from "@/helpers/agent";
+import { incrementAgentJobCount } from "@/helpers/agent-job-count";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
@@ -98,7 +99,7 @@ async function createPaidJob(
     tx,
   );
 
-  return await tx.job.create({
+  const job = await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
       jobType: JobType.PAID,
@@ -159,6 +160,8 @@ async function createPaidJob(
       ...jobListSummaryInclude,
     },
   });
+  await incrementAgentJobCount(input.agentId, tx);
+  return job;
 }
 
 /**
@@ -181,7 +184,7 @@ async function createFreeJob(
   tx: Prisma.TransactionClient,
 ): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
-  return await tx.job.create({
+  const job = await tx.job.create({
     data: {
       agentJobId: agentJobResponse.id,
       jobType: JobType.FREE,
@@ -223,6 +226,8 @@ async function createFreeJob(
       ...jobListSummaryInclude,
     },
   });
+  await incrementAgentJobCount(input.agentId, tx);
+  return job;
 }
 
 interface CreateAgentJobInput {

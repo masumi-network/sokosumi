@@ -26,7 +26,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { agentsSummarySchema } from "@/schemas/agent.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
-import { agentCategoriesInclude, agentJobsCountInclude } from "@/types/agent";
+import { agentCategoriesInclude } from "@/types/agent";
 
 const UNCATEGORIZED_CATEGORY_FILTER = "uncategorized";
 
@@ -150,7 +150,6 @@ export default function mount(app: OpenAPIHono) {
         orderBy: [...agentOrderBy, { id: "desc" }],
         include: {
           ...agentPricingInclude,
-          ...agentJobsCountInclude,
           ...agentCategoriesInclude,
           ...agentMetadataOverrideScalarsInclude,
         },

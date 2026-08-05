@@ -107,7 +107,7 @@ describe("GET /agents", () => {
         icon: null,
         summary: "A short summary",
         riskClassification: "MINIMAL",
-        _count: { jobs: 2 },
+        jobCount: 2,
         categories: [
           {
             id: "cat_123",
@@ -159,7 +159,7 @@ describe("GET /agents", () => {
     expect(agentCountMock).toHaveBeenCalled();
   });
 
-  it("orders by createdAt without live jobs._count and skips average execution SQL", async () => {
+  it("orders by jobCount without live jobs._count and skips average execution SQL", async () => {
     const app = createApp();
     const response = await app.request("http://localhost/");
     const body = await response.json();
@@ -167,13 +167,15 @@ describe("GET /agents", () => {
     expect(response.status).toBe(200);
     expect(agentFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        orderBy: [{ jobCount: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       }),
     );
     const findManyArg = agentFindManyMock.mock.calls[0]?.[0] as {
       orderBy: unknown[];
+      include?: Record<string, unknown>;
     };
     expect(JSON.stringify(findManyArg.orderBy)).not.toContain("_count");
+    expect(findManyArg.include).not.toHaveProperty("_count");
     expect(calculateAverageExecutionTimesMock).not.toHaveBeenCalled();
     expect(body.data[0]?.metrics.executions).toMatchObject({
       count: 2,
