@@ -35,10 +35,7 @@ import {
   parseTasksDensity,
   TASKS_DENSITY_COOKIE_NAME,
 } from "@/lib/ui-preferences/tasks-density";
-import {
-  parseTasksViewMode,
-  TASKS_VIEW_MODE_COOKIE_NAME,
-} from "@/lib/ui-preferences/tasks-view-mode";
+import { getDefaultTasksViewMode } from "@/lib/ui-preferences/tasks-view-mode.server";
 
 interface TasksPageProps {
   searchParams: Promise<{
@@ -89,18 +86,23 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     agentId,
     jobStatus,
   } = await searchParams;
-  const [t, tColumns, tDetailActions, tApp, cookieStore, session] =
-    await Promise.all([
-      getTranslations("App.Tasks"),
-      getTranslations("App.Tasks.Columns"),
-      getTranslations("App.Tasks.Detail.actions"),
-      getTranslations("App"),
-      cookies(),
-      getSession(),
-    ]);
-  const defaultViewMode =
-    parseTasksViewMode(cookieStore.get(TASKS_VIEW_MODE_COOKIE_NAME)?.value) ??
-    "board";
+  const [
+    t,
+    tColumns,
+    tDetailActions,
+    tApp,
+    cookieStore,
+    session,
+    defaultViewMode,
+  ] = await Promise.all([
+    getTranslations("App.Tasks"),
+    getTranslations("App.Tasks.Columns"),
+    getTranslations("App.Tasks.Detail.actions"),
+    getTranslations("App"),
+    cookies(),
+    getSession(),
+    getDefaultTasksViewMode(),
+  ]);
   const defaultDensity =
     parseTasksDensity(cookieStore.get(TASKS_DENSITY_COOKIE_NAME)?.value) ??
     "normal";
@@ -364,9 +366,12 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   );
 }
 
-export default function TasksPage({ searchParams }: TasksPageProps) {
+export default async function TasksPage({ searchParams }: TasksPageProps) {
+  await connection();
+  const defaultViewMode = await getDefaultTasksViewMode();
+
   return (
-    <Suspense fallback={<TasksPageSkeleton />}>
+    <Suspense fallback={<TasksPageSkeleton viewMode={defaultViewMode} />}>
       <TasksPageContent searchParams={searchParams} />
     </Suspense>
   );
