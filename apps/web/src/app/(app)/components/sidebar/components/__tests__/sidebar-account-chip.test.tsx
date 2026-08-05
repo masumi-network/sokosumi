@@ -90,6 +90,20 @@ describe("SidebarAccountChip", () => {
     expect(screen.getByText("PT")).toBeInTheDocument();
   });
 
+  it("keeps name line-height above 1 so truncate does not clip descenders", () => {
+    renderChip({
+      sessionUser: {
+        ...sessionUser,
+        name: "Andreas Osberghaus",
+      },
+    });
+
+    const name = screen.getByText("Andreas Osberghaus");
+    expect(name.className).toContain("leading-tight");
+    expect(name.className).not.toContain("leading-none");
+    expect(name.className).toContain("truncate");
+  });
+
   it("flags a balance under the low-credits threshold", () => {
     renderChip({ totalCredits: 42 });
 
