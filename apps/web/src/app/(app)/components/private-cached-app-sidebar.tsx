@@ -58,12 +58,16 @@ export default async function PrivateCachedAppSidebar({
     .catch(() => []);
   // Personal coworker directs exist with no active org; Core returns those when
   // organization context is null. Named channels still need an org (empty list then).
-  const chatRoomsPromise = chatRoomService.listRooms().catch(() => []);
+  const emptyRoomsPage = {
+    rooms: [] as Awaited<ReturnType<typeof chatRoomService.listRooms>>["rooms"],
+    nextCursor: null as string | null,
+  };
+  const chatRoomsPromise = chatRoomService
+    .listRooms()
+    .catch(() => emptyRoomsPage);
   const archivedChatRoomsPromise = activeOrganizationId
-    ? chatRoomService.listArchivedRooms().catch(() => [])
-    : Promise.resolve(
-        [] as Awaited<ReturnType<typeof chatRoomService.listArchivedRooms>>,
-      );
+    ? chatRoomService.listArchivedRooms().catch(() => emptyRoomsPage)
+    : Promise.resolve(emptyRoomsPage);
   const activeOrganizationPromise = userService.getActiveOrganization();
   const creditsPromise = getCachedMyCredits();
 
@@ -71,8 +75,8 @@ export default async function PrivateCachedAppSidebar({
     tCredit,
     tPlan,
     members,
-    chatRooms,
-    archivedChatRooms,
+    chatRoomsPage,
+    archivedChatRoomsPage,
     { showVendors: showDeveloperVendors },
     activeOrganization,
     creditsResult,
@@ -86,6 +90,11 @@ export default async function PrivateCachedAppSidebar({
     activeOrganizationPromise,
     creditsPromise,
   ]);
+
+  const chatRooms = chatRoomsPage.rooms;
+  const chatRoomsNextCursor = chatRoomsPage.nextCursor;
+  const archivedChatRooms = archivedChatRoomsPage.rooms;
+  const archivedChatRoomsNextCursor = archivedChatRoomsPage.nextCursor;
 
   const creditsData = creditsResult?.data.credits ?? null;
   const currentPlan = creditsData?.subscription?.plan ?? "free";
@@ -134,10 +143,12 @@ export default async function PrivateCachedAppSidebar({
         activeOrganizationId={activeOrganizationId}
         adminMenuEnabled={adminMenuEnabled}
         archivedChatRooms={archivedChatRooms}
+        archivedChatRoomsNextCursor={archivedChatRoomsNextCursor}
         buyCreditsLabel={tPlan("getMoreCredits")}
         buyCreditsPath={buyCreditsPath}
         canDeleteArchivedRooms={canDeleteArchivedRooms}
         chatRooms={chatRooms}
+        chatRoomsNextCursor={chatRoomsNextCursor}
         creditsData={creditsData}
         creditUsage={resolveCreditUsage(creditsData)}
         currentTimestampMs={currentTimestampMs}

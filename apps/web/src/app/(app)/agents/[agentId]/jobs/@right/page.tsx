@@ -20,16 +20,18 @@ export default async function RightSectionPage({
 
   const { agentId } = await params;
 
-  const [agent, agentJobs] = await Promise.all([
+  const [agent, agentJobsPage] = await Promise.all([
     getCoreAgentById(agentId),
     getCachedMyJobs(agentId),
   ]);
-  if (!agent && agentJobs.length === 0) {
+  if (!agent && agentJobsPage.jobs.length === 0) {
     notFound();
   }
 
-  if (agentJobs.length > 0) {
-    return <JobDetailRedirect agentId={agentId} jobId={agentJobs[0].id} />;
+  if (agentJobsPage.jobs.length > 0) {
+    return (
+      <JobDetailRedirect agentId={agentId} jobId={agentJobsPage.jobs[0].id} />
+    );
   }
 
   return (

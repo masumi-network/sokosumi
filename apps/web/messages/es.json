@@ -513,7 +513,10 @@
       },
       "JobsList": {
         "noExecutedJobs": "No hay jobs ejecutados",
-        "emptyJobs": "Aún sin jobs."
+        "emptyJobs": "Aún sin jobs.",
+        "loadMore": "Cargar más",
+        "loading": "Cargando...",
+        "loadMoreError": "No se pudieron cargar más jobs"
       }
     },
     "Organizations": {
@@ -4756,6 +4759,9 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
       "directMessages": "Direct Messages",
+      "loadMore": "Cargar más",
+      "loading": "Cargando...",
+      "loadMoreError": "No se pudieron cargar más chats",
       "composerPlaceholder": "Message this channel. Type @ to mention an AI coworker.",
       "NoOrganization": {
         "title": "Canales próximamente",

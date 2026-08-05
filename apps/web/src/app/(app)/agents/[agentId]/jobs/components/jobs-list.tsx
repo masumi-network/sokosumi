@@ -3,8 +3,11 @@
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
 import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
+import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core";
@@ -25,9 +28,19 @@ interface JobStatusUpdateData {
 
 interface JobsListProps {
   jobs: JobSummary[];
+  jobsNextCursor: string | null;
   userId: string;
   agentId: string;
   selectedJobId?: string;
+}
+
+function appendUniqueJobs(
+  existing: JobSummary[],
+  incoming: JobSummary[],
+): JobSummary[] {
+  const existingIds = new Set(existing.map((job) => job.id));
+  const unique = incoming.filter((job) => !existingIds.has(job.id));
+  return [...existing, ...unique];
 }
 
 function JobsStatusRealtimeListener({
@@ -96,6 +109,7 @@ function JobsStatusRealtimeListener({
 
 export function JobsList({
   jobs,
+  jobsNextCursor,
   userId,
   agentId,
   selectedJobId,
@@ -106,13 +120,27 @@ export function JobsList({
   const router = useRouter();
   const [localJobs, setLocalJobs] = useState<JobSummary[]>(jobs);
   const [filteredJobs, setFilteredJobs] = useState<JobSummary[]>(jobs);
+  const [nextCursor, setNextCursor] = useState(jobsNextCursor);
+  const [isLoadingMore, startLoadMoreTransition] = useTransition();
+  const hasAppendedViaLoadMoreRef = useRef(false);
   const activeJobId = selectedJobId ?? routeParams.jobId;
 
-  // Sync local state when jobs prop changes (e.g., after revalidatePath)
+  // Sync when jobs prop changes; keep load-more history (R7).
   useEffect(() => {
-    setLocalJobs(jobs);
-    setFilteredJobs(jobs);
-  }, [jobs]);
+    setLocalJobs((prev) => {
+      if (!hasAppendedViaLoadMoreRef.current) {
+        return jobs;
+      }
+      const firstPageIds = new Set(jobs.map((job) => job.id));
+      const older = prev.filter((job) => !firstPageIds.has(job.id));
+      return [...jobs, ...older];
+    });
+    setNextCursor((prev) =>
+      hasAppendedViaLoadMoreRef.current && prev !== null
+        ? prev
+        : jobsNextCursor,
+    );
+  }, [jobs, jobsNextCursor]);
 
   const dayGroups = useMemo(
     () => buildJobDayGroups(filteredJobs, locale),
@@ -165,6 +193,23 @@ export function JobsList({
     router.push(qs ? `${base}?${qs}` : base);
   }
 
+  function handleLoadMore() {
+    if (!nextCursor || isLoadingMore) {
+      return;
+    }
+    const cursor = nextCursor;
+    startLoadMoreTransition(async () => {
+      try {
+        const result = await loadMoreOwnedAgentJobs(agentId, cursor);
+        hasAppendedViaLoadMoreRef.current = true;
+        setLocalJobs((prev) => appendUniqueJobs(prev, result.jobs));
+        setNextCursor(result.nextCursor);
+      } catch {
+        toast.error(t("loadMoreError"));
+      }
+    });
+  }
+
   return (
     <>
       <LazyAblyProvider>
@@ -206,6 +251,20 @@ export function JobsList({
               {t("emptyJobs")}
             </div>
           )}
+          {nextCursor ? (
+            <div className="flex justify-center px-2 pb-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground w-full text-xs"
+                disabled={isLoadingMore}
+                onClick={handleLoadMore}
+              >
+                {isLoadingMore ? t("loading") : t("loadMore")}
+              </Button>
+            </div>
+          ) : null}
         </div>
       </aside>
     </>

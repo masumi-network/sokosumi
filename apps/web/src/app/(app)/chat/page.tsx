@@ -97,7 +97,7 @@ async function ChatPageContent({ searchParams }: ChatPageProps) {
       );
     }
 
-    const [listedRooms, membersPage, coworkers, currentMember] =
+    const [listedRoomsPage, membersPage, coworkers, currentMember] =
       await Promise.all([
         chatRoomService.listRooms(),
         loadOrganizationMembers(activeOrganization.id),
@@ -110,7 +110,7 @@ async function ChatPageContent({ searchParams }: ChatPageProps) {
         {landingNotice}
         <RoomsClient
           activeOrganization={activeOrganization}
-          rooms={listedRooms}
+          rooms={listedRoomsPage.rooms}
           organizationMembers={membersPage.members}
           currentUserId={currentMember?.userId ?? ""}
           coworkers={coworkers}
