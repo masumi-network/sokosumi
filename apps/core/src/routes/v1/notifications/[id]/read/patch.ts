@@ -24,7 +24,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "patch",
     path: "/{id}/read",
     description:
-      "Mark a single notification as read for the effective user (session user, or orchestrator/coworker with context headers; owner only)",
+      "Mark a single notification as read for the effective user (session user, or orchestrator/coworker with context headers; owner only). Includes CHAT: browser OS clicks and room attention still clear individual CHAT rows even though CHAT is excluded from the in-app center list, unread badge, and mark-all-read.",
     tags: ["Notifications"],
     request: {
       params: paramsSchema,

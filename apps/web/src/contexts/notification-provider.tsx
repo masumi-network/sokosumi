@@ -23,6 +23,7 @@ import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
+import { isBrowserOnlyNotificationKind } from "@/lib/utils/notification-feed";
 
 function dismissNotificationToast(notificationId: string) {
   toast.dismiss(notificationId);
@@ -111,13 +112,13 @@ export function notificationReducer(
 ): NotificationState {
   switch (action.type) {
     case "fetch_success": {
-      // CHAT is browser-OS only; drop any that already leaked into local state
-      // so mergeNotificationList cannot keep them as "pending realtime".
+      // Browser-only kinds never belong in local feed state; drop leaks so
+      // mergeNotificationList cannot keep them as "pending realtime".
       const current = state.notifications.filter(
-        (notification) => notification.kind !== "CHAT",
+        (notification) => !isBrowserOnlyNotificationKind(notification.kind),
       );
       const fetched = action.fetched.filter(
-        (notification) => notification.kind !== "CHAT",
+        (notification) => !isBrowserOnlyNotificationKind(notification.kind),
       );
 
       return {
@@ -132,8 +133,8 @@ export function notificationReducer(
     case "realtime": {
       const convertedNotification = action.notification;
 
-      // CHAT is browser-OS only; room attention uses a separate path.
-      if (convertedNotification.kind === "CHAT") {
+      // Browser-OS only; room attention uses a separate path.
+      if (isBrowserOnlyNotificationKind(convertedNotification.kind)) {
         return state;
       }
 
@@ -193,9 +194,9 @@ export function notificationReducer(
       };
     }
     case "mark_read_success": {
-      // CHAT is browser-OS only and never counted in the in-app badge.
-      // Toast click still calls markRead for room attention; ignore feed state.
-      if (action.updated.kind === "CHAT") {
+      // Browser-only kinds are never counted in the in-app badge. Toast click
+      // still calls markRead for room attention; ignore feed state.
+      if (isBrowserOnlyNotificationKind(action.updated.kind)) {
         return state;
       }
 

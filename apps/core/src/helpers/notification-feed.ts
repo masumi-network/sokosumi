@@ -8,6 +8,16 @@ export const BROWSER_ONLY_NOTIFICATION_KINDS = [
   NotificationKind.CHAT,
 ] as const satisfies readonly NotificationKind[];
 
+const ALL_NOTIFICATION_KINDS = Object.values(
+  NotificationKind,
+) as NotificationKind[];
+
+export function isBrowserOnlyNotificationKind(kind: NotificationKind): boolean {
+  return (
+    BROWSER_ONLY_NOTIFICATION_KINDS as readonly NotificationKind[]
+  ).includes(kind);
+}
+
 /**
  * Prisma `kind` filter for the in-app notification feed (list, unread count,
  * mark-all-read). Always excludes browser-only kinds such as CHAT.
@@ -15,14 +25,17 @@ export const BROWSER_ONLY_NOTIFICATION_KINDS = [
 export function notificationFeedKindWhere(
   requestedKinds?: readonly NotificationKind[],
 ): Prisma.EnumNotificationKindFilter {
-  const browserOnly = new Set<NotificationKind>(
-    BROWSER_ONLY_NOTIFICATION_KINDS,
-  );
-
   if (requestedKinds && requestedKinds.length > 0) {
-    return {
-      in: requestedKinds.filter((kind) => !browserOnly.has(kind)),
-    };
+    const feedKinds = requestedKinds.filter(
+      (kind) => !isBrowserOnlyNotificationKind(kind),
+    );
+
+    if (feedKinds.length === 0) {
+      // Explicit match-nothing: every known kind is excluded (no opaque `in: []`).
+      return { notIn: ALL_NOTIFICATION_KINDS };
+    }
+
+    return { in: feedKinds };
   }
 
   return {

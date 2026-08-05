@@ -24,7 +24,13 @@ describe("notificationFeedKindWhere", () => {
 
   it("matches nothing when the only requested kind is browser-only", () => {
     expect(notificationFeedKindWhere([NotificationKind.CHAT])).toEqual({
-      in: [],
+      notIn: [
+        NotificationKind.JOB,
+        NotificationKind.TASK,
+        NotificationKind.BILLING,
+        NotificationKind.SYSTEM,
+        NotificationKind.CHAT,
+      ],
     });
   });
 
