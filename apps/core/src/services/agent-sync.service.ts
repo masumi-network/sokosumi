@@ -366,14 +366,22 @@ async function upsertRegistryAgent(
   // registryIdentity above. Park that duplicate before the canonical row
   // adopts the identifier, or the promotion update collides on
   // Agent_blockchainIdentifier_key on every retry (permanent cursor wedge).
+  // The canonical row is excluded from the candidates: it can itself match
+  // case-insensitively (it holds this identifier in a different casing, which
+  // is what got us past the guard above), and `findFirst` has no ordering — so
+  // leaving it in lets the query return the canonical row while a genuine
+  // duplicate goes unparked, and the promotion below then collides on
+  // Agent_blockchainIdentifier_key exactly as this block exists to prevent.
   const conflictingByIdentifier =
     existing.blockchainIdentifier !== entry.agentIdentifier
       ? await prisma.agent.findFirst({
           where: {
             id: {
-              in: await findAgentIdsByIdentifierCaseInsensitive(
-                entry.agentIdentifier,
-              ),
+              in: (
+                await findAgentIdsByIdentifierCaseInsensitive(
+                  entry.agentIdentifier,
+                )
+              ).filter((agentId) => agentId !== existing.id),
             },
           },
           select: {

@@ -415,7 +415,12 @@ describe("agentSyncService.syncRegistryAgents", () => {
     // The stored row keeps the registry's ROLLBACK-ERA uppercase spelling
     // while the registry now serves lowercase, so the lookup has to match
     // case-insensitively — it resolves ids through lower() in SQL.
-    queryRawMock.mockResolvedValue([{ id: "agent-rollback-dup" }]);
+    // The canonical row also matches case-insensitively; the lookup must skip
+    // it so findFirst cannot return it instead of the genuine duplicate.
+    queryRawMock.mockResolvedValue([
+      { id: "agent-canonical" },
+      { id: "agent-rollback-dup" },
+    ]);
     agentFindFirstMock.mockResolvedValue({
       id: "agent-rollback-dup",
       blockchainIdentifier: rollbackDuplicateIdentifier,
