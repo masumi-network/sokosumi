@@ -1,8 +1,7 @@
 /**
- * Stable intent for Ably `chat_room_message` publishes.
- * Full message DTO remains the payload body; this field is the shared
- * publisher/consumer contract so clients do not guess create vs edit vs
- * reaction vs unfurl (SOK-736).
+ * Stable intent for Ably `chat_room_message` publishes (SOK-736).
+ * create/update/delete carry a full message DTO; reaction/unfurl/
+ * mention_status carry a field patch (SOK-737).
  */
 export const CHAT_ROOM_MESSAGE_EVENT_TYPES = [
   "create",

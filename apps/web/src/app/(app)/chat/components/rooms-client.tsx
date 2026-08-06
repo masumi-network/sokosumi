@@ -1,6 +1,5 @@
 "use client";
 
-import { ChannelProvider } from "ably/react";
 import { Hash, Loader2, MessageCircle } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -60,8 +59,9 @@ import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import {
   type ChatRoomMessageEventData,
-  makeUserChatRoomsChannelName,
+  isChatRoomMessagePatchEvent,
 } from "@/lib/ably";
+import { applyChatRoomMessagePatch } from "@/lib/ably/apply-chat-room-message-patch";
 import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import type {
@@ -141,14 +141,17 @@ const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
 const ROOM_LIVE_POLL_MS = 3000;
 
 function RoomMessageRealtimeBridge({
-  userId,
+  roomIds,
+  currentUserId,
   onMessage,
 }: {
-  userId: string;
+  roomIds: readonly string[];
+  currentUserId: string;
   onMessage: (event: ChatRoomMessageEventData) => void;
 }) {
   useChatRoomRealtime({
-    userId,
+    roomIds,
+    currentUserId,
     onMessage,
     onError: (error) => {
       console.error("Ably chat room message error:", error);
@@ -451,14 +454,70 @@ export function RoomsClient({
 
   const handleChatRoomRealtimeMessage = useCallback(
     (event: ChatRoomMessageEventData) => {
-      const message = hydrateChatRoomMessageFromRealtime(event.message);
-      if (message.roomId !== selectedRoomIdRef.current) {
-        return;
-      }
       if (
         skipRealtimeWhileStreamingRef.current &&
         isCoworkerStreamingRef.current
       ) {
+        return;
+      }
+
+      // SOK-737: high-chatter types arrive as field patches — merge by id.
+      // Missing local id → no-op (do not invent a row). Patches are not new
+      // messages, so skip unread-threads attention (full create path still does).
+      if (isChatRoomMessagePatchEvent(event)) {
+        if (event.roomId !== selectedRoomIdRef.current) {
+          return;
+        }
+
+        const route = routeRealtimeChatRoomMessage(
+          {
+            id: event.messageId,
+            parentMessageId: event.parentMessageId,
+          },
+          threadParentMessageIdRef.current,
+          event.eventType,
+        );
+
+        if (route.mergeIntoRoomTimeline) {
+          setMessagesState((current) => {
+            const existing = current.find(
+              (message) => message.id === event.messageId,
+            );
+            if (!existing) {
+              return current;
+            }
+            const merged = applyChatRoomMessagePatch(existing, event);
+            return filterTopLevelChatRoomMessages(
+              mergeRoomMessages(current, [merged]),
+            );
+          });
+        }
+
+        setThreadParentMessage((current) => {
+          if (current?.id !== event.messageId) {
+            return current;
+          }
+          return applyChatRoomMessagePatch(current, event);
+        });
+
+        if (route.mergeIntoOpenThread) {
+          setThreadMessages((current) => {
+            const existing = current.find(
+              (message) => message.id === event.messageId,
+            );
+            if (!existing) {
+              return current;
+            }
+            return mergeRoomMessages(current, [
+              applyChatRoomMessagePatch(existing, event),
+            ]);
+          });
+        }
+        return;
+      }
+
+      const message = hydrateChatRoomMessageFromRealtime(event.message);
+      if (message.roomId !== selectedRoomIdRef.current) {
         return;
       }
 
@@ -1433,14 +1492,11 @@ export function RoomsClient({
     >
       {currentUserId ? (
         <LazyAblyProvider>
-          <ChannelProvider
-            channelName={makeUserChatRoomsChannelName(currentUserId)}
-          >
-            <RoomMessageRealtimeBridge
-              userId={currentUserId}
-              onMessage={handleChatRoomRealtimeMessage}
-            />
-          </ChannelProvider>
+          <RoomMessageRealtimeBridge
+            roomIds={rooms.map((room) => room.id)}
+            currentUserId={currentUserId}
+            onMessage={handleChatRoomRealtimeMessage}
+          />
         </LazyAblyProvider>
       ) : null}
       {/* `relative` anchors the thread panel's mobile full-screen takeover. */}

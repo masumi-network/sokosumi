@@ -79,7 +79,7 @@ export function AccountPopoverDrill({
   const tDeveloper = useTranslations("App.Developer.tabs");
 
   // Settings → drill unmounts the focused trigger; keep keyboard focus inside
-  // the non-modal popover (same rAF + tabIndex=-1 pattern as SidebarSubmenu).
+  // the non-modal popover (rAF + tabIndex=-1).
   useMountEffect(() => {
     const frame = requestAnimationFrame(() => {
       panelRef.current?.focus();

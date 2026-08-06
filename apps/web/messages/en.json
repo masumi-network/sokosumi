@@ -2866,10 +2866,7 @@
         "unavailable": "Credits unavailable"
       },
       "Plan": {
-        "getMoreCredits": "Get more credits",
-        "userPlan": "{plan} (Personal)",
-        "organizationPlan": "{plan} ({organization})",
-        "unavailable": "Plan unavailable"
+        "getMoreCredits": "Get more credits"
       }
     },
     "EmailVerificationNotice": {

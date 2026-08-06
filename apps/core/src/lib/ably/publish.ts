@@ -2,7 +2,7 @@ import { NotificationKind } from "@sokosumi/database";
 import {
   type ChatRoomMessageEventType,
   makeAgentJobsChannelName,
-  makeUserChatRoomsChannelName,
+  makeChatRoomChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   SokosumiJobStatus,
@@ -90,18 +90,82 @@ export async function publishNotificationEvent({
   await channel.publish("notification_created", notification);
 }
 
-interface PublishChatRoomMessageEventInput {
-  userId: string;
+/** Full DTO body for create / update / delete. */
+export type ChatRoomMessageFullEventType = Extract<
+  ChatRoomMessageEventType,
+  "create" | "update" | "delete"
+>;
+
+/** Patch body for high-chatter slices (SOK-737). */
+export type ChatRoomMessagePatchEventType = Extract<
+  ChatRoomMessageEventType,
+  "reaction" | "unfurl" | "mention_status"
+>;
+
+export type ChatRoomMessageReactionPatch = {
+  reactions: ChatRoomMessage["reactions"];
+};
+
+export type ChatRoomMessageUnfurlPatch = {
+  unfurls: ChatRoomMessage["unfurls"];
+};
+
+export type ChatRoomMessageMentionStatusPatch = {
+  mentions: ChatRoomMessage["mentions"];
+};
+
+export type ChatRoomMessageEventPatch =
+  | ChatRoomMessageReactionPatch
+  | ChatRoomMessageUnfurlPatch
+  | ChatRoomMessageMentionStatusPatch;
+
+interface PublishChatRoomMessageFullEventInput {
+  eventType: ChatRoomMessageFullEventType;
   message: ChatRoomMessage;
-  eventType: ChatRoomMessageEventType;
 }
 
-export async function publishChatRoomMessageEvent({
-  userId,
-  message,
-  eventType,
-}: PublishChatRoomMessageEventInput) {
+interface PublishChatRoomMessagePatchEventInput {
+  eventType: ChatRoomMessagePatchEventType;
+  messageId: string;
+  roomId: string;
+  parentMessageId: string | null;
+  patch: ChatRoomMessageEventPatch;
+}
+
+export type PublishChatRoomMessageEventInput =
+  | PublishChatRoomMessageFullEventInput
+  | PublishChatRoomMessagePatchEventInput;
+
+function isPatchEventInput(
+  input: PublishChatRoomMessageEventInput,
+): input is PublishChatRoomMessagePatchEventInput {
+  return (
+    input.eventType === "reaction" ||
+    input.eventType === "unfurl" ||
+    input.eventType === "mention_status"
+  );
+}
+
+export async function publishChatRoomMessageEvent(
+  input: PublishChatRoomMessageEventInput,
+) {
   const client = getRestClient();
-  const channel = client.channels.get(makeUserChatRoomsChannelName(userId));
-  await channel.publish("chat_room_message", { eventType, message });
+  const roomId = isPatchEventInput(input) ? input.roomId : input.message.roomId;
+  const channel = client.channels.get(makeChatRoomChannelName(roomId));
+
+  if (isPatchEventInput(input)) {
+    await channel.publish("chat_room_message", {
+      eventType: input.eventType,
+      messageId: input.messageId,
+      roomId: input.roomId,
+      parentMessageId: input.parentMessageId,
+      patch: input.patch,
+    });
+    return;
+  }
+
+  await channel.publish("chat_room_message", {
+    eventType: input.eventType,
+    message: input.message,
+  });
 }
