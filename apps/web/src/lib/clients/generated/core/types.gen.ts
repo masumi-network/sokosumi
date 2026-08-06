@@ -1166,7 +1166,7 @@ export type ChatRoom = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Messages sent by others after the current user's read marker.
+     * Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.
      */
     unreadCount: number;
     /**
@@ -1190,7 +1190,7 @@ export type ChatRoom = {
 };
 
 /**
- * Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
+ * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member) or `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join). Null for direct rooms.
  */
 export const ChatRoomDiscoverability = {
     PUBLIC: 'public',
@@ -1199,7 +1199,7 @@ export const ChatRoomDiscoverability = {
 } as const;
 
 /**
- * Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
+ * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member) or `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join). Null for direct rooms.
  */
 export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
 
@@ -1259,13 +1259,13 @@ export type ChatRoomSuccessResponse = {
 
 export type CreateChatRoomRequest = {
     /**
-     * Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.
+     * Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them.
      */
     kind: 'channel';
     name: string;
     topic?: string;
     /**
-     * Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.
+     * Channel discoverability. Defaults to `"public"` (org-discoverable / joinable by any member). `"private"` keeps the channel roster-only for plain members; organization owners and admins can still browse and self-join.
      */
     discoverability?: 'public' | 'private';
     /**
@@ -1296,7 +1296,7 @@ export type DiscoverableChatRoom = {
     name: string;
     slug: string;
     topic: string | null;
-    discoverability: 'public';
+    discoverability: ChatRoomDiscoverability & unknown;
     memberCount: number;
     createdByUserId: string;
     createdAt: Date;
@@ -9156,7 +9156,7 @@ export type GetChatsRoomsDiscoverableError = GetChatsRoomsDiscoverableErrors[key
 
 export type GetChatsRoomsDiscoverableResponses = {
     /**
-     * Discoverable public channels
+     * Discoverable channels
      */
     200: {
         data: Array<DiscoverableChatRoom>;
@@ -15773,11 +15773,11 @@ export type GetHistoryData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -23705,11 +23705,11 @@ export type GetNotificationsData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -23806,11 +23806,11 @@ export type GetNotificationsUnreadCountData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -23876,11 +23876,11 @@ export type PatchNotificationsByIdReadData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -23979,11 +23979,11 @@ export type PatchNotificationsReadAllData = {
          */
         'X-Organization-Slug'?: string;
         /**
-         * Optional workspace user id when authenticating as a coworker or orchestrator service token. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
          */
         'X-Context-User-Id'?: string;
         /**
-         * Optional workspace organization id when authenticating as a coworker or orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker or orchestrator context auth.
+         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
          */
         'X-Context-Organization-Id'?: string;
     };
@@ -29910,6 +29910,20 @@ export type PostWorkspacesDesignMdAdhocErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - coworker context is not bound to the target user
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;

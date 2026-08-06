@@ -4257,7 +4257,7 @@ export const ChatRoomSchema = {
         unreadCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Messages sent by others after the current user\'s read marker.',
+            description: 'Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.',
             example: 2
         },
         unreadMentionCount: {
@@ -4334,7 +4334,7 @@ export const ChatRoomDiscoverabilitySchema = {
         'private',
         null
     ],
-    description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.',
+    description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member) or `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join). Null for direct rooms.',
     example: 'public'
 } as const;
 
@@ -4491,7 +4491,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'channel'
                     ],
-                    description: 'Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.'
+                    description: 'Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them.'
                 },
                 name: {
                     type: 'string',
@@ -4511,7 +4511,7 @@ export const CreateChatRoomRequestSchema = {
                         'private'
                     ],
                     default: 'public',
-                    description: 'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.',
+                    description: 'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable by any member). `"private"` keeps the channel roster-only for plain members; organization owners and admins can still browse and self-join.',
                     example: 'public'
                 },
                 memberUserIds: {
@@ -4613,11 +4613,14 @@ export const DiscoverableChatRoomSchema = {
             example: 'Weekly launch planning'
         },
         discoverability: {
-            type: 'string',
-            enum: [
-                'public'
-            ],
-            example: 'public'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/ChatRoomDiscoverability'
+                },
+                {
+                    description: '`"public"` for every org member; `"private"` only appears for organization owners and admins.'
+                }
+            ]
         },
         memberCount: {
             type: 'integer',
@@ -4829,7 +4832,7 @@ export const UpdateChatRoomRequestSchema = {
                     $ref: '#/components/schemas/ChatRoomDiscoverability'
                 },
                 {
-                    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable; `"private"` hides it from the discoverable listing.',
+                    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it).',
                     example: 'private'
                 }
             ]

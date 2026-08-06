@@ -399,7 +399,7 @@ export const postChatsRooms = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * List active public (`discoverability=public`) channels in the active organization that the caller is not already a member of. Requires an active organization. Optional `q` filters by name or slug.
+ * List active channels in the active organization that the caller is not already a member of. Public channels are listed for every org member; private channels only for organization owners and admins. Requires an active organization. Optional `q` filters by name or slug.
  */
 export const getChatsRoomsDiscoverable = <ThrowOnError extends boolean = false>(options?: Options<GetChatsRoomsDiscoverableData, ThrowOnError>): RequestResult<GetChatsRoomsDiscoverableResponses, GetChatsRoomsDiscoverableErrors, ThrowOnError> => (options?.client ?? client).get<GetChatsRoomsDiscoverableResponses, GetChatsRoomsDiscoverableErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsDiscoverableResponseTransformer,
@@ -488,7 +488,7 @@ export const deleteChatsRoomsByIdMembersMe = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Self-join an active public channel in the active organization. Idempotent when already a member. Private, unknown, wrong-org, direct, or archived rooms return 404 (or 400 when the locked row is no longer joinable).
+ * Self-join an active channel in the active organization. Public channels are joinable by any org member; private channels by organization owners and admins only. Idempotent when already a member. Unknown, wrong-org, direct, archived, or private-for-plain-member rooms return 404 (or 400 when the locked row is no longer joinable).
  */
 export const postChatsRoomsByIdMembersMe = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdMembersMeData, ThrowOnError>): RequestResult<PostChatsRoomsByIdMembersMeResponses, PostChatsRoomsByIdMembersMeErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdMembersMeResponses, PostChatsRoomsByIdMembersMeErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdMembersMeResponseTransformer,
@@ -497,7 +497,7 @@ export const postChatsRoomsByIdMembersMe = <ThrowOnError extends boolean = false
 });
 
 /**
- * Mark an organization chat room as read for the current user.
+ * Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadCount.
  */
 export const postChatsRoomsByIdRead = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdReadData, ThrowOnError>): RequestResult<PostChatsRoomsByIdReadResponses, PostChatsRoomsByIdReadErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdReadResponses, PostChatsRoomsByIdReadErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdReadResponseTransformer,
@@ -1462,7 +1462,7 @@ export const getUsersById = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 /**
- * Get the raw organization record by slug for the effective user when they are a member (session user, or orchestrator/coworker with context headers)
+ * Get the raw organization record by slug for the effective user when they are a member (session user, or orchestrator/coworker with authorized context headers (coworker requires workspace grant or baseline task binding))
  */
 export const getOrganizationBySlug = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationBySlugData, ThrowOnError>): RequestResult<GetOrganizationBySlugResponses, GetOrganizationBySlugErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationBySlugResponses, GetOrganizationBySlugErrors, ThrowOnError>({
     responseTransformer: getOrganizationBySlugResponseTransformer,
@@ -1471,7 +1471,7 @@ export const getOrganizationBySlug = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * Get organization details by ID for the effective user when they are a member (session user, or orchestrator/coworker with context headers)
+ * Get organization details by ID for the effective user when they are a member (session user, or orchestrator/coworker with authorized context headers)
  */
 export const getOrganizationsById = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationsByIdData, ThrowOnError>): RequestResult<GetOrganizationsByIdResponses, GetOrganizationsByIdErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationsByIdResponses, GetOrganizationsByIdErrors, ThrowOnError>({
     responseTransformer: getOrganizationsByIdResponseTransformer,
@@ -1632,7 +1632,7 @@ export const getOrganizationsByIdStripeCustomer = <ThrowOnError extends boolean 
 });
 
 /**
- * Ensure a Stripe customer exists for an organization. Any member of the organization may call it (session user, or orchestrator/coworker with context headers). Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.
+ * Ensure a Stripe customer exists for an organization. Any member of the organization may call it (session user or orchestrator with context headers). Coworker actors are not allowed. Returns the existing customer id when already provisioned, otherwise creates the Stripe customer, persists the id immediately, and returns the new id.
  */
 export const postOrganizationsByIdStripeCustomer = <ThrowOnError extends boolean = false>(options: Options<PostOrganizationsByIdStripeCustomerData, ThrowOnError>): RequestResult<PostOrganizationsByIdStripeCustomerResponses, PostOrganizationsByIdStripeCustomerErrors, ThrowOnError> => (options.client ?? client).post<PostOrganizationsByIdStripeCustomerResponses, PostOrganizationsByIdStripeCustomerErrors, ThrowOnError>({
     responseTransformer: postOrganizationsByIdStripeCustomerResponseTransformer,
@@ -1641,7 +1641,7 @@ export const postOrganizationsByIdStripeCustomer = <ThrowOnError extends boolean
 });
 
 /**
- * Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins (session user or orchestrator/coworker with context headers), or platform admins with a user session, may access this route.
+ * Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins (session user or orchestrator with context headers), or platform admins with a user session, may access this route. Coworker actors are not allowed.
  */
 export const getOrganizationsByIdBillingDetails = <ThrowOnError extends boolean = false>(options: Options<GetOrganizationsByIdBillingDetailsData, ThrowOnError>): RequestResult<GetOrganizationsByIdBillingDetailsResponses, GetOrganizationsByIdBillingDetailsErrors, ThrowOnError> => (options.client ?? client).get<GetOrganizationsByIdBillingDetailsResponses, GetOrganizationsByIdBillingDetailsErrors, ThrowOnError>({
     responseTransformer: getOrganizationsByIdBillingDetailsResponseTransformer,
@@ -1978,7 +1978,7 @@ export const putJobsByIdWorkspace = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * List notifications for the effective user (session user, or orchestrator/coworker with context headers) with cursor pagination
+ * List in-app notification-center items for the effective user (session user, or orchestrator with context headers) with cursor pagination. CHAT kind is excluded (browser OS alerts + room attention only).
  */
 export const getNotifications = <ThrowOnError extends boolean = false>(options?: Options<GetNotificationsData, ThrowOnError>): RequestResult<GetNotificationsResponses, GetNotificationsErrors, ThrowOnError> => (options?.client ?? client).get<GetNotificationsResponses, GetNotificationsErrors, ThrowOnError>({
     responseTransformer: getNotificationsResponseTransformer,
@@ -1987,7 +1987,7 @@ export const getNotifications = <ThrowOnError extends boolean = false>(options?:
 });
 
 /**
- * Get the count of unread notifications for the effective user (session user, or orchestrator/coworker with context headers)
+ * Get the count of unread in-app notification-center items for the effective user (session user, or orchestrator with context headers). CHAT kind is excluded.
  */
 export const getNotificationsUnreadCount = <ThrowOnError extends boolean = false>(options?: Options<GetNotificationsUnreadCountData, ThrowOnError>): RequestResult<GetNotificationsUnreadCountResponses, GetNotificationsUnreadCountErrors, ThrowOnError> => (options?.client ?? client).get<GetNotificationsUnreadCountResponses, GetNotificationsUnreadCountErrors, ThrowOnError>({
     responseTransformer: getNotificationsUnreadCountResponseTransformer,
@@ -1996,7 +1996,7 @@ export const getNotificationsUnreadCount = <ThrowOnError extends boolean = false
 });
 
 /**
- * Mark a single notification as read for the effective user (session user, or orchestrator/coworker with context headers; owner only)
+ * Mark a single notification as read for the effective user (session user, or orchestrator with context headers; owner only). Includes CHAT: browser OS clicks and room attention still clear individual CHAT rows even though CHAT is excluded from the in-app center list, unread badge, and mark-all-read.
  */
 export const patchNotificationsByIdRead = <ThrowOnError extends boolean = false>(options: Options<PatchNotificationsByIdReadData, ThrowOnError>): RequestResult<PatchNotificationsByIdReadResponses, PatchNotificationsByIdReadErrors, ThrowOnError> => (options.client ?? client).patch<PatchNotificationsByIdReadResponses, PatchNotificationsByIdReadErrors, ThrowOnError>({
     responseTransformer: patchNotificationsByIdReadResponseTransformer,
@@ -2005,7 +2005,7 @@ export const patchNotificationsByIdRead = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Mark all notifications as read for the effective user (session user, or orchestrator/coworker with context headers)
+ * Mark all in-app notification-center items as read for the effective user (session user, or orchestrator with context headers). CHAT kind is excluded so room attention stays until the room is read.
  */
 export const patchNotificationsReadAll = <ThrowOnError extends boolean = false>(options?: Options<PatchNotificationsReadAllData, ThrowOnError>): RequestResult<PatchNotificationsReadAllResponses, PatchNotificationsReadAllErrors, ThrowOnError> => (options?.client ?? client).patch<PatchNotificationsReadAllResponses, PatchNotificationsReadAllErrors, ThrowOnError>({
     responseTransformer: patchNotificationsReadAllResponseTransformer,
@@ -2644,7 +2644,7 @@ export const postVendorsByIdFiles = <ThrowOnError extends boolean = false>(optio
 export const postWebhooksTasksFilesUploaded = <ThrowOnError extends boolean = false>(options?: Options<PostWebhooksTasksFilesUploadedData, ThrowOnError>): RequestResult<PostWebhooksTasksFilesUploadedResponses, PostWebhooksTasksFilesUploadedErrors, ThrowOnError> => (options?.client ?? client).post<PostWebhooksTasksFilesUploadedResponses, PostWebhooksTasksFilesUploadedErrors, ThrowOnError>({ url: '/webhooks/tasks/files/uploaded', ...options });
 
 /**
- * Store a DESIGN.md for one-off, ad hoc use (e.g. a task that wants a different company's branding than the caller's own). The content is uploaded to blob storage and a URL is returned, but nothing is attached to the caller's user or organization profile — the caller is free to use it however they like, and it never affects what GET /workspaces/design-md resolves. Any authenticated user may call this; it is not a privileged write.
+ * Store a DESIGN.md for one-off, ad hoc use (e.g. a task that wants a different company's branding than the caller's own). The content is uploaded to blob storage and a URL is returned, but nothing is attached to the caller's user or organization profile — the caller is free to use it however they like, and it never affects what GET /workspaces/design-md resolves. Session users and orchestrators with context headers may call this; coworkers need authorized user-context binding (GRANTED workspace grant or baseline task relationship). It is not a privileged write.
  */
 export const postWorkspacesDesignMdAdhoc = <ThrowOnError extends boolean = false>(options?: Options<PostWorkspacesDesignMdAdhocData, ThrowOnError>): RequestResult<PostWorkspacesDesignMdAdhocResponses, PostWorkspacesDesignMdAdhocErrors, ThrowOnError> => (options?.client ?? client).post<PostWorkspacesDesignMdAdhocResponses, PostWorkspacesDesignMdAdhocErrors, ThrowOnError>({
     responseTransformer: postWorkspacesDesignMdAdhocResponseTransformer,

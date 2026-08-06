@@ -4972,7 +4972,7 @@
         "public": "Público",
         "private": "Privado",
         "publicHelp": "Cualquiera en la organización puede encontrar y unirse a este canal.",
-        "privateHelp": "Solo los miembros invitados pueden ver este canal."
+        "privateHelp": "Solo los miembros invitados pueden ver este canal. Los propietarios y administradores de la organización aún pueden encontrarlo y unirse."
       },
       "CreateWizard": {
         "title": "Crear un canal",

@@ -1187,28 +1187,45 @@ export async function requireChatRoomUserAccess(
 }
 
 /**
- * Active public org channel the caller may self-join. Does not require
- * membership. Unknown, private, wrong-org, direct, or archived → 404.
+ * Whether a channel's discoverability allows self-join for this caller.
+ * Public: any org member. Private: organization owner/admin only.
  */
-export async function requireJoinablePublicOrgChannel(
+export function isJoinableChannelDiscoverability(
+  discoverability: string | null,
+  elevated: boolean,
+): boolean {
+  if (discoverability === "public") {
+    return true;
+  }
+  return elevated && discoverability === "private";
+}
+
+/**
+ * Active org channel the caller may self-join. Does not require membership.
+ * Public channels: any org member. Private channels: organization owner/admin
+ * only. Unknown, wrong-org, direct, archived, or private for a plain member →
+ * 404.
+ */
+export async function requireJoinableOrgChannel(
   roomId: string,
   userId: string,
   organizationId: string,
   tx: Prisma.TransactionClient,
-): Promise<ChatRoomWithMembers> {
-  await resolveMemberOrganizationById({
+): Promise<{ room: ChatRoomWithMembers; elevated: boolean }> {
+  const { role } = await resolveMemberOrganizationById({
     id: organizationId,
     userId,
     tx,
   });
+  const elevated = isOrganizationOwnerOrAdmin(role);
 
   const room = await tx.chatRoom.findFirst({
     where: {
       id: roomId,
       organizationId,
       kind: "channel",
-      discoverability: "public",
       archivedAt: null,
+      discoverability: elevated ? { in: ["public", "private"] } : "public",
     },
     include: chatRoomInclude,
   });
@@ -1217,7 +1234,7 @@ export async function requireJoinablePublicOrgChannel(
     throw notFound("Room not found");
   }
 
-  return room;
+  return { room, elevated };
 }
 
 /**

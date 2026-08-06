@@ -19,7 +19,10 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { discoverableChatRoomSchema } from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
-import { requireActiveOrganizationId } from "../helpers";
+import {
+  isOrganizationOwnerOrAdmin,
+  requireActiveOrganizationId,
+} from "../helpers";
 
 const querySchema = cursorPaginationQuerySchema.extend({
   q: z
@@ -41,7 +44,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/discoverable",
     description:
-      "List active public (`discoverability=public`) channels in the active organization that the caller is not already a member of. Requires an active organization. Optional `q` filters by name or slug.",
+      "List active channels in the active organization that the caller is not already a member of. Public channels are listed for every org member; private channels only for organization owners and admins. Requires an active organization. Optional `q` filters by name or slug.",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -49,7 +52,7 @@ const route = withGlobalHeaderParameters(
     responses: {
       200: jsonPaginatedSuccessResponse(
         z.array(discoverableChatRoomSchema),
-        "Discoverable public channels",
+        "Discoverable channels",
       ),
       400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
@@ -69,16 +72,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const takePlusOne = take + 1;
     const q = queryParams.q;
 
-    await resolveMemberOrganizationById({
+    const { role } = await resolveMemberOrganizationById({
       id: organizationId,
       userId: userContext.userId,
       tx: prisma,
     });
+    const elevated = isOrganizationOwnerOrAdmin(role);
 
     const where = {
       organizationId,
       kind: "channel" as const,
-      discoverability: "public",
+      discoverability: elevated ? { in: ["public", "private"] } : "public",
       archivedAt: null,
       userMembers: {
         none: { userId: userContext.userId },
@@ -135,7 +139,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: room.name,
           slug: room.slug,
           topic: room.topic,
-          discoverability: "public" as const,
+          discoverability:
+            room.discoverability === "private" ? "private" : "public",
           memberCount: room._count.userMembers,
           createdByUserId: room.createdByUserId,
           createdAt: room.createdAt,
