@@ -1202,6 +1202,17 @@ export function isJoinableChannelDiscoverability(
 }
 
 /**
+ * Prisma discoverability filter for browse/self-join listing.
+ * Plain members: public only. Owner/admin: public + private.
+ * Mutable `in` array (not `as const`) — Prisma rejects readonly tuples.
+ */
+export function buildDiscoverabilityFilter(
+  elevated: boolean,
+): "public" | { in: string[] } {
+  return elevated ? { in: ["public", "private"] } : "public";
+}
+
+/**
  * Active org channel the caller may self-join. Does not require membership.
  * Public channels: any org member. Private channels: organization owner/admin
  * only. Unknown, wrong-org, direct, archived, or private for a plain member →
@@ -1226,7 +1237,7 @@ export async function requireJoinableOrgChannel(
       organizationId,
       kind: "channel",
       archivedAt: null,
-      discoverability: elevated ? { in: ["public", "private"] } : "public",
+      discoverability: buildDiscoverabilityFilter(elevated),
     },
     include: chatRoomInclude,
   });

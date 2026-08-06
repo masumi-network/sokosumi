@@ -20,6 +20,7 @@ import { discoverableChatRoomSchema } from "@/schemas/chat-room.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
 import {
+  buildDiscoverabilityFilter,
   isOrganizationOwnerOrAdmin,
   requireActiveOrganizationId,
 } from "../helpers";
@@ -82,7 +83,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const where = {
       organizationId,
       kind: "channel" as const,
-      discoverability: elevated ? { in: ["public", "private"] } : "public",
+      discoverability: buildDiscoverabilityFilter(elevated),
       archivedAt: null,
       userMembers: {
         none: { userId: userContext.userId },

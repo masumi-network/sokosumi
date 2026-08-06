@@ -7,6 +7,7 @@ import {
   buildDirectParticipantRoomKey,
   buildDirectRoomKey,
   buildDirectRoomName,
+  buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
   contentIncludesRoomAllMention,
@@ -233,6 +234,18 @@ describe("isJoinableChannelDiscoverability", () => {
   it("rejects null or unknown discoverability", () => {
     expect(isJoinableChannelDiscoverability(null, true)).toBe(false);
     expect(isJoinableChannelDiscoverability("weird", true)).toBe(false);
+  });
+});
+
+describe("buildDiscoverabilityFilter", () => {
+  it("returns public-only for plain members", () => {
+    expect(buildDiscoverabilityFilter(false)).toBe("public");
+  });
+
+  it("returns public+private for elevated callers", () => {
+    expect(buildDiscoverabilityFilter(true)).toEqual({
+      in: ["public", "private"],
+    });
   });
 });
 
