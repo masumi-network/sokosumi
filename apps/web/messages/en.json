@@ -4956,10 +4956,10 @@
       "Browse": {
         "trigger": "Browse channels",
         "title": "Browse channels",
-        "description": "Find public organization channels you have not joined yet.",
+        "description": "Find organization channels you have not joined yet.",
         "searchPlaceholder": "Search channels",
         "loading": "Loading channels…",
-        "empty": "No public channels to join.",
+        "empty": "No channels to join.",
         "join": "Join",
         "joinAria": "Join {name}",
         "joinSuccess": "You joined {name}.",
@@ -4972,7 +4972,7 @@
         "public": "Public",
         "private": "Private",
         "publicHelp": "Anyone in the organization can find and join this channel.",
-        "privateHelp": "Only invited members can see this channel."
+        "privateHelp": "Only invited members can see this channel. Organization owners and admins can still find and join it."
       },
       "CreateWizard": {
         "title": "Create a channel",

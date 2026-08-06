@@ -142,7 +142,9 @@ export function ChatRoomSidebarRow({
 
     toast.success(tActions("leaveSuccess", { name: label }));
     setLeaveConfirmOpen(false);
-    notifyOrganizationChatRoomsChanged();
+    // Explicit remove — bare refetch + upsertFirstPageRooms keeps left rooms
+    // as stale "older" rows and they stick in the sidebar.
+    notifyOrganizationChatRoomsChanged({ removedRoomId: room.id });
     if (isActive) {
       // Land on chat home — `/chat/chats` is mobile-only (`md:hidden`).
       router.replace("/chat");

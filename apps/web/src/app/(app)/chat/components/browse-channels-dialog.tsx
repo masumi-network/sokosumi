@@ -1,6 +1,6 @@
 "use client";
 
-import { Hash, List, Loader2, Search } from "lucide-react";
+import { List, Loader2, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import {
   joinRoomAction,
   listDiscoverableChannelsAction,
 } from "@/app/chat/actions";
+import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
 import {
@@ -143,9 +144,9 @@ export function BrowseChannelsDialog({
                     key={room.id}
                     className="hover:bg-muted/50 flex items-start gap-3 rounded-md px-3 py-2.5"
                   >
-                    <Hash
+                    <ChannelDiscoverabilityIcon
+                      discoverability={room.discoverability}
                       className="text-muted-foreground mt-0.5 size-4 shrink-0"
-                      aria-hidden
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
