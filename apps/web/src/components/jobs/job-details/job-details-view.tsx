@@ -172,7 +172,7 @@ export default function JobDetailsView({
           </div>
         </div>
 
-        <aside className="border-border hidden w-56 shrink-0 border-l md:block md:min-h-[calc(100svh-64px)]">
+        <aside className="border-border hidden w-56 shrink-0 border-l md:block md:min-h-[calc(100svh-4rem)]">
           <div className="sticky top-20 pt-1 pr-2 pl-6">
             <JobMetaDetails job={job} projectName={projectName} />
           </div>

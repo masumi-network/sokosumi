@@ -61,6 +61,7 @@ export default async function ChatChatsPage() {
   return (
     <div className="md:hidden -m-4 min-h-0 flex-1 overflow-y-auto">
       <OrganizationChatList
+        key={activeOrganizationId ?? "personal"}
         rooms={chatRoomsPage.rooms}
         roomsNextCursor={chatRoomsPage.nextCursor}
         archivedRooms={archivedChatRoomsPage.rooms}
