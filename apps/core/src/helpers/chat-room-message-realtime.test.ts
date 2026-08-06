@@ -83,7 +83,7 @@ describe("publishChatRoomMessageRealtime", () => {
       { userId: "user_b" },
     ]);
 
-    await publishChatRoomMessageRealtime(baseMessage as never);
+    await publishChatRoomMessageRealtime(baseMessage as never, "create");
 
     expect(findManyMembersMock).toHaveBeenCalledWith({
       where: { roomId: baseMessage.roomId },
@@ -97,6 +97,7 @@ describe("publishChatRoomMessageRealtime", () => {
         roomId: baseMessage.roomId,
         forUser: "user_a",
       },
+      eventType: "create",
     });
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
       userId: "user_b",
@@ -105,6 +106,7 @@ describe("publishChatRoomMessageRealtime", () => {
         roomId: baseMessage.roomId,
         forUser: "user_b",
       },
+      eventType: "create",
     });
   });
 
@@ -113,7 +115,7 @@ describe("publishChatRoomMessageRealtime", () => {
     publishChatRoomMessageEventMock.mockRejectedValue(new Error("ably down"));
 
     await expect(
-      publishChatRoomMessageRealtime(baseMessage as never),
+      publishChatRoomMessageRealtime(baseMessage as never, "create"),
     ).resolves.toBeUndefined();
   });
 
@@ -131,7 +133,7 @@ describe("publishChatRoomMessageRealtime", () => {
     );
 
     await expect(
-      publishChatRoomMessageRealtime(baseMessage as never),
+      publishChatRoomMessageRealtime(baseMessage as never, "reaction"),
     ).resolves.toBeUndefined();
 
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledTimes(2);
@@ -142,6 +144,7 @@ describe("publishChatRoomMessageRealtime", () => {
         roomId: baseMessage.roomId,
         forUser: "user_b",
       },
+      eventType: "reaction",
     });
   });
 });
@@ -164,7 +167,7 @@ describe("publishChatRoomMessageRealtimeById", () => {
     findUniqueMessageMock.mockResolvedValue(baseMessage);
     findManyMembersMock.mockResolvedValue([{ userId: "user_a" }]);
 
-    await publishChatRoomMessageRealtimeById(baseMessage.id);
+    await publishChatRoomMessageRealtimeById(baseMessage.id, "unfurl");
 
     expect(findUniqueMessageMock).toHaveBeenCalledWith({
       where: { id: baseMessage.id },
@@ -177,13 +180,14 @@ describe("publishChatRoomMessageRealtimeById", () => {
         roomId: baseMessage.roomId,
         forUser: "user_a",
       },
+      eventType: "unfurl",
     });
   });
 
   it("no-ops when the message is missing", async () => {
     findUniqueMessageMock.mockResolvedValue(null);
 
-    await publishChatRoomMessageRealtimeById(baseMessage.id);
+    await publishChatRoomMessageRealtimeById(baseMessage.id, "create");
 
     expect(publishChatRoomMessageEventMock).not.toHaveBeenCalled();
   });

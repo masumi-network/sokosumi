@@ -85,7 +85,7 @@ export async function scheduleChatRoomMessageUnfurls(
       return { messageId, attempted: urls.length, persisted: 0 };
     }
 
-    await publishChatRoomMessageRealtimeById(messageId);
+    await publishChatRoomMessageRealtimeById(messageId, "unfurl");
 
     return {
       messageId,

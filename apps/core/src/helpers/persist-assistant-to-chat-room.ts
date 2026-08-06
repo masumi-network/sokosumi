@@ -133,7 +133,7 @@ export async function persistAssistantToChatRoom(params: {
       responseId,
     );
     if (existing) {
-      await publishChatRoomMessageRealtimeById(existing.id);
+      await publishChatRoomMessageRealtimeById(existing.id, "create");
       return { id: existing.id };
     }
   }
@@ -166,7 +166,7 @@ export async function persistAssistantToChatRoom(params: {
       });
       return message;
     });
-    await publishChatRoomMessageRealtimeById(created.id);
+    await publishChatRoomMessageRealtimeById(created.id, "create");
     return { id: created.id };
   } catch (error) {
     if (!responseId || !isPrismaUniqueViolation(error)) {
@@ -178,7 +178,7 @@ export async function persistAssistantToChatRoom(params: {
       responseId,
     );
     if (raced) {
-      await publishChatRoomMessageRealtimeById(raced.id);
+      await publishChatRoomMessageRealtimeById(raced.id, "create");
       return { id: raced.id };
     }
     throw error;
@@ -225,7 +225,7 @@ export async function persistUserMessageToChatRoom(params: {
   if (clientId) {
     const existing = await findUserByClientMessageId(roomId, clientId);
     if (existing) {
-      await publishChatRoomMessageRealtimeById(existing.id);
+      await publishChatRoomMessageRealtimeById(existing.id, "create");
       return { id: existing.id };
     }
   }
@@ -258,7 +258,7 @@ export async function persistUserMessageToChatRoom(params: {
       return message;
     });
 
-    await publishChatRoomMessageRealtimeById(created.id);
+    await publishChatRoomMessageRealtimeById(created.id, "create");
     return { id: created.id };
   } catch (error) {
     if (!clientId || !isPrismaUniqueViolation(error)) {
@@ -267,7 +267,7 @@ export async function persistUserMessageToChatRoom(params: {
     // Interactive tx aborted after failed create — re-read on root client.
     const raced = await findUserByClientMessageId(roomId, clientId);
     if (raced) {
-      await publishChatRoomMessageRealtimeById(raced.id);
+      await publishChatRoomMessageRealtimeById(raced.id, "create");
       return { id: raced.id };
     }
     throw error;

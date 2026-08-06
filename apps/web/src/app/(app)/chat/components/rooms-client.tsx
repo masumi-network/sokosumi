@@ -467,6 +467,7 @@ export function RoomsClient({
       const route = routeRealtimeChatRoomMessage(
         message,
         threadParentMessageIdRef.current,
+        event.eventType,
       );
       if (route.mergeIntoRoomTimeline) {
         setMessagesState((current) =>

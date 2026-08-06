@@ -29,7 +29,7 @@ describe("RoomsClient Ably island", () => {
     expect(source).toContain("filterTopLevelChatRoomMessages");
     expect(source).toContain("isReplyUnderThreadParent");
     expect(source).toMatch(
-      /const route = routeRealtimeChatRoomMessage\(\s*message,\s*threadParentMessageIdRef\.current,\s*\)/,
+      /const route = routeRealtimeChatRoomMessage\(\s*message,\s*threadParentMessageIdRef\.current,\s*event\.eventType,\s*\)/,
     );
     expect(source).toMatch(
       /if \(route\.mergeIntoRoomTimeline\) \{\s*setMessagesState/,

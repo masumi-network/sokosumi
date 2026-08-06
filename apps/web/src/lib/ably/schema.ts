@@ -43,7 +43,22 @@ const chatRoomMessageUnfurlEventSchema = z.object({
   siteName: z.string().nullable(),
 });
 
+/** Stable Ably intent; keep in sync with Core `ChatRoomMessageEventType`. */
+export const chatRoomMessageEventTypeSchema = z.enum([
+  "create",
+  "update",
+  "delete",
+  "reaction",
+  "unfurl",
+  "mention_status",
+]);
+
+export type ChatRoomMessageEventType = z.infer<
+  typeof chatRoomMessageEventTypeSchema
+>;
+
 export const chatRoomMessageEventDataSchema = z.object({
+  eventType: chatRoomMessageEventTypeSchema,
   message: z
     .object({
       id: z.string().min(1),

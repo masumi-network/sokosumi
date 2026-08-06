@@ -9,6 +9,7 @@ import {
 
 import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
 
+import type { ChatRoomMessageEventType } from "./chat-room-message-event-type";
 import { getRestClient } from "./client";
 
 interface JobStatusData {
@@ -92,13 +93,15 @@ export async function publishNotificationEvent({
 interface PublishChatRoomMessageEventInput {
   userId: string;
   message: ChatRoomMessage;
+  eventType: ChatRoomMessageEventType;
 }
 
 export async function publishChatRoomMessageEvent({
   userId,
   message,
+  eventType,
 }: PublishChatRoomMessageEventInput) {
   const client = getRestClient();
   const channel = client.channels.get(makeUserChatRoomsChannelName(userId));
-  await channel.publish("chat_room_message", { message });
+  await channel.publish("chat_room_message", { eventType, message });
 }
