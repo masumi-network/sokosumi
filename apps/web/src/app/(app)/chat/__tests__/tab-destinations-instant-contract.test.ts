@@ -49,18 +49,24 @@ describe("mobile tab destinations Instant Nav contract", () => {
     });
   }
 
-  it("chat/loading.tsx renders ChatHomePageSkeleton", () => {
-    const source = readApp("chat/loading.tsx");
-    expect(source).toMatch(/ChatHomePageSkeleton/);
+  it("chat/loading.tsx default export returns ChatHomePageSkeleton", () => {
+    const code = stripComments(readApp("chat/loading.tsx"));
+    expect(code).toMatch(
+      /export\s+default\s+function[\s\S]*?return\s+<\s*ChatHomePageSkeleton\s*\/>/,
+    );
   });
 
-  it("chat/chats/loading.tsx renders ChatChatsPageSkeleton", () => {
-    const source = readApp("chat/chats/loading.tsx");
-    expect(source).toMatch(/ChatChatsPageSkeleton/);
+  it("chat/chats/loading.tsx default export returns ChatChatsPageSkeleton", () => {
+    const code = stripComments(readApp("chat/chats/loading.tsx"));
+    expect(code).toMatch(
+      /export\s+default\s+function[\s\S]*?return\s+<\s*ChatChatsPageSkeleton\s*\/>/,
+    );
   });
 
-  it("history/loading.tsx renders HistoryPageSkeleton", () => {
-    const source = readApp("history/loading.tsx");
-    expect(source).toMatch(/HistoryPageSkeleton/);
+  it("history/loading.tsx default export returns HistoryPageSkeleton", () => {
+    const code = stripComments(readApp("history/loading.tsx"));
+    expect(code).toMatch(
+      /export\s+default\s+function[\s\S]*?return\s+<\s*HistoryPageSkeleton\s*\/>/,
+    );
   });
 });

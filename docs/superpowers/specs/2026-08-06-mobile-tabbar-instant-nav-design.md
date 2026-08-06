@@ -109,7 +109,7 @@ Skeleton:
 
 Colocate skeleton views next to features; keep `loading.tsx` thin:
 
-```
+```text
 apps/web/src/app/(app)/chat/loading.tsx
 apps/web/src/app/(app)/chat/components/chat-home-loading-view.tsx
 apps/web/src/app/(app)/chat/chats/loading.tsx
@@ -134,14 +134,14 @@ Exact file names may follow existing feature conventions during implementation; 
 
 ## Architecture flow
 
-```
+```text
 Tab Link (or any nav) → Instant Nav for destination route
   → existing Instant-safe (app) shell (sidebar/header/mobile chrome)
   → route loading.tsx (sync skeleton)     ← NEW
   → page.tsx streams after connection + data
 ```
 
-```
+```text
 Tab destinations
 ├── /chat          instant default ON + chat/loading.tsx
 ├── /chat/chats    instant default ON + chat/chats/loading.tsx
