@@ -70,6 +70,13 @@ export function useChatRoomRealtime({
       );
     };
 
+    function detachAll() {
+      for (const channel of channels) {
+        channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+      }
+      channels.length = 0;
+    }
+
     async function attachRooms() {
       // Refresh capabilities after join/leave (roomIds change).
       try {
@@ -91,9 +98,18 @@ export function useChatRoomRealtime({
       }
 
       for (const roomId of ids) {
+        if (cancelled) {
+          detachAll();
+          return;
+        }
         const channel = ably.channels.get(makeChatRoomChannelName(roomId));
         channel.subscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
         channels.push(channel);
+      }
+
+      // Cleanup ran while the loop was finishing — drop any late attaches.
+      if (cancelled) {
+        detachAll();
       }
     }
 
@@ -101,9 +117,7 @@ export function useChatRoomRealtime({
 
     return () => {
       cancelled = true;
-      for (const channel of channels) {
-        channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
-      }
+      detachAll();
     };
   }, [ably, currentUserId, roomIdsKey]);
 }
