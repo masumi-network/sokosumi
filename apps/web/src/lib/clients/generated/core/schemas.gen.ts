@@ -4238,7 +4238,17 @@ export const ChatRoomSchema = {
             example: 'Weekly launch planning'
         },
         discoverability: {
-            $ref: '#/components/schemas/ChatRoomDiscoverability'
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'public',
+                'private',
+                null
+            ],
+            description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member) or `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join). Null for direct rooms.',
+            example: 'public'
         },
         createdByUserId: {
             type: 'string',
@@ -4322,20 +4332,6 @@ export const ChatRoomSchema = {
         'userMembers',
         'coworkerMembers'
     ]
-} as const;
-
-export const ChatRoomDiscoverabilitySchema = {
-    type: [
-        'string',
-        'null'
-    ],
-    enum: [
-        'public',
-        'private',
-        null
-    ],
-    description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member) or `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join). Null for direct rooms.',
-    example: 'public'
 } as const;
 
 export const ChatRoomUserParticipantSchema = {
@@ -4613,14 +4609,7 @@ export const DiscoverableChatRoomSchema = {
             example: 'Weekly launch planning'
         },
         discoverability: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/ChatRoomDiscoverability'
-                },
-                {
-                    description: '`"public"` for every org member; `"private"` only appears for organization owners and admins.'
-                }
-            ]
+            $ref: '#/components/schemas/DiscoverableChannelDiscoverability'
         },
         memberCount: {
             type: 'integer',
@@ -4653,6 +4642,16 @@ export const DiscoverableChatRoomSchema = {
         'createdAt',
         'updatedAt'
     ]
+} as const;
+
+export const DiscoverableChannelDiscoverabilitySchema = {
+    type: 'string',
+    enum: [
+        'public',
+        'private'
+    ],
+    description: '`"public"` for every org member; `"private"` only appears for organization owners and admins.',
+    example: 'public'
 } as const;
 
 export const GetChatUiMessagesResponseDataSchema = {
@@ -4827,15 +4826,7 @@ export const UpdateChatRoomRequestSchema = {
             example: 'Launch planning with design and AI research partners'
         },
         discoverability: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/ChatRoomDiscoverability'
-                },
-                {
-                    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it).',
-                    example: 'private'
-                }
-            ]
+            $ref: '#/components/schemas/ChatRoomDiscoverability'
         },
         memberUserIds: {
             type: 'array',
@@ -4861,6 +4852,16 @@ export const UpdateChatRoomRequestSchema = {
             ]
         }
     }
+} as const;
+
+export const ChatRoomDiscoverabilitySchema = {
+    type: 'string',
+    enum: [
+        'public',
+        'private'
+    ],
+    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it).',
+    example: 'private'
 } as const;
 
 export const ArchivedChatRoomSchema = {

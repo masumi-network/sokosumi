@@ -14,9 +14,30 @@ export const chatRoomPresenceSchema = z
   .enum(["online", "afk", "offline"])
   .openapi("ChatRoomPresence");
 
+/**
+ * Non-null channel discoverability. Never chain `.nullable()` onto this named
+ * schema — that poisons the OpenAPI component with `null` and loosens every
+ * consumer type (including discoverable list rows).
+ */
 export const chatRoomDiscoverabilitySchema = z
   .enum(["public", "private"])
-  .openapi("ChatRoomDiscoverability");
+  .openapi("ChatRoomDiscoverability", {
+    description:
+      'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member) or `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join).',
+    example: "public",
+  });
+
+/**
+ * Discoverable-list row discoverability. Always non-null (`public` | `private`);
+ * private rows only appear for organization owners/admins.
+ */
+export const discoverableChannelDiscoverabilitySchema = z
+  .enum(["public", "private"])
+  .openapi("DiscoverableChannelDiscoverability", {
+    description:
+      '`"public"` for every org member; `"private"` only appears for organization owners and admins.',
+    example: "public",
+  });
 
 export const chatRoomUserParticipantSchema = z
   .object({
@@ -64,7 +85,9 @@ export const chatRoomSchema = z
       example: "user_123:user_456",
     }),
     topic: z.string().nullable().openapi({ example: "Weekly launch planning" }),
-    discoverability: chatRoomDiscoverabilitySchema.nullable().openapi({
+    // Inline nullable enum — do not use chatRoomDiscoverabilitySchema.nullable()
+    // or the shared ChatRoomDiscoverability component gains null.
+    discoverability: z.enum(["public", "private"]).nullable().openapi({
       description:
         'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member) or `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join). Null for direct rooms.',
       example: "public",
@@ -203,11 +226,7 @@ export const discoverableChatRoomSchema = z
     name: z.string().openapi({ example: "Launch Room" }),
     slug: z.string().openapi({ example: "launch-room" }),
     topic: z.string().nullable().openapi({ example: "Weekly launch planning" }),
-    discoverability: chatRoomDiscoverabilitySchema.openapi({
-      description:
-        '`"public"` for every org member; `"private"` only appears for organization owners and admins.',
-      example: "public",
-    }),
+    discoverability: discoverableChannelDiscoverabilitySchema,
     memberCount: z.number().int().min(0).openapi({ example: 12 }),
     createdByUserId: z.string().openapi({ example: "user_123" }),
     createdAt: dateTimeSchema,
