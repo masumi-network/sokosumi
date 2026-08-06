@@ -246,7 +246,7 @@ describe("POST /chats/rooms/{id}/members/me", () => {
     expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 for a private channel", async () => {
+  it("returns 404 for a private channel when the caller is a plain member", async () => {
     roomFindFirstMock.mockResolvedValue(null);
 
     const response = await join();
@@ -255,7 +255,7 @@ describe("POST /chats/rooms/{id}/members/me", () => {
     expect(userMemberCreateMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the locked row is no longer public", async () => {
+  it("returns 404 when the locked row is no longer joinable for a plain member", async () => {
     queryRawMock.mockResolvedValue([
       {
         id: ROOM_ID,
@@ -271,6 +271,42 @@ describe("POST /chats/rooms/{id}/members/me", () => {
     expect(response.status).toBe(404);
     expect(userMemberCreateMock).not.toHaveBeenCalled();
   });
+
+  it.each(["owner", "admin"] as const)(
+    "allows an organization %s to join a private channel",
+    async (role) => {
+      memberFindUniqueMock.mockResolvedValue({ role });
+      const privateChannel = publicChannel({ discoverability: "private" });
+      roomFindFirstMock.mockResolvedValue(privateChannel);
+      roomFindFirstOrThrowMock.mockResolvedValue({
+        ...privateChannel,
+        userMembers: [member(OTHER_ID), member(SELF_ID)],
+      });
+      queryRawMock.mockResolvedValue([
+        {
+          id: ROOM_ID,
+          kind: "channel",
+          discoverability: "private",
+          archivedAt: null,
+          organizationId: ORG_ID,
+        },
+      ]);
+
+      const response = await join();
+
+      expect(response.status).toBe(200);
+      expect(userMemberCreateMock).toHaveBeenCalledWith({
+        data: { roomId: ROOM_ID, userId: SELF_ID },
+      });
+      expect(roomFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            discoverability: { in: ["public", "private"] },
+          }),
+        }),
+      );
+    },
+  );
 
   it("rejects when there is no active organization", async () => {
     const response = await createApp({

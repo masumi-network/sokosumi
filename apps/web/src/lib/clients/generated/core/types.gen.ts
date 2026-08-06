@@ -1161,7 +1161,10 @@ export type ChatRoom = {
      */
     directKey: string | null;
     topic: string | null;
-    discoverability: ChatRoomDiscoverability;
+    /**
+     * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member) or `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join). Null for direct rooms.
+     */
+    discoverability: 'public' | 'private' | null;
     createdByUserId: string;
     createdAt: Date;
     updatedAt: Date;
@@ -1188,20 +1191,6 @@ export type ChatRoom = {
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
 };
-
-/**
- * Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
- */
-export const ChatRoomDiscoverability = {
-    PUBLIC: 'public',
-    PRIVATE: 'private',
-    NULL: null
-} as const;
-
-/**
- * Channel discoverability: `"public"` (org-discoverable and self-joinable) or `"private"` (roster-only). Null for direct rooms.
- */
-export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
 
 export type ChatRoomUserParticipant = {
     id: string;
@@ -1259,13 +1248,13 @@ export type ChatRoomSuccessResponse = {
 
 export type CreateChatRoomRequest = {
     /**
-     * Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only.
+     * Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them.
      */
     kind: 'channel';
     name: string;
     topic?: string;
     /**
-     * Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only.
+     * Channel discoverability. Defaults to `"public"` (org-discoverable / joinable by any member). `"private"` keeps the channel roster-only for plain members; organization owners and admins can still browse and self-join.
      */
     discoverability?: 'public' | 'private';
     /**
@@ -1296,12 +1285,22 @@ export type DiscoverableChatRoom = {
     name: string;
     slug: string;
     topic: string | null;
-    discoverability: 'public';
+    discoverability: DiscoverableChannelDiscoverability;
     memberCount: number;
     createdByUserId: string;
     createdAt: Date;
     updatedAt: Date;
 };
+
+/**
+ * `"public"` for every org member; `"private"` only appears for organization owners and admins.
+ */
+export const DiscoverableChannelDiscoverability = { PUBLIC: 'public', PRIVATE: 'private' } as const;
+
+/**
+ * `"public"` for every org member; `"private"` only appears for organization owners and admins.
+ */
+export type DiscoverableChannelDiscoverability = typeof DiscoverableChannelDiscoverability[keyof typeof DiscoverableChannelDiscoverability];
 
 export type GetChatUiMessagesResponseData = {
     messages: Array<ChatUiMessage>;
@@ -1338,10 +1337,20 @@ export type ChatUiMessage = {
 export type UpdateChatRoomRequest = {
     name?: string;
     topic?: string | null;
-    discoverability?: ChatRoomDiscoverability & unknown;
+    discoverability?: ChatRoomDiscoverability;
     memberUserIds?: Array<string>;
     coworkerIds?: Array<string>;
 };
+
+/**
+ * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it).
+ */
+export const ChatRoomDiscoverability = { PUBLIC: 'public', PRIVATE: 'private' } as const;
+
+/**
+ * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it).
+ */
+export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
 
 export type ArchivedChatRoom = {
     id: string;
@@ -9166,7 +9175,7 @@ export type GetChatsRoomsDiscoverableError = GetChatsRoomsDiscoverableErrors[key
 
 export type GetChatsRoomsDiscoverableResponses = {
     /**
-     * Discoverable public channels
+     * Discoverable channels
      */
     200: {
         data: Array<DiscoverableChatRoom>;
@@ -28785,6 +28794,20 @@ export type PostRealtimeAblyTokenErrors = {
      * Unauthorized
      */
     401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
         error: string;
         message: string;
         kind?: string;
