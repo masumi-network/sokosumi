@@ -123,7 +123,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         return message;
       });
 
-      await publishChatRoomMessageRealtime(message);
+      await publishChatRoomMessageRealtime(message, "create");
 
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
 
@@ -329,7 +329,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           "clientMessageId already used by another sender in this room",
         );
       }
-      await publishChatRoomMessageRealtime(raced);
+      await publishChatRoomMessageRealtime(raced, "create");
 
       return created(
         c,
@@ -390,7 +390,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));
     }
 
-    await publishChatRoomMessageRealtime(message);
+    await publishChatRoomMessageRealtime(message, "create");
 
     return created(
       c,

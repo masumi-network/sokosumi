@@ -128,7 +128,7 @@ describe("scheduleChatRoomMessageUnfurls", () => {
       },
     });
     expect(deleteMetadataKeysMock).not.toHaveBeenCalled();
-    expect(publishByIdMock).toHaveBeenCalledWith(MESSAGE_ID);
+    expect(publishByIdMock).toHaveBeenCalledWith(MESSAGE_ID, "unfurl");
   });
 
   it("skips persist when content changed during scrape (stale)", async () => {
@@ -202,7 +202,7 @@ describe("scheduleChatRoomMessageUnfurls", () => {
       contentMustEqual: "no urls left",
     });
     expect(mergeMetadataKeysMock).not.toHaveBeenCalled();
-    expect(publishByIdMock).toHaveBeenCalledWith(MESSAGE_ID);
+    expect(publishByIdMock).toHaveBeenCalledWith(MESSAGE_ID, "unfurl");
   });
 
   it("does not publish when atomic update matches zero rows", async () => {

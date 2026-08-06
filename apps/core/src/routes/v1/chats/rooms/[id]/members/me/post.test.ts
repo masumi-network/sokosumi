@@ -225,6 +225,7 @@ describe("POST /chats/rooms/{id}/members/me", () => {
     );
     expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
       MEMBERSHIP_MESSAGE,
+      "create",
     );
   });
 
