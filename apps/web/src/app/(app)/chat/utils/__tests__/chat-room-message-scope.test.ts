@@ -1,6 +1,5 @@
+import type { ChatRoomMessageEventType } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
-import type { ChatRoomMessageEventType } from "@/lib/ably/schema";
 
 import {
   filterTopLevelChatRoomMessages,

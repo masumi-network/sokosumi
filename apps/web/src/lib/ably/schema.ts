@@ -1,3 +1,4 @@
+import { CHAT_ROOM_MESSAGE_EVENT_TYPES } from "@sokosumi/utils";
 import * as z from "zod";
 import {
   NotificationKind,
@@ -42,23 +43,6 @@ const chatRoomMessageUnfurlEventSchema = z.object({
   imageUrl: z.string().nullable(),
   siteName: z.string().nullable(),
 });
-
-/**
- * Stable Ably intent for `chat_room_message`.
- * Keep values in sync with Core `CHAT_ROOM_MESSAGE_EVENT_TYPES`
- * (`apps/core/src/lib/ably/chat-room-message-event-type.ts`).
- */
-export const CHAT_ROOM_MESSAGE_EVENT_TYPES = [
-  "create",
-  "update",
-  "delete",
-  "reaction",
-  "unfurl",
-  "mention_status",
-] as const;
-
-export type ChatRoomMessageEventType =
-  (typeof CHAT_ROOM_MESSAGE_EVENT_TYPES)[number];
 
 export const chatRoomMessageEventTypeSchema = z.enum(
   CHAT_ROOM_MESSAGE_EVENT_TYPES,

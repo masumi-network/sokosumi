@@ -1,5 +1,6 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
+  type ChatRoomMessageEventType,
   makeAgentJobsChannelName,
   makeUserChatRoomsChannelName,
   makeUserNotificationsChannelName,
@@ -9,7 +10,6 @@ import {
 
 import type { ChatRoomMessage } from "@/schemas/chat-room.schema";
 
-import type { ChatRoomMessageEventType } from "./chat-room-message-event-type";
 import { getRestClient } from "./client";
 
 interface JobStatusData {

@@ -28,7 +28,7 @@
  * not via `mergeIntoOpenThread`.
  */
 
-import type { ChatRoomMessageEventType } from "@/lib/ably/schema";
+import type { ChatRoomMessageEventType } from "@sokosumi/utils";
 
 export function isTopLevelChatRoomMessage(message: {
   parentMessageId?: string | null;

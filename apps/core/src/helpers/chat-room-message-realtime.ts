@@ -1,7 +1,8 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 
-import type { ChatRoomMessageEventType } from "@/lib/ably/chat-room-message-event-type";
+import type { ChatRoomMessageEventType } from "@sokosumi/utils";
+
 import { publishChatRoomMessageEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
