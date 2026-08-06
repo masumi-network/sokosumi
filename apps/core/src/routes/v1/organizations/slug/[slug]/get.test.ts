@@ -48,17 +48,16 @@ vi.mock("@/middleware/auth", () => ({
         message: "User authentication required",
       });
     }
-
-    if (authContext.actor === "user") {
-      return {
-        source: "session" as const,
-        ...authContext,
-      };
+    if (authContext.actor === "coworker") {
+      throw new HTTPException(403, {
+        message: "Coworker authentication cannot perform this owner action",
+      });
     }
-
+    if (authContext.actor === "user") {
+      return { source: "session" as const, ...authContext };
+    }
     if (
-      (authContext.actor === "coworker" ||
-        authContext.actor === "orchestrator") &&
+      authContext.actor === "orchestrator" &&
       "context" in authContext &&
       authContext.context
     ) {
@@ -68,7 +67,6 @@ vi.mock("@/middleware/auth", () => ({
         organizationId: authContext.context.organizationId,
       };
     }
-
     throw new HTTPException(403, {
       message:
         "Context headers (X-Context-User-Id) are required for this resource",
