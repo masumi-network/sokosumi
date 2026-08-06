@@ -161,10 +161,68 @@ describe("FileChip", () => {
     );
     expect(video).toHaveAttribute("controls");
     expect(video).not.toHaveAttribute("autoplay");
+    // Absolutely positioned so Chromium controls min-content cannot widen
+    // Radix ScrollArea's display:table wrapper (~476px floor in device mode).
+    expect(video).toHaveClass("absolute", "inset-0", "size-full", "object-contain");
+    expect(screen.getByTestId("file-chip-video")).toHaveClass(
+      "min-w-0",
+      "w-full",
+      "max-w-full",
+      "overflow-hidden",
+    );
+    expect(screen.getByTestId("file-chip-video-frame")).toHaveClass(
+      "relative",
+      "min-w-0",
+      "w-full",
+      "max-w-full",
+      "max-h-80",
+      "overflow-hidden",
+    );
     // download secondary still available (exact name avoids nested media fallback)
     expect(screen.getByRole("link", { name: /^download$/i })).toHaveAttribute(
       "href",
       "https://blob.example.com/uploads/clip.mp4?download=1",
+    );
+  });
+
+  it("resets the video frame aspect ratio when the src changes", () => {
+    const { rerender, container } = render(
+      <FileChip
+        url="https://blob.example.com/uploads/portrait.mp4"
+        fileName="portrait.mp4"
+      />,
+    );
+
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+    Object.defineProperty(video, "videoWidth", {
+      configurable: true,
+      value: 1080,
+    });
+    Object.defineProperty(video, "videoHeight", {
+      configurable: true,
+      value: 1920,
+    });
+    fireEvent.loadedMetadata(video!);
+
+    expect(screen.getByTestId("file-chip-video-frame")).toHaveStyle({
+      aspectRatio: "0.5625",
+    });
+
+    rerender(
+      <FileChip
+        url="https://blob.example.com/uploads/landscape.mp4"
+        fileName="landscape.mp4"
+      />,
+    );
+
+    // key={mediaSrc} remounts the frame so stale portrait ratio cannot stick.
+    expect(screen.getByTestId("file-chip-video-frame")).toHaveStyle({
+      aspectRatio: String(16 / 9),
+    });
+    expect(container.querySelector("video")).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/landscape.mp4",
     );
   });
 
