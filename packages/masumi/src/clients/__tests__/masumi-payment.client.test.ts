@@ -557,7 +557,10 @@ describe("createPurchase duplicate handling", () => {
     });
   });
 
-  it("rejects an embedded purchase whose identifier does not match", async () => {
+  // The 409 body may embed a purchase object. The client deliberately never
+  // trusts it — it always reconciles through the resolve endpoint — so these
+  // two cases pin that the embedded object is ignored, whatever it contains.
+  it("ignores a mismatched embedded purchase and still reconciles via resolve", async () => {
     postPurchaseMock.mockResolvedValue({
       data: undefined,
       error: {
@@ -588,9 +591,11 @@ describe("createPurchase duplicate handling", () => {
     );
 
     expect(result.isErr()).toBe(true);
+    // The embedded object is never trusted as the purchase.
+    expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalled();
   });
 
-  it("rejects a malformed embedded purchase object", async () => {
+  it("ignores a malformed embedded purchase and still reconciles via resolve", async () => {
     postPurchaseMock.mockResolvedValue({
       data: undefined,
       error: {
@@ -617,6 +622,8 @@ describe("createPurchase duplicate handling", () => {
     );
 
     expect(result.isErr()).toBe(true);
+    // The embedded object is never trusted as the purchase.
+    expect(postPurchaseResolveBlockchainIdentifierMock).toHaveBeenCalled();
   });
 
   it("falls back to resolving a 409 response without a purchase object", async () => {

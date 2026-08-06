@@ -423,7 +423,7 @@ export async function createAgentJobForUser(
   const creditCosts = await getCreditCostsOrThrow();
   const cardanoV2ReadySources = await getCardanoV2ReadySources();
 
-  const agentRecord = await prisma.agent.findFirst({
+  const agent = await prisma.agent.findFirst({
     where: {
       id: agentInput.agentId,
       ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
@@ -445,23 +445,23 @@ export async function createAgentJobForUser(
     },
   });
 
-  if (!agentRecord) {
+  if (!agent) {
     throw notFound("Agent not found");
   }
 
-  let cost = getAgentCost(agentRecord, creditCosts);
+  let cost = getAgentCost(agent, creditCosts);
   const isV2Agent =
-    agentRecord.paymentType === PaymentType.WEB3_CARDANO_V2 ||
-    isV2RegistryIdentifier(agentRecord.blockchainIdentifier);
+    agent.paymentType === PaymentType.WEB3_CARDANO_V2 ||
+    isV2RegistryIdentifier(agent.blockchainIdentifier);
 
   if (!isV2Agent && maxCents !== null && cost.cents > maxCents) {
     throw badRequest("Credit cost exceeds maximum accepted credits");
   }
   let preparedV2Sources = new Map<number, PreparedV2Source>();
-  if (isV2Agent && agentRecord.pricing.pricingType === PricingType.FIXED) {
+  if (isV2Agent && agent.pricing.pricingType === PricingType.FIXED) {
     preparedV2Sources = prepareEligibleV2Sources(
-      agentRecord.blockchainIdentifier,
-      agentRecord.paymentSources,
+      agent.blockchainIdentifier,
+      agent.paymentSources,
       creditCosts,
       cardanoV2ReadySources,
       maxCents ?? cost.cents,
@@ -476,8 +476,6 @@ export async function createAgentJobForUser(
       );
     }
   }
-
-  const agent = agentRecord;
 
   if (agentInput.projectId !== null && agentInput.projectId !== undefined) {
     const project = await prisma.project.findFirst({

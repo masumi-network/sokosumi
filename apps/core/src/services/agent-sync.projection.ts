@@ -84,9 +84,7 @@ function isValidRegistryDate(value: unknown): boolean {
   );
 }
 
-export function isValidEmail(
-  email: string | null | undefined,
-): email is string {
+function isValidEmail(email: string | null | undefined): email is string {
   if (!email) {
     return false;
   }
@@ -94,9 +92,7 @@ export function isValidEmail(
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-export function emptyStringToNull(
-  value: string | null | undefined,
-): string | null {
+function emptyStringToNull(value: string | null | undefined): string | null {
   if (!value || value === "") {
     return null;
   }
@@ -104,7 +100,7 @@ export function emptyStringToNull(
   return value;
 }
 
-export function convertStatus(
+function convertStatus(
   status: "Online" | "Offline" | "Deregistered" | "Invalid" | unknown,
 ): AgentStatus {
   switch (status) {
@@ -121,7 +117,7 @@ export function convertStatus(
   }
 }
 
-export function convertPaymentType(
+function convertPaymentType(
   paymentType: "Web3CardanoV1" | "Web3CardanoV2" | "None" | unknown,
 ) {
   switch (paymentType) {
@@ -250,7 +246,7 @@ export interface ParsedAgentPricing {
   fixedPricingAmounts?: { amount: bigint; unit: string }[];
 }
 
-export function parseEntryAgentPricing(
+function parseEntryAgentPricing(
   pricing: unknown,
   agentIdentifier: string,
 ): ParsedAgentPricing {

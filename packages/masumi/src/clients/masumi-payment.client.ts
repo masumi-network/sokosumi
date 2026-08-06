@@ -100,8 +100,6 @@ export interface PurchaseFailure {
   status?: number;
 }
 
-export type TaskPurchaseFailure = PurchaseFailure;
-
 /**
  * A 4xx other than the two retryable ones is the node rejecting this payload
  * as such; anything else (5xx, timeout, transport) leaves the outcome unknown.
@@ -476,7 +474,7 @@ export function createPaymentClient(
     async createPurchaseFromMasumiTaskPayment(
       input: MasumiTaskPurchaseInput,
       options: PaymentClientRequestOptions = {},
-    ): Promise<Result<CreatedPurchase, TaskPurchaseFailure>> {
+    ): Promise<Result<CreatedPurchase, PurchaseFailure>> {
       const logLabel = "[masumi-payment] createPurchaseFromMasumiTaskPayment";
       console.info(`${logLabel} request`, {
         network,

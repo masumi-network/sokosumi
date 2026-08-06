@@ -79,7 +79,6 @@ model User {
   vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
   vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
 
-
   // Credit Buckets
   creditBuckets CreditBucket[]
 

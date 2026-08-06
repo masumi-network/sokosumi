@@ -256,10 +256,10 @@ async function settleTaskEventCharge({
           "V2 masumi payments must include PaymentSource with the seller's policyId and smartContractAddress",
         );
       }
-      // Use the SAME matcher as the job flow. A local copy previously compared
-      // a lowercased payload address against the stored address verbatim —
-      // only the policy id is normalized on the way into the cache — so a
-      // mixed-case address from the node rejected a genuinely ready source.
+      // Same matcher as the job flow: only the policy id is normalized on the
+      // way into the readiness cache, so the address must be compared
+      // case-insensitively or a mixed-case address from the node would reject
+      // a genuinely purchase-ready source.
       const isSourceReady = isCardanoV2SourceReady(
         masumiPayment.agentIdentifier,
         paymentSource.smartContractAddress,
