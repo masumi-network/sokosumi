@@ -25,6 +25,7 @@ interface UseChatRoomRealtimeOptions {
 /**
  * Subscribe to room-scoped chat_room_message channels (SOK-741).
  * Re-authorizes Ably when the membership set changes so token caps stay fresh.
+ * Authorize failure aborts attach — never subscribe on stale caps.
  */
 export function useChatRoomRealtime({
   roomIds,
@@ -73,6 +74,8 @@ export function useChatRoomRealtime({
     function detachAll() {
       for (const channel of channels) {
         channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+        // Release ATTACHED state so left rooms do not stay live on the client.
+        void channel.detach();
       }
       channels.length = 0;
     }
@@ -91,6 +94,8 @@ export function useChatRoomRealtime({
             : new Error("Failed to re-authorize Ably for chat rooms");
         console.error(err, error);
         onErrorRef.current?.(err);
+        // Do not subscribe with stale token caps.
+        return;
       }
 
       if (cancelled) {
