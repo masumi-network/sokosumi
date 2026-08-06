@@ -212,7 +212,7 @@ export function FileChip(props: FileChipProps) {
             controls
             playsInline
             preload="metadata"
-            className="h-auto w-full rounded-lg"
+            className="max-h-80 w-full max-w-full rounded-lg object-contain"
             aria-label={fileName}
           />
         ) : (

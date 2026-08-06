@@ -205,7 +205,15 @@ describe("FileChipMiniPreviewFrame", () => {
     );
     expect(video).toHaveAttribute("controls");
     expect(video).not.toHaveAttribute("autoplay");
-    expect(screen.getByTestId("file-chip-video")).toBeInTheDocument();
+    expect(video).toHaveClass("max-h-80");
+    expect(video).toHaveClass("w-full");
+    expect(video).toHaveClass("max-w-full");
+    expect(video).toHaveClass("object-contain");
+    expect(video).toHaveClass("rounded-lg");
+    expect(screen.getByTestId("file-chip-video")).toHaveClass(
+      "w-full",
+      "max-w-full",
+    );
   });
 
   it("renders an inline audio player for audio attachments on the sent-message frame", () => {
