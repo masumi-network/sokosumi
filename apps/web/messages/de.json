@@ -4956,10 +4956,10 @@
       "Browse": {
         "trigger": "Kanäle durchsuchen",
         "title": "Kanäle durchsuchen",
-        "description": "Finde öffentliche Organisationskanäle, denen du noch nicht beigetreten bist.",
+        "description": "Finde Organisationskanäle, denen du noch nicht beigetreten bist.",
         "searchPlaceholder": "Kanäle suchen",
         "loading": "Kanäle werden geladen…",
-        "empty": "Keine öffentlichen Kanäle zum Beitreten.",
+        "empty": "Keine Kanäle zum Beitreten.",
         "join": "Beitreten",
         "joinAria": "{name} beitreten",
         "joinSuccess": "Du bist {name} beigetreten.",

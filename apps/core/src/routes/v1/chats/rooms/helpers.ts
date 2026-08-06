@@ -1095,8 +1095,9 @@ export async function buildUniqueRoomSlug(
 }
 
 /**
- * Organization owner/admin elevation for channel lifecycle and settings.
- * Room creator is provenance only — never authorizes.
+ * Organization owner/admin elevation for channel lifecycle, settings, and
+ * private-channel discover/self-join. Room creator is provenance only — never
+ * authorizes.
  */
 export function isOrganizationOwnerOrAdmin(role: string): boolean {
   return role === MemberRole.OWNER || role === MemberRole.ADMIN;

@@ -4956,10 +4956,10 @@
       "Browse": {
         "trigger": "Explorar canales",
         "title": "Explorar canales",
-        "description": "Encuentra canales públicos de la organización a los que aún no te has unido.",
+        "description": "Encuentra canales de la organización a los que aún no te has unido.",
         "searchPlaceholder": "Buscar canales",
         "loading": "Cargando canales…",
-        "empty": "No hay canales públicos a los que unirse.",
+        "empty": "No hay canales a los que unirse.",
         "join": "Unirse",
         "joinAria": "Unirse a {name}",
         "joinSuccess": "Te uniste a {name}.",
