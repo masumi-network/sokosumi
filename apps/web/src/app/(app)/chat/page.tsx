@@ -36,7 +36,8 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   await connection();
 
   // Ordinary landing only needs session + coworkers. Draft create/DM paths
-  // load org context and channel copy below so soft-nav to /chat stays light.
+  // load org context and channel copy below so the Instant-streamed landing
+  // stays light (heavy work only when draft query modes are active).
   const [query, session] = await Promise.all([searchParams, getSession()]);
 
   const isCreateChannelRequested = firstSearchValue(query.create) === "channel";

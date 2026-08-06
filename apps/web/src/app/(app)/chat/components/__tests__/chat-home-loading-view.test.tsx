@@ -7,8 +7,10 @@ describe("ChatHomePageSkeleton", () => {
   it("renders mobile hub and desktop welcome skeleton regions", () => {
     render(<ChatHomePageSkeleton />);
 
-    expect(screen.getByTestId("chat-home-loading-mobile")).toBeTruthy();
-    expect(screen.getByTestId("chat-home-loading-desktop")).toBeTruthy();
+    const mobile = screen.getByTestId("chat-home-loading-mobile");
+    const desktop = screen.getByTestId("chat-home-loading-desktop");
+    expect(mobile.className).toMatch(/md:hidden/);
+    expect(desktop.className).toMatch(/md:flex/);
   });
 
   it("uses pulse skeleton bones (no async APIs)", () => {
