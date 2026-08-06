@@ -30,10 +30,7 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
 }));
 
-import {
-  CHAT_ROOM_CAP_REAUTH_INTERVAL_MS,
-  useChatRoomRealtime,
-} from "../use-chat-room-realtime";
+import { useChatRoomRealtime } from "../use-chat-room-realtime";
 
 function channelFor(name: string) {
   let channel = channelsByName.get(name);
@@ -326,7 +323,7 @@ describe("useChatRoomRealtime", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("re-authorizes on the thin backstop interval while mounted", async () => {
+  it("does not re-authorize on a timer while mounted (control + focus/visibility only)", async () => {
     vi.useFakeTimers();
     authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
 
@@ -342,15 +339,16 @@ describe("useChatRoomRealtime", () => {
     });
     expect(authorizeMock).toHaveBeenCalledTimes(1);
 
+    // Former 120s interval and multi-minute span must not mint again.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(CHAT_ROOM_CAP_REAUTH_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(120_000);
     });
-    expect(authorizeMock).toHaveBeenCalledTimes(2);
+    expect(authorizeMock).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(CHAT_ROOM_CAP_REAUTH_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(15 * 60_000);
     });
-    expect(authorizeMock).toHaveBeenCalledTimes(3);
+    expect(authorizeMock).toHaveBeenCalledTimes(1);
   });
 
   it("re-authorizes when the document becomes visible", async () => {
