@@ -824,6 +824,16 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
   }
 }
 
+/* Radix ScrollArea injects inline `display:table; min-width:100%` on the
+ * viewport content wrapper. Chromium `<video controls>` min-content
+ * (~476–570px) then inflates that table and Chrome device mode looks stuck.
+ * Beat the inline style so columns can shrink like image previews. */
+[data-slot="scroll-area-viewport"] > div {
+  display: block !important;
+  min-width: 0 !important;
+  width: 100%;
+}
+
 /* Respect reduced-motion for the chat "thinking" indicator: freeze the
  * reasoning shimmer to plain foreground text. Defined after the rules
  * above so source order wins. */
