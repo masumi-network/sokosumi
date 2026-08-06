@@ -8,11 +8,6 @@ import {
   userService,
 } from "@/lib/services";
 
-/**
- * Soft-nav: keep previous screen (no Instant shell / route spinner).
- */
-export const instant = false;
-
 const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
   rooms: [],
   nextCursor: null,
@@ -22,7 +17,8 @@ const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
  * Mobile Chats tab: Channels + DMs list (`md:hidden`).
  * Desktop keeps the sidebar list; this route shows nothing meaningful above `md`.
  *
- * Fully async, no route spinner — soft nav keeps the previous screen like Search.
+ * Instant Nav uses `chats/loading.tsx` while this page streams after
+ * `connection()`.
  */
 export default async function ChatChatsPage() {
   await connection();
