@@ -248,7 +248,7 @@ describe("ComposerWysiwygEditor", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
   });
 
-  it("keeps emoji shortcode popup on the caret position helper", () => {
+  it("anchors emoji shortcode popup to the composer shell", () => {
     function Harness() {
       const [value, setValue] = useState("");
       return (
@@ -259,6 +259,41 @@ describe("ComposerWysiwygEditor", () => {
             mentions={{}}
           />
         </div>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":smi";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "200px",
+      transform: "translateY(-100%)",
+      width: "420px",
+    });
+    expect(listbox).not.toHaveClass("w-72");
+  });
+
+  it("keeps emoji shortcode popup on the caret when no composer anchor", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
       );
     }
 

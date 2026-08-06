@@ -347,7 +347,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
   const getSuggestionPopupPosition = useCallback(
     (editor: HTMLElement, kind: ComposerSuggestion["kind"]) => {
-      if (kind === "mention") {
+      if (kind === "mention" || kind === "emoji") {
         const shell = editor.closest(`[${ROOM_COMPOSER_MENTION_ANCHOR_ATTR}]`);
         if (shell instanceof HTMLElement) {
           return getMentionPopupPositionFromAnchorRect(
