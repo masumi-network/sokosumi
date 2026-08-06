@@ -44,7 +44,7 @@ export function TaskListView({
   const hasAnyTasks = tasks.length > 0;
 
   return (
-    <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
+    <div className="bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
       {hasAnyTasks ? (
         <div className="divide-border/50 divide-y">
           {orderedColumns.map((column) => {
