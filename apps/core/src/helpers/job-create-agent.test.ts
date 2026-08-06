@@ -698,7 +698,10 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("rejects a seller echoing a different purchaser identifier", async () => {
+  it("reports an orphaned seller job when the seller echoes a different purchaser identifier", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
       // Ignores the nonce we sent and returns its own.
@@ -713,8 +716,23 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Paid agent job returned a different purchaser identifier",
     );
 
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Seller-side job orphaned after start_job: seller returned a different purchaser identifier",
+      ),
+      expect.objectContaining({
+        agentId: "agent_1",
+        agentJobId: "agent_job_1",
+        receivedIdentifierFromPurchaser: "not-ours",
+      }),
+    );
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
+      message: expect.stringContaining("Seller-side job orphaned"),
+    });
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
   });
 
   it("reports a stranded seller job when start_job answers 2xx with an off-contract body", async () => {
@@ -844,7 +862,7 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a V2 response that selects a different payment source", async () => {
+  it("reports an orphaned seller job when the response selects an unknown payment source", async () => {
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
       startPaidAgentJob: sellerResponding({
@@ -857,6 +875,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Paid V2 agent job returned an unexpected payment source",
     );
 
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
+      message: expect.stringContaining(
+        "seller returned an unexpected payment source",
+      ),
+    });
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
@@ -906,16 +930,62 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Paid V2 agent job returned an unexpected payment source",
     );
 
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
+      message: expect.stringContaining(
+        "seller returned an unexpected payment source",
+      ),
+    });
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a stored V2 source that the payment node cannot purchase through", async () => {
+  it("rejects with no ready sources before contacting the seller", async () => {
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     getCardanoV2ReadySourcesMock.mockResolvedValue([
       {
         policyId: "agent-chain",
         smartContractAddress: "addr_test1_other_contract",
+      },
+    ]);
+    const startPaidAgentJobMock = sellerResponding(paidV2JobResponse);
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: startPaidAgentJobMock,
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "No purchase-ready payment sources available for this agent",
+    );
+
+    expect(startPaidAgentJobMock).not.toHaveBeenCalled();
+    expect(createAgentClientMock).not.toHaveBeenCalled();
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+    expect(createPurchaseMock).not.toHaveBeenCalled();
+  });
+
+  it("reports an orphaned seller job when the seller selects a non-ready source", async () => {
+    // One ready source, one not. Seller echoes the non-ready index after
+    // start_job — refuse payment and page the orphan.
+    const agent = createPaidV2AgentRecord();
+    agent.paymentSources = [
+      {
+        sourceIndex: 0,
+        address: "addr_test1_ready_contract",
+        pricingType: PricingType.FIXED,
+        amounts: [{ unit: "lovelace", amount: BigInt(1_000_000) }],
+      },
+      {
+        sourceIndex: 2,
+        address: "addr_test1_not_ready_contract",
+        pricingType: PricingType.FIXED,
+        amounts: [{ unit: "lovelace", amount: BigInt(2_000_000) }],
+      },
+    ];
+    agentFindFirstMock.mockResolvedValue(agent);
+    getCardanoV2ReadySourcesMock.mockResolvedValue([
+      {
+        policyId: "agent-chain",
+        smartContractAddress: "addr_test1_ready_contract",
       },
     ]);
     createAgentClientMock.mockReturnValue({
@@ -926,6 +996,12 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Paid V2 agent job selected a payment source that is not purchase-ready",
     );
 
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
+      message: expect.stringContaining(
+        "seller selected a payment source that is not purchase-ready",
+      ),
+    });
     expect(txJobCreateMock).not.toHaveBeenCalled();
     expect(createPurchaseMock).not.toHaveBeenCalled();
   });
