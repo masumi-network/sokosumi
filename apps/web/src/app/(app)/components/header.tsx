@@ -2,6 +2,7 @@ import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 
+import { HeaderCenter } from "./header/header-center.client";
 import { HeaderChrome } from "./header/header-chrome.client";
 import {
   HeaderLeadingBrandFallback,
@@ -29,14 +30,9 @@ export default function Header({
         </Suspense>
       </div>
 
-      <div
-        data-app-header-room-slot
-        className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:hidden"
-      />
-
-      <div className="hidden min-w-0 flex-1 flex-row gap-2 md:flex">
+      <HeaderCenter>
         <BreadcrumbNavigation className="flex flex-1" />
-      </div>
+      </HeaderCenter>
 
       <HeaderTrailing>
         <HeaderProfileSection
