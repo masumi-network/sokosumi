@@ -8,8 +8,9 @@ import {
   Scale,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ReactElement } from "react";
+import { type ReactElement, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 import {
@@ -69,12 +70,24 @@ export function AccountPopoverDrill({
   onNavigateRoute,
   onOpenExternal,
 }: AccountPopoverDrillProps): ReactElement {
+  const panelRef = useRef<HTMLDivElement>(null);
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
   const tUserAvatar = useTranslations("Components.UserAvatar");
   const tOrganizationSwitcher = useTranslations(
     "Components.OrganizationSwitcher",
   );
   const tDeveloper = useTranslations("App.Developer.tabs");
+
+  // Settings → drill unmounts the focused trigger; keep keyboard focus inside
+  // the non-modal popover (same rAF + tabIndex=-1 pattern as SidebarSubmenu).
+  useMountEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      panelRef.current?.focus();
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  });
 
   function getAccountItemLabel(translationKey: string): string {
     if (translationKey === "organizationsHeading") {
@@ -103,7 +116,11 @@ export function AccountPopoverDrill({
     panel.kind === "settings" ? { kind: "root" } : { kind: "settings" };
 
   return (
-    <div className="space-y-2 text-left">
+    <div
+      ref={panelRef}
+      tabIndex={-1}
+      className="space-y-2 text-left outline-hidden"
+    >
       <div className="flex items-center gap-1">
         <Button
           type="button"

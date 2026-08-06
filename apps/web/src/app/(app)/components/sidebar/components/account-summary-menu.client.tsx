@@ -5,7 +5,7 @@ import gravatarUrl from "gravatar-url";
 import { Coins, LogOut, Settings, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactElement, useState } from "react";
+import { type ReactElement, useRef, useState } from "react";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,6 +57,7 @@ export function AccountSummaryMenu({
   const { showLogoutModal } = useGlobalModalsContext();
   const router = useRouter();
   const presence = useSelfPresence();
+  const menuRootRef = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<AccountPopoverPanel>({ kind: "root" });
 
   const displayName = sessionUser.name.trim() || sessionUser.email;
@@ -126,167 +127,180 @@ export function AccountSummaryMenu({
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  const renewalLabel = resolveRenewalLabel();
-
-  if (mobileAdminSettings && panel.kind !== "root") {
-    return (
-      <AccountPopoverDrill
-        panel={panel}
-        members={mobileAdminSettings.members}
-        activeOrganizationId={mobileAdminSettings.activeOrganizationId}
-        showDeveloperVendors={mobileAdminSettings.showDeveloperVendors}
-        onNavigatePanel={setPanel}
-        onNavigateRoute={handleNavigateRoute}
-        onOpenExternal={handleOpenExternal}
-      />
+  // PopoverContent stays mounted across root ↔ drill swaps; short viewports
+  // often leave scrollTop mid-summary, hiding the incoming panel header.
+  function handleNavigatePanel(next: AccountPopoverPanel) {
+    setPanel(next);
+    const scrollContainer = menuRootRef.current?.closest(
+      "[data-slot='popover-content']",
     );
+    if (scrollContainer instanceof HTMLElement) {
+      scrollContainer.scrollTop = 0;
+    }
   }
 
+  const renewalLabel = resolveRenewalLabel();
+
   return (
-    <div className="space-y-3 text-left">
-      <div className="flex items-center gap-2.5">
-        <AccountSummaryAvatar
-          sessionUser={sessionUser}
-          displayName={displayName}
+    <div ref={menuRootRef}>
+      {mobileAdminSettings && panel.kind !== "root" ? (
+        <AccountPopoverDrill
+          key={panel.kind}
+          panel={panel}
+          members={mobileAdminSettings.members}
+          activeOrganizationId={mobileAdminSettings.activeOrganizationId}
+          showDeveloperVendors={mobileAdminSettings.showDeveloperVendors}
+          onNavigatePanel={handleNavigatePanel}
+          onNavigateRoute={handleNavigateRoute}
+          onOpenExternal={handleOpenExternal}
         />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm leading-tight font-medium">
-            {displayName}
-          </p>
-          <p className="text-muted-foreground truncate text-xs leading-tight">
-            {sessionUser.email}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-          <span aria-hidden="true">
-            <PresenceDot
-              presence={presence}
-              label={presenceLabel}
-              className="size-2 border-0"
+      ) : (
+        <div className="space-y-3 text-left">
+          <div className="flex items-center gap-2.5">
+            <AccountSummaryAvatar
+              sessionUser={sessionUser}
+              displayName={displayName}
             />
-          </span>
-          {presenceLabel}
-        </span>
-        {planName !== null ? (
-          <span className="bg-muted rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
-            <span className="sr-only">{`${t("planLabel")}: `}</span>
-            {planName}
-          </span>
-        ) : null}
-      </div>
-      <div className="bg-border h-px" />
-      <div className="space-y-1">
-        <p className="text-lg leading-none font-semibold tracking-tight tabular-nums">
-          {creditsLabel ?? t("detailsUnavailable")}
-        </p>
-        <p className="text-muted-foreground text-xs">
-          {tCredit("totalBalanceLabel")}
-        </p>
-      </div>
-      {usage ? (
-        <div className="space-y-1.5">
-          <p className="text-xs font-medium">{t("monthlyCredits")}</p>
-          <Progress
-            className={cn(
-              "h-1.5",
-              isLowCredits ? "bg-semantic-warning/20" : "bg-primary/20",
-            )}
-            value={usage.percentageUsed}
-            aria-label={tCredit("creditsConsumedProgressAria")}
-            indicatorClassName={
-              isLowCredits ? "bg-semantic-warning" : "bg-primary"
-            }
-          />
-          <p className="text-muted-foreground text-xs">
-            {tCredit("creditsUsedOfTotal", {
-              used: formatCreditsForDisplay(usage.used),
-              total: formatCreditsForDisplay(usage.total),
-            })}
-          </p>
-          {renewalLabel !== null ? (
-            <p className="text-muted-foreground text-xs">{renewalLabel}</p>
-          ) : null}
-        </div>
-      ) : null}
-      {showExtraCredits ? (
-        <>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm leading-tight font-medium">
+                {displayName}
+              </p>
+              <p className="text-muted-foreground truncate text-xs leading-tight">
+                {sessionUser.email}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              <span aria-hidden="true">
+                <PresenceDot
+                  presence={presence}
+                  label={presenceLabel}
+                  className="size-2 border-0"
+                />
+              </span>
+              {presenceLabel}
+            </span>
+            {planName !== null ? (
+              <span className="bg-muted rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
+                <span className="sr-only">{`${t("planLabel")}: `}</span>
+                {planName}
+              </span>
+            ) : null}
+          </div>
           <div className="bg-border h-px" />
           <div className="space-y-1">
-            <p className="text-muted-foreground text-xs">
-              {tCredit("extraCredits")}
-            </p>
-            <p className="text-sm leading-none font-medium tabular-nums">
-              {tBilling("balanceCreditsLabel", {
-                credits: displayExtraCredits,
-              })}
+            <p className="text-lg leading-none font-semibold tracking-tight tabular-nums">
+              {creditsLabel ?? t("detailsUnavailable")}
             </p>
             <p className="text-muted-foreground text-xs">
-              {tCredit("extraCreditsDescription")}
+              {tCredit("totalBalanceLabel")}
             </p>
           </div>
-        </>
-      ) : null}
-      <div className="bg-border h-px" />
-      <div className="space-y-2">
-        <Button
-          type="button"
-          size="sm"
-          onClick={handleBuyCredits}
-          className="h-11 w-full justify-center gap-1.5 md:h-8"
-        >
-          <Coins className="size-4 shrink-0" aria-hidden />
-          {buyCreditsLabel}
-        </Button>
-        {mobileAdminSettings ? (
-          <div className="divide-border divide-y">
-            {mobileAdminSettings.adminMenuEnabled ? (
+          {usage ? (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium">{t("monthlyCredits")}</p>
+              <Progress
+                className={cn(
+                  "h-1.5",
+                  isLowCredits ? "bg-semantic-warning/20" : "bg-primary/20",
+                )}
+                value={usage.percentageUsed}
+                aria-label={tCredit("creditsConsumedProgressAria")}
+                indicatorClassName={
+                  isLowCredits ? "bg-semantic-warning" : "bg-primary"
+                }
+              />
+              <p className="text-muted-foreground text-xs">
+                {tCredit("creditsUsedOfTotal", {
+                  used: formatCreditsForDisplay(usage.used),
+                  total: formatCreditsForDisplay(usage.total),
+                })}
+              </p>
+              {renewalLabel !== null ? (
+                <p className="text-muted-foreground text-xs">{renewalLabel}</p>
+              ) : null}
+            </div>
+          ) : null}
+          {showExtraCredits ? (
+            <>
+              <div className="bg-border h-px" />
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">
+                  {tCredit("extraCredits")}
+                </p>
+                <p className="text-sm leading-none font-medium tabular-nums">
+                  {tBilling("balanceCreditsLabel", {
+                    credits: displayExtraCredits,
+                  })}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {tCredit("extraCreditsDescription")}
+                </p>
+              </div>
+            </>
+          ) : null}
+          <div className="bg-border h-px" />
+          <div className="space-y-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleBuyCredits}
+              className="h-11 w-full justify-center gap-1.5 md:h-8"
+            >
+              <Coins className="size-4 shrink-0" aria-hidden />
+              {buyCreditsLabel}
+            </Button>
+            {mobileAdminSettings ? (
+              <div className="divide-border divide-y">
+                {mobileAdminSettings.adminMenuEnabled ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAdmin}
+                    className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+                  >
+                    <ShieldCheck className="size-4 shrink-0" aria-hidden />
+                    {tMenu("admin")}
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleNavigatePanel({ kind: "settings" })}
+                  className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+                >
+                  <Settings className="size-4 shrink-0" aria-hidden />
+                  {tMenu("settings")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+                >
+                  <LogOut className="size-4 shrink-0" aria-hidden />
+                  {tCredit("logout")}
+                </Button>
+              </div>
+            ) : (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={handleAdmin}
-                className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+                onClick={handleLogout}
+                className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 font-normal md:h-8"
               >
-                <ShieldCheck className="size-4 shrink-0" aria-hidden />
-                {tMenu("admin")}
+                <LogOut className="size-4 shrink-0" aria-hidden />
+                {tCredit("logout")}
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setPanel({ kind: "settings" })}
-              className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
-            >
-              <Settings className="size-4 shrink-0" aria-hidden />
-              {tMenu("settings")}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
-            >
-              <LogOut className="size-4 shrink-0" aria-hidden />
-              {tCredit("logout")}
-            </Button>
+            )}
           </div>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 font-normal md:h-8"
-          >
-            <LogOut className="size-4 shrink-0" aria-hidden />
-            {tCredit("logout")}
-          </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
