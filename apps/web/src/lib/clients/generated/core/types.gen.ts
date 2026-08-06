@@ -3741,6 +3741,16 @@ export type SubscriptionCatalogPlan = {
     slug: string;
 };
 
+export type AblyTokenRequest = {
+    keyName: string;
+    ttl?: number;
+    capability: string;
+    clientId?: string;
+    timestamp: number;
+    nonce: string;
+    mac: string;
+};
+
 export type VendorMembershipList = Array<VendorMembership>;
 
 export type VendorMembership = Vendor & {
@@ -28757,6 +28767,90 @@ export type GetSubscriptionCatalogResponses = {
 };
 
 export type GetSubscriptionCatalogResponse = GetSubscriptionCatalogResponses[keyof GetSubscriptionCatalogResponses];
+
+export type PostRealtimeAblyTokenData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/realtime/ably-token';
+};
+
+export type PostRealtimeAblyTokenErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostRealtimeAblyTokenError = PostRealtimeAblyTokenErrors[keyof PostRealtimeAblyTokenErrors];
+
+export type PostRealtimeAblyTokenResponses = {
+    /**
+     * Ably TokenRequest created
+     */
+    200: {
+        data: AblyTokenRequest;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostRealtimeAblyTokenResponse = PostRealtimeAblyTokenResponses[keyof PostRealtimeAblyTokenResponses];
 
 export type ListVendorsData = {
     body?: never;
