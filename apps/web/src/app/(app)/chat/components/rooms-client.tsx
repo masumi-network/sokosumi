@@ -60,8 +60,10 @@ import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import {
   type ChatRoomMessageEventData,
+  isChatRoomMessagePatchEvent,
   makeUserChatRoomsChannelName,
 } from "@/lib/ably";
+import { applyChatRoomMessagePatch } from "@/lib/ably/apply-chat-room-message-patch";
 import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import type {
@@ -451,14 +453,70 @@ export function RoomsClient({
 
   const handleChatRoomRealtimeMessage = useCallback(
     (event: ChatRoomMessageEventData) => {
-      const message = hydrateChatRoomMessageFromRealtime(event.message);
-      if (message.roomId !== selectedRoomIdRef.current) {
-        return;
-      }
       if (
         skipRealtimeWhileStreamingRef.current &&
         isCoworkerStreamingRef.current
       ) {
+        return;
+      }
+
+      // SOK-737: high-chatter types arrive as field patches — merge by id.
+      // Missing local id → no-op (do not invent a row). Patches are not new
+      // messages, so skip unread-threads attention (full create path still does).
+      if (isChatRoomMessagePatchEvent(event)) {
+        if (event.roomId !== selectedRoomIdRef.current) {
+          return;
+        }
+
+        const route = routeRealtimeChatRoomMessage(
+          {
+            id: event.messageId,
+            parentMessageId: event.parentMessageId,
+          },
+          threadParentMessageIdRef.current,
+          event.eventType,
+        );
+
+        if (route.mergeIntoRoomTimeline) {
+          setMessagesState((current) => {
+            const existing = current.find(
+              (message) => message.id === event.messageId,
+            );
+            if (!existing) {
+              return current;
+            }
+            const merged = applyChatRoomMessagePatch(existing, event);
+            return filterTopLevelChatRoomMessages(
+              mergeRoomMessages(current, [merged]),
+            );
+          });
+        }
+
+        setThreadParentMessage((current) => {
+          if (current?.id !== event.messageId) {
+            return current;
+          }
+          return applyChatRoomMessagePatch(current, event);
+        });
+
+        if (route.mergeIntoOpenThread) {
+          setThreadMessages((current) => {
+            const existing = current.find(
+              (message) => message.id === event.messageId,
+            );
+            if (!existing) {
+              return current;
+            }
+            return mergeRoomMessages(current, [
+              applyChatRoomMessagePatch(existing, event),
+            ]);
+          });
+        }
+        return;
+      }
+
+      const message = hydrateChatRoomMessageFromRealtime(event.message);
+      if (message.roomId !== selectedRoomIdRef.current) {
         return;
       }
 
