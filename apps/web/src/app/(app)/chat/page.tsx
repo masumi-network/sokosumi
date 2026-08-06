@@ -22,19 +22,13 @@ interface ChatPageProps {
 }
 
 /**
- * Soft-nav: keep previous screen (no Instant shell / route spinner).
- * Rooms still use Instant via `rooms/[roomId]`.
- */
-export const instant = false;
-
-/**
  * `/chat` landing: mobile Home hub (sidebar minus Channels/DMs); desktop
  * classic coworker welcome. Draft modes via query: `?create=channel`,
  * `?dm=new`, `?welcome=1` (mobile coworker compose). Open rooms:
  * `/chat/rooms/[roomId]`.
  *
- * Fully async, no route `loading.tsx` — soft nav keeps the previous screen
- * (same as `/history`). Opening a room uses `rooms/[roomId]/loading.tsx`.
+ * Instant Nav uses `chat/loading.tsx` while this page streams after
+ * `connection()`. Room open uses `rooms/[roomId]/loading.tsx`.
  */
 export default async function ChatPage({ searchParams }: ChatPageProps) {
   // Defer before any cookies()/headers()-bound work so PPR shell probing does
