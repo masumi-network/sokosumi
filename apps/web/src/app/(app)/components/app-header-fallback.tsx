@@ -5,6 +5,7 @@ import {
   HeaderLeadingBrandFallback,
   HeaderLeadingControl,
 } from "./header/header-leading-control.client";
+import { HeaderTrailing } from "./header/header-trailing.client";
 
 interface AppHeaderFallbackProps {
   className?: string;
@@ -28,7 +29,7 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         <div className="bg-muted h-4 w-40 animate-pulse rounded-md" />
       </div>
 
-      <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
+      <HeaderTrailing>
         <div className="flex items-center gap-2">
           <div className="flex flex-col items-end gap-1">
             <div className="bg-muted h-4 w-28 animate-pulse rounded-md" />
@@ -36,7 +37,7 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
           </div>
           <div className="bg-muted size-8 animate-pulse rounded-full" />
         </div>
-      </div>
+      </HeaderTrailing>
     </HeaderChrome>
   );
 }

@@ -8,6 +8,7 @@ import {
   HeaderLeadingControl,
 } from "./header/header-leading-control.client";
 import HeaderProfileSection from "./header/header-profile-section";
+import { HeaderTrailing } from "./header/header-trailing.client";
 
 interface HeaderProps {
   className?: string | undefined;
@@ -37,12 +38,12 @@ export default function Header({
         <BreadcrumbNavigation className="flex flex-1" />
       </div>
 
-      <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
+      <HeaderTrailing>
         <HeaderProfileSection
           session={session}
           adminMenuEnabled={adminMenuEnabled}
         />
-      </div>
+      </HeaderTrailing>
     </HeaderChrome>
   );
 }
