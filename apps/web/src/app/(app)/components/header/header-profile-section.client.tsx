@@ -1,6 +1,7 @@
 "use client";
 
 import type { SessionUser } from "@sokosumi/utils";
+import { Suspense, use } from "react";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { useSession } from "@/lib/auth/auth.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
@@ -29,14 +30,61 @@ interface HeaderProfileSectionClientProps {
   sessionUser: SessionUser;
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;
-  accountSummary: HeaderAccountSummary;
+  accountSummaryPromise: Promise<HeaderAccountSummary>;
+}
+
+function HeaderAccountControlSkeleton() {
+  return (
+    <div
+      className="bg-muted ml-0.5 size-8 animate-pulse rounded-full md:hidden"
+      aria-hidden
+    />
+  );
+}
+
+interface HeaderAccountControlSlotProps {
+  sessionUser: SessionUser;
+  members: MemberWithOrganization[];
+  activeOrganizationId: string | null;
+  accountSummaryPromise: Promise<HeaderAccountSummary>;
+}
+
+function HeaderAccountControlSlot({
+  sessionUser,
+  members,
+  activeOrganizationId,
+  accountSummaryPromise,
+}: HeaderAccountControlSlotProps) {
+  const accountSummary = use(accountSummaryPromise);
+
+  return (
+    <HeaderAccountControl
+      className="ml-0.5 md:hidden"
+      sessionUser={sessionUser}
+      planName={accountSummary.planName}
+      totalCredits={accountSummary.totalCredits}
+      extraCredits={accountSummary.extraCredits}
+      creditUsage={accountSummary.creditUsage}
+      subscriptionPeriodEndMs={accountSummary.subscriptionPeriodEndMs}
+      currentTimestampMs={accountSummary.currentTimestampMs}
+      lowCreditsThreshold={accountSummary.lowCreditsThreshold}
+      buyCreditsLabel={accountSummary.buyCreditsLabel}
+      buyCreditsPath={accountSummary.buyCreditsPath}
+      mobileAdminSettings={{
+        adminMenuEnabled: accountSummary.adminMenuEnabled,
+        members,
+        activeOrganizationId,
+        showDeveloperVendors: accountSummary.showDeveloperVendors,
+      }}
+    />
+  );
 }
 
 export default function HeaderProfileSectionClient({
   sessionUser,
   members,
   activeOrganizationId: serverActiveOrganizationId,
-  accountSummary,
+  accountSummaryPromise,
 }: HeaderProfileSectionClientProps) {
   const { data: clientSession } = useSession();
   const { isPending, handleSelectWorkspace } = useWorkspaceSwitcher();
@@ -70,25 +118,14 @@ export default function HeaderProfileSectionClient({
         onSelectWorkspace={handleSelectWorkspace}
       />
       <HeaderNotificationBell />
-      <HeaderAccountControl
-        className="ml-0.5 md:hidden"
-        sessionUser={sessionUser}
-        planName={accountSummary.planName}
-        totalCredits={accountSummary.totalCredits}
-        extraCredits={accountSummary.extraCredits}
-        creditUsage={accountSummary.creditUsage}
-        subscriptionPeriodEndMs={accountSummary.subscriptionPeriodEndMs}
-        currentTimestampMs={accountSummary.currentTimestampMs}
-        lowCreditsThreshold={accountSummary.lowCreditsThreshold}
-        buyCreditsLabel={accountSummary.buyCreditsLabel}
-        buyCreditsPath={accountSummary.buyCreditsPath}
-        mobileAdminSettings={{
-          adminMenuEnabled: accountSummary.adminMenuEnabled,
-          members,
-          activeOrganizationId,
-          showDeveloperVendors: accountSummary.showDeveloperVendors,
-        }}
-      />
+      <Suspense fallback={<HeaderAccountControlSkeleton />}>
+        <HeaderAccountControlSlot
+          sessionUser={sessionUser}
+          members={members}
+          activeOrganizationId={activeOrganizationId}
+          accountSummaryPromise={accountSummaryPromise}
+        />
+      </Suspense>
     </div>
   );
 }

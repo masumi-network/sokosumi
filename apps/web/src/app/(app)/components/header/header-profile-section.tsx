@@ -10,7 +10,9 @@ import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
-import HeaderProfileSectionClient from "./header-profile-section.client";
+import HeaderProfileSectionClient, {
+  type HeaderAccountSummary,
+} from "./header-profile-section.client";
 
 interface HeaderProfileSectionProps {
   session: Session;
@@ -43,26 +45,17 @@ export default function HeaderProfileSection({
   );
 }
 
-async function HeaderProfileSectionInner({
-  session,
-  adminMenuEnabled,
-}: HeaderProfileSectionProps) {
-  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+async function loadHeaderAccountSummary(
+  adminMenuEnabled: boolean,
+): Promise<HeaderAccountSummary> {
   const lowCreditsThreshold =
     getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
 
-  const tPlanPromise = getTranslations("App.Header.Plan");
-  const membersPromise = userService
-    .getMyMembersWithOrganizations()
-    .catch(() => [] as MemberWithOrganization[]);
-  const creditsPromise = getCachedMyCredits();
-
-  const [tPlan, members, { showVendors: showDeveloperVendors }, creditsResult] =
+  const [tPlan, { showVendors: showDeveloperVendors }, creditsResult] =
     await Promise.all([
-      tPlanPromise,
-      membersPromise,
+      getTranslations("App.Header.Plan"),
       getDeveloperVendorAdminAccess(),
-      creditsPromise,
+      getCachedMyCredits(),
     ]);
 
   const creditsData = creditsResult?.data.credits ?? null;
@@ -78,24 +71,40 @@ async function HeaderProfileSectionInner({
     : null;
   const planName = await resolvePlanName(planForLabel);
 
+  return {
+    planName,
+    totalCredits: creditsData?.total ?? null,
+    extraCredits: creditsData?.buffer ?? null,
+    creditUsage: resolveCreditUsage(creditsData),
+    subscriptionPeriodEndMs,
+    currentTimestampMs,
+    lowCreditsThreshold,
+    buyCreditsLabel: tPlan("getMoreCredits"),
+    buyCreditsPath,
+    adminMenuEnabled,
+    showDeveloperVendors,
+  };
+}
+
+async function HeaderProfileSectionInner({
+  session,
+  adminMenuEnabled,
+}: HeaderProfileSectionProps) {
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+
+  // Start account-summary work immediately, but only await members here so
+  // desktop workspace switch + notification bell are not blocked by credits.
+  const accountSummaryPromise = loadHeaderAccountSummary(adminMenuEnabled);
+  const members = await userService
+    .getMyMembersWithOrganizations()
+    .catch(() => [] as MemberWithOrganization[]);
+
   return (
     <HeaderProfileSectionClient
       sessionUser={session.user}
       members={members}
       activeOrganizationId={activeOrganizationId}
-      accountSummary={{
-        planName,
-        totalCredits: creditsData?.total ?? null,
-        extraCredits: creditsData?.buffer ?? null,
-        creditUsage: resolveCreditUsage(creditsData),
-        subscriptionPeriodEndMs,
-        currentTimestampMs,
-        lowCreditsThreshold,
-        buyCreditsLabel: tPlan("getMoreCredits"),
-        buyCreditsPath,
-        adminMenuEnabled,
-        showDeveloperVendors,
-      }}
+      accountSummaryPromise={accountSummaryPromise}
     />
   );
 }
