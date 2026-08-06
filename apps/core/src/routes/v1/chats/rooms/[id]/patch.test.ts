@@ -30,6 +30,7 @@ const {
   readStateFindManyMock,
   prismaTransactionMock,
   publishChatRoomMessageRealtimeMock,
+  publishChatMembershipRevokedToUsersMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   roomFindManyMock: vi.fn(),
@@ -51,6 +52,7 @@ const {
   readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatMembershipRevokedToUsersMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -67,6 +69,10 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatMembershipRevokedToUsers: publishChatMembershipRevokedToUsersMock,
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -218,6 +224,7 @@ beforeEach(() => {
     _count: { replies: 0 },
   }));
   publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+  publishChatMembershipRevokedToUsersMock.mockResolvedValue(undefined);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
 });

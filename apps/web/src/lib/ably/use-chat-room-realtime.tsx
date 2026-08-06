@@ -1,6 +1,9 @@
 "use client";
 
-import { makeChatRoomChannelName } from "@sokosumi/utils";
+import {
+  makeChatRoomChannelName,
+  makeUserChatControlChannelName,
+} from "@sokosumi/utils";
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useMemo, useRef } from "react";
@@ -10,17 +13,21 @@ import {
   chatRoomMessageEventDataSchema,
 } from "@/lib/ably";
 
+import {
+  CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+  chatMembershipRevokedEventSchema,
+} from "./chat-membership-revoked-event";
 import { chatRoomIdsFromAblyCapability } from "./chat-room-ids-from-ably-capability";
 import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message-event";
 
 const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
 
 /**
- * Re-mint Ably caps while chat realtime is mounted so remote membership
- * removal (admin kick) drops room subscribe rights within seconds-scale
- * without waiting for token TTL or a local roomIds prop change (SOK-742).
+ * Thin backstop re-auth while chat realtime is mounted (missed revoke events,
+ * long-lived tabs). Primary path is the chat control channel revoke signal
+ * (SOK-742). Keep this much slower than the previous 15s poll.
  */
-export const CHAT_ROOM_CAP_REAUTH_INTERVAL_MS = 15_000;
+export const CHAT_ROOM_CAP_REAUTH_INTERVAL_MS = 120_000;
 
 interface UseChatRoomRealtimeOptions {
   /** Membership room ids to attach (all rooms for sidebar/live parity). */
@@ -37,9 +44,10 @@ interface UseChatRoomRealtimeOptions {
  * delta (important for external channels that join/leave often). Authorize
  * failure aborts the sync — never add channels on stale caps.
  *
- * While mounted, also re-authorize on a short interval and on focus /
- * visibility so remote kicks revoke room caps promptly (SOK-742). After each
- * successful authorize, attach is gated by token capability ∩ prop roomIds.
+ * Remote membership revoke (SOK-742): Core publishes
+ * `chat_membership_revoked` on `chat_control:user_{id}`; client detaches the
+ * room immediately then re-authorizes so token caps drop. Thin backstop:
+ * focus, visibility→visible, and a long interval.
  */
 export function useChatRoomRealtime({
   roomIds,
@@ -92,9 +100,20 @@ export function useChatRoomRealtime({
     }
 
     const handleMessage = handleMessageRef.current;
-    /** Coalesce focus+visibility+interval so two applies never interleave. */
+    /** Coalesce focus+visibility+interval+revoke so two applies never interleave. */
     let syncInFlight = false;
     let syncQueued = false;
+
+    function detachRoomLocally(roomId: string) {
+      const attached = channelsRef.current;
+      const channel = attached.get(roomId);
+      if (!channel) {
+        return;
+      }
+      channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+      void channel.detach();
+      attached.delete(roomId);
+    }
 
     async function runSyncOnce() {
       const generation = ++syncGenerationRef.current;
@@ -175,7 +194,30 @@ export function useChatRoomRealtime({
       }
     }
 
+    function handleMembershipRevoked(message: Ably.Message) {
+      const parsed = chatMembershipRevokedEventSchema.safeParse(message.data);
+      if (!parsed.success) {
+        console.error(
+          "Failed to parse chat_membership_revoked event",
+          message,
+          parsed.error,
+        );
+        return;
+      }
+      // Stop receiving immediately; re-auth drops the token cap next.
+      detachRoomLocally(parsed.data.roomId);
+      void syncMembershipChannels();
+    }
+
     void syncMembershipChannels();
+
+    const controlChannel = ably.channels.get(
+      makeUserChatControlChannelName(currentUserId),
+    );
+    controlChannel.subscribe(
+      CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+      handleMembershipRevoked,
+    );
 
     const intervalId = window.setInterval(() => {
       void syncMembershipChannels();
@@ -199,6 +241,11 @@ export function useChatRoomRealtime({
       window.clearInterval(intervalId);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      controlChannel.unsubscribe(
+        CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+        handleMembershipRevoked,
+      );
+      void controlChannel.detach();
     };
   }, [ably, currentUserId, roomIdsKey]);
 

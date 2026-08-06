@@ -52,11 +52,20 @@ function channelFor(name: string) {
 function tokenWithRooms(...roomIds: string[]) {
   const capability: Record<string, string[]> = {
     "notifications:all:user_1": ["subscribe"],
+    "chat_control:user_user_1": ["subscribe"],
   };
   for (const roomId of roomIds) {
     capability[`chat_rooms:room_${roomId}`] = ["subscribe"];
   }
   return { capability: JSON.stringify(capability) };
+}
+
+function controlSubscribeHandler() {
+  const control = channelFor("chat_control:user_user_1");
+  const call = control.subscribe.mock.calls.find(
+    (args) => args[0] === "chat_membership_revoked",
+  );
+  return call?.[1] as ((message: { data: unknown }) => void) | undefined;
 }
 
 describe("useChatRoomRealtime", () => {
@@ -90,6 +99,22 @@ describe("useChatRoomRealtime", () => {
     });
   });
 
+  it("subscribes to the user chat control channel for revoke signals", async () => {
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith("chat_control:user_user_1");
+      expect(
+        channelFor("chat_control:user_user_1").subscribe,
+      ).toHaveBeenCalledWith("chat_membership_revoked", expect.any(Function));
+    });
+  });
+
   it("does not subscribe when authorize fails", async () => {
     const onError = vi.fn();
     authorizeMock.mockRejectedValue(new Error("token refresh failed"));
@@ -106,7 +131,9 @@ describe("useChatRoomRealtime", () => {
       expect(authorizeMock).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalled();
     });
-    expect(getMock).not.toHaveBeenCalled();
+    // Control channel still attaches; room channels do not.
+    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_1");
+    expect(getMock).not.toHaveBeenCalledWith("chat_rooms:room_room-a");
   });
 
   it("on membership change, only detaches removed and subscribes added rooms", async () => {
@@ -161,6 +188,42 @@ describe("useChatRoomRealtime", () => {
     ).not.toHaveBeenCalled();
   });
 
+  it("on control revoke, detaches the room immediately and re-authorizes", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+      expect(controlSubscribeHandler()).toBeTypeOf("function");
+    });
+
+    authorizeMock.mockClear();
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+
+    act(() => {
+      controlSubscribeHandler()?.({
+        data: {
+          roomId: "room-b",
+          reason: "removed",
+          at: "2026-08-06T12:00:00.000Z",
+        },
+      });
+    });
+
+    expect(channelFor("chat_rooms:room_room-b").unsubscribe).toHaveBeenCalled();
+    expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("detaches rooms dropped from token capability even when props stay stale", async () => {
     authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
 
@@ -197,7 +260,7 @@ describe("useChatRoomRealtime", () => {
     ).not.toHaveBeenCalled();
   });
 
-  it("re-authorizes on the cap refresh interval while mounted", async () => {
+  it("re-authorizes on the thin backstop interval while mounted", async () => {
     vi.useFakeTimers();
     authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
 
@@ -350,5 +413,9 @@ describe("useChatRoomRealtime", () => {
     expect(channelFor("chat_rooms:room_room-a").detach).toHaveBeenCalled();
     expect(channelFor("chat_rooms:room_room-b").unsubscribe).toHaveBeenCalled();
     expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+    expect(
+      channelFor("chat_control:user_user_1").unsubscribe,
+    ).toHaveBeenCalled();
+    expect(channelFor("chat_control:user_user_1").detach).toHaveBeenCalled();
   });
 });

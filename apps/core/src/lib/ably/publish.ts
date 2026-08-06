@@ -3,6 +3,7 @@ import {
   type ChatRoomMessageEventType,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   SokosumiJobStatus,
@@ -168,4 +169,49 @@ export async function publishChatRoomMessageEvent(
     eventType: input.eventType,
     message: input.message,
   });
+}
+
+export const CHAT_MEMBERSHIP_REVOKED_EVENT_NAME = "chat_membership_revoked";
+
+export type ChatMembershipRevokeReason = "removed" | "left";
+
+interface PublishChatMembershipRevokedInput {
+  userId: string;
+  roomId: string;
+  reason: ChatMembershipRevokeReason;
+}
+
+/**
+ * Tell a user they lost membership for a room so their client can detach and
+ * re-authorize promptly (SOK-742). Publishes on the always-subscribed control
+ * channel — not the room channel they may be kicked from.
+ */
+export async function publishChatMembershipRevoked({
+  userId,
+  roomId,
+  reason,
+}: PublishChatMembershipRevokedInput) {
+  const client = getRestClient();
+  const channel = client.channels.get(makeUserChatControlChannelName(userId));
+  await channel.publish(CHAT_MEMBERSHIP_REVOKED_EVENT_NAME, {
+    roomId,
+    reason,
+    at: new Date().toISOString(),
+  });
+}
+
+/** Best-effort fan-out of revoke signals; one failure does not block others. */
+export async function publishChatMembershipRevokedToUsers(
+  roomId: string,
+  userIds: readonly string[],
+  reason: ChatMembershipRevokeReason,
+): Promise<void> {
+  if (userIds.length === 0) {
+    return;
+  }
+  await Promise.allSettled(
+    userIds.map((userId) =>
+      publishChatMembershipRevoked({ userId, roomId, reason }),
+    ),
+  );
 }

@@ -4,6 +4,7 @@ import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-real
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { publishChatMembershipRevoked } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -143,6 +144,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     for (const message of statusMessages) {
       await publishChatRoomMessageRealtime(message, "create");
     }
+
+    // Other tabs/devices still holding a room cap need a control-channel hint.
+    await publishChatMembershipRevoked({
+      userId: userContext.userId,
+      roomId: result.id,
+      reason: "left",
+    });
 
     return ok(c, leftChatRoomSchema.parse(result));
   });

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeUserChatControlChannelName,
   makeUserTasksChannelName,
   parseChatRoomIdFromChannelName,
 } from "../ably-channel";
@@ -28,6 +29,14 @@ describe("makeChatRoomChannelName", () => {
     expect(
       makeChatRoomChannelName("660e8400-e29b-41d4-a716-446655440000"),
     ).toBe("chat_rooms:room_660e8400-e29b-41d4-a716-446655440000");
+  });
+});
+
+describe("makeUserChatControlChannelName", () => {
+  it("builds a user-scoped chat control channel", () => {
+    expect(makeUserChatControlChannelName("user_123")).toBe(
+      "chat_control:user_user_123",
+    );
   });
 });
 

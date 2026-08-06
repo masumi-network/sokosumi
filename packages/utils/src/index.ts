@@ -2,6 +2,7 @@ export {
   CHAT_ROOM_CHANNEL_PREFIX,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   parseChatRoomIdFromChannelName,
