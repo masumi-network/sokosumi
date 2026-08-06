@@ -74,6 +74,14 @@ function openControl() {
   fireEvent.click(screen.getByRole("button", { name: /openSummary/ }));
 }
 
+function getPopoverScrollContainer(): HTMLElement {
+  const content = document.querySelector("[data-slot='popover-content']");
+  if (!(content instanceof HTMLElement)) {
+    throw new Error("Expected popover content scroll container");
+  }
+  return content;
+}
+
 describe("HeaderAccountControl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -186,5 +194,32 @@ describe("HeaderAccountControl", () => {
     fireEvent.click(screen.getByRole("button", { name: "apiKeys" }));
 
     expect(pushMock).toHaveBeenCalledWith("/developer/api-keys");
+  });
+
+  it("resets popover scroll on every panel forward and back transition", () => {
+    renderControl();
+    openControl();
+
+    const scrollContainer = getPopoverScrollContainer();
+    scrollContainer.scrollTop = 180;
+    expect(scrollContainer.scrollTop).toBe(180);
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+    expect(scrollContainer.scrollTop).toBe(0);
+
+    scrollContainer.scrollTop = 96;
+    fireEvent.click(screen.getByRole("button", { name: "developer" }));
+    expect(scrollContainer.scrollTop).toBe(0);
+
+    scrollContainer.scrollTop = 64;
+    fireEvent.click(screen.getByRole("button", { name: "back" }));
+    expect(scrollContainer.scrollTop).toBe(0);
+
+    scrollContainer.scrollTop = 48;
+    fireEvent.click(screen.getByRole("button", { name: "back" }));
+    expect(scrollContainer.scrollTop).toBe(0);
+    expect(
+      screen.getByRole("button", { name: "settings" }),
+    ).toBeInTheDocument();
   });
 });
