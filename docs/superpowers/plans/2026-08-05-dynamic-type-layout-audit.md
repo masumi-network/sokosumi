@@ -272,47 +272,26 @@ git commit -m "fix(web): rem-align remaining header-offset shells for Dynamic Ty
 ```typescript
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const ROOT = path.resolve(__dirname, "../../..");
-const SRC = path.join(ROOT, "src");
+// __tests__ → ../../.. = apps/web/src (not apps/web)
+const SRC = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+);
+const ROOT = path.resolve(SRC, "..");
 
-const FORBIDDEN = ["100svh-64px", "100svh-96px"] as const;
+const FORBIDDEN_PATTERNS = [
+  { label: "100svh-64px", re: /100svh[\s_]*-[\s_]*64px/ },
+  { label: "100svh-96px", re: /100svh[\s_]*-[\s_]*96px/ },
+] as const;
 
-const EXTENSIONS = new Set([".ts", ".tsx", ".css"]);
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === ".next") continue;
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      walk(full, out);
-      continue;
-    }
-    if (EXTENSIONS.has(path.extname(entry.name))) {
-      out.push(full);
-    }
-  }
-  return out;
-}
-
-describe("no header-offset px shells", () => {
-  it("bans 100svh-64px and 100svh-96px (use 4rem / 6rem to track Header h-16)", () => {
-    const hits: string[] = [];
-    for (const file of walk(SRC)) {
-      const text = fs.readFileSync(file, "utf8");
-      for (const needle of FORBIDDEN) {
-        if (!text.includes(needle)) continue;
-        const rel = path.relative(ROOT, file);
-        hits.push(`${rel}: contains ${needle}`);
-      }
-    }
-    expect(hits, hits.join("\n")).toEqual([]);
-  });
-});
+// …walk + findForbiddenHeaderOffsetHits + repo no-hit assertion
+// (see apps/web/src/lib/utils/__tests__/no-header-offset-px-shell.test.ts)
 ```
 
-Path note: `__dirname` for this file is `apps/web/src/lib/utils/__tests__`, so `../../..` is `apps/web`. Adjust if the package layout differs — final `SRC` must be `apps/web/src`.
+Path note: file is under `apps/web/src/lib/utils/__tests__`, so `../../..` is **`apps/web/src`**. Do not join another `src` segment.
 
 - [ ] **Step 2: Run guard (should pass after Tasks 1–3)**
 

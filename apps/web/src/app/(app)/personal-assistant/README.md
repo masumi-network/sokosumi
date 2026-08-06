@@ -70,9 +70,10 @@ unmounts the polling effect when the route leaves the foreground.
 
 ### Full-bleed chat under the shared header
 
-The shared `AppLayout` renders a breadcrumb `Header` (reserving 64px) on every
-route, and the Personal Assistant surface keeps it like everywhere else. It
-only opts into a full-bleed content area below the header via:
+The shared `AppLayout` renders a breadcrumb `Header` (`h-16` / 4rem; 64px at
+default root) on every route, and the Personal Assistant surface keeps it like
+everywhere else. It only opts into a full-bleed content area below the header
+via:
 
 - `FullscreenEffect` (`components/fullscreen-effect.tsx`) — client component
   mounted from the layout that toggles `data-hermes-fullscreen="true"` on

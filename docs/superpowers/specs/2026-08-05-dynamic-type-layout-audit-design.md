@@ -39,7 +39,7 @@ App chrome heights use rem (e.g. `Header` `h-16` = **4rem**, which becomes **80p
 
 ## Architecture
 
-```
+```text
 html root rem (capped 1.25×)
         ↓
 Header h-16 (= 4rem, scales with root)
@@ -91,7 +91,7 @@ Any viewport shell that subtracts **app header height** must use **4rem**, not r
 
 After rem shell fix, keep the existing flex contract — do not redesign:
 
-```
+```text
 rooms-client outer: -m-4 + height shell + overflow-hidden + flex-col
   main: min-h-0 flex-1
     section: min-h-0 flex-1 flex-col
@@ -109,7 +109,7 @@ rooms-client outer: -m-4 + height shell + overflow-hidden + flex-col
 | Thread panel | Scroll inside; no double overflow |
 | Message list | Scrolls inside shell only |
 
-If shell rem-align alone leaves overflow: tighten `min-h-0` / `overflow-hidden` on that link only — never shrink type.
+If rem alignment alone leaves overflow: tighten `min-h-0` / `overflow-hidden` on that link only — never shrink type.
 
 ## App chrome
 
