@@ -3,7 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { hasAdminRole, requireUserContext } from "@/middleware/auth";
+import { hasAdminRole, requireOwnerUserContext } from "@/middleware/auth";
 import { stripeCustomerBillingDetailsSchema } from "@/schemas/stripe.schema";
 import { stripeCustomerBillingService } from "@/services/stripe-customer-billing.service";
 
@@ -19,7 +19,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/billing-details",
   description:
-    "Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins (session user or orchestrator/coworker with context headers), or platform admins with a user session, may access this route.",
+    "Get billing address and tax IDs stored on the organization's Stripe customer. Organization owners and admins (session user or orchestrator with context headers), or platform admins with a user session, may access this route. Coworker actors are not allowed.",
   tags: ["Organizations"],
   request: {
     params,
@@ -52,7 +52,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     // Platform admins with user auth (session or API key) can read org billing

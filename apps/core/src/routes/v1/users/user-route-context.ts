@@ -1,5 +1,6 @@
 import { createMiddleware } from "hono/factory";
 
+import { assertCoworkerUserContextBinding } from "@/helpers/coworker-user-context-binding";
 import { internalServerError, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
@@ -32,6 +33,9 @@ export function requireUserRouteContext(
 
 /**
  * Resolves and validates the target user context for `/users/{id}` routes.
+ * Coworkers must have a workspace grant or baseline task relationship to the
+ * context user before any user-tree handler runs (see
+ * {@link assertCoworkerUserContextBinding}).
  */
 export const usersPathUserContextMiddleware = createMiddleware<UserRouteEnv>(
   async (c, next) => {
@@ -52,6 +56,11 @@ export const usersPathUserContextMiddleware = createMiddleware<UserRouteEnv>(
 
     if (!user) {
       throw notFound("User not found");
+    }
+
+    const authContext = c.var.authContext;
+    if (authContext.actor === "coworker") {
+      await assertCoworkerUserContextBinding(authContext, userContext, prisma);
     }
 
     c.set("userRouteContext", {

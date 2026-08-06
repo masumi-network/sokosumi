@@ -41,6 +41,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("@/helpers/coworker-user-context-binding", () => ({
+  assertCoworkerUserContextBinding: vi.fn().mockResolvedValue(undefined),
+}));
+
 const SESSION_USER: AuthenticationContext = {
   actor: "user",
   userId: "user_123",
