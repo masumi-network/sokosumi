@@ -48,8 +48,19 @@ export const chatRoomMessageEventTypeSchema = z.enum(
   CHAT_ROOM_MESSAGE_EVENT_TYPES,
 );
 
+/**
+ * Rollout-safe: Core may still publish `{ message }` without `eventType` while
+ * web already requires the SOK-736 contract. Default to `update` (full DTO
+ * upsert) so room realtime does not drop events during mixed deploys.
+ * Invalid non-empty eventType values still fail validation.
+ */
+const chatRoomMessageEventTypeFieldSchema = z.preprocess(
+  (value) => (value == null || value === "" ? "update" : value),
+  chatRoomMessageEventTypeSchema,
+);
+
 export const chatRoomMessageEventDataSchema = z.object({
-  eventType: chatRoomMessageEventTypeSchema,
+  eventType: chatRoomMessageEventTypeFieldSchema,
   message: z
     .object({
       id: z.string().min(1),

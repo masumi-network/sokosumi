@@ -38,11 +38,25 @@ describe("chatRoomMessageEventDataSchema", () => {
     },
   );
 
-  it("rejects a missing eventType", () => {
+  it("defaults missing eventType to update (pre-SOK-736 Core publishers)", () => {
     const parsed = chatRoomMessageEventDataSchema.safeParse({
       message: baseMessage,
     });
-    expect(parsed.success).toBe(false);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.eventType).toBe("update");
+    }
+  });
+
+  it("defaults empty eventType to update", () => {
+    const parsed = chatRoomMessageEventDataSchema.safeParse({
+      eventType: "",
+      message: baseMessage,
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.eventType).toBe("update");
+    }
   });
 
   it("rejects an invalid eventType", () => {
