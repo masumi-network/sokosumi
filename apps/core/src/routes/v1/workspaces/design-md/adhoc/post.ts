@@ -44,6 +44,9 @@ const route = createRoute({
     ),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse(
+      "Forbidden - coworker context is not bound to the target user",
+    ),
     500: jsonErrorResponse("Internal Server Error"),
     503: jsonErrorResponse("Service Unavailable - DESIGN.md storage failed"),
   },

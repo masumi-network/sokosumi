@@ -15,46 +15,23 @@ const {
   provisionOrganizationStripeCustomerMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, {
-        message: "User authentication required",
-      });
-    }
-    return { source: "session" as const, ...authContext };
-  },
-  requireOwnerUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext) {
-      throw new HTTPException(403, {
-        message: "User authentication required",
-      });
-    }
-    if (authContext.actor === "coworker") {
-      throw new HTTPException(403, {
-        message: "Coworker authentication cannot perform this owner action",
-      });
-    }
-    if (authContext.actor === "user") {
+vi.mock("@/middleware/auth", async () => {
+  const { mockRequireOwnerUserContext } = await import(
+    "@/test-fixtures/require-owner-user-context.mock.js"
+  );
+  const { HTTPException } = await import("hono/http-exception");
+  return {
+    requireUserContext: (authContext: AuthenticationContext | null) => {
+      if (!authContext || authContext.actor !== "user") {
+        throw new HTTPException(403, {
+          message: "User authentication required",
+        });
+      }
       return { source: "session" as const, ...authContext };
-    }
-    if (
-      authContext.actor === "orchestrator" &&
-      "context" in authContext &&
-      authContext.context
-    ) {
-      return {
-        source: "context" as const,
-        userId: authContext.context.userId,
-        organizationId: authContext.context.organizationId,
-      };
-    }
-    throw new HTTPException(403, {
-      message:
-        "Context headers (X-Context-User-Id) are required for this resource",
-    });
-  },
-}));
+    },
+    requireOwnerUserContext: mockRequireOwnerUserContext,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {

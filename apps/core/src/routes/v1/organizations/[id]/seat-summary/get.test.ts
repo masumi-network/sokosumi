@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
   organizationFindUniqueMock,
@@ -21,46 +22,23 @@ const {
   transactionMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, {
-        message: "User authentication required",
-      });
-    }
-    return { source: "session" as const, ...authContext };
-  },
-  requireOwnerUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext) {
-      throw new HTTPException(403, {
-        message: "User authentication required",
-      });
-    }
-    if (authContext.actor === "coworker") {
-      throw new HTTPException(403, {
-        message: "Coworker authentication cannot perform this owner action",
-      });
-    }
-    if (authContext.actor === "user") {
+vi.mock("@/middleware/auth", async () => {
+  const { mockRequireOwnerUserContext } = await import(
+    "@/test-fixtures/require-owner-user-context.mock.js"
+  );
+  const { HTTPException } = await import("hono/http-exception");
+  return {
+    requireUserContext: (authContext: AuthenticationContext | null) => {
+      if (!authContext || authContext.actor !== "user") {
+        throw new HTTPException(403, {
+          message: "User authentication required",
+        });
+      }
       return { source: "session" as const, ...authContext };
-    }
-    if (
-      authContext.actor === "orchestrator" &&
-      "context" in authContext &&
-      authContext.context
-    ) {
-      return {
-        source: "context" as const,
-        userId: authContext.context.userId,
-        organizationId: authContext.context.organizationId,
-      };
-    }
-    throw new HTTPException(403, {
-      message:
-        "Context headers (X-Context-User-Id) are required for this resource",
-    });
-  },
-}));
+    },
+    requireOwnerUserContext: mockRequireOwnerUserContext,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -90,6 +68,12 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
   userId: "user_123",
   organizationId: null,
   role: "user",
+};
+
+const COWORKER_AUTH_CONTEXT: AuthenticationContext = {
+  actor: "coworker",
+  coworkerId: "cow_123",
+  vendorId: TEST_VENDOR_ID,
 };
 
 let mountGetOrganizationSeatSummary: (app: OpenAPIHonoWithAuth) => void;
@@ -154,6 +138,14 @@ describe("GET /organizations/{id}/seat-summary", () => {
     setMembership(null);
     const response = await getSeatSummary("org_123");
     expect(response.status).toBe(403);
+  });
+
+  it("returns 403 for coworker authentication", async () => {
+    const response = await createApp(COWORKER_AUTH_CONTEXT).request(
+      "http://localhost/org_123/seat-summary",
+    );
+    expect(response.status).toBe(403);
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("returns zeroed seat entitlements for free organizations", async () => {
