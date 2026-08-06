@@ -1,6 +1,49 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
+ * Row bones only — safe inside CardContent / list sections while client data loads.
+ * Sync only (no cookies/`connection()`/i18n).
+ */
+export function DeveloperSectionRowsSkeleton({
+  rows = 5,
+}: {
+  rows?: number;
+}): React.ReactElement {
+  return (
+    <div data-testid="developer-section-loading-list" className="space-y-3">
+      {Array.from({ length: rows }, (_, index) => (
+        <div
+          key={index}
+          className="flex items-center gap-3 rounded-lg border border-border/40 p-3"
+        >
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-44" />
+            <Skeleton className="h-3 w-64 max-w-full" />
+          </div>
+          <Skeleton className="h-8 w-16 shrink-0 rounded-md" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Content-only shell for Suspense fallbacks inside DeveloperSectionShell
+ * (avoids double max-w-4xl wrapper after Instant `loading.tsx` resolves).
+ */
+export function DeveloperSectionContentSkeleton(): React.ReactElement {
+  return (
+    <div data-testid="developer-section-content-loading" className="space-y-4">
+      <div className="space-y-2">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-4 w-full max-w-md" />
+      </div>
+      <DeveloperSectionRowsSkeleton />
+    </div>
+  );
+}
+
+/**
  * Sync Instant Nav shell for developer list sections (no cookies/`connection()`/i18n).
  * Matches DeveloperSectionShell + card header + table/list rows.
  */
@@ -19,22 +62,8 @@ export function DeveloperSectionPageSkeleton(): React.ReactElement {
               <Skeleton className="h-9 w-28 shrink-0 rounded-md" />
             </div>
           </div>
-          <div
-            data-testid="developer-section-loading-list"
-            className="space-y-3 px-6 pb-6"
-          >
-            {Array.from({ length: 5 }, (_, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-3 rounded-lg border border-border/40 p-3"
-              >
-                <div className="min-w-0 flex-1 space-y-2">
-                  <Skeleton className="h-4 w-44" />
-                  <Skeleton className="h-3 w-64 max-w-full" />
-                </div>
-                <Skeleton className="h-8 w-16 shrink-0 rounded-md" />
-              </div>
-            ))}
+          <div className="px-6 pb-6">
+            <DeveloperSectionRowsSkeleton />
           </div>
         </div>
       </div>
