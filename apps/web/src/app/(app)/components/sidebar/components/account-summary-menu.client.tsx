@@ -240,14 +240,14 @@ export function AccountSummaryMenu({
           {buyCreditsLabel}
         </Button>
         {mobileAdminSettings ? (
-          <>
+          <div className="divide-border divide-y">
             {mobileAdminSettings.adminMenuEnabled ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={handleAdmin}
-                className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 font-normal md:h-8"
+                className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
               >
                 <ShieldCheck className="size-4 shrink-0" aria-hidden />
                 {tMenu("admin")}
@@ -258,23 +258,34 @@ export function AccountSummaryMenu({
               variant="ghost"
               size="sm"
               onClick={() => setPanel({ kind: "settings" })}
-              className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 font-normal md:h-8"
+              className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
             >
               <Settings className="size-4 shrink-0" aria-hidden />
               {tMenu("settings")}
             </Button>
-          </>
-        ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={handleLogout}
-          className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 font-normal md:h-8"
-        >
-          <LogOut className="size-4 shrink-0" aria-hidden />
-          {tCredit("logout")}
-        </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+            >
+              <LogOut className="size-4 shrink-0" aria-hidden />
+              {tCredit("logout")}
+            </Button>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 font-normal md:h-8"
+          >
+            <LogOut className="size-4 shrink-0" aria-hidden />
+            {tCredit("logout")}
+          </Button>
+        )}
       </div>
     </div>
   );
