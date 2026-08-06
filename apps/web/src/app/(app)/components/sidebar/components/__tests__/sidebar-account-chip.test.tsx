@@ -8,7 +8,6 @@ vi.mock("next-intl", () => ({
 }));
 
 const pushMock = vi.fn();
-const setOpenMobileMock = vi.fn();
 const showLogoutModalMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -22,11 +21,10 @@ vi.mock("@/components/modals/global-modals-context", () => ({
 const sidebarState = {
   isMobile: false,
   state: "expanded",
-  openMobile: false,
 };
 
 vi.mock("@/components/ui/sidebar", () => ({
-  useSidebar: () => ({ ...sidebarState, setOpenMobile: setOpenMobileMock }),
+  useSidebar: () => ({ ...sidebarState }),
 }));
 
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
@@ -84,7 +82,6 @@ describe("SidebarAccountChip", () => {
     vi.clearAllMocks();
     sidebarState.isMobile = false;
     sidebarState.state = "expanded";
-    sidebarState.openMobile = false;
   });
 
   afterEach(() => {
@@ -238,34 +235,13 @@ describe("SidebarAccountChip", () => {
     expect(screen.queryByText(/creditsExpires/)).not.toBeInTheDocument();
   });
 
-  it("closes the summary when the mobile sheet slides shut behind it", () => {
+  it("renders nothing on mobile (account control lives in the header)", () => {
     sidebarState.isMobile = true;
-    sidebarState.openMobile = true;
-    const { rerender } = renderChip();
+    const { container } = renderChip();
 
-    openChip();
-
-    expect(screen.getByRole("button", { name: "logout" })).toBeInTheDocument();
-
-    sidebarState.openMobile = false;
-    rerender(
-      <SidebarAccountChip
-        sessionUser={sessionUser}
-        planName="Pro"
-        totalCredits={15_750}
-        extraCredits={750}
-        creditUsage={null}
-        subscriptionPeriodEndMs={null}
-        currentTimestampMs={1_700_000_000_000}
-        lowCreditsThreshold={100}
-        buyCreditsLabel="getMoreCredits"
-        buyCreditsPath="/billing?tab=credits"
-        adminSettingsChrome={defaultAdminSettingsChrome}
-      />,
-    );
-
+    expect(container).toBeEmptyDOMElement();
     expect(
-      screen.queryByRole("button", { name: "logout" }),
+      screen.queryByRole("button", { name: /openSummary/ }),
     ).not.toBeInTheDocument();
   });
 

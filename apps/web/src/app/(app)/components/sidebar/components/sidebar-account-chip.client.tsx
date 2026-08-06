@@ -19,9 +19,14 @@ import {
 } from "@/components/ui/tooltip";
 import { useSelfPresence } from "@/hooks/use-self-presence";
 import { cn } from "@/lib/utils";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getInitials } from "@/lib/utils/text";
-
+import {
+  ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS,
+  isLowCreditsBalance,
+  resolveAccountCreditsLabel,
+  resolveAccountDisplayName,
+  resolveAccountSummaryLabel,
+} from "./account-summary-labels";
 import { AccountSummaryMenu } from "./account-summary-menu.client";
 import type {
   AccountAdminSettingsChrome,
@@ -37,6 +42,10 @@ export interface SidebarAccountChipProps
   adminSettingsChrome: AccountAdminSettingsChrome;
 }
 
+/**
+ * Desktop sidebar account/credits control. Mobile uses the header account
+ * control instead (`HeaderAccountControl`), so this returns null on mobile.
+ */
 export function SidebarAccountChip({
   sessionUser,
   planName,
@@ -49,64 +58,50 @@ export function SidebarAccountChip({
   buyCreditsLabel,
   buyCreditsPath,
   adminSettingsChrome,
-}: SidebarAccountChipProps): ReactElement {
+}: SidebarAccountChipProps): ReactElement | null {
   const t = useTranslations("App.Sidebar.Account");
   const tBilling = useTranslations("App.Billing");
   const tPresence = useTranslations("App.Channels.Presence");
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, state } = useSidebar();
   const presence = useSelfPresence();
   const [isOpen, setIsOpen] = useState(false);
   const [menuInstance, setMenuInstance] = useState(0);
-  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
-    null,
-  );
 
   useEffect(() => {
     setIsOpen(false);
-  }, [isMobile, state, openMobile]);
+  }, [state]);
 
-  const isCollapsed = !isMobile && state === "collapsed";
-  const displayName = sessionUser.name.trim() || sessionUser.email;
+  if (isMobile) {
+    return null;
+  }
+
+  const isCollapsed = state === "collapsed";
+  const displayName = resolveAccountDisplayName(
+    sessionUser.name,
+    sessionUser.email,
+  );
   const presenceLabel = tPresence(presence);
-
-  const displayTotal =
-    totalCredits === null ? null : formatCreditsForDisplay(totalCredits);
-  const creditsLabel =
-    displayTotal === null
-      ? null
-      : tBilling("balanceCreditsLabel", { credits: displayTotal });
-  const isLowCredits =
-    displayTotal !== null &&
-    displayTotal > 0 &&
-    displayTotal < lowCreditsThreshold;
-
-  const summary =
-    planName !== null && creditsLabel !== null
-      ? t("planAndCredits", { plan: planName, credits: creditsLabel })
-      : (creditsLabel ?? planName ?? t("detailsUnavailable"));
+  const creditsLabel = resolveAccountCreditsLabel(totalCredits, (credits) =>
+    tBilling("balanceCreditsLabel", { credits }),
+  );
+  const isLowCredits = isLowCreditsBalance(totalCredits, lowCreditsThreshold);
+  const summary = resolveAccountSummaryLabel({
+    planName,
+    creditsLabel,
+    planAndCredits: (plan, credits) => t("planAndCredits", { plan, credits }),
+    detailsUnavailable: t("detailsUnavailable"),
+  });
 
   function handleOpenChange(open: boolean) {
-    if (open) {
-      setPortalContainer(
-        isMobile
-          ? document.querySelector<HTMLElement>(
-              '[data-slot="sidebar"][data-mobile="true"]',
-            )
-          : null,
-      );
-    } else {
+    if (!open) {
       setMenuInstance((value) => value + 1);
     }
-
     setIsOpen(open);
   }
 
   function closeChip() {
     setIsOpen(false);
     setMenuInstance((value) => value + 1);
-    if (isMobile) {
-      setOpenMobile(false);
-    }
   }
 
   const trigger = (
@@ -173,8 +168,8 @@ export function SidebarAccountChip({
     <PopoverContent
       side={isCollapsed ? "right" : "top"}
       align={isCollapsed ? "end" : "start"}
-      container={portalContainer}
-      className="bg-popover text-popover-foreground max-h-(--radix-popover-content-available-height) w-64 overflow-y-auto overscroll-contain rounded-xl border p-3 shadow-md"
+      container={null}
+      className={ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS}
     >
       <AccountSummaryMenu
         key={menuInstance}
