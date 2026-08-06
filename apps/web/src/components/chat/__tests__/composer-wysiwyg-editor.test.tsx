@@ -150,10 +150,10 @@ describe("ComposerWysiwygEditor", () => {
 
   it("keeps composer-anchored mention placement when above-space collapses", () => {
     getMentionPopupPositionFromAnchorRect.mockReturnValue({
-      top: 40,
+      top: 88,
       left: 24,
       side: "top" as const,
-      maxHeight: 24,
+      maxHeight: 80,
       width: 420,
     });
 
@@ -190,7 +190,7 @@ describe("ComposerWysiwygEditor", () => {
     expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
     expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
-      maxHeight: "24px",
+      maxHeight: "80px",
       transform: "translateY(-100%)",
       width: "420px",
     });
@@ -199,10 +199,10 @@ describe("ComposerWysiwygEditor", () => {
 
   it("keeps composer-anchored emoji placement when above-space is tight", () => {
     getMentionPopupPositionFromAnchorRect.mockReturnValue({
-      top: 40,
+      top: 88,
       left: 24,
       side: "top" as const,
-      maxHeight: 40,
+      maxHeight: 80,
       width: 420,
     });
 
@@ -235,7 +235,7 @@ describe("ComposerWysiwygEditor", () => {
     expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
     expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
-      maxHeight: "40px",
+      maxHeight: "80px",
       transform: "translateY(-100%)",
       width: "420px",
     });

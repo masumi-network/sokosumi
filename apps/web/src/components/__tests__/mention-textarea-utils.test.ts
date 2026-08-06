@@ -201,7 +201,10 @@ describe("mention-textarea utils", () => {
       expect(position.maxHeight).toBe(
         Math.min(
           POPUP_HEIGHT_PX,
-          Math.max(0, top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX),
+          Math.max(
+            POPUP_MIN_HEIGHT_PX,
+            top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX,
+          ),
         ),
       );
     });

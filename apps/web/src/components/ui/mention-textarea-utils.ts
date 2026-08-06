@@ -487,7 +487,10 @@ export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
 }
 
 function maxHeightFittingAboveAnchor(aboveSpace: number): number {
-  return Math.min(POPUP_HEIGHT_PX, Math.max(0, aboveSpace));
+  return Math.min(
+    POPUP_HEIGHT_PX,
+    Math.max(POPUP_MIN_HEIGHT_PX, aboveSpace),
+  );
 }
 
 export function getMentionPopupPositionFromAnchorRect(
@@ -504,7 +507,12 @@ export function getMentionPopupPositionFromAnchorRect(
     VIEWPORT_PADDING_PX -
     MENTION_COMPOSER_GAP_PX;
   const maxHeight = maxHeightFittingAboveAnchor(aboveSpace);
-  const top = anchorRect.top - MENTION_COMPOSER_GAP_PX;
+  // Keep translateY(-100%) band inside the visual viewport when min height
+  // exceeds aboveSpace (iOS keyboard scroll can pin the composer to the top).
+  const top = Math.max(
+    anchorRect.top - MENTION_COMPOSER_GAP_PX,
+    viewportTop + VIEWPORT_PADDING_PX + maxHeight,
+  );
   let left = anchorRect.left;
   let width = anchorRect.width;
 
