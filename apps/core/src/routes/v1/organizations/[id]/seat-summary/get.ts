@@ -10,7 +10,7 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { organizationSeatSummarySchema } from "@/schemas/organization-seat.schema";
 
 const params = z.object({
@@ -60,7 +60,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     const summary = await prisma.$transaction(async (tx) => {

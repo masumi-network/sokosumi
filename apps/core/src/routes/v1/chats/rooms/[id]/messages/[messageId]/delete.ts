@@ -123,7 +123,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       return updated;
     });
 
-    await publishChatRoomMessageRealtime(message);
+    await publishChatRoomMessageRealtime(message, "delete");
 
     return ok(
       c,

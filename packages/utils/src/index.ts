@@ -39,6 +39,10 @@ export {
   isOwnedUserChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
 export {
+  CHAT_ROOM_MESSAGE_EVENT_TYPES,
+  type ChatRoomMessageEventType,
+} from "./chat-room-message-event-type.js";
+export {
   buildQuoteSnippet,
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
