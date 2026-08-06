@@ -14,6 +14,9 @@ export const ROOM_COMPOSER_TEXTAREA_CLASSNAME =
 export const ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME =
   "size-9 rounded-full sm:size-8";
 
+export const ROOM_COMPOSER_MENTION_ANCHOR_ATTR =
+  "data-room-composer-mention-anchor";
+
 export interface RoomMessageComposerAttachment {
   url: string;
   fileName: string;
@@ -82,7 +85,10 @@ export function RoomMessageComposer({
       onSubmit={onSubmit}
     >
       <div className="w-full">
-        <div className="border-border overflow-hidden rounded-xl border bg-background">
+        <div
+          className="border-border overflow-hidden rounded-xl border bg-background"
+          data-room-composer-mention-anchor
+        >
           {attachments.length > 0 ? (
             <div className="flex flex-wrap gap-2 px-4 pt-4">
               {attachments.map((attachment) => (
