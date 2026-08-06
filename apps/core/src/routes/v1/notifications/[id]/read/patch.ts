@@ -6,9 +6,9 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withCoworkerContextHeaderParameters,
+  withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { notificationItemSchema } from "@/schemas/notification.schema";
 
 const paramsSchema = z.object({
@@ -19,12 +19,12 @@ const paramsSchema = z.object({
   }),
 });
 
-const route = withCoworkerContextHeaderParameters(
+const route = withOrchestratorContextHeaderParameters(
   createRoute({
     method: "patch",
     path: "/{id}/read",
     description:
-      "Mark a single notification as read for the effective user (session user, or orchestrator/coworker with context headers; owner only). Includes CHAT: browser OS clicks and room attention still clear individual CHAT rows even though CHAT is excluded from the in-app center list, unread badge, and mark-all-read.",
+      "Mark a single notification as read for the effective user (session user, or orchestrator with context headers; owner only). Includes CHAT: browser OS clicks and room attention still clear individual CHAT rows even though CHAT is excluded from the in-app center list, unread badge, and mark-all-read.",
     tags: ["Notifications"],
     request: {
       params: paramsSchema,
@@ -66,7 +66,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
     // Check ownership

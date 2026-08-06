@@ -25,6 +25,7 @@ const {
   getMemberByUserIdAndOrganizationIdMock,
   prismaTransactionMock,
   txUserFindUniqueMock,
+  assertCoworkerUserContextBindingMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   buildCreditsPayloadMock: vi.fn(),
@@ -33,6 +34,7 @@ const {
   getMemberByUserIdAndOrganizationIdMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   txUserFindUniqueMock: vi.fn(),
+  assertCoworkerUserContextBindingMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -42,6 +44,12 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $transaction: prismaTransactionMock,
   },
+}));
+
+vi.mock("@/helpers/coworker-user-context-binding", () => ({
+  assertCoworkerUserContextBinding: (...args: unknown[]) =>
+    assertCoworkerUserContextBindingMock(...args),
+  requireAuthorizedUserContext: vi.fn(),
 }));
 
 vi.mock("@/helpers/subscription", () => ({
@@ -165,6 +173,7 @@ function createUserRouteApp(
 describe("coworker user route allowlist", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    assertCoworkerUserContextBindingMock.mockResolvedValue(undefined);
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     buildCreditsPayloadMock.mockResolvedValue(CREDITS_PAYLOAD);
     resolveMemberOrganizationByIdMock.mockResolvedValue({

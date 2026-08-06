@@ -5,9 +5,12 @@ import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 
 import { usersPathUserContextMiddleware } from "./user-route-context";
 
-const { userFindUniqueMock } = vi.hoisted(() => ({
-  userFindUniqueMock: vi.fn(),
-}));
+const { userFindUniqueMock, assertCoworkerUserContextBindingMock } = vi.hoisted(
+  () => ({
+    userFindUniqueMock: vi.fn(),
+    assertCoworkerUserContextBindingMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -15,6 +18,11 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: userFindUniqueMock,
     },
   },
+}));
+
+vi.mock("@/helpers/coworker-user-context-binding", () => ({
+  assertCoworkerUserContextBinding: (...args: unknown[]) =>
+    assertCoworkerUserContextBindingMock(...args),
 }));
 
 const ADMIN_AUTH_CONTEXT: AuthenticationContext = {
@@ -51,6 +59,7 @@ function createApp(authContext: AuthenticationContext = ADMIN_AUTH_CONTEXT) {
 describe("usersPathUserContextMiddleware", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    assertCoworkerUserContextBindingMock.mockResolvedValue(undefined);
   });
 
   it("returns 404 when an admin targets a missing user id", async () => {
@@ -86,7 +95,7 @@ describe("usersPathUserContextMiddleware", () => {
 
   // Path-resolution only — coworkerUserRouteAllowlistMiddleware is not mounted
   // here, so /files succeeding does not mean coworkers can call that route.
-  it("allows coworker context for matching user id", async () => {
+  it("allows coworker context for matching user id when binding passes", async () => {
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     const app = createApp({
       actor: "coworker",
@@ -102,9 +111,10 @@ describe("usersPathUserContextMiddleware", () => {
       where: { id: "user_123" },
       select: { id: true },
     });
+    expect(assertCoworkerUserContextBindingMock).toHaveBeenCalled();
   });
 
-  it("allows coworker with context headers for me", async () => {
+  it("allows coworker with context headers for me when binding passes", async () => {
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     const app = createApp({
       actor: "coworker",
@@ -120,6 +130,28 @@ describe("usersPathUserContextMiddleware", () => {
       where: { id: "user_123" },
       select: { id: true },
     });
+    expect(assertCoworkerUserContextBindingMock).toHaveBeenCalled();
+  });
+
+  it("returns 403 when coworker context binding is rejected", async () => {
+    userFindUniqueMock.mockResolvedValue({ id: "user_123" });
+    const { HTTPException } = await import("hono/http-exception");
+    assertCoworkerUserContextBindingMock.mockRejectedValue(
+      new HTTPException(403, {
+        message:
+          "Coworker cannot act as this user without a granted workspace access or assigned task relationship",
+      }),
+    );
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "01960001-0001-7001-8001-000000000001",
+      context: { userId: "user_123", organizationId: null },
+    });
+
+    const response = await app.request("http://localhost/user_123/files");
+
+    expect(response.status).toBe(403);
   });
 
   it("returns 403 when coworker context targets a different user id", async () => {
@@ -134,6 +166,7 @@ describe("usersPathUserContextMiddleware", () => {
 
     expect(response.status).toBe(403);
     expect(userFindUniqueMock).not.toHaveBeenCalled();
+    expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();
   });
 
   it("allows orchestrator with context headers for matching user id", async () => {

@@ -10,16 +10,23 @@ const { organizationFindUniqueMock, memberFindUniqueMock } = vi.hoisted(() => ({
   memberFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@/middleware/auth", () => ({
-  requireUserContext: (authContext: AuthenticationContext | null) => {
-    if (!authContext || authContext.actor !== "user") {
-      throw new HTTPException(403, {
-        message: "User authentication required",
-      });
-    }
-    return { source: "session" as const, ...authContext };
-  },
-}));
+vi.mock("@/middleware/auth", async () => {
+  const { mockRequireOwnerUserContext } = await import(
+    "@/test-fixtures/require-owner-user-context.mock.js"
+  );
+  const { HTTPException } = await import("hono/http-exception");
+  return {
+    requireUserContext: (authContext: AuthenticationContext | null) => {
+      if (!authContext || authContext.actor !== "user") {
+        throw new HTTPException(403, {
+          message: "User authentication required",
+        });
+      }
+      return { source: "session" as const, ...authContext };
+    },
+    requireOwnerUserContext: mockRequireOwnerUserContext,
+  };
+});
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {

@@ -43,6 +43,36 @@ vi.mock("@/middleware/auth", () => ({
         "Context headers (X-Context-User-Id) are required for this resource",
     });
   },
+  requireOwnerUserContext: (authContext: AuthenticationContext | null) => {
+    if (!authContext) {
+      throw new HTTPException(403, {
+        message: "User authentication required",
+      });
+    }
+    if (authContext.actor === "coworker") {
+      throw new HTTPException(403, {
+        message: "Coworker authentication cannot perform this owner action",
+      });
+    }
+    if (authContext.actor === "user") {
+      return { source: "session" as const, ...authContext };
+    }
+    if (
+      authContext.actor === "orchestrator" &&
+      "context" in authContext &&
+      authContext.context
+    ) {
+      return {
+        source: "context" as const,
+        userId: authContext.context.userId,
+        organizationId: authContext.context.organizationId,
+      };
+    }
+    throw new HTTPException(403, {
+      message:
+        "Context headers (X-Context-User-Id) are required for this resource",
+    });
+  },
   hasAdminRole: (role: string | null | undefined) => role === "admin",
 }));
 
@@ -129,20 +159,15 @@ describe("GET /organizations/{id}/billing-details", () => {
     expect(getOrganizationBillingDetailsMock).not.toHaveBeenCalled();
   });
 
-  it("allows coworker with context headers as the context user", async () => {
+  it("rejects coworker with context headers (owner/session or orchestrator only)", async () => {
     const response = await createApp({
       actor: "coworker",
-      coworkerId: "cow_123",
+      coworkerId: "cow_1",
       vendorId: TEST_VENDOR_ID,
-      context: { userId: "user_123", organizationId: "org_123" },
-    }).request("http://localhost/org_123/billing-details");
+      context: { userId: "user_1", organizationId: "org_1" },
+    }).request("http://localhost/org_1/billing-details");
 
-    expect(response.status).toBe(200);
-    expect(getOrganizationBillingDetailsMock).toHaveBeenCalledWith(
-      "org_123",
-      "user_123",
-    );
-    expect(getOrganizationBillingDetailsByIdMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(403);
   });
 
   it("allows orchestrator with context headers as the context user", async () => {

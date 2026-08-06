@@ -1,11 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationBySlug } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { organizationRecordSchema } from "@/schemas/organization.schema";
 
 const params = z.object({
@@ -21,7 +20,7 @@ const route = createRoute({
   path: "/slug/{slug}",
   operationId: "getOrganizationBySlug",
   description:
-    "Get the raw organization record by slug for the effective user when they are a member (session user, or orchestrator/coworker with context headers)",
+    "Get the raw organization record by slug for the effective user when they are a member (session user, or orchestrator/coworker with authorized context headers (coworker requires workspace grant or baseline task binding))",
   tags: ["Organizations"],
   request: {
     params,
@@ -57,7 +56,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const { slug } = c.req.valid("param");
 
     const organization = await prisma.$transaction(async (tx) => {
