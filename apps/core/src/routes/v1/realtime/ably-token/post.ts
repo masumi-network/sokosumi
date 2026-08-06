@@ -24,6 +24,7 @@ const route = withOrchestratorContextHeaderParameters(
         "Ably TokenRequest created",
       ),
       401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),

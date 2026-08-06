@@ -6,12 +6,24 @@ interface ReactionLike {
   reactors: ReadonlyArray<{ id: string }>;
 }
 
+function isReactorEntry(value: unknown): value is { id: string } {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    typeof (value as { id?: unknown }).id === "string"
+  );
+}
+
 function isReactionLike(value: unknown): value is ReactionLike {
   if (!value || typeof value !== "object") {
     return false;
   }
   const record = value as Record<string, unknown>;
-  return Array.isArray(record.reactors);
+  if (!Array.isArray(record.reactors)) {
+    return false;
+  }
+  // Wire data may be partial/malformed; only accept arrays of reactor objects.
+  return record.reactors.every(isReactorEntry);
 }
 
 /**
@@ -42,12 +54,7 @@ function personalizeUnknownReactions(
     if (!isReactionLike(reaction)) {
       return reaction;
     }
-    return {
-      ...reaction,
-      reactedByCurrentUser: reaction.reactors.some(
-        (reactor) => reactor.id === currentUserId,
-      ),
-    };
+    return personalizeReactionsForViewer([reaction], currentUserId)[0];
   });
 }
 

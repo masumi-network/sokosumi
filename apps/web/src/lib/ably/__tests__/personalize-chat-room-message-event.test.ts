@@ -105,6 +105,28 @@ describe("personalizeChatRoomMessageEvent", () => {
     expect(first.reactedByCurrentUser).toBe(true);
   });
 
+  it("ignores reactions whose reactors array is not object-shaped", () => {
+    const event = {
+      eventType: "reaction" as const,
+      messageId: "msg-1",
+      roomId: "room-1",
+      parentMessageId: null,
+      patch: {
+        reactions: [
+          {
+            emoji: "👍",
+            count: 1,
+            reactedByCurrentUser: false,
+            reactors: [null, "user_x", { id: "me", name: "Me" }],
+          },
+        ],
+      },
+    } satisfies ChatRoomMessageEventData;
+
+    // Malformed reactors → leave reaction row untouched (no throw).
+    expect(personalizeChatRoomMessageEvent(event, "me")).toEqual(event);
+  });
+
   it("leaves unfurl patches unchanged", () => {
     const event = {
       eventType: "unfurl",

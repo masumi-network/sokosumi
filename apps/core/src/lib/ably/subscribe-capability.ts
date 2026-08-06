@@ -5,9 +5,9 @@ import {
 } from "@sokosumi/utils";
 
 /** Ably capability map: channel name → ops (subscribe-only for clients). */
-export type AblySubscribeCapabilityMap = {
+export interface AblySubscribeCapabilityMap {
   [channel: string]: ["subscribe"];
-};
+}
 
 /**
  * Ably subscribe capabilities for a user session.
