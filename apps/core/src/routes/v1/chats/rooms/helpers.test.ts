@@ -11,12 +11,14 @@ import {
   buildDirectParticipantRoomKey,
   buildDirectRoomKey,
   buildDirectRoomName,
+  buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
   contentIncludesRoomAllMention,
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  isJoinableChannelDiscoverability,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
   mergeUnfurlsIntoMessageMetadata,
@@ -341,6 +343,35 @@ describe("buildDirectRoomName", () => {
     expect(buildDirectRoomName(["Andreas", "Elena", "Hannah", "Alex"])).toBe(
       "Andreas, Elena, Hannah and 1 more",
     );
+  });
+});
+
+describe("isJoinableChannelDiscoverability", () => {
+  it("allows public for every caller", () => {
+    expect(isJoinableChannelDiscoverability("public", false)).toBe(true);
+    expect(isJoinableChannelDiscoverability("public", true)).toBe(true);
+  });
+
+  it("allows private only when elevated", () => {
+    expect(isJoinableChannelDiscoverability("private", false)).toBe(false);
+    expect(isJoinableChannelDiscoverability("private", true)).toBe(true);
+  });
+
+  it("rejects null or unknown discoverability", () => {
+    expect(isJoinableChannelDiscoverability(null, true)).toBe(false);
+    expect(isJoinableChannelDiscoverability("weird", true)).toBe(false);
+  });
+});
+
+describe("buildDiscoverabilityFilter", () => {
+  it("returns public-only for plain members", () => {
+    expect(buildDiscoverabilityFilter(false)).toBe("public");
+  });
+
+  it("returns public+private for elevated callers", () => {
+    expect(buildDiscoverabilityFilter(true)).toEqual({
+      in: ["public", "private"],
+    });
   });
 });
 

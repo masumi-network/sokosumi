@@ -1,7 +1,11 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
+  CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+  type ChatMembershipRevokeReason,
+  type ChatRoomMessageEventType,
   makeAgentJobsChannelName,
-  makeUserChatRoomsChannelName,
+  makeChatRoomChannelName,
+  makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   SokosumiJobStatus,
@@ -89,16 +93,131 @@ export async function publishNotificationEvent({
   await channel.publish("notification_created", notification);
 }
 
-interface PublishChatRoomMessageEventInput {
-  userId: string;
+/** Full DTO body for create / update / delete. */
+export type ChatRoomMessageFullEventType = Extract<
+  ChatRoomMessageEventType,
+  "create" | "update" | "delete"
+>;
+
+/** Patch body for high-chatter slices (SOK-737). */
+export type ChatRoomMessagePatchEventType = Extract<
+  ChatRoomMessageEventType,
+  "reaction" | "unfurl" | "mention_status"
+>;
+
+export type ChatRoomMessageReactionPatch = {
+  reactions: ChatRoomMessage["reactions"];
+};
+
+export type ChatRoomMessageUnfurlPatch = {
+  unfurls: ChatRoomMessage["unfurls"];
+};
+
+export type ChatRoomMessageMentionStatusPatch = {
+  mentions: ChatRoomMessage["mentions"];
+};
+
+export type ChatRoomMessageEventPatch =
+  | ChatRoomMessageReactionPatch
+  | ChatRoomMessageUnfurlPatch
+  | ChatRoomMessageMentionStatusPatch;
+
+interface PublishChatRoomMessageFullEventInput {
+  eventType: ChatRoomMessageFullEventType;
   message: ChatRoomMessage;
 }
 
-export async function publishChatRoomMessageEvent({
-  userId,
-  message,
-}: PublishChatRoomMessageEventInput) {
+interface PublishChatRoomMessagePatchEventInput {
+  eventType: ChatRoomMessagePatchEventType;
+  messageId: string;
+  roomId: string;
+  parentMessageId: string | null;
+  patch: ChatRoomMessageEventPatch;
+}
+
+export type PublishChatRoomMessageEventInput =
+  | PublishChatRoomMessageFullEventInput
+  | PublishChatRoomMessagePatchEventInput;
+
+function isPatchEventInput(
+  input: PublishChatRoomMessageEventInput,
+): input is PublishChatRoomMessagePatchEventInput {
+  return (
+    input.eventType === "reaction" ||
+    input.eventType === "unfurl" ||
+    input.eventType === "mention_status"
+  );
+}
+
+export async function publishChatRoomMessageEvent(
+  input: PublishChatRoomMessageEventInput,
+) {
   const client = getRestClient();
-  const channel = client.channels.get(makeUserChatRoomsChannelName(userId));
-  await channel.publish("chat_room_message", { message });
+  const roomId = isPatchEventInput(input) ? input.roomId : input.message.roomId;
+  const channel = client.channels.get(makeChatRoomChannelName(roomId));
+
+  if (isPatchEventInput(input)) {
+    await channel.publish("chat_room_message", {
+      eventType: input.eventType,
+      messageId: input.messageId,
+      roomId: input.roomId,
+      parentMessageId: input.parentMessageId,
+      patch: input.patch,
+    });
+    return;
+  }
+
+  await channel.publish("chat_room_message", {
+    eventType: input.eventType,
+    message: input.message,
+  });
+}
+
+interface PublishChatMembershipRevokedInput {
+  userId: string;
+  roomId: string;
+  reason: ChatMembershipRevokeReason;
+}
+
+/**
+ * Tell a user they lost membership for a room so their client can detach and
+ * re-authorize promptly (SOK-742). Publishes on the always-subscribed control
+ * channel — not the room channel they may be kicked from.
+ */
+export async function publishChatMembershipRevoked({
+  userId,
+  roomId,
+  reason,
+}: PublishChatMembershipRevokedInput) {
+  const client = getRestClient();
+  const channel = client.channels.get(makeUserChatControlChannelName(userId));
+  await channel.publish(CHAT_MEMBERSHIP_REVOKED_EVENT_NAME, {
+    roomId,
+    reason,
+    at: new Date().toISOString(),
+  });
+}
+
+/** Best-effort fan-out of revoke signals; one failure does not block others. */
+export async function publishChatMembershipRevokedToUsers(
+  roomId: string,
+  userIds: readonly string[],
+  reason: ChatMembershipRevokeReason,
+): Promise<void> {
+  if (userIds.length === 0) {
+    return;
+  }
+  const results = await Promise.allSettled(
+    userIds.map((userId) =>
+      publishChatMembershipRevoked({ userId, roomId, reason }),
+    ),
+  );
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error(
+        "Failed to publish chat membership revoke to a user",
+        result.reason,
+      );
+    }
+  }
 }

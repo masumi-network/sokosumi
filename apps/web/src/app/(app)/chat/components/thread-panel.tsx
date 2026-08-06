@@ -189,7 +189,11 @@ export function ThreadPanel({
             <X className="size-4" aria-hidden />
           </Button>
         </header>
-        <ScrollArea ref={scrollerRef} className="min-h-0 min-w-0 flex-1">
+        <ScrollArea
+          ref={scrollerRef}
+          shrinkContent
+          className="min-h-0 min-w-0 flex-1"
+        >
           <div
             ref={contentRef}
             className="flex min-w-0 w-full flex-col justify-end px-4 pt-4 pb-0"

@@ -2868,10 +2868,7 @@
         "extraCredits": "{credits, plural, =0 {0 verfügbar} =1 {1 verfügbar} other {# verfügbar}}"
       },
       "Plan": {
-        "getMoreCredits": "Mehr Credits erhalten",
-        "userPlan": "{plan}",
-        "organizationPlan": "{plan} ({organization})",
-        "unavailable": "Plan nicht verfügbar"
+        "getMoreCredits": "Mehr Credits erhalten"
       }
     },
     "Subscriptions": {
@@ -5032,10 +5029,10 @@
       "Browse": {
         "trigger": "Kanäle durchsuchen",
         "title": "Kanäle durchsuchen",
-        "description": "Finde öffentliche Organisationskanäle, denen du noch nicht beigetreten bist.",
+        "description": "Finde Organisationskanäle, denen du noch nicht beigetreten bist.",
         "searchPlaceholder": "Kanäle suchen",
         "loading": "Kanäle werden geladen…",
-        "empty": "Keine öffentlichen Kanäle zum Beitreten.",
+        "empty": "Keine Kanäle zum Beitreten.",
         "join": "Beitreten",
         "joinAria": "{name} beitreten",
         "joinSuccess": "Du bist {name} beigetreten.",
@@ -5048,7 +5045,7 @@
         "public": "Öffentlich",
         "private": "Privat",
         "publicHelp": "Alle in der Organisation können diesen Kanal finden und beitreten.",
-        "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen."
+        "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen. Organisationsinhaber und Admins können ihn trotzdem finden und beitreten."
       },
       "CreateWizard": {
         "title": "Kanal erstellen",

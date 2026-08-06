@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useRef, useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   ComposerWysiwygEditor,
   type ComposerWysiwygEditorHandle,
 } from "@/components/chat/composer-wysiwyg-editor";
+import { ROOM_COMPOSER_MENTION_ANCHOR_ATTR } from "@/components/chat/room-message-composer";
 
 const getPopupPositionFromRect = vi.hoisted(() =>
   vi.fn(() => ({
@@ -13,6 +14,16 @@ const getPopupPositionFromRect = vi.hoisted(() =>
     left: 80,
     side: "top" as const,
     maxHeight: 120,
+  })),
+);
+
+const getMentionPopupPositionFromAnchorRect = vi.hoisted(() =>
+  vi.fn(() => ({
+    top: 500,
+    left: 24,
+    side: "top" as const,
+    maxHeight: 200,
+    width: 420,
   })),
 );
 
@@ -24,10 +35,16 @@ vi.mock("@/components/ui/mention-textarea-utils", async (importOriginal) => {
   return {
     ...actual,
     getPopupPositionFromRect,
+    getMentionPopupPositionFromAnchorRect,
   };
 });
 
 describe("ComposerWysiwygEditor", () => {
+  afterEach(() => {
+    getPopupPositionFromRect.mockClear();
+    getMentionPopupPositionFromAnchorRect.mockClear();
+  });
+
   it("disables Inter contextual alternates so ** markers stay aligned", () => {
     function Harness() {
       const [value, setValue] = useState("");
@@ -78,6 +95,224 @@ describe("ComposerWysiwygEditor", () => {
       transform: "translateY(-100%)",
     });
     expect(getPopupPositionFromRect).toHaveBeenCalled();
+    expect(getMentionPopupPositionFromAnchorRect).not.toHaveBeenCalled();
+  });
+
+  it("anchors mention listbox to the composer card when the data attr is present", () => {
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+            <ComposerWysiwygEditor
+              ref={editorRef}
+              value={value}
+              onChange={setValue}
+              mentions={{
+                alice: { value: "Alice" },
+                bob: { value: "Bob" },
+              }}
+            />
+          </div>
+        </>
+      );
+    }
+
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "200px",
+      transform: "translateY(-100%)",
+      width: "420px",
+    });
+    expect(listbox).not.toHaveClass("w-72");
+  });
+
+  it("keeps the mention listbox open when openMentions runs after editor blur", () => {
+    vi.useFakeTimers();
+
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <ComposerWysiwygEditor
+            ref={editorRef}
+            value={value}
+            onChange={setValue}
+            mentions={{
+              alice: { value: "Alice" },
+              bob: { value: "Bob" },
+            }}
+          />
+        </>
+      );
+    }
+
+    try {
+      render(<Harness />);
+      const editor = screen.getByRole("textbox");
+      act(() => {
+        editor.focus();
+      });
+      // Toolbar click path: editor blurs before openMentions runs.
+      fireEvent.blur(editor);
+      fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("inserts a mention from the toolbar picker when no @ trigger is typed", () => {
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("hello");
+      return (
+        <>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <ComposerWysiwygEditor
+            ref={editorRef}
+            value={value}
+            onChange={setValue}
+            mentions={{
+              alice: { value: "Alice" },
+              bob: { value: "Bob" },
+            }}
+          />
+        </>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    act(() => {
+      editor.focus();
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+    const option = screen.getByRole("option", { name: /Alice/i });
+
+    // Listbox click leaves selection outside the editor (portal).
+    act(() => {
+      const selection = window.getSelection();
+      const outside = document.createTextNode("outside");
+      document.body.appendChild(outside);
+      const range = document.createRange();
+      range.setStart(outside, 0);
+      range.collapse(true);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+
+    fireEvent.mouseDown(option);
+    fireEvent.click(option);
+
+    expect(editor.querySelector("[data-mention-key='alice']")).not.toBeNull();
+    expect(editor.textContent).toMatch(/hello\s*@Alice/);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("anchors emoji shortcode popup to the composer shell", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+        </div>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":smi";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "200px",
+      transform: "translateY(-100%)",
+      width: "420px",
+    });
+    expect(listbox).not.toHaveClass("w-72");
+  });
+
+  it("keeps emoji shortcode popup on the caret when no composer anchor", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":smi";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(getPopupPositionFromRect).toHaveBeenCalled();
+    expect(getMentionPopupPositionFromAnchorRect).not.toHaveBeenCalled();
+    expect(screen.getByRole("listbox")).toHaveClass("w-72");
   });
 
   it("submits on plain Enter on desktop and newlines on Shift+Enter", () => {
