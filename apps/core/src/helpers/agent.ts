@@ -6,7 +6,6 @@ import {
   type AgentWithPricing,
   type CreditCost,
   PaymentType,
-  POSTGRES_BIGINT_MAX,
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
@@ -473,11 +472,7 @@ function calculateCentsFromPricingAmountRows(
     if (!creditCost) {
       throw unprocessableEntity(`Credit cost not found for unit ${unit}`);
     }
-    const rowCents = row.amount * creditCost.centsPerUnit;
-    if (rowCents < 0n || totalCents > POSTGRES_BIGINT_MAX - rowCents) {
-      throw unprocessableEntity("Credit amount exceeds supported range");
-    }
-    totalCents += rowCents;
+    totalCents += row.amount * creditCost.centsPerUnit;
   }
   return totalCents;
 }

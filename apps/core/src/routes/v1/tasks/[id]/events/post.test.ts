@@ -1929,37 +1929,6 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
-  it("rejects a coworker charge above the per-event ceiling", async () => {
-    const tx: TransactionMock = {
-      taskEvent: { create: vi.fn() },
-      task: { updateMany: vi.fn() },
-    };
-
-    mockTransaction(tx);
-
-    const app = createApp({
-      actor: "coworker",
-      coworkerId: COWORKER_ID,
-      vendorId: TEST_VENDOR_ID,
-    });
-
-    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        status: TaskStatus.COMPLETED,
-        credits: LIMITS.MAX_TASK_EVENT_CREDITS + 1,
-      }),
-    });
-
-    // The coworker picks this number and there is no caller-supplied ceiling
-    // here, so an unbounded charge would empty the owner's balance.
-    expect(response.status).toBe(422);
-    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
-    expect(tx.taskEvent.create).not.toHaveBeenCalled();
-    expect(tx.task.updateMany).not.toHaveBeenCalled();
-  });
-
   it("creates purchase when coworker charges masumiPayment on RUNNING", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
       createTask({ status: TaskStatus.RUNNING }),

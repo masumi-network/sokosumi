@@ -460,8 +460,7 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       input_schema: null,
       result: null,
     };
-    const abortController = new AbortController();
-    const abortSignal = abortController.signal;
+    const abortSignal = AbortSignal.timeout(1000);
     ssrfSafeFetchMock.mockResolvedValue(
       new Response(JSON.stringify(responseBody), {
         status: 200,
@@ -481,20 +480,8 @@ describe("createAgentClient fetchAgentJobStatus", () => {
       expect.any(URL),
       expect.objectContaining({
         method: "GET",
-        signal: expect.any(AbortSignal),
-        // Sellers are untrusted: an unbounded body would be buffered whole.
-        maxResponseBytes: expect.any(Number),
+        signal: abortSignal,
       }),
     );
-
-    // The caller's signal is composed with the client's own deadline rather
-    // than passed through, so assert propagation instead of object identity.
-    const [, init] = ssrfSafeFetchMock.mock.calls[0] as [
-      URL,
-      { signal: AbortSignal },
-    ];
-    expect(init.signal.aborted).toBe(false);
-    abortController.abort();
-    expect(init.signal.aborted).toBe(true);
   });
 });

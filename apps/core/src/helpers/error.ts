@@ -179,24 +179,21 @@ export const serviceUnavailable = (
 };
 
 export function shouldReportHttpException(error: HTTPException): boolean {
-  const cause = error.cause;
-  const explicitPreference =
-    typeof cause === "object" && cause !== null && "reportToSentry" in cause
-      ? cause.reportToSentry
-      : undefined;
-
-  if (explicitPreference === false) {
+  if (error.status < 500) {
     return false;
   }
-  // 4xx is normally the caller's problem and stays out of Sentry, but some
-  // rejections mean OUR integration is broken (e.g. every V2 hire failing
-  // because the payment node stopped reporting a source purchase-ready).
-  // Those opt in explicitly, otherwise they fail silently at scale.
-  if (explicitPreference === true) {
-    return true;
+
+  const cause = error.cause;
+  if (
+    typeof cause === "object" &&
+    cause !== null &&
+    "reportToSentry" in cause &&
+    cause.reportToSentry === false
+  ) {
+    return false;
   }
 
-  return error.status >= 500;
+  return true;
 }
 
 /**

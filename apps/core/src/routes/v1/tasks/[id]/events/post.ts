@@ -203,31 +203,6 @@ async function chargeTaskCreditsOrMarkOutOfCredits(params: {
   }
 }
 
-/**
- * Upper bound on a single task-event charge.
- *
- * The amount is chosen by the assigned coworker, and this flow has no
- * caller-supplied ceiling like the hire flow's `maxAcceptedCents` — so an
- * unbounded charge would let one event empty the owner's balance. Report it:
- * a breach is a compromised or misbehaving coworker, not user error.
- */
-function assertTaskEventChargeWithinCeiling(creditsValue: number): void {
-  if (creditsValue <= LIMITS.MAX_TASK_EVENT_CREDITS) {
-    return;
-  }
-  Sentry.captureMessage("Task event charge exceeded the per-event ceiling", {
-    level: "error",
-    tags: { error_type: "task_event_charge_ceiling_exceeded" },
-    extra: {
-      attemptedCredits: creditsValue,
-      ceiling: LIMITS.MAX_TASK_EVENT_CREDITS,
-    },
-  });
-  throw unprocessableEntity(
-    `Credit amount exceeds the maximum chargeable value for a single task event (${LIMITS.MAX_TASK_EVENT_CREDITS})`,
-  );
-}
-
 interface SettleTaskEventChargeParams {
   task: {
     ownerId: string;
@@ -312,7 +287,6 @@ async function settleTaskEventCharge({
         `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
       );
     }
-    assertTaskEventChargeWithinCeiling(creditsValue);
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
       userId: task.ownerId,
       organizationId: task.organizationId,
@@ -343,7 +317,6 @@ async function settleTaskEventCharge({
         `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
       );
     }
-    assertTaskEventChargeWithinCeiling(credits);
     const charge = await chargeTaskCreditsOrMarkOutOfCredits({
       userId: task.ownerId,
       organizationId: task.organizationId,

@@ -30,5 +30,8 @@ describe("well-known oauth issuer metadata integration", () => {
       `${metadata.issuer}/oauth2/authorize`,
     );
     expect(metadata.token_endpoint).toBe(`${metadata.issuer}/oauth2/token`);
+    // Bumped from the 5s default: this boots the whole Better Auth handler, and
+    // under full-suite parallel load that cold start exceeds 5s even though the
+    // test takes ~1.5s in isolation.
   }, 10_000);
 });
