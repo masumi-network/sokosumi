@@ -141,16 +141,32 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
     });
 
-    for (const message of statusMessages) {
-      await publishChatRoomMessageRealtime(message, "create");
+    // Membership already committed. Status timeline and multi-tab revoke must
+    // not gate each other (or fail the leave after the row is gone).
+    const [statusResults, revokeResult] = await Promise.allSettled([
+      Promise.all(
+        statusMessages.map((message) =>
+          publishChatRoomMessageRealtime(message, "create"),
+        ),
+      ),
+      publishChatMembershipRevoked({
+        userId: userContext.userId,
+        roomId: result.id,
+        reason: "left",
+      }),
+    ]);
+    if (statusResults.status === "rejected") {
+      console.error(
+        "Failed to publish chat membership status after leave",
+        statusResults.reason,
+      );
     }
-
-    // Other tabs/devices still holding a room cap need a control-channel hint.
-    await publishChatMembershipRevoked({
-      userId: userContext.userId,
-      roomId: result.id,
-      reason: "left",
-    });
+    if (revokeResult.status === "rejected") {
+      console.error(
+        "Failed to publish chat membership revoke after leave",
+        revokeResult.reason,
+      );
+    }
 
     return ok(c, leftChatRoomSchema.parse(result));
   });

@@ -266,15 +266,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           return { room, statusMessages: createdStatus, removedUserIds };
         });
 
-      for (const message of statusMessages) {
-        await publishChatRoomMessageRealtime(message, "create");
+      // Status timeline and revoke are independent: membership is already
+      // committed; a failed status publish must not skip cap revoke.
+      const [statusResults, revokeResult] = await Promise.allSettled([
+        Promise.all(
+          statusMessages.map((message) =>
+            publishChatRoomMessageRealtime(message, "create"),
+          ),
+        ),
+        publishChatMembershipRevokedToUsers(room.id, removedUserIds, "removed"),
+      ]);
+      if (statusResults.status === "rejected") {
+        console.error(
+          "Failed to publish chat membership status messages after roster patch",
+          statusResults.reason,
+        );
       }
-
-      await publishChatMembershipRevokedToUsers(
-        room.id,
-        removedUserIds,
-        "removed",
-      );
+      if (revokeResult.status === "rejected") {
+        console.error(
+          "Failed to publish chat membership revoke after roster patch",
+          revokeResult.reason,
+        );
+      }
 
       return ok(
         c,

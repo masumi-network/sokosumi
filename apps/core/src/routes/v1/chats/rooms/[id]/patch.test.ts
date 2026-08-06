@@ -449,6 +449,66 @@ describe("PATCH /chats/rooms/{id}", () => {
       messageCreateMock.mock.calls.map((call) => call[0].data.content),
     ).toEqual(["OldBot left", "Bob joined", "NewBot joined"]);
     expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledTimes(3);
+    // No human removed — only coworker left / Bob joined; empty revoke fan-out.
+    expect(publishChatMembershipRevokedToUsersMock).toHaveBeenCalledWith(
+      ROOM_ID,
+      [],
+      "removed",
+    );
+  });
+
+  it("publishes membership revoke for users dropped from the roster", async () => {
+    const removedUserId = OTHER_USER_ID;
+    const existing = channelRoom({
+      userMembers: [
+        {
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          user: {
+            id: removedUserId,
+            name: "Bob",
+            email: "bob@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    const updated = channelRoom();
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 2 });
+    userMemberCreateManyMock.mockResolvedValue({ count: 1 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 1 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+    messageCreateMock.mockResolvedValue({
+      id: "550e8400-e29b-41d4-a716-446655440088",
+      roomId: ROOM_ID,
+      content: "Bob left",
+    });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(publishChatMembershipRevokedToUsersMock).toHaveBeenCalledWith(
+      ROOM_ID,
+      [removedUserId],
+      "removed",
+    );
   });
 
   it("fails open mentions when coworkers are removed from the roster", async () => {

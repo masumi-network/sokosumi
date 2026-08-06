@@ -209,9 +209,17 @@ export async function publishChatMembershipRevokedToUsers(
   if (userIds.length === 0) {
     return;
   }
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     userIds.map((userId) =>
       publishChatMembershipRevoked({ userId, roomId, reason }),
     ),
   );
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error(
+        "Failed to publish chat membership revoke to a user",
+        result.reason,
+      );
+    }
+  }
 }
