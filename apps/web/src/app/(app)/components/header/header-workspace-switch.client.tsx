@@ -166,11 +166,11 @@ export default function HeaderWorkspaceSwitch({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="text-foreground hover:opacity-80 flex min-w-0 items-center text-sm transition-opacity"
+            className="text-foreground hover:opacity-80 flex h-8 min-w-0 items-center text-sm transition-opacity md:h-auto"
             disabled={isPending}
           >
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1.5">
-              <span className="max-w-24 truncate text-right font-medium md:max-w-none">
+              <span className="max-w-24 truncate text-right leading-none font-medium md:max-w-none md:leading-tight">
                 {activeWorkspace?.name}
               </span>
               <HeaderWorkspaceAvatar
@@ -180,8 +180,8 @@ export default function HeaderWorkspaceSwitch({
                 logoSize={12}
                 decorative
               />
-              <ChevronsUpDown className="text-muted-foreground row-span-2 size-4.5 shrink-0 self-center" />
-              <span className="text-muted-foreground col-span-2 col-start-1 max-md:hidden max-w-full truncate text-right text-xs">
+              <ChevronsUpDown className="text-muted-foreground size-4 shrink-0 self-center md:row-span-2 md:size-4.5" />
+              <span className="text-muted-foreground col-span-2 col-start-1 max-md:hidden max-w-full truncate text-right text-xs leading-tight">
                 {sessionUser.email}
               </span>
             </div>
