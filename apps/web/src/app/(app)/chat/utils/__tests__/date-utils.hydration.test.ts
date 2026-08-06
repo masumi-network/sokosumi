@@ -36,6 +36,9 @@ describe("chat local calendar helpers (SOKOSUMI-A)", () => {
   });
 
   it("formatDaySeparator label for an evening instant differs UTC vs Berlin when 'now' is fixed", () => {
+    // Noon UTC keeps both zones on Aug 5 so 22:30Z is Today (UTC) vs Aug 6 (Berlin).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
     const evening = new Date("2026-08-05T22:30:00.000Z");
     // Noon UTC keeps both zones on Aug 5 for "today", so the Aug 6 Berlin
     // local date of `evening` cannot also collapse to "Today".
