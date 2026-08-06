@@ -1,8 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
+import type { EnvVariables } from "@/lib/hono";
+import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountPostAblyToken from "./post";
 
@@ -34,7 +34,7 @@ const USER_AUTH_CONTEXT: AuthenticationContext = {
 };
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
-  const app = new OpenAPIHono<{ Variables: AuthVariables }>();
+  const app = new OpenAPIHono<{ Variables: EnvVariables["Variables"] }>();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
@@ -42,7 +42,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
     return await next();
   });
 
-  mountPostAblyToken(app as unknown as OpenAPIHonoWithAuth);
+  mountPostAblyToken(app);
   return app;
 }
 

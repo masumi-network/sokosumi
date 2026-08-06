@@ -1,11 +1,11 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { createAblySubscribeTokenRequest } from "@/lib/ably/create-token-request";
 import prisma from "@/lib/db/prisma";
 import {
-  type OpenAPIHonoWithAuth,
+  type EnvVariables,
   withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -30,7 +30,9 @@ const route = withOrchestratorContextHeaderParameters(
   }),
 );
 
-export default function mount(app: OpenAPIHonoWithAuth) {
+export default function mount(
+  app: OpenAPIHono<{ Variables: EnvVariables["Variables"] }>,
+) {
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
 
