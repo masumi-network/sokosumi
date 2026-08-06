@@ -1,6 +1,6 @@
-import { DeveloperDetailPageSkeleton } from "@/app/developer/components/developer-loading-view";
+import { DeveloperTaskDetailPageSkeleton } from "@/app/developer/components/developer-loading-view";
 
 /** Sync shell only — no cookies/`connection()` (Instant Nav). */
 export default function DeveloperTaskDetailLoading() {
-  return <DeveloperDetailPageSkeleton />;
+  return <DeveloperTaskDetailPageSkeleton />;
 }

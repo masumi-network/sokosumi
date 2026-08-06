@@ -27,26 +27,39 @@ const pages = [
   "developer/oauth-clients/page.tsx",
   "developer/docs/page.tsx",
   "developer/coworkers/page.tsx",
+  "developer/coworkers/[id]/page.tsx",
   "developer/tasks/page.tsx",
+  "developer/tasks/[taskId]/page.tsx",
   "developer/vendors/page.tsx",
+  "developer/vendors/[id]/page.tsx",
 ] as const;
 
-const sectionLoadings = [
-  "notifications/loading.tsx",
-  "connections/loading.tsx",
-  "developer/loading.tsx",
+const cardSectionLoadings = [
   "developer/api-keys/loading.tsx",
   "developer/oauth-clients/loading.tsx",
   "developer/docs/loading.tsx",
+] as const;
+
+const listSectionLoadings = [
   "developer/coworkers/loading.tsx",
   "developer/tasks/loading.tsx",
   "developer/vendors/loading.tsx",
 ] as const;
 
-const detailLoadings = [
+const formDetailLoadings = [
   "developer/coworkers/[id]/loading.tsx",
-  "developer/tasks/[taskId]/loading.tsx",
   "developer/vendors/[id]/loading.tsx",
+] as const;
+
+const taskDetailLoading = "developer/tasks/[taskId]/loading.tsx" as const;
+
+const hubLoadings = [
+  "notifications/loading.tsx",
+  "connections/loading.tsx",
+  ...cardSectionLoadings,
+  ...listSectionLoadings,
+  ...formDetailLoadings,
+  taskDetailLoading,
 ] as const;
 
 const shellViews = [
@@ -63,7 +76,7 @@ describe("hub Instant Nav skeleton contract", () => {
     });
   }
 
-  for (const rel of [...sectionLoadings, ...detailLoadings, ...shellViews]) {
+  for (const rel of [...hubLoadings, ...shellViews]) {
     it(`${rel} stays sync (no cookies/connection/session/i18n)`, () => {
       const code = stripComments(readApp(rel));
       expect(code).not.toMatch(DYNAMIC_SHELL_API_RE);
@@ -84,9 +97,7 @@ describe("hub Instant Nav skeleton contract", () => {
     );
   });
 
-  for (const rel of sectionLoadings.filter((path) =>
-    path.startsWith("developer/"),
-  )) {
+  for (const rel of cardSectionLoadings) {
     it(`${rel} returns DeveloperSectionPageSkeleton`, () => {
       const code = stripComments(readApp(rel));
       expect(code).toMatch(
@@ -95,7 +106,16 @@ describe("hub Instant Nav skeleton contract", () => {
     });
   }
 
-  for (const rel of detailLoadings) {
+  for (const rel of listSectionLoadings) {
+    it(`${rel} returns DeveloperListPageSkeleton`, () => {
+      const code = stripComments(readApp(rel));
+      expect(code).toMatch(
+        /export\s+default\s+function[\s\S]*?return\s+<\s*DeveloperListPageSkeleton\s*\/>/,
+      );
+    });
+  }
+
+  for (const rel of formDetailLoadings) {
     it(`${rel} returns DeveloperDetailPageSkeleton`, () => {
       const code = stripComments(readApp(rel));
       expect(code).toMatch(
@@ -103,4 +123,15 @@ describe("hub Instant Nav skeleton contract", () => {
       );
     });
   }
+
+  it(`${taskDetailLoading} returns DeveloperTaskDetailPageSkeleton`, () => {
+    const code = stripComments(readApp(taskDetailLoading));
+    expect(code).toMatch(
+      /export\s+default\s+function[\s\S]*?return\s+<\s*DeveloperTaskDetailPageSkeleton\s*\/>/,
+    );
+  });
+
+  it("developer root has no loading.tsx (redirect-only segment)", () => {
+    expect(() => readApp("developer/loading.tsx")).toThrow();
+  });
 });
