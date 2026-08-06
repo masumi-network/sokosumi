@@ -37,8 +37,9 @@ export interface FileChipProps extends React.ComponentPropsWithoutRef<"a"> {
  * Chromium). Inside Radix ScrollArea's `display:table` content wrapper that
  * floor becomes the message column's minimum and Chrome device mode appears
  * to "stop resizing". Absolutely positioning the video removes it from
- * min-content; the frame keeps width from the row and height from aspect-ratio
- * (capped like large image previews).
+ * min-content; chat message ScrollAreas also pass `shrinkContent` so the
+ * table wrapper can shrink. The frame keeps width from the row and height
+ * from aspect-ratio (capped like large image previews).
  */
 function FileChipVideoFrame({
   src,
