@@ -19,7 +19,11 @@ import {
   taskEventDeprecatedOriginField,
 } from "@/schemas/task.schema";
 
-const HEX_PATTERN = /^[0-9a-f]+$/i;
+// Case-insensitive via an explicit character class, NOT the `i` flag:
+// zod-openapi serialises a flagged RegExp into the JSON-Schema `pattern` with
+// the flag still attached (`^[0-9a-f]+$/i`), which no value can satisfy — every
+// consumer validating against the published contract would reject valid hex.
+const HEX_PATTERN = /^[0-9a-fA-F]+$/;
 const MASUMI_TIMESTAMP_PATTERN = /^\d{1,19}$/;
 const MAX_SIGNED_INT64 = 9_223_372_036_854_775_807n;
 

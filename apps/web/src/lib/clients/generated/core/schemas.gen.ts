@@ -12650,28 +12650,28 @@ export const MasumiPaymentSchema = {
             type: 'string',
             minLength: 2,
             maxLength: 8000,
-            pattern: '^[0-9a-f]+$/i',
+            pattern: '^[0-9a-fA-F]+$',
             example: '0b00e04c0860a60c61066056281180462d0b12'
         },
         identifierFromPurchaser: {
             type: 'string',
             minLength: 14,
             maxLength: 26,
-            pattern: '^[0-9a-f]+$/i',
+            pattern: '^[0-9a-fA-F]+$',
             example: 'aabbccddeeff00112233'
         },
         agentIdentifier: {
             type: 'string',
             minLength: 1,
             maxLength: 250,
-            pattern: '^[0-9a-f]+$/i',
+            pattern: '^[0-9a-fA-F]+$',
             example: '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77'
         },
         sellerVkey: {
             type: 'string',
             minLength: 56,
             maxLength: 56,
-            pattern: '^[0-9a-f]+$/i',
+            pattern: '^[0-9a-fA-F]+$',
             example: '0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd'
         },
         submitResultTime: {
@@ -12698,7 +12698,7 @@ export const MasumiPaymentSchema = {
             type: 'string',
             minLength: 64,
             maxLength: 64,
-            pattern: '^[0-9a-f]+$/i',
+            pattern: '^[0-9a-fA-F]+$',
             example: '3b2d456a720bf5b3e2cc2cebaea9f9a937cd8b4d64267da3271bca937cb56af1'
         },
         paymentSourceType: {
@@ -12785,7 +12785,7 @@ export const MasumiTaskPaymentSourceSchema = {
             type: 'string',
             minLength: 56,
             maxLength: 56,
-            pattern: '^[0-9a-f]+$/i',
+            pattern: '^[0-9a-fA-F]+$',
             example: '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77'
         }
     },
