@@ -3,7 +3,7 @@
 import gravatarUrl from "gravatar-url";
 import { AlertTriangle, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactElement, useEffect, useState } from "react";
+import { type ReactElement, useState } from "react";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -19,11 +19,17 @@ import {
 } from "@/components/ui/tooltip";
 import { useSelfPresence } from "@/hooks/use-self-presence";
 import { cn } from "@/lib/utils";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getInitials } from "@/lib/utils/text";
-
+import {
+  ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS,
+  isLowCreditsBalance,
+  resolveAccountCreditsLabel,
+  resolveAccountDisplayName,
+  resolveAccountSummaryLabel,
+} from "./account-summary-labels";
 import { AccountSummaryMenu } from "./account-summary-menu.client";
 import type {
+  AccountAdminSettingsChrome,
   AccountSummaryCreditProps,
   AccountSummaryIdentityProps,
 } from "./account-summary-types";
@@ -32,9 +38,29 @@ const GRAVATAR_SIZE = 80;
 
 export interface SidebarAccountChipProps
   extends AccountSummaryCreditProps,
-    AccountSummaryIdentityProps {}
+    AccountSummaryIdentityProps {
+  adminSettingsChrome: AccountAdminSettingsChrome;
+}
 
-export function SidebarAccountChip({
+/**
+ * Desktop sidebar account/credits control. Mobile uses the header account
+ * control instead (`HeaderAccountControl`), so this returns null on mobile.
+ *
+ * Open state lives in the desktop-only child so mobile unmount drops it and
+ * remount on desktop starts closed (no local-state reset Effect).
+ */
+export function SidebarAccountChip(
+  props: SidebarAccountChipProps,
+): ReactElement | null {
+  const { isMobile } = useSidebar();
+  if (isMobile) {
+    return null;
+  }
+
+  return <SidebarAccountChipDesktop {...props} />;
+}
+
+function SidebarAccountChipDesktop({
   sessionUser,
   planName,
   totalCredits,
@@ -45,64 +71,43 @@ export function SidebarAccountChip({
   lowCreditsThreshold,
   buyCreditsLabel,
   buyCreditsPath,
+  adminSettingsChrome,
 }: SidebarAccountChipProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tBilling = useTranslations("App.Billing");
   const tPresence = useTranslations("App.Channels.Presence");
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { state } = useSidebar();
   const presence = useSelfPresence();
   const [isOpen, setIsOpen] = useState(false);
   const [menuInstance, setMenuInstance] = useState(0);
-  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
-    null,
+
+  const isCollapsed = state === "collapsed";
+  const displayName = resolveAccountDisplayName(
+    sessionUser.name,
+    sessionUser.email,
   );
-
-  useEffect(() => {
-    setIsOpen(false);
-  }, [isMobile, state, openMobile]);
-
-  const isCollapsed = !isMobile && state === "collapsed";
-  const displayName = sessionUser.name.trim() || sessionUser.email;
   const presenceLabel = tPresence(presence);
-
-  const displayTotal =
-    totalCredits === null ? null : formatCreditsForDisplay(totalCredits);
-  const creditsLabel =
-    displayTotal === null
-      ? null
-      : tBilling("balanceCreditsLabel", { credits: displayTotal });
-  const isLowCredits =
-    displayTotal !== null &&
-    displayTotal > 0 &&
-    displayTotal < lowCreditsThreshold;
-
-  const summary =
-    planName !== null && creditsLabel !== null
-      ? t("planAndCredits", { plan: planName, credits: creditsLabel })
-      : (creditsLabel ?? planName ?? t("detailsUnavailable"));
+  const creditsLabel = resolveAccountCreditsLabel(totalCredits, (credits) =>
+    tBilling("balanceCreditsLabel", { credits }),
+  );
+  const isLowCredits = isLowCreditsBalance(totalCredits, lowCreditsThreshold);
+  const summary = resolveAccountSummaryLabel({
+    planName,
+    creditsLabel,
+    planAndCredits: (plan, credits) => t("planAndCredits", { plan, credits }),
+    detailsUnavailable: t("detailsUnavailable"),
+  });
 
   function handleOpenChange(open: boolean) {
-    if (open) {
-      setPortalContainer(
-        isMobile
-          ? document.querySelector<HTMLElement>(
-              '[data-slot="sidebar"][data-mobile="true"]',
-            )
-          : null,
-      );
-    } else {
+    if (!open) {
       setMenuInstance((value) => value + 1);
     }
-
     setIsOpen(open);
   }
 
   function closeChip() {
     setIsOpen(false);
     setMenuInstance((value) => value + 1);
-    if (isMobile) {
-      setOpenMobile(false);
-    }
   }
 
   const trigger = (
@@ -169,8 +174,8 @@ export function SidebarAccountChip({
     <PopoverContent
       side={isCollapsed ? "right" : "top"}
       align={isCollapsed ? "end" : "start"}
-      container={portalContainer}
-      className="bg-popover text-popover-foreground max-h-(--radix-popover-content-available-height) w-64 overflow-y-auto overscroll-contain rounded-xl border p-3 shadow-md"
+      container={null}
+      className={ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS}
     >
       <AccountSummaryMenu
         key={menuInstance}
@@ -184,6 +189,7 @@ export function SidebarAccountChip({
         lowCreditsThreshold={lowCreditsThreshold}
         buyCreditsLabel={buyCreditsLabel}
         buyCreditsPath={buyCreditsPath}
+        adminSettingsChrome={adminSettingsChrome}
         onRequestClose={closeChip}
       />
     </PopoverContent>

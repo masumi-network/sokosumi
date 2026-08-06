@@ -264,7 +264,7 @@ describe("HeaderProfileSectionClient", () => {
       expect.objectContaining({
         className: "ml-0.5 md:hidden",
         planName: "Pro",
-        mobileAdminSettings: expect.objectContaining({
+        adminSettingsChrome: expect.objectContaining({
           adminMenuEnabled: true,
           activeOrganizationId: "org-a",
           members,
