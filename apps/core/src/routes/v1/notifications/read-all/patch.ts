@@ -6,9 +6,9 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withCoworkerContextHeaderParameters,
+  withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 
 const responseSchema = z
   .object({
@@ -19,12 +19,12 @@ const responseSchema = z
   })
   .openapi("MarkAllReadResponse");
 
-const route = withCoworkerContextHeaderParameters(
+const route = withOrchestratorContextHeaderParameters(
   createRoute({
     method: "patch",
     path: "/read-all",
     description:
-      "Mark all in-app notification-center items as read for the effective user (session user, or orchestrator/coworker with context headers). CHAT kind is excluded so room attention stays until the room is read.",
+      "Mark all in-app notification-center items as read for the effective user (session user, or orchestrator with context headers). CHAT kind is excluded so room attention stays until the room is read.",
     tags: ["Notifications"],
     responses: {
       200: jsonSuccessResponse(
@@ -46,7 +46,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
 
     const result = await prisma.notification.updateMany({
       where: {

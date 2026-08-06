@@ -24,7 +24,7 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
         >
           <AppHeaderFallback className="h-16 px-4 py-3 md:p-4" />
           <main
-            className="relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:max-h-[calc(100svh-64px)] md:min-h-[calc(100svh-64px)] md:pt-4"
+            className="relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:max-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-4rem)] md:pt-4"
             data-app-main
           >
             <div

@@ -62,13 +62,15 @@ describe("shouldApplyRealtimeMessageToOpenThread", () => {
     ).toBe(false);
   });
 
-  it("accepts the open thread root itself", () => {
+  // Parent is rendered from threadParentMessage, not the replies list.
+  // Merging the root into threadMessages duplicates it (e.g. after reaction).
+  it("rejects the open thread root itself (parent is not a reply)", () => {
     expect(
       shouldApplyRealtimeMessageToOpenThread(
         { id: "parent-1", parentMessageId: null },
         "parent-1",
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("accepts replies under the open thread root", () => {
@@ -103,7 +105,9 @@ describe("routeRealtimeChatRoomMessage", () => {
     });
   });
 
-  it("routes a top-level open-thread parent to room and thread", () => {
+  // Reaction/edit on open-thread parent: room timeline + parent row only.
+  // Never mergeIntoOpenThread — that list is replies only.
+  it("routes open-thread parent to room only, not reply list", () => {
     expect(
       routeRealtimeChatRoomMessage(
         { id: "parent-1", parentMessageId: null },
@@ -111,7 +115,7 @@ describe("routeRealtimeChatRoomMessage", () => {
       ),
     ).toEqual({
       mergeIntoRoomTimeline: true,
-      mergeIntoOpenThread: true,
+      mergeIntoOpenThread: false,
     });
   });
 
