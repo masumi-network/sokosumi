@@ -34,10 +34,6 @@ vi.mock("@/components/masumi-logos", () => ({
   ),
 }));
 
-vi.mock("../../sidebar/components/custom-trigger", () => ({
-  default: () => <button type="button">sidebar-trigger</button>,
-}));
-
 import { HeaderLeadingControl } from "../header-leading-control.client";
 
 describe("HeaderLeadingControl", () => {
@@ -63,5 +59,36 @@ describe("HeaderLeadingControl", () => {
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToChats" });
     expect(back).toHaveAttribute("href", "/chat/chats");
+  });
+
+  it("shows back to home on account (not sidebar trigger)", () => {
+    mockPathname = "/account";
+    render(<HeaderLeadingControl />);
+    const back = screen.getByRole("link", { name: "backToHome" });
+    expect(back).toHaveAttribute("href", "/chat");
+    expect(
+      screen.queryByRole("button", { name: "sidebar-trigger" }),
+    ).toBeNull();
+  });
+
+  it("shows back to home on billing", () => {
+    mockPathname = "/billing";
+    render(<HeaderLeadingControl />);
+    const back = screen.getByRole("link", { name: "backToHome" });
+    expect(back).toHaveAttribute("href", "/chat");
+  });
+
+  it("shows back to home on developer", () => {
+    mockPathname = "/developer";
+    render(<HeaderLeadingControl />);
+    const back = screen.getByRole("link", { name: "backToHome" });
+    expect(back).toHaveAttribute("href", "/chat");
+  });
+
+  it("shows hub back to home on tasks list", () => {
+    mockPathname = "/tasks";
+    render(<HeaderLeadingControl />);
+    const back = screen.getByRole("link", { name: "backToHome" });
+    expect(back).toHaveAttribute("href", "/chat");
   });
 });

@@ -11,11 +11,11 @@
  *
  * ## Realtime routing table (SOK-736)
  *
- * Ably `chat_room_message` carries `eventType` + full message DTO. Landing
- * (where the upsert goes) is decided by parent vs reply + open thread id;
- * `eventType` documents mutation intent (create/update/reaction/…) so clients
- * do not guess from DTO shape alone. v1 apply is still full-DTO upsert for
- * every type.
+ * Ably `chat_room_message` carries `eventType` plus either a full message DTO
+ * (create/update/delete) or a field patch (reaction/unfurl/mention_status,
+ * SOK-737). Landing (where the apply goes) is decided by parent vs reply +
+ * open thread id; `eventType` documents mutation intent so clients do not
+ * guess from payload shape alone.
  *
  * | eventType (any) | message shape              | open thread        | room timeline | open thread replies | thread parent row* |
  * |-----------------|----------------------------|--------------------|---------------|---------------------|--------------------|

@@ -3,17 +3,50 @@ import type { Prisma } from "@sokosumi/database";
 
 import type { ChatRoomMessageEventType } from "@sokosumi/utils";
 
-import { publishChatRoomMessageEvent } from "@/lib/ably/publish";
+import {
+  type ChatRoomMessageEventPatch,
+  type ChatRoomMessagePatchEventType,
+  publishChatRoomMessageEvent,
+} from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
 } from "@/routes/v1/chats/rooms/helpers";
-import { chatRoomMessageSchema } from "@/schemas/chat-room.schema";
+import {
+  type ChatRoomMessage,
+  chatRoomMessageSchema,
+} from "@/schemas/chat-room.schema";
 
 type ChatRoomMessageWithInclude = Prisma.ChatRoomMessageGetPayload<{
   include: typeof chatRoomMessageInclude;
 }>;
+
+const PATCH_EVENT_TYPES = new Set<ChatRoomMessageEventType>([
+  "reaction",
+  "unfurl",
+  "mention_status",
+]);
+
+function isPatchEventType(
+  eventType: ChatRoomMessageEventType,
+): eventType is ChatRoomMessagePatchEventType {
+  return PATCH_EVENT_TYPES.has(eventType);
+}
+
+function buildChatRoomMessagePatch(
+  eventType: ChatRoomMessagePatchEventType,
+  dto: ChatRoomMessage,
+): ChatRoomMessageEventPatch {
+  switch (eventType) {
+    case "reaction":
+      return { reactions: dto.reactions };
+    case "unfurl":
+      return { unfurls: dto.unfurls };
+    case "mention_status":
+      return { mentions: dto.mentions };
+  }
+}
 
 export async function publishChatRoomMessageRealtime(
   message: ChatRoomMessageWithInclude,
@@ -32,10 +65,21 @@ export async function publishChatRoomMessageRealtime(
         const dto = chatRoomMessageSchema.parse(
           mapChatRoomMessage(message, userId),
         );
+        if (isPatchEventType(eventType)) {
+          await publishChatRoomMessageEvent({
+            userId,
+            eventType,
+            messageId: dto.id,
+            roomId: dto.roomId,
+            parentMessageId: dto.parentMessageId,
+            patch: buildChatRoomMessagePatch(eventType, dto),
+          });
+          return;
+        }
         await publishChatRoomMessageEvent({
           userId,
-          message: dto,
           eventType,
+          message: dto,
         });
       }),
     );
