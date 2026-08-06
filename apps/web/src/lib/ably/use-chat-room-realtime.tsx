@@ -24,8 +24,10 @@ interface UseChatRoomRealtimeOptions {
 
 /**
  * Subscribe to room-scoped chat_room_message channels (SOK-741).
- * Re-authorizes Ably when the membership set changes so token caps stay fresh.
- * Authorize failure aborts attach — never subscribe on stale caps.
+ *
+ * On membership set change: re-authorize once, then attach/detach only the
+ * delta (important for external channels that join/leave often). Authorize
+ * failure aborts the sync — never add channels on stale caps.
  */
 export function useChatRoomRealtime({
   roomIds,
@@ -38,6 +40,32 @@ export function useChatRoomRealtime({
   onMessageRef.current = onMessage;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
+
+  /** Stable handler so incremental unsub targets the same function reference. */
+  const handleMessageRef = useRef((message: Ably.Message) => {
+    const parsedResult = chatRoomMessageEventDataSchema.safeParse(message.data);
+    if (!parsedResult.success) {
+      const error = new Error(
+        `Failed to parse ChatRoomMessageEventData from message: ${parsedResult.error.message}`,
+      );
+      console.error(error, message, parsedResult.error);
+      onErrorRef.current?.(error);
+      return;
+    }
+
+    onMessageRef.current?.(
+      personalizeChatRoomMessageEvent(
+        parsedResult.data,
+        currentUserIdRef.current,
+      ),
+    );
+  });
+
+  const channelsRef = useRef(new Map<string, Ably.RealtimeChannel>());
+  /** Bumps to invalidate in-flight sync when membership/user changes or unmounts. */
+  const syncGenerationRef = useRef(0);
 
   const roomIdsKey = useMemo(
     () => [...new Set(roomIds)].sort().join("\0"),
@@ -49,43 +77,17 @@ export function useChatRoomRealtime({
       return;
     }
 
-    const ids = roomIdsKey.length > 0 ? roomIdsKey.split("\0") : [];
-    let cancelled = false;
-    const channels: Ably.RealtimeChannel[] = [];
+    const generation = ++syncGenerationRef.current;
+    const nextIds = new Set(
+      roomIdsKey.length > 0 ? roomIdsKey.split("\0") : [],
+    );
+    const handleMessage = handleMessageRef.current;
 
-    const handleMessage = (message: Ably.Message) => {
-      const parsedResult = chatRoomMessageEventDataSchema.safeParse(
-        message.data,
-      );
-      if (!parsedResult.success) {
-        const error = new Error(
-          `Failed to parse ChatRoomMessageEventData from message: ${parsedResult.error.message}`,
-        );
-        console.error(error, message, parsedResult.error);
-        onErrorRef.current?.(error);
-        return;
-      }
-
-      onMessageRef.current?.(
-        personalizeChatRoomMessageEvent(parsedResult.data, currentUserId),
-      );
-    };
-
-    function detachAll() {
-      for (const channel of channels) {
-        channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
-        // Release ATTACHED state so left rooms do not stay live on the client.
-        void channel.detach();
-      }
-      channels.length = 0;
-    }
-
-    async function attachRooms() {
-      // Refresh capabilities after join/leave (roomIds change).
+    async function syncMembershipChannels() {
       try {
         await ably.auth.authorize();
       } catch (error) {
-        if (cancelled) {
+        if (generation !== syncGenerationRef.current) {
           return;
         }
         const err =
@@ -94,35 +96,49 @@ export function useChatRoomRealtime({
             : new Error("Failed to re-authorize Ably for chat rooms");
         console.error(err, error);
         onErrorRef.current?.(err);
-        // Do not subscribe with stale token caps.
         return;
       }
 
-      if (cancelled) {
+      if (generation !== syncGenerationRef.current) {
         return;
       }
 
-      for (const roomId of ids) {
-        if (cancelled) {
-          detachAll();
-          return;
+      const attached = channelsRef.current;
+
+      for (const [roomId, channel] of [...attached.entries()]) {
+        if (nextIds.has(roomId)) {
+          continue;
+        }
+        channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+        void channel.detach();
+        attached.delete(roomId);
+      }
+
+      for (const roomId of nextIds) {
+        if (attached.has(roomId)) {
+          continue;
         }
         const channel = ably.channels.get(makeChatRoomChannelName(roomId));
         channel.subscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
-        channels.push(channel);
-      }
-
-      // Cleanup ran while the loop was finishing — drop any late attaches.
-      if (cancelled) {
-        detachAll();
+        attached.set(roomId, channel);
       }
     }
 
-    void attachRooms();
-
-    return () => {
-      cancelled = true;
-      detachAll();
-    };
+    void syncMembershipChannels();
   }, [ably, currentUserId, roomIdsKey]);
+
+  // Tear down every channel when the Ably client or user identity changes, or
+  // on unmount. Membership deltas are handled above without full re-sub.
+  useEffect(() => {
+    return () => {
+      syncGenerationRef.current += 1;
+      const handleMessage = handleMessageRef.current;
+      const attached = channelsRef.current;
+      for (const channel of attached.values()) {
+        channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+        void channel.detach();
+      }
+      attached.clear();
+    };
+  }, [ably, currentUserId]);
 }
