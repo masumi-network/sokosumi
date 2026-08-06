@@ -123,7 +123,7 @@ export function JobsListView({
   const hasAnyJobs = sortedJobs.length > 0;
 
   const listContent = (
-    <div className="bg-muted/30 border-border/50 -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+    <div className="bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
       {hasAnyJobs ? (
         <div className="divide-border/50 divide-y">
           <section className="flex flex-col gap-1">
