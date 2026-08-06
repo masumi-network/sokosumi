@@ -7,6 +7,7 @@ import {
   getActiveTrigger,
   getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
+  getSuggestionPopupFixedStyle,
   MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX,
   MENTION_COMPOSER_GAP_PX,
   type NormalizedMention,
@@ -131,6 +132,32 @@ describe("mention-textarea utils", () => {
     expect(getActiveTrigger(text, text.length)).toBeNull();
   });
 
+  describe("getSuggestionPopupFixedStyle", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("pins top-side popups with bottom and no translateY", () => {
+      stubViewport(800);
+      const style = getSuggestionPopupFixedStyle({
+        top: 500,
+        left: 24,
+        side: "top",
+        maxHeight: 200,
+        width: 420,
+      });
+
+      expect(style).toEqual({
+        left: 24,
+        maxHeight: 200,
+        width: 420,
+        bottom: 800 - 500,
+      });
+      expect(style).not.toHaveProperty("top");
+      expect(style).not.toHaveProperty("transform");
+    });
+  });
+
   describe("getPopupPositionFromRect", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
@@ -253,6 +280,25 @@ describe("mention-textarea utils", () => {
       expect(position.top).toBe(
         120 + VIEWPORT_PADDING_PX + POPUP_MIN_HEIGHT_PX,
       );
+    });
+
+    it("does not under-count aboveSpace when client rects are visual-relative", () => {
+      // iOS keyboard: offsetTop shifts while getBoundingClientRect top is
+      // already in the visual viewport band. Subtracting offsetTop alone
+      // collapses aboveSpace to ~0 and leaves a one-row maxHeight.
+      stubViewport(800);
+      vi.stubGlobal("visualViewport", {
+        offsetTop: 320,
+        offsetLeft: 0,
+        width: 390,
+        height: 420,
+      });
+      const position = getMentionPopupPositionFromAnchorRect(
+        anchorRect({ left: 16, width: 360, top: 340, height: 72 }),
+      );
+
+      expect(position.maxHeight).toBe(POPUP_HEIGHT_PX);
+      expect(position.top).toBe(340 - MENTION_COMPOSER_GAP_PX);
     });
 
     it("clamps left and width into the viewport padding", () => {
