@@ -184,6 +184,8 @@ const envSchema = z.object({
 
   // Ably
   ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
+  /** Subscribe-only key used to mint client TokenRequests (SOK-741). */
+  ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
 
   // Optional outbound webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),
