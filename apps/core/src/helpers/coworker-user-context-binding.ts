@@ -1,4 +1,4 @@
-import { type Prisma, TaskStatus } from "@sokosumi/database";
+import { type Prisma, TaskStatus, VendorGrantStatus } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
 import prisma from "@/lib/db/prisma";
@@ -10,17 +10,23 @@ import {
 } from "@/middleware/auth";
 
 import { forbidden } from "./error";
-import { hasGrantedWorkspaceAccess } from "./vendor-grants";
+import {
+  getWorkspaceGrant,
+  isGrantDeniedOrRevoked,
+  throwGrantAccessError,
+} from "./vendor-grants";
 import { buildCoworkerSiblingTaskListFilter } from "./vendor-siblings";
 
 /**
  * Ensures a coworker may act as the given workspace user for user-scoped
- * operations (profile, credits, notifications, history, projects, orgs, …).
+ * operations (profile, credits, projects, orgs, …).
  *
- * Allowed when either:
- * - the vendor has a **GRANTED** workspace grant for the context workspace, or
- * - the coworker has **baseline** access (assignee / same-vendor sibling) on a
- *   non-DRAFT task owned by that user in the workspace.
+ * Decision order:
+ * 1. **DENIED / REVOKED** grant → reject (terminal; assignment does not override).
+ * 2. **GRANTED** grant → allow.
+ * 3. Else baseline access (assignee / same-vendor sibling on a non-DRAFT task
+ *    owned by that user in the workspace) → allow when no terminal denial.
+ * 4. Else reject.
  *
  * Unbound `X-Context-User-Id` (no relationship) is rejected. Task delegated
  * create still uses {@link requireUserContext} so first-contact GRANT_PENDING
@@ -37,14 +43,20 @@ export async function assertCoworkerUserContextBinding(
     tx,
   );
 
-  const granted = await hasGrantedWorkspaceAccess(
+  const grant = await getWorkspaceGrant(
     {
       vendorId: authContext.vendorId,
       workspaceId: workspace.id,
     },
     tx,
   );
-  if (granted) {
+
+  if (grant && isGrantDeniedOrRevoked(grant.status)) {
+    // Human terminal decision — baseline assignment must not reopen access.
+    throwGrantAccessError(grant.status);
+  }
+
+  if (grant?.status === VendorGrantStatus.GRANTED) {
     return;
   }
 

@@ -11,11 +11,15 @@ import {
 
 const {
   upsertWorkspaceForContextMock,
-  hasGrantedWorkspaceAccessMock,
+  getWorkspaceGrantMock,
+  isGrantDeniedOrRevokedMock,
+  throwGrantAccessErrorMock,
   taskFindFirstMock,
 } = vi.hoisted(() => ({
   upsertWorkspaceForContextMock: vi.fn(),
-  hasGrantedWorkspaceAccessMock: vi.fn(),
+  getWorkspaceGrantMock: vi.fn(),
+  isGrantDeniedOrRevokedMock: vi.fn(),
+  throwGrantAccessErrorMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
 }));
 
@@ -27,8 +31,11 @@ vi.mock("@sokosumi/database/repositories", () => ({
 }));
 
 vi.mock("./vendor-grants", () => ({
-  hasGrantedWorkspaceAccess: (...args: unknown[]) =>
-    hasGrantedWorkspaceAccessMock(...args),
+  getWorkspaceGrant: (...args: unknown[]) => getWorkspaceGrantMock(...args),
+  isGrantDeniedOrRevoked: (...args: unknown[]) =>
+    isGrantDeniedOrRevokedMock(...args),
+  throwGrantAccessError: (...args: unknown[]) =>
+    throwGrantAccessErrorMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -49,15 +56,29 @@ const coworkerAuth = {
 describe("assertCoworkerUserContextBinding", () => {
   beforeEach(() => {
     upsertWorkspaceForContextMock.mockReset();
-    hasGrantedWorkspaceAccessMock.mockReset();
+    getWorkspaceGrantMock.mockReset();
+    isGrantDeniedOrRevokedMock.mockReset();
+    throwGrantAccessErrorMock.mockReset();
     taskFindFirstMock.mockReset();
     upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws_1" });
-    hasGrantedWorkspaceAccessMock.mockResolvedValue(false);
+    getWorkspaceGrantMock.mockResolvedValue(null);
+    isGrantDeniedOrRevokedMock.mockReturnValue(false);
+    throwGrantAccessErrorMock.mockImplementation(
+      (status: VendorGrantStatus) => {
+        throw new HTTPException(403, {
+          message: `grant blocked: ${status}`,
+        });
+      },
+    );
     taskFindFirstMock.mockResolvedValue(null);
   });
 
   it("allows coworker when vendor has GRANTED workspace access", async () => {
-    hasGrantedWorkspaceAccessMock.mockResolvedValue(true);
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "g1",
+      status: VendorGrantStatus.GRANTED,
+      permission: "workspace",
+    });
 
     await expect(
       assertCoworkerUserContextBinding(coworkerAuth, {
@@ -71,14 +92,14 @@ describe("assertCoworkerUserContextBinding", () => {
       null,
       expect.anything(),
     );
-    expect(hasGrantedWorkspaceAccessMock).toHaveBeenCalledWith(
+    expect(getWorkspaceGrantMock).toHaveBeenCalledWith(
       { vendorId: TEST_VENDOR_ID, workspaceId: "ws_1" },
       expect.anything(),
     );
     expect(taskFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("allows coworker when baseline task relationship exists for the context user", async () => {
+  it("allows coworker when baseline task relationship exists and grant is not denied/revoked", async () => {
     taskFindFirstMock.mockResolvedValue({ id: "task_1" });
 
     await expect(
@@ -101,6 +122,50 @@ describe("assertCoworkerUserContextBinding", () => {
     );
   });
 
+  it("rejects DENIED grant even when coworker is assigned to a task", async () => {
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "g1",
+      status: VendorGrantStatus.DENIED,
+      permission: "workspace",
+    });
+    isGrantDeniedOrRevokedMock.mockReturnValue(true);
+    taskFindFirstMock.mockResolvedValue({ id: "task_1" });
+
+    await expect(
+      assertCoworkerUserContextBinding(coworkerAuth, {
+        userId: "user_1",
+        organizationId: null,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+
+    expect(throwGrantAccessErrorMock).toHaveBeenCalledWith(
+      VendorGrantStatus.DENIED,
+    );
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects REVOKED grant even when coworker is assigned to a task", async () => {
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "g1",
+      status: VendorGrantStatus.REVOKED,
+      permission: "workspace",
+    });
+    isGrantDeniedOrRevokedMock.mockReturnValue(true);
+    taskFindFirstMock.mockResolvedValue({ id: "task_1" });
+
+    await expect(
+      assertCoworkerUserContextBinding(coworkerAuth, {
+        userId: "user_1",
+        organizationId: null,
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+
+    expect(throwGrantAccessErrorMock).toHaveBeenCalledWith(
+      VendorGrantStatus.REVOKED,
+    );
+    expect(taskFindFirstMock).not.toHaveBeenCalled();
+  });
+
   it("rejects coworker with no grant and no baseline task relationship", async () => {
     await expect(
       assertCoworkerUserContextBinding(coworkerAuth, {
@@ -121,7 +186,11 @@ describe("assertCoworkerUserContextBinding", () => {
   });
 
   it("rejects PENDING grant without baseline relationship", async () => {
-    hasGrantedWorkspaceAccessMock.mockResolvedValue(false);
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "g1",
+      status: VendorGrantStatus.PENDING,
+      permission: "workspace",
+    });
     taskFindFirstMock.mockResolvedValue(null);
 
     await expect(
@@ -136,18 +205,22 @@ describe("assertCoworkerUserContextBinding", () => {
       "org_1",
       expect.anything(),
     );
-    // Ensure we never treat non-GRANTED as success via side channel
-    expect(VendorGrantStatus.PENDING).toBeDefined();
+    expect(isGrantDeniedOrRevokedMock).toHaveBeenCalledWith(
+      VendorGrantStatus.PENDING,
+    );
   });
 });
 
 describe("requireAuthorizedUserContext", () => {
   beforeEach(() => {
     upsertWorkspaceForContextMock.mockReset();
-    hasGrantedWorkspaceAccessMock.mockReset();
+    getWorkspaceGrantMock.mockReset();
+    isGrantDeniedOrRevokedMock.mockReset();
+    throwGrantAccessErrorMock.mockReset();
     taskFindFirstMock.mockReset();
     upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws_1" });
-    hasGrantedWorkspaceAccessMock.mockResolvedValue(false);
+    getWorkspaceGrantMock.mockResolvedValue(null);
+    isGrantDeniedOrRevokedMock.mockReturnValue(false);
     taskFindFirstMock.mockResolvedValue(null);
   });
 
@@ -162,7 +235,7 @@ describe("requireAuthorizedUserContext", () => {
       source: "session",
       userId: "user_1",
     });
-    expect(hasGrantedWorkspaceAccessMock).not.toHaveBeenCalled();
+    expect(getWorkspaceGrantMock).not.toHaveBeenCalled();
   });
 
   it("allows orchestrator context without vendor binding", async () => {
@@ -176,7 +249,7 @@ describe("requireAuthorizedUserContext", () => {
       userId: "user_1",
       organizationId: null,
     });
-    expect(hasGrantedWorkspaceAccessMock).not.toHaveBeenCalled();
+    expect(getWorkspaceGrantMock).not.toHaveBeenCalled();
   });
 
   it("rejects unbound coworker context", async () => {
@@ -186,7 +259,11 @@ describe("requireAuthorizedUserContext", () => {
   });
 
   it("allows coworker with GRANTED binding", async () => {
-    hasGrantedWorkspaceAccessMock.mockResolvedValue(true);
+    getWorkspaceGrantMock.mockResolvedValue({
+      id: "g1",
+      status: VendorGrantStatus.GRANTED,
+      permission: "workspace",
+    });
     const ctx = await requireAuthorizedUserContext(coworkerAuth);
     expect(ctx).toEqual({
       source: "context",
