@@ -46,8 +46,9 @@ export function MobileTabLinkPendingOverlay({
 
 /**
  * Fixed overlay covering main content only: below app Header (h-16 / top-16),
- * above tab-bar clearance, md:hidden, z-30. Reuses Loader2 language from DefaultLoading.
- * Portaled to document.body so the sr-only label does not pollute the parent Link name.
+ * above tab-bar clearance, md:hidden, z-30. Dimmed backdrop (bg-background/50)
+ * + Loader2. Portaled to document.body so the sr-only label does not pollute
+ * the parent Link name.
  */
 export function MainContentPendingOverlay({
   visible,
@@ -67,6 +68,7 @@ export function MainContentPendingOverlay({
       data-mobile-tab-pending-overlay
       className={cn(
         "pointer-events-none fixed inset-x-0 top-16 flex items-center justify-center md:hidden",
+        "bg-background/50",
         MOBILE_TAB_PENDING_OVERLAY_Z_CLASS,
         "animate-mobile-tab-pending-fade-in opacity-0",
         bottomOffsetClass,

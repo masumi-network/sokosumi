@@ -42,6 +42,7 @@ describe("MobileTabLinkPendingOverlay", () => {
     expect(overlay.className).toContain("z-30");
     expect(overlay.className).toContain("top-16");
     expect(overlay.className).toContain("pointer-events-none");
+    expect(overlay.className).toContain("bg-background/50");
     expect(overlay.className).toContain(
       "bottom-[calc(4rem+env(safe-area-inset-bottom))]",
     );
@@ -74,11 +75,12 @@ describe("MainContentPendingOverlay", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders Loader2 status when visible", () => {
+  it("renders Loader2 status with dimmed backdrop when visible", () => {
     render(<MainContentPendingOverlay visible bottomOffsetClass="bottom-16" />);
 
     const overlay = screen.getByRole("status");
     expect(overlay.className).toContain("bottom-16");
+    expect(overlay.className).toContain("bg-background/50");
     expect(overlay.querySelector("svg")).toBeTruthy();
   });
 });
