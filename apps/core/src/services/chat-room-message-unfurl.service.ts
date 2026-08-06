@@ -1,9 +1,11 @@
 import { selectUnfurlCandidateUrls } from "@sokosumi/utils";
-
+import {
+  deleteChatRoomMessageMetadataKeys,
+  mergeChatRoomMessageMetadataKeys,
+} from "@/helpers/chat-room-message-metadata-patch";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { scrapeUnfurlCards } from "@/lib/chat-unfurl-scrape";
 import prisma from "@/lib/db/prisma";
-import { mergeUnfurlsIntoMessageMetadata } from "@/routes/v1/chats/rooms/helpers";
 
 export interface ScheduleChatRoomMessageUnfurlsResult {
   messageId: string;
@@ -15,6 +17,10 @@ export interface ScheduleChatRoomMessageUnfurlsResult {
  * Full unfurl pipeline for one message. Safe to call from `waitUntil`.
  * Never throws to the caller for scrape/SSRF/parse failures — those omit
  * silently. Unexpected infra errors are logged and swallowed.
+ *
+ * Persists via atomic jsonb key merge/delete so a concurrent writer that sets
+ * `thread_provider_conversation_id` (thread coworker stream) is not wiped by
+ * a stale read→write of the whole metadata object after scrape latency.
  */
 export async function scheduleChatRoomMessageUnfurls(
   messageId: string,
@@ -51,7 +57,6 @@ export async function scheduleChatRoomMessageUnfurls(
         id: true,
         content: true,
         deletedAt: true,
-        metadata: true,
       },
     });
 
@@ -63,12 +68,22 @@ export async function scheduleChatRoomMessageUnfurls(
       return { messageId, attempted: urls.length, persisted: 0 };
     }
 
-    const metadata = mergeUnfurlsIntoMessageMetadata(latest.metadata, cards);
+    const updated =
+      cards.length === 0
+        ? await deleteChatRoomMessageMetadataKeys({
+            messageId,
+            keys: ["unfurls"],
+            contentMustEqual: contentSnapshot,
+          })
+        : await mergeChatRoomMessageMetadataKeys({
+            messageId,
+            patch: { unfurls: cards },
+            contentMustEqual: contentSnapshot,
+          });
 
-    await prisma.chatRoomMessage.update({
-      where: { id: messageId },
-      data: { metadata },
-    });
+    if (updated === 0) {
+      return { messageId, attempted: urls.length, persisted: 0 };
+    }
 
     await publishChatRoomMessageRealtimeById(messageId);
 
