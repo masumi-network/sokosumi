@@ -23,6 +23,7 @@ vi.mock("next/link", () => ({
       {children}
     </a>
   ),
+  useLinkStatus: () => ({ pending: false }),
 }));
 
 vi.mock("@/app/components/history-search-dialog-provider", () => ({
