@@ -90,18 +90,85 @@ export async function publishNotificationEvent({
   await channel.publish("notification_created", notification);
 }
 
-interface PublishChatRoomMessageEventInput {
+/** Full DTO body for create / update / delete. */
+export type ChatRoomMessageFullEventType = Extract<
+  ChatRoomMessageEventType,
+  "create" | "update" | "delete"
+>;
+
+/** Patch body for high-chatter slices (SOK-737). */
+export type ChatRoomMessagePatchEventType = Extract<
+  ChatRoomMessageEventType,
+  "reaction" | "unfurl" | "mention_status"
+>;
+
+export type ChatRoomMessageReactionPatch = {
+  reactions: ChatRoomMessage["reactions"];
+};
+
+export type ChatRoomMessageUnfurlPatch = {
+  unfurls: ChatRoomMessage["unfurls"];
+};
+
+export type ChatRoomMessageMentionStatusPatch = {
+  mentions: ChatRoomMessage["mentions"];
+};
+
+export type ChatRoomMessageEventPatch =
+  | ChatRoomMessageReactionPatch
+  | ChatRoomMessageUnfurlPatch
+  | ChatRoomMessageMentionStatusPatch;
+
+interface PublishChatRoomMessageFullEventInput {
   userId: string;
+  eventType: ChatRoomMessageFullEventType;
   message: ChatRoomMessage;
-  eventType: ChatRoomMessageEventType;
 }
 
-export async function publishChatRoomMessageEvent({
-  userId,
-  message,
-  eventType,
-}: PublishChatRoomMessageEventInput) {
+interface PublishChatRoomMessagePatchEventInput {
+  userId: string;
+  eventType: ChatRoomMessagePatchEventType;
+  messageId: string;
+  roomId: string;
+  parentMessageId: string | null;
+  patch: ChatRoomMessageEventPatch;
+}
+
+export type PublishChatRoomMessageEventInput =
+  | PublishChatRoomMessageFullEventInput
+  | PublishChatRoomMessagePatchEventInput;
+
+function isPatchEventInput(
+  input: PublishChatRoomMessageEventInput,
+): input is PublishChatRoomMessagePatchEventInput {
+  return (
+    input.eventType === "reaction" ||
+    input.eventType === "unfurl" ||
+    input.eventType === "mention_status"
+  );
+}
+
+export async function publishChatRoomMessageEvent(
+  input: PublishChatRoomMessageEventInput,
+) {
   const client = getRestClient();
-  const channel = client.channels.get(makeUserChatRoomsChannelName(userId));
-  await channel.publish("chat_room_message", { eventType, message });
+  const channel = client.channels.get(
+    makeUserChatRoomsChannelName(input.userId),
+  );
+
+  if (isPatchEventInput(input)) {
+    await channel.publish("chat_room_message", {
+      eventType: input.eventType,
+      messageId: input.messageId,
+      roomId: input.roomId,
+      parentMessageId: input.parentMessageId,
+      patch: input.patch,
+    });
+    return;
+  }
+
+  await channel.publish("chat_room_message", {
+    eventType: input.eventType,
+    message: input.message,
+  });
 }

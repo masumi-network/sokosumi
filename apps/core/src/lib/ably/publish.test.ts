@@ -123,14 +123,44 @@ describe("publishChatRoomMessageEvent", () => {
 
     await publishChatRoomMessageEvent({
       userId: "user_123",
-      message,
       eventType: "create",
+      message,
     });
 
     expect(getMock).toHaveBeenCalledWith("chat_rooms:all:user_user_123");
     expect(publishMock).toHaveBeenCalledWith("chat_room_message", {
       eventType: "create",
       message,
+    });
+  });
+
+  it("publishes a patch envelope for reaction events", async () => {
+    const patch = {
+      reactions: [
+        {
+          emoji: "👍",
+          count: 1,
+          reactedByCurrentUser: true,
+          reactors: [{ id: "user_123", name: "Alice" }],
+        },
+      ],
+    };
+
+    await publishChatRoomMessageEvent({
+      userId: "user_123",
+      eventType: "reaction",
+      messageId: "550e8400-e29b-41d4-a716-446655440000",
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      patch,
+    });
+
+    expect(publishMock).toHaveBeenCalledWith("chat_room_message", {
+      eventType: "reaction",
+      messageId: "550e8400-e29b-41d4-a716-446655440000",
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      patch,
     });
   });
 });
