@@ -7,6 +7,7 @@ import {
   getActiveTrigger,
   getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
+  MENTION_COMPOSER_GAP_PX,
   type NormalizedMention,
   POPUP_HEIGHT_PX,
   serializeEditorText,
@@ -155,7 +156,7 @@ describe("mention-textarea utils", () => {
       vi.unstubAllGlobals();
     });
 
-    it("anchors flush above with card width and top side", () => {
+    it("anchors above the card with a small bottom gap and matching width", () => {
       stubViewport(800);
       const left = 40;
       const width = 360;
@@ -175,13 +176,16 @@ describe("mention-textarea utils", () => {
       });
 
       expect(position.side).toBe("top");
-      expect(position.top).toBe(top);
+      expect(position.top).toBe(top - MENTION_COMPOSER_GAP_PX);
       expect(position.left).toBe(left);
       expect(position.width).toBe(width);
       expect(position.maxHeight).toBeGreaterThanOrEqual(80);
       expect(position.maxHeight).toBeLessThanOrEqual(POPUP_HEIGHT_PX);
       expect(position.maxHeight).toBe(
-        Math.min(POPUP_HEIGHT_PX, Math.max(80, top - VIEWPORT_PADDING_PX)),
+        Math.min(
+          POPUP_HEIGHT_PX,
+          Math.max(80, top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX),
+        ),
       );
     });
 

@@ -48,6 +48,8 @@ export interface MentionSpanStyleOptions {
 export const POPUP_HEIGHT_PX = 240;
 export const POPUP_WIDTH_PX = 288;
 export const VIEWPORT_PADDING_PX = 8;
+/** Gap between mention picker bottom and composer card top. */
+export const MENTION_COMPOSER_GAP_PX = 4;
 export const MENTION_CLASSNAME =
   "text-primary cursor-pointer font-semibold hover:underline";
 export const UNKNOWN_MENTION_CLASSNAME = "opacity-80";
@@ -485,9 +487,13 @@ export function getMentionPopupPositionFromAnchorRect(
   const visual = window.visualViewport;
   const viewportTop = visual ? visual.offsetTop : 0;
   const viewportWidth = visual ? visual.width : window.innerWidth;
-  const aboveSpace = anchorRect.top - viewportTop - VIEWPORT_PADDING_PX;
+  const aboveSpace =
+    anchorRect.top -
+    viewportTop -
+    VIEWPORT_PADDING_PX -
+    MENTION_COMPOSER_GAP_PX;
   const maxHeight = Math.min(POPUP_HEIGHT_PX, Math.max(80, aboveSpace));
-  const top = anchorRect.top;
+  const top = anchorRect.top - MENTION_COMPOSER_GAP_PX;
   let left = anchorRect.left;
   let width = anchorRect.width;
 
