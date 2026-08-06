@@ -8,17 +8,25 @@ export function useHeaderRoomSlotHost(): HTMLElement | null {
   const [host, setHost] = useState<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
-    function queryHost(): HTMLElement | null {
-      return document.querySelector(HEADER_ROOM_SLOT_SELECTOR);
+    let current: HTMLElement | null = null;
+
+    function syncHost() {
+      const next = document.querySelector(HEADER_ROOM_SLOT_SELECTOR);
+      if (next === current) {
+        return;
+      }
+      current = next;
+      setHost(next);
     }
 
-    let element = queryHost();
-    if (element == null) {
-      element = queryHost();
-    }
-    setHost(element);
+    syncHost();
+
+    const observer = new MutationObserver(syncHost);
+    observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
+      observer.disconnect();
+      current = null;
       setHost(null);
     };
   }, []);

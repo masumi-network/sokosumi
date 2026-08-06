@@ -1695,7 +1695,7 @@ export function RoomsClient({
               className="flex min-h-0 min-w-0 flex-1 flex-col"
             >
               {!isMobile && roomHeaderChrome ? (
-                <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-3 md:h-16 md:gap-4 md:px-6">
+                <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
                   {roomHeaderChrome}
                 </header>
               ) : null}
