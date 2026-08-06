@@ -73,7 +73,11 @@ describe("publishChatRoomMessageRealtime", () => {
     mapChatRoomMessageMock.mockImplementation((_message, userId: string) => ({
       id: baseMessage.id,
       roomId: baseMessage.roomId,
+      parentMessageId: null,
       forUser: userId,
+      reactions: [],
+      mentions: [],
+      unfurls: null,
     }));
   });
 
@@ -92,21 +96,29 @@ describe("publishChatRoomMessageRealtime", () => {
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledTimes(2);
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
       userId: "user_a",
+      eventType: "create",
       message: {
         id: baseMessage.id,
         roomId: baseMessage.roomId,
+        parentMessageId: null,
         forUser: "user_a",
+        reactions: [],
+        mentions: [],
+        unfurls: null,
       },
-      eventType: "create",
     });
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
       userId: "user_b",
+      eventType: "create",
       message: {
         id: baseMessage.id,
         roomId: baseMessage.roomId,
+        parentMessageId: null,
         forUser: "user_b",
+        reactions: [],
+        mentions: [],
+        unfurls: null,
       },
-      eventType: "create",
     });
   });
 
@@ -139,12 +151,119 @@ describe("publishChatRoomMessageRealtime", () => {
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledTimes(2);
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
       userId: "user_b",
-      message: {
-        id: baseMessage.id,
-        roomId: baseMessage.roomId,
-        forUser: "user_b",
-      },
       eventType: "reaction",
+      messageId: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: null,
+      patch: { reactions: [] },
+    });
+  });
+
+  it("publishes a reaction patch, not a full message DTO", async () => {
+    findManyMembersMock.mockResolvedValue([{ userId: "user_a" }]);
+    mapChatRoomMessageMock.mockReturnValue({
+      id: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: null,
+      content: "hello",
+      reactions: [
+        {
+          emoji: "👍",
+          count: 1,
+          reactedByCurrentUser: true,
+          reactors: [{ id: "user_a", name: "Alice" }],
+        },
+      ],
+      mentions: [],
+      unfurls: null,
+    });
+
+    await publishChatRoomMessageRealtime(baseMessage as never, "reaction");
+
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
+      userId: "user_a",
+      eventType: "reaction",
+      messageId: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: null,
+      patch: {
+        reactions: [
+          {
+            emoji: "👍",
+            count: 1,
+            reactedByCurrentUser: true,
+            reactors: [{ id: "user_a", name: "Alice" }],
+          },
+        ],
+      },
+    });
+  });
+
+  it("publishes an unfurl patch with unfurls only", async () => {
+    findManyMembersMock.mockResolvedValue([{ userId: "user_a" }]);
+    const unfurls = [
+      {
+        url: "https://example.com",
+        title: "Example",
+        description: null,
+        imageUrl: null,
+        siteName: null,
+      },
+    ];
+    mapChatRoomMessageMock.mockReturnValue({
+      id: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: "parent-1",
+      content: "link",
+      reactions: [],
+      mentions: [],
+      unfurls,
+    });
+
+    await publishChatRoomMessageRealtime(baseMessage as never, "unfurl");
+
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
+      userId: "user_a",
+      eventType: "unfurl",
+      messageId: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: "parent-1",
+      patch: { unfurls },
+    });
+  });
+
+  it("publishes a mention_status patch with mentions only", async () => {
+    findManyMembersMock.mockResolvedValue([{ userId: "user_a" }]);
+    const mentions = [
+      {
+        id: "men-1",
+        coworkerId: "cow-1",
+        status: "completed",
+        responseMessageId: "resp-1",
+      },
+    ];
+    mapChatRoomMessageMock.mockReturnValue({
+      id: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: null,
+      content: "hey",
+      reactions: [],
+      mentions,
+      unfurls: null,
+    });
+
+    await publishChatRoomMessageRealtime(
+      baseMessage as never,
+      "mention_status",
+    );
+
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
+      userId: "user_a",
+      eventType: "mention_status",
+      messageId: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: null,
+      patch: { mentions },
     });
   });
 });
@@ -159,7 +278,11 @@ describe("publishChatRoomMessageRealtimeById", () => {
     mapChatRoomMessageMock.mockImplementation((_message, userId: string) => ({
       id: baseMessage.id,
       roomId: baseMessage.roomId,
+      parentMessageId: null,
       forUser: userId,
+      reactions: [],
+      mentions: [],
+      unfurls: null,
     }));
   });
 
@@ -175,12 +298,11 @@ describe("publishChatRoomMessageRealtimeById", () => {
     });
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
       userId: "user_a",
-      message: {
-        id: baseMessage.id,
-        roomId: baseMessage.roomId,
-        forUser: "user_a",
-      },
       eventType: "unfurl",
+      messageId: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: null,
+      patch: { unfurls: null },
     });
   });
 
