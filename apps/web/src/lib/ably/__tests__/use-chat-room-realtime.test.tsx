@@ -224,6 +224,111 @@ describe("useChatRoomRealtime", () => {
     expect(authorizeMock).toHaveBeenCalledTimes(3);
   });
 
+  it("re-authorizes when the document becomes visible", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+    });
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+
+    act(() => {
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("keeps prior channels when a later authorize fails", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+
+    const onError = vi.fn();
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+        onError,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+    });
+
+    authorizeMock.mockRejectedValue(new Error("token refresh failed"));
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await waitFor(() => {
+      expect(onError).toHaveBeenCalled();
+    });
+
+    expect(
+      channelFor("chat_rooms:room_room-a").unsubscribe,
+    ).not.toHaveBeenCalled();
+    expect(channelFor("chat_rooms:room_room-a").detach).not.toHaveBeenCalled();
+  });
+
+  it("falls back to prop roomIds when token capability is unparseable", async () => {
+    authorizeMock.mockResolvedValue({ capability: "not-json" });
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-a");
+      expect(getMock).toHaveBeenCalledWith("chat_rooms:room_room-b");
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+    });
+  });
+
+  it("detaches all chat rooms when token grants no room channels", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+    });
+
+    authorizeMock.mockResolvedValue(tokenWithRooms());
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").detach).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+    });
+  });
+
   it("detaches all channels on unmount", async () => {
     const { unmount } = renderHook(() =>
       useChatRoomRealtime({

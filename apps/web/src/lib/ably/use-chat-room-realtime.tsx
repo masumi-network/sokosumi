@@ -92,8 +92,11 @@ export function useChatRoomRealtime({
     }
 
     const handleMessage = handleMessageRef.current;
+    /** Coalesce focus+visibility+interval so two applies never interleave. */
+    let syncInFlight = false;
+    let syncQueued = false;
 
-    async function syncMembershipChannels() {
+    async function runSyncOnce() {
       const generation = ++syncGenerationRef.current;
       const propIds = new Set(
         [...new Set(roomIdsRef.current)].filter((id) => id.length > 0),
@@ -129,6 +132,12 @@ export function useChatRoomRealtime({
           ? propIds
           : new Set([...propIds].filter((id) => allowedFromToken.has(id)));
 
+      // Re-check before mutating channels: a newer request may have queued
+      // while authorize was in flight (single-flight drains it next).
+      if (generation !== syncGenerationRef.current) {
+        return;
+      }
+
       const attached = channelsRef.current;
 
       for (const [roomId, channel] of [...attached.entries()]) {
@@ -147,6 +156,22 @@ export function useChatRoomRealtime({
         const channel = ably.channels.get(makeChatRoomChannelName(roomId));
         channel.subscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
         attached.set(roomId, channel);
+      }
+    }
+
+    async function syncMembershipChannels() {
+      if (syncInFlight) {
+        syncQueued = true;
+        return;
+      }
+      syncInFlight = true;
+      try {
+        do {
+          syncQueued = false;
+          await runSyncOnce();
+        } while (syncQueued);
+      } finally {
+        syncInFlight = false;
       }
     }
 
@@ -170,6 +195,7 @@ export function useChatRoomRealtime({
 
     return () => {
       syncGenerationRef.current += 1;
+      syncQueued = false;
       window.clearInterval(intervalId);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
