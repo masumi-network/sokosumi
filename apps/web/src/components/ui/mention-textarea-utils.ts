@@ -49,12 +49,7 @@ export const POPUP_HEIGHT_PX = 240;
 export const POPUP_MIN_HEIGHT_PX = 80;
 export const POPUP_WIDTH_PX = 288;
 export const VIEWPORT_PADDING_PX = 8;
-/** Gap between mention picker bottom and composer card top. */
 export const MENTION_COMPOSER_GAP_PX = 4;
-/**
- * Leave room above the focused composer for the anchored suggestion list
- * when mobile browsers scroll the caret into the visual viewport.
- */
 export const MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX =
   POPUP_HEIGHT_PX + MENTION_COMPOSER_GAP_PX + VIEWPORT_PADDING_PX;
 export const MENTION_CLASSNAME =
@@ -491,6 +486,10 @@ export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
   return { top, left, side, maxHeight };
 }
 
+function maxHeightFittingAboveAnchor(aboveSpace: number): number {
+  return Math.min(POPUP_HEIGHT_PX, Math.max(0, aboveSpace));
+}
+
 export function getMentionPopupPositionFromAnchorRect(
   anchorRect: DOMRect,
 ): TriggerPosition {
@@ -504,10 +503,7 @@ export function getMentionPopupPositionFromAnchorRect(
     viewportTop -
     VIEWPORT_PADDING_PX -
     MENTION_COMPOSER_GAP_PX;
-  // Never floor above available space: list uses translateY(-100%), so a
-  // forced 80px min would clip the top of the picker when the keyboard /
-  // attachments leave less than 80px above the composer.
-  const maxHeight = Math.min(POPUP_HEIGHT_PX, Math.max(0, aboveSpace));
+  const maxHeight = maxHeightFittingAboveAnchor(aboveSpace);
   const top = anchorRect.top - MENTION_COMPOSER_GAP_PX;
   let left = anchorRect.left;
   let width = anchorRect.width;
