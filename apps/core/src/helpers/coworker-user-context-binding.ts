@@ -21,16 +21,19 @@ import { buildCoworkerSiblingTaskListFilter } from "./vendor-siblings";
  * Ensures a coworker may act as the given workspace user for user-scoped
  * operations (profile, credits, projects, orgs, …).
  *
- * Decision order:
+ * **Policy (decision order):**
  * 1. **DENIED / REVOKED** grant → reject (terminal; assignment does not override).
  * 2. **GRANTED** grant → allow.
  * 3. Else baseline access (assignee / same-vendor sibling on a non-DRAFT task
  *    owned by that user in the workspace) → allow when no terminal denial.
  * 4. Else reject.
  *
- * Unbound `X-Context-User-Id` (no relationship) is rejected. Task delegated
- * create still uses {@link requireUserContext} so first-contact GRANT_PENDING
- * create is unaffected.
+ * Handlers should call {@link requireAuthorizedUserContext} rather than this
+ * function directly. Do not re-implement grant/baseline checks in routes.
+ *
+ * Unbound `X-Context-User-Id` is rejected. Task delegated create still uses
+ * {@link requireUserContext} so first-contact GRANT_PENDING create is unaffected.
+ * See the handler actor menu on `UserContext` in `@/middleware/auth`.
  */
 export async function assertCoworkerUserContextBinding(
   authContext: CoworkerAuthenticationContext,
@@ -85,11 +88,15 @@ export async function assertCoworkerUserContextBinding(
 
 /**
  * Effective user for user-scoped (non-task) operations.
- * Session users and orchestrator-with-context pass through.
- * Coworkers must pass {@link assertCoworkerUserContextBinding}.
  *
- * Prefer this over {@link requireUserContext} outside task/job grant-gated
- * flows so `X-Context-User-Id` cannot impersonate arbitrary users.
+ * - Session users and orchestrator-with-context: pass through.
+ * - Coworkers: {@link assertCoworkerUserContextBinding} (DENIED/REVOKED →
+ *   GRANTED → baseline → reject).
+ *
+ * **Default for new user-scoped routes** unless the path is task/job
+ * grant-gated (`requireUserContext`) or human-only
+ * (`requireOwnerUserContext`). Do not branch on `authContext.actor` in the
+ * handler.
  *
  * Uses `authContext.actor === "coworker"` (not `isCoworkerAuthContext`) so
  * unit tests that partial-mock `@/middleware/auth` keep working.
