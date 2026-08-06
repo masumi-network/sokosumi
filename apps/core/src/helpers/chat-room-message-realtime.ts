@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 
+import type { ChatRoomMessageEventType } from "@sokosumi/utils";
+
 import { publishChatRoomMessageEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import {
@@ -15,6 +17,7 @@ type ChatRoomMessageWithInclude = Prisma.ChatRoomMessageGetPayload<{
 
 export async function publishChatRoomMessageRealtime(
   message: ChatRoomMessageWithInclude,
+  eventType: ChatRoomMessageEventType,
 ): Promise<void> {
   try {
     const members = await prisma.chatRoomUserMember.findMany({
@@ -32,6 +35,7 @@ export async function publishChatRoomMessageRealtime(
         await publishChatRoomMessageEvent({
           userId,
           message: dto,
+          eventType,
         });
       }),
     );
@@ -69,6 +73,7 @@ export async function publishChatRoomMessageRealtime(
 
 export async function publishChatRoomMessageRealtimeById(
   messageId: string,
+  eventType: ChatRoomMessageEventType,
 ): Promise<void> {
   try {
     const message = await prisma.chatRoomMessage.findUnique({
@@ -78,7 +83,7 @@ export async function publishChatRoomMessageRealtimeById(
     if (!message) {
       return;
     }
-    await publishChatRoomMessageRealtime(message);
+    await publishChatRoomMessageRealtime(message, eventType);
   } catch (error) {
     console.error("Failed to load chat room message for Ably publish:", error);
     Sentry.captureException(error, {

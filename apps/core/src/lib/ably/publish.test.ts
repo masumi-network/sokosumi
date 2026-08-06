@@ -124,9 +124,13 @@ describe("publishChatRoomMessageEvent", () => {
     await publishChatRoomMessageEvent({
       userId: "user_123",
       message,
+      eventType: "create",
     });
 
     expect(getMock).toHaveBeenCalledWith("chat_rooms:all:user_user_123");
-    expect(publishMock).toHaveBeenCalledWith("chat_room_message", { message });
+    expect(publishMock).toHaveBeenCalledWith("chat_room_message", {
+      eventType: "create",
+      message,
+    });
   });
 });

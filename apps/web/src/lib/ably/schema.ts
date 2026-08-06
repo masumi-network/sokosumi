@@ -1,3 +1,4 @@
+import { CHAT_ROOM_MESSAGE_EVENT_TYPES } from "@sokosumi/utils";
 import * as z from "zod";
 import {
   NotificationKind,
@@ -43,7 +44,12 @@ const chatRoomMessageUnfurlEventSchema = z.object({
   siteName: z.string().nullable(),
 });
 
+export const chatRoomMessageEventTypeSchema = z.enum(
+  CHAT_ROOM_MESSAGE_EVENT_TYPES,
+);
+
 export const chatRoomMessageEventDataSchema = z.object({
+  eventType: chatRoomMessageEventTypeSchema,
   message: z
     .object({
       id: z.string().min(1),
