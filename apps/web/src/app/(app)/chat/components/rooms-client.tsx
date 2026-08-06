@@ -1432,7 +1432,7 @@ export function RoomsClient({
         </LazyAblyProvider>
       ) : null}
       {/* `relative` anchors the thread panel's mobile full-screen takeover. */}
-      <main className="relative flex min-h-0 flex-1">
+      <main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
           {isCreateChannelRequested ? (
             <>
@@ -1471,7 +1471,7 @@ export function RoomsClient({
                 roomComposerRef.current?.attachFiles(files);
               }}
               label={t("Toolbar.dropToAttach")}
-              className="flex min-h-0 flex-1 flex-col"
+              className="flex min-h-0 min-w-0 flex-1 flex-col"
             >
               <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-3 md:h-16 md:gap-4 md:px-6">
                 <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
@@ -1547,7 +1547,16 @@ export function RoomsClient({
                 </div>
               </header>
 
-              <ScrollArea ref={scrollerRef} className="min-h-0 min-w-0 flex-1">
+              {/*
+                Radix ScrollArea wraps content in `display:table; min-width:100%`.
+                Chromium native video controls contribute ~476px min-content to
+                that table and Chrome device mode looks stuck at that width.
+                Force a block formatting context so the column can shrink.
+              */}
+              <ScrollArea
+                ref={scrollerRef}
+                className="min-h-0 min-w-0 flex-1 [&_[data-radix-scroll-area-viewport]>div]:block [&_[data-radix-scroll-area-viewport]>div]:w-full [&_[data-radix-scroll-area-viewport]>div]:min-w-0"
+              >
                 <div
                   ref={contentRef}
                   className="flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0"

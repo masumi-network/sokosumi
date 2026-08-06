@@ -161,11 +161,9 @@ describe("FileChip", () => {
     );
     expect(video).toHaveAttribute("controls");
     expect(video).not.toHaveAttribute("autoplay");
-    expect(video).toHaveClass("max-h-80");
-    expect(video).toHaveClass("min-w-0");
-    expect(video).toHaveClass("w-full");
-    expect(video).toHaveClass("max-w-full");
-    expect(video).toHaveClass("object-contain");
+    // Absolutely positioned so Chromium controls min-content cannot widen
+    // Radix ScrollArea's display:table wrapper (~476px floor in device mode).
+    expect(video).toHaveClass("absolute", "inset-0", "size-full", "object-contain");
     expect(screen.getByTestId("file-chip-video")).toHaveClass(
       "min-w-0",
       "w-full",
@@ -173,12 +171,12 @@ describe("FileChip", () => {
       "overflow-hidden",
     );
     expect(screen.getByTestId("file-chip-video-frame")).toHaveClass(
-      "grid",
+      "relative",
       "min-w-0",
       "w-full",
       "max-w-full",
+      "max-h-80",
       "overflow-hidden",
-      "[contain:inline-size]",
     );
     // download secondary still available (exact name avoids nested media fallback)
     expect(screen.getByRole("link", { name: /^download$/i })).toHaveAttribute(

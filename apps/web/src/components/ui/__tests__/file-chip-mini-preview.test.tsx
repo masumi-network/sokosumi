@@ -205,11 +205,7 @@ describe("FileChipMiniPreviewFrame", () => {
     );
     expect(video).toHaveAttribute("controls");
     expect(video).not.toHaveAttribute("autoplay");
-    expect(video).toHaveClass("max-h-80");
-    expect(video).toHaveClass("min-w-0");
-    expect(video).toHaveClass("w-full");
-    expect(video).toHaveClass("max-w-full");
-    expect(video).toHaveClass("object-contain");
+    expect(video).toHaveClass("absolute", "inset-0", "size-full", "object-contain");
     expect(screen.getByTestId("file-chip-video")).toHaveClass(
       "min-w-0",
       "w-full",
@@ -219,9 +215,10 @@ describe("FileChipMiniPreviewFrame", () => {
       "shrink",
     );
     expect(screen.getByTestId("file-chip-video-frame")).toHaveClass(
-      "grid",
+      "relative",
       "min-w-0",
-      "[contain:inline-size]",
+      "max-h-80",
+      "overflow-hidden",
     );
   });
 
