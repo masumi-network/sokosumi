@@ -30,6 +30,7 @@ vi.mock("@/components/ui/sidebar", () => ({
 }));
 
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 const sessionUser: SessionUser = {
   id: "user_1",
@@ -42,6 +43,15 @@ const sessionUser: SessionUser = {
   termsAccepted: true,
   marketingOptIn: false,
   onboardingCompleted: true,
+};
+
+const members: MemberWithOrganization[] = [];
+
+const defaultAdminSettingsChrome = {
+  adminMenuEnabled: true,
+  members,
+  activeOrganizationId: null as string | null,
+  showDeveloperVendors: false,
 };
 
 function renderChip(
@@ -59,6 +69,7 @@ function renderChip(
       lowCreditsThreshold={100}
       buyCreditsLabel="getMoreCredits"
       buyCreditsPath="/billing?tab=credits"
+      adminSettingsChrome={defaultAdminSettingsChrome}
       {...overrides}
     />,
   );
@@ -144,6 +155,40 @@ describe("SidebarAccountChip", () => {
     expect(screen.getByText("monthlyCredits")).toBeInTheDocument();
   });
 
+  it("shows Admin and Settings before Logout when admin is enabled", () => {
+    renderChip();
+    openChip();
+
+    const admin = screen.getByRole("button", { name: "admin" });
+    const settings = screen.getByRole("button", { name: "settings" });
+    const logout = screen.getByRole("button", { name: "logout" });
+
+    expect(
+      admin.compareDocumentPosition(settings) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      settings.compareDocumentPosition(logout) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("hides Admin when adminMenuEnabled is false", () => {
+    renderChip({
+      adminSettingsChrome: {
+        ...defaultAdminSettingsChrome,
+        adminMenuEnabled: false,
+      },
+    });
+    openChip();
+
+    expect(screen.queryByRole("button", { name: "admin" })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "settings" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "logout" })).toBeInTheDocument();
+  });
+
   it("buys credits and logs out from inside the summary", () => {
     renderChip();
     openChip();
@@ -215,6 +260,7 @@ describe("SidebarAccountChip", () => {
         lowCreditsThreshold={100}
         buyCreditsLabel="getMoreCredits"
         buyCreditsPath="/billing?tab=credits"
+        adminSettingsChrome={defaultAdminSettingsChrome}
       />,
     );
 

@@ -19,10 +19,10 @@ export interface AccountSummaryIdentityProps {
 }
 
 /**
- * Mobile-header-only chrome inside the shared menu body.
+ * Account-summary chrome (header mobile control + desktop sidebar chip).
  * Presence = Admin (gated) + Settings drill before Logout.
  */
-export interface MobileAdminSettingsChrome {
+export interface AccountAdminSettingsChrome {
   adminMenuEnabled: boolean;
   members: MemberWithOrganization[];
   activeOrganizationId: string | null;

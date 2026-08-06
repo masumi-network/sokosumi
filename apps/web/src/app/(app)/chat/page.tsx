@@ -169,10 +169,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           userName={session.user.name ?? undefined}
         />
       </div>
-      <MobileHomeHub
-        sessionUser={session.user}
-        activeOrganizationId={session.session.activeOrganizationId ?? null}
-      />
+      <MobileHomeHub sessionUser={session.user} />
     </>
   );
 }

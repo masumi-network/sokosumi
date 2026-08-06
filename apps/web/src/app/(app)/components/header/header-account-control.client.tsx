@@ -5,9 +5,9 @@ import { useTranslations } from "next-intl";
 import { type ReactElement, useState } from "react";
 import { AccountSummaryMenu } from "@/app/components/sidebar/components/account-summary-menu.client";
 import type {
+  AccountAdminSettingsChrome,
   AccountSummaryCreditProps,
   AccountSummaryIdentityProps,
-  MobileAdminSettingsChrome,
 } from "@/app/components/sidebar/components/account-summary-types";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,7 +26,7 @@ const GRAVATAR_SIZE = 80;
 export interface HeaderAccountControlProps
   extends AccountSummaryCreditProps,
     AccountSummaryIdentityProps {
-  mobileAdminSettings: MobileAdminSettingsChrome;
+  adminSettingsChrome: AccountAdminSettingsChrome;
   className?: string;
 }
 
@@ -41,7 +41,7 @@ export function HeaderAccountControl({
   lowCreditsThreshold,
   buyCreditsLabel,
   buyCreditsPath,
-  mobileAdminSettings,
+  adminSettingsChrome,
   className,
 }: HeaderAccountControlProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
@@ -132,7 +132,7 @@ export function HeaderAccountControl({
             lowCreditsThreshold={lowCreditsThreshold}
             buyCreditsLabel={buyCreditsLabel}
             buyCreditsPath={buyCreditsPath}
-            mobileAdminSettings={mobileAdminSettings}
+            adminSettingsChrome={adminSettingsChrome}
             onRequestClose={closeMenu}
           />
         </PopoverContent>

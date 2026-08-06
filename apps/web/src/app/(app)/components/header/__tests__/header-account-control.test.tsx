@@ -59,7 +59,7 @@ function renderControl(
       lowCreditsThreshold={100}
       buyCreditsLabel="getMoreCredits"
       buyCreditsPath="/billing?tab=credits"
-      mobileAdminSettings={{
+      adminSettingsChrome={{
         adminMenuEnabled: true,
         members,
         activeOrganizationId: null,
@@ -107,7 +107,7 @@ describe("HeaderAccountControl", () => {
 
   it("hides Admin when adminMenuEnabled is false", () => {
     renderControl({
-      mobileAdminSettings: {
+      adminSettingsChrome: {
         adminMenuEnabled: false,
         members,
         activeOrganizationId: null,

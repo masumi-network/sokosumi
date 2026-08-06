@@ -24,6 +24,7 @@ import { getInitials } from "@/lib/utils/text";
 
 import { AccountSummaryMenu } from "./account-summary-menu.client";
 import type {
+  AccountAdminSettingsChrome,
   AccountSummaryCreditProps,
   AccountSummaryIdentityProps,
 } from "./account-summary-types";
@@ -32,7 +33,9 @@ const GRAVATAR_SIZE = 80;
 
 export interface SidebarAccountChipProps
   extends AccountSummaryCreditProps,
-    AccountSummaryIdentityProps {}
+    AccountSummaryIdentityProps {
+  adminSettingsChrome: AccountAdminSettingsChrome;
+}
 
 export function SidebarAccountChip({
   sessionUser,
@@ -45,6 +48,7 @@ export function SidebarAccountChip({
   lowCreditsThreshold,
   buyCreditsLabel,
   buyCreditsPath,
+  adminSettingsChrome,
 }: SidebarAccountChipProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tBilling = useTranslations("App.Billing");
@@ -184,6 +188,7 @@ export function SidebarAccountChip({
         lowCreditsThreshold={lowCreditsThreshold}
         buyCreditsLabel={buyCreditsLabel}
         buyCreditsPath={buyCreditsPath}
+        adminSettingsChrome={adminSettingsChrome}
         onRequestClose={closeChip}
       />
     </PopoverContent>
