@@ -5,6 +5,9 @@
  * Thread replies belong only in the open thread panel. Realtime must not
  * merge replies into room state — otherwise a send from the thread panel
  * appears in both the room and the thread.
+ *
+ * Open-thread parent updates (reaction/edit) update `threadParentMessage` and
+ * the room timeline — never the replies array (that would duplicate the root).
  */
 
 export function isTopLevelChatRoomMessage(message: {
@@ -28,7 +31,13 @@ export function isReplyUnderThreadParent(
   return message.parentMessageId === parentMessageId;
 }
 
-/** Whether realtime should merge into the currently open thread panel. */
+/**
+ * Whether realtime should merge into the open thread *replies* list.
+ *
+ * Replies only. The thread root is rendered from `threadParentMessage` and
+ * must never enter the replies array — otherwise a parent reaction/edit Ably
+ * event duplicates the root under the divider (SOK thread-parent reaction bug).
+ */
 export function shouldApplyRealtimeMessageToOpenThread(
   message: {
     id: string;
@@ -39,16 +48,16 @@ export function shouldApplyRealtimeMessageToOpenThread(
   if (!openThreadParentId) {
     return false;
   }
-  return (
-    message.id === openThreadParentId ||
-    isReplyUnderThreadParent(message, openThreadParentId)
-  );
+  return isReplyUnderThreadParent(message, openThreadParentId);
 }
 
 export interface RealtimeChatRoomMessageRoute {
   /** Main room list: top-level messages only. */
   mergeIntoRoomTimeline: boolean;
-  /** Open thread panel: parent row or its direct replies. */
+  /**
+   * Open thread replies list only (never the parent row).
+   * Parent updates use `threadParentMessage` / room timeline separately.
+   */
   mergeIntoOpenThread: boolean;
 }
 

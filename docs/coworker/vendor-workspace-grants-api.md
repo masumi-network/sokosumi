@@ -105,6 +105,20 @@ and the task is **not DRAFT**.
   `apps/core/src/middleware/coworker-context.ts`). OpenAPI only documents
   `X-Context-*` on operations that accept coworker or orchestrator context auth.
 
+Middleware only **attaches** context after validating that the user exists (and
+org membership when an org header is set). It does **not** authorize
+user-scoped act-as-user. Handlers pick a shared helper — do not branch on
+`actor` in route files:
+
+| Helper | Coworker + `X-Context-*` |
+| --- | --- |
+| `requireUserContext` | Allowed without grant check (task/job grant gates only) |
+| `requireAuthorizedUserContext` | Allowed only after binding: **DENIED/REVOKED** reject (assignment does not override); **GRANTED** allow; else **baseline** assignee/sibling task; else reject. Default for user-scoped routes (credits, profile, projects, …). |
+| `requireOwnerUserContext` | Always **403** (notifications, billing, member lists, …) |
+
+See `apps/core/AGENTS.md` (Handler actor menu) and
+`apps/core/src/helpers/coworker-user-context-binding.ts`.
+
 **Grant admin routes** (`/v1/organizations/{id}/vendor-grants/*`,
 `/v1/users/{id}/vendor-grants/*`) return **403** for coworker auth (bare or
 with context headers). Humans (session) or Hermes orchestrator with workspace

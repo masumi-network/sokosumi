@@ -35,7 +35,7 @@ export default async function RightSectionPage({
   }
 
   return (
-    <div className="grid w-full place-items-center px-4 py-10 lg:min-h-[calc(100svh-64px)]">
+    <div className="grid w-full place-items-center px-4 py-10 lg:min-h-[calc(100svh-4rem)]">
       <div className="bg-muted/30 w-full max-w-4xl rounded-xl border p-8 text-center">
         <p className="text-muted-foreground text-sm">{t("noExecutedJobs")}</p>
         <div className="mt-5 flex justify-center">
