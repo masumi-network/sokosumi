@@ -28,18 +28,7 @@
  * not via `mergeIntoOpenThread`.
  */
 
-/** Mirrors Core Ably `eventType` on `chat_room_message` publishes. */
-export const CHAT_ROOM_MESSAGE_EVENT_TYPES = [
-  "create",
-  "update",
-  "delete",
-  "reaction",
-  "unfurl",
-  "mention_status",
-] as const;
-
-export type ChatRoomMessageEventType =
-  (typeof CHAT_ROOM_MESSAGE_EVENT_TYPES)[number];
+import type { ChatRoomMessageEventType } from "@/lib/ably/schema";
 
 export function isTopLevelChatRoomMessage(message: {
   parentMessageId?: string | null;
@@ -106,8 +95,10 @@ export function routeRealtimeChatRoomMessage(
     parentMessageId?: string | null;
   },
   openThreadParentId: string | null,
-  _eventType: ChatRoomMessageEventType,
+  eventType: ChatRoomMessageEventType,
 ): RealtimeChatRoomMessageRoute {
+  // Contract param: Ably schema validates; v1 landing is parent/reply only.
+  void eventType;
   return {
     mergeIntoRoomTimeline: isTopLevelChatRoomMessage(message),
     mergeIntoOpenThread: shouldApplyRealtimeMessageToOpenThread(

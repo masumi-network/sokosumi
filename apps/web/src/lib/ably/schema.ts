@@ -43,19 +43,26 @@ const chatRoomMessageUnfurlEventSchema = z.object({
   siteName: z.string().nullable(),
 });
 
-/** Stable Ably intent; keep in sync with Core `ChatRoomMessageEventType`. */
-export const chatRoomMessageEventTypeSchema = z.enum([
+/**
+ * Stable Ably intent for `chat_room_message`.
+ * Keep values in sync with Core `CHAT_ROOM_MESSAGE_EVENT_TYPES`
+ * (`apps/core/src/lib/ably/chat-room-message-event-type.ts`).
+ */
+export const CHAT_ROOM_MESSAGE_EVENT_TYPES = [
   "create",
   "update",
   "delete",
   "reaction",
   "unfurl",
   "mention_status",
-]);
+] as const;
 
-export type ChatRoomMessageEventType = z.infer<
-  typeof chatRoomMessageEventTypeSchema
->;
+export type ChatRoomMessageEventType =
+  (typeof CHAT_ROOM_MESSAGE_EVENT_TYPES)[number];
+
+export const chatRoomMessageEventTypeSchema = z.enum(
+  CHAT_ROOM_MESSAGE_EVENT_TYPES,
+);
 
 export const chatRoomMessageEventDataSchema = z.object({
   eventType: chatRoomMessageEventTypeSchema,
