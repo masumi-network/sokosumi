@@ -70,7 +70,7 @@ function HeaderAccountControlSlot({
       lowCreditsThreshold={accountSummary.lowCreditsThreshold}
       buyCreditsLabel={accountSummary.buyCreditsLabel}
       buyCreditsPath={accountSummary.buyCreditsPath}
-      mobileAdminSettings={{
+      adminSettingsChrome={{
         adminMenuEnabled: accountSummary.adminMenuEnabled,
         members,
         activeOrganizationId,
