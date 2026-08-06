@@ -206,7 +206,7 @@ describe("mention-textarea utils", () => {
       );
     });
 
-    it("caps maxHeight to available space when less than 80px remains above", () => {
+    it("floors maxHeight and clamps top when less than 80px remains above", () => {
       stubViewport(800);
       const top = 50;
       const aboveSpace = top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
@@ -216,11 +216,12 @@ describe("mention-textarea utils", () => {
         anchorRect({ left: 40, width: 360, top }),
       );
 
-      expect(position.maxHeight).toBe(aboveSpace);
-      expect(position.maxHeight).toBeLessThan(POPUP_MIN_HEIGHT_PX);
+      expect(position.maxHeight).toBe(POPUP_MIN_HEIGHT_PX);
+      // translateY(-100%): keep the full min-height band inside the viewport.
+      expect(position.top).toBe(VIEWPORT_PADDING_PX + POPUP_MIN_HEIGHT_PX);
     });
 
-    it("returns zero maxHeight when aboveSpace collapses (keyboard-shrunk viewport)", () => {
+    it("keeps min height when aboveSpace collapses (iOS keyboard scroll)", () => {
       stubViewport(800);
       // Composer scrolled to visualViewport top under soft keyboard.
       const top = VIEWPORT_PADDING_PX + MENTION_COMPOSER_GAP_PX;
@@ -231,8 +232,27 @@ describe("mention-textarea utils", () => {
         anchorRect({ left: 40, width: 360, top }),
       );
 
-      expect(position.maxHeight).toBe(0);
-      expect(position.maxHeight).toBeLessThan(POPUP_MIN_HEIGHT_PX);
+      expect(position.maxHeight).toBe(POPUP_MIN_HEIGHT_PX);
+      expect(position.top).toBe(VIEWPORT_PADDING_PX + POPUP_MIN_HEIGHT_PX);
+    });
+
+    it("clamps top against visualViewport.offsetTop when space collapses", () => {
+      stubViewport(800);
+      vi.stubGlobal("visualViewport", {
+        offsetTop: 120,
+        offsetLeft: 0,
+        width: 390,
+        height: 400,
+      });
+      const top = 120 + VIEWPORT_PADDING_PX + MENTION_COMPOSER_GAP_PX;
+      const position = getMentionPopupPositionFromAnchorRect(
+        anchorRect({ left: 40, width: 360, top }),
+      );
+
+      expect(position.maxHeight).toBe(POPUP_MIN_HEIGHT_PX);
+      expect(position.top).toBe(
+        120 + VIEWPORT_PADDING_PX + POPUP_MIN_HEIGHT_PX,
+      );
     });
 
     it("clamps left and width into the viewport padding", () => {
