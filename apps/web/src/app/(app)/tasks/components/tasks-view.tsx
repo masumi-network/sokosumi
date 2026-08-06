@@ -11,6 +11,8 @@ import {
 } from "@dnd-kit/core";
 import {
   canUserTransitionTaskStatus,
+  makeAgentJobsChannelName,
+  makeUserTasksChannelName,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
@@ -60,10 +62,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
+
 import {
   jobStatusDataSchema,
-  makeAgentJobsChannelName,
-  makeUserTasksChannelName,
   type TaskEventData,
   taskEventDataSchema,
 } from "@/lib/ably";

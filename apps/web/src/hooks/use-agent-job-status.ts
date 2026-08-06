@@ -1,13 +1,10 @@
 "use client";
 
+import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import { useChannel } from "ably/react";
 import { useState } from "react";
 
-import {
-  type JobStatusData,
-  jobStatusDataSchema,
-  makeAgentJobsChannelName,
-} from "@/lib/ably";
+import { type JobStatusData, jobStatusDataSchema } from "@/lib/ably";
 
 export default function useAgentJobStatusData(
   agentId: string,

@@ -1,6 +1,5 @@
 "use client";
 
-import { ChannelProvider } from "ably/react";
 import { Hash, Loader2, MessageCircle } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -64,7 +63,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   type ChatRoomMessageEventData,
   isChatRoomMessagePatchEvent,
-  makeUserChatRoomsChannelName,
 } from "@/lib/ably";
 import { applyChatRoomMessagePatch } from "@/lib/ably/apply-chat-room-message-patch";
 import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
@@ -146,14 +144,17 @@ const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
 const ROOM_LIVE_POLL_MS = 3000;
 
 function RoomMessageRealtimeBridge({
-  userId,
+  roomIds,
+  currentUserId,
   onMessage,
 }: {
-  userId: string;
+  roomIds: readonly string[];
+  currentUserId: string;
   onMessage: (event: ChatRoomMessageEventData) => void;
 }) {
   useChatRoomRealtime({
-    userId,
+    roomIds,
+    currentUserId,
     onMessage,
     onError: (error) => {
       console.error("Ably chat room message error:", error);
@@ -1642,14 +1643,11 @@ export function RoomsClient({
         : null}
       {currentUserId ? (
         <LazyAblyProvider>
-          <ChannelProvider
-            channelName={makeUserChatRoomsChannelName(currentUserId)}
-          >
-            <RoomMessageRealtimeBridge
-              userId={currentUserId}
-              onMessage={handleChatRoomRealtimeMessage}
-            />
-          </ChannelProvider>
+          <RoomMessageRealtimeBridge
+            roomIds={rooms.map((room) => room.id)}
+            currentUserId={currentUserId}
+            onMessage={handleChatRoomRealtimeMessage}
+          />
         </LazyAblyProvider>
       ) : null}
       {/* `relative` anchors the thread panel's mobile full-screen takeover. */}
