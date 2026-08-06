@@ -210,13 +210,18 @@ describe("FileChipMiniPreviewFrame", () => {
     expect(video).toHaveClass("w-full");
     expect(video).toHaveClass("max-w-full");
     expect(video).toHaveClass("object-contain");
-    expect(video).toHaveClass("rounded-lg");
     expect(screen.getByTestId("file-chip-video")).toHaveClass(
       "min-w-0",
       "w-full",
       "max-w-full",
+      "basis-full",
       "overflow-hidden",
       "shrink",
+    );
+    expect(screen.getByTestId("file-chip-video-frame")).toHaveClass(
+      "grid",
+      "min-w-0",
+      "[contain:inline-size]",
     );
   });
 

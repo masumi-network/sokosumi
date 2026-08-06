@@ -208,14 +208,19 @@ export function FileChip(props: FileChipProps) {
           </a>
         </div>
         {isVideo ? (
-          <video
-            src={mediaSrc}
-            controls
-            playsInline
-            preload="metadata"
-            className="max-h-80 min-w-0 w-full max-w-full rounded-lg object-contain"
-            aria-label={fileName}
-          />
+          <div
+            data-testid="file-chip-video-frame"
+            className="grid min-w-0 w-full max-w-full grid-cols-[minmax(0,1fr)] overflow-hidden rounded-lg [contain:inline-size]"
+          >
+            <video
+              src={mediaSrc}
+              controls
+              playsInline
+              preload="metadata"
+              className="col-span-full max-h-80 h-auto w-full max-w-full min-w-0 object-contain"
+              aria-label={fileName}
+            />
+          </div>
         ) : (
           <audio
             src={mediaSrc}
