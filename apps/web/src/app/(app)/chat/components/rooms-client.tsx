@@ -467,6 +467,7 @@ export function RoomsClient({
       const route = routeRealtimeChatRoomMessage(
         message,
         threadParentMessageIdRef.current,
+        event.eventType,
       );
       if (route.mergeIntoRoomTimeline) {
         setMessagesState((current) =>
@@ -546,11 +547,14 @@ export function RoomsClient({
   }, [streamOverlayMessages, threadParentMessage]);
 
   const displayThreadMessages = useMemo(() => {
-    return mergeMessagesWithStreamOverlay(
-      threadMessages,
-      threadStreamOverlayMessages,
-    );
-  }, [threadMessages, threadStreamOverlayMessages]);
+    // Defense: parent is rendered above the divider — never as a reply row.
+    const parentId = threadParentMessage?.id;
+    const replies =
+      parentId == null
+        ? threadMessages
+        : threadMessages.filter((message) => message.id !== parentId);
+    return mergeMessagesWithStreamOverlay(replies, threadStreamOverlayMessages);
+  }, [threadMessages, threadStreamOverlayMessages, threadParentMessage?.id]);
 
   // Draft coworker DM stashes text then navigates — auto-stream once room opens.
   // Keep sessionStorage until stream actually starts so Strict Mode remount
@@ -1041,11 +1045,19 @@ export function RoomsClient({
         ),
       );
     });
-    setThreadMessages((current) =>
-      current.map((message) =>
-        message.id === updatedMessage.id ? updatedMessage : message,
-      ),
-    );
+    // Parent lives in threadParentMessage only — never in the replies list.
+    // Purge any prior leak (e.g. pre-fix Ably merge of the root).
+    if (isTopLevelChatRoomMessage(updatedMessage)) {
+      setThreadMessages((current) =>
+        current.filter((message) => message.id !== updatedMessage.id),
+      );
+    } else {
+      setThreadMessages((current) =>
+        current.map((message) =>
+          message.id === updatedMessage.id ? updatedMessage : message,
+        ),
+      );
+    }
     setThreadParentMessage((current) =>
       current?.id === updatedMessage.id ? updatedMessage : current,
     );

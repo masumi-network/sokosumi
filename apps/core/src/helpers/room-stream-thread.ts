@@ -1,5 +1,5 @@
 import { convertToModelMessages, type ModelMessage, type UIMessage } from "ai";
-
+import { mergeChatRoomMessageMetadataKeys } from "@/helpers/chat-room-message-metadata-patch";
 import { chatRoomMessagesToUiMessages } from "@/helpers/chat-room-messages-to-ui-messages";
 import prisma from "@/lib/db/prisma";
 import {
@@ -26,20 +26,6 @@ function readThreadProviderConversationId(metadata: unknown): string | null {
     THREAD_PROVIDER_CONVERSATION_ID_KEY
   ];
   return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-function mergeMetadataWithThreadConversationId(
-  metadata: unknown,
-  providerConversationId: string,
-): Record<string, unknown> {
-  const base =
-    metadata && typeof metadata === "object" && !Array.isArray(metadata)
-      ? { ...(metadata as Record<string, unknown>) }
-      : {};
-  return {
-    ...base,
-    [THREAD_PROVIDER_CONVERSATION_ID_KEY]: providerConversationId,
-  };
 }
 
 /**
@@ -84,17 +70,14 @@ export async function ensureThreadProviderConversation(options: {
     sokosumiConversationId: options.parentMessageId,
   });
 
-  const nextMetadata = mergeMetadataWithThreadConversationId(
-    parent.metadata,
-    created.id,
-  );
-
-  await prisma.chatRoomMessage.update({
-    where: { id: options.parentMessageId },
-    data: { metadata: nextMetadata },
+  // Atomic jsonb key merge — concurrent unfurl scrapes must not wipe this key
+  // (and we must not wipe their `unfurls` / quote / membership keys).
+  await mergeChatRoomMessageMetadataKeys({
+    messageId: options.parentMessageId,
+    patch: { [THREAD_PROVIDER_CONVERSATION_ID_KEY]: created.id },
   });
 
-  // Concurrent writers may overwrite — prefer whatever is stored now.
+  // Concurrent ensure calls may race; prefer whatever is stored now.
   const after = await prisma.chatRoomMessage.findFirst({
     where: { id: options.parentMessageId, roomId: options.roomId },
     select: { metadata: true },

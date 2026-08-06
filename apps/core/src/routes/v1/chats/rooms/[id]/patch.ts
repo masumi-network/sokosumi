@@ -258,7 +258,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       for (const message of statusMessages) {
-        await publishChatRoomMessageRealtime(message);
+        await publishChatRoomMessageRealtime(message, "create");
       }
 
       return ok(

@@ -1,3 +1,4 @@
+import type { ChatRoomMessageEventType } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -62,13 +63,15 @@ describe("shouldApplyRealtimeMessageToOpenThread", () => {
     ).toBe(false);
   });
 
-  it("accepts the open thread root itself", () => {
+  // Parent is rendered from threadParentMessage, not the replies list.
+  // Merging the root into threadMessages duplicates it (e.g. after reaction).
+  it("rejects the open thread root itself (parent is not a reply)", () => {
     expect(
       shouldApplyRealtimeMessageToOpenThread(
         { id: "parent-1", parentMessageId: null },
         "parent-1",
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("accepts replies under the open thread root", () => {
@@ -91,11 +94,18 @@ describe("shouldApplyRealtimeMessageToOpenThread", () => {
 });
 
 describe("routeRealtimeChatRoomMessage", () => {
+  const landingEventTypes: ChatRoomMessageEventType[] = [
+    "create",
+    "update",
+    "reaction",
+  ];
+
   it("routes a top-level message to the room only when no thread is open", () => {
     expect(
       routeRealtimeChatRoomMessage(
         { id: "msg-1", parentMessageId: null },
         null,
+        "create",
       ),
     ).toEqual({
       mergeIntoRoomTimeline: true,
@@ -103,35 +113,46 @@ describe("routeRealtimeChatRoomMessage", () => {
     });
   });
 
-  it("routes a top-level open-thread parent to room and thread", () => {
-    expect(
-      routeRealtimeChatRoomMessage(
-        { id: "parent-1", parentMessageId: null },
-        "parent-1",
-      ),
-    ).toEqual({
-      mergeIntoRoomTimeline: true,
-      mergeIntoOpenThread: true,
-    });
-  });
+  // Reaction/edit on open-thread parent: room timeline + parent row only.
+  // Never mergeIntoOpenThread — that list is replies only.
+  it.each(landingEventTypes)(
+    "routes open-thread parent to room only, not reply list (%s)",
+    (eventType) => {
+      expect(
+        routeRealtimeChatRoomMessage(
+          { id: "parent-1", parentMessageId: null },
+          "parent-1",
+          eventType,
+        ),
+      ).toEqual({
+        mergeIntoRoomTimeline: true,
+        mergeIntoOpenThread: false,
+      });
+    },
+  );
 
-  it("routes a thread reply only to the open thread, never the room", () => {
-    expect(
-      routeRealtimeChatRoomMessage(
-        { id: "reply-1", parentMessageId: "parent-1" },
-        "parent-1",
-      ),
-    ).toEqual({
-      mergeIntoRoomTimeline: false,
-      mergeIntoOpenThread: true,
-    });
-  });
+  it.each(landingEventTypes)(
+    "routes a thread reply only to the open thread, never the room (%s)",
+    (eventType) => {
+      expect(
+        routeRealtimeChatRoomMessage(
+          { id: "reply-1", parentMessageId: "parent-1" },
+          "parent-1",
+          eventType,
+        ),
+      ).toEqual({
+        mergeIntoRoomTimeline: false,
+        mergeIntoOpenThread: true,
+      });
+    },
+  );
 
   it("routes a reply under a closed/other thread nowhere", () => {
     expect(
       routeRealtimeChatRoomMessage(
         { id: "reply-1", parentMessageId: "parent-1" },
         null,
+        "create",
       ),
     ).toEqual({
       mergeIntoRoomTimeline: false,
@@ -141,6 +162,7 @@ describe("routeRealtimeChatRoomMessage", () => {
       routeRealtimeChatRoomMessage(
         { id: "reply-1", parentMessageId: "parent-1" },
         "other-parent",
+        "update",
       ),
     ).toEqual({
       mergeIntoRoomTimeline: false,

@@ -1,5 +1,6 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
+  type ChatRoomMessageEventType,
   makeAgentJobsChannelName,
   makeUserChatRoomsChannelName,
   makeUserNotificationsChannelName,
@@ -92,13 +93,15 @@ export async function publishNotificationEvent({
 interface PublishChatRoomMessageEventInput {
   userId: string;
   message: ChatRoomMessage;
+  eventType: ChatRoomMessageEventType;
 }
 
 export async function publishChatRoomMessageEvent({
   userId,
   message,
+  eventType,
 }: PublishChatRoomMessageEventInput) {
   const client = getRestClient();
   const channel = client.channels.get(makeUserChatRoomsChannelName(userId));
-  await channel.publish("chat_room_message", { message });
+  await channel.publish("chat_room_message", { eventType, message });
 }
