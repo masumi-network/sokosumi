@@ -27,11 +27,13 @@ import {
   getCaretRect,
   getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
+  isWhitespaceChar,
   MENTION_CLASSNAME,
   type MentionRecordEntry,
   type MentionSuggestionGroup,
   type NormalizedMention,
   serializeEditor,
+  serializeEditorText,
   setCaretAfterNode,
   shouldAppendTrailingSpace,
   type TriggerPosition,
@@ -495,36 +497,52 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
   const insertMention = useCallback(
     (mention: NormalizedMention<TData>) => {
-      if (!editorRef.current) return;
+      const editor = editorRef.current;
+      if (!editor) return;
 
-      const { text, caret } = serializeEditor(editorRef.current);
-      const trigger = getActiveTrigger(text, caret);
-
-      const range = document.createRange();
-      if (trigger) {
-        const startPos = findPositionForOffset(
-          editorRef.current,
-          trigger.triggerStart,
-        );
-        const endPos = findPositionForOffset(editorRef.current, caret);
-        range.setStart(startPos.node, startPos.offset);
-        range.setEnd(endPos.node, endPos.offset);
-        range.deleteContents();
-      } else {
-        const selection = window.getSelection();
-        if (selection && selection.rangeCount > 0) {
-          range.setStart(
-            selection.getRangeAt(0).startContainer,
-            selection.getRangeAt(0).startOffset,
-          );
-          range.collapse(true);
-        } else {
-          range.selectNodeContents(editorRef.current);
-          range.collapse(false);
-        }
+      // Listbox clicks leave the selection outside the editor. Always resolve
+      // insert offsets from editor text, never from window.getSelection().
+      editor.focus();
+      const savedOffset = savedCaretOffsetRef.current;
+      if (savedOffset != null) {
+        restoreCaretAtOffset(editor, savedOffset);
+      } else if (getCaretOffset(editor) == null) {
+        restoreCaretAtOffset(editor, serializeEditorText(editor).length);
       }
 
-      const nextChar = trigger ? text[caret] : undefined;
+      let { text, caret } = serializeEditor(editor);
+      const trigger = getActiveTrigger(text, caret);
+
+      let startOffset: number;
+      let endOffset: number;
+      if (trigger) {
+        startOffset = trigger.triggerStart;
+        endOffset = caret;
+      } else if (manualMentionOpenRef.current) {
+        if (caret > 0 && !isWhitespaceChar(text[caret - 1] ?? "")) {
+          const spacePos = findPositionForOffset(editor, caret);
+          const spaceRange = document.createRange();
+          spaceRange.setStart(spacePos.node, spacePos.offset);
+          spaceRange.collapse(true);
+          spaceRange.insertNode(document.createTextNode(" "));
+          restoreCaretAtOffset(editor, caret + 1);
+          ({ text, caret } = serializeEditor(editor));
+        }
+        startOffset = caret;
+        endOffset = caret;
+      } else {
+        closeSuggestions();
+        return;
+      }
+
+      const range = document.createRange();
+      const startPos = findPositionForOffset(editor, startOffset);
+      const endPos = findPositionForOffset(editor, endOffset);
+      range.setStart(startPos.node, startPos.offset);
+      range.setEnd(endPos.node, endPos.offset);
+      range.deleteContents();
+
+      const nextChar = text[endOffset];
       const { displayName, isKnown } = resolveMentionDisplay(
         mention.key,
         mention.slug,
@@ -548,11 +566,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
         caretNode = spaceNode;
       }
 
-      setCaretAfterNode(editorRef.current, caretNode);
+      setCaretAfterNode(editor, caretNode);
+      const nextOffset = getCaretOffset(editor);
+      savedCaretOffsetRef.current = nextOffset;
       isInternalChange.current = true;
       syncFromEditor();
       closeSuggestions();
-      editorRef.current.focus();
+      editor.focus();
     },
     [closeSuggestions, resolveMentionDisplay, syncFromEditor],
   );
@@ -759,13 +779,20 @@ export function ComposerWysiwygEditor<TData = unknown>({
       clearTimeout(blurTimeoutRef.current);
       blurTimeoutRef.current = null;
     }
+    const hadEditorSelection = getCaretOffset(editor) != null;
     editor.focus();
+    if (!hadEditorSelection) {
+      const saved = savedCaretOffsetRef.current;
+      restoreCaretAtOffset(editor, saved ?? serializeEditorText(editor).length);
+    }
+    const { caret } = serializeEditor(editor);
+    savedCaretOffsetRef.current = caret;
     manualMentionOpenRef.current = true;
     openSuggestions({
       suggestion: {
         kind: "mention",
         query: "",
-        triggerStart: serializeEditor(editor).caret,
+        triggerStart: caret,
       },
       nextTriggerPosition: getSuggestionPopupPosition(editor, "mention"),
       nextActiveIndex: 0,

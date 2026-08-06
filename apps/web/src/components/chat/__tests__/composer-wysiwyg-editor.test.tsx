@@ -187,6 +187,67 @@ describe("ComposerWysiwygEditor", () => {
     }
   });
 
+  it("inserts a mention from the toolbar picker when no @ trigger is typed", () => {
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("hello");
+      return (
+        <>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <ComposerWysiwygEditor
+            ref={editorRef}
+            value={value}
+            onChange={setValue}
+            mentions={{
+              alice: { value: "Alice" },
+              bob: { value: "Bob" },
+            }}
+          />
+        </>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    act(() => {
+      editor.focus();
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+    const option = screen.getByRole("option", { name: /Alice/i });
+
+    // Listbox click leaves selection outside the editor (portal).
+    act(() => {
+      const selection = window.getSelection();
+      const outside = document.createTextNode("outside");
+      document.body.appendChild(outside);
+      const range = document.createRange();
+      range.setStart(outside, 0);
+      range.collapse(true);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+
+    fireEvent.mouseDown(option);
+    fireEvent.click(option);
+
+    expect(editor.querySelector("[data-mention-key='alice']")).not.toBeNull();
+    expect(editor.textContent).toMatch(/hello\s*@Alice/);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
   it("keeps emoji shortcode popup on the caret position helper", () => {
     function Harness() {
       const [value, setValue] = useState("");
