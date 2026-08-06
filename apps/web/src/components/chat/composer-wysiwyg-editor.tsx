@@ -32,6 +32,7 @@ import {
   type MentionRecordEntry,
   type MentionSuggestionGroup,
   type NormalizedMention,
+  POPUP_MIN_HEIGHT_PX,
   serializeEditor,
   serializeEditorText,
   setCaretAfterNode,
@@ -350,9 +351,15 @@ export function ComposerWysiwygEditor<TData = unknown>({
       if (kind === "mention" || kind === "emoji") {
         const shell = editor.closest(`[${ROOM_COMPOSER_MENTION_ANCHOR_ATTR}]`);
         if (shell instanceof HTMLElement) {
-          return getMentionPopupPositionFromAnchorRect(
+          const anchored = getMentionPopupPositionFromAnchorRect(
             shell.getBoundingClientRect(),
           );
+          // Soft keyboard can scroll the composer near the top of
+          // visualViewport so aboveSpace (and maxHeight) collapse to 0.
+          // Prefer card anchor only when the list would still be usable.
+          if (anchored.maxHeight >= POPUP_MIN_HEIGHT_PX) {
+            return anchored;
+          }
         }
       }
       const caretRect = getCaretRect(editor);

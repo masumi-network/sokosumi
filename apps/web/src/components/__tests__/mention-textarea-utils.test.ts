@@ -10,6 +10,7 @@ import {
   MENTION_COMPOSER_GAP_PX,
   type NormalizedMention,
   POPUP_HEIGHT_PX,
+  POPUP_MIN_HEIGHT_PX,
   serializeEditorText,
   setEditorFromRaw,
   VIEWPORT_PADDING_PX,
@@ -137,7 +138,7 @@ describe("mention-textarea utils", () => {
 
       // belowSpace ≈ 172 (< 240 preferred), aboveSpace ≈ 592
       expect(position.side).toBe("top");
-      expect(position.maxHeight).toBeGreaterThanOrEqual(80);
+      expect(position.maxHeight).toBeGreaterThanOrEqual(POPUP_MIN_HEIGHT_PX);
       expect(position.maxHeight).toBeLessThanOrEqual(POPUP_HEIGHT_PX);
     });
 
@@ -203,14 +204,29 @@ describe("mention-textarea utils", () => {
       stubViewport(800);
       const top = 50;
       const aboveSpace = top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
-      expect(aboveSpace).toBeLessThan(80);
+      expect(aboveSpace).toBeLessThan(POPUP_MIN_HEIGHT_PX);
 
       const position = getMentionPopupPositionFromAnchorRect(
         anchorRect({ left: 40, width: 360, top }),
       );
 
       expect(position.maxHeight).toBe(aboveSpace);
-      expect(position.maxHeight).toBeLessThan(80);
+      expect(position.maxHeight).toBeLessThan(POPUP_MIN_HEIGHT_PX);
+    });
+
+    it("returns zero maxHeight when aboveSpace collapses (keyboard-shrunk viewport)", () => {
+      stubViewport(800);
+      // Composer scrolled to visualViewport top under soft keyboard.
+      const top = VIEWPORT_PADDING_PX + MENTION_COMPOSER_GAP_PX;
+      const aboveSpace = top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
+      expect(aboveSpace).toBe(0);
+
+      const position = getMentionPopupPositionFromAnchorRect(
+        anchorRect({ left: 40, width: 360, top }),
+      );
+
+      expect(position.maxHeight).toBe(0);
+      expect(position.maxHeight).toBeLessThan(POPUP_MIN_HEIGHT_PX);
     });
 
     it("clamps left and width into the viewport padding", () => {

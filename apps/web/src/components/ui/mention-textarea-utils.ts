@@ -46,6 +46,7 @@ export interface MentionSpanStyleOptions {
 }
 
 export const POPUP_HEIGHT_PX = 240;
+export const POPUP_MIN_HEIGHT_PX = 80;
 export const POPUP_WIDTH_PX = 288;
 export const VIEWPORT_PADDING_PX = 8;
 /** Gap between mention picker bottom and composer card top. */
@@ -469,7 +470,10 @@ export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
     belowSpace < POPUP_HEIGHT_PX && aboveSpace > belowSpace ? "top" : "bottom";
   const maxHeight = Math.min(
     POPUP_HEIGHT_PX,
-    Math.max(80, side === "top" ? aboveSpace - 4 : belowSpace - 4),
+    Math.max(
+      POPUP_MIN_HEIGHT_PX,
+      side === "top" ? aboveSpace - 4 : belowSpace - 4,
+    ),
   );
   const top = side === "top" ? rect.top - 4 : rect.bottom + 4;
   let left = rect.left;

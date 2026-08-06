@@ -139,6 +139,97 @@ describe("ComposerWysiwygEditor", () => {
     expect(listbox).not.toHaveClass("w-72");
   });
 
+  it("falls back to caret position when anchored maxHeight is below usable floor", () => {
+    getMentionPopupPositionFromAnchorRect.mockReturnValueOnce({
+      top: 40,
+      left: 24,
+      side: "top" as const,
+      maxHeight: 0,
+      width: 420,
+    });
+
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+            <ComposerWysiwygEditor
+              ref={editorRef}
+              value={value}
+              onChange={setValue}
+              mentions={{
+                alice: { value: "Alice" },
+                bob: { value: "Bob" },
+              }}
+            />
+          </div>
+        </>
+      );
+    }
+
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "120px",
+      transform: "translateY(-100%)",
+    });
+    expect(listbox).toHaveClass("w-72");
+  });
+
+  it("falls back to caret position for emoji when anchored maxHeight is unusable", () => {
+    getMentionPopupPositionFromAnchorRect.mockReturnValueOnce({
+      top: 40,
+      left: 24,
+      side: "top" as const,
+      maxHeight: 40,
+      width: 420,
+    });
+
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+        </div>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":smi";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "120px",
+    });
+    expect(listbox).toHaveClass("w-72");
+  });
+
   it("keeps the mention listbox open when openMentions runs after editor blur", () => {
     vi.useFakeTimers();
 
