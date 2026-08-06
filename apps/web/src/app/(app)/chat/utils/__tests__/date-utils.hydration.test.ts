@@ -40,6 +40,10 @@ describe("chat local calendar helpers (SOKOSUMI-A)", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
     const evening = new Date("2026-08-05T22:30:00.000Z");
+    // Noon UTC keeps both zones on Aug 5 for "today", so the Aug 6 Berlin
+    // local date of `evening` cannot also collapse to "Today".
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
 
     process.env.TZ = "UTC";
     const utcLabel = formatDaySeparator(evening);
