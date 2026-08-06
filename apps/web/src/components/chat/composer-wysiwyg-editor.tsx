@@ -1183,7 +1183,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(
-              "bg-popover text-popover-foreground fixed z-50 overflow-y-auto rounded-md border p-1 shadow-md",
+              "bg-popover text-popover-foreground fixed z-50 overflow-y-auto rounded-xl border p-1 shadow-md",
               triggerPosition?.width == null && "w-72",
               !triggerPosition && "mt-1 max-h-60",
             )}
