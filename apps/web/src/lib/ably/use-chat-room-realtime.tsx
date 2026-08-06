@@ -10,9 +10,17 @@ import {
   chatRoomMessageEventDataSchema,
 } from "@/lib/ably";
 
+import { chatRoomIdsFromAblyCapability } from "./chat-room-ids-from-ably-capability";
 import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message-event";
 
 const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
+
+/**
+ * Re-mint Ably caps while chat realtime is mounted so remote membership
+ * removal (admin kick) drops room subscribe rights within seconds-scale
+ * without waiting for token TTL or a local roomIds prop change (SOK-742).
+ */
+export const CHAT_ROOM_CAP_REAUTH_INTERVAL_MS = 15_000;
 
 interface UseChatRoomRealtimeOptions {
   /** Membership room ids to attach (all rooms for sidebar/live parity). */
@@ -28,6 +36,10 @@ interface UseChatRoomRealtimeOptions {
  * On membership set change: re-authorize once, then attach/detach only the
  * delta (important for external channels that join/leave often). Authorize
  * failure aborts the sync — never add channels on stale caps.
+ *
+ * While mounted, also re-authorize on a short interval and on focus /
+ * visibility so remote kicks revoke room caps promptly (SOK-742). After each
+ * successful authorize, attach is gated by token capability ∩ prop roomIds.
  */
 export function useChatRoomRealtime({
   roomIds,
@@ -66,6 +78,8 @@ export function useChatRoomRealtime({
   const channelsRef = useRef(new Map<string, Ably.RealtimeChannel>());
   /** Bumps to invalidate in-flight sync when membership/user changes or unmounts. */
   const syncGenerationRef = useRef(0);
+  const roomIdsRef = useRef(roomIds);
+  roomIdsRef.current = roomIds;
 
   const roomIdsKey = useMemo(
     () => [...new Set(roomIds)].sort().join("\0"),
@@ -77,15 +91,17 @@ export function useChatRoomRealtime({
       return;
     }
 
-    const generation = ++syncGenerationRef.current;
-    const nextIds = new Set(
-      roomIdsKey.length > 0 ? roomIdsKey.split("\0") : [],
-    );
     const handleMessage = handleMessageRef.current;
 
     async function syncMembershipChannels() {
+      const generation = ++syncGenerationRef.current;
+      const propIds = new Set(
+        [...new Set(roomIdsRef.current)].filter((id) => id.length > 0),
+      );
+
+      let tokenDetails: Ably.TokenDetails | null = null;
       try {
-        await ably.auth.authorize();
+        tokenDetails = await ably.auth.authorize();
       } catch (error) {
         if (generation !== syncGenerationRef.current) {
           return;
@@ -102,6 +118,16 @@ export function useChatRoomRealtime({
       if (generation !== syncGenerationRef.current) {
         return;
       }
+
+      const allowedFromToken = chatRoomIdsFromAblyCapability(
+        tokenDetails?.capability,
+      );
+      // Capability ∩ props when parseable; props alone if capability missing
+      // (degraded — same as pre-SOK-742 attach set).
+      const nextIds =
+        allowedFromToken == null
+          ? propIds
+          : new Set([...propIds].filter((id) => allowedFromToken.has(id)));
 
       const attached = channelsRef.current;
 
@@ -125,6 +151,29 @@ export function useChatRoomRealtime({
     }
 
     void syncMembershipChannels();
+
+    const intervalId = window.setInterval(() => {
+      void syncMembershipChannels();
+    }, CHAT_ROOM_CAP_REAUTH_INTERVAL_MS);
+
+    const onFocus = () => {
+      void syncMembershipChannels();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void syncMembershipChannels();
+      }
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      syncGenerationRef.current += 1;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [ably, currentUserId, roomIdsKey]);
 
   // Tear down every channel when the Ably client or user identity changes, or

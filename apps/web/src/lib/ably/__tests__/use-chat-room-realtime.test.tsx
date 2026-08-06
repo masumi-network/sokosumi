@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { authorizeMock, getMock, channelsByName, ablyClient } = vi.hoisted(
   () => {
@@ -30,7 +30,10 @@ vi.mock("ably/react", () => ({
   useAbly: () => ablyClient,
 }));
 
-import { useChatRoomRealtime } from "../use-chat-room-realtime";
+import {
+  CHAT_ROOM_CAP_REAUTH_INTERVAL_MS,
+  useChatRoomRealtime,
+} from "../use-chat-room-realtime";
 
 function channelFor(name: string) {
   let channel = channelsByName.get(name);
@@ -46,13 +49,28 @@ function channelFor(name: string) {
   return channel;
 }
 
+function tokenWithRooms(...roomIds: string[]) {
+  const capability: Record<string, string[]> = {
+    "notifications:all:user_1": ["subscribe"],
+  };
+  for (const roomId of roomIds) {
+    capability[`chat_rooms:room_${roomId}`] = ["subscribe"];
+  }
+  return { capability: JSON.stringify(capability) };
+}
+
 describe("useChatRoomRealtime", () => {
   beforeEach(() => {
     authorizeMock.mockReset();
     getMock.mockReset();
     channelsByName.clear();
-    authorizeMock.mockResolvedValue(undefined);
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
     getMock.mockImplementation((name: string) => channelFor(name));
+    vi.useRealTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("authorizes then subscribes to each membership room channel", async () => {
@@ -92,6 +110,10 @@ describe("useChatRoomRealtime", () => {
   });
 
   it("on membership change, only detaches removed and subscribes added rooms", async () => {
+    authorizeMock.mockResolvedValue(
+      tokenWithRooms("room-a", "room-b", "room-c"),
+    );
+
     const { rerender } = renderHook(
       ({ roomIds }: { roomIds: string[] }) =>
         useChatRoomRealtime({
@@ -112,6 +134,7 @@ describe("useChatRoomRealtime", () => {
 
     authorizeMock.mockClear();
     getMock.mockClear();
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-c"));
 
     rerender({ roomIds: ["room-a", "room-c"] });
 
@@ -136,6 +159,69 @@ describe("useChatRoomRealtime", () => {
     expect(
       channelFor("chat_rooms:room_room-a").unsubscribe,
     ).not.toHaveBeenCalled();
+  });
+
+  it("detaches rooms dropped from token capability even when props stay stale", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+    });
+
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await waitFor(() => {
+      expect(
+        channelFor("chat_rooms:room_room-b").unsubscribe,
+      ).toHaveBeenCalled();
+      expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+    });
+
+    // room-a stays attached; no re-subscribe
+    expect(
+      channelFor("chat_rooms:room_room-a").subscribe,
+    ).toHaveBeenCalledTimes(1);
+    expect(
+      channelFor("chat_rooms:room_room-a").unsubscribe,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("re-authorizes on the cap refresh interval while mounted", async () => {
+    vi.useFakeTimers();
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(CHAT_ROOM_CAP_REAUTH_INTERVAL_MS);
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(CHAT_ROOM_CAP_REAUTH_INTERVAL_MS);
+    });
+    expect(authorizeMock).toHaveBeenCalledTimes(3);
   });
 
   it("detaches all channels on unmount", async () => {

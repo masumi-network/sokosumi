@@ -1,8 +1,10 @@
 export {
+  CHAT_ROOM_CHANNEL_PREFIX,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  parseChatRoomIdFromChannelName,
 } from "./ably-channel.js";
 export {
   betterAuthOrganizationAdditionalFields,

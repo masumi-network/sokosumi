@@ -20,6 +20,22 @@ export function makeUserNotificationsChannelName(userId: string): string {
 }
 
 /** Shared room-scoped channel for chat_room_message fan-out (SOK-741). */
+export const CHAT_ROOM_CHANNEL_PREFIX = "chat_rooms:room_";
+
 export function makeChatRoomChannelName(roomId: string): string {
-  return `chat_rooms:room_${roomId}`;
+  return `${CHAT_ROOM_CHANNEL_PREFIX}${roomId}`;
+}
+
+/**
+ * Inverse of {@link makeChatRoomChannelName}. Returns null for non-room channels
+ * (jobs/tasks/notifications wildcards, empty id, etc.).
+ */
+export function parseChatRoomIdFromChannelName(
+  channelName: string,
+): string | null {
+  if (!channelName.startsWith(CHAT_ROOM_CHANNEL_PREFIX)) {
+    return null;
+  }
+  const roomId = channelName.slice(CHAT_ROOM_CHANNEL_PREFIX.length);
+  return roomId.length > 0 ? roomId : null;
 }
