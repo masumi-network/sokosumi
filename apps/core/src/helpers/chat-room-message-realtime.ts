@@ -48,61 +48,31 @@ function buildChatRoomMessagePatch(
   }
 }
 
+/**
+ * Publish one viewer-neutral chat_room_message event on the room channel.
+ * Membership isolation is enforced by Ably token capabilities (SOK-741).
+ */
 export async function publishChatRoomMessageRealtime(
   message: ChatRoomMessageWithInclude,
   eventType: ChatRoomMessageEventType,
 ): Promise<void> {
   try {
-    const members = await prisma.chatRoomUserMember.findMany({
-      where: { roomId: message.roomId },
-      select: { userId: true },
-    });
-
-    // Per-member isolation: one map/parse/publish failure must not cancel
-    // fan-out to the rest of the room (Promise.all would fail-fast).
-    const results = await Promise.allSettled(
-      members.map(async ({ userId }) => {
-        const dto = chatRoomMessageSchema.parse(
-          mapChatRoomMessage(message, userId),
-        );
-        if (isPatchEventType(eventType)) {
-          await publishChatRoomMessageEvent({
-            userId,
-            eventType,
-            messageId: dto.id,
-            roomId: dto.roomId,
-            parentMessageId: dto.parentMessageId,
-            patch: buildChatRoomMessagePatch(eventType, dto),
-          });
-          return;
-        }
-        await publishChatRoomMessageEvent({
-          userId,
-          eventType,
-          message: dto,
-        });
-      }),
-    );
-
-    for (const [index, result] of results.entries()) {
-      if (result.status === "fulfilled") {
-        continue;
-      }
-      const userId = members[index]?.userId;
-      console.error(
-        "Failed to publish chat room message over Ably for member:",
-        userId,
-        result.reason,
-      );
-      Sentry.captureException(result.reason, {
-        extra: {
-          messageId: message.id,
-          roomId: message.roomId,
-          userId,
-          errorType: "ably-publish-chat-room-message",
-        },
+    // No currentUserId: shared wire DTO; clients derive viewer flags.
+    const dto = chatRoomMessageSchema.parse(mapChatRoomMessage(message));
+    if (isPatchEventType(eventType)) {
+      await publishChatRoomMessageEvent({
+        eventType,
+        messageId: dto.id,
+        roomId: dto.roomId,
+        parentMessageId: dto.parentMessageId,
+        patch: buildChatRoomMessagePatch(eventType, dto),
       });
+      return;
     }
+    await publishChatRoomMessageEvent({
+      eventType,
+      message: dto,
+    });
   } catch (error) {
     console.error("Failed to publish chat room message over Ably:", error);
     Sentry.captureException(error, {

@@ -2,7 +2,7 @@ import { NotificationKind } from "@sokosumi/database";
 import {
   type ChatRoomMessageEventType,
   makeAgentJobsChannelName,
-  makeUserChatRoomsChannelName,
+  makeChatRoomChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   SokosumiJobStatus,
@@ -120,13 +120,11 @@ export type ChatRoomMessageEventPatch =
   | ChatRoomMessageMentionStatusPatch;
 
 interface PublishChatRoomMessageFullEventInput {
-  userId: string;
   eventType: ChatRoomMessageFullEventType;
   message: ChatRoomMessage;
 }
 
 interface PublishChatRoomMessagePatchEventInput {
-  userId: string;
   eventType: ChatRoomMessagePatchEventType;
   messageId: string;
   roomId: string;
@@ -152,9 +150,8 @@ export async function publishChatRoomMessageEvent(
   input: PublishChatRoomMessageEventInput,
 ) {
   const client = getRestClient();
-  const channel = client.channels.get(
-    makeUserChatRoomsChannelName(input.userId),
-  );
+  const roomId = isPatchEventInput(input) ? input.roomId : input.message.roomId;
+  const channel = client.channels.get(makeChatRoomChannelName(roomId));
 
   if (isPatchEventInput(input)) {
     await channel.publish("chat_room_message", {

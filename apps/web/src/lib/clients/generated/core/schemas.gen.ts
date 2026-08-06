@@ -4257,7 +4257,7 @@ export const ChatRoomSchema = {
         unreadCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Messages sent by others after the current user\'s read marker.',
+            description: 'Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.',
             example: 2
         },
         unreadMentionCount: {
@@ -12776,6 +12776,47 @@ export const SubscriptionCatalogPlanSchema = {
         'priceId',
         'productId',
         'slug'
+    ]
+} as const;
+
+export const AblyTokenRequestSchema = {
+    type: 'object',
+    properties: {
+        keyName: {
+            type: 'string',
+            example: 'appId.keyId'
+        },
+        ttl: {
+            type: 'integer',
+            example: 3600000
+        },
+        capability: {
+            type: 'string',
+            example: '{"chat_rooms:room_abc":["subscribe"]}'
+        },
+        clientId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        timestamp: {
+            type: 'integer',
+            example: 1704067200000
+        },
+        nonce: {
+            type: 'string',
+            example: 'random-nonce'
+        },
+        mac: {
+            type: 'string',
+            example: 'signature'
+        }
+    },
+    required: [
+        'keyName',
+        'capability',
+        'timestamp',
+        'nonce',
+        'mac'
     ]
 } as const;
 

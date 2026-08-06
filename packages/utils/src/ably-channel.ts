@@ -22,3 +22,8 @@ export function makeUserNotificationsChannelName(userId: string): string {
 export function makeUserChatRoomsChannelName(userId: string): string {
   return `chat_rooms:all:user_${userId}`;
 }
+
+/** Shared room-scoped channel for chat_room_message fan-out (SOK-741). */
+export function makeChatRoomChannelName(roomId: string): string {
+  return `chat_rooms:room_${roomId}`;
+}

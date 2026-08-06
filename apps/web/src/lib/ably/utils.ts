@@ -4,6 +4,7 @@
  */
 export {
   makeAgentJobsChannelName,
+  makeChatRoomChannelName,
   makeUserChatRoomsChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,

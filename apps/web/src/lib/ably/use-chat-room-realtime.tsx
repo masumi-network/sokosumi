@@ -1,30 +1,58 @@
 "use client";
 
 import type * as Ably from "ably";
-import { useChannel } from "ably/react";
-import { useCallback } from "react";
+import { useAbly } from "ably/react";
+import { useEffect, useMemo, useRef } from "react";
 
 import {
   type ChatRoomMessageEventData,
   chatRoomMessageEventDataSchema,
-  makeUserChatRoomsChannelName,
+  makeChatRoomChannelName,
 } from "@/lib/ably";
+
+import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message-event";
 
 const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
 
 interface UseChatRoomRealtimeOptions {
-  userId: string;
+  /** Membership room ids to attach (all rooms for sidebar/live parity). */
+  roomIds: readonly string[];
+  currentUserId: string;
   onMessage?: (event: ChatRoomMessageEventData) => void;
   onError?: (error: Error) => void;
 }
 
+/**
+ * Subscribe to room-scoped chat_room_message channels (SOK-741).
+ * Re-authorizes Ably when the membership set changes so token caps stay fresh.
+ */
 export function useChatRoomRealtime({
-  userId,
+  roomIds,
+  currentUserId,
   onMessage,
   onError,
 }: UseChatRoomRealtimeOptions) {
-  const handleMessage = useCallback(
-    (message: Ably.Message) => {
+  const ably = useAbly();
+  const onMessageRef = useRef(onMessage);
+  onMessageRef.current = onMessage;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+
+  const roomIdsKey = useMemo(
+    () => [...new Set(roomIds)].sort().join("\0"),
+    [roomIds],
+  );
+
+  useEffect(() => {
+    if (!currentUserId) {
+      return;
+    }
+
+    const ids = roomIdsKey.length > 0 ? roomIdsKey.split("\0") : [];
+    let cancelled = false;
+    const channels: Ably.RealtimeChannel[] = [];
+
+    const handleMessage = (message: Ably.Message) => {
       const parsedResult = chatRoomMessageEventDataSchema.safeParse(
         message.data,
       );
@@ -33,18 +61,49 @@ export function useChatRoomRealtime({
           `Failed to parse ChatRoomMessageEventData from message: ${parsedResult.error.message}`,
         );
         console.error(error, message, parsedResult.error);
-        onError?.(error);
+        onErrorRef.current?.(error);
         return;
       }
 
-      onMessage?.(parsedResult.data);
-    },
-    [onMessage, onError],
-  );
+      onMessageRef.current?.(
+        personalizeChatRoomMessageEvent(parsedResult.data, currentUserId),
+      );
+    };
 
-  useChannel(
-    makeUserChatRoomsChannelName(userId),
-    CHAT_ROOM_MESSAGE_EVENT_NAME,
-    handleMessage,
-  );
+    async function attachRooms() {
+      // Refresh capabilities after join/leave (roomIds change).
+      try {
+        await ably.auth.authorize();
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        const err =
+          error instanceof Error
+            ? error
+            : new Error("Failed to re-authorize Ably for chat rooms");
+        console.error(err, error);
+        onErrorRef.current?.(err);
+      }
+
+      if (cancelled) {
+        return;
+      }
+
+      for (const roomId of ids) {
+        const channel = ably.channels.get(makeChatRoomChannelName(roomId));
+        channel.subscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+        channels.push(channel);
+      }
+    }
+
+    void attachRooms();
+
+    return () => {
+      cancelled = true;
+      for (const channel of channels) {
+        channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
+      }
+    };
+  }, [ably, currentUserId, roomIdsKey]);
 }
