@@ -186,6 +186,22 @@ describe("SidebarAccountChip", () => {
     expect(screen.getByRole("button", { name: "logout" })).toBeInTheDocument();
   });
 
+  it("opens settings drill and navigates to an account destination", () => {
+    renderChip();
+    openChip();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+
+    expect(screen.getByRole("button", { name: "account" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "developer" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "account" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/account");
+  });
+
   it("buys credits and logs out from inside the summary", () => {
     renderChip();
     openChip();
@@ -243,6 +259,57 @@ describe("SidebarAccountChip", () => {
     expect(
       screen.queryByRole("button", { name: /openSummary/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("closes the open summary when the layout becomes mobile", () => {
+    const { rerender } = renderChip();
+    openChip();
+
+    expect(screen.getByRole("button", { name: "logout" })).toBeInTheDocument();
+
+    sidebarState.isMobile = true;
+    rerender(
+      <SidebarAccountChip
+        sessionUser={sessionUser}
+        planName="Pro"
+        totalCredits={15_750}
+        extraCredits={750}
+        creditUsage={null}
+        subscriptionPeriodEndMs={null}
+        currentTimestampMs={1_700_000_000_000}
+        lowCreditsThreshold={100}
+        buyCreditsLabel="getMoreCredits"
+        buyCreditsPath="/billing?tab=credits"
+        adminSettingsChrome={defaultAdminSettingsChrome}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "logout" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /openSummary/ }),
+    ).not.toBeInTheDocument();
+
+    sidebarState.isMobile = false;
+    rerender(
+      <SidebarAccountChip
+        sessionUser={sessionUser}
+        planName="Pro"
+        totalCredits={15_750}
+        extraCredits={750}
+        creditUsage={null}
+        subscriptionPeriodEndMs={null}
+        currentTimestampMs={1_700_000_000_000}
+        lowCreditsThreshold={100}
+        buyCreditsLabel="getMoreCredits"
+        buyCreditsPath="/billing?tab=credits"
+        adminSettingsChrome={defaultAdminSettingsChrome}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /openSummary/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "logout" })).toBeNull();
   });
 
   it("shows the browser's offline state on the status dot", () => {

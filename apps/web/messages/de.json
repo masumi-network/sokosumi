@@ -2866,10 +2866,7 @@
         "extraCredits": "{credits, plural, =0 {0 verfügbar} =1 {1 verfügbar} other {# verfügbar}}"
       },
       "Plan": {
-        "getMoreCredits": "Mehr Credits erhalten",
-        "userPlan": "{plan}",
-        "organizationPlan": "{plan} ({organization})",
-        "unavailable": "Plan nicht verfügbar"
+        "getMoreCredits": "Mehr Credits erhalten"
       }
     },
     "Subscriptions": {

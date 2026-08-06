@@ -17,6 +17,11 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getInitials } from "@/lib/utils/text";
 
 import { AccountPopoverDrill } from "./account-popover-drill.client";
+import {
+  isLowCreditsBalance,
+  resolveAccountCreditsLabel,
+  resolveAccountDisplayName,
+} from "./account-summary-labels";
 import type {
   AccountAdminSettingsChrome,
   AccountPopoverPanel,
@@ -60,20 +65,16 @@ export function AccountSummaryMenu({
   const menuRootRef = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<AccountPopoverPanel>({ kind: "root" });
 
-  const displayName = sessionUser.name.trim() || sessionUser.email;
+  const displayName = resolveAccountDisplayName(
+    sessionUser.name,
+    sessionUser.email,
+  );
   const presenceLabel = tPresence(presence);
   const usage = creditUsage;
-
-  const displayTotal =
-    totalCredits === null ? null : formatCreditsForDisplay(totalCredits);
-  const creditsLabel =
-    displayTotal === null
-      ? null
-      : tBilling("balanceCreditsLabel", { credits: displayTotal });
-  const isLowCredits =
-    displayTotal !== null &&
-    displayTotal > 0 &&
-    displayTotal < lowCreditsThreshold;
+  const creditsLabel = resolveAccountCreditsLabel(totalCredits, (credits) =>
+    tBilling("balanceCreditsLabel", { credits }),
+  );
+  const isLowCredits = isLowCreditsBalance(totalCredits, lowCreditsThreshold);
 
   const displayExtraCredits =
     extraCredits === null ? null : formatCreditsForDisplay(extraCredits);

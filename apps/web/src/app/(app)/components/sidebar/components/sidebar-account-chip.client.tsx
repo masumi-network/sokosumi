@@ -69,7 +69,7 @@ export function SidebarAccountChip({
 
   useEffect(() => {
     setIsOpen(false);
-  }, [state]);
+  }, [state, isMobile]);
 
   if (isMobile) {
     return null;
