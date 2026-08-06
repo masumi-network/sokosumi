@@ -22,7 +22,8 @@ describe("createAuthTokenRequest", () => {
     getCoreApiBaseUrlMock.mockReset();
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
-    getCoreApiBaseUrlMock.mockReturnValue("http://core.test");
+    // Real getCoreApiBaseUrl() always includes the /v1 suffix.
+    getCoreApiBaseUrlMock.mockReturnValue("http://core.test/v1");
     headersMock.mockResolvedValue(new Headers({ cookie: "session=abc" }));
   });
 
