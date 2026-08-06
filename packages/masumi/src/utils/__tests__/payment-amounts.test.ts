@@ -4,6 +4,7 @@ import {
   aggregateMasumiPaymentAmounts,
   doMasumiPaymentAmountsMatch,
   normalizeMasumiPaymentUnit,
+  toMasumiPaymentNodeAmounts,
 } from "../payment-amounts.js";
 
 const TOKEN_UNIT = "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde";
@@ -133,5 +134,33 @@ describe("doMasumiPaymentAmountsMatch", () => {
     ).toBe(false);
     // Two unparseable sides must not compare equal either.
     expect(doMasumiPaymentAmountsMatch(null, null)).toBe(false);
+  });
+});
+
+describe("toMasumiPaymentNodeAmounts", () => {
+  it("spells ADA as an empty string for the payment node", () => {
+    expect(
+      toMasumiPaymentNodeAmounts([{ unit: "lovelace", amount: "3000000" }]),
+    ).toEqual([{ unit: "", amount: "3000000" }]);
+  });
+
+  it("also converts the empty-string spelling the registry sometimes serves", () => {
+    expect(toMasumiPaymentNodeAmounts([{ unit: "", amount: "1" }])).toEqual([
+      { unit: "", amount: "1" },
+    ]);
+  });
+
+  it("leaves policy+asset units untouched", () => {
+    const usdm =
+      "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde0014df10745553444d";
+    expect(
+      toMasumiPaymentNodeAmounts([{ unit: usdm, amount: "1000000" }]),
+    ).toEqual([{ unit: usdm, amount: "1000000" }]);
+  });
+
+  it("round-trips: what we send still reconciles against what we stored", () => {
+    const stored = [{ unit: "lovelace", amount: "3000000" }];
+    const sent = toMasumiPaymentNodeAmounts(stored);
+    expect(doMasumiPaymentAmountsMatch(stored, sent)).toBe(true);
   });
 });

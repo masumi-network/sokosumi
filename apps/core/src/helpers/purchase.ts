@@ -222,7 +222,7 @@ interface PurchaseJobUpdate {
   nextAction?: NextJobAction;
   nextActionErrorType?: NextJobActionErrorType | null;
   nextActionErrorNote: string | null;
-  onChainTransactionHash?: string | null;
+  onChainTransactionHash?: string;
   onChainTransactionStatus?: OnChainTransactionStatus;
 }
 
@@ -265,7 +265,11 @@ export function transformPurchaseToJobUpdate(
       transaction.status,
     );
     if (transactionStatus !== undefined) {
-      data.onChainTransactionHash = transaction.txHash ?? null;
+      // Keep a previously recorded hash when the CURRENT transaction has none
+      // (a submitted-but-unhashed pending tx). The column is exposed on the job
+      // DTO, so writing null there erases the only on-chain pointer support and
+      // integrators have. Prisma skips `undefined`, matching pre-V2 behaviour.
+      data.onChainTransactionHash = transaction.txHash ?? undefined;
       data.onChainTransactionStatus = transactionStatus;
     }
   }

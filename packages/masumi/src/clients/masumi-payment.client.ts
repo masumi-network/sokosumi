@@ -104,14 +104,24 @@ export interface PurchaseFailure {
  * A 4xx other than the two retryable ones is the node rejecting this payload
  * as such; anything else (5xx, timeout, transport) leaves the outcome unknown.
  */
+/**
+ * Statuses that mean "our infrastructure or credentials are wrong", not "the
+ * node rejected this payload". They must stay retryable: on the task-payment
+ * rail a `permanent` verdict is terminal — it refunds the claim, takes it out
+ * of PENDING (so cron and all three admin levers skip it), and the
+ * `@@unique([network, blockchainIdentifier])` index blocks resubmission. A
+ * rotated PAYMENT_API_KEY answering 401 would otherwise convert every in-flight
+ * task payment into a refund with the seller's work already delivered.
+ */
+const RETRYABLE_INFRASTRUCTURE_STATUSES = new Set([401, 403, 404, 408, 429]);
+
 function classifyPurchaseFailureKind(
   status: number | undefined,
 ): PurchaseFailure["kind"] {
   return status !== undefined &&
     status >= 400 &&
     status < 500 &&
-    status !== 408 &&
-    status !== 429
+    !RETRYABLE_INFRASTRUCTURE_STATUSES.has(status)
     ? "permanent"
     : "ambiguous";
 }

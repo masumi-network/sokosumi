@@ -723,6 +723,38 @@ describe("createPurchase duplicate handling", () => {
     });
     expect(postPurchaseResolveBlockchainIdentifierMock).not.toHaveBeenCalled();
   });
+
+  // A `permanent` verdict is terminal on the task-payment rail: it refunds the
+  // claim, drops it out of PENDING and the unique index blocks resubmission.
+  // Credential/routing failures must therefore stay retryable.
+  it.each([401, 403, 404])(
+    "classifies %i as ambiguous, not a permanent rejection",
+    async (status: number) => {
+      postPurchaseMock.mockResolvedValue({
+        data: undefined,
+        error: { status: "error", error: { message: "nope" } },
+        response: { status },
+      });
+      postPurchaseResolveBlockchainIdentifierMock.mockRejectedValue(
+        new Error("unreachable"),
+      );
+      const client = createPaymentClient(
+        "Preprod",
+        "https://payment.example.com",
+        "api-key",
+      );
+
+      const result = await client.createPurchase(
+        "agent1",
+        startJobResponse,
+        {},
+        "aabbccddeeff00112233",
+      );
+
+      expect(result.isErr()).toBe(true);
+      expect(result.isErr() && result.error.kind).toBe("ambiguous");
+    },
+  );
 });
 
 describe("getCardanoV2RailReadiness", () => {

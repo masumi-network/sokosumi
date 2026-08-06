@@ -23,6 +23,7 @@ import {
   isV2RegistryIdentifier,
   normalizeMasumiPaymentUnit,
   normalizeV2RegistryIdentifier,
+  toMasumiPaymentNodeAmounts,
 } from "@sokosumi/masumi";
 import type {
   InputSchemaSchemaType,
@@ -822,7 +823,13 @@ export async function createAgentJobForUser(
       paidJobResult,
       agentInput.inputData,
       identifierFromPurchaser,
-      purchaseRequestAmounts ?? undefined,
+      // Spell ADA the way the payment node's contract does. Internally the
+      // canonical unit is `lovelace`; POST /purchase documents an empty string
+      // for ADA, so a literal comparison against `lovelace` would reject every
+      // ADA-priced drift guard.
+      purchaseRequestAmounts
+        ? toMasumiPaymentNodeAmounts(purchaseRequestAmounts)
+        : undefined,
     );
 
     if (createPurchaseResult.isOk()) {

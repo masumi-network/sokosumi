@@ -94,6 +94,22 @@ export interface JobSyncResult {
   unfinishedFound: number;
 }
 
+/**
+ * Budget held back from the agent phase so the refund phase always runs.
+ *
+ * The agent phase polls sellers over the network and, since this release, keeps
+ * polling snapshot-backed jobs whose agent has gone offline (see
+ * `buildInFlightAgentSnapshotWhere`) — free jobs stay eligible for 30 days. A
+ * batch of dead endpoints can therefore consume the whole shared run deadline.
+ * The refund phase is database-only, cheap, and returns money to users, so it
+ * must not be the thing that gets starved.
+ *
+ * Reserving budget rather than reordering the phases on purpose: `seenJobIds`
+ * makes the first phase to claim a job the one that processes it, so swapping
+ * the order would change which phase handles jobs matching both selectors.
+ */
+const REFUND_PHASE_RESERVED_MS = 20_000;
+
 function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
 }
@@ -1022,7 +1038,13 @@ export const jobSyncService = {
       agentPhase = await runSyncPhase(
         "agent",
         buildJobsNeedingAgentStatusSyncWhere(),
-        runOptions,
+        {
+          ...runOptions,
+          deadlineMs: Math.max(
+            Date.now(),
+            runOptions.deadlineMs - REFUND_PHASE_RESERVED_MS,
+          ),
+        },
         seenJobIds,
         syncAgentStatus,
       );

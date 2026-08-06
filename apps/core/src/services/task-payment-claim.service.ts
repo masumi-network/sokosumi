@@ -680,6 +680,73 @@ export async function resolveReviewedTaskPaymentClaim(
 }
 
 /**
+ * Last-resort handling for a claim whose processing threw before it could
+ * schedule its own retry. Every backoff and every escalation to
+ * `reviewRequiredAt` is written by scheduleTaskPaymentClaimRetry, which a throw
+ * skips — so without this the row keeps `nextAttemptAt` in the past, sorts
+ * first on every tick, and stays invisible to all three operator levers, each
+ * of which filters on `reviewRequiredAt`.
+ *
+ * Escalates on the FIRST throw rather than after N attempts: the attempt
+ * counter only advances through the normal path, so a row that throws every
+ * time would never reach the threshold. Parking one claim for an operator is
+ * the cheaper error here than looping silently on a charged-but-unpaid debit.
+ *
+ * Two scoped writes, no read: `reviewRequiredAt: null` in the where clause both
+ * targets the not-yet-escalated row and tells us, via the affected count,
+ * whether this call is the one that escalated it — so the page fires exactly
+ * once without a read-then-write race.
+ */
+async function escalateUnprocessableTaskPaymentClaim(
+  claimId: string,
+  reason: string,
+): Promise<void> {
+  const failureReason = reason.slice(0, MAX_FAILURE_REASON_LENGTH);
+  const nextAttemptAt = new Date(Date.now() + RETRY_MAX_MS);
+  try {
+    const escalated = await prisma.taskPaymentClaim.updateMany({
+      where: {
+        id: claimId,
+        status: TaskPaymentClaimStatus.PENDING,
+        reviewRequiredAt: null,
+      },
+      data: {
+        failureReason,
+        nextAttemptAt,
+        processingStartedAt: null,
+        processingToken: null,
+        reviewRequiredAt: new Date(),
+      },
+    });
+    if (escalated.count === 1) {
+      Sentry.captureMessage("Task payment claim requires review", {
+        level: "error",
+        tags: { error_type: "task_payment_claim_review_required" },
+        extra: { claimId, reason: failureReason },
+      });
+      return;
+    }
+    // Already under review: still release the lease and back the row off so a
+    // repeat throw cannot re-enter the batch every two minutes.
+    await prisma.taskPaymentClaim.updateMany({
+      where: { id: claimId, status: TaskPaymentClaimStatus.PENDING },
+      data: {
+        failureReason,
+        nextAttemptAt,
+        processingStartedAt: null,
+        processingToken: null,
+      },
+    });
+  } catch (escalationError) {
+    // Best-effort: escalation must not abort the remaining batch.
+    console.error(
+      `[sync/task-payment-claims] Failed to escalate claim ${claimId}:`,
+      escalationError,
+    );
+  }
+}
+
+/**
  * Backlog depth at which one cron tick can no longer keep up (each tick drains
  * at most SYNC_BATCH_SIZE). Reported so a growing queue of charged-but-unpaid
  * claims surfaces on its own instead of only through individual failures.
@@ -738,12 +805,14 @@ export async function syncPendingTaskPaymentClaims(
       });
       processed += 1;
     } catch (error) {
-      // One claim must not take the batch down with it. A throw here (lost
-      // lease, a row that stopped being PENDING mid-flight, any database
-      // error) leaves `nextAttemptAt` untouched, so the row keeps sorting
-      // first and would poison every later tick once its lease expires —
-      // starving the claims behind it, each of which is a charged-but-unpaid
-      // debit.
+      // One claim must not take the batch down with it, and it must not sit in
+      // the queue forever either. Every backoff and every escalation to
+      // `reviewRequiredAt` is written by scheduleTaskPaymentClaimRetry, which a
+      // throw skips — so without this the row keeps `nextAttemptAt` in the past,
+      // sorts first on every tick, and never becomes visible to the operator
+      // levers (all three filter on `reviewRequiredAt`). Push it out of the way
+      // AND into review here.
+      const reason = error instanceof Error ? error.message : String(error);
       console.error(
         `[sync/task-payment-claims] Failed to process claim ${claim.id}:`,
         error,
@@ -752,6 +821,7 @@ export async function syncPendingTaskPaymentClaims(
         tags: { error_type: "task_payment_claim_process_failed" },
         extra: { claimId: claim.id },
       });
+      await escalateUnprocessableTaskPaymentClaim(claim.id, reason);
     }
   }
   return { processed, eligible, reviewRequired };

@@ -640,7 +640,20 @@ describe("task payment claims", () => {
       consoleErrorSpy.mockRestore();
     }
 
-    expect(claimUpdateManyMock).toHaveBeenCalledTimes(2);
+    // The poison row must not just be skipped — it has to back off and become
+    // visible to the operator levers, all of which filter on reviewRequiredAt.
+    const escalation = claimUpdateManyMock.mock.calls.find(
+      (call) =>
+        (call[0] as { data?: Record<string, unknown> })?.data
+          ?.reviewRequiredAt !== undefined,
+    );
+    expect(escalation).toBeDefined();
+    expect(
+      (escalation?.[0] as { data: Record<string, unknown> }).data,
+    ).toMatchObject({
+      processingStartedAt: null,
+      processingToken: null,
+    });
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({

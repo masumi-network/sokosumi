@@ -179,7 +179,13 @@ describe("admin task payment claim routes", () => {
   it("keeps the retry handler admin-only without its parent router guard", async () => {
     const response = await createUnguardedApp("member", mountRetry).request(
       "/claim-1/retry",
-      { method: "POST" },
+      // Valid body on purpose: `body.required` makes validation run before the
+      // handler, so a bodyless request would 422 and never exercise the guard.
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "should not reach the service" }),
+      },
     );
 
     expect(response.status).toBe(403);
@@ -189,7 +195,11 @@ describe("admin task payment claim routes", () => {
   it("keeps the resolve handler admin-only without its parent router guard", async () => {
     const response = await createUnguardedApp("member", mountResolve).request(
       "/claim-1/resolve",
-      { method: "POST" },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: "should not reach the service" }),
+      },
     );
 
     expect(response.status).toBe(403);

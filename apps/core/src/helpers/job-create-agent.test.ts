@@ -398,7 +398,9 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       { ...paidV2JobResponse, identifierFromPurchaser: expect.any(String) },
       { prompt: "hello" },
       expect.any(String),
-      [{ unit: "lovelace", amount: "2000000" }],
+      // ADA goes to the node as an empty unit — its /purchase contract spells
+      // lovelace that way. Internally the canonical unit stays "lovelace".
+      [{ unit: "", amount: "2000000" }],
     );
     expect(calculateCentsFromMasumiAmountStringsMock).toHaveBeenCalledWith(
       [{ unit: "lovelace", amount: "2000000" }],
@@ -432,7 +434,8 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       },
       { prompt: "hello" },
       expect.any(String),
-      [{ unit: "lovelace", amount: "1000000" }],
+      // ADA leaves as an empty unit per the node's /purchase contract.
+      [{ unit: "", amount: "1000000" }],
     );
     expect(txJobCreateMock.mock.calls[0]?.[0].data.purchaseAmounts).toEqual([
       { unit: "lovelace", amount: "1000000" },
@@ -532,7 +535,8 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       },
       { prompt: "hello" },
       expect.any(String),
-      [{ unit: "lovelace", amount: "1000000" }],
+      // ADA leaves as an empty unit per the node's /purchase contract.
+      [{ unit: "", amount: "1000000" }],
     );
   });
 

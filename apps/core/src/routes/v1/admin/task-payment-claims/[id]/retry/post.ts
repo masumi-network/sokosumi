@@ -22,6 +22,10 @@ const route = createRoute({
   request: {
     params: adminTaskPaymentClaimIdParamSchema,
     body: {
+      // Without this, @hono/zod-openapi skips body validation entirely when the
+      // request carries no JSON content-type — the mandatory operator `reason`
+      // would go unvalidated while the handler still mutates claim state.
+      required: true,
       content: {
         "application/json": {
           schema: reviewedTaskPaymentClaimActionBodySchema,

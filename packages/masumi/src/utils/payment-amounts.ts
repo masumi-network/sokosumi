@@ -12,6 +12,34 @@ export function normalizeMasumiPaymentUnit(unit: string): string {
   return unit.toLowerCase();
 }
 
+/**
+ * Inverse of {@link normalizeMasumiPaymentUnit} for values leaving Sokosumi
+ * toward the payment node.
+ *
+ * The registry serves ADA both ways — production preprod data holds 1527
+ * `lovelace` rows and 180 empty-string rows in `UnitValue` — so ingestion
+ * normalizes everything to `lovelace` to get one comparison scale. The payment
+ * node's contract is the opposite: every `unit` field in payment.openapi.json
+ * documents "Asset policy id + asset name concatenated. Empty string for
+ * ADA/lovelace", including the `Amounts` of `POST /purchase`.
+ *
+ * Apply this at the boundary only. Internally `lovelace` stays canonical, and
+ * `doMasumiPaymentAmountsMatch` normalizes both sides, so a node response that
+ * spells ADA as "" still reconciles against a stored `lovelace` amount.
+ */
+export function toMasumiPaymentNodeUnit(unit: string): string {
+  return normalizeMasumiPaymentUnit(unit) === "lovelace" ? "" : unit;
+}
+
+export function toMasumiPaymentNodeAmounts(
+  amounts: readonly { unit: string; amount: string }[],
+): { unit: string; amount: string }[] {
+  return amounts.map((entry) => ({
+    unit: toMasumiPaymentNodeUnit(entry.unit),
+    amount: entry.amount,
+  }));
+}
+
 export function aggregateMasumiPaymentAmounts(
   amounts: unknown,
 ): Map<string, bigint> | null {

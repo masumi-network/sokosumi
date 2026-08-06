@@ -124,7 +124,7 @@ describe("transformPurchaseToJobUpdate", () => {
     expect("onChainTransactionHash" in transformedPurchase).toBe(false);
   });
 
-  it("clears the transaction hash when the current transaction has none", () => {
+  it("keeps a previously recorded hash when the current transaction has none", () => {
     const purchase = buildPurchase();
     const transformedPurchase = transformPurchaseToJobUpdate({
       ...purchase,
@@ -133,7 +133,10 @@ describe("transformPurchaseToJobUpdate", () => {
         : null,
     });
 
-    expect(transformedPurchase.onChainTransactionHash).toBeNull();
+    // Omitted, not null: Prisma skips undefined, so the stored hash survives.
+    // The column is exposed on the job DTO and is the only on-chain pointer
+    // support has; a pending successor transaction must not erase it.
+    expect(transformedPurchase.onChainTransactionHash).toBeUndefined();
     expect(transformedPurchase.onChainTransactionStatus).toBe("FAILED");
   });
 });
