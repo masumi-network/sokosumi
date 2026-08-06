@@ -101,8 +101,9 @@ describe("ComposerWysiwygEditor", () => {
     const listbox = screen.getByRole("listbox");
     expect(listbox).toHaveStyle({
       maxHeight: "120px",
-      transform: "translateY(-100%)",
+      bottom: `${window.innerHeight - 400}px`,
     });
+    expect(listbox.style.transform).toBe("");
     expect(getPopupPositionFromRect).toHaveBeenCalled();
     expect(getMentionPopupPositionFromAnchorRect).not.toHaveBeenCalled();
   });
@@ -142,9 +143,10 @@ describe("ComposerWysiwygEditor", () => {
     expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
       maxHeight: "200px",
-      transform: "translateY(-100%)",
+      bottom: `${window.innerHeight - 500}px`,
       width: "420px",
     });
+    expect(listbox.style.transform).toBe("");
     expect(listbox).not.toHaveClass("w-72");
   });
 
@@ -191,9 +193,10 @@ describe("ComposerWysiwygEditor", () => {
     expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
       maxHeight: "80px",
-      transform: "translateY(-100%)",
+      bottom: `${window.innerHeight - 88}px`,
       width: "420px",
     });
+    expect(listbox.style.transform).toBe("");
     expect(listbox).not.toHaveClass("w-72");
   });
 
@@ -236,9 +239,10 @@ describe("ComposerWysiwygEditor", () => {
     expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
       maxHeight: "80px",
-      transform: "translateY(-100%)",
+      bottom: `${window.innerHeight - 88}px`,
       width: "420px",
     });
+    expect(listbox.style.transform).toBe("");
     expect(listbox).not.toHaveClass("w-72");
   });
 
@@ -382,9 +386,10 @@ describe("ComposerWysiwygEditor", () => {
     expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
       maxHeight: "200px",
-      transform: "translateY(-100%)",
+      bottom: `${window.innerHeight - 500}px`,
       width: "420px",
     });
+    expect(listbox.style.transform).toBe("");
     expect(listbox).not.toHaveClass("w-72");
   });
 

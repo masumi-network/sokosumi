@@ -493,6 +493,53 @@ function maxHeightFittingAboveAnchor(aboveSpace: number): number {
   );
 }
 
+function aboveSpaceForComposerAnchor(
+  anchorTop: number,
+  viewportTop: number,
+  visualHeight: number,
+): { aboveSpace: number; viewportOrigin: number } {
+  const withOffset =
+    anchorTop - viewportTop - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
+  if (withOffset >= POPUP_MIN_HEIGHT_PX) {
+    return { aboveSpace: withOffset, viewportOrigin: viewportTop };
+  }
+  const withoutOffset =
+    anchorTop - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
+  const cappedByVisual =
+    visualHeight - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
+  if (withoutOffset > withOffset) {
+    return {
+      aboveSpace: Math.min(cappedByVisual, withoutOffset),
+      viewportOrigin: 0,
+    };
+  }
+  return { aboveSpace: withOffset, viewportOrigin: viewportTop };
+}
+
+export function getSuggestionPopupFixedStyle(position: TriggerPosition): {
+  left: number;
+  maxHeight: number;
+  width?: number;
+  top?: number;
+  bottom?: number;
+} {
+  const shared = {
+    left: position.left,
+    maxHeight: position.maxHeight,
+    ...(position.width != null ? { width: position.width } : {}),
+  };
+  if (position.side === "top") {
+    return {
+      ...shared,
+      bottom: window.innerHeight - position.top,
+    };
+  }
+  return {
+    ...shared,
+    top: position.top,
+  };
+}
+
 export function getMentionPopupPositionFromAnchorRect(
   anchorRect: DOMRect,
 ): TriggerPosition {
@@ -501,15 +548,16 @@ export function getMentionPopupPositionFromAnchorRect(
   const viewportTop = visual ? visual.offsetTop : 0;
   const viewportLeft = visual ? visual.offsetLeft : 0;
   const viewportWidth = visual ? visual.width : window.innerWidth;
-  const aboveSpace =
-    anchorRect.top -
-    viewportTop -
-    VIEWPORT_PADDING_PX -
-    MENTION_COMPOSER_GAP_PX;
+  const visualHeight = visual ? visual.height : window.innerHeight;
+  const { aboveSpace, viewportOrigin } = aboveSpaceForComposerAnchor(
+    anchorRect.top,
+    viewportTop,
+    visualHeight,
+  );
   const maxHeight = maxHeightFittingAboveAnchor(aboveSpace);
   const anchoredBottom = anchorRect.top - MENTION_COMPOSER_GAP_PX;
   const minTopForViewportBand =
-    viewportTop + VIEWPORT_PADDING_PX + maxHeight;
+    viewportOrigin + VIEWPORT_PADDING_PX + maxHeight;
   const top = Math.max(anchoredBottom, minTopForViewportBand);
   let left = anchorRect.left;
   let width = anchorRect.width;

@@ -27,6 +27,7 @@ import {
   getCaretRect,
   getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
+  getSuggestionPopupFixedStyle,
   isWhitespaceChar,
   MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX,
   MENTION_CLASSNAME,
@@ -865,6 +866,36 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [],
   );
 
+  useEffect(() => {
+    if (!isOpen || !editorRef.current || !suggestionKind) return;
+    const editor = editorRef.current;
+
+    const updatePosition = () => {
+      const nextPosition = getSuggestionPopupPosition(editor, suggestionKind);
+      setSuggestionUi((prev) => {
+        if (!prev.open) return prev;
+        return { ...prev, position: nextPosition };
+      });
+    };
+
+    const visualViewport = window.visualViewport;
+    visualViewport?.addEventListener("resize", updatePosition);
+    visualViewport?.addEventListener("scroll", updatePosition);
+    window.addEventListener("resize", updatePosition);
+    let nestedRafId = 0;
+    const rafId = requestAnimationFrame(() => {
+      nestedRafId = requestAnimationFrame(updatePosition);
+    });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      cancelAnimationFrame(nestedRafId);
+      visualViewport?.removeEventListener("resize", updatePosition);
+      visualViewport?.removeEventListener("scroll", updatePosition);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [getSuggestionPopupPosition, isOpen, suggestionKind]);
+
   const handlePaste = useCallback(
     (event: ClipboardEvent<HTMLDivElement>) => {
       const clipboard = event.clipboardData;
@@ -1170,18 +1201,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
             role="listbox"
             style={
               triggerPosition
-                ? {
-                    top: triggerPosition.top,
-                    left: triggerPosition.left,
-                    maxHeight: triggerPosition.maxHeight,
-                    // `transform` (not Tailwind translate): fixed portals need it.
-                    ...(triggerPosition.side === "top"
-                      ? { transform: "translateY(-100%)" }
-                      : {}),
-                    ...(triggerPosition.width != null
-                      ? { width: triggerPosition.width }
-                      : {}),
-                  }
+                ? getSuggestionPopupFixedStyle(triggerPosition)
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(

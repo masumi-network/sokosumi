@@ -263,7 +263,7 @@ describe("mention-textarea utils", () => {
       expect(position.top).toBe(VIEWPORT_PADDING_PX + POPUP_MIN_HEIGHT_PX);
     });
 
-    it("clamps top against visualViewport.offsetTop when space collapses", () => {
+    it("recovers aboveSpace when offsetTop collapses a visual-relative rect", () => {
       stubViewport(800);
       vi.stubGlobal("visualViewport", {
         offsetTop: 120,
@@ -276,16 +276,16 @@ describe("mention-textarea utils", () => {
         anchorRect({ left: 40, width: 360, top }),
       );
 
-      expect(position.maxHeight).toBe(POPUP_MIN_HEIGHT_PX);
-      expect(position.top).toBe(
-        120 + VIEWPORT_PADDING_PX + POPUP_MIN_HEIGHT_PX,
+      expect(position.maxHeight).toBe(
+        Math.min(
+          POPUP_HEIGHT_PX,
+          top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX,
+        ),
       );
+      expect(position.top).toBe(top - MENTION_COMPOSER_GAP_PX);
     });
 
     it("does not under-count aboveSpace when client rects are visual-relative", () => {
-      // iOS keyboard: offsetTop shifts while getBoundingClientRect top is
-      // already in the visual viewport band. Subtracting offsetTop alone
-      // collapses aboveSpace to ~0 and leaves a one-row maxHeight.
       stubViewport(800);
       vi.stubGlobal("visualViewport", {
         offsetTop: 320,
