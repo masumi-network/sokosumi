@@ -1,8 +1,10 @@
 import type { SessionUser } from "@sokosumi/utils";
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import HeaderProfileSectionClient from "@/app/components/header/header-profile-section.client";
+import HeaderProfileSectionClient, {
+  type HeaderAccountSummary,
+} from "@/app/components/header/header-profile-section.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 const useSessionMock = vi.fn();
@@ -87,7 +89,7 @@ const members: MemberWithOrganization[] = [
   },
 ];
 
-const accountSummary = {
+const accountSummary: HeaderAccountSummary = {
   planName: "Pro",
   totalCredits: 1000,
   extraCredits: 0,
@@ -101,6 +103,25 @@ const accountSummary = {
   showDeveloperVendors: false,
 };
 
+async function renderProfileSection(props: {
+  sessionUser: SessionUser;
+  members: MemberWithOrganization[];
+  activeOrganizationId: string | null;
+  accountSummaryPromise?: Promise<HeaderAccountSummary>;
+}) {
+  const { accountSummaryPromise, ...rest } = props;
+  await act(async () => {
+    render(
+      <HeaderProfileSectionClient
+        {...rest}
+        accountSummaryPromise={
+          accountSummaryPromise ?? Promise.resolve(accountSummary)
+        }
+      />,
+    );
+  });
+}
+
 describe("HeaderProfileSectionClient", () => {
   beforeEach(() => {
     useWorkspaceSwitcherMock.mockReturnValue({
@@ -108,9 +129,10 @@ describe("HeaderProfileSectionClient", () => {
       handleSelectWorkspace: vi.fn(),
     });
     headerAccountControlMock.mockClear();
+    headerWorkspaceSwitchMock.mockClear();
   });
 
-  it("prefers the client session active organization when it matches the server", () => {
+  it("prefers the client session active organization when it matches the server", async () => {
     useSessionMock.mockReturnValue({
       data: {
         session: {
@@ -119,14 +141,11 @@ describe("HeaderProfileSectionClient", () => {
       },
     });
 
-    render(
-      <HeaderProfileSectionClient
-        sessionUser={sessionUser}
-        members={members}
-        activeOrganizationId="org-b"
-        accountSummary={accountSummary}
-      />,
-    );
+    await renderProfileSection({
+      sessionUser,
+      members,
+      activeOrganizationId: "org-b",
+    });
 
     expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -135,7 +154,7 @@ describe("HeaderProfileSectionClient", () => {
     );
   });
 
-  it("prefers the client session active organization when client and server differ", () => {
+  it("prefers the client session active organization when client and server differ", async () => {
     useSessionMock.mockReturnValue({
       data: {
         session: {
@@ -144,14 +163,11 @@ describe("HeaderProfileSectionClient", () => {
       },
     });
 
-    render(
-      <HeaderProfileSectionClient
-        sessionUser={sessionUser}
-        members={members}
-        activeOrganizationId="org-a"
-        accountSummary={accountSummary}
-      />,
-    );
+    await renderProfileSection({
+      sessionUser,
+      members,
+      activeOrganizationId: "org-a",
+    });
 
     expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -161,19 +177,16 @@ describe("HeaderProfileSectionClient", () => {
     );
   });
 
-  it("falls back to the server active organization when client session is unavailable", () => {
+  it("falls back to the server active organization when client session is unavailable", async () => {
     useSessionMock.mockReturnValue({
       data: null,
     });
 
-    render(
-      <HeaderProfileSectionClient
-        sessionUser={sessionUser}
-        members={members}
-        activeOrganizationId="org-a"
-        accountSummary={accountSummary}
-      />,
-    );
+    await renderProfileSection({
+      sessionUser,
+      members,
+      activeOrganizationId: "org-a",
+    });
 
     expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -182,7 +195,7 @@ describe("HeaderProfileSectionClient", () => {
     );
   });
 
-  it("shows personal account from client session when active organization is null", () => {
+  it("shows personal account from client session when active organization is null", async () => {
     useSessionMock.mockReturnValue({
       data: {
         session: {
@@ -191,14 +204,11 @@ describe("HeaderProfileSectionClient", () => {
       },
     });
 
-    render(
-      <HeaderProfileSectionClient
-        sessionUser={sessionUser}
-        members={members}
-        activeOrganizationId="org-a"
-        accountSummary={accountSummary}
-      />,
-    );
+    await renderProfileSection({
+      sessionUser,
+      members,
+      activeOrganizationId: "org-a",
+    });
 
     expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -208,7 +218,7 @@ describe("HeaderProfileSectionClient", () => {
     );
   });
 
-  it("keeps the server active organization visible while a switch is pending", () => {
+  it("keeps the server active organization visible while a switch is pending", async () => {
     useSessionMock.mockReturnValue({
       data: {
         session: {
@@ -221,14 +231,11 @@ describe("HeaderProfileSectionClient", () => {
       handleSelectWorkspace: vi.fn(),
     });
 
-    render(
-      <HeaderProfileSectionClient
-        sessionUser={sessionUser}
-        members={members}
-        activeOrganizationId="org-a"
-        accountSummary={accountSummary}
-      />,
-    );
+    await renderProfileSection({
+      sessionUser,
+      members,
+      activeOrganizationId: "org-a",
+    });
 
     expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -238,7 +245,7 @@ describe("HeaderProfileSectionClient", () => {
     );
   });
 
-  it("mounts the mobile account control after the bell with admin settings", () => {
+  it("mounts the mobile account control after the bell with admin settings", async () => {
     useSessionMock.mockReturnValue({
       data: {
         session: {
@@ -247,14 +254,11 @@ describe("HeaderProfileSectionClient", () => {
       },
     });
 
-    render(
-      <HeaderProfileSectionClient
-        sessionUser={sessionUser}
-        members={members}
-        activeOrganizationId="org-a"
-        accountSummary={accountSummary}
-      />,
-    );
+    await renderProfileSection({
+      sessionUser,
+      members,
+      activeOrganizationId: "org-a",
+    });
 
     expect(headerAccountControlMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -267,5 +271,33 @@ describe("HeaderProfileSectionClient", () => {
         }),
       }),
     );
+  });
+
+  it("shows workspace switch while account summary is still pending", async () => {
+    useSessionMock.mockReturnValue({
+      data: {
+        session: {
+          activeOrganizationId: "org-a",
+        },
+      },
+    });
+
+    await act(async () => {
+      render(
+        <HeaderProfileSectionClient
+          sessionUser={sessionUser}
+          members={members}
+          activeOrganizationId="org-a"
+          accountSummaryPromise={new Promise<HeaderAccountSummary>(() => {})}
+        />,
+      );
+    });
+
+    expect(headerWorkspaceSwitchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeOrganizationId: "org-a",
+      }),
+    );
+    expect(headerAccountControlMock).not.toHaveBeenCalled();
   });
 });
