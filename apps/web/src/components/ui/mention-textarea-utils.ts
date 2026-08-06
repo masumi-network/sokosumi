@@ -485,23 +485,29 @@ export function getMentionPopupPositionFromAnchorRect(
   anchorRect: DOMRect,
 ): TriggerPosition {
   const visual = window.visualViewport;
+  // Visual viewport edges (not layout 0) — pinch-zoom + pan shift offsetLeft/Top.
   const viewportTop = visual ? visual.offsetTop : 0;
+  const viewportLeft = visual ? visual.offsetLeft : 0;
   const viewportWidth = visual ? visual.width : window.innerWidth;
   const aboveSpace =
     anchorRect.top -
     viewportTop -
     VIEWPORT_PADDING_PX -
     MENTION_COMPOSER_GAP_PX;
-  const maxHeight = Math.min(POPUP_HEIGHT_PX, Math.max(80, aboveSpace));
+  // Never floor above available space: list uses translateY(-100%), so a
+  // forced 80px min would clip the top of the picker when the keyboard /
+  // attachments leave less than 80px above the composer.
+  const maxHeight = Math.min(POPUP_HEIGHT_PX, Math.max(0, aboveSpace));
   const top = anchorRect.top - MENTION_COMPOSER_GAP_PX;
   let left = anchorRect.left;
   let width = anchorRect.width;
 
-  if (left < VIEWPORT_PADDING_PX) {
-    width -= VIEWPORT_PADDING_PX - left;
-    left = VIEWPORT_PADDING_PX;
+  const minLeft = viewportLeft + VIEWPORT_PADDING_PX;
+  const maxRight = viewportLeft + viewportWidth - VIEWPORT_PADDING_PX;
+  if (left < minLeft) {
+    width -= minLeft - left;
+    left = minLeft;
   }
-  const maxRight = viewportWidth - VIEWPORT_PADDING_PX;
   if (left + width > maxRight) {
     width = maxRight - left;
   }
