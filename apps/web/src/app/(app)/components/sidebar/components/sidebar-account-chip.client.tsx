@@ -3,7 +3,7 @@
 import gravatarUrl from "gravatar-url";
 import { AlertTriangle, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactElement, useEffect, useState } from "react";
+import { type ReactElement, useState } from "react";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -45,8 +45,22 @@ export interface SidebarAccountChipProps
 /**
  * Desktop sidebar account/credits control. Mobile uses the header account
  * control instead (`HeaderAccountControl`), so this returns null on mobile.
+ *
+ * Open state lives in the desktop-only child so mobile unmount drops it and
+ * remount on desktop starts closed (no local-state reset Effect).
  */
-export function SidebarAccountChip({
+export function SidebarAccountChip(
+  props: SidebarAccountChipProps,
+): ReactElement | null {
+  const { isMobile } = useSidebar();
+  if (isMobile) {
+    return null;
+  }
+
+  return <SidebarAccountChipDesktop {...props} />;
+}
+
+function SidebarAccountChipDesktop({
   sessionUser,
   planName,
   totalCredits,
@@ -58,22 +72,14 @@ export function SidebarAccountChip({
   buyCreditsLabel,
   buyCreditsPath,
   adminSettingsChrome,
-}: SidebarAccountChipProps): ReactElement | null {
+}: SidebarAccountChipProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tBilling = useTranslations("App.Billing");
   const tPresence = useTranslations("App.Channels.Presence");
-  const { isMobile, state } = useSidebar();
+  const { state } = useSidebar();
   const presence = useSelfPresence();
   const [isOpen, setIsOpen] = useState(false);
   const [menuInstance, setMenuInstance] = useState(0);
-
-  useEffect(() => {
-    setIsOpen(false);
-  }, [state, isMobile]);
-
-  if (isMobile) {
-    return null;
-  }
 
   const isCollapsed = state === "collapsed";
   const displayName = resolveAccountDisplayName(
