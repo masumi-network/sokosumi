@@ -1,5 +1,6 @@
 "use client";
 
+import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -9,7 +10,8 @@ import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
 import { getJobStatusDotColorClass } from "@/components/jobs/job-status-styles";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
+
+import { jobStatusDataSchema } from "@/lib/ably";
 import type { JobSummary } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";

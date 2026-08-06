@@ -1,5 +1,6 @@
 "use client";
 
+import { makeChatRoomChannelName } from "@sokosumi/utils";
 import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useMemo, useRef } from "react";
@@ -7,7 +8,6 @@ import { useEffect, useMemo, useRef } from "react";
 import {
   type ChatRoomMessageEventData,
   chatRoomMessageEventDataSchema,
-  makeChatRoomChannelName,
 } from "@/lib/ably";
 
 import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message-event";
