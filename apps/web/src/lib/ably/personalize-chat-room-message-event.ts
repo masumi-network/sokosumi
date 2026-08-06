@@ -17,6 +17,10 @@ function isReactionLike(value: unknown): value is ReactionLike {
 /**
  * Derive viewer-specific reaction flags from reactor ids (SOK-741).
  * Shared Ably wire DTO leaves reactedByCurrentUser false/meaningless.
+ *
+ * Note: Core caps named `reactors` (MAX_LISTED_CHAT_REACTION_REACTORS = 20).
+ * If the viewer reacted but is outside that list, derive returns false until
+ * the next REST load (personalized). Acceptable edge for Ably scale path.
  */
 export function personalizeReactionsForViewer<T extends ReactionLike>(
   reactions: readonly T[],

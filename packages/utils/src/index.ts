@@ -1,7 +1,6 @@
 export {
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
-  makeUserChatRoomsChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
 } from "./ably-channel.js";

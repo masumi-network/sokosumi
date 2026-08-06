@@ -111,4 +111,20 @@ describe("POST /realtime/ably-token", () => {
       [],
     );
   });
+
+  it("rejects coworker actors (owner-only mint)", async () => {
+    const coworkerContext: AuthenticationContext = {
+      actor: "coworker",
+      coworkerId: "cow_123",
+      vendorId: "vendor_123",
+    };
+    const app = createApp(coworkerContext);
+    const response = await app.request("http://localhost/ably-token", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(403);
+    expect(createAblySubscribeTokenRequestMock).not.toHaveBeenCalled();
+    expect(findManyMembersMock).not.toHaveBeenCalled();
+  });
 });
