@@ -4722,6 +4722,7 @@
         "chats": "Chats",
         "search": "Buscar",
         "ariaLabel": "Navegación principal",
+        "loading": "Cargando",
         "backToChats": "Volver a chats",
         "backToHome": "Volver al inicio",
         "back": "Volver"

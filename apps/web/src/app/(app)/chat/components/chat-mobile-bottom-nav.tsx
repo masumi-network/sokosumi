@@ -11,6 +11,7 @@ import {
   CHAT_MOBILE_TABS,
   type ChatMobileTabId,
 } from "./chat-mobile-tab-registry";
+import { MobileTabLinkPendingOverlay } from "./mobile-tab-link-pending-overlay";
 
 type SearchParamsLike =
   | URLSearchParams
@@ -78,6 +79,7 @@ export function ChatMobileBottomNav(): React.ReactElement {
               >
                 <Icon className="size-5" aria-hidden />
                 <span className="truncate">{label}</span>
+                <MobileTabLinkPendingOverlay isApple={isApple} />
               </Link>
             </li>
           );

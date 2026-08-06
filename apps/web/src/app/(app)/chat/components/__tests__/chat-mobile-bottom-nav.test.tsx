@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 let mockPathname = "/chat";
 let mockSearchParams = new URLSearchParams();
 let mockIsApple = false;
+let mockLinkPending = false;
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
@@ -31,6 +32,7 @@ vi.mock("next/link", () => ({
       {children}
     </a>
   ),
+  useLinkStatus: () => ({ pending: mockLinkPending }),
 }));
 
 import {
@@ -83,6 +85,7 @@ describe("ChatMobileBottomNav", () => {
     mockPathname = "/chat";
     mockSearchParams = new URLSearchParams();
     mockIsApple = false;
+    mockLinkPending = false;
   });
 
   it("renders Home, Chats, and Search as links — Search goes to /history", () => {
@@ -183,6 +186,36 @@ describe("ChatMobileBottomNav", () => {
     expect(screen.getByRole("link", { name: "home" }).className).toContain(
       "bg-foreground/10",
     );
+  });
+
+  it("nests delayed pending overlays for each tab Link when pending", () => {
+    mockLinkPending = true;
+    render(<ChatMobileBottomNav />);
+
+    // Still Link descendants in React (useLinkStatus); portaled to body in DOM.
+    const overlays = document.querySelectorAll(
+      "[data-mobile-tab-pending-overlay]",
+    );
+    expect(overlays).toHaveLength(3);
+    for (const overlay of overlays) {
+      expect(overlay.className).toContain("z-30");
+      expect(overlay.className).toContain("md:hidden");
+      expect(overlay.className).toContain("pointer-events-none");
+    }
+
+    expect(screen.getByRole("link", { name: "home" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "chats" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "search" })).toBeTruthy();
+
+    const nav = screen.getByRole("navigation", { name: "ariaLabel" });
+    expect(nav.className).toContain("z-40");
+  });
+
+  it("hides pending overlays when links are not pending", () => {
+    mockLinkPending = false;
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.queryByRole("status", { name: "loading" })).toBeNull();
   });
 
   it("exposes a route-agnostic nav aria-label (used on hub list routes)", () => {
