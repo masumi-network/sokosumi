@@ -139,7 +139,7 @@ describe("ComposerWysiwygEditor", () => {
     expect(listbox).not.toHaveClass("w-72");
   });
 
-  it("falls back to caret position when anchored maxHeight is below usable floor", () => {
+  it("keeps composer-anchored mention placement when above-space collapses", () => {
     getMentionPopupPositionFromAnchorRect.mockReturnValueOnce({
       top: 40,
       left: 24,
@@ -179,15 +179,16 @@ describe("ComposerWysiwygEditor", () => {
 
     const listbox = screen.getByRole("listbox");
     expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
-    expect(getPopupPositionFromRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
-      maxHeight: "120px",
+      maxHeight: "0px",
       transform: "translateY(-100%)",
+      width: "420px",
     });
-    expect(listbox).toHaveClass("w-72");
+    expect(listbox).not.toHaveClass("w-72");
   });
 
-  it("falls back to caret position for emoji when anchored maxHeight is unusable", () => {
+  it("keeps composer-anchored emoji placement when above-space is tight", () => {
     getMentionPopupPositionFromAnchorRect.mockReturnValueOnce({
       top: 40,
       left: 24,
@@ -223,11 +224,13 @@ describe("ComposerWysiwygEditor", () => {
 
     const listbox = screen.getByRole("listbox");
     expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
-    expect(getPopupPositionFromRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
-      maxHeight: "120px",
+      maxHeight: "40px",
+      transform: "translateY(-100%)",
+      width: "420px",
     });
-    expect(listbox).toHaveClass("w-72");
+    expect(listbox).not.toHaveClass("w-72");
   });
 
   it("keeps the mention listbox open when openMentions runs after editor blur", () => {
