@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import { HeaderCenter } from "./header/header-center.client";
 import { HeaderChrome } from "./header/header-chrome.client";
 import {
   HeaderLeadingBrandFallback,
@@ -20,14 +21,9 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         </Suspense>
       </div>
 
-      <div
-        data-app-header-room-slot
-        className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:hidden"
-      />
-
-      <div className="hidden min-w-0 flex-1 flex-row gap-2 md:flex">
+      <HeaderCenter>
         <div className="bg-muted h-4 w-40 animate-pulse rounded-md" />
-      </div>
+      </HeaderCenter>
 
       <HeaderTrailing>
         <div className="flex items-center gap-2">

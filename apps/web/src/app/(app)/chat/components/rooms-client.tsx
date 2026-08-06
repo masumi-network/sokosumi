@@ -59,7 +59,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
   type ChatRoomMessageEventData,
   isChatRoomMessagePatchEvent,
@@ -378,7 +378,7 @@ export function RoomsClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isApple = useIsApplePlatform();
-  const isMobile = useIsMobile();
+  const isMobile = useIsMobileMedia();
   const headerRoomSlotHost = useHeaderRoomSlotHost();
   // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
   const localCalendarReady = useClientLocalCalendarReady();
@@ -1638,7 +1638,10 @@ export function RoomsClient({
         chatMobileHeightShellClass(pathname, isApple, searchParams),
       )}
     >
-      {selectedRoom && isMobile && headerRoomSlotHost && roomHeaderChrome
+      {selectedRoom &&
+      isMobile === true &&
+      headerRoomSlotHost &&
+      roomHeaderChrome
         ? createPortal(roomHeaderChrome, headerRoomSlotHost)
         : null}
       {currentUserId ? (
@@ -1692,7 +1695,7 @@ export function RoomsClient({
               label={t("Toolbar.dropToAttach")}
               className="flex min-h-0 min-w-0 flex-1 flex-col"
             >
-              {!isMobile && roomHeaderChrome ? (
+              {isMobile === false && roomHeaderChrome ? (
                 <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
                   {roomHeaderChrome}
                 </header>
