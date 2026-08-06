@@ -1,0 +1,37 @@
+import type { SessionUser } from "@sokosumi/utils";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
+import type { CreditUsage } from "@/lib/types/credit";
+
+export interface AccountSummaryCreditProps {
+  planName: string | null;
+  totalCredits: number | null;
+  extraCredits: number | null;
+  creditUsage: CreditUsage | null;
+  subscriptionPeriodEndMs: number | null;
+  currentTimestampMs: number;
+  lowCreditsThreshold: number;
+  buyCreditsLabel: string;
+  buyCreditsPath: string;
+}
+
+export interface AccountSummaryIdentityProps {
+  sessionUser: SessionUser;
+}
+
+/**
+ * Mobile-header-only chrome inside the shared menu body.
+ * Presence = Admin (gated) + Settings drill before Logout.
+ */
+export interface MobileAdminSettingsChrome {
+  adminMenuEnabled: boolean;
+  members: MemberWithOrganization[];
+  activeOrganizationId: string | null;
+  showDeveloperVendors: boolean;
+}
+
+export type AccountPopoverPanel =
+  | { kind: "root" }
+  | { kind: "settings" }
+  | { kind: "developer" }
+  | { kind: "help" }
+  | { kind: "legal" };
