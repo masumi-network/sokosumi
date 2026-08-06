@@ -354,9 +354,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
           const anchored = getMentionPopupPositionFromAnchorRect(
             shell.getBoundingClientRect(),
           );
-          // Soft keyboard can scroll the composer near the top of
-          // visualViewport so aboveSpace (and maxHeight) collapse to 0.
-          // Prefer card anchor only when the list would still be usable.
           if (anchored.maxHeight >= POPUP_MIN_HEIGHT_PX) {
             return anchored;
           }
