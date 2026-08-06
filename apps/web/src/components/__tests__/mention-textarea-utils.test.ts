@@ -142,7 +142,6 @@ describe("mention-textarea utils", () => {
         rectNearBottom({ top: 600, bottom: 620 }),
       );
 
-      // belowSpace ≈ 172 (< 240 preferred), aboveSpace ≈ 592
       expect(position.side).toBe("top");
       expect(position.maxHeight).toBeGreaterThanOrEqual(POPUP_MIN_HEIGHT_PX);
       expect(position.maxHeight).toBeLessThanOrEqual(POPUP_HEIGHT_PX);
@@ -220,13 +219,11 @@ describe("mention-textarea utils", () => {
       );
 
       expect(position.maxHeight).toBe(POPUP_MIN_HEIGHT_PX);
-      // translateY(-100%): keep the full min-height band inside the viewport.
       expect(position.top).toBe(VIEWPORT_PADDING_PX + POPUP_MIN_HEIGHT_PX);
     });
 
     it("keeps min height when aboveSpace collapses (iOS keyboard scroll)", () => {
       stubViewport(800);
-      // Composer scrolled to visualViewport top under soft keyboard.
       const top = VIEWPORT_PADDING_PX + MENTION_COMPOSER_GAP_PX;
       const aboveSpace = top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
       expect(aboveSpace).toBe(0);

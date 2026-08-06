@@ -507,12 +507,10 @@ export function getMentionPopupPositionFromAnchorRect(
     VIEWPORT_PADDING_PX -
     MENTION_COMPOSER_GAP_PX;
   const maxHeight = maxHeightFittingAboveAnchor(aboveSpace);
-  // Keep translateY(-100%) band inside the visual viewport when min height
-  // exceeds aboveSpace (iOS keyboard scroll can pin the composer to the top).
-  const top = Math.max(
-    anchorRect.top - MENTION_COMPOSER_GAP_PX,
-    viewportTop + VIEWPORT_PADDING_PX + maxHeight,
-  );
+  const anchoredBottom = anchorRect.top - MENTION_COMPOSER_GAP_PX;
+  const minTopForViewportBand =
+    viewportTop + VIEWPORT_PADDING_PX + maxHeight;
+  const top = Math.max(anchoredBottom, minTopForViewportBand);
   let left = anchorRect.left;
   let width = anchorRect.width;
 
