@@ -4783,7 +4783,7 @@
       "openDirectMessage": "Mensaje",
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
-      "participantOverflow": "and {count} more",
+      "participantOverflowCount": "{count} participantes más",
       "directMessages": "Direct Messages",
       "loadMore": "Cargar más",
       "loading": "Cargando...",

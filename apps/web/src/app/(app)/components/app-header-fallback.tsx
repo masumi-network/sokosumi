@@ -19,7 +19,12 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         </Suspense>
       </div>
 
-      <div className="hidden min-w-0 flex-1 flex-row gap-2 sm:flex">
+      <div
+        data-app-header-room-slot
+        className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden md:hidden"
+      />
+
+      <div className="hidden min-w-0 flex-1 flex-row gap-2 md:flex">
         <div className="bg-muted h-4 w-40 animate-pulse rounded-md" />
       </div>
 
