@@ -1,5 +1,6 @@
 import {
   makeChatRoomChannelName,
+  makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
 } from "@sokosumi/utils";
@@ -12,6 +13,8 @@ export interface AblySubscribeCapabilityMap {
 /**
  * Ably subscribe capabilities for a user session.
  * Chat rooms are granted per membership room id (SOK-741), not a user wildcard.
+ * Chat control is always granted so remote membership revoke can be signaled
+ * without holding a room channel cap (SOK-742).
  */
 export function buildAblySubscribeCapability(
   userId: string,
@@ -22,6 +25,7 @@ export function buildAblySubscribeCapability(
     [`agent_jobs:*:user_${userId}`]: ["subscribe"],
     [makeUserTasksChannelName(userId)]: ["subscribe"],
     [makeUserNotificationsChannelName(userId)]: ["subscribe"],
+    [makeUserChatControlChannelName(userId)]: ["subscribe"],
   };
 
   for (const roomId of roomIds) {

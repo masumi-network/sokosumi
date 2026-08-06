@@ -19,6 +19,7 @@ const {
   messageCreateMock,
   prismaTransactionMock,
   publishChatRoomMessageRealtimeMock,
+  publishChatMembershipRevokedMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   userMemberCountMock: vi.fn(),
@@ -31,6 +32,7 @@ const {
   messageCreateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatMembershipRevokedMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -39,6 +41,10 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatMembershipRevoked: publishChatMembershipRevokedMock,
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -149,6 +155,7 @@ beforeEach(() => {
   userFindUniqueMock.mockResolvedValue({ name: SELF_ID });
   messageCreateMock.mockResolvedValue(MEMBERSHIP_MESSAGE);
   publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+  publishChatMembershipRevokedMock.mockResolvedValue(undefined);
 });
 
 describe("DELETE /chats/rooms/{id}/members/me", () => {
@@ -230,6 +237,11 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
       MEMBERSHIP_MESSAGE,
       "create",
     );
+    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
+      userId: SELF_ID,
+      roomId: ROOM_ID,
+      reason: "left",
+    });
   });
 
   it("does not emit membership status when refusing a direct leave", async () => {
@@ -238,6 +250,7 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
     expect((await leave()).status).toBe(400);
     expect(messageCreateMock).not.toHaveBeenCalled();
     expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+    expect(publishChatMembershipRevokedMock).not.toHaveBeenCalled();
   });
 
   it("refuses to leave a direct room", async () => {

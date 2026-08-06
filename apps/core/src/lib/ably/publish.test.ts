@@ -3,6 +3,8 @@ import { SokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  publishChatMembershipRevoked,
+  publishChatMembershipRevokedToUsers,
   publishChatRoomMessageEvent,
   publishJobStatusData,
   publishNotificationEvent,
@@ -165,5 +167,36 @@ describe("publishChatRoomMessageEvent", () => {
       parentMessageId: null,
       patch,
     });
+  });
+});
+
+describe("publishChatMembershipRevoked", () => {
+  it("publishes revoke on the user chat control channel", async () => {
+    await publishChatMembershipRevoked({
+      userId: "user_123",
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+      reason: "removed",
+    });
+
+    expect(getMock).toHaveBeenCalledWith("chat_control:user_user_123");
+    expect(publishMock).toHaveBeenCalledWith(
+      "chat_membership_revoked",
+      expect.objectContaining({
+        roomId: "660e8400-e29b-41d4-a716-446655440000",
+        reason: "removed",
+        at: expect.any(String),
+      }),
+    );
+  });
+
+  it("no-ops when fan-out user list is empty", async () => {
+    publishMock.mockClear();
+    getMock.mockClear();
+    await publishChatMembershipRevokedToUsers(
+      "660e8400-e29b-41d4-a716-446655440000",
+      [],
+      "removed",
+    );
+    expect(publishMock).not.toHaveBeenCalled();
   });
 });
