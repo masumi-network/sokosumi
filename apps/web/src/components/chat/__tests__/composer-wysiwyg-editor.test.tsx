@@ -42,7 +42,14 @@ vi.mock("@/components/ui/mention-textarea-utils", async (importOriginal) => {
 describe("ComposerWysiwygEditor", () => {
   afterEach(() => {
     getPopupPositionFromRect.mockClear();
-    getMentionPopupPositionFromAnchorRect.mockClear();
+    getMentionPopupPositionFromAnchorRect.mockReset();
+    getMentionPopupPositionFromAnchorRect.mockImplementation(() => ({
+      top: 500,
+      left: 24,
+      side: "top" as const,
+      maxHeight: 200,
+      width: 420,
+    }));
   });
 
   it("disables Inter contextual alternates so ** markers stay aligned", () => {
@@ -58,7 +65,9 @@ describe("ComposerWysiwygEditor", () => {
     }
 
     render(<Harness />);
-    expect(screen.getByRole("textbox")).toHaveClass("markdown-compose-surface");
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveClass("markdown-compose-surface");
+    expect(editor).toHaveStyle({ scrollMarginTop: "252px" });
   });
 
   it("applies top-side flip and dynamic maxHeight to the mention listbox", () => {
@@ -140,11 +149,11 @@ describe("ComposerWysiwygEditor", () => {
   });
 
   it("keeps composer-anchored mention placement when above-space collapses", () => {
-    getMentionPopupPositionFromAnchorRect.mockReturnValueOnce({
+    getMentionPopupPositionFromAnchorRect.mockReturnValue({
       top: 40,
       left: 24,
       side: "top" as const,
-      maxHeight: 0,
+      maxHeight: 24,
       width: 420,
     });
 
@@ -181,7 +190,7 @@ describe("ComposerWysiwygEditor", () => {
     expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
     expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
-      maxHeight: "0px",
+      maxHeight: "24px",
       transform: "translateY(-100%)",
       width: "420px",
     });
@@ -189,7 +198,7 @@ describe("ComposerWysiwygEditor", () => {
   });
 
   it("keeps composer-anchored emoji placement when above-space is tight", () => {
-    getMentionPopupPositionFromAnchorRect.mockReturnValueOnce({
+    getMentionPopupPositionFromAnchorRect.mockReturnValue({
       top: 40,
       left: 24,
       side: "top" as const,

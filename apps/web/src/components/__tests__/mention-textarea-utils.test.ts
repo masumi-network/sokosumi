@@ -7,6 +7,7 @@ import {
   getActiveTrigger,
   getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
+  MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX,
   MENTION_COMPOSER_GAP_PX,
   type NormalizedMention,
   POPUP_HEIGHT_PX,
@@ -44,6 +45,11 @@ function rectNearBottom(options: {
 }
 
 describe("mention-textarea utils", () => {
+  it("sizes scroll margin to preferred picker height plus composer gap", () => {
+    expect(MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX).toBe(
+      POPUP_HEIGHT_PX + MENTION_COMPOSER_GAP_PX + VIEWPORT_PADDING_PX,
+    );
+  });
   it("round-trips mention markup with friendly labels", () => {
     const root = document.createElement("div");
     const raw = "Hello @agent1:stock-photos-agent world";

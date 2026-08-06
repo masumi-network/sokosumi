@@ -28,11 +28,11 @@ import {
   getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
   isWhitespaceChar,
+  MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX,
   MENTION_CLASSNAME,
   type MentionRecordEntry,
   type MentionSuggestionGroup,
   type NormalizedMention,
-  POPUP_MIN_HEIGHT_PX,
   serializeEditor,
   serializeEditorText,
   setCaretAfterNode,
@@ -351,12 +351,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
       if (kind === "mention" || kind === "emoji") {
         const shell = editor.closest(`[${ROOM_COMPOSER_MENTION_ANCHOR_ATTR}]`);
         if (shell instanceof HTMLElement) {
-          const anchored = getMentionPopupPositionFromAnchorRect(
+          return getMentionPopupPositionFromAnchorRect(
             shell.getBoundingClientRect(),
           );
-          if (anchored.maxHeight >= POPUP_MIN_HEIGHT_PX) {
-            return anchored;
-          }
         }
       }
       const caretRect = getCaretRect(editor);
@@ -1155,6 +1152,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         data-placeholder={placeholder}
         role="textbox"
         aria-multiline="true"
+        style={{ scrollMarginTop: MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX }}
         className={cn(
           "outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
