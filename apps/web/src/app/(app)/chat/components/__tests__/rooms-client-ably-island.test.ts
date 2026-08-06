@@ -13,7 +13,13 @@ describe("RoomsClient Ably island", () => {
     expect(source).toMatch(
       /LazyAblyProvider>\s*<ChannelProvider[\s\S]*RoomMessageRealtimeBridge[\s\S]*<\/ChannelProvider>\s*<\/LazyAblyProvider>/,
     );
-    expect(source).toContain('<main className="relative flex min-h-0 flex-1">');
+    expect(source).toContain(
+      '<main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">',
+    );
+    // Message list only — not global ScrollArea (keeps horizontal examples).
+    expect(source).toMatch(
+      /<ScrollArea[\s\S]*?shrinkContent[\s\S]*?className="min-h-0 min-w-0 flex-1"/,
+    );
   });
 
   it("routes realtime through scope helper and only merges room on top-level", () => {
