@@ -56,6 +56,22 @@ vi.mock("@/middleware/auth", () => ({
 
     return authContext;
   },
+  requireOwnerUserContext: (authContext: AuthenticationContext | null) => {
+    if (
+      !authContext ||
+      (authContext.actor !== "user" && authContext.actor !== "orchestrator")
+    ) {
+      throw new HTTPException(403, { message: "User authentication required" });
+    }
+    if (authContext.actor === "user") {
+      return { source: "session" as const, ...authContext };
+    }
+    return {
+      source: "context" as const,
+      userId: authContext.context!.userId,
+      organizationId: authContext.context!.organizationId,
+    };
+  },
   requireUserContext: (authContext: AuthenticationContext | null) => {
     if (!authContext) {
       throw new HTTPException(403, {

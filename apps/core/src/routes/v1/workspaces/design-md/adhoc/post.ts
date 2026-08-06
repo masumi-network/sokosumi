@@ -1,11 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
-
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { uploadDesignMdContent } from "@/lib/design-md-blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import {
   adHocDesignMdSchema,
   adHocDesignMdWriteSchema,
@@ -52,7 +51,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { userId } = requireUserContext(c.var.authContext);
+    const { userId } = await requireAuthorizedUserContext(c.var.authContext);
     const body = c.req.valid("json");
 
     const url = await uploadDesignMdContent({

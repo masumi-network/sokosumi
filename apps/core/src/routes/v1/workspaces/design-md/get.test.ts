@@ -22,6 +22,12 @@ vi.mock("@/middleware/auth", () => ({
     }
     return { source: "session" as const, ...authContext };
   },
+  requireOwnerUserContext: (authContext: AuthenticationContext | null) => {
+    if (!authContext || authContext.actor !== "user") {
+      throw new HTTPException(403, { message: "User authentication required" });
+    }
+    return { source: "session" as const, ...authContext };
+  },
 }));
 
 vi.mock("@/lib/db/prisma", () => ({

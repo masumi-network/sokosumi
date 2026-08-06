@@ -23,9 +23,9 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withCoworkerContextHeaderParameters,
+  withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   historyListResponseExample,
@@ -112,7 +112,7 @@ const historyKindByQueryType = {
 
 const allHistoryKinds = [HistoryKind.TASK, HistoryKind.JOB];
 
-const route = withCoworkerContextHeaderParameters(
+const route = withOrchestratorContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
@@ -137,7 +137,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);

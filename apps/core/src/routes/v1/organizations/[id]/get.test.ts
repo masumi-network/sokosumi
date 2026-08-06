@@ -42,6 +42,38 @@ vi.mock("@/middleware/auth", () => ({
         "Context headers (X-Context-User-Id) are required for this resource",
     });
   },
+  requireOwnerUserContext: (authContext: AuthenticationContext | null) => {
+    if (!authContext) {
+      throw new HTTPException(403, {
+        message: "User authentication required",
+      });
+    }
+
+    if (authContext.actor === "user") {
+      return {
+        source: "session" as const,
+        ...authContext,
+      };
+    }
+
+    if (
+      (authContext.actor === "coworker" ||
+        authContext.actor === "orchestrator") &&
+      "context" in authContext &&
+      authContext.context
+    ) {
+      return {
+        source: "context" as const,
+        userId: authContext.context.userId,
+        organizationId: authContext.context.organizationId,
+      };
+    }
+
+    throw new HTTPException(403, {
+      message:
+        "Context headers (X-Context-User-Id) are required for this resource",
+    });
+  },
 }));
 
 vi.mock("@/lib/db/prisma", () => ({

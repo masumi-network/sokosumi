@@ -5,6 +5,7 @@ import {
   requireAvailableAgentOrThrow,
   upsertUserAgentReview,
 } from "@/helpers/agent";
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
 import { created, successResponseSchema } from "@/helpers/response";
@@ -13,7 +14,6 @@ import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import {
   agentMyReviewSchema,
   agentRatingRequestSchema,
@@ -58,7 +58,7 @@ const route = withCoworkerContextHeaderParameters(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = await requireAuthorizedUserContext(c.var.authContext);
     const { id } = c.req.valid("param");
     const { rating, comment } = c.req.valid("json");
 
