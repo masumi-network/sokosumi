@@ -4,6 +4,7 @@ import { parseChatRoomIdFromChannelName } from "@sokosumi/utils";
  * Extract chat room ids granted in an Ably token capability map.
  * Returns null when capability is missing or unparseable (caller falls back
  * to prop roomIds). Empty Set means token grants no chat room channels.
+ * Only channels with an explicit `subscribe` op are included.
  */
 export function chatRoomIdsFromAblyCapability(
   capability: unknown,
@@ -33,7 +34,10 @@ export function chatRoomIdsFromAblyCapability(
   }
 
   const roomIds = new Set<string>();
-  for (const channelName of Object.keys(map)) {
+  for (const [channelName, operations] of Object.entries(map)) {
+    if (!Array.isArray(operations) || !operations.includes("subscribe")) {
+      continue;
+    }
     const roomId = parseChatRoomIdFromChannelName(channelName);
     if (roomId != null) {
       roomIds.add(roomId);

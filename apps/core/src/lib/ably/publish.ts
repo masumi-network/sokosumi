@@ -1,5 +1,7 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
+  CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+  type ChatMembershipRevokeReason,
   type ChatRoomMessageEventType,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
@@ -170,10 +172,6 @@ export async function publishChatRoomMessageEvent(
     message: input.message,
   });
 }
-
-const CHAT_MEMBERSHIP_REVOKED_EVENT_NAME = "chat_membership_revoked";
-
-type ChatMembershipRevokeReason = "removed" | "left";
 
 interface PublishChatMembershipRevokedInput {
   userId: string;

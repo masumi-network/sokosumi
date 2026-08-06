@@ -204,7 +204,9 @@ export function useChatRoomRealtime({
         );
         return;
       }
-      // Stop receiving immediately; re-auth drops the token cap next.
+      // Invalidate any in-flight authorize that still holds the old room cap
+      // so it cannot re-attach after this detach (before the queued re-auth).
+      syncGenerationRef.current += 1;
       detachRoomLocally(parsed.data.roomId);
       void syncMembershipChannels();
     }

@@ -28,6 +28,11 @@ export type {
   SessionUser,
 } from "./better-auth-types.js";
 export {
+  CHAT_MEMBERSHIP_REVOKE_REASONS,
+  CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+  type ChatMembershipRevokeReason,
+} from "./chat-membership-revoked.js";
+export {
   CHAT_PRESENCE_AFK_WINDOW_MS,
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "./chat-presence-windows.js";

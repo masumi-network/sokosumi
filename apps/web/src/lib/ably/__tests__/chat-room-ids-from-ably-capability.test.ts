@@ -24,6 +24,16 @@ describe("chatRoomIdsFromAblyCapability", () => {
     ).toEqual(new Set());
   });
 
+  it("ignores room channels without subscribe capability", () => {
+    expect(
+      chatRoomIdsFromAblyCapability({
+        "chat_rooms:room_room-a": ["subscribe"],
+        "chat_rooms:room_room-b": ["publish"],
+        "chat_rooms:room_room-c": ["presence", "history"],
+      }),
+    ).toEqual(new Set(["room-a"]));
+  });
+
   it("returns null for missing or malformed capability", () => {
     expect(chatRoomIdsFromAblyCapability(undefined)).toBeNull();
     expect(chatRoomIdsFromAblyCapability(null)).toBeNull();

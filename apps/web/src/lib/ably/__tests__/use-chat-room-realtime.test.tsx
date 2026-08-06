@@ -224,6 +224,72 @@ describe("useChatRoomRealtime", () => {
     });
   });
 
+  it("does not re-attach a revoked room when a stale authorize resolves late", async () => {
+    let resolveStaleAuth: ((value: unknown) => void) | undefined;
+    const staleAuth = new Promise((resolve) => {
+      resolveStaleAuth = resolve;
+    });
+
+    authorizeMock
+      .mockResolvedValueOnce(tokenWithRooms("room-a", "room-b"))
+      .mockImplementationOnce(() => staleAuth)
+      .mockResolvedValue(tokenWithRooms("room-a"));
+
+    const { rerender } = renderHook(
+      ({ roomIds }: { roomIds: string[] }) =>
+        useChatRoomRealtime({
+          roomIds,
+          currentUserId: "user_1",
+        }),
+      { initialProps: { roomIds: ["room-a", "room-b"] } },
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+      expect(controlSubscribeHandler()).toBeTypeOf("function");
+    });
+
+    // Start a membership-driven re-auth that will resolve with a stale token.
+    act(() => {
+      rerender({ roomIds: ["room-a", "room-b", "room-c"] });
+    });
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+    });
+
+    act(() => {
+      controlSubscribeHandler()?.({
+        data: {
+          roomId: "room-b",
+          reason: "removed",
+          at: "2026-08-06T12:00:00.000Z",
+        },
+      });
+    });
+
+    expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+
+    const subscribeCountAfterDetach = channelFor("chat_rooms:room_room-b")
+      .subscribe.mock.calls.length;
+
+    // Stale token still includes room-b; generation bump must discard it.
+    await act(async () => {
+      resolveStaleAuth?.(tokenWithRooms("room-a", "room-b", "room-c"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      // Fresh authorize after revoke must have run.
+      expect(authorizeMock.mock.calls.length).toBeGreaterThanOrEqual(3);
+    });
+
+    expect(
+      channelFor("chat_rooms:room_room-b").subscribe.mock.calls.length,
+    ).toBe(subscribeCountAfterDetach);
+  });
+
   it("detaches rooms dropped from token capability even when props stay stale", async () => {
     authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
 
