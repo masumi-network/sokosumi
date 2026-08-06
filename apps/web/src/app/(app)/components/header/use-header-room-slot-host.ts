@@ -11,7 +11,9 @@ export function useHeaderRoomSlotHost(): HTMLElement | null {
     let current: HTMLElement | null = null;
 
     function syncHost() {
-      const next = document.querySelector(HEADER_ROOM_SLOT_SELECTOR);
+      const next = document.querySelector<HTMLElement>(
+        HEADER_ROOM_SLOT_SELECTOR,
+      );
       if (next === current) {
         return;
       }
