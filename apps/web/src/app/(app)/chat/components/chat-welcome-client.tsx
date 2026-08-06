@@ -2,7 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -22,7 +22,7 @@ import type {
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { cn } from "@/lib/utils";
 
-import { CHAT_MOBILE_HEIGHT_SHELL_CLASS } from "./chat-mobile-tab-registry";
+import { chatMobileHeightShellClass } from "./chat-mobile-tab-registry";
 
 function composeMessageText(message: ChatComposeMessage): string {
   if (typeof message === "string") {
@@ -50,6 +50,8 @@ export function ChatWelcomeClient({
 }: ChatWelcomeClientProps) {
   const t = useTranslations("App.Chat.Chat");
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<UIMessage[]>([]);
   const [selectedCoworker, setSelectedCoworker] = useState<
@@ -117,7 +119,7 @@ export function ChatWelcomeClient({
     <div
       className={cn(
         "-m-4 flex min-h-0 flex-col overflow-hidden bg-background",
-        CHAT_MOBILE_HEIGHT_SHELL_CLASS,
+        chatMobileHeightShellClass(pathname, false, searchParams),
       )}
     >
       <WelcomeScreen

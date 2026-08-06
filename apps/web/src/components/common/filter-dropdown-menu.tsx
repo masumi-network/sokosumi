@@ -223,7 +223,7 @@ function FilterDropdownMenuOptionAvatar({
       {option.image ? (
         <AvatarImage src={option.image} alt={option.avatarLabel} />
       ) : null}
-      <AvatarFallback className="bg-muted text-[10px] font-medium">
+      <AvatarFallback className="bg-muted text-[0.625rem] font-medium">
         {fallback}
       </AvatarFallback>
     </Avatar>

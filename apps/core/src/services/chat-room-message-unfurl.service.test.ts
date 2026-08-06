@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   messageFindUniqueMock,
-  messageUpdateMock,
+  mergeMetadataKeysMock,
+  deleteMetadataKeysMock,
   ssrfSafeFetchMock,
   publishByIdMock,
 } = vi.hoisted(() => ({
   messageFindUniqueMock: vi.fn(),
-  messageUpdateMock: vi.fn(),
+  mergeMetadataKeysMock: vi.fn(),
+  deleteMetadataKeysMock: vi.fn(),
   ssrfSafeFetchMock: vi.fn(),
   publishByIdMock: vi.fn(),
 }));
@@ -16,7 +18,6 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     chatRoomMessage: {
       findUnique: messageFindUniqueMock,
-      update: messageUpdateMock,
     },
   },
 }));
@@ -27,6 +28,13 @@ vi.mock("@sokosumi/net", () => ({
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publishByIdMock,
+}));
+
+vi.mock("@/helpers/chat-room-message-metadata-patch", () => ({
+  mergeChatRoomMessageMetadataKeys: (...args: unknown[]) =>
+    mergeMetadataKeysMock(...args),
+  deleteChatRoomMessageMetadataKeys: (...args: unknown[]) =>
+    deleteMetadataKeysMock(...args),
 }));
 
 import { scheduleChatRoomMessageUnfurls } from "./chat-room-message-unfurl.service";
@@ -41,7 +49,8 @@ describe("scheduleChatRoomMessageUnfurls", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     publishByIdMock.mockResolvedValue(undefined);
-    messageUpdateMock.mockResolvedValue({});
+    mergeMetadataKeysMock.mockResolvedValue(1);
+    deleteMetadataKeysMock.mockResolvedValue(1);
   });
 
   it("no-ops when message is missing", async () => {
@@ -55,7 +64,8 @@ describe("scheduleChatRoomMessageUnfurls", () => {
       persisted: 0,
     });
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
-    expect(messageUpdateMock).not.toHaveBeenCalled();
+    expect(mergeMetadataKeysMock).not.toHaveBeenCalled();
+    expect(deleteMetadataKeysMock).not.toHaveBeenCalled();
   });
 
   it("no-ops when message is soft-deleted", async () => {
@@ -73,7 +83,7 @@ describe("scheduleChatRoomMessageUnfurls", () => {
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
   });
 
-  it("scrapes, merges unfurls, updates metadata, and republishes", async () => {
+  it("scrapes, atomically merges unfurls, and republishes", async () => {
     messageFindUniqueMock
       .mockResolvedValueOnce({
         id: MESSAGE_ID,
@@ -86,8 +96,6 @@ describe("scheduleChatRoomMessageUnfurls", () => {
         id: MESSAGE_ID,
         content: "check https://example.com/page",
         deletedAt: null,
-        editedAt: null,
-        metadata: { quote: { messageId: "q1", authorName: "A", snippet: "s" } },
       });
 
     ssrfSafeFetchMock.mockResolvedValue(
@@ -104,23 +112,22 @@ describe("scheduleChatRoomMessageUnfurls", () => {
       attempted: 1,
       persisted: 1,
     });
-    expect(messageUpdateMock).toHaveBeenCalledWith({
-      where: { id: MESSAGE_ID },
-      data: {
-        metadata: {
-          quote: { messageId: "q1", authorName: "A", snippet: "s" },
-          unfurls: [
-            {
-              url: "https://example.com/page",
-              title: "Page Title",
-              description: "Desc",
-              imageUrl: "https://cdn.example/i.png",
-              siteName: "Ex",
-            },
-          ],
-        },
+    expect(mergeMetadataKeysMock).toHaveBeenCalledWith({
+      messageId: MESSAGE_ID,
+      contentMustEqual: "check https://example.com/page",
+      patch: {
+        unfurls: [
+          {
+            url: "https://example.com/page",
+            title: "Page Title",
+            description: "Desc",
+            imageUrl: "https://cdn.example/i.png",
+            siteName: "Ex",
+          },
+        ],
       },
     });
+    expect(deleteMetadataKeysMock).not.toHaveBeenCalled();
     expect(publishByIdMock).toHaveBeenCalledWith(MESSAGE_ID);
   });
 
@@ -137,8 +144,6 @@ describe("scheduleChatRoomMessageUnfurls", () => {
         id: MESSAGE_ID,
         content: "https://example.com/new",
         deletedAt: null,
-        editedAt: new Date(),
-        metadata: null,
       });
 
     ssrfSafeFetchMock.mockResolvedValue(
@@ -152,11 +157,12 @@ describe("scheduleChatRoomMessageUnfurls", () => {
 
     expect(result.attempted).toBe(1);
     expect(result.persisted).toBe(0);
-    expect(messageUpdateMock).not.toHaveBeenCalled();
+    expect(mergeMetadataKeysMock).not.toHaveBeenCalled();
+    expect(deleteMetadataKeysMock).not.toHaveBeenCalled();
     expect(publishByIdMock).not.toHaveBeenCalled();
   });
 
-  it("clears unfurls key on empty scrape while preserving quote", async () => {
+  it("atomically clears unfurls key on empty scrape", async () => {
     messageFindUniqueMock
       .mockResolvedValueOnce({
         id: MESSAGE_ID,
@@ -180,19 +186,6 @@ describe("scheduleChatRoomMessageUnfurls", () => {
         id: MESSAGE_ID,
         content: "no urls left",
         deletedAt: null,
-        editedAt: new Date(),
-        metadata: {
-          quote: { messageId: "q1", authorName: "A", snippet: "s" },
-          unfurls: [
-            {
-              url: "https://old.example",
-              title: "Old",
-              description: null,
-              imageUrl: null,
-              siteName: null,
-            },
-          ],
-        },
       });
 
     const result = await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
@@ -203,15 +196,41 @@ describe("scheduleChatRoomMessageUnfurls", () => {
       persisted: 0,
     });
     expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
-    expect(messageUpdateMock).toHaveBeenCalledWith({
-      where: { id: MESSAGE_ID },
-      data: {
-        metadata: {
-          quote: { messageId: "q1", authorName: "A", snippet: "s" },
-        },
-      },
+    expect(deleteMetadataKeysMock).toHaveBeenCalledWith({
+      messageId: MESSAGE_ID,
+      keys: ["unfurls"],
+      contentMustEqual: "no urls left",
     });
+    expect(mergeMetadataKeysMock).not.toHaveBeenCalled();
     expect(publishByIdMock).toHaveBeenCalledWith(MESSAGE_ID);
+  });
+
+  it("does not publish when atomic update matches zero rows", async () => {
+    messageFindUniqueMock
+      .mockResolvedValueOnce({
+        id: MESSAGE_ID,
+        content: "check https://example.com/page",
+        deletedAt: null,
+        editedAt: null,
+        metadata: null,
+      })
+      .mockResolvedValueOnce({
+        id: MESSAGE_ID,
+        content: "check https://example.com/page",
+        deletedAt: null,
+      });
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response(htmlPage("Page Title"), {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      }),
+    );
+    mergeMetadataKeysMock.mockResolvedValue(0);
+
+    const result = await scheduleChatRoomMessageUnfurls(MESSAGE_ID);
+
+    expect(result.persisted).toBe(0);
+    expect(publishByIdMock).not.toHaveBeenCalled();
   });
 
   it("never throws to waitUntil caller on scrape failure", async () => {

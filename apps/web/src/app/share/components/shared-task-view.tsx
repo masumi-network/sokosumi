@@ -103,7 +103,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                     alt={task.assignee.name}
                   />
                 ) : null}
-                <AvatarFallback className="text-[10px]">
+                <AvatarFallback className="text-[0.625rem]">
                   {getInitials(task.assignee?.name ?? "C")}
                 </AvatarFallback>
               </Avatar>
@@ -352,7 +352,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                     alt={actorName}
                                   />
                                 ) : null}
-                                <AvatarFallback className="bg-muted text-[10px]">
+                                <AvatarFallback className="bg-muted text-[0.625rem]">
                                   {getInitials(actorName)}
                                 </AvatarFallback>
                               </Avatar>
@@ -449,7 +449,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
           </div>
         </div>
 
-        <aside className="border-border hidden w-56 shrink-0 border-l md:block md:min-h-[calc(100svh-64px)]">
+        <aside className="border-border hidden w-56 shrink-0 border-l md:block md:min-h-[calc(100svh-4rem)]">
           <div className="sticky top-20 pt-1 pr-2 pl-6">
             <TaskSharePropertiesPanel />
           </div>

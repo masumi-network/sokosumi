@@ -48,7 +48,7 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/chat/chats")).toBe("chats");
   });
 
-  it("does not mark Home active on draft create/dm query routes", () => {
+  it("does not mark Home active on draft create/dm/welcome query routes", () => {
     expect(
       resolveChatMobileActiveTabId(
         "/chat",
@@ -57,6 +57,9 @@ describe("resolveChatMobileActiveTabId", () => {
     ).toBeNull();
     expect(
       resolveChatMobileActiveTabId("/chat", new URLSearchParams("dm=new")),
+    ).toBeNull();
+    expect(
+      resolveChatMobileActiveTabId("/chat", new URLSearchParams("welcome=1")),
     ).toBeNull();
   });
 

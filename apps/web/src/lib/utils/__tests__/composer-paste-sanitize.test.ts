@@ -2,36 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   composerPastedHtmlToPlainText,
-  sanitizeComposerPastedHtml,
   stripComposerInlineTextColors,
 } from "@/lib/utils/composer-paste-sanitize";
-
-describe("sanitizeComposerPastedHtml", () => {
-  it("strips inline color so dark-mode paste is not invisible", () => {
-    const html =
-      '<span style="color: rgb(10, 10, 10);">https://x.com/status/1 asdasdas</span>';
-    const sanitized = sanitizeComposerPastedHtml(html);
-    expect(sanitized).not.toMatch(/color\s*:/i);
-    expect(sanitized).toContain("https://x.com/status/1 asdasdas");
-  });
-
-  it("keeps non-color styles and formatting tags", () => {
-    const html =
-      '<strong style="color: #0a0a0a; font-weight: 700">bold</strong>';
-    const sanitized = sanitizeComposerPastedHtml(html);
-    expect(sanitized).toContain("<strong");
-    expect(sanitized).toContain("font-weight: 700");
-    expect(sanitized).not.toMatch(/color\s*:/i);
-  });
-
-  it("removes font color attributes", () => {
-    const sanitized = sanitizeComposerPastedHtml(
-      '<font color="#111111">dark</font>',
-    );
-    expect(sanitized).not.toMatch(/color=/i);
-    expect(sanitized).toContain("dark");
-  });
-});
 
 describe("composerPastedHtmlToPlainText", () => {
   it("extracts text via DOMParser, not regex tag stripping", () => {
@@ -50,6 +22,25 @@ describe("composerPastedHtmlToPlainText", () => {
     );
     expect(text).toContain("visible");
     expect(text).not.toMatch(/<script/i);
+  });
+
+  it("preserves line breaks from br tags", () => {
+    expect(composerPastedHtmlToPlainText("a<br>b<br/>c")).toBe("a\nb\nc");
+  });
+
+  it("preserves line breaks between block elements", () => {
+    expect(
+      composerPastedHtmlToPlainText("<p>first</p><p>second</p>").trim(),
+    ).toBe("first\nsecond");
+  });
+
+  it("collapses excessive blank lines from nested blocks", () => {
+    const text = composerPastedHtmlToPlainText(
+      "<div><p>one</p><p>two</p></div>",
+    );
+    expect(text).not.toMatch(/\n{3,}/);
+    expect(text).toContain("one");
+    expect(text).toContain("two");
   });
 });
 

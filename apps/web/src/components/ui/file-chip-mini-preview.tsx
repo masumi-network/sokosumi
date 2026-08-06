@@ -36,7 +36,8 @@ export interface FileChipMiniPreviewProps {
 const previewTriggerClassName =
   "group bg-accent/30 hover:bg-accent/50 focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
 
-const largeImageTriggerClassName = "max-h-80 max-w-sm";
+const largeImageTriggerClassName =
+  "min-w-0 max-h-80 w-full max-w-full shrink";
 
 function FileChipMiniPreviewTrigger({
   url,
@@ -79,7 +80,7 @@ function FileChipMiniPreviewTrigger({
           <img
             src={url}
             alt={resolvedFileName}
-            className="max-h-80 max-w-sm object-contain object-center"
+            className="max-h-80 w-full max-w-full object-contain object-center"
           />
         </button>
       );

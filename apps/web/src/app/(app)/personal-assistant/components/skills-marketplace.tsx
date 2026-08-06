@@ -655,7 +655,7 @@ function SkillCard({
         </p>
       ) : null}
       {item.installs !== null ? (
-        <div className="text-tertiary-foreground flex items-center gap-1 text-[11px]">
+        <div className="text-tertiary-foreground flex items-center gap-1 text-[0.6875rem]">
           <Download className="size-3" />
           {formatter.number(item.installs)}
         </div>

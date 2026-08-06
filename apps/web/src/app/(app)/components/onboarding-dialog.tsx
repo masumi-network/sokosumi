@@ -124,7 +124,7 @@ function ChatVisual({
             phase >= 1 ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
           }`}
         >
-          <div className="bg-primary text-primary-foreground max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2.5 text-[13px]">
+          <div className="bg-primary text-primary-foreground max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2.5 text-[0.8125rem]">
             {userMessage}
           </div>
         </div>
@@ -162,7 +162,7 @@ function ChatVisual({
               className="object-cover"
             />
           </div>
-          <div className="bg-background max-w-[85%] rounded-2xl rounded-bl-sm border px-4 py-2.5 text-[13px]">
+          <div className="bg-background max-w-[85%] rounded-2xl rounded-bl-sm border px-4 py-2.5 text-[0.8125rem]">
             {coworkerReply}
           </div>
         </div>
@@ -231,7 +231,7 @@ function OrchestrationVisual({
           <div className="bg-border relative h-px w-16">
             <span className="bg-primary absolute top-1/2 left-0 size-1.5 -translate-y-1/2 animate-[slide_2s_ease-in-out_infinite] rounded-full" />
           </div>
-          <span className="text-muted-foreground text-[10px]">
+          <span className="text-muted-foreground text-[0.625rem]">
             {hiresLabel}
           </span>
         </div>
@@ -250,7 +250,9 @@ function OrchestrationVisual({
               <div className="bg-background flex size-8 items-center justify-center rounded-full border shadow-sm">
                 <Bot className="text-muted-foreground size-3.5" />
               </div>
-              <span className="text-muted-foreground text-[11px]">{name}</span>
+              <span className="text-muted-foreground text-[0.6875rem]">
+                {name}
+              </span>
             </div>
           ))}
         </div>
@@ -263,7 +265,7 @@ function OrchestrationVisual({
         }`}
       >
         <div className="bg-border h-px w-6" />
-        <div className="bg-primary/10 text-primary rounded-full px-3 py-1 text-[11px] font-medium">
+        <div className="bg-primary/10 text-primary rounded-full px-3 py-1 text-[0.6875rem] font-medium">
           {workDeliveredLabel}
         </div>
         <div className="bg-border h-px w-6" />
@@ -712,7 +714,7 @@ export function OnboardingDialog({
                   <h2 className="mt-8 text-2xl font-semibold tracking-tight">
                     {introSteps[0].title}
                   </h2>
-                  <p className="text-muted-foreground mt-3 max-w-md text-[15px] leading-relaxed">
+                  <p className="text-muted-foreground mt-3 max-w-md text-[0.9375rem] leading-relaxed">
                     {introSteps[0].description}
                   </p>
                   <div className="mt-8 flex items-center gap-3">
@@ -756,7 +758,7 @@ export function OnboardingDialog({
                   <h2 className="text-2xl font-semibold tracking-tight">
                     {introSteps[step].title}
                   </h2>
-                  <p className="text-muted-foreground mx-auto mt-3 max-w-sm text-[15px] leading-relaxed md:mx-0">
+                  <p className="text-muted-foreground mx-auto mt-3 max-w-sm text-[0.9375rem] leading-relaxed md:mx-0">
                     {introSteps[step].description}
                   </p>
                 </div>
@@ -768,7 +770,7 @@ export function OnboardingDialog({
                     <h2 className="text-2xl font-semibold tracking-tight">
                       {introSteps[step].title}
                     </h2>
-                    <p className="text-muted-foreground mx-auto max-w-2xl text-[15px] leading-relaxed">
+                    <p className="text-muted-foreground mx-auto max-w-2xl text-[0.9375rem] leading-relaxed">
                       {introSteps[step].description}
                     </p>
                   </div>

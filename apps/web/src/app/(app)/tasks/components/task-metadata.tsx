@@ -195,7 +195,7 @@ export function TaskMetadata({
                   className="object-cover"
                 />
               ) : null}
-              <AvatarFallback className="bg-muted text-[10px]">
+              <AvatarFallback className="bg-muted text-[0.625rem]">
                 {task.assignee?.name?.slice(0, 1).toUpperCase() ?? "?"}
               </AvatarFallback>
             </Avatar>
@@ -288,7 +288,7 @@ function MetadataAvatarValue({
             {image ? (
               <AvatarImage src={image} alt={name} className="object-cover" />
             ) : null}
-            <AvatarFallback className="bg-muted text-[10px]">
+            <AvatarFallback className="bg-muted text-[0.625rem]">
               {fallback.slice(0, 1).toUpperCase()}
             </AvatarFallback>
           </Avatar>

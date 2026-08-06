@@ -70,16 +70,17 @@ unmounts the polling effect when the route leaves the foreground.
 
 ### Full-bleed chat under the shared header
 
-The shared `AppLayout` renders a breadcrumb `Header` (reserving 64px) on every
-route, and the Personal Assistant surface keeps it like everywhere else. It
-only opts into a full-bleed content area below the header via:
+The shared `AppLayout` renders a breadcrumb `Header` (`h-16` / 4rem; 64px at
+default root) on every route, and the Personal Assistant surface keeps it like
+everywhere else. It only opts into a full-bleed content area below the header
+via:
 
 - `FullscreenEffect` (`components/fullscreen-effect.tsx`) — client component
   mounted from the layout that toggles `data-hermes-fullscreen="true"` on
   `<body>`. A rule in `globals.css` keyed off that attribute drops
   `[data-app-main]`'s `p-4` gutter (keeping the mobile fixed-header top
   clearance) so the chat/empty-state fills the area while main keeps its
-  normal `calc(100svh-64px)` height and `overflow-y-auto`.
+  normal `calc(100svh-4rem)` height and `overflow-y-auto`.
 
 ---
 
@@ -361,8 +362,8 @@ web generate:core:snapshot`.
 ## Conventions
 
 - **No em-dashes** in user-visible copy. Use periods, commas, or colons.
-- **No ad-hoc text sizes** (no `text-[10px]`, `text-[15px]`). Stick to the
-  Tailwind scale.
+- **No fixed `px` font sizes** (no `text-[10px]`, `fontSize: 14`). Prefer
+  Tailwind `text-*` or rem (`text-[0.625rem]`) so type tracks Dynamic Type.
 - **Color is reserved for status** — success (emerald), warning (amber),
   destructive (red). The five accent colors (violet/cyan/amber/emerald/rose)
   are for section eyebrows + per-tier accents only; don't sprinkle them.

@@ -467,6 +467,14 @@ export async function createAgentJobForUser(
       maxCents ?? cost.cents,
       maxCents !== null,
     );
+    // No billable ready source can satisfy this hire — fail before start_job
+    // so the seller never accepts work we will refuse to track.
+    if (preparedV2Sources.size === 0) {
+      throw unprocessableEntity(
+        "No purchase-ready payment sources available for this agent",
+        { reportToSentry: true },
+      );
+    }
   }
 
   const agent = agentRecord;
@@ -589,9 +597,17 @@ export async function createAgentJobForUser(
       // from it, so a seller echoing a different one would only fail at
       // purchase creation — after credits are consumed.
       if (response.identifierFromPurchaser !== identifierFromPurchaser) {
+        reportOrphanedSellerJob(
+          "seller returned a different purchaser identifier",
+          {
+            agentId: agent.id,
+            agentJobId: response.id,
+            expectedIdentifierFromPurchaser: identifierFromPurchaser,
+            receivedIdentifierFromPurchaser: response.identifierFromPurchaser,
+          },
+        );
         throw unprocessableEntity(
           "Paid agent job returned a different purchaser identifier",
-          { reportToSentry: true },
         );
       }
 
@@ -613,38 +629,76 @@ export async function createAgentJobForUser(
           (source) => selectedSourceIndex === source.sourceIndex,
         );
         if (!selectedSource) {
+          reportOrphanedSellerJob(
+            "seller returned an unexpected payment source",
+            {
+              agentId: agent.id,
+              agentJobId: response.id,
+              receivedPaymentSourceIndex: response.supportedPaymentSourceIndex,
+              registeredPaymentSourceIndexes: agent.paymentSources.map(
+                (source) => source.sourceIndex,
+              ),
+            },
+          );
           throw unprocessableEntity(
             "Paid V2 agent job returned an unexpected payment source",
-            { reportToSentry: true },
           );
         }
+        // Same readiness snapshot as preflight: this is not a mid-request
+        // flip. Seller can still echo a stored source that was not ready
+        // (and therefore not prepared) at hire time.
         const isSelectedSourcePurchaseReady = isCardanoV2SourceReady(
           agent.blockchainIdentifier,
           selectedSource.address,
           cardanoV2ReadySources,
         );
         if (!isSelectedSourcePurchaseReady) {
+          reportOrphanedSellerJob(
+            "seller selected a payment source that is not purchase-ready",
+            {
+              agentId: agent.id,
+              agentJobId: response.id,
+              selectedPaymentSourceIndex: selectedSource.sourceIndex,
+              selectedPaymentSourceAddress: selectedSource.address,
+            },
+          );
           throw unprocessableEntity(
             "Paid V2 agent job selected a payment source that is not purchase-ready",
-            { reportToSentry: true },
           );
         }
         if (
           response.paymentSourceType !== undefined &&
           response.paymentSourceType !== "Web3CardanoV2"
         ) {
+          reportOrphanedSellerJob(
+            "seller returned an invalid payment source type",
+            {
+              agentId: agent.id,
+              agentJobId: response.id,
+              receivedPaymentSourceType: response.paymentSourceType,
+            },
+          );
           throw unprocessableEntity(
             "Paid V2 agent job returned an invalid payment source type",
-            { reportToSentry: true },
           );
         }
         const preparedSource = preparedV2Sources.get(
           selectedSource.sourceIndex,
         );
         if (!preparedSource) {
+          reportOrphanedSellerJob(
+            "seller selected an ineligible payment source",
+            {
+              agentId: agent.id,
+              agentJobId: response.id,
+              selectedPaymentSourceIndex: selectedSource.sourceIndex,
+              preparedPaymentSourceIndexes: Array.from(
+                preparedV2Sources.keys(),
+              ),
+            },
+          );
           throw unprocessableEntity(
             "Paid V2 agent job selected an ineligible payment source",
-            { reportToSentry: true },
           );
         }
         // V2 purchases must always carry the exact source amounts: omitting

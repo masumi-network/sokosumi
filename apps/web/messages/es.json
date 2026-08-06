@@ -4726,6 +4726,22 @@
         "backToHome": "Volver al inicio",
         "back": "Volver"
       },
+      "MobileCreateFab": {
+        "openMenu": "Crear",
+        "closeMenu": "Cerrar menú de creación",
+        "newTask": {
+          "title": "Nueva tarea",
+          "subtitle": "Crea una tarea de larga duración"
+        },
+        "createChannel": {
+          "title": "Crear canal",
+          "subtitle": "Inicia un nuevo canal de stream"
+        },
+        "newDm": {
+          "title": "Nuevo mensaje directo",
+          "subtitle": "Escribe a una o más personas"
+        }
+      },
       "Actions": {
         "more": "Acciones del mensaje",
         "sectionTitle": "Gestionar canal",
@@ -4937,8 +4953,7 @@
       },
       "Edit": {
         "action": "Editar",
-        "save": "Guardar",
-        "cancel": "Cancelar",
+        "composerAria": "Editar mensaje. Intro para guardar, Escape para cancelar, Mayús+Intro para nueva línea.",
         "edited": "Editado"
       },
       "Browse": {
