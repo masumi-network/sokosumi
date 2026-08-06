@@ -79,7 +79,12 @@ export function HeaderAccountControl({
   }
 
   return (
-    <div className={cn(className)}>
+    <div
+      className={cn(
+        "flex size-8 shrink-0 items-center justify-center",
+        className,
+      )}
+    >
       <Popover open={isOpen} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <button

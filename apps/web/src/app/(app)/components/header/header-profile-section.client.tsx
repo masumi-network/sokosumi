@@ -56,7 +56,7 @@ export default function HeaderProfileSectionClient({
   return (
     <div
       className={cn(
-        "flex items-center gap-2",
+        "flex h-8 items-center gap-1.5 md:h-auto",
         isPending
           ? "pointer-events-none animate-pulse opacity-60"
           : "transition-opacity",
