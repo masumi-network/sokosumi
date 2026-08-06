@@ -1248,29 +1248,58 @@ export async function requireChatRoomUserAccess(
 }
 
 /**
- * Active public or external org channel the caller may self-join. Does not
- * require room membership. Unknown, private, wrong-org, direct, or archived → 404.
+ * Whether a channel's discoverability allows self-join for this caller.
+ * Public/external: any org member. Private: organization owner/admin only.
+ */
+export function isJoinableChannelDiscoverability(
+  discoverability: string | null,
+  elevated: boolean,
+): boolean {
+  if (discoverability === "public" || discoverability === "external") {
+    return true;
+  }
+  return elevated && discoverability === "private";
+}
+
+/**
+ * Prisma discoverability filter for browse/self-join listing.
+ * Plain members: public + external. Owner/admin: public + private + external.
+ * Mutable `in` array (not `as const`) — Prisma rejects readonly tuples.
+ */
+export function buildDiscoverabilityFilter(elevated: boolean): {
+  in: string[];
+} {
+  return elevated
+    ? { in: ["public", "private", "external"] }
+    : { in: ["public", "external"] };
+}
+
+/**
+ * Active org channel the caller may self-join. Does not require membership.
+ * Public/external: any org member. Private: organization owner/admin only.
  * Host-org membership is still required (guests never self-join).
+ * Unknown, wrong-org, direct, archived, or private-for-plain-member → 404.
  */
 export async function requireJoinableOrgChannel(
   roomId: string,
   userId: string,
   organizationId: string,
   tx: Prisma.TransactionClient,
-): Promise<ChatRoomWithMembers> {
-  await resolveMemberOrganizationById({
+): Promise<{ room: ChatRoomWithMembers; elevated: boolean }> {
+  const { role } = await resolveMemberOrganizationById({
     id: organizationId,
     userId,
     tx,
   });
+  const elevated = isOrganizationOwnerOrAdmin(role);
 
   const room = await tx.chatRoom.findFirst({
     where: {
       id: roomId,
       organizationId,
       kind: "channel",
-      discoverability: { in: ["public", "external"] },
       archivedAt: null,
+      discoverability: buildDiscoverabilityFilter(elevated),
     },
     include: chatRoomInclude,
   });
@@ -1279,7 +1308,7 @@ export async function requireJoinableOrgChannel(
     throw notFound("Room not found");
   }
 
-  return room;
+  return { room, elevated };
 }
 
 /**

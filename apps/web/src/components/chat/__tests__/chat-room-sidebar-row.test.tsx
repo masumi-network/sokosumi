@@ -407,7 +407,7 @@ describe("ChatRoomSidebarRow leave menu", () => {
       expect(leaveRoomActionMock).toHaveBeenCalledWith("room-1");
     });
     expect(toast.success).toHaveBeenCalledWith("You left general.");
-    expect(notifyMock).toHaveBeenCalledWith();
+    expect(notifyMock).toHaveBeenCalledWith({ removedRoomId: "room-1" });
     expect(replaceMock).toHaveBeenCalledWith("/chat");
     expect(refreshMock).toHaveBeenCalled();
   });

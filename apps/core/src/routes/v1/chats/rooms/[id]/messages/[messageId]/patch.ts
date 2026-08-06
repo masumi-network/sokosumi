@@ -121,7 +121,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     });
 
-    await publishChatRoomMessageRealtime(message);
+    await publishChatRoomMessageRealtime(message, "update");
 
     if (contentChanged) {
       waitUntil(scheduleChatRoomMessageUnfurls(message.id));

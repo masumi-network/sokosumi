@@ -12,14 +12,12 @@ import {
 } from "@/app/components/mobile-app-chrome";
 import { SokosumiIcon } from "@/components/masumi-logos";
 
-import CustomTrigger from "../sidebar/components/custom-trigger";
-
 /**
  * Mobile header leading slot (`md:hidden` size-8):
  * - chat home / chats list → Sokosumi icon (no back / hamburger)
  * - chat room / draft compose → back to `/chat/chats`
  * - main hub lists + nested → back (home or list root)
- * - otherwise → sidebar CustomTrigger
+ * - otherwise → back to home
  */
 export function HeaderLeadingControl(): React.ReactElement {
   const pathname = usePathname();
@@ -60,7 +58,15 @@ export function HeaderLeadingControl(): React.ReactElement {
     );
   }
 
-  return <CustomTrigger when="invisible" />;
+  return (
+    <Link
+      href="/chat"
+      aria-label={t("backToHome")}
+      className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
+    >
+      <ChevronLeft className="size-5" aria-hidden />
+    </Link>
+  );
 }
 
 /** Suspense fallback while search params resolve — brand, never hamburger. */

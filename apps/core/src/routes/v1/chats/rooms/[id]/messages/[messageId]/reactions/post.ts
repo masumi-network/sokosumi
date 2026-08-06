@@ -130,7 +130,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
     });
 
-    await publishChatRoomMessageRealtime(message);
+    await publishChatRoomMessageRealtime(message, "reaction");
 
     return ok(
       c,

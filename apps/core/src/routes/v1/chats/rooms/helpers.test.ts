@@ -8,12 +8,14 @@ import {
   buildDirectParticipantRoomKey,
   buildDirectRoomKey,
   buildDirectRoomName,
+  buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
   contentIncludesRoomAllMention,
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  isJoinableChannelDiscoverability,
   mapChatRoom,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
@@ -1052,6 +1054,39 @@ describe("requireArchivedChatRoomUserAccess guest gate", () => {
   });
 });
 
+describe("isJoinableChannelDiscoverability", () => {
+  it("allows public and external for every caller", () => {
+    expect(isJoinableChannelDiscoverability("public", false)).toBe(true);
+    expect(isJoinableChannelDiscoverability("external", false)).toBe(true);
+    expect(isJoinableChannelDiscoverability("public", true)).toBe(true);
+    expect(isJoinableChannelDiscoverability("external", true)).toBe(true);
+  });
+
+  it("allows private only when elevated", () => {
+    expect(isJoinableChannelDiscoverability("private", false)).toBe(false);
+    expect(isJoinableChannelDiscoverability("private", true)).toBe(true);
+  });
+
+  it("rejects null or unknown discoverability", () => {
+    expect(isJoinableChannelDiscoverability(null, true)).toBe(false);
+    expect(isJoinableChannelDiscoverability("weird", true)).toBe(false);
+  });
+});
+
+describe("buildDiscoverabilityFilter", () => {
+  it("returns public+external for plain members", () => {
+    expect(buildDiscoverabilityFilter(false)).toEqual({
+      in: ["public", "external"],
+    });
+  });
+
+  it("returns public+private+external for elevated callers", () => {
+    expect(buildDiscoverabilityFilter(true)).toEqual({
+      in: ["public", "private", "external"],
+    });
+  });
+});
+
 describe("requireJoinableOrgChannel", () => {
   it("allows public and external discoverability for host-org members", async () => {
     const tx = createAccessTx();
@@ -1073,7 +1108,10 @@ describe("requireJoinableOrgChannel", () => {
     vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(publicRoom as never);
     await expect(
       requireJoinableOrgChannel(ROOM_ID, MEMBER_ID, ORG_ID, tx),
-    ).resolves.toMatchObject({ id: ROOM_ID });
+    ).resolves.toMatchObject({
+      elevated: false,
+      room: { id: ROOM_ID },
+    });
 
     const externalRoom = createExternalRoom([
       createRoomMembership(MEMBER_ID, "member"),
@@ -1083,12 +1121,48 @@ describe("requireJoinableOrgChannel", () => {
     );
     await expect(
       requireJoinableOrgChannel(ROOM_ID, MEMBER_ID, ORG_ID, tx),
-    ).resolves.toMatchObject({ id: ROOM_ID, discoverability: "external" });
+    ).resolves.toMatchObject({
+      elevated: false,
+      room: { id: ROOM_ID, discoverability: "external" },
+    });
 
     expect(tx.chatRoom.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           discoverability: { in: ["public", "external"] },
+        }),
+      }),
+    );
+  });
+
+  it("includes private channels for organization owners", async () => {
+    const tx = createAccessTx();
+    vi.mocked(tx.organization.findUnique).mockResolvedValue({
+      id: ORG_ID,
+      name: "Host",
+    } as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValue({
+      id: "mem_1",
+      role: MemberRole.OWNER,
+      userId: MEMBER_ID,
+      organizationId: ORG_ID,
+    } as never);
+
+    const privateRoom = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      { discoverability: "private" },
+    );
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(
+      privateRoom as never,
+    );
+    await expect(
+      requireJoinableOrgChannel(ROOM_ID, MEMBER_ID, ORG_ID, tx),
+    ).resolves.toMatchObject({ elevated: true, room: { id: ROOM_ID } });
+
+    expect(tx.chatRoom.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          discoverability: { in: ["public", "private", "external"] },
         }),
       }),
     );

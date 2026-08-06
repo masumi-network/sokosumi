@@ -75,7 +75,10 @@ import { getInitials } from "@/lib/utils/text";
 import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
-import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
+import {
+  ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
+  type OrganizationChatRoomsChangedDetail,
+} from "./organization-chat-events";
 import {
   listOrganizationArchivedChatRoomsAction,
   listOrganizationChatRoomsAction,
@@ -374,7 +377,9 @@ export function OrganizationChatList({
       if (activeResult.ok) {
         setRoomRows((current) =>
           applyRoomReadOverlays(
-            upsertFirstPageRooms(activeResult.data, current),
+            hasAppendedActiveRef.current
+              ? upsertFirstPageRooms(activeResult.data, current)
+              : activeResult.data,
           ),
         );
         setActiveNextCursor((prev) =>
@@ -383,7 +388,9 @@ export function OrganizationChatList({
       }
       if (archivedResult.ok) {
         setArchivedRows((current) =>
-          upsertFirstPageRooms(archivedResult.data, current),
+          hasAppendedArchivedRef.current
+            ? upsertFirstPageRooms(archivedResult.data, current)
+            : archivedResult.data,
         );
         setArchivedNextCursor((prev) =>
           hasAppendedArchivedRef.current ? prev : archivedResult.nextCursor,
@@ -452,7 +459,21 @@ export function OrganizationChatList({
     let cancelled = false;
 
     const handleRoomsChanged = (event: Event) => {
-      const detail = (event as CustomEvent<{ room?: ChatRoom }>).detail;
+      const detail = (event as CustomEvent<OrganizationChatRoomsChangedDetail>)
+        .detail;
+      const removedRoomId = detail?.removedRoomId;
+      if (removedRoomId) {
+        setRoomRows((current) =>
+          applyRoomReadOverlays(
+            current.filter((row) => row.id !== removedRoomId),
+          ),
+        );
+        setArchivedRows((current) =>
+          current.filter((row) => row.id !== removedRoomId),
+        );
+        return;
+      }
+
       const room = detail?.room;
       if (room) {
         setRoomRows((current) => {
@@ -480,9 +501,13 @@ export function OrganizationChatList({
           return;
         }
         if (activeResult.ok) {
+          // No load-more history: replace. After load-more: keep older pages
+          // but still refresh first-page memberships.
           setRoomRows((current) =>
             applyRoomReadOverlays(
-              upsertFirstPageRooms(activeResult.data, current),
+              hasAppendedActiveRef.current
+                ? upsertFirstPageRooms(activeResult.data, current)
+                : activeResult.data,
             ),
           );
           setActiveNextCursor((prev) =>
@@ -491,7 +516,9 @@ export function OrganizationChatList({
         }
         if (archivedResult.ok) {
           setArchivedRows((current) =>
-            upsertFirstPageRooms(archivedResult.data, current),
+            hasAppendedArchivedRef.current
+              ? upsertFirstPageRooms(archivedResult.data, current)
+              : archivedResult.data,
           );
           setArchivedNextCursor((prev) =>
             hasAppendedArchivedRef.current ? prev : archivedResult.nextCursor,

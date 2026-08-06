@@ -15,14 +15,12 @@ import type {
 } from "@/lib/clients/generated/core";
 import type { CreditUsage } from "@/lib/types/credit";
 
-import AdminSettingsMenuGroup from "./components/admin-settings-menu-group.client";
 import AnnouncementCards from "./components/announcement-cards";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav.client";
 import { SidebarAccountChip } from "./components/sidebar-account-chip.client";
 import SidebarLogo from "./components/sidebar-logo.client";
-import SidebarNav from "./components/sidebar-nav.client";
 
 export type SidebarCreditsData = GetUsersByIdCreditsResponse["data"]["credits"];
 
@@ -67,7 +65,6 @@ interface SidebarProps {
   hermesMenuEnabled: boolean;
   lowCreditsThreshold: number;
   members: MemberWithOrganization[];
-  planLabel: string;
   planName: string | null;
   sessionUser: SessionUser;
   showDeveloperVendors: boolean;
@@ -92,7 +89,6 @@ export default function Sidebar({
   hermesMenuEnabled,
   lowCreditsThreshold,
   members,
-  planLabel,
   planName,
   sessionUser,
   showDeveloperVendors,
@@ -109,30 +105,21 @@ export default function Sidebar({
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
         <div className="flex w-full flex-col gap-0">
-          <SidebarNav
-            members={members}
-            activeOrganizationId={activeOrganizationId}
-            planLabel={planLabel}
-            showDeveloperVendors={showDeveloperVendors}
-          >
-            <PersonalAssistantNav enabled={hermesMenuEnabled} />
-            {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
-            <MenuItems />
-            <SidebarSeparator />
-            <AdminSettingsMenuGroup adminMenuEnabled={adminMenuEnabled} />
-            <SidebarSeparator />
-            <OrganizationChatList
-              key={activeOrganizationId ?? "personal"}
-              rooms={chatRooms}
-              roomsNextCursor={chatRoomsNextCursor}
-              archivedRooms={archivedChatRooms}
-              archivedRoomsNextCursor={archivedChatRoomsNextCursor}
-              pendingInvitations={pendingChatRoomInvitations}
-              currentUserId={currentUserId}
-              organizationId={activeOrganizationId}
-              canDeleteArchivedRooms={canDeleteArchivedRooms}
-            />
-          </SidebarNav>
+          <PersonalAssistantNav enabled={hermesMenuEnabled} />
+          {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+          <MenuItems />
+          <SidebarSeparator />
+          <OrganizationChatList
+            key={activeOrganizationId ?? "personal"}
+            rooms={chatRooms}
+            roomsNextCursor={chatRoomsNextCursor}
+            archivedRooms={archivedChatRooms}
+            archivedRoomsNextCursor={archivedChatRoomsNextCursor}
+            pendingInvitations={pendingChatRoomInvitations}
+            currentUserId={currentUserId}
+            organizationId={activeOrganizationId}
+            canDeleteArchivedRooms={canDeleteArchivedRooms}
+          />
         </div>
       </SidebarContent>
       <SidebarFooter className="mt-auto shrink-0 px-0">
@@ -152,6 +139,12 @@ export default function Sidebar({
             lowCreditsThreshold={lowCreditsThreshold}
             buyCreditsLabel={buyCreditsLabel}
             buyCreditsPath={buyCreditsPath}
+            adminSettingsChrome={{
+              adminMenuEnabled,
+              members,
+              activeOrganizationId,
+              showDeveloperVendors,
+            }}
           />
         </div>
       </SidebarFooter>

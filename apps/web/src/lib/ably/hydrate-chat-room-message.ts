@@ -1,4 +1,4 @@
-import type { ChatRoomMessageEventData } from "@/lib/ably/schema";
+import type { ChatRoomMessageFullEventData } from "@/lib/ably/schema";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 function toDate(value: string): Date {
@@ -11,9 +11,10 @@ function toNullableDate(value: string | null): Date | null {
 
 /**
  * Ably JSON carries ISO strings; Core client DTOs use Date for the same fields.
+ * Only for full create/update/delete envelopes (SOK-737 patches merge in place).
  */
 export function hydrateChatRoomMessageFromRealtime(
-  message: ChatRoomMessageEventData["message"],
+  message: ChatRoomMessageFullEventData["message"],
 ): ChatRoomMessage {
   return {
     id: message.id,

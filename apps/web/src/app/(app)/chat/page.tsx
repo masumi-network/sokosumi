@@ -6,7 +6,6 @@ import { MobileHomeHub } from "@/app/chat/components/mobile-home-hub";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
-import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { RoomsClient } from "./components/rooms-client";
@@ -42,12 +41,9 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   // not soft-reject dynamic APIs on this dynamic page.
   await connection();
 
-  const [query, tChannels, activeOrganization, session] = await Promise.all([
-    searchParams,
-    getTranslations("App.Channels"),
-    userService.getActiveOrganization(),
-    getSession(),
-  ]);
+  // Ordinary landing only needs session + coworkers. Draft create/DM paths
+  // load org context and channel copy below so soft-nav to /chat stays light.
+  const [query, session] = await Promise.all([searchParams, getSession()]);
 
   const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
   const isNewDirectMessage = firstSearchValue(query.dm) === "new";
@@ -56,6 +52,11 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   const landingNotice = <ChatLandingNotice notice={notice} />;
 
   if (isCreateChannelRequested || isNewDirectMessage) {
+    const [tChannels, activeOrganization] = await Promise.all([
+      getTranslations("App.Channels"),
+      userService.getActiveOrganization(),
+    ]);
+
     // Channels / create stay org-only. Start New DM (`?dm=new`) also works in
     // personal workspace: same DraftDirectMessage UI with empty members so the
     // picker is coworkers-only (solo coworker sends via room ensure).
@@ -161,10 +162,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     );
   }
 
-  const adminMenuEnabled = hasAdminRole(
-    (session.user as typeof session.user & { role?: string | null }).role,
-  );
-
   return (
     <>
       {landingNotice}
@@ -174,11 +171,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           userName={session.user.name ?? undefined}
         />
       </div>
-      <MobileHomeHub
-        sessionUser={session.user}
-        activeOrganizationId={session.session.activeOrganizationId ?? null}
-        adminMenuEnabled={adminMenuEnabled}
-      />
+      <MobileHomeHub sessionUser={session.user} />
     </>
   );
 }

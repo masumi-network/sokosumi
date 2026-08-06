@@ -2866,10 +2866,7 @@
         "extraCredits": "{credits, plural, =0 {0 verfügbar} =1 {1 verfügbar} other {# verfügbar}}"
       },
       "Plan": {
-        "getMoreCredits": "Mehr Credits erhalten",
-        "userPlan": "{plan}",
-        "organizationPlan": "{plan} ({organization})",
-        "unavailable": "Plan nicht verfügbar"
+        "getMoreCredits": "Mehr Credits erhalten"
       }
     },
     "Subscriptions": {
@@ -4788,83 +4785,6 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
       "directMessages": "Direct Messages",
-      "External": {
-        "title": "Extern",
-        "empty": "Noch keine externen Channels.",
-        "accept": "Annehmen",
-        "decline": "Ablehnen",
-        "acceptSuccess": "Du bist {name} beigetreten.",
-        "declineSuccess": "Einladung abgelehnt.",
-        "acceptError": "Einladung konnte nicht angenommen werden.",
-        "declineError": "Einladung konnte nicht abgelehnt werden.",
-        "pendingAria": "Ausstehende Einladung zu {name} von {organization}",
-        "hostOrganization": "{organization}"
-      },
-      "GuestInvite": {
-        "title": "Gäste einladen",
-        "description": "Lade Personen außerhalb deiner Organisation per E-Mail ein. Sie treten nur diesem Channel bei, nicht der Organisation.",
-        "emailLabel": "E-Mail",
-        "emailPlaceholder": "gast@example.com",
-        "send": "Einladung senden",
-        "invalidEmail": "Gib eine gültige E-Mail-Adresse ein.",
-        "inviteSuccess": "Einladung an {email} gesendet.",
-        "pendingTitle": "Ausstehende Einladungen",
-        "empty": "Keine ausstehenden Einladungen.",
-        "loading": "Einladungen werden geladen…",
-        "loadError": "Ausstehende Einladungen konnten nicht geladen werden.",
-        "retry": "Erneut versuchen",
-        "revoke": "Widerrufen",
-        "revokeAria": "Einladung für {email} widerrufen",
-        "revokeSuccess": "Einladung widerrufen.",
-        "guestsTitle": "Aktuelle Gäste",
-        "guestsEmpty": "Noch keine Gäste in diesem Kanal.",
-        "removeGuest": "Entfernen",
-        "removeGuestAria": "Gast {name} entfernen",
-        "removeGuestSuccess": "{name} wurde aus dem Kanal entfernt."
-      },
-      "ChatInvite": {
-        "title": "Channel-Einladung",
-        "description": "Du wurdest zu einem externen Channel eingeladen",
-        "hasInvitedYouToJoin": "hat dich eingeladen zu",
-        "organizationLabel": "Host-Organisation: {organizationName}",
-        "guestNote": "Mit dem Annehmen trittst du nur diesem Channel bei. Du wirst kein Mitglied der Host-Organisation.",
-        "acceptedTitle": "Willkommen in #{roomName}!",
-        "acceptedDescription": "Du bist als Gast von {organizationName} beigetreten.",
-        "declinedTitle": "Einladung abgelehnt",
-        "declinedDescription": "Du hast die Einladung zu #{roomName} abgelehnt.",
-        "revokedTitle": "Einladung widerrufen",
-        "revokedDescription": "Diese Einladung zu #{roomName} ist nicht mehr gültig.",
-        "expiredTitle": "Einladung abgelaufen",
-        "expiredDescription": "Diese Einladung zu #{roomName} ist abgelaufen.",
-        "goToRoom": "Channel öffnen",
-        "goToChat": "Zum Chat",
-        "Actions": {
-          "accept": "Annehmen",
-          "decline": "Ablehnen",
-          "Success": {
-            "accept": "Einladung angenommen",
-            "decline": "Einladung abgelehnt"
-          },
-          "Error": {
-            "accept": "Einladung konnte nicht angenommen werden",
-            "decline": "Einladung konnte nicht abgelehnt werden"
-          }
-        },
-        "Error": {
-          "NotFound": {
-            "title": "Einladung nicht gefunden",
-            "description": "Es gab ein Problem mit deiner Einladung.",
-            "content": "Diese Einladung existiert nicht, wurde widerrufen oder gehört nicht zu deinem Konto. Melde dich mit der eingeladenen E-Mail an und versuche es erneut.",
-            "footer": "Zum Chat"
-          },
-          "Expired": {
-            "title": "Einladung abgelaufen",
-            "description": "Es gab ein Problem mit deiner Einladung.",
-            "content": "Diese Einladung ist abgelaufen. Bitte den Host um eine neue.",
-            "footer": "Zum Chat"
-          }
-        }
-      },
       "loadMore": "Mehr laden",
       "loading": "Wird geladen...",
       "loadMoreError": "Weitere Chats konnten nicht geladen werden",
@@ -5036,10 +4956,10 @@
       "Browse": {
         "trigger": "Kanäle durchsuchen",
         "title": "Kanäle durchsuchen",
-        "description": "Finde öffentliche Organisationskanäle, denen du noch nicht beigetreten bist.",
+        "description": "Finde Organisationskanäle, denen du noch nicht beigetreten bist.",
         "searchPlaceholder": "Kanäle suchen",
         "loading": "Kanäle werden geladen…",
-        "empty": "Keine öffentlichen Kanäle zum Beitreten.",
+        "empty": "Keine Kanäle zum Beitreten.",
         "join": "Beitreten",
         "joinAria": "{name} beitreten",
         "joinSuccess": "Du bist {name} beigetreten.",
@@ -5051,10 +4971,8 @@
         "label": "Sichtbarkeit",
         "public": "Öffentlich",
         "private": "Privat",
-        "external": "Extern",
         "publicHelp": "Alle in der Organisation können diesen Kanal finden und beitreten.",
-        "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen.",
-        "externalHelp": "Alle in der Organisation können finden und beitreten. Außenstehende nur per E-Mail-Einladung."
+        "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen. Organisationsinhaber und Admins können ihn trotzdem finden und beitreten."
       },
       "CreateWizard": {
         "title": "Kanal erstellen",

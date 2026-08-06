@@ -236,7 +236,10 @@ export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewProps) {
         fileName={props.fileName}
         mediaType={props.mediaType}
         size={props.size}
-        className={props.className}
+        className={cn(
+          "min-w-0 w-full max-w-full basis-full shrink",
+          props.className,
+        )}
       />
     );
   }

@@ -1,13 +1,14 @@
 "use client";
 
+import { makeUserTasksChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useDebouncedCallback } from "use-debounce";
-
 import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { makeUserTasksChannelName, taskEventDataSchema } from "@/lib/ably";
+
+import { taskEventDataSchema } from "@/lib/ably";
 
 interface TaskStatusRealtimeListenerProps {
   userId: string;

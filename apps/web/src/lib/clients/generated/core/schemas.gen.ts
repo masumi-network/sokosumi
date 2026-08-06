@@ -4324,7 +4324,18 @@ export const ChatRoomSchema = {
             example: 'Weekly launch planning'
         },
         discoverability: {
-            $ref: '#/components/schemas/ChatRoomDiscoverability'
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'public',
+                'private',
+                'external',
+                null
+            ],
+            description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), or `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests). Null for direct rooms.',
+            example: 'public'
         },
         createdByUserId: {
             type: 'string',
@@ -4413,21 +4424,6 @@ export const ChatRoomSchema = {
         'userMembers',
         'coworkerMembers'
     ]
-} as const;
-
-export const ChatRoomDiscoverabilitySchema = {
-    type: [
-        'string',
-        'null'
-    ],
-    enum: [
-        'public',
-        'private',
-        'external',
-        null
-    ],
-    description: 'Channel discoverability: `"public"` (org-discoverable and self-joinable), `"private"` (roster-only), or `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests). Null for direct rooms.',
-    example: 'public'
 } as const;
 
 export const ChatRoomAccessSchema = {
@@ -4603,7 +4599,7 @@ export const CreateChatRoomRequestSchema = {
                     enum: [
                         'channel'
                     ],
-                    description: 'Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only. External channels are org-discoverable / self-joinable for host-org members; outsiders join only via room invitation as guests (owner/admin create only).'
+                    description: 'Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public and external channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them. External channels also allow guest invites (owner/admin create only).'
                 },
                 name: {
                     type: 'string',
@@ -4624,7 +4620,7 @@ export const CreateChatRoomRequestSchema = {
                         'external'
                     ],
                     default: 'public',
-                    description: 'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable). `"private"` keeps the channel roster-only. `"external"` is org-discoverable for host members; guests join only via room invitation (owner/admin create only).',
+                    description: 'Channel discoverability. Defaults to `"public"` (org-discoverable / joinable by any member). `"private"` keeps the channel roster-only for plain members; organization owners and admins can still browse and self-join. `"external"` is org-discoverable for host members; guests join only via room invitation (owner/admin create only).',
                     example: 'public'
                 },
                 memberUserIds: {
@@ -4726,12 +4722,7 @@ export const DiscoverableChatRoomSchema = {
             example: 'Weekly launch planning'
         },
         discoverability: {
-            type: 'string',
-            enum: [
-                'public',
-                'external'
-            ],
-            example: 'public'
+            $ref: '#/components/schemas/DiscoverableChannelDiscoverability'
         },
         memberCount: {
             type: 'integer',
@@ -4764,6 +4755,17 @@ export const DiscoverableChatRoomSchema = {
         'createdAt',
         'updatedAt'
     ]
+} as const;
+
+export const DiscoverableChannelDiscoverabilitySchema = {
+    type: 'string',
+    enum: [
+        'public',
+        'private',
+        'external'
+    ],
+    description: '`"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.',
+    example: 'public'
 } as const;
 
 export const GetChatUiMessagesResponseDataSchema = {
@@ -4938,15 +4940,7 @@ export const UpdateChatRoomRequestSchema = {
             example: 'Launch planning with design and AI research partners'
         },
         discoverability: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/ChatRoomDiscoverability'
-                },
-                {
-                    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable; `"private"` hides it from the discoverable listing; `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.',
-                    example: 'private'
-                }
-            ]
+            $ref: '#/components/schemas/ChatRoomDiscoverability'
         },
         memberUserIds: {
             type: 'array',
@@ -4972,6 +4966,17 @@ export const UpdateChatRoomRequestSchema = {
             ]
         }
     }
+} as const;
+
+export const ChatRoomDiscoverabilitySchema = {
+    type: 'string',
+    enum: [
+        'public',
+        'private',
+        'external'
+    ],
+    description: 'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.',
+    example: 'private'
 } as const;
 
 export const ArchivedChatRoomSchema = {
@@ -12904,6 +12909,47 @@ export const SubscriptionCatalogPlanSchema = {
         'priceId',
         'productId',
         'slug'
+    ]
+} as const;
+
+export const AblyTokenRequestSchema = {
+    type: 'object',
+    properties: {
+        keyName: {
+            type: 'string',
+            example: 'appId.keyId'
+        },
+        ttl: {
+            type: 'integer',
+            example: 3600000
+        },
+        capability: {
+            type: 'string',
+            example: '{"chat_rooms:room_abc":["subscribe"]}'
+        },
+        clientId: {
+            type: 'string',
+            example: 'user_123'
+        },
+        timestamp: {
+            type: 'integer',
+            example: 1704067200000
+        },
+        nonce: {
+            type: 'string',
+            example: 'random-nonce'
+        },
+        mac: {
+            type: 'string',
+            example: 'signature'
+        }
+    },
+    required: [
+        'keyName',
+        'capability',
+        'timestamp',
+        'nonce',
+        'mac'
     ]
 } as const;
 

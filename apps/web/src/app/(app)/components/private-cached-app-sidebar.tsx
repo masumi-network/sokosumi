@@ -14,10 +14,7 @@ import {
   chatRoomService,
   userService,
 } from "@/lib/services";
-import {
-  resolvePlanName,
-  resolvePlanSecondaryLabel,
-} from "@/lib/utils/plan-label";
+import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import {
   getCachedMyCredits,
@@ -56,7 +53,6 @@ export default async function PrivateCachedAppSidebar({
     cacheTag(privateSidebarOrgTag(activeOrganizationId));
   }
 
-  const tCreditPromise = getTranslations("App.Header.Credit");
   const tPlanPromise = getTranslations("App.Header.Plan");
   const hermesMenuEnabled = isHermesBetaAccessEmail(sessionUser.email);
   const lowCreditsThreshold =
@@ -78,28 +74,23 @@ export default async function PrivateCachedAppSidebar({
   const pendingInvitationsPromise = chatRoomService
     .listPendingInvitations()
     .catch(() => []);
-  const activeOrganizationPromise = userService.getActiveOrganization();
   const creditsPromise = getCachedMyCredits();
 
   const [
-    tCredit,
     tPlan,
     members,
     chatRoomsPage,
     archivedChatRoomsPage,
     pendingChatRoomInvitations,
     { showVendors: showDeveloperVendors },
-    activeOrganization,
     creditsResult,
   ] = await Promise.all([
-    tCreditPromise,
     tPlanPromise,
     membersPromise,
     chatRoomsPromise,
     archivedChatRoomsPromise,
     pendingInvitationsPromise,
     getDeveloperVendorAdminAccess(),
-    activeOrganizationPromise,
     creditsPromise,
   ]);
 
@@ -111,7 +102,6 @@ export default async function PrivateCachedAppSidebar({
   const creditsData = creditsResult?.data.credits ?? null;
   const currentPlan = creditsData?.subscription?.plan ?? "free";
   const planForLabel = creditsData === null ? null : currentPlan;
-  const organizationName = activeOrganization?.name ?? null;
   const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
   const currentTimestampMs = creditsResult?.meta?.timestamp
     ? new Date(creditsResult.meta.timestamp).getTime()
@@ -121,15 +111,7 @@ export default async function PrivateCachedAppSidebar({
     ? new Date(subscriptionPeriodEnd).getTime()
     : null;
 
-  const [planLabel, planName] = await Promise.all([
-    resolvePlanSecondaryLabel({
-      plan: planForLabel,
-      organizationName: activeOrganizationId
-        ? (organizationName ?? tCredit("unavailable"))
-        : null,
-    }),
-    resolvePlanName(planForLabel),
-  ]);
+  const planName = await resolvePlanName(planForLabel);
 
   const canDeleteArchivedRooms = Boolean(
     activeOrganizationId &&
@@ -169,7 +151,6 @@ export default async function PrivateCachedAppSidebar({
         hermesMenuEnabled={hermesMenuEnabled}
         lowCreditsThreshold={lowCreditsThreshold}
         members={members}
-        planLabel={planLabel}
         planName={planName}
         sessionUser={sessionUser}
         showDeveloperVendors={showDeveloperVendors}

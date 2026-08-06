@@ -106,13 +106,13 @@ describe("discoverableChatRoomSchema", () => {
     ).toBe("external");
   });
 
-  it("rejects private", () => {
-    expect(() =>
+  it("accepts private for elevated browse listing", () => {
+    expect(
       discoverableChatRoomSchema.parse({
         ...base,
         discoverability: "private",
-      }),
-    ).toThrow();
+      }).discoverability,
+    ).toBe("private");
   });
 });
 

@@ -181,4 +181,27 @@ describe("GET /chats/rooms/discoverable", () => {
     expect(response.status).toBe(400);
     expect(roomFindManyMock).not.toHaveBeenCalled();
   });
+
+  it("lists private channels for organization owners", async () => {
+    memberFindUniqueMock.mockResolvedValue({ role: "owner" });
+    roomFindManyMock.mockResolvedValue([
+      discoverableRow({
+        name: "Secret",
+        slug: "secret",
+        discoverability: "private",
+      }),
+    ]);
+
+    const response = await createApp(userAuthContext).request("/discoverable");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0].discoverability).toBe("private");
+    expect(roomFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          discoverability: { in: ["public", "private", "external"] },
+        }),
+      }),
+    );
+  });
 });

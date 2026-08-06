@@ -2866,10 +2866,7 @@
         "extraCredits": "{credits, plural, =0 {0 disponibles} =1 {1 disponible} other {# disponibles}}"
       },
       "Plan": {
-        "getMoreCredits": "Obtener más créditos",
-        "userPlan": "{plan}",
-        "organizationPlan": "{plan} ({organization})",
-        "unavailable": "Plan no disponible"
+        "getMoreCredits": "Obtener más créditos"
       }
     },
     "Subscriptions": {
@@ -4788,83 +4785,6 @@
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflow": "and {count} more",
       "directMessages": "Direct Messages",
-      "External": {
-        "title": "Externo",
-        "empty": "Aún no hay canales externos.",
-        "accept": "Aceptar",
-        "decline": "Rechazar",
-        "acceptSuccess": "Te uniste a {name}.",
-        "declineSuccess": "Invitación rechazada.",
-        "acceptError": "No se pudo aceptar la invitación.",
-        "declineError": "No se pudo rechazar la invitación.",
-        "pendingAria": "Invitación pendiente a {name} de {organization}",
-        "hostOrganization": "{organization}"
-      },
-      "GuestInvite": {
-        "title": "Invitar invitados",
-        "description": "Invita por correo a personas fuera de tu organización. Se unen solo a este canal, no a la organización.",
-        "emailLabel": "Correo",
-        "emailPlaceholder": "invitado@example.com",
-        "send": "Enviar invitación",
-        "invalidEmail": "Introduce un correo válido.",
-        "inviteSuccess": "Invitación enviada a {email}.",
-        "pendingTitle": "Invitaciones pendientes",
-        "empty": "No hay invitaciones pendientes.",
-        "loading": "Cargando invitaciones…",
-        "loadError": "No se pudieron cargar las invitaciones pendientes.",
-        "retry": "Reintentar",
-        "revoke": "Revocar",
-        "revokeAria": "Revocar invitación de {email}",
-        "revokeSuccess": "Invitación revocada.",
-        "guestsTitle": "Invitados actuales",
-        "guestsEmpty": "Aún no hay invitados en este canal.",
-        "removeGuest": "Quitar",
-        "removeGuestAria": "Quitar invitado {name}",
-        "removeGuestSuccess": "Se quitó a {name} de este canal."
-      },
-      "ChatInvite": {
-        "title": "Invitación al canal",
-        "description": "Te han invitado a un canal externo",
-        "hasInvitedYouToJoin": "te ha invitado a unirte a",
-        "organizationLabel": "Organización anfitriona: {organizationName}",
-        "guestNote": "Al aceptar te unes solo a este canal. No serás miembro de la organización anfitriona.",
-        "acceptedTitle": "¡Bienvenido a #{roomName}!",
-        "acceptedDescription": "Te uniste como invitado de {organizationName}.",
-        "declinedTitle": "Invitación rechazada",
-        "declinedDescription": "Rechazaste la invitación a #{roomName}.",
-        "revokedTitle": "Invitación revocada",
-        "revokedDescription": "Esta invitación a #{roomName} ya no es válida.",
-        "expiredTitle": "Invitación caducada",
-        "expiredDescription": "Esta invitación a #{roomName} ha caducado.",
-        "goToRoom": "Abrir canal",
-        "goToChat": "Ir al chat",
-        "Actions": {
-          "accept": "Aceptar",
-          "decline": "Rechazar",
-          "Success": {
-            "accept": "Invitación aceptada",
-            "decline": "Invitación rechazada"
-          },
-          "Error": {
-            "accept": "No se pudo aceptar la invitación",
-            "decline": "No se pudo rechazar la invitación"
-          }
-        },
-        "Error": {
-          "NotFound": {
-            "title": "Invitación no encontrada",
-            "description": "Hubo un problema con tu invitación.",
-            "content": "Esta invitación no existe, fue revocada o no es para tu cuenta. Inicia sesión con el correo invitado e inténtalo de nuevo.",
-            "footer": "Ir al chat"
-          },
-          "Expired": {
-            "title": "Invitación caducada",
-            "description": "Hubo un problema con tu invitación.",
-            "content": "Esta invitación ha caducado. Pide al anfitrión que envíe una nueva.",
-            "footer": "Ir al chat"
-          }
-        }
-      },
       "loadMore": "Cargar más",
       "loading": "Cargando...",
       "loadMoreError": "No se pudieron cargar más chats",
@@ -5036,10 +4956,10 @@
       "Browse": {
         "trigger": "Explorar canales",
         "title": "Explorar canales",
-        "description": "Encuentra canales públicos de la organización a los que aún no te has unido.",
+        "description": "Encuentra canales de la organización a los que aún no te has unido.",
         "searchPlaceholder": "Buscar canales",
         "loading": "Cargando canales…",
-        "empty": "No hay canales públicos a los que unirse.",
+        "empty": "No hay canales a los que unirse.",
         "join": "Unirse",
         "joinAria": "Unirse a {name}",
         "joinSuccess": "Te uniste a {name}.",
@@ -5051,10 +4971,8 @@
         "label": "Visibilidad",
         "public": "Público",
         "private": "Privado",
-        "external": "Externo",
         "publicHelp": "Cualquiera en la organización puede encontrar y unirse a este canal.",
-        "privateHelp": "Solo los miembros invitados pueden ver este canal.",
-        "externalHelp": "Cualquiera en la organización puede encontrar y unirse. Los externos solo por invitación por correo."
+        "privateHelp": "Solo los miembros invitados pueden ver este canal. Los propietarios y administradores de la organización aún pueden encontrarlo y unirse."
       },
       "CreateWizard": {
         "title": "Crear un canal",

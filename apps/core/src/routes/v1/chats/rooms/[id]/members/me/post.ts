@@ -14,13 +14,12 @@ import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
   chatRoomInclude,
+  isJoinableChannelDiscoverability,
   mapChatRoom,
   requireActiveOrganizationId,
   requireJoinableOrgChannel,
 } from "../../../helpers";
 import { recordChannelMembershipStatus } from "../../../membership-status";
-
-const JOINABLE_DISCOVERABILITY = new Set(["public", "external"]);
 
 const paramsSchema = z.object({
   id: z
@@ -37,7 +36,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/members/me",
     description:
-      "Self-join an active public or external channel in the active organization. Idempotent when already a member. If the caller is already a guest and is now a host-org member, upgrades access to member. Private, unknown, wrong-org, direct, or archived rooms return 404 (or 400 when the locked row is no longer joinable). External-channel guests join via room invitation, not this endpoint.",
+      "Self-join an active channel in the active organization. Public and external channels are joinable by any org member; private channels by organization owners and admins only. Idempotent when already a member. If the caller is already a guest and is now a host-org member, upgrades access to member. Unknown, wrong-org, direct, archived, or private-for-plain-member rooms return 404 (or 400 when the locked row is no longer joinable). External-channel guests join via room invitation, not this endpoint.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -68,7 +67,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     const { room, statusMessages } = await prisma.$transaction(async (tx) => {
-      const existing = await requireJoinableOrgChannel(
+      const { room: existing, elevated } = await requireJoinableOrgChannel(
         id,
         userContext.userId,
         organizationId,
@@ -90,9 +89,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         !locked ||
         locked.archivedAt !== null ||
         locked.kind !== "channel" ||
-        locked.discoverability === null ||
-        !JOINABLE_DISCOVERABILITY.has(locked.discoverability) ||
-        locked.organizationId !== organizationId
+        locked.organizationId !== organizationId ||
+        !isJoinableChannelDiscoverability(locked.discoverability, elevated)
       ) {
         throw notFound("Room not found");
       }
@@ -172,7 +170,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     for (const message of statusMessages) {
-      await publishChatRoomMessageRealtime(message);
+      await publishChatRoomMessageRealtime(message, "create");
     }
 
     return ok(c, chatRoomSchema.parse(mapChatRoom(room, userContext.userId)));
