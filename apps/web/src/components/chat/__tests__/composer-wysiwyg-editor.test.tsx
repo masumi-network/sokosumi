@@ -139,6 +139,54 @@ describe("ComposerWysiwygEditor", () => {
     expect(listbox).not.toHaveClass("w-72");
   });
 
+  it("keeps the mention listbox open when openMentions runs after editor blur", () => {
+    vi.useFakeTimers();
+
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <ComposerWysiwygEditor
+            ref={editorRef}
+            value={value}
+            onChange={setValue}
+            mentions={{
+              alice: { value: "Alice" },
+              bob: { value: "Bob" },
+            }}
+          />
+        </>
+      );
+    }
+
+    try {
+      render(<Harness />);
+      const editor = screen.getByRole("textbox");
+      act(() => {
+        editor.focus();
+      });
+      // Toolbar click path: editor blurs before openMentions runs.
+      fireEvent.blur(editor);
+      fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps emoji shortcode popup on the caret position helper", () => {
     function Harness() {
       const [value, setValue] = useState("");

@@ -753,6 +753,12 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const openMentions = useCallback(() => {
     const editor = editorRef.current;
     if (!editor) return;
+    // Toolbar clicks blur the editor first; cancel that close so the picker
+    // does not open then immediately dismiss.
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+      blurTimeoutRef.current = null;
+    }
     editor.focus();
     manualMentionOpenRef.current = true;
     openSuggestions({
