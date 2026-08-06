@@ -71,7 +71,7 @@ export default function HeaderProfileSectionClient({
       />
       <HeaderNotificationBell />
       <HeaderAccountControl
-        className="md:hidden"
+        className="ml-0.5 md:hidden"
         sessionUser={sessionUser}
         planName={accountSummary.planName}
         totalCredits={accountSummary.totalCredits}
