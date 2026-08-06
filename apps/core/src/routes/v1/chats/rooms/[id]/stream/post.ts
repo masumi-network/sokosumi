@@ -15,6 +15,7 @@ import {
   clearActiveUiStreamIdForRoom,
   setActiveUiStreamIdForRoom,
 } from "@/helpers/active-ui-stream-room-metadata";
+import { deleteChatRoomMessageMetadataKeys } from "@/helpers/chat-room-message-metadata-patch";
 import {
   clearPendingResponseMirror,
   getPendingResponseMirror,
@@ -411,26 +412,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       const onInvalidProviderConversationId = async () => {
         if (parentMessageId) {
           // Thread conversations live on parent metadata — clear so next turn
-          // recreates. Do not touch room.providerConversationId.
+          // recreates. Do not touch room.providerConversationId. Atomic key
+          // delete preserves concurrent unfurls / quote / membership.
           try {
-            const parent = await prisma.chatRoomMessage.findFirst({
-              where: { id: parentMessageId, roomId: room.id },
-              select: { metadata: true },
+            await deleteChatRoomMessageMetadataKeys({
+              messageId: parentMessageId,
+              keys: [THREAD_PROVIDER_CONVERSATION_ID_KEY],
+              requireNotDeleted: false,
             });
-            if (
-              parent?.metadata &&
-              typeof parent.metadata === "object" &&
-              !Array.isArray(parent.metadata)
-            ) {
-              const next = {
-                ...(parent.metadata as Record<string, unknown>),
-              };
-              delete next[THREAD_PROVIDER_CONVERSATION_ID_KEY];
-              await prisma.chatRoomMessage.update({
-                where: { id: parentMessageId },
-                data: { metadata: next },
-              });
-            }
           } catch (error) {
             console.error(
               "Failed to clear thread providerConversationId after invalid remote conversation (POST /rooms/{id}/stream):",
