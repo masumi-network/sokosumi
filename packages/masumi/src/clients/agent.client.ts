@@ -402,7 +402,7 @@ export function createAgentClient(config?: AgentClientConfig) {
           "input_schema",
         );
 
-        const response = await ssrfSafeFetch(inputSchemaUrl, {});
+        const response = await ssrfSafeFetch(inputSchemaUrl);
 
         if (!response.ok) {
           // Log HTTP errors (4xx/5xx)
