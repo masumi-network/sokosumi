@@ -3,11 +3,17 @@
 import gravatarUrl from "gravatar-url";
 import { useTranslations } from "next-intl";
 import { type ReactElement, useState } from "react";
+import {
+  ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS,
+  resolveAccountCreditsLabel,
+  resolveAccountDisplayName,
+  resolveAccountSummaryLabel,
+} from "@/app/components/sidebar/components/account-summary-labels";
 import { AccountSummaryMenu } from "@/app/components/sidebar/components/account-summary-menu.client";
 import type {
+  AccountAdminSettingsChrome,
   AccountSummaryCreditProps,
   AccountSummaryIdentityProps,
-  MobileAdminSettingsChrome,
 } from "@/app/components/sidebar/components/account-summary-types";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,7 +24,6 @@ import {
 } from "@/components/ui/popover";
 import { useSelfPresence } from "@/hooks/use-self-presence";
 import { cn } from "@/lib/utils";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getInitials } from "@/lib/utils/text";
 
 const GRAVATAR_SIZE = 80;
@@ -26,7 +31,7 @@ const GRAVATAR_SIZE = 80;
 export interface HeaderAccountControlProps
   extends AccountSummaryCreditProps,
     AccountSummaryIdentityProps {
-  mobileAdminSettings: MobileAdminSettingsChrome;
+  adminSettingsChrome: AccountAdminSettingsChrome;
   className?: string;
 }
 
@@ -41,7 +46,7 @@ export function HeaderAccountControl({
   lowCreditsThreshold,
   buyCreditsLabel,
   buyCreditsPath,
-  mobileAdminSettings,
+  adminSettingsChrome,
   className,
 }: HeaderAccountControlProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
@@ -51,20 +56,20 @@ export function HeaderAccountControl({
   const [isOpen, setIsOpen] = useState(false);
   const [menuInstance, setMenuInstance] = useState(0);
 
-  const displayName = sessionUser.name.trim() || sessionUser.email;
+  const displayName = resolveAccountDisplayName(
+    sessionUser.name,
+    sessionUser.email,
+  );
   const presenceLabel = tPresence(presence);
-
-  const displayTotal =
-    totalCredits === null ? null : formatCreditsForDisplay(totalCredits);
-  const creditsLabel =
-    displayTotal === null
-      ? null
-      : tBilling("balanceCreditsLabel", { credits: displayTotal });
-
-  const summary =
-    planName !== null && creditsLabel !== null
-      ? t("planAndCredits", { plan: planName, credits: creditsLabel })
-      : (creditsLabel ?? planName ?? t("detailsUnavailable"));
+  const creditsLabel = resolveAccountCreditsLabel(totalCredits, (credits) =>
+    tBilling("balanceCreditsLabel", { credits }),
+  );
+  const summary = resolveAccountSummaryLabel({
+    planName,
+    creditsLabel,
+    planAndCredits: (plan, credits) => t("planAndCredits", { plan, credits }),
+    detailsUnavailable: t("detailsUnavailable"),
+  });
 
   function handleOpenChange(open: boolean) {
     if (!open) {
@@ -118,7 +123,7 @@ export function HeaderAccountControl({
           side="bottom"
           align="end"
           container={null}
-          className="bg-popover text-popover-foreground max-h-(--radix-popover-content-available-height) w-64 overflow-y-auto overscroll-contain rounded-xl border p-3 shadow-md"
+          className={ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS}
         >
           <AccountSummaryMenu
             key={menuInstance}
@@ -132,7 +137,7 @@ export function HeaderAccountControl({
             lowCreditsThreshold={lowCreditsThreshold}
             buyCreditsLabel={buyCreditsLabel}
             buyCreditsPath={buyCreditsPath}
-            mobileAdminSettings={mobileAdminSettings}
+            adminSettingsChrome={adminSettingsChrome}
             onRequestClose={closeMenu}
           />
         </PopoverContent>

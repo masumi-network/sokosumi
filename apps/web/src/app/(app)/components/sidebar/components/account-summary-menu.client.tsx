@@ -17,11 +17,16 @@ import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { getInitials } from "@/lib/utils/text";
 
 import { AccountPopoverDrill } from "./account-popover-drill.client";
+import {
+  isLowCreditsBalance,
+  resolveAccountCreditsLabel,
+  resolveAccountDisplayName,
+} from "./account-summary-labels";
 import type {
+  AccountAdminSettingsChrome,
   AccountPopoverPanel,
   AccountSummaryCreditProps,
   AccountSummaryIdentityProps,
-  MobileAdminSettingsChrome,
 } from "./account-summary-types";
 
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -32,7 +37,7 @@ export interface AccountSummaryMenuProps
   extends AccountSummaryCreditProps,
     AccountSummaryIdentityProps {
   onRequestClose: () => void;
-  mobileAdminSettings?: MobileAdminSettingsChrome;
+  adminSettingsChrome: AccountAdminSettingsChrome;
 }
 
 export function AccountSummaryMenu({
@@ -47,7 +52,7 @@ export function AccountSummaryMenu({
   buyCreditsLabel,
   buyCreditsPath,
   onRequestClose,
-  mobileAdminSettings,
+  adminSettingsChrome,
 }: AccountSummaryMenuProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tCredit = useTranslations("Components.UserAvatar");
@@ -60,20 +65,16 @@ export function AccountSummaryMenu({
   const menuRootRef = useRef<HTMLDivElement>(null);
   const [panel, setPanel] = useState<AccountPopoverPanel>({ kind: "root" });
 
-  const displayName = sessionUser.name.trim() || sessionUser.email;
+  const displayName = resolveAccountDisplayName(
+    sessionUser.name,
+    sessionUser.email,
+  );
   const presenceLabel = tPresence(presence);
   const usage = creditUsage;
-
-  const displayTotal =
-    totalCredits === null ? null : formatCreditsForDisplay(totalCredits);
-  const creditsLabel =
-    displayTotal === null
-      ? null
-      : tBilling("balanceCreditsLabel", { credits: displayTotal });
-  const isLowCredits =
-    displayTotal !== null &&
-    displayTotal > 0 &&
-    displayTotal < lowCreditsThreshold;
+  const creditsLabel = resolveAccountCreditsLabel(totalCredits, (credits) =>
+    tBilling("balanceCreditsLabel", { credits }),
+  );
+  const isLowCredits = isLowCreditsBalance(totalCredits, lowCreditsThreshold);
 
   const displayExtraCredits =
     extraCredits === null ? null : formatCreditsForDisplay(extraCredits);
@@ -143,13 +144,13 @@ export function AccountSummaryMenu({
 
   return (
     <div ref={menuRootRef}>
-      {mobileAdminSettings && panel.kind !== "root" ? (
+      {panel.kind !== "root" ? (
         <AccountPopoverDrill
           key={panel.kind}
           panel={panel}
-          members={mobileAdminSettings.members}
-          activeOrganizationId={mobileAdminSettings.activeOrganizationId}
-          showDeveloperVendors={mobileAdminSettings.showDeveloperVendors}
+          members={adminSettingsChrome.members}
+          activeOrganizationId={adminSettingsChrome.activeOrganizationId}
+          showDeveloperVendors={adminSettingsChrome.showDeveloperVendors}
           onNavigatePanel={handleNavigatePanel}
           onNavigateRoute={handleNavigateRoute}
           onOpenExternal={handleOpenExternal}
@@ -251,53 +252,40 @@ export function AccountSummaryMenu({
               <Coins className="size-4 shrink-0" aria-hidden />
               {buyCreditsLabel}
             </Button>
-            {mobileAdminSettings ? (
-              <div className="divide-border divide-y">
-                {mobileAdminSettings.adminMenuEnabled ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleAdmin}
-                    className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
-                  >
-                    <ShieldCheck className="size-4 shrink-0" aria-hidden />
-                    {tMenu("admin")}
-                  </Button>
-                ) : null}
+            <div className="divide-border divide-y">
+              {adminSettingsChrome.adminMenuEnabled ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleNavigatePanel({ kind: "settings" })}
+                  onClick={handleAdmin}
                   className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
                 >
-                  <Settings className="size-4 shrink-0" aria-hidden />
-                  {tMenu("settings")}
+                  <ShieldCheck className="size-4 shrink-0" aria-hidden />
+                  {tMenu("admin")}
                 </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
-                >
-                  <LogOut className="size-4 shrink-0" aria-hidden />
-                  {tCredit("logout")}
-                </Button>
-              </div>
-            ) : (
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleNavigatePanel({ kind: "settings" })}
+                className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+              >
+                <Settings className="size-4 shrink-0" aria-hidden />
+                {tMenu("settings")}
+              </Button>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={handleLogout}
-                className="text-muted-foreground hover:text-foreground h-11 w-full justify-start gap-2 font-normal md:h-8"
+                className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
               >
                 <LogOut className="size-4 shrink-0" aria-hidden />
                 {tCredit("logout")}
               </Button>
-            )}
+            </div>
           </div>
         </div>
       )}
