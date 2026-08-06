@@ -5,11 +5,14 @@ import {
   filterNormalizedMentions,
   getActiveEmojiTrigger,
   getActiveTrigger,
+  getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
+  MENTION_COMPOSER_GAP_PX,
   type NormalizedMention,
   POPUP_HEIGHT_PX,
   serializeEditorText,
   setEditorFromRaw,
+  VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
 
 function stubViewport(height: number) {
@@ -145,6 +148,96 @@ describe("mention-textarea utils", () => {
       );
 
       expect(position.side).toBe("bottom");
+    });
+  });
+
+  describe("getMentionPopupPositionFromAnchorRect", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    function anchorRect(options: {
+      left: number;
+      width: number;
+      top: number;
+      height?: number;
+    }): DOMRect {
+      const height = options.height ?? 80;
+      return {
+        x: options.left,
+        y: options.top,
+        top: options.top,
+        bottom: options.top + height,
+        left: options.left,
+        right: options.left + options.width,
+        width: options.width,
+        height,
+        toJSON() {
+          return this;
+        },
+      };
+    }
+
+    it("anchors above the card with a small bottom gap and matching width", () => {
+      stubViewport(800);
+      const left = 40;
+      const width = 360;
+      const top = 500;
+      const position = getMentionPopupPositionFromAnchorRect(
+        anchorRect({ left, width, top }),
+      );
+
+      expect(position.side).toBe("top");
+      expect(position.top).toBe(top - MENTION_COMPOSER_GAP_PX);
+      expect(position.left).toBe(left);
+      expect(position.width).toBe(width);
+      expect(position.maxHeight).toBe(
+        Math.min(
+          POPUP_HEIGHT_PX,
+          Math.max(0, top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX),
+        ),
+      );
+    });
+
+    it("caps maxHeight to available space when less than 80px remains above", () => {
+      stubViewport(800);
+      const top = 50;
+      const aboveSpace = top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
+      expect(aboveSpace).toBeLessThan(80);
+
+      const position = getMentionPopupPositionFromAnchorRect(
+        anchorRect({ left: 40, width: 360, top }),
+      );
+
+      expect(position.maxHeight).toBe(aboveSpace);
+      expect(position.maxHeight).toBeLessThan(80);
+    });
+
+    it("clamps left and width into the viewport padding", () => {
+      stubViewport(800);
+      vi.stubGlobal("innerWidth", 400);
+      const position = getMentionPopupPositionFromAnchorRect(
+        anchorRect({ left: -20, width: 440, top: 300 }),
+      );
+
+      expect(position.left).toBe(VIEWPORT_PADDING_PX);
+      expect(position.width).toBe(400 - 2 * VIEWPORT_PADDING_PX);
+    });
+
+    it("clamps left and width against visualViewport offsetLeft when zoomed", () => {
+      stubViewport(800);
+      vi.stubGlobal("visualViewport", {
+        offsetTop: 0,
+        offsetLeft: 120,
+        width: 320,
+        height: 800,
+      });
+      const position = getMentionPopupPositionFromAnchorRect(
+        anchorRect({ left: 40, width: 400, top: 400 }),
+      );
+
+      expect(position.left).toBe(120 + VIEWPORT_PADDING_PX);
+      expect(position.width).toBe(320 - 2 * VIEWPORT_PADDING_PX);
     });
   });
 
