@@ -171,9 +171,9 @@ export async function publishChatRoomMessageEvent(
   });
 }
 
-export const CHAT_MEMBERSHIP_REVOKED_EVENT_NAME = "chat_membership_revoked";
+const CHAT_MEMBERSHIP_REVOKED_EVENT_NAME = "chat_membership_revoked";
 
-export type ChatMembershipRevokeReason = "removed" | "left";
+type ChatMembershipRevokeReason = "removed" | "left";
 
 interface PublishChatMembershipRevokedInput {
   userId: string;

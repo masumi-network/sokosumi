@@ -28,7 +28,7 @@ export function makeUserChatControlChannelName(userId: string): string {
 }
 
 /** Shared room-scoped channel for chat_room_message fan-out (SOK-741). */
-export const CHAT_ROOM_CHANNEL_PREFIX = "chat_rooms:room_";
+const CHAT_ROOM_CHANNEL_PREFIX = "chat_rooms:room_";
 
 export function makeChatRoomChannelName(roomId: string): string {
   return `${CHAT_ROOM_CHANNEL_PREFIX}${roomId}`;

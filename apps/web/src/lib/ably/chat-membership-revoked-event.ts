@@ -7,7 +7,3 @@ export const chatMembershipRevokedEventSchema = z.object({
   reason: z.enum(["removed", "left"]),
   at: z.string().min(1),
 });
-
-export type ChatMembershipRevokedEvent = z.infer<
-  typeof chatMembershipRevokedEventSchema
->;

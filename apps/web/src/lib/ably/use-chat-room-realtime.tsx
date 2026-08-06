@@ -25,7 +25,7 @@ const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
 /**
  * Thin backstop re-auth while chat realtime is mounted (missed revoke events,
  * long-lived tabs). Primary path is the chat control channel revoke signal
- * (SOK-742). Keep this much slower than the previous 15s poll.
+ * (SOK-742).
  */
 export const CHAT_ROOM_CAP_REAUTH_INTERVAL_MS = 120_000;
 
