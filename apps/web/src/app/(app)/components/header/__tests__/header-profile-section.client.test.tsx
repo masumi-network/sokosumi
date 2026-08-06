@@ -258,7 +258,7 @@ describe("HeaderProfileSectionClient", () => {
 
     expect(headerAccountControlMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        className: "md:hidden",
+        className: "ml-0.5 md:hidden",
         planName: "Pro",
         mobileAdminSettings: expect.objectContaining({
           adminMenuEnabled: true,
