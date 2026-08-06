@@ -250,7 +250,11 @@ export function FileChip(props: FileChipProps) {
           </a>
         </div>
         {isVideo ? (
-          <FileChipVideoFrame src={mediaSrc} fileName={fileName} />
+          <FileChipVideoFrame
+            key={mediaSrc}
+            src={mediaSrc}
+            fileName={fileName}
+          />
         ) : (
           <audio
             src={mediaSrc}

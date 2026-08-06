@@ -185,6 +185,47 @@ describe("FileChip", () => {
     );
   });
 
+  it("resets the video frame aspect ratio when the src changes", () => {
+    const { rerender, container } = render(
+      <FileChip
+        url="https://blob.example.com/uploads/portrait.mp4"
+        fileName="portrait.mp4"
+      />,
+    );
+
+    const video = container.querySelector("video");
+    expect(video).not.toBeNull();
+    Object.defineProperty(video, "videoWidth", {
+      configurable: true,
+      value: 1080,
+    });
+    Object.defineProperty(video, "videoHeight", {
+      configurable: true,
+      value: 1920,
+    });
+    fireEvent.loadedMetadata(video!);
+
+    expect(screen.getByTestId("file-chip-video-frame")).toHaveStyle({
+      aspectRatio: "0.5625",
+    });
+
+    rerender(
+      <FileChip
+        url="https://blob.example.com/uploads/landscape.mp4"
+        fileName="landscape.mp4"
+      />,
+    );
+
+    // key={mediaSrc} remounts the frame so stale portrait ratio cannot stick.
+    expect(screen.getByTestId("file-chip-video-frame")).toHaveStyle({
+      aspectRatio: String(16 / 9),
+    });
+    expect(container.querySelector("video")).toHaveAttribute(
+      "src",
+      "https://blob.example.com/uploads/landscape.mp4",
+    );
+  });
+
   it("renders an inline audio player for audio files", () => {
     const { container } = render(
       <FileChip
