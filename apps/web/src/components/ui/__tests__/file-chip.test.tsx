@@ -162,13 +162,16 @@ describe("FileChip", () => {
     expect(video).toHaveAttribute("controls");
     expect(video).not.toHaveAttribute("autoplay");
     expect(video).toHaveClass("max-h-80");
+    expect(video).toHaveClass("min-w-0");
     expect(video).toHaveClass("w-full");
     expect(video).toHaveClass("max-w-full");
     expect(video).toHaveClass("object-contain");
     expect(video).toHaveClass("rounded-lg");
     expect(screen.getByTestId("file-chip-video")).toHaveClass(
+      "min-w-0",
       "w-full",
       "max-w-full",
+      "overflow-hidden",
     );
     // download secondary still available (exact name avoids nested media fallback)
     expect(screen.getByRole("link", { name: /^download$/i })).toHaveAttribute(

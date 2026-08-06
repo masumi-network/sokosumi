@@ -170,8 +170,9 @@ export function FileChip(props: FileChipProps) {
     return (
       <div
         className={cn(
-          // Stay inside the message column (thread can be narrower than 24rem).
-          "flex w-full max-w-full flex-col gap-2 rounded-md border p-2",
+          // min-w-0 lets the chip shrink in flex message rows (large images do
+          // the same); overflow-hidden clamps native video control min-width.
+          "flex min-w-0 w-full max-w-full flex-col gap-2 overflow-hidden rounded-md border p-2",
           className,
         )}
         title={title}
@@ -212,7 +213,7 @@ export function FileChip(props: FileChipProps) {
             controls
             playsInline
             preload="metadata"
-            className="max-h-80 w-full max-w-full rounded-lg object-contain"
+            className="max-h-80 min-w-0 w-full max-w-full rounded-lg object-contain"
             aria-label={fileName}
           />
         ) : (
@@ -220,7 +221,7 @@ export function FileChip(props: FileChipProps) {
             src={mediaSrc}
             controls
             preload="metadata"
-            className="w-full"
+            className="min-w-0 w-full max-w-full"
             aria-label={fileName}
           />
         )}
