@@ -131,6 +131,7 @@ export function AccountSummaryMenu({
   if (mobileAdminSettings && panel.kind !== "root") {
     return (
       <AccountPopoverDrill
+        key={panel.kind}
         panel={panel}
         members={mobileAdminSettings.members}
         activeOrganizationId={mobileAdminSettings.activeOrganizationId}

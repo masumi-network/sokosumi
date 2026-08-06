@@ -1,6 +1,14 @@
 import type { SessionUser } from "@sokosumi/utils";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+async function flushAnimationFrame() {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -123,6 +131,41 @@ describe("HeaderAccountControl", () => {
     fireEvent.click(screen.getByRole("button", { name: "account" }));
 
     expect(pushMock).toHaveBeenCalledWith("/account");
+  });
+
+  it("moves keyboard focus into the settings drill when Settings is activated", async () => {
+    renderControl();
+    openControl();
+
+    const settings = screen.getByRole("button", { name: "settings" });
+    settings.focus();
+    expect(settings).toHaveFocus();
+
+    fireEvent.click(settings);
+    await flushAnimationFrame();
+
+    const back = screen.getByRole("button", { name: "back" });
+    const active = document.activeElement;
+    expect(active).not.toBeNull();
+    expect(active).not.toBe(settings);
+    expect(active?.contains(back)).toBe(true);
+  });
+
+  it("moves keyboard focus into nested drill panels", async () => {
+    renderControl();
+    openControl();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+    await flushAnimationFrame();
+
+    fireEvent.click(screen.getByRole("button", { name: "developer" }));
+    await flushAnimationFrame();
+
+    const back = screen.getByRole("button", { name: "back" });
+    const active = document.activeElement;
+    expect(active).not.toBeNull();
+    expect(active?.contains(back)).toBe(true);
+    expect(screen.getByRole("button", { name: "apiKeys" })).toBeInTheDocument();
   });
 
   it("navigates to Admin from the root panel", () => {
