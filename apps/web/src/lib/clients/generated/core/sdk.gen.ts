@@ -399,7 +399,7 @@ export const postChatsRooms = <ThrowOnError extends boolean = false>(options?: O
 });
 
 /**
- * List active public (`discoverability=public`) channels in the active organization that the caller is not already a member of. Requires an active organization. Optional `q` filters by name or slug.
+ * List active channels in the active organization that the caller is not already a member of. Public channels are listed for every org member; private channels only for organization owners and admins. Requires an active organization. Optional `q` filters by name or slug.
  */
 export const getChatsRoomsDiscoverable = <ThrowOnError extends boolean = false>(options?: Options<GetChatsRoomsDiscoverableData, ThrowOnError>): RequestResult<GetChatsRoomsDiscoverableResponses, GetChatsRoomsDiscoverableErrors, ThrowOnError> => (options?.client ?? client).get<GetChatsRoomsDiscoverableResponses, GetChatsRoomsDiscoverableErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsDiscoverableResponseTransformer,
@@ -488,7 +488,7 @@ export const deleteChatsRoomsByIdMembersMe = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Self-join an active public channel in the active organization. Idempotent when already a member. Private, unknown, wrong-org, direct, or archived rooms return 404 (or 400 when the locked row is no longer joinable).
+ * Self-join an active channel in the active organization. Public channels are joinable by any org member; private channels by organization owners and admins only. Idempotent when already a member. Unknown, wrong-org, direct, archived, or private-for-plain-member rooms return 404 (or 400 when the locked row is no longer joinable).
  */
 export const postChatsRoomsByIdMembersMe = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdMembersMeData, ThrowOnError>): RequestResult<PostChatsRoomsByIdMembersMeResponses, PostChatsRoomsByIdMembersMeErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdMembersMeResponses, PostChatsRoomsByIdMembersMeErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdMembersMeResponseTransformer,
