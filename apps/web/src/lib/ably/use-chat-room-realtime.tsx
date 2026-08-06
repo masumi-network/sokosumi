@@ -22,13 +22,6 @@ import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message
 
 const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
 
-/**
- * Thin backstop re-auth while chat realtime is mounted (missed revoke events,
- * long-lived tabs). Primary path is the chat control channel revoke signal
- * (SOK-742).
- */
-export const CHAT_ROOM_CAP_REAUTH_INTERVAL_MS = 120_000;
-
 interface UseChatRoomRealtimeOptions {
   /** Membership room ids to attach (all rooms for sidebar/live parity). */
   roomIds: readonly string[];
@@ -46,8 +39,8 @@ interface UseChatRoomRealtimeOptions {
  *
  * Remote membership revoke (SOK-742): Core publishes
  * `chat_membership_revoked` on `chat_control:user_{id}`; client detaches the
- * room immediately then re-authorizes so token caps drop. Thin backstop:
- * focus, visibility→visible, and a long interval.
+ * room immediately then re-authorizes so token caps drop. Thin backstop
+ * (SOK-747): focus and visibility→visible only — no periodic re-auth interval.
  */
 export function useChatRoomRealtime({
   roomIds,
@@ -100,7 +93,7 @@ export function useChatRoomRealtime({
     }
 
     const handleMessage = handleMessageRef.current;
-    /** Coalesce focus+visibility+interval+revoke so two applies never interleave. */
+    /** Coalesce focus+visibility+revoke so two applies never interleave. */
     let syncInFlight = false;
     let syncQueued = false;
 
@@ -221,10 +214,6 @@ export function useChatRoomRealtime({
       handleMembershipRevoked,
     );
 
-    const intervalId = window.setInterval(() => {
-      void syncMembershipChannels();
-    }, CHAT_ROOM_CAP_REAUTH_INTERVAL_MS);
-
     const onFocus = () => {
       void syncMembershipChannels();
     };
@@ -240,7 +229,6 @@ export function useChatRoomRealtime({
     return () => {
       syncGenerationRef.current += 1;
       syncQueued = false;
-      window.clearInterval(intervalId);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibilityChange);
       controlChannel.unsubscribe(
