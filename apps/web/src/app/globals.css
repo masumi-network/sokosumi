@@ -805,7 +805,7 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
 /* The Personal Assistant surface keeps the shared breadcrumb header (like
  * every other route) but renders its chat/empty-state full-bleed in the
  * content area below it. Kill AppLayout's `p-4` gutter so the chat fills the
- * area; keep main's normal `calc(100svh-64px)` height (so it sits under the
+ * area; keep main's normal `calc(100svh-4rem)` height (so it sits under the
  * header, not over it) and its `overflow-y-auto`. Done here instead of via
  * `data-agent-fullbleed` so main keeps its own scroll; otherwise the setup
  * loaders leak excess height to the document body. Keyed off a body attribute

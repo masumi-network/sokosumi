@@ -28,7 +28,7 @@ export default function ShareLayout({ children }: ShareLayoutProps) {
     <ClientMessageBoundary paths={SHARE_MESSAGE_PATHS}>
       <div className="flex w-full flex-col overflow-clip">
         <Header className="h-16 p-4" />
-        <main className="relative min-h-[calc(100svh-64px)]">{children}</main>
+        <main className="relative min-h-[calc(100svh-4rem)]">{children}</main>
         <div className="container mx-auto flex justify-center p-4 md:p-8">
           <div className="w-full">
             <SharePageCTA />

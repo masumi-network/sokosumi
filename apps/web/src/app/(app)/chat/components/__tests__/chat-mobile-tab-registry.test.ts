@@ -47,4 +47,13 @@ describe("chatMobileHeightShellClass", () => {
       CHAT_MOBILE_HEIGHT_SHELL_CLASS,
     );
   });
+
+  it("uses rem header offset (not fixed 64px) so Dynamic Type can scale", () => {
+    expect(CHAT_MOBILE_HEIGHT_SHELL_CLASS).toContain("100svh-4rem");
+    expect(CHAT_MOBILE_HEIGHT_SHELL_CLASS).not.toContain("64px");
+    expect(CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS).toBe(
+      "h-[calc(100svh-4rem)]",
+    );
+    expect(CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS).not.toContain("64px");
+  });
 });

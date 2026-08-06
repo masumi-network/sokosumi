@@ -19,9 +19,9 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
-  withCoworkerContextHeaderParameters,
+  withOrchestratorContextHeaderParameters,
 } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import {
   notificationKindSchema,
   notificationListSchema,
@@ -61,12 +61,12 @@ const query = z
   })
   .extend(cursorPaginationQuerySchema.shape);
 
-const route = withCoworkerContextHeaderParameters(
+const route = withOrchestratorContextHeaderParameters(
   createRoute({
     method: "get",
     path: "/",
     description:
-      "List in-app notification-center items for the effective user (session user, or orchestrator/coworker with context headers) with cursor pagination. CHAT kind is excluded (browser OS alerts + room attention only).",
+      "List in-app notification-center items for the effective user (session user, or orchestrator with context headers) with cursor pagination. CHAT kind is excluded (browser OS alerts + room attention only).",
     tags: ["Notifications"],
     request: {
       query,
@@ -148,7 +148,7 @@ function mapNotificationToItem(notification: {
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const userContext = requireUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
