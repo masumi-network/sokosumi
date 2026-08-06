@@ -13,6 +13,7 @@ describe("buildAblySubscribeCapability", () => {
       "agent_jobs:*:user_user_123": ["subscribe"],
       "tasks:all:user_user_123": ["subscribe"],
       "notifications:all:user_user_123": ["subscribe"],
+      "chat_control:user_user_123": ["subscribe"],
       "chat_rooms:room_room-a": ["subscribe"],
       "chat_rooms:room_room-b": ["subscribe"],
     });
@@ -26,6 +27,7 @@ describe("buildAblySubscribeCapability", () => {
       Object.keys(capability).filter((k) => k.startsWith("chat_rooms:")),
     ).toEqual([]);
     expect(capability["tasks:all:user_user_123"]).toEqual(["subscribe"]);
+    expect(capability["chat_control:user_user_123"]).toEqual(["subscribe"]);
   });
 
   it("does not grant the legacy per-user chat_rooms wildcard", () => {

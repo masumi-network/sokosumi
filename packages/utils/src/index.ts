@@ -1,8 +1,10 @@
 export {
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  parseChatRoomIdFromChannelName,
 } from "./ably-channel.js";
 export {
   betterAuthOrganizationAdditionalFields,
@@ -25,6 +27,11 @@ export type {
   SessionRecord,
   SessionUser,
 } from "./better-auth-types.js";
+export {
+  CHAT_MEMBERSHIP_REVOKE_REASONS,
+  CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+  type ChatMembershipRevokeReason,
+} from "./chat-membership-revoked.js";
 export {
   CHAT_PRESENCE_AFK_WINDOW_MS,
   CHAT_PRESENCE_ONLINE_WINDOW_MS,

@@ -16,7 +16,7 @@ const route = withOrchestratorContextHeaderParameters(
     method: "post",
     path: "/ably-token",
     description:
-      "Mint an Ably TokenRequest for Realtime subscribe. Grants per-membership chat room channels plus user task/notification/job wildcards. Call after join/leave so capabilities refresh.",
+      "Mint an Ably TokenRequest for Realtime subscribe. Grants per-membership chat room channels, always-on chat control (membership revoke), plus user task/notification/job wildcards. Call after join/leave or on revoke so capabilities refresh.",
     tags: ["Realtime"],
     responses: {
       200: jsonSuccessResponse(
