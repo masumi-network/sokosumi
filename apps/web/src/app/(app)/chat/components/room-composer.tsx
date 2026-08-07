@@ -458,7 +458,8 @@ export function RoomComposer({
         formRef={formRef}
         onSubmit={onSubmit}
         withOuterPadding={false}
-        className="px-3 pt-2 md:px-5 md:pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+        withSafeAreaPadding
+        className="px-3 pt-2 md:px-5 md:pt-3"
         attachments={attachments}
         onRemoveAttachment={(attachment) =>
           removeAttachment({
