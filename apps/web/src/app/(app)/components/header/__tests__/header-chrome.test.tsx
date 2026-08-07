@@ -17,12 +17,17 @@ describe("HeaderChrome", () => {
     );
 
     const header = screen.getByRole("banner");
+    const tokens = header.className.split(/\s+/);
     expect(header.className).toContain("pt-[env(safe-area-inset-top)]");
     expect(header.className).toContain("pl-[env(safe-area-inset-left)]");
     expect(header.className).toContain("pr-[env(safe-area-inset-right)]");
     for (const token of APP_HEADER_SAFE_AREA_PADDING_CLASS.split(" ")) {
       expect(header.className).toContain(token);
     }
+
+    // fixed/sticky own the containing block; relative would fight fixed in CSS.
+    expect(tokens).toContain("fixed");
+    expect(tokens).not.toContain("relative");
 
     // Glass stays on the full outer chrome (Apple mock).
     expect(header.className).toMatch(/backdrop-blur-2xl/);

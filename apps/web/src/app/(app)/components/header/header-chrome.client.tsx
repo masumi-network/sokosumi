@@ -26,7 +26,9 @@ export function HeaderChrome({ className, children }: HeaderChromeProps) {
   return (
     <header
       className={cn(
-        "relative border-grid fixed top-0 z-50 w-full border-b-0 md:sticky md:border-b md:bg-sidebar md:backdrop-blur-none md:backdrop-saturate-100 md:pl-0 md:pr-0 dark:md:bg-sidebar",
+        // `fixed` / `md:sticky` already form the absolute underlay containing block.
+        // Do not add `relative` — it conflicts with `fixed` in the Tailwind cascade.
+        "border-grid fixed top-0 z-50 w-full border-b-0 md:sticky md:border-b md:bg-sidebar md:backdrop-blur-none md:backdrop-saturate-100 md:pl-0 md:pr-0 dark:md:bg-sidebar",
         APP_HEADER_SAFE_AREA_PADDING_CLASS,
         mobileChromeSurfaceClass(isApple),
       )}
