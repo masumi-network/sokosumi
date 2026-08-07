@@ -46,6 +46,7 @@ import {
   type ComposerFormatCommand,
   getComposerActiveFormats,
 } from "@/lib/utils/composer-active-formats";
+import { matchEmoticonClosedAtBoundary } from "@/lib/utils/composer-emoticons";
 import {
   htmlToMarkdown,
   markdownToHtml,
@@ -66,6 +67,23 @@ import {
 } from "@/lib/utils/emoji-shortcodes";
 import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
+
+const COMPOSER_PROTECTED_TAGS = new Set(["CODE", "PRE"]);
+
+function isInsideComposerProtectedContext(
+  node: Node | null,
+  root: HTMLElement,
+): boolean {
+  let current: Node | null = node;
+  while (current && current !== root) {
+    if (current instanceof HTMLElement) {
+      if (COMPOSER_PROTECTED_TAGS.has(current.tagName)) return true;
+      if (current.dataset.mentionKey) return true;
+    }
+    current = current.parentNode;
+  }
+  return false;
+}
 
 type SuggestionUiState =
   | { open: false }
@@ -446,6 +464,42 @@ export function ComposerWysiwygEditor<TData = unknown>({
         : exactEmoji.emoji;
       const textNode = document.createTextNode(insert);
       range.insertNode(textNode);
+      setCaretAfterNode(editorRef.current, textNode);
+      isInternalChange.current = true;
+      syncFromEditor();
+      closeSuggestions();
+      return;
+    }
+
+    // Emoticon live convert: boundary char stays after `end` — insert emoji only.
+    const selection = window.getSelection();
+    const anchorNode =
+      selection && selection.rangeCount > 0
+        ? selection.getRangeAt(0).startContainer
+        : null;
+
+    const emoticonMatch = matchEmoticonClosedAtBoundary(text, caret);
+    if (
+      emoticonMatch &&
+      editorRef.current &&
+      !isInsideComposerProtectedContext(anchorNode, editorRef.current)
+    ) {
+      const startPos = findPositionForOffset(
+        editorRef.current,
+        emoticonMatch.start,
+      );
+      const endPos = findPositionForOffset(
+        editorRef.current,
+        emoticonMatch.end,
+      );
+      const range = document.createRange();
+      range.setStart(startPos.node, startPos.offset);
+      range.setEnd(endPos.node, endPos.offset);
+      range.deleteContents();
+
+      const textNode = document.createTextNode(emoticonMatch.emoji);
+      range.insertNode(textNode);
+      // Caret after emoji, before trailing boundary still in DOM
       setCaretAfterNode(editorRef.current, textNode);
       isInternalChange.current = true;
       syncFromEditor();

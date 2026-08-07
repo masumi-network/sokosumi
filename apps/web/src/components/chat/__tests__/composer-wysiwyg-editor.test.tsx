@@ -752,4 +752,63 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor.innerHTML).not.toMatch(/color\s*:/i);
     expect(editor.textContent).toBe("stuck dark");
   });
+
+  it("converts :D to emoji after trailing space", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":D ";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain("😄");
+    expect(editor.textContent).not.toContain(":D");
+  });
+
+  it("does not convert emoticons inside inline code", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.innerHTML = "<code>:D </code>";
+    const code = editor.querySelector("code");
+    expect(code).toBeTruthy();
+    const textNode = code!.firstChild as Text;
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode, textNode.length);
+    range.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain(":D");
+    expect(editor.textContent).not.toContain("😄");
+  });
 });
