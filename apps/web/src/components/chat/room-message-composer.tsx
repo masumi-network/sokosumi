@@ -3,13 +3,11 @@
 import { ArrowUp, Loader2 } from "lucide-react";
 import { type FormEvent, type ReactNode, type Ref } from "react";
 
-import {
-  CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
-  CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD,
-} from "@/app/chat/components/chat-mobile-tab-registry";
+import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
+import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 
@@ -79,6 +77,8 @@ export function RoomMessageComposer({
   belowEditor,
   sendButtonTestId,
 }: RoomMessageComposerProps) {
+  const keyboardOpen = useKeyboardOpen();
+
   return (
     <form
       ref={formRef}
@@ -87,8 +87,7 @@ export function RoomMessageComposer({
         withOuterPadding &&
           cn(
             "px-5 pt-2 md:pt-3",
-            CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
-            CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD,
+            chatMobileComposerSafeAreaPbClass(keyboardOpen),
           ),
         className,
       )}

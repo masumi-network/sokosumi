@@ -5,6 +5,7 @@ import {
   CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD,
   CHAT_MOBILE_HEIGHT_SHELL_CLASS,
   CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS,
+  chatMobileComposerSafeAreaPbClass,
   chatMobileHeightShellClass,
 } from "../chat-mobile-tab-registry";
 
@@ -73,6 +74,21 @@ describe("CHAT_MOBILE_COMPOSER_SAFE_AREA_PB", () => {
   it("keeps larger desktop md pb path", () => {
     expect(CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD).toBe(
       "md:pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+    );
+  });
+
+  it("includes mobile safe-area pb when keyboard is closed", () => {
+    expect(chatMobileComposerSafeAreaPbClass(false)).toBe(
+      `${CHAT_MOBILE_COMPOSER_SAFE_AREA_PB} ${CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD}`,
+    );
+  });
+
+  it("drops mobile safe-area pb when keyboard is open", () => {
+    expect(chatMobileComposerSafeAreaPbClass(true)).toBe(
+      CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD,
+    );
+    expect(chatMobileComposerSafeAreaPbClass(true)).not.toContain(
+      CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
     );
   });
 });
