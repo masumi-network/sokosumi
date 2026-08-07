@@ -25,7 +25,7 @@ const route = createRoute({
   method: "get",
   path: "/coworker-access",
   description:
-    "List coworker workspace access rows for the user's personal workspace. Owner (self) only.",
+    "List coworker workspace access rows for the user's personal workspace. Path `me` or accessible user id (self, or platform admin).",
   tags: ["Users"],
   request: { params },
   responses: {

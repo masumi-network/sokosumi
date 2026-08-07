@@ -7,6 +7,7 @@ import {
 } from "@/helpers/coworker-workspace-access";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
 import {
@@ -21,7 +22,7 @@ const route = createRoute({
   path: "/{id}/workspace-access",
   operationId: "createCoworkerWorkspaceAccess",
   description:
-    "Propose or directly grant coworker workspace access. Platform admin and vendor admin (member workspace) grant immediately; vendor admin foreign workspace creates PENDING. Body: exactly one of workspaceId, userId (personal workspace), or organizationId (org workspace).",
+    "Propose or directly grant coworker workspace access. Platform admin and vendor admin (member workspace) grant immediately; vendor admin foreign workspace creates PENDING. Body: exactly one of workspaceId, userId, organizationId, email (personal workspace), or organizationSlug (org workspace).",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
@@ -50,13 +51,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userAuth = requireUserAuthContext(c.var.authContext);
     const { id: coworkerId } = c.req.valid("param");
     const target = c.req.valid("json");
-    const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(target);
 
-    const access = await upsertCoworkerWorkspaceAccess({
-      coworkerId,
-      workspaceId,
-      actorUserId: userAuth.userId,
-      isPlatformAdmin: hasAdminRole(userAuth.role),
+    const access = await prisma.$transaction(async (tx) => {
+      const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(
+        target,
+        {},
+        tx,
+      );
+      return upsertCoworkerWorkspaceAccess(
+        {
+          coworkerId,
+          workspaceId,
+          actorUserId: userAuth.userId,
+          isPlatformAdmin: hasAdminRole(userAuth.role),
+        },
+        tx,
+      );
     });
 
     return created(

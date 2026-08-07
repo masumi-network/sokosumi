@@ -6,10 +6,13 @@ import { forbidden, notFound } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-const { upsertMock, resolveWorkspaceMock } = vi.hoisted(() => ({
-  upsertMock: vi.fn(),
-  resolveWorkspaceMock: vi.fn(),
-}));
+const { upsertMock, resolveWorkspaceMock, prismaTransactionMock } = vi.hoisted(
+  () => ({
+    upsertMock: vi.fn(),
+    resolveWorkspaceMock: vi.fn(),
+    prismaTransactionMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
   const actual =
@@ -23,6 +26,12 @@ vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
       resolveWorkspaceMock(...args),
   };
 });
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+  },
+}));
 
 import mountPostCoworkerWorkspaceAccess from "./post";
 
@@ -96,6 +105,9 @@ describe("POST /coworkers/{id}/workspace-access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resolveWorkspaceMock.mockResolvedValue(workspaceId);
+    prismaTransactionMock.mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+    );
   });
 
   it("platform admin → 201 GRANTED", async () => {
@@ -117,12 +129,20 @@ describe("POST /coworkers/{id}/workspace-access", () => {
       requestedByUserId: actorUserId,
       resolvedById: actorUserId,
     });
-    expect(upsertMock).toHaveBeenCalledWith({
-      coworkerId,
-      workspaceId,
-      actorUserId,
-      isPlatformAdmin: true,
-    });
+    expect(resolveWorkspaceMock).toHaveBeenCalledWith(
+      { workspaceId },
+      {},
+      expect.anything(),
+    );
+    expect(upsertMock).toHaveBeenCalledWith(
+      {
+        coworkerId,
+        workspaceId,
+        actorUserId,
+        isPlatformAdmin: true,
+      },
+      expect.anything(),
+    );
   });
 
   it("vendor admin member workspace → 201 GRANTED", async () => {
@@ -135,12 +155,15 @@ describe("POST /coworkers/{id}/workspace-access", () => {
 
     expect(response.status).toBe(201);
     expect(body.data.status).toBe("GRANTED");
-    expect(upsertMock).toHaveBeenCalledWith({
-      coworkerId,
-      workspaceId,
-      actorUserId,
-      isPlatformAdmin: false,
-    });
+    expect(upsertMock).toHaveBeenCalledWith(
+      {
+        coworkerId,
+        workspaceId,
+        actorUserId,
+        isPlatformAdmin: false,
+      },
+      expect.anything(),
+    );
   });
 
   it("vendor admin foreign → 201 PENDING", async () => {
@@ -169,12 +192,15 @@ describe("POST /coworkers/{id}/workspace-access", () => {
     const response = await postWorkspaceAccess(createApp("user", "stranger"));
 
     expect(response.status).toBe(403);
-    expect(upsertMock).toHaveBeenCalledWith({
-      coworkerId,
-      workspaceId,
-      actorUserId: "stranger",
-      isPlatformAdmin: false,
-    });
+    expect(upsertMock).toHaveBeenCalledWith(
+      {
+        coworkerId,
+        workspaceId,
+        actorUserId: "stranger",
+        isPlatformAdmin: false,
+      },
+      expect.anything(),
+    );
   });
 
   it("missing workspace → 404", async () => {
