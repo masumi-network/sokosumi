@@ -114,6 +114,41 @@ describe("GET /chats/rooms/discoverable", () => {
     );
   });
 
+  it("lists public and private channels for organization owners", async () => {
+    memberFindUniqueMock.mockResolvedValue({ role: "owner" });
+    roomFindManyMock.mockResolvedValue([
+      discoverableRow({ discoverability: "private" }),
+    ]);
+
+    const response = await createApp(userAuthContext).request("/discoverable");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0].discoverability).toBe("private");
+    expect(roomFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          discoverability: { in: ["public", "private"] },
+        }),
+      }),
+    );
+  });
+
+  it("lists public and private channels for organization admins", async () => {
+    memberFindUniqueMock.mockResolvedValue({ role: "admin" });
+
+    const response = await createApp(userAuthContext).request("/discoverable");
+
+    expect(response.status).toBe(200);
+    expect(roomFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          discoverability: { in: ["public", "private"] },
+        }),
+      }),
+    );
+  });
+
   it("applies optional q filter on name and slug", async () => {
     const response = await createApp(userAuthContext).request(
       "/discoverable?q=launch",

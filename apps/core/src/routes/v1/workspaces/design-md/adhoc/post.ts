@@ -1,11 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
-
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { uploadDesignMdContent } from "@/lib/design-md-blob";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import {
   adHocDesignMdSchema,
   adHocDesignMdWriteSchema,
@@ -15,7 +14,7 @@ const route = createRoute({
   method: "post",
   path: "/design-md/adhoc",
   description:
-    "Store a DESIGN.md for one-off, ad hoc use (e.g. a task that wants a different company's branding than the caller's own). The content is uploaded to blob storage and a URL is returned, but nothing is attached to the caller's user or organization profile — the caller is free to use it however they like, and it never affects what GET /workspaces/design-md resolves. Any authenticated user may call this; it is not a privileged write.",
+    "Store a DESIGN.md for one-off, ad hoc use (e.g. a task that wants a different company's branding than the caller's own). The content is uploaded to blob storage and a URL is returned, but nothing is attached to the caller's user or organization profile — the caller is free to use it however they like, and it never affects what GET /workspaces/design-md resolves. Session users and orchestrators with context headers may call this; coworkers need authorized user-context binding (GRANTED workspace grant or baseline task relationship). It is not a privileged write.",
   tags: ["Workspaces"],
   request: {
     body: {
@@ -45,6 +44,9 @@ const route = createRoute({
     ),
     400: jsonErrorResponse("Bad Request"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse(
+      "Forbidden - coworker context is not bound to the target user",
+    ),
     500: jsonErrorResponse("Internal Server Error"),
     503: jsonErrorResponse("Service Unavailable - DESIGN.md storage failed"),
   },
@@ -52,7 +54,7 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { userId } = requireUserContext(c.var.authContext);
+    const { userId } = await requireAuthorizedUserContext(c.var.authContext);
     const body = c.req.valid("json");
 
     const url = await uploadDesignMdContent({

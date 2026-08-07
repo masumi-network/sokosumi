@@ -34,7 +34,7 @@ export function TaskListSection({
         />
       </div>
 
-      <div className="divide-border/50 flex flex-col divide-y">
+      <div className="divide-border/50 flex flex-col divide-y px-2">
         {tasks.length > 0 ? (
           tasks.map((task) =>
             renderTask ? (

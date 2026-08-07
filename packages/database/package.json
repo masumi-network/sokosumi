@@ -85,7 +85,7 @@
     "@typescript/typescript6": "6.0.2",
     "dotenv": "17.4.2",
     "prisma": "7.9.1",
-    "tsx": "4.23.6",
+    "tsx": "4.23.10",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
   }

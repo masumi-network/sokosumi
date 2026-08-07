@@ -27,11 +27,6 @@ interface HistoryPageProps {
   }>;
 }
 
-/**
- * Soft-nav: keep previous screen (no Instant shell / route spinner).
- */
-export const instant = false;
-
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.History.Metadata");
 
@@ -41,6 +36,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/**
+ * Search / history tab destination.
+ *
+ * Instant Nav uses `history/loading.tsx` while this page streams after
+ * `connection()`.
+ */
 export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   await connection();
   const [rawSearchParams, t, jobStatusT, session] = await Promise.all([

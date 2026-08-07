@@ -462,9 +462,11 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   if (publishedMessageIds) {
     await publishChatRoomMessageRealtimeById(
       publishedMessageIds.responseMessageId,
+      "create",
     );
     await publishChatRoomMessageRealtimeById(
       publishedMessageIds.sourceMessageId,
+      "mention_status",
     );
   }
 }

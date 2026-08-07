@@ -32,6 +32,48 @@ export interface FileChipProps extends React.ComponentPropsWithoutRef<"a"> {
   iconPx?: number;
 }
 
+/**
+ * Native `<video controls>` reports a large min-content width (~476–570px in
+ * Chromium). Inside Radix ScrollArea's `display:table` content wrapper that
+ * floor becomes the message column's minimum and Chrome device mode appears
+ * to "stop resizing". Absolutely positioning the video removes it from
+ * min-content; chat message ScrollAreas also pass `shrinkContent` so the
+ * table wrapper can shrink. The frame keeps width from the row and height
+ * from aspect-ratio (capped like large image previews).
+ */
+function FileChipVideoFrame({
+  src,
+  fileName,
+}: {
+  src: string;
+  fileName: string;
+}) {
+  const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
+
+  return (
+    <div
+      data-testid="file-chip-video-frame"
+      className="relative min-w-0 w-full max-w-full max-h-80 overflow-hidden rounded-lg bg-black/20"
+      style={{ aspectRatio: aspectRatio ?? 16 / 9 }}
+    >
+      <video
+        src={src}
+        controls
+        playsInline
+        preload="metadata"
+        className="absolute inset-0 size-full object-contain"
+        aria-label={fileName}
+        onLoadedMetadata={(event) => {
+          const { videoWidth, videoHeight } = event.currentTarget;
+          if (videoWidth > 0 && videoHeight > 0) {
+            setAspectRatio(videoWidth / videoHeight);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
 export function FileChip(props: FileChipProps) {
   const {
     url,
@@ -170,8 +212,9 @@ export function FileChip(props: FileChipProps) {
     return (
       <div
         className={cn(
-          // Stay inside the message column (thread can be narrower than 24rem).
-          "flex w-full max-w-full flex-col gap-2 rounded-md border p-2",
+          // min-w-0 lets the chip shrink in flex message rows (large images do
+          // the same); overflow-hidden clamps native video control min-width.
+          "flex min-w-0 w-full max-w-full flex-col gap-2 overflow-hidden rounded-md border p-2",
           className,
         )}
         title={title}
@@ -207,20 +250,17 @@ export function FileChip(props: FileChipProps) {
           </a>
         </div>
         {isVideo ? (
-          <video
+          <FileChipVideoFrame
+            key={mediaSrc}
             src={mediaSrc}
-            controls
-            playsInline
-            preload="metadata"
-            className="h-auto w-full rounded-lg"
-            aria-label={fileName}
+            fileName={fileName}
           />
         ) : (
           <audio
             src={mediaSrc}
             controls
             preload="metadata"
-            className="w-full"
+            className="min-w-0 w-full max-w-full"
             aria-label={fileName}
           />
         )}

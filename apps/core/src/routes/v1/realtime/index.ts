@@ -1,8 +1,9 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import mountCreateAblyToken from "./token/post.js";
+
+import mountPostAblyToken from "./ably-token/post.js";
 
 const app = new OpenAPIHonoWithAuth();
 
-mountCreateAblyToken(app);
+mountPostAblyToken(app);
 
 export default app;

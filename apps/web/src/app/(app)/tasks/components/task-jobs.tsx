@@ -1,8 +1,8 @@
+import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import Link from "next/link";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { TimeAgo } from "@/components/time-ago";
-import { makeAgentJobsChannelName } from "@/lib/ably";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";

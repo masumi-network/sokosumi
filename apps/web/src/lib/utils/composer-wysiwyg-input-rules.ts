@@ -1,4 +1,5 @@
 import { placeComposerCaretAfterMark } from "@/lib/utils/composer-wysiwyg-arrow-exit";
+import { isInsideComposerProtectedContext } from "@/lib/utils/composer-wysiwyg-dom";
 
 export type ComposerInputRuleFormat = "italic" | "bold" | "strike" | "code";
 
@@ -95,23 +96,6 @@ export function resolveComposerEnterAction(options: {
   }
   if (options.isNarrowViewport) return "newline";
   return "submit";
-}
-
-const PROTECTED_TAGS = new Set(["CODE", "PRE"]);
-
-function isInsideComposerProtectedContext(
-  node: Node | null,
-  root: HTMLElement,
-): boolean {
-  let current: Node | null = node;
-  while (current && current !== root) {
-    if (current instanceof HTMLElement) {
-      if (PROTECTED_TAGS.has(current.tagName)) return true;
-      if (current.dataset.mentionKey) return true;
-    }
-    current = current.parentNode;
-  }
-  return false;
 }
 
 /**

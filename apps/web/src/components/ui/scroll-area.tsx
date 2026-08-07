@@ -1,17 +1,33 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { ScrollArea as ScrollAreaPrimitive } from "radix-ui"
+import * as React from "react";
+import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
+
+interface ScrollAreaProps extends React.ComponentPropsWithoutRef<
+  typeof ScrollAreaPrimitive.Root
+> {
+  /**
+   * Beat Radix's inline `display:table; min-width:100%` on the viewport
+   * content wrapper so flex children can shrink below intrinsic min-content
+   * (e.g. Chromium `<video controls>` in chat). Opt-in only — enabling this
+   * on horizontal ScrollAreas breaks wide-content overflow sizing.
+   */
+  shrinkContent?: boolean;
+}
 
 const ScrollArea = React.forwardRef<
   React.ComponentRef<typeof ScrollAreaPrimitive.Viewport>,
-  React.ComponentProps<typeof ScrollAreaPrimitive.Root>
->(function ScrollArea({ className, children, ...props }, ref) {
+  ScrollAreaProps
+>(function ScrollArea(
+  { className, children, shrinkContent = false, ...props },
+  ref,
+) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
+      data-scroll-area-shrink-content={shrinkContent ? "" : undefined}
       // `overflow-hidden` belongs to shadcn's own Root and was missing here.
       // The viewport already clips what you see, but without it the Root
       // reports its full unclipped content height to ancestors — so a
@@ -23,7 +39,11 @@ const ScrollArea = React.forwardRef<
       <ScrollAreaPrimitive.Viewport
         ref={ref}
         data-slot="scroll-area-viewport"
-        className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
+        className={cn(
+          "focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1",
+          // `!` beats Radix inline styles on the content wrapper child.
+          shrinkContent && "*:w-full *:!block *:!min-w-0",
+        )}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
@@ -37,7 +57,7 @@ function ScrollBar({
   className,
   orientation = "vertical",
   ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
+}: React.ComponentPropsWithoutRef<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
   return (
     <ScrollAreaPrimitive.ScrollAreaScrollbar
       data-slot="scroll-area-scrollbar"
@@ -48,7 +68,7 @@ function ScrollBar({
           "h-full w-2.5 border-l border-l-transparent",
         orientation === "horizontal" &&
           "h-2.5 flex-col border-t border-t-transparent",
-        className
+        className,
       )}
       {...props}
     >
@@ -57,7 +77,7 @@ function ScrollBar({
         className="bg-border relative flex-1 rounded-full"
       />
     </ScrollAreaPrimitive.ScrollAreaScrollbar>
-  )
+  );
 }
 
-export { ScrollArea, ScrollBar }
+export { ScrollArea, ScrollBar };

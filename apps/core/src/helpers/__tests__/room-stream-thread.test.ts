@@ -10,6 +10,10 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("@/helpers/chat-room-message-metadata-patch", () => ({
+  mergeChatRoomMessageMetadataKeys: vi.fn(),
+}));
+
 vi.mock("@/routes/v1/chats/stream/coworker-conversation", () => ({
   CoworkerConversationError: class CoworkerConversationError extends Error {
     upstreamStatus: number;
@@ -29,6 +33,7 @@ vi.mock("ai", () => ({
 
 import { convertToModelMessages } from "ai";
 
+import { mergeChatRoomMessageMetadataKeys } from "@/helpers/chat-room-message-metadata-patch";
 import prisma from "@/lib/db/prisma";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
 
@@ -106,7 +111,7 @@ describe("ensureThreadProviderConversation", () => {
     vi.mocked(createCoworkerConversation).mockResolvedValue({
       id: "conv_new",
     } as never);
-    vi.mocked(prisma.chatRoomMessage.update).mockResolvedValue({} as never);
+    vi.mocked(mergeChatRoomMessageMetadataKeys).mockResolvedValue(1);
 
     const result = await ensureThreadProviderConversation({
       roomId: "room_1",
@@ -123,12 +128,11 @@ describe("ensureThreadProviderConversation", () => {
         coworkerSlug: "hannah",
       }),
     );
-    expect(prisma.chatRoomMessage.update).toHaveBeenCalledWith({
-      where: { id: "parent_1" },
-      data: {
-        metadata: { [THREAD_PROVIDER_CONVERSATION_ID_KEY]: "conv_new" },
-      },
+    expect(mergeChatRoomMessageMetadataKeys).toHaveBeenCalledWith({
+      messageId: "parent_1",
+      patch: { [THREAD_PROVIDER_CONVERSATION_ID_KEY]: "conv_new" },
     });
+    expect(prisma.chatRoomMessage.update).not.toHaveBeenCalled();
     expect(result).toEqual({
       providerConversationId: "conv_new",
       justCreated: true,

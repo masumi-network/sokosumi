@@ -1,11 +1,11 @@
 "use client";
 
+import { makeUserNotificationsChannelName } from "@sokosumi/utils";
 import type * as Ably from "ably";
 import { useChannel } from "ably/react";
 import { useCallback } from "react";
 
 import {
-  makeUserNotificationsChannelName,
   type NotificationEventData,
   notificationEventDataSchema,
 } from "@/lib/ably";
