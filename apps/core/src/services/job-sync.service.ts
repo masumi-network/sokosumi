@@ -108,9 +108,19 @@ export interface JobSyncResult {
  * cheap, and returns money to users, so it must not be the thing that starves
  * — and a slow node is exactly when refunds are most likely to be needed.
  *
- * Reserving budget rather than reordering the phases on purpose: `seenJobIds`
- * makes the first phase to claim a job the one that processes it, so swapping
- * the order would change which phase handles jobs matching both selectors.
+ * Reserving budget rather than reordering the phases: refund MUST run after
+ * purchase. It triggers on `purchase: null`, and the purchase phase is what
+ * backfills a JobPurchase row for a purchase that landed on chain since the
+ * last run. Refunding first would return credits for a job whose escrow is
+ * funded — paying the seller and the buyer both.
+ *
+ * (`seenJobIds` is NOT what enforces this. It is only a deduplicated counter
+ * for `unfinishedFound`; no query filters on it. Nothing needs to: the three
+ * selectors are disjoint. A purchase-less job sits in the purchase set while
+ * `payByTime` is in the future and in the refund set once it is past, and
+ * `REFUND_WITHDRAWN` / `FUNDS_OR_DATUM_INVALID` are in
+ * `finalizedOnChainJobStatuses`, which the purchase selector excludes and the
+ * refund selector requires.)
  */
 const REFUND_PHASE_RESERVED_MS = 20_000;
 
