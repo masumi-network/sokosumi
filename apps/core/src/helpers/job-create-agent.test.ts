@@ -255,18 +255,21 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       ownerId: "user_1",
     });
     txAgentUpdateMock.mockResolvedValue({ id: "agent_1", jobCount: 1 });
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => unknown) => {
-        return await callback({
-          job: {
-            create: txJobCreateMock,
-          },
-          agent: {
-            update: txAgentUpdateMock,
-          },
-        });
-      },
-    );
+    // The hire uses BOTH forms: the batch form to read the agent and its
+    // pricing in one snapshot, then the interactive form to create the job.
+    prismaTransactionMock.mockImplementation(async (operations: unknown) => {
+      if (Array.isArray(operations)) {
+        return await Promise.all(operations);
+      }
+      return await (operations as (tx: unknown) => unknown)({
+        job: {
+          create: txJobCreateMock,
+        },
+        agent: {
+          update: txAgentUpdateMock,
+        },
+      });
+    });
   });
 
   it("rejects when cost exceeds maxAcceptedCents", async () => {

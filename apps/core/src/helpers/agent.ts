@@ -234,6 +234,30 @@ export function isCardanoV2SourceReady(
  * inside the window; an extended payment-node outage hides V2 agents.
  */
 export const CARDANO_V2_RAIL_READINESS_TTL_MS = 30 * 60 * 1000;
+
+/**
+ * Isolation for any read that returns agent pricing.
+ *
+ * Prisma loads `include`d relations as SEPARATE statements — Agent, then
+ * AgentPricing, then AgentFixedPricing, then UnitValue — and at PostgreSQL's
+ * default READ COMMITTED every statement takes its own snapshot. A registry
+ * replay rewrites pricing by deleting and recreating the amount rows, so a
+ * replay committing between two of those statements leaves the reader holding
+ * an AgentFixedPricing id whose UnitValue rows are already gone: FIXED pricing
+ * with no amounts.
+ *
+ * That is not a partially visible transaction — READ COMMITTED never shows
+ * one. It is read skew across the reader's own statements, so no change to the
+ * write side can prevent it; only a shared snapshot can. REPEATABLE READ gives
+ * the whole transaction one snapshot, and being read-only it cannot raise a
+ * serialization failure, so it adds no error path.
+ *
+ * `calculateCentsFromPricingAmountRows` totals an empty amount set to zero, so
+ * without this a catalog read can price a paid agent at zero credits.
+ */
+export const AGENT_PRICING_READ_TRANSACTION_OPTIONS = {
+  isolationLevel: "RepeatableRead",
+} as const;
 const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
 
 /**

@@ -6,6 +6,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import {
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   buildAvailableAgentWhereClause,
   getCardanoV2ReadySources,
   getCreditCostsOrThrow,
@@ -129,13 +130,9 @@ export default function mount(app: OpenAPIHono) {
     const { cursor, take, skip } = parseCursorPagination(queryParams);
     const { category: categorySlugs } = queryParams;
 
-    // Avoid interactive transaction on this read-only path — catalog list
-    // does not need a shared snapshot; interactive txs hold a pool connection
-    // and forbid Promise.all inside (#2559 / P2028).
-    //
-    // The V2 readiness lookup joins that same read: it only reads the cached
-    // readiness row, so it needs no shared snapshot either and can run
-    // alongside the credit costs.
+    // Credit costs and V2 readiness are independent single-row reads that no
+    // sync rewrites mid-request, so they need no shared snapshot and run
+    // concurrently. The agent page below is a different matter — see there.
     const [creditCosts, cardanoV2ReadySources] = await Promise.all([
       getCreditCostsOrThrow(prisma),
       getCardanoV2ReadySources(prisma),
@@ -152,21 +149,35 @@ export default function mount(app: OpenAPIHono) {
       : baseWhere;
 
     const takePlusOne = take + 1;
-    const [agents, count] = await Promise.all([
-      prisma.agent.findMany({
-        where,
-        take: takePlusOne,
-        skip,
-        cursor: cursor ? { id: cursor } : undefined,
-        orderBy: [...agentOrderBy, { id: "desc" }],
-        include: {
-          ...agentPricingInclude,
-          ...agentCategoriesInclude,
-          ...agentMetadataOverrideScalarsInclude,
-        },
-      }),
-      prisma.agent.count({ where }),
-    ]);
+    // One snapshot for the whole page. Prisma loads `include`d relations as
+    // SEPARATE statements (Agent, then AgentPricing, then AgentFixedPricing,
+    // then UnitValue), and at READ COMMITTED each takes its own snapshot. A
+    // registry replay committing between two of them leaves this read holding
+    // an AgentFixedPricing id whose amount rows are already gone — FIXED
+    // pricing with no amounts, which prices as zero.
+    //
+    // This is the BATCH form, not the interactive one: no application code
+    // runs inside it, so it does not hold a pool connection across awaits
+    // (#2559 / P2028). Read-only REPEATABLE READ cannot raise a serialization
+    // failure, so it adds no error path.
+    const [agents, count] = await prisma.$transaction(
+      [
+        prisma.agent.findMany({
+          where,
+          take: takePlusOne,
+          skip,
+          cursor: cursor ? { id: cursor } : undefined,
+          orderBy: [...agentOrderBy, { id: "desc" }],
+          include: {
+            ...agentPricingInclude,
+            ...agentCategoriesInclude,
+            ...agentMetadataOverrideScalarsInclude,
+          },
+        }),
+        prisma.agent.count({ where }),
+      ],
+      AGENT_PRICING_READ_TRANSACTION_OPTIONS,
+    );
 
     // Paginate from the RAW rows, not the summaries: buildAgentSummaries can
     // skip a row (transient pricing rewrite), and cursoring off the filtered

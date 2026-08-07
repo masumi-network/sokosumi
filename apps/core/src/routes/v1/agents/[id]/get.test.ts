@@ -36,6 +36,7 @@ const {
 }));
 
 vi.mock("@/helpers/agent", () => ({
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
   getCardanoV2ReadySources: () => Promise.resolve([]),
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   calculateAgentRating: calculateAgentRatingMock,

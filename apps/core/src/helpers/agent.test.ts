@@ -10,6 +10,7 @@ import { HTTPException } from "hono/http-exception";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   buildAvailableAgentWhereClause,
   calculateAgentRating,
   calculateAgentRatings,
@@ -59,6 +60,19 @@ function createTransactionClient(creditCosts: CreditCost[]) {
     },
   } as unknown as Prisma.TransactionClient;
 }
+
+describe("AGENT_PRICING_READ_TRANSACTION_OPTIONS", () => {
+  it("pins agent pricing reads to a single snapshot", () => {
+    // Prisma loads `include`d relations as separate statements, so at READ
+    // COMMITTED a registry replay landing mid-read returns FIXED pricing whose
+    // amount rows are already deleted — and an empty amount set totals to zero
+    // credits. Only a shared snapshot prevents that; no write-side change can,
+    // because the skew is between the reader's own statements.
+    expect(AGENT_PRICING_READ_TRANSACTION_OPTIONS).toEqual({
+      isolationLevel: "RepeatableRead",
+    });
+  });
+});
 
 describe("buildAvailableAgentWhereClause", () => {
   it("does not include organization allowlist or denylist filters", () => {

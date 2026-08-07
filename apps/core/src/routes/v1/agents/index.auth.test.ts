@@ -61,6 +61,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 vi.mock("@/helpers/agent", () => ({
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   calculateAgentRatings: calculateAgentRatingsMock,
   calculateAverageExecutionTimes: calculateAverageExecutionTimesMock,
@@ -91,6 +92,11 @@ describe("agents routes auth gate", () => {
     vi.clearAllMocks();
     authContextState.current = null;
 
+    // Batch form: the list route reads its page in one snapshot.
+    prismaTransactionMock.mockImplementation(async (operations: unknown) =>
+      Array.isArray(operations) ? await Promise.all(operations) : operations,
+    );
+
     buildAvailableAgentWhereClauseMock.mockReturnValue({ isAvailable: true });
     getCreditCostsOrThrowMock.mockResolvedValue([]);
     getAgentCostMock.mockReturnValue({ cents: BigInt(0) });
@@ -110,7 +116,6 @@ describe("agents routes auth gate", () => {
 
     expect(response.status).toBe(200);
     expect(agentFindManyMock).toHaveBeenCalled();
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
   it("returns 422 for invalid category on composed public list route", async () => {

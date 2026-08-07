@@ -38,6 +38,7 @@ import { openrouterClient } from "@/clients/openrouter.client";
 import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import {
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   buildAvailableAgentWhereClause,
   type CardanoV2ReadySource,
   calculateCentsFromMasumiAmountStrings,
@@ -436,27 +437,36 @@ export async function createAgentJobForUser(
   const creditCosts = await getCreditCostsOrThrow();
   const cardanoV2ReadySources = await getCardanoV2ReadySources();
 
-  const agent = await prisma.agent.findFirst({
-    where: {
-      id: agentInput.agentId,
-      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
-    },
-    include: {
-      ...agentPricingInclude,
-      ...agentMetadataOverrideScalarsInclude,
-      paymentSources: {
+  // Price and payment sources must come from ONE snapshot: they are separate
+  // statements, and a registry replay landing between them would price this
+  // hire from an amount set that no longer exists. See
+  // AGENT_PRICING_READ_TRANSACTION_OPTIONS.
+  const [agent] = await prisma.$transaction(
+    [
+      prisma.agent.findFirst({
         where: {
-          chain: "Cardano",
-          network: getEnv().NETWORK,
-          paymentSourceType: "Web3CardanoV2",
+          id: agentInput.agentId,
+          ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
         },
         include: {
-          amounts: true,
+          ...agentPricingInclude,
+          ...agentMetadataOverrideScalarsInclude,
+          paymentSources: {
+            where: {
+              chain: "Cardano",
+              network: getEnv().NETWORK,
+              paymentSourceType: "Web3CardanoV2",
+            },
+            include: {
+              amounts: true,
+            },
+            orderBy: { sourceIndex: "asc" },
+          },
         },
-        orderBy: { sourceIndex: "asc" },
-      },
-    },
-  });
+      }),
+    ],
+    AGENT_PRICING_READ_TRANSACTION_OPTIONS,
+  );
 
   if (!agent) {
     throw notFound("Agent not found");

@@ -37,6 +37,7 @@ const {
 }));
 
 vi.mock("@/helpers/agent", () => ({
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
   getCardanoV2ReadySources: () => Promise.resolve([]),
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   calculateAgentRatings: calculateAgentRatingsMock,
@@ -82,6 +83,12 @@ describe("GET /agents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // Batch form: Prisma resolves the array of operations together. The route
+    // relies on that for a shared snapshot, so the mock must mirror it rather
+    // than handing back a callback result.
+    prismaTransactionMock.mockImplementation(async (operations: unknown) =>
+      Array.isArray(operations) ? await Promise.all(operations) : operations,
+    );
     buildAvailableAgentWhereClauseMock.mockReturnValue({
       isAvailable: true,
     });
@@ -157,12 +164,18 @@ describe("GET /agents", () => {
     agentCountMock.mockResolvedValue(1);
   });
 
-  it("lists agents without opening an interactive transaction", async () => {
+  it("reads the page in one snapshot without an interactive transaction", async () => {
+    // Prisma loads included relations as separate statements, so at READ
+    // COMMITTED a registry replay can land mid-read and return FIXED pricing
+    // whose amount rows are gone — which prices as zero. The BATCH form gets
+    // one snapshot without holding a pool connection across application code.
     const app = createApp();
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Array), {
+      isolationLevel: "RepeatableRead",
+    });
     expect(agentFindManyMock).toHaveBeenCalled();
     expect(agentCountMock).toHaveBeenCalled();
   });
