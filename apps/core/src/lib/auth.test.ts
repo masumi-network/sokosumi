@@ -929,6 +929,7 @@ describe("core auth config", () => {
       "https://app.sokosumi.com",
       "https://preprod.sokosumi.com",
       "https://*.preview.sokosumi.com",
+      "sokosumi://",
     ]);
   });
 
@@ -948,6 +949,7 @@ describe("core auth config", () => {
       "https://app.sokosumi.com",
       "https://preprod.sokosumi.com",
       "https://*.preview.sokosumi.com",
+      "sokosumi://",
       "http://localhost:*",
     ]);
   });
@@ -974,6 +976,7 @@ describe("core auth config", () => {
       "https://preprod.sokosumi.com",
       "https://sokosumi-app-preprod-git-fix-web-preview-core-url.preview.sokosumi.com",
       "https://*.preview.sokosumi.com",
+      "sokosumi://",
     ]);
   });
 

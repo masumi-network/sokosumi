@@ -477,6 +477,12 @@ export const auth = betterAuth({
       "https://preprod.sokosumi.com",
       webAppBaseUrl,
       "https://*.preview.sokosumi.com", // Vercel preview deployment suffix
+      // Native clients. Better Auth rejects a request with no Origin header,
+      // which is every request a non-browser makes — the check guards against
+      // a browser on another site replaying ambient cookies, and a native
+      // client has neither. Trusting the app's own scheme lets it send an
+      // honest Origin instead of impersonating the web app.
+      "sokosumi://",
       ...(env.NODE_ENV === "development"
         ? ["http://localhost:*"] // local dev only; omit in staging/production deploys
         : []),
