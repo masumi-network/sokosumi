@@ -13,7 +13,9 @@ const {
   taskPaymentClaimDeleteManyMock,
   transactionMock,
   deleteTaskFileIfOwnedMock,
+  captureMessageMock,
 } = vi.hoisted(() => ({
+  captureMessageMock: vi.fn(),
   coworkerAssignmentFindManyMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskFileFindManyMock: vi.fn(),
@@ -27,6 +29,10 @@ const {
 
 vi.mock("@/lib/blob", () => ({
   deleteTaskFileIfOwned: deleteTaskFileIfOwnedMock,
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureMessage: captureMessageMock,
 }));
 
 describe("prepareTasksForUserDeletion", () => {
@@ -130,6 +136,34 @@ describe("prepareTasksForUserDeletion", () => {
     });
     expect(taskPaymentClaimDeleteManyMock).not.toHaveBeenCalled();
     expect(taskDeleteManyMock).not.toHaveBeenCalled();
+    // Unlike a plain PENDING claim, this one clears only when an operator
+    // acts, so the user's deletion is blocked for an unbounded time by an
+    // internal queue. It has to be visible to someone who can clear it.
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Account deletion blocked by a task payment claim awaiting review",
+      expect.objectContaining({
+        level: "error",
+        extra: expect.objectContaining({
+          userId: "user_delete",
+          taskPaymentClaimId: "claim_review",
+        }),
+      }),
+    );
+  });
+
+  it("does not page for a pending claim that will settle on its own", async () => {
+    taskPaymentClaimFindFirstMock.mockResolvedValue({
+      id: "claim_pending",
+      reviewRequiredAt: null,
+    });
+
+    await expect(
+      prepareTasksForUserDeletion("user_delete", {
+        $transaction: transactionMock,
+      } as never),
+    ).rejects.toMatchObject({ status: "BAD_REQUEST" });
+
+    expect(captureMessageMock).not.toHaveBeenCalled();
   });
 
   it("removes terminal claims before transaction cascade", async () => {

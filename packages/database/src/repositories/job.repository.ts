@@ -41,6 +41,15 @@ interface CreatePaidJobData extends CreateJobBase {
   blockchainIdentifier: string;
   sellerVkey: string;
   purchaseAmounts: { amount: string; unit: string }[];
+  /**
+   * Only true when `purchaseAmounts` were also sent to the payment node as the
+   * drift guard. Legacy V1 metadata can carry more amounts than POST /purchase
+   * accepts; those purchases are created without the guard, so the node may
+   * lock a drifted price and requiring an exact match would make the job-sync
+   * backfill refuse the purchase forever. Caller-supplied rather than assumed:
+   * the two are only equivalent when the guard was actually applied.
+   */
+  purchaseAmountMatchRequired: boolean;
   purchaseId?: string;
 }
 
@@ -189,7 +198,7 @@ export const jobRepository = {
             blockchainIdentifier: data.blockchainIdentifier,
             sellerVkey: data.sellerVkey,
             purchaseAmounts: data.purchaseAmounts,
-            purchaseAmountMatchRequired: true,
+            purchaseAmountMatchRequired: data.purchaseAmountMatchRequired,
             identifierFromPurchaser: data.identifierFromPurchaser,
           },
           include: jobInclude,

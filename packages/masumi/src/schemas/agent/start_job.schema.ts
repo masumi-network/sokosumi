@@ -45,7 +45,21 @@ export const startPaidJobResponseSchema = z.preprocess(
     externalDisputeUnlockTime: z.coerce.number().int(),
     agentIdentifier: z.string().min(1),
     sellerVKey: z.string().min(1),
-    paymentSourceType: z.enum(["Web3CardanoV1", "Web3CardanoV2"]).optional(),
+    // The full vocabulary the protocol defines for this field, not just the
+    // two Cardano rails. An x402/EVM source reports `null` (payment spec:
+    // `paymentSourceType` is nullable on the EVM branch) and a registry entry
+    // with no on-chain rail reports `"None"` — both mean "no Cardano source
+    // selected", so both normalize to absent.
+    //
+    // Values outside the vocabulary still fail on purpose. What must NOT
+    // happen is failing on a LEGAL one: a start_job response that does not
+    // parse is reported as `invalid-response`, and by then the seller has
+    // already accepted the job. MIP-003 has no cancel, so rejecting a legal
+    // value here strands real work.
+    paymentSourceType: z.preprocess(
+      (value) => (value === null || value === "None" ? undefined : value),
+      z.enum(["Web3CardanoV1", "Web3CardanoV2"]).optional(),
+    ),
     // Coerced like the sibling time fields — sellers serialize
     // inconsistently — but only genuine numbers and numeric strings count
     // as a selection. Absent-intent junk (null, "", false, []) must never

@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import { TaskPaymentClaimStatus } from "@sokosumi/database";
 import type { createPrismaClient } from "@sokosumi/database/client";
 import { APIError } from "better-auth/api";
@@ -34,6 +35,24 @@ export async function prepareTasksForUserDeletion(
     });
     if (pendingPaymentClaim) {
       if (pendingPaymentClaim.reviewRequiredAt) {
+        // A plain PENDING claim clears itself within a cron cycle, but one
+        // parked for review clears only when an operator resolves it — so
+        // this branch is an account deletion blocked for an unbounded time by
+        // an internal queue. Page it: the user cannot unblock themselves, and
+        // the admin resolve/refund endpoints are the only way out.
+        Sentry.captureMessage(
+          "Account deletion blocked by a task payment claim awaiting review",
+          {
+            level: "error",
+            tags: { error_type: "user_deletion_blocked_by_claim_review" },
+            extra: {
+              userId,
+              taskPaymentClaimId: pendingPaymentClaim.id,
+              reviewRequiredAt:
+                pendingPaymentClaim.reviewRequiredAt.toISOString(),
+            },
+          },
+        );
         throw new APIError("BAD_REQUEST", {
           code: "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
           message:

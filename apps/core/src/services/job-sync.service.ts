@@ -543,6 +543,36 @@ function matchesDeadline(
   return purchaseValue === String(jobValue.getTime());
 }
 
+/**
+ * Refuses a polled purchase that provably belongs to a different job.
+ *
+ * Deliberately weaker than the backfill guard above. Backfill runs once, on a
+ * job with no purchase attached, so it can demand every term match. This runs
+ * on every paid job every cron tick — including jobs created before the
+ * snapshot columns existed — so an absent value on either side must NOT be
+ * treated as a mismatch, or those jobs would stop syncing entirely and never
+ * reach a terminal state.
+ *
+ * Compares only `inputHash`: it is derived from this job's own input, it is
+ * part of what the seller signed, and it has been stored on every paid job
+ * since long before this release. `sellerVkey` is deliberately not compared —
+ * a purchase that carries no seller identity would then read as foreign and
+ * wedge a legitimate job. The purchase id is not compared either: the node may
+ * legitimately replace a purchase row for the same blockchainIdentifier.
+ */
+function isPolledPurchaseForeign(
+  purchase: { inputHash?: string | null; id: string },
+  job: { inputHash: string | null; id: string },
+): boolean {
+  return (
+    typeof purchase.inputHash === "string" &&
+    purchase.inputHash.length > 0 &&
+    typeof job.inputHash === "string" &&
+    job.inputHash.length > 0 &&
+    purchase.inputHash !== job.inputHash
+  );
+}
+
 /** Recreates the exact metadata sent by createPurchase for a stored job. */
 function getExpectedPurchaseMetadata(job: {
   agentJobId: string;
@@ -761,11 +791,27 @@ async function syncPurchaseState(
   };
 
   if (onChainPurchaseResult.isOk()) {
+    const polledPurchase = onChainPurchaseResult.value;
+    // The lookup key changed from the purchase id to the blockchain
+    // identifier (V2 purchases are invisible to the id cursor), so the reply
+    // is no longer self-evidently this job's purchase. Writing a foreign one
+    // here would stamp another job's on-chain status — and therefore its
+    // refund or completion — onto this one.
+    if (isPolledPurchaseForeign(polledPurchase, job)) {
+      const foreignPurchaseError = new Error(
+        `Resolved purchase does not belong to job ${job.id}; refusing purchase state update`,
+      );
+      console.error(foreignPurchaseError.message, {
+        jobId: job.id,
+        blockchainIdentifier: job.blockchainIdentifier,
+        purchaseId: polledPurchase.id,
+      });
+      Sentry.captureException(foreignPurchaseError);
+      return false;
+    }
     transactionResult = await prisma.$transaction(
       async (tx): Promise<JobSyncTransactionResult> => {
-        const purchaseData = transformPurchaseToJobUpdate(
-          onChainPurchaseResult.value,
-        );
+        const purchaseData = transformPurchaseToJobUpdate(polledPurchase);
         await jobPurchaseRepository.updateJobPurchaseByJobId(
           job.id,
           purchaseData,

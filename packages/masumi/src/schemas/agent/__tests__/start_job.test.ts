@@ -64,6 +64,33 @@ describe("startPaidJobResponseSchema", () => {
     }
   });
 
+  it("accepts every payment-source type the protocol defines", () => {
+    // A start_job response that fails to parse is reported as
+    // `invalid-response`, and by then the seller has already accepted the job
+    // — MIP-003 has no cancel. So a LEGAL value must never fail here.
+    // `null` is what an x402/EVM source reports (the payment spec marks
+    // paymentSourceType nullable on that branch) and `"None"` is the registry
+    // spelling for an entry with no on-chain rail; both mean "no Cardano
+    // source selected" and normalize to absent.
+    for (const paymentSourceType of [null, "None"]) {
+      const result = startPaidJobResponseSchema.parse({
+        ...paidJobResponse,
+        paymentSourceType,
+      });
+
+      expect(result.paymentSourceType).toBeUndefined();
+    }
+  });
+
+  it("still rejects a payment-source type outside the protocol vocabulary", () => {
+    const result = startPaidJobResponseSchema.safeParse({
+      ...paidJobResponse,
+      paymentSourceType: "Web3CardanoV3",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("keeps a payment-source index on a V1 response for the caller to ignore", () => {
     // Sellers upgrading their SDK emit V2 fields on V1 responses. Failing
     // the parse would break those agents mid-rollout — and only after

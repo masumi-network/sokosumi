@@ -670,6 +670,60 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
+  it("refuses to write a polled purchase belonging to a different job", async () => {
+    // The poll path looks the purchase up by blockchain identifier rather
+    // than by its own id, so the reply is not self-evidently this job's.
+    // Writing it would stamp another job's on-chain status — and therefore
+    // its refund or completion — onto this one.
+    mockInitialJobQueries({ purchase: [createJob()] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({
+        id: "purchase_foreign",
+        inputHash: "foreign-input-hash",
+        onChainStatus: "REFUND_WITHDRAWN",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      }),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(updateJobPurchaseByJobIdMock).not.toHaveBeenCalled();
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining(
+          "Resolved purchase does not belong to job job_1",
+        ),
+      }),
+    );
+  });
+
+  it("still writes a polled purchase that carries no input hash", async () => {
+    // Legacy tolerance: this guard runs on every paid job every tick,
+    // including rows predating the snapshot columns. An absent value must
+    // read as unverifiable, not as foreign — otherwise those jobs would stop
+    // syncing and never reach a terminal state.
+    mockInitialJobQueries({ purchase: [createJob()] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({
+        id: "purchase_1",
+        onChainStatus: "FUNDS_LOCKED",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      }),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(updateJobPurchaseByJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      expect.objectContaining({ onChainStatus: "FUNDS_LOCKED" }),
+      {},
+    );
+  });
+
   it("refuses to backfill a purchase signed for a different agent", async () => {
     const pendingJob = createJob({
       purchase: null,
