@@ -427,7 +427,9 @@ describe("PUT /tasks/{id}/workspace", () => {
       }),
     );
     requireTaskAssignableCoworkerMock.mockRejectedValue(
-      new HTTPException(404, { message: "Coworker not found" }),
+      new HTTPException(404, {
+        message: "Coworker is not usable in this workspace",
+      }),
     );
 
     const app = createApp(null);

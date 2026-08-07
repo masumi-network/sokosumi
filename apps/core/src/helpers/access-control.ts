@@ -404,7 +404,9 @@ export async function requireTaskAssignableCoworker(
   );
 
   if (!coworker) {
-    throw notFound("Coworker not found");
+    // Covers missing, archived, no tasks capability, and no whitelist/GRANTED
+    // access in this workspace (including task moves into a foreign workspace).
+    throw notFound("Coworker is not usable in this workspace");
   }
 }
 

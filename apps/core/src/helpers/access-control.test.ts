@@ -1591,7 +1591,7 @@ describe("requireTaskAssignableCoworker", () => {
 
     await expect(
       requireTaskAssignableCoworker("cow_123", workspaceId, tx),
-    ).rejects.toThrow("Coworker not found");
+    ).rejects.toThrow("Coworker is not usable in this workspace");
   });
 });
 

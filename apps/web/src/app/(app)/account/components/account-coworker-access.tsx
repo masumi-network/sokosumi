@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-
+import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { CoworkerAccessList } from "@/components/coworker-access/coworker-access-list";
 import {
   Card,
@@ -16,10 +16,24 @@ export async function AccountCoworkerAccess() {
   const t = await getTranslations("App.Account.CoworkerAccess");
 
   let rows: CoworkerWorkspaceAccess[] = [];
+  let loadFailed = false;
   try {
     rows = await coworkerAccessService.listForPersonalWorkspace();
   } catch (error) {
+    loadFailed = true;
     console.error("Failed to load personal coworker access", error);
+  }
+
+  if (loadFailed) {
+    return (
+      <div id="coworker-early-access">
+        <CoreAuthReadRetry
+          description={t("loadError")}
+          retryLabel={t("retry")}
+          title={t("loadErrorTitle")}
+        />
+      </div>
+    );
   }
 
   const entries = toCoworkerAccessEntries(rows);

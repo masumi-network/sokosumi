@@ -200,7 +200,9 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     requireTaskAssignableCoworkerMock.mockRejectedValue(
-      new HTTPException(404, { message: "Coworker not found" }),
+      new HTTPException(404, {
+        message: "Coworker is not usable in this workspace",
+      }),
     );
 
     const app = createApp();
@@ -242,7 +244,9 @@ describe("task coworker whitelist enforcement", () => {
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
     requireTaskAssignableCoworkerMock.mockRejectedValue(
-      new HTTPException(404, { message: "Coworker not found" }),
+      new HTTPException(404, {
+        message: "Coworker is not usable in this workspace",
+      }),
     );
 
     const app = createApp();
@@ -357,7 +361,9 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     requireTaskAssignableCoworkerMock.mockRejectedValue(
-      new HTTPException(404, { message: "Coworker not found" }),
+      new HTTPException(404, {
+        message: "Coworker is not usable in this workspace",
+      }),
     );
 
     const app = createApp();
