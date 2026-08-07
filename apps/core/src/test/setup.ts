@@ -1,7 +1,3 @@
-import { beforeEach } from "vitest";
-
-import { resetCardanoV2ReadySourcesCache } from "@/helpers/cardano-v2-readiness-cache";
-
 const envDefaults: Record<string, string> = {
   NETWORK: "Preprod",
   NODE_ENV: "development",
@@ -49,9 +45,3 @@ const envDefaults: Record<string, string> = {
 for (const [key, value] of Object.entries(envDefaults)) {
   process.env[key] = value;
 }
-
-// The Cardano V2 readiness memo is process-local, so without this a test that
-// primes it would leak its value into the next test in the same file.
-beforeEach(() => {
-  resetCardanoV2ReadySourcesCache();
-});

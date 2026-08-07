@@ -4,15 +4,17 @@ import { paymentClient } from "@/clients/masumi-payment.client";
 import {
   CARDANO_V2_RAIL_READINESS_FAILURE_KEY,
   CARDANO_V2_RAIL_READINESS_KEY,
-  CARDANO_V2_RAIL_READINESS_TTL_MS,
 } from "@/helpers/agent";
-import { resetCardanoV2ReadySourcesCache } from "@/helpers/cardano-v2-readiness-cache";
 import prisma from "@/lib/db/prisma";
 
 /**
- * Refreshes the cached Cardano V2 rail readiness of the payment node (read by
- * getCardanoV2ReadySources). On check failure the last known value is kept —
- * its TTL fails closed during an extended outage.
+ * Refreshes the recorded Cardano V2 rail readiness of the payment node (read
+ * by getCardanoV2ReadySources). On check failure the last known value is kept
+ * and a marker is written, so readers keep serving it rather than losing the
+ * V2 catalog to an outage of our own polling.
+ *
+ * Returns whether the purchase-ready source set CHANGED, which is what makes
+ * the caller replay the registry.
  */
 export async function syncCardanoV2RailReadiness(
   options: { signal?: AbortSignal } = {},
@@ -69,18 +71,12 @@ export async function syncCardanoV2RailReadiness(
     const previousReadiness = await prisma.syncMetadata.findUnique({
       where: { key: CARDANO_V2_RAIL_READINESS_KEY },
     });
-    // A cache that had gone stale (TTL expired) fed [] to the availability and
-    // pricing paths, so entries synced during that window were projected from
-    // the fallback source rather than a purchase-ready one. Coming back with
-    // the SAME source set is therefore still a change that must trigger a
-    // replay.
-    const wasReadinessStale =
-      previousReadiness === null ||
-      Date.now() - previousReadiness.lastSyncedAt.getTime() >=
-        CARDANO_V2_RAIL_READINESS_TTL_MS;
-    readinessChanged =
-      previousReadiness?.cursorId !== serializedReadySources ||
-      wasReadinessStale;
+    // A changed source set reprojects every V2 price, because pricing is
+    // projected from the purchase-ready source. Age alone is not a change:
+    // readers now always serve the last recorded value, so no window exists in
+    // which they saw [] and projected against the fallback instead.
+    // `undefined !== string` also covers the first run, when no row exists.
+    readinessChanged = previousReadiness?.cursorId !== serializedReadySources;
     await prisma.syncMetadata.upsert({
       where: { key: CARDANO_V2_RAIL_READINESS_KEY },
       create: {
@@ -93,10 +89,6 @@ export async function syncCardanoV2RailReadiness(
         lastSyncedAt: new Date(),
       },
     });
-    // Drop the in-process memo so the registry replay that runs right after
-    // this refresh — and any request served by this instance — projects
-    // against the value just written, not the one read seconds earlier.
-    resetCardanoV2ReadySourcesCache();
   } catch (cacheError) {
     // Readiness is advisory and must never crash the registry sync loop. A
     // failed write leaves the old cache intact, so retry on the next cycle.

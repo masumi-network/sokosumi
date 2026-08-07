@@ -28,10 +28,6 @@ import {
   type RatingMetrics,
 } from "@/schemas/agent.schema";
 
-import {
-  getCachedCardanoV2ReadySources,
-  setCachedCardanoV2ReadySources,
-} from "./cardano-v2-readiness-cache";
 import { internalServerError, notFound, unprocessableEntity } from "./error";
 
 type AgentMetadataOverrideScalars = AgentMetadataOverride;
@@ -229,13 +225,6 @@ export function isCardanoV2SourceReady(
 }
 
 /**
- * Readiness older than this is treated as unknown (fail-closed). The value is
- * refreshed by the agents-sync cron, so a healthy deployment stays well
- * inside the window; an extended payment-node outage hides V2 agents.
- */
-export const CARDANO_V2_RAIL_READINESS_TTL_MS = 30 * 60 * 1000;
-
-/**
  * Isolation for any read that returns agent pricing.
  *
  * Prisma loads `include`d relations as SEPARATE statements — Agent, then
@@ -261,42 +250,38 @@ export const AGENT_PRICING_READ_TRANSACTION_OPTIONS = {
 const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
 
 /**
- * Exact Cardano V2 policy/contract sources the payment node reported
- * purchase-ready recently. Returns an empty list when readiness has never been
- * recorded, the cache is stale, or the cache payload is invalid.
+ * Exact Cardano V2 policy/contract sources the payment node last reported
+ * purchase-ready. Returns an empty list only when readiness has never been
+ * recorded, or the recorded payload is unusable.
  *
- * Memoized for a few seconds (see cardano-v2-readiness-cache) because this runs
- * on every catalog request while the underlying row only changes once per cron
- * cycle.
+ * Deliberately NOT expired on age. Readiness is static configuration — the
+ * node derives it from config presence (an active source, a current contract,
+ * an RPC key, admin wallets), never from balance or load — so a value that has
+ * not been refreshed for a while is almost certainly still true. Expiring it
+ * would mean our own cron falling behind takes the entire V2 catalog down,
+ * which says nothing about whether V2 can actually settle. A node that truly
+ * cannot settle rejects the purchase, and the outbox compensates.
+ *
+ * Read straight from the row on every call: it is a primary-key lookup, and a
+ * process-local memo in front of it would only add staleness on top of the
+ * cron's own lag while letting instances disagree with each other.
  */
 export const getCardanoV2ReadySources = async (
   tx: Prisma.TransactionClient = prisma,
 ): Promise<CardanoV2ReadySource[]> => {
-  const cached = getCachedCardanoV2ReadySources<CardanoV2ReadySource>();
-  if (cached) {
-    return cached;
-  }
   const readiness = await tx.syncMetadata.findUnique({
     where: { key: CARDANO_V2_RAIL_READINESS_KEY },
   });
-  // Every exit below memoizes, including the empty ones: a missing, stale or
-  // malformed row is just as stable between cron cycles as a valid one.
-  if (
-    !readiness?.cursorId ||
-    Date.now() - readiness.lastSyncedAt.getTime() >=
-      CARDANO_V2_RAIL_READINESS_TTL_MS
-  ) {
-    setCachedCardanoV2ReadySources<CardanoV2ReadySource>([]);
+  if (!readiness?.cursorId) {
     return [];
   }
 
   try {
     const payload: unknown = JSON.parse(readiness.cursorId);
     if (!Array.isArray(payload)) {
-      setCachedCardanoV2ReadySources<CardanoV2ReadySource>([]);
       return [];
     }
-    const readySources = payload.filter(
+    return payload.filter(
       (source): source is CardanoV2ReadySource =>
         typeof source === "object" &&
         source !== null &&
@@ -307,10 +292,7 @@ export const getCardanoV2ReadySources = async (
         typeof source.smartContractAddress === "string" &&
         source.smartContractAddress.length > 0,
     );
-    setCachedCardanoV2ReadySources(readySources);
-    return readySources;
   } catch {
-    setCachedCardanoV2ReadySources<CardanoV2ReadySource>([]);
     return [];
   }
 };

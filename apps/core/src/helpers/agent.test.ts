@@ -245,13 +245,20 @@ describe("getCardanoV2ReadySources", () => {
     await expect(getCardanoV2ReadySources(tx)).resolves.toEqual([]);
   });
 
-  it("fails closed when the ready row is older than the TTL", async () => {
+  it("keeps serving readiness that has not been refreshed for a long time", async () => {
+    // Readiness is static configuration — the node derives it from config
+    // presence, never from balance or load — so an old value is almost
+    // certainly still true. Expiring it would let our own cron falling behind
+    // take the entire V2 catalog down, which says nothing about whether V2
+    // can settle.
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: JSON.stringify([CARDANO_V2_READY_SOURCE]),
-      lastSyncedAt: new Date(Date.now() - 31 * 60 * 1000),
+      lastSyncedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     });
 
-    await expect(getCardanoV2ReadySources(tx)).resolves.toEqual([]);
+    await expect(getCardanoV2ReadySources(tx)).resolves.toEqual([
+      CARDANO_V2_READY_SOURCE,
+    ]);
   });
 
   it("fails closed for a legacy boolean readiness payload", async () => {

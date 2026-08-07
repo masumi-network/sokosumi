@@ -2962,20 +2962,20 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     );
   });
 
-  it("reports a change when a STALE cache returns the same source set", async () => {
-    // While the cache was stale, readiness read as [] — so entries synced in
-    // that window were priced from the fallback source rather than a
-    // purchase-ready one. Recovering must replay them even though the source
-    // set is byte-identical.
+  it("reports no change when a long-unrefreshed row returns the same source set", async () => {
+    // Age is not a change. Readers always serve the last recorded value, so
+    // no window exists in which they saw [] and priced from the fallback —
+    // there is nothing to reproject, and replaying ~2.4k entries because a
+    // cron was late would delay every genuine registry update behind it.
     const agentSyncService = await getAgentSyncService();
     syncMetadataFindUniqueMock.mockResolvedValue({
       cursorId: JSON.stringify(readySources),
-      lastSyncedAt: new Date(Date.now() - 31 * 60 * 1000),
+      lastSyncedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     });
     getCardanoV2RailReadinessMock.mockResolvedValue(ok(readySources));
 
     await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
-      true,
+      false,
     );
   });
 
