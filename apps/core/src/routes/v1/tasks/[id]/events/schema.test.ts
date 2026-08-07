@@ -12,7 +12,8 @@ const taskEventRequestSchema = createTaskEventRequestSchema();
 const validMasumiPayment = {
   blockchainIdentifier: "0b00e04c0860a60c61066056281180462d0b12",
   identifierFromPurchaser: "aabbccddeeff00112233",
-  agentIdentifier: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
+  agentIdentifier:
+    "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f7773756d6d617279426f74",
   sellerVkey: "0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd",
   submitResultTime: "1775681853000",
   payByTime: "1775737949000",
@@ -58,6 +59,23 @@ describe("createTaskEventRequestSchema", () => {
         ...validMasumiPayment,
         [field]: value,
       },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a bare policy id as agentIdentifier before charging", () => {
+    // The node requires minLength 57 — a full asset identifier, policy id plus
+    // asset name. A bare 56-hex policy id is a guaranteed 400 there, and task
+    // charges commit BEFORE the purchase, so accepting it only buys a debit
+    // and a compensating refund.
+    const barePolicyId =
+      "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77";
+    expect(barePolicyId).toHaveLength(56);
+
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: { ...validMasumiPayment, agentIdentifier: barePolicyId },
     });
 
     expect(result.success).toBe(false);

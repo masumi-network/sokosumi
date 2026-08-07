@@ -104,14 +104,20 @@ const masumiPaymentPayloadSchema = z
       .openapi({
         example: "aabbccddeeff00112233",
       }),
+    // Mirrors POST /purchase: minLength 57, maxLength 250. It is a full asset
+    // identifier — 56-hex policy id plus an asset name — so anything at or
+    // below 56 is a bare policy id the node rejects with a 400. Task charges
+    // commit BEFORE the purchase, so accepting one only bought a debit and a
+    // compensating refund.
     agentIdentifier: z
       .string()
-      .min(1)
+      .min(57)
       .max(250)
       .regex(HEX_PATTERN, "agentIdentifier must be hex")
       .toLowerCase()
       .openapi({
-        example: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
+        example:
+          "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f7773756d6d617279426f74",
       }),
     sellerVkey: z
       .string()

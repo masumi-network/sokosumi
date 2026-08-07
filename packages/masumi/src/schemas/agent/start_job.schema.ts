@@ -39,6 +39,23 @@ export const startPaidJobResponseSchema = z.preprocess(
     input_hash: z.string().min(1),
     identifierFromPurchaser: z.string().min(1),
     blockchainIdentifier: z.string().min(1),
+    // UNBOUNDED ON PURPOSE — but the absence of a maximum is load-bearing, so
+    // it is written down rather than left to be rediscovered.
+    //
+    // `payByTime` is chosen by the seller and is the sole gate on the local
+    // credit refund: buildJobsPendingLocalRefundWhere (packages/database/src/
+    // helpers/job-sync.ts) only refunds a purchase-less job once
+    // `payByTime < now - JOB_SYNC_PAYMENT_GRACE_MS`. A seller returning a
+    // far-future value — year 9999 is a valid int — alongside a
+    // blockchainIdentifier the payment node rejects leaves the buyer debited
+    // with no purchase and no refund, indefinitely.
+    //
+    // A sane bound is the protocol's own: the four deadlines must be ordered
+    // (payByTime <= submitResultTime <= unlockTime <=
+    // externalDisputeUnlockTime) and payByTime should be within days of now,
+    // not years. Enforcing that is a change to the V1 hire path and belongs
+    // with the seller-trust work (sellerVkey is unverified on the same
+    // response), not here.
     payByTime: z.coerce.number().int(),
     submitResultTime: z.coerce.number().int(),
     unlockTime: z.coerce.number().int(),

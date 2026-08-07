@@ -12665,10 +12665,10 @@ export const MasumiPaymentSchema = {
         },
         agentIdentifier: {
             type: 'string',
-            minLength: 1,
+            minLength: 57,
             maxLength: 250,
             pattern: '^[0-9a-fA-F]+$',
-            example: '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77'
+            example: '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f7773756d6d617279426f74'
         },
         sellerVkey: {
             type: 'string',

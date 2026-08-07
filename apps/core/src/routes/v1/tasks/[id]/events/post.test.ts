@@ -118,7 +118,8 @@ const COWORKER_ID = "cow_123";
 const validMasumiPaymentBody = {
   blockchainIdentifier: "0b00e04c0860a60c61066056281180462d0b12",
   identifierFromPurchaser: "aabbccddeeff00112233",
-  agentIdentifier: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
+  agentIdentifier:
+    "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f7773756d6d617279426f74",
   sellerVkey: "0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd",
   submitResultTime: "1775681853000",
   payByTime: "1775737949000",
