@@ -27,8 +27,22 @@ vi.mock("@/components/ui/sidebar", () => ({
   useSidebar: () => ({ ...sidebarState }),
 }));
 
+vi.mock("@/components/ui/popover", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/ui/popover")>();
+  const { createAccountSummaryPopoverMock } = await import(
+    "@/app/components/sidebar/components/__tests__/account-summary-popover-test-utils"
+  );
+  return createAccountSummaryPopoverMock(actual);
+});
+
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
+
+import {
+  accountSummaryPopoverTestFlags,
+  resetAccountSummaryPopoverTestFlags,
+} from "./account-summary-popover-test-utils";
 
 const sessionUser: SessionUser = {
   id: "user_1",
@@ -82,9 +96,11 @@ describe("SidebarAccountChip", () => {
     vi.clearAllMocks();
     sidebarState.isMobile = false;
     sidebarState.state = "expanded";
+    resetAccountSummaryPopoverTestFlags();
   });
 
   afterEach(() => {
+    resetAccountSummaryPopoverTestFlags();
     vi.restoreAllMocks();
   });
 
@@ -200,6 +216,47 @@ describe("SidebarAccountChip", () => {
     fireEvent.click(screen.getByRole("button", { name: "account" }));
 
     expect(pushMock).toHaveBeenCalledWith("/account");
+  });
+
+  it("does not flash the credits root when navigating away from settings", () => {
+    // forceMount keeps content through close (exit-animation window). If close
+    // remounted the menu at root, totalBalanceLabel would appear — assert the
+    // settings drill stays instead.
+    accountSummaryPopoverTestFlags.forceMount = true;
+    renderChip();
+    openChip();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "billing" }));
+
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+    expect(pushMock).toHaveBeenCalledWith("/billing");
+  });
+
+  it("starts at the root panel when reopened after closing from settings", () => {
+    // forceMount keeps the settings drill mounted across close so reopen must
+    // remount via menuInstance (open-only bump) to reach root again.
+    accountSummaryPopoverTestFlags.forceMount = true;
+    renderChip();
+    openChip();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /openSummary/ }));
+    openChip();
+
+    expect(
+      screen.getByRole("button", { name: "settings" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "back" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("totalBalanceLabel")).toBeInTheDocument();
   });
 
   it("buys credits and logs out from inside the summary", () => {
