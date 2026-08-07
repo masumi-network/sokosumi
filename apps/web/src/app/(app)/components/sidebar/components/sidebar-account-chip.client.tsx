@@ -98,8 +98,10 @@ function SidebarAccountChipDesktop({
     detailsUnavailable: t("detailsUnavailable"),
   });
 
+  // Remount only on open so a drill panel (e.g. settings → billing) does not
+  // flash the credits root during the popover exit animation.
   function handleOpenChange(open: boolean) {
-    if (!open) {
+    if (open) {
       setMenuInstance((value) => value + 1);
     }
     setIsOpen(open);
@@ -107,7 +109,6 @@ function SidebarAccountChipDesktop({
 
   function closeChip() {
     setIsOpen(false);
-    setMenuInstance((value) => value + 1);
   }
 
   const trigger = (

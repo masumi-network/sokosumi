@@ -71,8 +71,10 @@ export function HeaderAccountControl({
     detailsUnavailable: t("detailsUnavailable"),
   });
 
+  // Remount only on open so a drill panel (e.g. settings → billing) does not
+  // flash the credits root during the popover exit animation.
   function handleOpenChange(open: boolean) {
-    if (!open) {
+    if (open) {
       setMenuInstance((value) => value + 1);
     }
     setIsOpen(open);
@@ -80,7 +82,6 @@ export function HeaderAccountControl({
 
   function closeMenu() {
     setIsOpen(false);
-    setMenuInstance((value) => value + 1);
   }
 
   return (
