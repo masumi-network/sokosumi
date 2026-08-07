@@ -63,6 +63,24 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("canonicalizes timestamps so reconciliation cannot see a false mismatch", () => {
+    // The node stores these as numbers and echoes the canonical form. Storing
+    // "0177…" and sending it would make purchase reconciliation report a
+    // `mismatch`, which refunds the buyer while the escrow stays live.
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        payByTime: "01775737949000",
+        submitResultTime: "0001775681853000",
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.masumiPayment?.payByTime).toBe("1775737949000");
+    expect(result.data?.masumiPayment?.submitResultTime).toBe("1775681853000");
+  });
+
   it("takes blockchainIdentifier exactly as the node defines it", () => {
     // POST /purchase declares this `type: string, maxLength: 8000` with no
     // pattern. It is the seller's own value, so validating a format the node

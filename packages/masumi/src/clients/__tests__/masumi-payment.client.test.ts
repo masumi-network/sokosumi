@@ -1223,6 +1223,91 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
     });
   });
 
+  it("adopts a duplicate whose timestamps differ only in spelling", async () => {
+    // We send a string, the node stores a number and echoes the canonical
+    // form. Comparing raw would report `mismatch` — and `mismatch` refunds the
+    // buyer while the on-chain purchase stays live, so the escrow would be
+    // funded from Sokosumi's wallet and the credits handed back.
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Purchase already exists" } },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: createResolvedPurchase({
+          blockchainIdentifier: "chain1",
+          agentIdentifier: "agent1",
+          inputHash: "abc",
+          metadata: null,
+        }),
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchaseFromMasumiTaskPayment({
+      blockchainIdentifier: "chain1",
+      agentIdentifier: "agent1",
+      sellerVkey: "vkey1",
+      // Same instants as the resolved purchase, written with leading zeros.
+      submitResultTime: "01775681853000",
+      payByTime: "01775737949000",
+      unlockTime: "01775763149000",
+      externalDisputeUnlockTime: "01775784749000",
+      inputHash: "abc",
+      Amounts: [{ amount: "1000000", unit: "" }],
+      identifierFromPurchaser: "aabbccddeeff00112233",
+    });
+
+    expect(result.isOk()).toBe(true);
+  });
+
+  it("still refuses a duplicate whose timestamps are genuinely different", async () => {
+    postPurchaseMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "Purchase already exists" } },
+      response: { status: 409 },
+    });
+    postPurchaseResolveBlockchainIdentifierMock.mockResolvedValue({
+      data: {
+        data: createResolvedPurchase({
+          blockchainIdentifier: "chain1",
+          agentIdentifier: "agent1",
+          inputHash: "abc",
+          metadata: null,
+        }),
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    const result = await client.createPurchaseFromMasumiTaskPayment({
+      blockchainIdentifier: "chain1",
+      agentIdentifier: "agent1",
+      sellerVkey: "vkey1",
+      submitResultTime: "1775681853000",
+      payByTime: "1999999999000",
+      unlockTime: "1775763149000",
+      externalDisputeUnlockTime: "1775784749000",
+      inputHash: "abc",
+      Amounts: [{ amount: "1000000", unit: "" }],
+      identifierFromPurchaser: "aabbccddeeff00112233",
+    });
+
+    expect(result.isErr()).toBe(true);
+  });
+
   it("forwards abort signals through task purchase creation", async () => {
     const client = createPaymentClient(
       "Preprod",

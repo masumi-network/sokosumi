@@ -38,7 +38,13 @@ const masumiTimestampSchema = z
     (value) =>
       MASUMI_TIMESTAMP_PATTERN.test(value) && BigInt(value) <= MAX_SIGNED_INT64,
     "must fit in a signed 64-bit integer",
-  );
+  )
+  // Canonicalize, like the hex fields above are lowercased. The node stores
+  // these as numbers and echoes the canonical form back, so "0177…" would be
+  // stored and sent by us but returned as "177…" — and purchase
+  // reconciliation treats a term it cannot match as a `mismatch`, which
+  // refunds the buyer while the on-chain purchase stays live.
+  .transform((value) => BigInt(value).toString());
 
 const masumiPaymentAmountSchema = z.object({
   // The node caps amount strings at 25 characters — mirror it pre-charge.

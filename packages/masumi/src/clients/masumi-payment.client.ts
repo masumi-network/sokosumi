@@ -151,6 +151,31 @@ function doHexValuesMatch(
   return left != null && left.toLowerCase() === right.toLowerCase();
 }
 
+/**
+ * Compares two protocol millisecond timestamps by VALUE, not by spelling.
+ *
+ * These cross a numeric boundary: we send a string, the node stores a number,
+ * and it serializes the canonical form back. So "0177…" and "177…" are the
+ * same instant but not the same string. Comparing raw would report `mismatch`
+ * — and `mismatch` refunds the buyer while the on-chain purchase stays live.
+ *
+ * An absent value never matches: without it the terms cannot be verified, and
+ * adopting an unverifiable purchase is worse than refusing it.
+ */
+function doTimestampsMatch(
+  left: string | null | undefined,
+  right: string,
+): boolean {
+  if (left == null) {
+    return false;
+  }
+  try {
+    return BigInt(left) === BigInt(right);
+  } catch {
+    return false;
+  }
+}
+
 function doesPurchaseMatchRequest(
   purchase: ResolvedPurchase,
   request: PurchaseRequest,
@@ -162,10 +187,13 @@ function doesPurchaseMatchRequest(
     ) &&
     doHexValuesMatch(purchase.agentIdentifier, request.agentIdentifier) &&
     doHexValuesMatch(purchase.inputHash, request.inputHash) &&
-    purchase.payByTime === request.payByTime &&
-    purchase.submitResultTime === request.submitResultTime &&
-    purchase.unlockTime === request.unlockTime &&
-    purchase.externalDisputeUnlockTime === request.externalDisputeUnlockTime &&
+    doTimestampsMatch(purchase.payByTime, request.payByTime) &&
+    doTimestampsMatch(purchase.submitResultTime, request.submitResultTime) &&
+    doTimestampsMatch(purchase.unlockTime, request.unlockTime) &&
+    doTimestampsMatch(
+      purchase.externalDisputeUnlockTime,
+      request.externalDisputeUnlockTime,
+    ) &&
     purchase.metadata === (request.metadata ?? null) &&
     doesResolvedPurchaseSellerMatch(purchase, request.sellerVkey) &&
     (request.paymentSourceType === undefined ||
