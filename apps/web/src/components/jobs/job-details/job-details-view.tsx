@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import Header from "@/app/agents/[agentId]/jobs/components/header";
 import { useJobsHeader } from "@/app/agents/[agentId]/jobs/components/jobs-header-context";
-import { APP_MAIN_MOBILE_PT_CLASS } from "@/app/components/app-shell-safe-area";
 import { getWorkspaceMoveTargetCount } from "@/app/tasks/components/workspace-move-targets";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import {
@@ -90,8 +89,7 @@ export default function JobDetailsView({
           <div
             className={cn(
               "min-w-0 flex-1 space-y-4 max-w-4xl",
-              publicJobLayout &&
-                cn("md:pt-4 max-w-none", APP_MAIN_MOBILE_PT_CLASS),
+              publicJobLayout && "pt-20 md:pt-4 max-w-none",
             )}
           >
             {publicJobLayout ? (

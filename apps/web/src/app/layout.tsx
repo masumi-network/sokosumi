@@ -24,11 +24,6 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-/**
- * `viewport-fit=cover` so iOS `env(safe-area-inset-*)` is non-zero (PWA /
- * notched devices). App, auth, and share chrome must pad those insets —
- * see `app-shell-safe-area.ts`.
- */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,

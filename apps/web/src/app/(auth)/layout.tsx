@@ -6,13 +6,11 @@ import { connection } from "next/server";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
-import { AUTH_SHELL_SAFE_AREA_PADDING_CLASS } from "@/app/components/app-shell-safe-area";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { getSession } from "@/lib/auth/auth.server";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
-import { cn } from "@/lib/utils";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 import AuthBackground from "./components/auth-background";
@@ -60,9 +58,7 @@ export default async function AuthLayout({
 
   return (
     <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
-      <div
-        className={cn("flex h-svh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
-      >
+      <div className="flex h-svh gap-6 p-6">
         <div className="flex h-full flex-1 flex-col gap-6">
           <Link href="/">
             <ThemedLogo LogoComponent={SokosumiLogo} priority />

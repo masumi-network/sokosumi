@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useFormatter } from "next-intl";
 import { getLocale, getTranslations } from "next-intl/server";
 
-import { APP_MAIN_MOBILE_PT_CLASS } from "@/app/components/app-shell-safe-area";
 import { TaskFiles } from "@/app/tasks/components/task-files";
 import {
   getTaskStatusBorderColorClass,
@@ -141,9 +140,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
       <div className="flex w-full flex-col gap-4 md:h-full md:flex-row">
         <div className="flex w-full min-w-0 justify-center">
           <div className="min-w-0 flex-1 space-y-8 pb-20">
-            <section
-              className={cn("space-y-4 md:pt-4", APP_MAIN_MOBILE_PT_CLASS)}
-            >
+            <section className="space-y-4 pt-20 md:pt-4">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-muted-foreground text-xs font-medium tracking-[0.24em] uppercase">
                   {tTaskShare("eyebrow")}
