@@ -60,7 +60,7 @@ export function matchEmoticonClosedAtBoundary(
 ): ComposerEmoticonMatch | null;
 ```
 
-- [ ] **Step 1: Pin dependency**
+- [x] **Step 1: Pin dependency**
 
 In `apps/web/package.json` `dependencies`, add:
 
@@ -76,7 +76,7 @@ pnpm install --filter web
 
 Expected: lockfile updates if needed; `emoticon@4.1.0` resolvable from web.
 
-- [ ] **Step 2: Write failing unit tests**
+- [x] **Step 2: Write failing unit tests**
 
 Create `apps/web/src/lib/utils/__tests__/composer-emoticons.test.ts`:
 
@@ -146,7 +146,7 @@ describe("matchEmoticonClosedAtBoundary", () => {
 });
 ```
 
-- [ ] **Step 3: Run tests — expect FAIL**
+- [x] **Step 3: Run tests — expect FAIL**
 
 ```bash
 pnpm --filter web test src/lib/utils/__tests__/composer-emoticons.test.ts
@@ -154,7 +154,7 @@ pnpm --filter web test src/lib/utils/__tests__/composer-emoticons.test.ts
 
 Expected: FAIL (module not found / function undefined).
 
-- [ ] **Step 4: Implement matcher**
+- [x] **Step 4: Implement matcher**
 
 Create `apps/web/src/lib/utils/composer-emoticons.ts`:
 
@@ -233,7 +233,7 @@ Notes for implementer:
 - Emoji glyphs (`😄` for `:D`, `😃` for `:)`, `😉` for `;)`) come from `emoticon` package; if a test glyph drifts, assert against `match` from the package rather than inventing alternates.
 - First-writer-wins when the same ASCII appears on multiple entries (map uses first `emoticon` list order).
 
-- [ ] **Step 5: Run tests — expect PASS**
+- [x] **Step 5: Run tests — expect PASS**
 
 ```bash
 pnpm --filter web test src/lib/utils/__tests__/composer-emoticons.test.ts
@@ -241,7 +241,7 @@ pnpm --filter web test src/lib/utils/__tests__/composer-emoticons.test.ts
 
 Expected: all PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/web/package.json pnpm-lock.yaml apps/web/src/lib/utils/composer-emoticons.ts apps/web/src/lib/utils/__tests__/composer-emoticons.test.ts
@@ -267,7 +267,7 @@ EOF
 - Consumes (existing): `findPositionForOffset`, `setCaretAfterNode`, `serializeEditor` / `syncFromEditor`, shortcode replace pattern in `handleInput`
 - Produces: no new exported API; live emoticon conversion on input
 
-- [ ] **Step 1: Write failing integration tests**
+- [x] **Step 1: Write failing integration tests**
 
 Append to `apps/web/src/components/chat/__tests__/composer-wysiwyg-editor.test.tsx` (same patterns as emoji shortcode popup tests — set `textContent`, collapse selection to end, `fireEvent.input`):
 
@@ -332,7 +332,7 @@ Append to `apps/web/src/components/chat/__tests__/composer-wysiwyg-editor.test.t
   });
 ```
 
-- [ ] **Step 2: Run tests — expect FAIL**
+- [x] **Step 2: Run tests — expect FAIL**
 
 ```bash
 pnpm --filter web test src/components/chat/__tests__/composer-wysiwyg-editor.test.tsx
@@ -340,7 +340,7 @@ pnpm --filter web test src/components/chat/__tests__/composer-wysiwyg-editor.tes
 
 Expected: FAIL on “converts :D…” (still shows `:D`).
 
-- [ ] **Step 3: Wire replace after shortcode block**
+- [x] **Step 3: Wire replace after shortcode block**
 
 In `composer-wysiwyg-editor.tsx`:
 
@@ -446,7 +446,7 @@ const insert = match.emoji; // do not append space; boundary stays
 
 Keep shortcode block unchanged (still first).
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 ```bash
 pnpm --filter web test src/components/chat/__tests__/composer-wysiwyg-editor.test.tsx
@@ -454,7 +454,7 @@ pnpm --filter web test src/components/chat/__tests__/composer-wysiwyg-editor.tes
 
 Expected: new tests PASS; existing suite still green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/web/src/components/chat/composer-wysiwyg-editor.tsx apps/web/src/components/chat/__tests__/composer-wysiwyg-editor.test.tsx
@@ -479,7 +479,7 @@ EOF
 - Consumes: `matchEmoticonClosedAtBoundary(text, caret, { flush: true })`
 - Produces: flush conversion on blur timeout and on Enter-submit path
 
-- [ ] **Step 1: Write failing flush tests**
+- [x] **Step 1: Write failing flush tests**
 
 ```tsx
   it("converts bare trailing emoticon on blur (flush)", async () => {
@@ -552,7 +552,7 @@ EOF
   });
 ```
 
-- [ ] **Step 2: Run tests — expect FAIL**
+- [x] **Step 2: Run tests — expect FAIL**
 
 ```bash
 pnpm --filter web test src/components/chat/__tests__/composer-wysiwyg-editor.test.tsx
@@ -560,7 +560,7 @@ pnpm --filter web test src/components/chat/__tests__/composer-wysiwyg-editor.tes
 
 Expected: FAIL on flush/blur or submit conversion.
 
-- [ ] **Step 3: Implement flush helper and call sites**
+- [x] **Step 3: Implement flush helper and call sites**
 
 In `composer-wysiwyg-editor.tsx`, extract a `tryFlushEmoticonAtEnd` (or reuse replace logic) that:
 
@@ -618,7 +618,7 @@ tryFlushTrailingEmoticon();
 onSubmitShortcut?.();
 ```
 
-- [ ] **Step 4: Run tests — expect PASS**
+- [x] **Step 4: Run tests — expect PASS**
 
 ```bash
 pnpm --filter web test src/components/chat/__tests__/composer-wysiwyg-editor.test.tsx src/lib/utils/__tests__/composer-emoticons.test.ts
@@ -626,7 +626,7 @@ pnpm --filter web test src/components/chat/__tests__/composer-wysiwyg-editor.tes
 
 Expected: all PASS.
 
-- [ ] **Step 5: Format / typecheck touched surface**
+- [x] **Step 5: Format / typecheck touched surface**
 
 ```bash
 pnpm --filter web exec biome check --write src/lib/utils/composer-emoticons.ts src/lib/utils/__tests__/composer-emoticons.test.ts src/components/chat/composer-wysiwyg-editor.tsx src/components/chat/__tests__/composer-wysiwyg-editor.test.tsx
@@ -635,7 +635,7 @@ pnpm --filter web typecheck
 
 Expected: clean check; typecheck OK.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/web/src/components/chat/composer-wysiwyg-editor.tsx apps/web/src/components/chat/__tests__/composer-wysiwyg-editor.test.tsx

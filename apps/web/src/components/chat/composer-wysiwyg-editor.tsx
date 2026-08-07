@@ -59,6 +59,7 @@ import {
 } from "@/lib/utils/composer-paste-sanitize";
 import { tryExitComposerInlineFormatOnArrow } from "@/lib/utils/composer-wysiwyg-arrow-exit";
 import { toggleComposerInlineCode } from "@/lib/utils/composer-wysiwyg-code-format";
+import { replaceComposerTextRange } from "@/lib/utils/composer-wysiwyg-dom";
 import {
   resolveComposerEnterAction,
   tryApplyComposerInputRuleAtCaret,
@@ -69,23 +70,6 @@ import {
 } from "@/lib/utils/emoji-shortcodes";
 import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
-
-const COMPOSER_PROTECTED_TAGS = new Set(["CODE", "PRE"]);
-
-function isInsideComposerProtectedContext(
-  node: Node | null,
-  root: HTMLElement,
-): boolean {
-  let current: Node | null = node;
-  while (current && current !== root) {
-    if (current instanceof HTMLElement) {
-      if (COMPOSER_PROTECTED_TAGS.has(current.tagName)) return true;
-      if (current.dataset.mentionKey) return true;
-    }
-    current = current.parentNode;
-  }
-  return false;
-}
 
 type SuggestionUiState =
   | { open: false }
@@ -450,61 +434,46 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
     const exactEmoji = matchExactEmojiShortcodeClosed(text, caret);
     if (exactEmoji) {
-      const startPos = findPositionForOffset(
-        editorRef.current,
-        exactEmoji.triggerStart,
-      );
-      const endPos = findPositionForOffset(editorRef.current, exactEmoji.end);
-      const range = document.createRange();
-      range.setStart(startPos.node, startPos.offset);
-      range.setEnd(endPos.node, endPos.offset);
-      range.deleteContents();
-
       const nextChar = text[exactEmoji.end];
       const insert = shouldAppendTrailingSpace(nextChar)
         ? `${exactEmoji.emoji} `
         : exactEmoji.emoji;
-      const textNode = document.createTextNode(insert);
-      range.insertNode(textNode);
-      setCaretAfterNode(editorRef.current, textNode);
-      isInternalChange.current = true;
-      syncFromEditor();
-      closeSuggestions();
-      return;
+      if (
+        replaceComposerTextRange(
+          editorRef.current,
+          exactEmoji.triggerStart,
+          exactEmoji.end,
+          insert,
+        )
+      ) {
+        isInternalChange.current = true;
+        syncFromEditor();
+        closeSuggestions();
+        return;
+      }
     }
 
     // Emoticon live convert: include the closing boundary (space/punct) in the
     // replace so caret lands after it — otherwise typing glues to the emoji and
     // the user needs a second space for the next word.
+    // Converts only at the caret boundary (not a full-document scan); paste of
+    // multiple mid-string emoticons still converts on send via remark-emoji.
     const emoticonMatch = matchEmoticonClosedAtBoundary(text, caret);
     if (emoticonMatch && editorRef.current) {
-      const editor = editorRef.current;
-      // Live path: caret is just after the boundary char at match.end.
       const boundarySuffix = text.slice(emoticonMatch.end, caret);
       const deleteEnd = emoticonMatch.end + boundarySuffix.length;
-      const startPos = findPositionForOffset(editor, emoticonMatch.start);
-      const endPos = findPositionForOffset(editor, deleteEnd);
-      // Gate on match range (not only caret): serialize flattens text so a
-      // caret after `</code>` can still match `:D` inside CODE.
       if (
-        !isInsideComposerProtectedContext(startPos.node, editor) &&
-        !isInsideComposerProtectedContext(endPos.node, editor)
-      ) {
-        const range = document.createRange();
-        range.setStart(startPos.node, startPos.offset);
-        range.setEnd(endPos.node, endPos.offset);
-        range.deleteContents();
-
-        const textNode = document.createTextNode(
+        replaceComposerTextRange(
+          editorRef.current,
+          emoticonMatch.start,
+          deleteEnd,
           `${emoticonMatch.emoji}${boundarySuffix}`,
-        );
-        range.insertNode(textNode);
-        setCaretAfterNode(editor, textNode);
-        // Commit parent value before any same-tick submit (e.g. Enter send).
-        flushSync(() => {
-          isInternalChange.current = true;
-          syncFromEditor();
-        });
+        )
+      ) {
+        // Live path: no flushSync — next keystroke/blur/submit sees state.
+        // flushSync reserved for tryFlushTrailingEmoticon (same-tick submit).
+        isInternalChange.current = true;
+        syncFromEditor();
         closeSuggestions();
         return;
       }
@@ -1018,23 +987,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
     });
     if (!match) return;
 
-    const startPos = findPositionForOffset(editor, match.start);
-    const endPos = findPositionForOffset(editor, match.end);
-    // Gate on match range (not only caret): flush can match across CODE/PRE.
     if (
-      isInsideComposerProtectedContext(startPos.node, editor) ||
-      isInsideComposerProtectedContext(endPos.node, editor)
+      !replaceComposerTextRange(editor, match.start, match.end, match.emoji)
     ) {
       return;
     }
-
-    const range = document.createRange();
-    range.setStart(startPos.node, startPos.offset);
-    range.setEnd(endPos.node, endPos.offset);
-    range.deleteContents();
-    const textNode = document.createTextNode(match.emoji);
-    range.insertNode(textNode);
-    setCaretAfterNode(editor, textNode);
     // flushSync so parent composerValue updates before requestSubmit/onSubmit.
     flushSync(() => {
       isInternalChange.current = true;

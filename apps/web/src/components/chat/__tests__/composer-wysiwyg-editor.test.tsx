@@ -958,6 +958,39 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor.querySelector("code")?.textContent).toBe(":D");
   });
 
+  it("still converts emoticons after a mention chip", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{
+            alice: { value: "Alice" },
+          }}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    // Mention chip then plain ":D " — convert must apply only to plain text.
+    editor.innerHTML =
+      '<span data-mention-key="alice" data-mention-slug="alice" contenteditable="false">@Alice</span> :D ';
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain("😄");
+    expect(editor.textContent).not.toContain(":D");
+    expect(editor.querySelector("[data-mention-key='alice']")).not.toBeNull();
+  });
+
   it("converts bare trailing emoticon on blur (flush)", () => {
     function Harness() {
       const [value, setValue] = useState("");
