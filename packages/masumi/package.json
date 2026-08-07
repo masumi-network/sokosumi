@@ -61,7 +61,7 @@
     "format:check": "biome format .",
     "test": "vitest run",
     "test:specs": "node --test scripts/fetch-specs.test.mjs",
-    "test:ci": "vitest run && node --test scripts/fetch-specs.test.mjs",
+    "test:ci": "vitest run && pnpm run test:specs",
     "test:watch": "vitest",
     "fetch:specs": "node scripts/fetch-specs.mjs",
     "generate:payment": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.payment.config.ts",
