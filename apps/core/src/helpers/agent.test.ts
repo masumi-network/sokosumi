@@ -7,7 +7,7 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildAvailableAgentWhereClause,
@@ -34,18 +34,12 @@ const { getEnvMock } = vi.hoisted(() => ({
   // reads getEnv().DATABASE_URL at module load, before any hook runs.
   getEnvMock: vi.fn().mockReturnValue({
     DATABASE_URL: "https://example.com/database",
-    ENABLE_CARDANO_V2_AGENTS: false,
   }),
 }));
 
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
 }));
-
-beforeEach(() => {
-  // Matches the test-env default (rollout flag off).
-  getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: false });
-});
 
 function createCreditCost(unit: string): CreditCost {
   const now = new Date("2026-01-01T00:00:00.000Z");
@@ -106,11 +100,11 @@ describe("buildAvailableAgentWhereClause", () => {
     });
   });
 
-  it("excludes pointer types, endpointless, unknown-rail, and V2-contract agents when the rollout flag is off", () => {
+  it("excludes pointer types, endpointless, unknown-rail, and V2-contract agents when the rail is not ready", () => {
     const where = buildAvailableAgentWhereClause([createCreditCost("USD")], []);
 
     expect(where.type).toBe(AgentEntryType.STANDARD);
-    // Allowlist: UNKNOWN rails are never available; V2 only behind the flag.
+    // Allowlist: UNKNOWN rails are never available; V2 only when ready.
     expect(where.paymentType).toEqual({
       in: [PaymentType.WEB3_CARDANO_V1, PaymentType.NONE],
     });
@@ -140,9 +134,7 @@ describe("buildAvailableAgentWhereClause", () => {
     ]);
   });
 
-  it("allowlists V2-contract agents when the rollout flag is enabled", () => {
-    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
-
+  it("allowlists V2-contract agents when the rail reports a purchase-ready source", () => {
     const where = buildAvailableAgentWhereClause(
       [createCreditCost("USD")],
       [CARDANO_V2_READY_SOURCE],
@@ -155,7 +147,7 @@ describe("buildAvailableAgentWhereClause", () => {
         PaymentType.WEB3_CARDANO_V2,
       ],
     });
-    // Structural filters stay regardless of the flag.
+    // Structural filters stay regardless of rail readiness.
     expect(where.type).toBe(AgentEntryType.STANDARD);
     expect(where.AND).toHaveLength(2);
     expect(where.AND).toContainEqual({
@@ -188,9 +180,7 @@ describe("buildAvailableAgentWhereClause", () => {
     });
   });
 
-  it("excludes V2-contract agents when the rail is not purchase-ready despite the flag", () => {
-    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
-
+  it("excludes V2-contract agents when the rail reports no purchase-ready source", () => {
     const where = buildAvailableAgentWhereClause([createCreditCost("USD")], []);
 
     expect(where.paymentType).toEqual({
@@ -212,18 +202,7 @@ describe("getCardanoV2ReadySources", () => {
     return { tx, findUnique };
   }
 
-  it("returns no sources without querying while the rollout flag is off", async () => {
-    const { tx, findUnique } = createSyncMetadataTransactionClient({
-      cursorId: "ready",
-      lastSyncedAt: new Date(),
-    });
-
-    await expect(getCardanoV2ReadySources(tx)).resolves.toEqual([]);
-    expect(findUnique).not.toHaveBeenCalled();
-  });
-
-  it("returns exact sources from a fresh cache row when the flag is on", async () => {
-    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
+  it("returns exact sources from a fresh cache row", async () => {
     const { tx, findUnique } = createSyncMetadataTransactionClient({
       cursorId: JSON.stringify([CARDANO_V2_READY_SOURCE]),
       lastSyncedAt: new Date(),
@@ -238,7 +217,6 @@ describe("getCardanoV2ReadySources", () => {
   });
 
   it("returns no sources when the cached readiness is empty", async () => {
-    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: "[]",
       lastSyncedAt: new Date(),
@@ -248,14 +226,12 @@ describe("getCardanoV2ReadySources", () => {
   });
 
   it("returns no sources when no readiness row exists yet", async () => {
-    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
     const { tx } = createSyncMetadataTransactionClient(null);
 
     await expect(getCardanoV2ReadySources(tx)).resolves.toEqual([]);
   });
 
   it("fails closed when the ready row is older than the TTL", async () => {
-    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: JSON.stringify([CARDANO_V2_READY_SOURCE]),
       lastSyncedAt: new Date(Date.now() - 31 * 60 * 1000),
@@ -265,7 +241,6 @@ describe("getCardanoV2ReadySources", () => {
   });
 
   it("fails closed for a legacy boolean readiness payload", async () => {
-    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: "ready",
       lastSyncedAt: new Date(),
@@ -275,7 +250,6 @@ describe("getCardanoV2ReadySources", () => {
   });
 
   it("drops cached sources with malformed policy ids", async () => {
-    getEnvMock.mockReturnValue({ ENABLE_CARDANO_V2_AGENTS: true });
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: JSON.stringify([
         {
@@ -663,6 +637,7 @@ describe("requireAvailableAgentOrThrow", () => {
       creditCost: {
         findMany: vi.fn().mockResolvedValue([createCreditCost("USD")]),
       },
+      syncMetadata: { findUnique: vi.fn().mockResolvedValue(null) },
       agent: { findFirst },
     } as unknown as Prisma.TransactionClient;
 
@@ -682,6 +657,7 @@ describe("requireAvailableAgentOrThrow", () => {
       creditCost: {
         findMany: vi.fn().mockResolvedValue([createCreditCost("USD")]),
       },
+      syncMetadata: { findUnique: vi.fn().mockResolvedValue(null) },
       agent: { findFirst: vi.fn().mockResolvedValue(null) },
     } as unknown as Prisma.TransactionClient;
 

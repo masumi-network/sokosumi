@@ -309,23 +309,35 @@ function reportOrphanedSellerJob(
 }
 
 /**
- * A `start_job` call that never produced a usable response. Invalid 2xx bodies
- * definitely strand seller work; transport failures after dispatch may strand
- * it. Both page because MIP-003 has no reconciliation or cancel endpoint.
- * Pre-dispatch validation and explicit non-timeout 4xx failures stay ordinary.
+ * A `start_job` call that never produced a usable response.
+ *
+ * Only `invalid-response` pages. There the seller answered 2xx — it accepted
+ * the job and started work — and the body still did not parse, so seller-side
+ * work definitely exists that we cannot record, and MIP-003 has no cancel.
+ *
+ * `ambiguous` (timeout, 5xx, 3xx after dispatch) is logged, not paged. It is
+ * indistinguishable from ordinary seller flakiness, it is the single most
+ * common way a hire fails, and no money has moved: credits are charged after
+ * start_job returns, so the user is simply told the hire failed. `main` paged
+ * on none of this, and routing every flaky seller into on-call would bury the
+ * definite case above in noise.
  */
 function reportStrandedStartJobFailure(
   failure: AgentJobStartFailure,
   context: Record<string, unknown>,
 ): void {
-  if (failure.kind === "unreachable") {
+  if (failure.kind !== "invalid-response") {
+    console.warn("[createAgentJobForUser] start_job failed", {
+      ...context,
+      kind: failure.kind,
+      failure: failure.message,
+    });
     return;
   }
-  const reason =
-    failure.kind === "ambiguous"
-      ? "start_job transport failed after dispatch; seller acceptance is unknown"
-      : "seller accepted start_job but returned a response that does not match the MIP-003 contract";
-  reportOrphanedSellerJob(reason, { ...context, failure: failure.message });
+  reportOrphanedSellerJob(
+    "seller accepted start_job but returned a response that does not match the MIP-003 contract",
+    { ...context, failure: failure.message },
+  );
 }
 
 interface PreparedV2Source {

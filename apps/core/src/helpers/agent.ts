@@ -248,9 +248,6 @@ const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
 export const getCardanoV2ReadySources = async (
   tx: Prisma.TransactionClient = prisma,
 ): Promise<CardanoV2ReadySource[]> => {
-  if (!getEnv().ENABLE_CARDANO_V2_AGENTS) {
-    return [];
-  }
   const cached = getCachedCardanoV2ReadySources<CardanoV2ReadySource>();
   if (cached) {
     return cached;
@@ -307,8 +304,11 @@ export const buildAvailableAgentWhereClause = (
       ),
     ),
   );
-  const isCardanoV2Enabled =
-    getEnv().ENABLE_CARDANO_V2_AGENTS && cardanoV2ReadySources.length > 0;
+  // V2 availability is gated on rail readiness alone: the payment node must
+  // have recently reported at least one purchase-ready Cardano V2 source.
+  // That is the gate that actually reflects whether a V2 hire can settle — a
+  // static boolean could only ever agree with it by coincidence.
+  const isCardanoV2Enabled = cardanoV2ReadySources.length > 0;
 
   const pricingFilter = {
     pricingType: { not: PricingType.UNKNOWN },
@@ -356,10 +356,10 @@ export const buildAvailableAgentWhereClause = (
     // X402 pointer entries have no job flow yet.
     type: AgentEntryType.STANDARD,
     // Allowlist of payment rails the job flow can actually purchase through.
-    // UNKNOWN (unrecognized future rails) is always excluded; V2 requires the
-    // rollout flag AND an exact policy/contract source that the payment node
-    // recently reported purchase-ready (see getCardanoV2ReadySources). Wallet
-    // funding is not covered and stays a runbook step.
+    // UNKNOWN (unrecognized future rails) is always excluded; V2 requires an
+    // exact policy/contract source that the payment node recently reported
+    // purchase-ready (see getCardanoV2ReadySources). Wallet funding is not
+    // covered and stays a runbook step.
     paymentType: {
       in: [
         PaymentType.WEB3_CARDANO_V1,

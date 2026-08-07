@@ -765,7 +765,11 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
     expect(txJobCreateMock).not.toHaveBeenCalled();
   });
 
-  it("reports possibly stranded work when start_job transport fails after dispatch", async () => {
+  it("stays silent when start_job transport fails after dispatch", async () => {
+    // A timeout or 5xx after dispatch is indistinguishable from ordinary
+    // seller flakiness and is the most common way a hire fails. No credits
+    // have been charged at this point, so the user simply sees a failed hire.
+    // Paging here would bury the invalid-response case below in noise.
     agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
     createAgentClientMock.mockReturnValue({
       startPaidAgentJob: vi.fn().mockResolvedValue(
@@ -780,9 +784,30 @@ describe("createAgentJobForUser schedule/max-cents behavior", () => {
       "Paid agent job start failed: connection reset after request dispatch",
     );
 
+    expect(sentryCaptureExceptionMock).not.toHaveBeenCalled();
+    expect(txJobCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("pages when the seller accepted the job but returned an unusable body", async () => {
+    // 2xx means the seller took the job and started work. We cannot record
+    // it and MIP-003 has no cancel, so this one is a definite strand.
+    agentFindFirstMock.mockResolvedValue(createPaidV2AgentRecord());
+    createAgentClientMock.mockReturnValue({
+      startPaidAgentJob: vi.fn().mockResolvedValue(
+        err({
+          kind: "invalid-response",
+          message: "start_job response was not valid JSON",
+        }),
+      ),
+    });
+
+    await expect(createAgentJobForUser(createInput())).rejects.toThrow(
+      "Paid agent job start failed: start_job response was not valid JSON",
+    );
+
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock.mock.calls[0]?.[0]).toMatchObject({
-      message: expect.stringContaining("seller acceptance is unknown"),
+      message: expect.stringContaining("does not match the MIP-003 contract"),
     });
     expect(txJobCreateMock).not.toHaveBeenCalled();
   });

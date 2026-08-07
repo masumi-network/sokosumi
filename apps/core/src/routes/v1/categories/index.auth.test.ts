@@ -63,6 +63,7 @@ describe("categories routes auth gate", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       const tx = {
         creditCost: { findMany: creditCostFindManyMock },
+        syncMetadata: { findUnique: vi.fn().mockResolvedValue(null) },
         category: { findMany: categoryFindManyMock },
       };
       return await callback(tx);

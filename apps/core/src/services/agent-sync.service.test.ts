@@ -31,7 +31,6 @@ const {
   agentUpdateMock,
   getAgentsDiffMock,
   getCardanoV2RailReadinessMock,
-  getEnvEnableCardanoV2Mock,
   jobUpdateManyMock,
   openrouterGenerateAgentSummaryMock,
   syncMetadataDeleteManyMock,
@@ -65,7 +64,6 @@ const {
   agentUpdateMock: vi.fn(),
   getAgentsDiffMock: vi.fn(),
   getCardanoV2RailReadinessMock: vi.fn(),
-  getEnvEnableCardanoV2Mock: vi.fn().mockReturnValue(true),
   jobUpdateManyMock: vi.fn(),
   openrouterGenerateAgentSummaryMock: vi.fn(),
   syncMetadataDeleteManyMock: vi.fn(),
@@ -88,7 +86,6 @@ vi.mock("@/config/env", () => ({
     SHOW_AGENTS_BY_DEFAULT: true,
     // Ingestion tests exercise the flag-on behavior; the flag-off rollback
     // fence has its own dedicated tests.
-    ENABLE_CARDANO_V2_AGENTS: getEnvEnableCardanoV2Mock(),
   }),
 }));
 
@@ -294,7 +291,6 @@ function createV2AgentIdentifier(version: number): string {
 describe("agentSyncService.syncRegistryAgents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getEnvEnableCardanoV2Mock.mockReturnValue(true);
     creditCostFindManyMock.mockResolvedValue([{ unit: "lovelace" }]);
     syncMetadataFindUniqueMock.mockResolvedValue({
       key: "agents-sync-metadata",
@@ -731,31 +727,6 @@ describe("agentSyncService.syncRegistryAgents", () => {
     });
   });
 
-  it("defers a free V2-policy entry while the rollout flag is off", async () => {
-    getEnvEnableCardanoV2Mock.mockReturnValue(false);
-    getAgentsDiffMock.mockResolvedValue(
-      ok([
-        createRegistryEntry("entry-free-v2", {
-          agentIdentifier: createV2AgentIdentifier(0),
-          // Free/EVM-only V2 entries report "None", which used to slip past
-          // the rollback fence and onto the marketplace before the flag.
-          paymentType: "None",
-          AgentPricing: null,
-          SupportedPaymentSources: [createCardanoV2PaymentSource()],
-        }),
-      ]),
-    );
-
-    const agentSyncService = await getAgentSyncService();
-    await agentSyncService.syncRegistryAgents(
-      AGENTS_SYNC_METADATA_KEY,
-      createSyncExecutionOptions(),
-    );
-
-    expect(agentCreateMock).not.toHaveBeenCalled();
-    expect(agentUpdateMock).not.toHaveBeenCalled();
-  });
-
   it("uses defaults when a newly discovered entry has no twin", async () => {
     const entries = [createRegistryEntry("entry-no-twin")];
     getAgentsDiffMock.mockResolvedValue(ok(entries));
@@ -873,27 +844,6 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(updateCall.data.exampleOutput).toBeUndefined();
   });
 
-  it("starts a full replay from the independent V2 cursor when enabled", async () => {
-    const agentSyncService = await getAgentSyncService();
-    syncMetadataFindUniqueMock.mockResolvedValue(null);
-    getAgentsDiffMock.mockResolvedValue(ok([]));
-
-    await agentSyncService.syncRegistryAgents(
-      AGENTS_SYNC_METADATA_KEY,
-      createSyncExecutionOptions(),
-    );
-
-    expect(syncMetadataFindUniqueMock).toHaveBeenCalledWith({
-      where: { key: "agents-sync-metadata-cardano-v2" },
-    });
-    expect(getAgentsDiffMock).toHaveBeenCalledWith(
-      new Date(0),
-      null,
-      50,
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
-    );
-  });
-
   it("stops registry sync immediately when shouldContinue returns false", async () => {
     const agentSyncService = await getAgentSyncService();
     const shouldContinue = vi.fn().mockReturnValue(false);
@@ -974,7 +924,7 @@ describe("agentSyncService.syncRegistryAgents", () => {
     });
 
     expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
-      where: { key: "agents-sync-metadata-cardano-v2" },
+      where: { key: "agents-sync-metadata" },
     });
     expect(syncMetadataDeleteManyMock.mock.invocationCallOrder[0]).toBeLessThan(
       syncMetadataFindUniqueMock.mock.invocationCallOrder[0] ?? Infinity,
@@ -1082,10 +1032,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
 
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
       where: {
-        key: "agents-sync-metadata-cardano-v2",
+        key: "agents-sync-metadata",
       },
       create: {
-        key: "agents-sync-metadata-cardano-v2",
+        key: "agents-sync-metadata",
         cursorId: "entry-3",
         lastSyncedAt: new Date(lastStatusUpdatedAt),
       },
@@ -1999,6 +1949,84 @@ describe("agentSyncService.syncRegistryAgents", () => {
     consoleWarnSpy.mockRestore();
   });
 
+  it("records an audit entry when a registry sync reprices a live agent", async () => {
+    // The registry owns the price, so a seller edit becoming authoritative is
+    // intended — but it must not be invisible. Already-charged work is
+    // unaffected: credits come from the price read at hire time, refunds
+    // reverse the stored transaction, and job sync reconciles against the
+    // job's own purchaseAmounts snapshot. This log covers FUTURE hires.
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-db-1",
+      pricingId: "pricing-1",
+      registryVersion: 0,
+    });
+    agentPricingFindUniqueMock.mockResolvedValue({
+      pricingType: PricingType.FIXED,
+      agentFixedPricingId: "fixed-pricing-old",
+      fixedPricing: { amounts: [{ unit: "", amount: BigInt(10) }] },
+    });
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-repriced", {
+          AgentPricing: {
+            pricingType: "Fixed",
+            FixedPricing: { Amounts: [{ amount: "100", unit: "" }] },
+          },
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Registry pricing changed for a live agent",
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          previousPricing: "FIXED:10lovelace",
+          nextPricing: "FIXED:100lovelace",
+        }),
+      }),
+    );
+  });
+
+  it("does not record an audit entry when the registry price is unchanged", async () => {
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-db-1",
+      pricingId: "pricing-1",
+      registryVersion: 0,
+    });
+    agentPricingFindUniqueMock.mockResolvedValue({
+      pricingType: PricingType.FIXED,
+      agentFixedPricingId: "fixed-pricing-old",
+      fixedPricing: { amounts: [{ unit: "lovelace", amount: BigInt(10) }] },
+    });
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-same-price", {
+          AgentPricing: {
+            pricingType: "Fixed",
+            FixedPricing: { Amounts: [{ amount: "10", unit: "lovelace" }] },
+          },
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(captureMessageMock).not.toHaveBeenCalledWith(
+      "Registry pricing changed for a live agent",
+      expect.anything(),
+    );
+  });
+
   it("replaces pricing and payment sources in a transaction when the agent already exists", async () => {
     agentFindUniqueMock.mockResolvedValue({
       id: "agent-db-1",
@@ -2255,54 +2283,6 @@ describe("agentSyncService.syncRegistryAgents", () => {
     ).toEqual([{ unit: "lovelace", amount: BigInt(2000000), decimals: null }]);
   });
 
-  it("defers rollback-unsafe entries while the rollout flag is off but advances the cursor", async () => {
-    getEnvEnableCardanoV2Mock.mockReturnValue(false);
-    const entries = [
-      createRegistryEntry("entry-v2-deferred", {
-        paymentType: "Web3CardanoV2",
-        AgentPricing: null,
-        SupportedPaymentSources: [createCardanoV2PaymentSource()],
-        statusUpdatedAt: "2026-02-24T13:00:00.000Z",
-      }),
-      createRegistryEntry("entry-x402-deferred", {
-        type: "X402",
-        apiBaseUrl: null,
-        x402ResourcesUrl: "https://example.com/x402.json",
-        paymentType: "None",
-        statusUpdatedAt: "2026-02-24T14:00:00.000Z",
-      }),
-      createRegistryEntry("entry-v1-kept", {
-        statusUpdatedAt: "2026-02-24T15:00:00.000Z",
-      }),
-    ];
-    getAgentsDiffMock.mockResolvedValue(ok(entries));
-
-    const agentSyncService = await getAgentSyncService();
-    await agentSyncService.syncRegistryAgents(
-      AGENTS_SYNC_METADATA_KEY,
-      createSyncExecutionOptions(),
-    );
-
-    // Only the V1 entry is written; the deferred entries advance the V1
-    // cursor. Flag-on sync uses a separate empty cursor and replays them.
-    expect(agentCreateMock).toHaveBeenCalledTimes(1);
-    const createCall = agentCreateMock.mock.calls[0]?.[0];
-    expect(createCall.data.blockchainIdentifier).toBe(
-      "identifier-entry-v1-kept",
-    );
-    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          key: "agents-sync-metadata",
-        },
-        update: {
-          cursorId: "entry-v1-kept",
-          lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
-        },
-      }),
-    );
-  });
-
   it("keeps only the first payment source when the registry serves duplicate source indexes", async () => {
     const entries = [
       createRegistryEntry("entry-dup-source", {
@@ -2414,7 +2394,6 @@ describe("agentSyncService.syncRegistryAgents", () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
-    getEnvEnableCardanoV2Mock.mockReturnValue(false);
     getAgentsDiffMock.mockResolvedValue(
       ok([
         createRegistryEntry("entry-missing-identifier", {
@@ -2636,10 +2615,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentCreateMock).toHaveBeenCalledTimes(2);
     expect(syncMetadataUpsertMock).toHaveBeenCalledWith({
       where: {
-        key: "agents-sync-metadata-cardano-v2",
+        key: "agents-sync-metadata",
       },
       create: {
-        key: "agents-sync-metadata-cardano-v2",
+        key: "agents-sync-metadata",
         cursorId: "entry-1",
         lastSyncedAt: new Date("2026-02-24T15:00:00.000Z"),
       },
@@ -2827,18 +2806,6 @@ describe("agentSyncService.syncAgentSummaries", () => {
 });
 
 describe("agentSyncService.syncCardanoV2RailReadiness", () => {
-  it("skips the node round-trip entirely while the rollout flag is off", async () => {
-    getEnvEnableCardanoV2Mock.mockReturnValue(false);
-
-    const agentSyncService = await getAgentSyncService();
-    await expect(agentSyncService.syncCardanoV2RailReadiness()).resolves.toBe(
-      false,
-    );
-
-    expect(getCardanoV2RailReadinessMock).not.toHaveBeenCalled();
-    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
-  });
-
   const readySources = [
     {
       policyId: "ab".repeat(28),
@@ -2848,7 +2815,6 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    getEnvEnableCardanoV2Mock.mockReturnValue(true);
     syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     syncMetadataFindUniqueMock.mockResolvedValue(null);
@@ -3100,26 +3066,6 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
     );
     await agentSyncService.syncCardanoV2RailReadiness();
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
-
-    consoleWarnSpy.mockRestore();
-  });
-
-  it("does not report to Sentry when the V2 flag is off", async () => {
-    const consoleWarnSpy = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
-    const agentSyncService = await getAgentSyncService();
-
-    getEnvEnableCardanoV2Mock.mockReturnValue(false);
-    getCardanoV2RailReadinessMock.mockResolvedValue(
-      err("payment node unavailable"),
-    );
-    await agentSyncService.syncCardanoV2RailReadiness();
-
-    expect(captureExceptionMock).not.toHaveBeenCalled();
-    expect(syncMetadataFindUniqueMock).not.toHaveBeenCalled();
-    expect(syncMetadataCreateManyMock).not.toHaveBeenCalled();
-    expect(syncMetadataUpsertMock).not.toHaveBeenCalled();
 
     consoleWarnSpy.mockRestore();
   });

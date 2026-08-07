@@ -150,13 +150,6 @@ const envSchema = z.object({
     .string()
     .default("false")
     .transform((val: string) => val.trim().toLowerCase() === "true"),
-  // Rollout gate for agents on the Masumi V2 payment contract. Off by default:
-  // V2/pointer entries are deferred. Enabling switches to a dedicated cursor
-  // that automatically replays the registry while V1 remains available.
-  ENABLE_CARDANO_V2_AGENTS: z
-    .string()
-    .default("false")
-    .transform((val: string) => val.trim().toLowerCase() === "true"),
   MAINTENANCE_MODE: z
     .string()
     .default("false")

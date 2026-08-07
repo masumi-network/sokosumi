@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { AgentEntryType, AgentStatus, type Prisma } from "@sokosumi/database";
+import { AgentStatus, type Prisma } from "@sokosumi/database";
 import {
   isV2RegistryIdentifier,
   normalizeMasumiPaymentUnit,
@@ -7,7 +7,6 @@ import {
 
 import { registryClient } from "@/clients/masumi-registry.client";
 import { openrouterClient } from "@/clients/openrouter.client";
-import { getEnv } from "@/config/env";
 import { getAgentDescription, getCardanoV2ReadySources } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 
@@ -21,7 +20,6 @@ import {
   buildPaymentSourceRows,
   buildPaymentSourcesCreate,
   buildRegistryAgentFields,
-  convertEntryType,
   getRegistryEntryCursor,
   getRegistryEntryStorageIssue,
   isSameAgentPricing,
@@ -44,7 +42,6 @@ const AGENT_SUMMARY_SYNC_LIMIT = 20;
  */
 const AGENT_UPSERT_TRANSACTION_OPTIONS = { timeout: 20_000 } as const;
 const AGENT_SYNC_BATCH_SIZE = 50;
-const CARDANO_V2_SYNC_METADATA_SUFFIX = "-cardano-v2";
 
 interface SyncExecutionOptions {
   abortSignal: AbortSignal;
@@ -136,6 +133,53 @@ async function quarantineInvalidRegistryEntry(
   });
 }
 
+/** Stable, comparable rendering of a pricing set for the reprice audit log. */
+function formatPricingForAudit(
+  pricingType: string,
+  amounts: readonly { unit: string; amount: bigint }[] | undefined,
+): string {
+  if (!amounts || amounts.length === 0) {
+    return pricingType;
+  }
+  const rendered = [...amounts]
+    .map((entry) => `${entry.amount}${entry.unit || "lovelace"}`)
+    .sort()
+    .join("+");
+  return `${pricingType}:${rendered}`;
+}
+
+/**
+ * Records that a registry sync changed a live agent's price.
+ *
+ * A seller edits their registry entry and the next sync makes the new price
+ * authoritative for every subsequent hire, with no admin in the loop. That is
+ * intended — the registry owns the price — but it must not be invisible: the
+ * first replay after this release repoints every agent whose registry price
+ * drifted from the value frozen at its original ingestion, and without a
+ * record there is nothing to reconcile a support question against.
+ *
+ * Already-charged work is unaffected. Credits are debited from the price read
+ * at hire time, refunds reverse the stored transaction amount, and job sync
+ * reconciles against the job's own `purchaseAmounts` snapshot — none of them
+ * re-read agent pricing. This log is the audit trail for FUTURE hires only.
+ */
+function reportAgentRepricing(
+  agentIdentifier: string,
+  previous: string,
+  next: string,
+): void {
+  console.warn("[sync/agents] Registry pricing changed for a live agent", {
+    agentIdentifier,
+    previousPricing: previous,
+    nextPricing: next,
+  });
+  Sentry.captureMessage("Registry pricing changed for a live agent", {
+    level: "info",
+    tags: { error_type: "agent_repriced" },
+    extra: { agentIdentifier, previousPricing: previous, nextPricing: next },
+  });
+}
+
 /**
  * Replaces the pricing referenced by an existing AgentPricing row in place
  * (the Agent keeps its pricingId), cleaning up the previous fixed-pricing
@@ -145,6 +189,7 @@ async function replaceAgentPricing(
   tx: Prisma.TransactionClient,
   pricingId: string,
   pricing: ParsedAgentPricing,
+  agentIdentifier: string,
 ): Promise<void> {
   const current = await tx.agentPricing.findUnique({
     where: { id: pricingId },
@@ -161,6 +206,16 @@ async function replaceAgentPricing(
   // (status/uptime updates) — skip the delete/recreate churn entirely.
   if (current && isSameAgentPricing(current, pricing)) {
     return;
+  }
+
+  // Past this point the price genuinely differs. `current` is null only when
+  // the row is being populated for the first time, which is not a reprice.
+  if (current) {
+    reportAgentRepricing(
+      agentIdentifier,
+      formatPricingForAudit(current.pricingType, current.fixedPricing?.amounts),
+      formatPricingForAudit(pricing.pricingType, pricing.fixedPricingAmounts),
+    );
   }
 
   await tx.agentPricing.update({
@@ -447,7 +502,12 @@ async function upsertRegistryAgent(
         },
       });
     }
-    await replaceAgentPricing(tx, existing.pricingId, pricing);
+    await replaceAgentPricing(
+      tx,
+      existing.pricingId,
+      pricing,
+      entry.agentIdentifier,
+    );
     await tx.agentPaymentSource.deleteMany({
       where: { agentId: existing.id },
     });
@@ -501,26 +561,6 @@ async function upsertRegistryAgent(
   }
 }
 
-/**
- * Rollback fence: while the rollout flag is off, entries that would write
- * rows the PREVIOUS release's Prisma client cannot read (WEB3_CARDANO_V2 or
- * UNKNOWN enum values, NULL apiBaseUrl) are deferred. V2-enabled deployments
- * use their own sync cursor, so turning the flag on automatically replays the
- * registry without disturbing the rollback-safe V1 cursor.
- */
-function isRollbackUnsafeEntry(entry: RegistryDiffEntry): boolean {
-  return (
-    (entry.paymentType !== "Web3CardanoV1" && entry.paymentType !== "None") ||
-    // Free and EVM-only V2 entries report paymentType "None", so the payment
-    // type alone would let them through the fence and onto the marketplace
-    // before the rollout flag is ever enabled. Membership of the V2 registry
-    // policy is the authoritative test, exactly as it is for versioning.
-    isV2RegistryIdentifier(entry.agentIdentifier) ||
-    !entry.apiBaseUrl ||
-    convertEntryType(entry.type) !== AgentEntryType.STANDARD
-  );
-}
-
 function getRegistryEntryLogIdentifier(entry: unknown): string {
   if (
     typeof entry === "object" &&
@@ -555,12 +595,8 @@ async function syncRegistryAgents(
   options: SyncExecutionOptions & { resetCursor?: boolean },
 ): Promise<void> {
   const startedAt = Date.now();
-  const isCardanoV2Enabled = getEnv().ENABLE_CARDANO_V2_AGENTS;
-  const activeMetadataKey = isCardanoV2Enabled
-    ? `${metadataKey}${CARDANO_V2_SYNC_METADATA_SUFFIX}`
-    : metadataKey;
   console.info(
-    `[sync/agents] Starting registry sync (metadataKey=${activeMetadataKey})`,
+    `[sync/agents] Starting registry sync (metadataKey=${metadataKey})`,
   );
 
   if (
@@ -571,7 +607,7 @@ async function syncRegistryAgents(
 
   if (options.resetCursor) {
     await prisma.syncMetadata.deleteMany({
-      where: { key: activeMetadataKey },
+      where: { key: metadataKey },
     });
     console.info(
       "[sync/agents] Cursor reset requested — replaying the full registry diff",
@@ -580,13 +616,12 @@ async function syncRegistryAgents(
 
   const metadata = await prisma.syncMetadata.findUnique({
     where: {
-      key: activeMetadataKey,
+      key: metadataKey,
     },
   });
   let lastSyncedAt = metadata?.lastSyncedAt ?? new Date(0);
   let cursorId = metadata?.cursorId ?? null;
 
-  const deferV2Ingestion = !isCardanoV2Enabled;
   // Loaded once per run: readiness was refreshed immediately before this sync
   // (route ordering), and V2 pricing projection prefers purchase-ready
   // sources so listed prices match hireable sources.
@@ -600,7 +635,6 @@ async function syncRegistryAgents(
     ),
   );
   let totalProcessedCount = 0;
-  let totalDeferredCount = 0;
   let totalQuarantinedCount = 0;
   let batchCount = 0;
 
@@ -702,14 +736,6 @@ async function syncRegistryAgents(
           lastProcessedCursor = entryCursor;
           continue;
         }
-        // See isRollbackUnsafeEntry: V2/pointer/unknown entries are deferred
-        // until the rollout flag turns ingestion on.
-        if (deferV2Ingestion && isRollbackUnsafeEntry(entry)) {
-          totalDeferredCount++;
-          processedEntryCount++;
-          lastProcessedCursor = entryCursor;
-          continue;
-        }
         const normalizedEntry = normalizeRegistryEntry(entry);
         const pricing = resolveEntryPricing(
           normalizedEntry,
@@ -754,10 +780,10 @@ async function syncRegistryAgents(
 
     await prisma.syncMetadata.upsert({
       where: {
-        key: activeMetadataKey,
+        key: metadataKey,
       },
       create: {
-        key: activeMetadataKey,
+        key: metadataKey,
         cursorId: lastProcessedCursor.id,
         lastSyncedAt: lastProcessedCursor.statusUpdatedAt,
       },
@@ -780,7 +806,7 @@ async function syncRegistryAgents(
   }
 
   console.info(
-    `[sync/agents] Completed registry sync (batches=${batchCount}, processed=${totalProcessedCount}, deferred=${totalDeferredCount}, quarantined=${totalQuarantinedCount}, durationMs=${Date.now() - startedAt})`,
+    `[sync/agents] Completed registry sync (batches=${batchCount}, processed=${totalProcessedCount}, quarantined=${totalQuarantinedCount}, durationMs=${Date.now() - startedAt})`,
   );
 }
 
