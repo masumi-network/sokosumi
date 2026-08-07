@@ -2,7 +2,7 @@
 
 import gravatarUrl from "gravatar-url";
 import { useTranslations } from "next-intl";
-import { type ReactElement, useState } from "react";
+import type { ReactElement } from "react";
 import {
   ACCOUNT_SUMMARY_POPOVER_CONTENT_CLASS,
   resolveAccountCreditsLabel,
@@ -15,6 +15,7 @@ import type {
   AccountSummaryCreditProps,
   AccountSummaryIdentityProps,
 } from "@/app/components/sidebar/components/account-summary-types";
+import { useAccountSummaryOpenState } from "@/app/components/sidebar/components/use-account-summary-open-state";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -53,8 +54,8 @@ export function HeaderAccountControl({
   const tBilling = useTranslations("App.Billing");
   const tPresence = useTranslations("App.Channels.Presence");
   const presence = useSelfPresence();
-  const [isOpen, setIsOpen] = useState(false);
-  const [menuInstance, setMenuInstance] = useState(0);
+  const { isOpen, menuInstance, handleOpenChange, closeMenu } =
+    useAccountSummaryOpenState();
 
   const displayName = resolveAccountDisplayName(
     sessionUser.name,
@@ -70,19 +71,6 @@ export function HeaderAccountControl({
     planAndCredits: (plan, credits) => t("planAndCredits", { plan, credits }),
     detailsUnavailable: t("detailsUnavailable"),
   });
-
-  // Remount only on open so a drill panel (e.g. settings → billing) does not
-  // flash the credits root during the popover exit animation.
-  function handleOpenChange(open: boolean) {
-    if (open) {
-      setMenuInstance((value) => value + 1);
-    }
-    setIsOpen(open);
-  }
-
-  function closeMenu() {
-    setIsOpen(false);
-  }
 
   return (
     <div

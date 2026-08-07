@@ -1,7 +1,10 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  accountSummaryPopoverTestFlags,
+  resetAccountSummaryPopoverTestFlags,
+} from "@/app/components/sidebar/components/__tests__/account-summary-popover-test-utils";
 
 async function flushAnimationFrame() {
   await act(async () => {
@@ -27,29 +30,13 @@ vi.mock("@/components/modals/global-modals-context", () => ({
   useGlobalModalsContext: () => ({ showLogoutModal: showLogoutModalMock }),
 }));
 
-/**
- * When true, render popover children outside Radix Presence so the exit-path
- * remount (settings → root flash) is observable in jsdom.
- */
-const popoverTestFlags = { forceMount: false };
-
 vi.mock("@/components/ui/popover", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@/components/ui/popover")>();
-  function PopoverContent(props: ComponentProps<typeof actual.PopoverContent>) {
-    if (popoverTestFlags.forceMount) {
-      return (
-        <div data-slot="popover-content" data-testid="forced-popover-content">
-          {props.children}
-        </div>
-      );
-    }
-    return <actual.PopoverContent {...props} />;
-  }
-  return {
-    ...actual,
-    PopoverContent,
-  };
+  const { createAccountSummaryPopoverMock } = await import(
+    "@/app/components/sidebar/components/__tests__/account-summary-popover-test-utils"
+  );
+  return createAccountSummaryPopoverMock(actual);
 });
 
 import { HeaderAccountControl } from "@/app/components/header/header-account-control.client";
@@ -111,11 +98,11 @@ function getPopoverScrollContainer(): HTMLElement {
 describe("HeaderAccountControl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    popoverTestFlags.forceMount = false;
+    resetAccountSummaryPopoverTestFlags();
   });
 
   afterEach(() => {
-    popoverTestFlags.forceMount = false;
+    resetAccountSummaryPopoverTestFlags();
   });
 
   it("shows Admin and Settings before Logout when admin is enabled", () => {
@@ -173,9 +160,10 @@ describe("HeaderAccountControl", () => {
   });
 
   it("does not flash the credits root when navigating away from settings", () => {
-    // forceMount keeps content in the tree through close (same window as the
-    // real exit animation) so a remount-to-root is visible as totalBalanceLabel.
-    popoverTestFlags.forceMount = true;
+    // forceMount keeps content through close (exit-animation window). If close
+    // remounted the menu at root, totalBalanceLabel would appear — assert the
+    // settings drill stays instead.
+    accountSummaryPopoverTestFlags.forceMount = true;
     renderControl();
     openControl();
 
@@ -185,14 +173,15 @@ describe("HeaderAccountControl", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "billing" }));
 
-    // Close remounted menu at root while the popover exit animation still
-    // runs → brief credits flash. Keep drill content until unmount.
     expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
     expect(pushMock).toHaveBeenCalledWith("/billing");
   });
 
   it("starts at the root panel when reopened after closing from settings", () => {
+    // forceMount keeps the settings drill mounted across close so reopen must
+    // remount via menuInstance (open-only bump) to reach root again.
+    accountSummaryPopoverTestFlags.forceMount = true;
     renderControl();
     openControl();
 
