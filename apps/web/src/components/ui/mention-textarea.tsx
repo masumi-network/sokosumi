@@ -13,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
+import { EDITABLE_TEXT_SIZE_CLASSNAME } from "@/lib/utils/editable-text-size";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
 
 import {
@@ -862,7 +863,8 @@ function MentionTextareaInner<TData = unknown>(
         onClick={handleEditorClick}
         onMouseDown={handleEditorMouseDown}
         className={cn(
-          "border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 caret-foreground text-foreground field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base wrap-break-word whitespace-pre-wrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          "border-input focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 caret-foreground text-foreground field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 wrap-break-word whitespace-pre-wrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+          EDITABLE_TEXT_SIZE_CLASSNAME,
           className,
         )}
       />
@@ -871,7 +873,8 @@ function MentionTextareaInner<TData = unknown>(
         <div
           aria-hidden
           className={cn(
-            "text-muted-foreground pointer-events-none absolute inset-0 rounded-md px-3 py-2 text-base wrap-break-word whitespace-pre-wrap md:text-sm",
+            "text-muted-foreground pointer-events-none absolute inset-0 rounded-md px-3 py-2 wrap-break-word whitespace-pre-wrap",
+            EDITABLE_TEXT_SIZE_CLASSNAME,
             className,
           )}
         >

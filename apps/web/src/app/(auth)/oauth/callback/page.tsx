@@ -222,7 +222,7 @@ export default function OAuthCallbackPage() {
                 <Input
                   readOnly
                   value={tokenResponse.access_token}
-                  className="font-mono text-base md:text-xs"
+                  className="font-mono"
                 />
                 <Button
                   type="button"
@@ -242,7 +242,7 @@ export default function OAuthCallbackPage() {
                   <Input
                     readOnly
                     value={tokenResponse.refresh_token}
-                    className="font-mono text-base md:text-xs"
+                    className="font-mono"
                   />
                   <Button
                     type="button"
@@ -280,7 +280,7 @@ export default function OAuthCallbackPage() {
                 <Input
                   readOnly
                   value={tokenResponse.id_token}
-                  className="font-mono text-base md:text-xs"
+                  className="font-mono"
                 />
               </div>
             )}
@@ -316,21 +316,13 @@ export default function OAuthCallbackPage() {
             <>
               <div className="space-y-2">
                 <Label>{t("authorizationCode")}</Label>
-                <Input
-                  readOnly
-                  value={code}
-                  className="font-mono text-base md:text-xs"
-                />
+                <Input readOnly value={code} className="font-mono" />
               </div>
 
               {state && (
                 <div className="space-y-2">
                   <Label>{t("state")}</Label>
-                  <Input
-                    readOnly
-                    value={state}
-                    className="font-mono text-base md:text-xs"
-                  />
+                  <Input readOnly value={state} className="font-mono" />
                 </div>
               )}
 
@@ -342,7 +334,7 @@ export default function OAuthCallbackPage() {
                   value={codeVerifier}
                   onChange={(e) => setCodeVerifier(e.target.value)}
                   placeholder={t("codeVerifierPlaceholder")}
-                  className="font-mono text-base md:text-xs"
+                  className="font-mono"
                 />
                 <p className="text-muted-foreground text-xs">
                   {t("codeVerifierHelp")}
@@ -357,7 +349,7 @@ export default function OAuthCallbackPage() {
                   value={clientId}
                   onChange={(e) => setClientId(e.target.value)}
                   placeholder={t("clientIdPlaceholder")}
-                  className="font-mono text-base md:text-xs"
+                  className="font-mono"
                 />
               </div>
 
@@ -369,7 +361,7 @@ export default function OAuthCallbackPage() {
                   value={clientSecret}
                   onChange={(e) => setClientSecret(e.target.value)}
                   placeholder={t("clientSecretPlaceholder")}
-                  className="font-mono text-base md:text-xs"
+                  className="font-mono"
                 />
                 <p className="text-muted-foreground text-xs">
                   {t("clientSecretHelp")}

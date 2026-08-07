@@ -7,9 +7,9 @@ import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { EDITABLE_TEXT_SIZE_CLASSNAME } from "@/lib/utils/editable-text-size";
 
-export const ROOM_COMPOSER_TEXTAREA_CLASSNAME =
-  "max-h-40 min-h-10 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 pt-3.5 pb-2.5 text-base leading-6 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent md:text-sm";
+export const ROOM_COMPOSER_TEXTAREA_CLASSNAME = `max-h-40 min-h-10 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 pt-3.5 pb-2.5 leading-6 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent ${EDITABLE_TEXT_SIZE_CLASSNAME}`;
 
 export const ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME =
   "size-9 rounded-full sm:size-8";
