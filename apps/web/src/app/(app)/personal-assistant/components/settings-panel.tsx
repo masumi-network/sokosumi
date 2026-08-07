@@ -43,6 +43,7 @@ import type {
   HermesIntegrationStatus,
 } from "@/lib/hermes/types";
 import { cn } from "@/lib/utils";
+import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 
 import ConnectInterstitial from "./connect-interstitial";
 import PanelSection from "./panel-section";
@@ -386,7 +387,9 @@ export default function SettingsPanel({
                   spellCheck={false}
                   maxLength={60}
                   disabled={nameSaving}
-                  className="border-border/60 bg-card/40 text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-ring h-9 w-full rounded-lg border px-3 text-base outline-none focus-visible:ring-2 md:text-sm"
+                  className={withEditableTextSize(
+                    "border-border/60 bg-card/40 text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-ring h-9 w-full rounded-lg border px-3 outline-none focus-visible:ring-2",
+                  )}
                 />
                 <Button
                   type="button"
