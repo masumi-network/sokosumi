@@ -76,7 +76,9 @@ export const coworkerAccessService = (() => {
     target:
       | { workspaceId: string }
       | { userId: string }
-      | { organizationId: string },
+      | { organizationId: string }
+      | { email: string }
+      | { organizationSlug: string },
   ): Promise<CoworkerWorkspaceAccess> {
     const { data } = await coreClient.createCoworkerWorkspaceAccess(
       coworkerId,
@@ -90,7 +92,9 @@ export const coworkerAccessService = (() => {
     target:
       | { workspaceId: string }
       | { userId: string }
-      | { organizationId: string },
+      | { organizationId: string }
+      | { email: string }
+      | { organizationSlug: string },
   ): Promise<CoworkerWorkspaceAccess> {
     const { data } =
       await coreClient.revokeCoworkerWorkspaceAccessAsPlatformAdmin(

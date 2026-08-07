@@ -13,7 +13,8 @@ interface DeveloperCoworkerEarlyAccessSectionProps {
 
 /**
  * Vendor-admin only dogfood surface: enable/propose coworker early access
- * for a workspace UUID. Core enforces member → GRANTED / foreign → PENDING.
+ * by organization slug or user email (exact match; no directory browse).
+ * Core enforces member → GRANTED / foreign → PENDING.
  */
 export async function DeveloperCoworkerEarlyAccessSection({
   coworker,

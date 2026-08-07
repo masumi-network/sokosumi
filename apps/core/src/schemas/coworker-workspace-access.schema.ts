@@ -36,12 +36,13 @@ export type CoworkerWorkspaceAccessDto = z.infer<
 
 /**
  * Target for create and platform force-revoke.
- * Exactly one of: workspaceId, userId (personal workspace), organizationId (org workspace).
+ * Exactly one of: workspaceId, userId, organizationId, email (personal),
+ * or organizationSlug (org workspace).
  */
 export const coworkerWorkspaceAccessWorkspaceIdBodySchema = z
   .object({
     workspaceId: z.string().uuid().optional().openapi({
-      description: "Existing workspace id (vendor dogfood / raw target).",
+      description: "Existing workspace id (raw target).",
     }),
     userId: z.string().min(1).optional().openapi({
       description:
@@ -50,19 +51,31 @@ export const coworkerWorkspaceAccessWorkspaceIdBodySchema = z
     organizationId: z.string().min(1).optional().openapi({
       description: "Organization id — resolves (or creates) the org workspace.",
     }),
+    email: z.string().email().optional().openapi({
+      description:
+        "User email — resolves (or creates) that user's personal workspace. Prefer for vendor targeting without directory search.",
+      example: "pilot@example.com",
+    }),
+    organizationSlug: z.string().min(1).optional().openapi({
+      description:
+        "Organization slug — resolves (or creates) the org workspace. Prefer for vendor targeting without directory search.",
+      example: "acme-corp",
+    }),
   })
   .superRefine((value, ctx) => {
     const provided = [
       value.workspaceId != null && value.workspaceId.length > 0,
       value.userId != null && value.userId.length > 0,
       value.organizationId != null && value.organizationId.length > 0,
+      value.email != null && value.email.length > 0,
+      value.organizationSlug != null && value.organizationSlug.length > 0,
     ].filter(Boolean).length;
 
     if (provided !== 1) {
       ctx.addIssue({
         code: "custom",
         message:
-          "Provide exactly one of workspaceId, userId, or organizationId",
+          "Provide exactly one of workspaceId, userId, organizationId, email, or organizationSlug",
       });
     }
   })

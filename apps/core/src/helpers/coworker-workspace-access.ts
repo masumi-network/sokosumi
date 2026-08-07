@@ -53,6 +53,7 @@ function accessUniqueWhere(coworkerId: string, workspaceId: string) {
 /**
  * Resolve create/revoke target to a workspace id.
  * User/org targets upsert the personal/org workspace when missing (ops-friendly).
+ * Email / organizationSlug are exact lookups only (no public directory).
  */
 export async function resolveCoworkerAccessTargetWorkspaceId(
   target: CoworkerWorkspaceAccessTargetBody,
@@ -69,11 +70,21 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
     return workspace.id;
   }
 
-  if (target.userId) {
-    const user = await tx.user.findUnique({
-      where: { id: target.userId },
-      select: { id: true },
-    });
+  if (target.userId || target.email) {
+    const user = target.userId
+      ? await tx.user.findUnique({
+          where: { id: target.userId },
+          select: { id: true },
+        })
+      : await tx.user.findFirst({
+          where: {
+            email: {
+              equals: target.email?.trim() ?? "",
+              mode: "insensitive",
+            },
+          },
+          select: { id: true },
+        });
     if (!user) {
       throw notFound("User not found");
     }
@@ -85,11 +96,21 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
     return workspace.id;
   }
 
-  if (target.organizationId) {
-    const organization = await tx.organization.findUnique({
-      where: { id: target.organizationId },
-      select: { id: true },
-    });
+  if (target.organizationId || target.organizationSlug) {
+    const organization = target.organizationId
+      ? await tx.organization.findUnique({
+          where: { id: target.organizationId },
+          select: { id: true },
+        })
+      : await tx.organization.findFirst({
+          where: {
+            slug: {
+              equals: target.organizationSlug?.trim() ?? "",
+              mode: "insensitive",
+            },
+          },
+          select: { id: true },
+        });
     if (!organization) {
       throw notFound("Organization not found");
     }
@@ -103,7 +124,7 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
   }
 
   throw badRequest(
-    "Provide exactly one of workspaceId, userId, or organizationId",
+    "Provide exactly one of workspaceId, userId, organizationId, email, or organizationSlug",
   );
 }
 

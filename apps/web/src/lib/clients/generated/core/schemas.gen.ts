@@ -11999,7 +11999,7 @@ export const CoworkerWorkspaceAccessTargetSchema = {
         workspaceId: {
             type: 'string',
             format: 'uuid',
-            description: 'Existing workspace id (vendor dogfood / raw target).'
+            description: 'Existing workspace id (raw target).'
         },
         userId: {
             type: 'string',
@@ -12010,6 +12010,18 @@ export const CoworkerWorkspaceAccessTargetSchema = {
             type: 'string',
             minLength: 1,
             description: 'Organization id — resolves (or creates) the org workspace.'
+        },
+        email: {
+            type: 'string',
+            format: 'email',
+            description: 'User email — resolves (or creates) that user\'s personal workspace. Prefer for vendor targeting without directory search.',
+            example: 'pilot@example.com'
+        },
+        organizationSlug: {
+            type: 'string',
+            minLength: 1,
+            description: 'Organization slug — resolves (or creates) the org workspace. Prefer for vendor targeting without directory search.',
+            example: 'acme-corp'
         }
     }
 } as const;

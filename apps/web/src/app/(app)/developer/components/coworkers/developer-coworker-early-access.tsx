@@ -17,15 +17,17 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { grantDeveloperCoworkerEarlyAccessAction } from "@/lib/actions/coworkers/workspace-access.action";
 import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { coworkerAccessStatusMessageKey } from "@/lib/utils/coworker-access-display";
-import { isUuidString } from "@/lib/utils/uuid";
 
 interface DeveloperCoworkerEarlyAccessProps {
   coworkerId: string;
   accessRows: CoworkerWorkspaceAccess[];
 }
+
+type EarlyAccessTargetType = "organization" | "user";
 
 export function DeveloperCoworkerEarlyAccess({
   coworkerId,
@@ -33,7 +35,10 @@ export function DeveloperCoworkerEarlyAccess({
 }: DeveloperCoworkerEarlyAccessProps) {
   const t = useTranslations("App.Developer.Coworkers.EarlyAccess");
   const router = useRouter();
-  const [workspaceId, setWorkspaceId] = useState("");
+  const [targetType, setTargetType] =
+    useState<EarlyAccessTargetType>("organization");
+  const [organizationSlug, setOrganizationSlug] = useState("");
+  const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -42,9 +47,10 @@ export function DeveloperCoworkerEarlyAccess({
       return;
     }
 
-    const trimmed = workspaceId.trim();
-    if (!isUuidString(trimmed)) {
-      toast.error(t("error"));
+    const value =
+      targetType === "organization" ? organizationSlug.trim() : email.trim();
+    if (!value) {
+      toast.error(t("targetRequired"));
       return;
     }
 
@@ -52,7 +58,8 @@ export function DeveloperCoworkerEarlyAccess({
     try {
       const result = await grantDeveloperCoworkerEarlyAccessAction({
         coworkerId,
-        workspaceId: trimmed,
+        targetType,
+        targetValue: value,
       });
 
       if (!result.ok) {
@@ -60,7 +67,8 @@ export function DeveloperCoworkerEarlyAccess({
         return;
       }
 
-      setWorkspaceId("");
+      setOrganizationSlug("");
+      setEmail("");
       toast.success(
         result.data.status === "PENDING" ? t("pendingSuccess") : t("success"),
       );
@@ -103,18 +111,48 @@ export function DeveloperCoworkerEarlyAccess({
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <Label htmlFor="developer-early-access-workspace-id">
-              {t("workspaceIdLabel")}
+            <Label htmlFor="developer-early-access-target">
+              {t("targetLabel")}
             </Label>
-            <Input
-              id="developer-early-access-workspace-id"
-              value={workspaceId}
-              onChange={(event) => setWorkspaceId(event.target.value)}
-              placeholder={t("workspaceIdPlaceholder")}
-              disabled={isSubmitting}
-              autoComplete="off"
-              spellCheck={false}
-            />
+            <Tabs
+              value={targetType}
+              onValueChange={(value) => {
+                setTargetType(value as EarlyAccessTargetType);
+                setOrganizationSlug("");
+                setEmail("");
+              }}
+            >
+              <TabsList>
+                <TabsTrigger value="organization" disabled={isSubmitting}>
+                  {t("tabs.organization")}
+                </TabsTrigger>
+                <TabsTrigger value="user" disabled={isSubmitting}>
+                  {t("tabs.user")}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {targetType === "organization" ? (
+              <Input
+                id="developer-early-access-target"
+                value={organizationSlug}
+                onChange={(event) => setOrganizationSlug(event.target.value)}
+                placeholder={t("organizationSlugPlaceholder")}
+                disabled={isSubmitting}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            ) : (
+              <Input
+                id="developer-early-access-target"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder={t("emailPlaceholder")}
+                disabled={isSubmitting}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            )}
             <p className="text-muted-foreground text-xs">{t("hint")}</p>
           </div>
           <Button type="submit" disabled={isSubmitting}>

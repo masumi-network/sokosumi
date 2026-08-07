@@ -4703,9 +4703,15 @@
           "description": "Enable this coworker for a workspace you belong to (direct grant), or propose early access for a foreign workspace (owner approval required).",
           "listTitle": "Workspace access",
           "listEmpty": "No workspace access rows yet.",
-          "workspaceIdLabel": "Workspace ID",
-          "workspaceIdPlaceholder": "Workspace UUID",
-          "hint": "Member workspace → granted immediately. Foreign workspace → pending until the owner or admin accepts.",
+          "targetLabel": "Recipient",
+          "targetRequired": "Enter an organization slug or user email",
+          "tabs": {
+            "organization": "Organization",
+            "user": "User"
+          },
+          "organizationSlugPlaceholder": "Organization slug (e.g. acme-corp)",
+          "emailPlaceholder": "User email (e.g. pilot@example.com)",
+          "hint": "Member workspace → granted immediately. Foreign workspace → pending until the owner or admin accepts. Organization: exact slug. User: exact email. No directory search.",
           "submit": "Enable for workspace",
           "success": "Coworker early access granted",
           "pendingSuccess": "Coworker early access proposed (pending approval)",

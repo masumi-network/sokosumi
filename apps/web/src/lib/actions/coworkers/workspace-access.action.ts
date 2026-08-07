@@ -14,35 +14,63 @@ import {
 
 const grantCoworkerEarlyAccessSchema = z.object({
   coworkerId: z.string().uuid(),
-  workspaceId: z.string().uuid(),
+  targetType: z.enum(["user", "organization"]),
+  targetValue: z.string().min(1),
 });
 
 interface GrantDeveloperCoworkerEarlyAccessParameters
   extends AuthenticatedRequest {
   coworkerId: string;
-  workspaceId: string;
+  targetType: "user" | "organization";
+  /** User email or organization slug. */
+  targetValue: string;
+}
+
+function toAccessTargetBody(parsed: {
+  targetType: "user" | "organization";
+  targetValue: string;
+}): { email: string } | { organizationSlug: string } {
+  const value = parsed.targetValue.trim();
+  if (parsed.targetType === "user") {
+    return { email: value };
+  }
+  return { organizationSlug: value };
 }
 
 /**
  * Vendor admin dogfood / propose: Core decides GRANTED (member workspace)
- * vs PENDING (foreign). Platform admin also allowed via same path.
+ * vs PENDING (foreign). Target by email (personal) or organization slug.
  */
 export const grantDeveloperCoworkerEarlyAccessAction = withSession<
   GrantDeveloperCoworkerEarlyAccessParameters,
   Result<{ accessId: string; status: string }, ActionError>
->(async ({ coworkerId, workspaceId }) => {
+>(async ({ coworkerId, targetType, targetValue }) => {
   const parsed = grantCoworkerEarlyAccessSchema.safeParse({
     coworkerId,
-    workspaceId,
+    targetType,
+    targetValue,
   });
   if (!parsed.success) {
     return Err({ code: CommonErrorCode.BAD_INPUT });
   }
 
+  if (parsed.data.targetType === "user") {
+    const emailCheck = z
+      .string()
+      .email()
+      .safeParse(parsed.data.targetValue.trim());
+    if (!emailCheck.success) {
+      return Err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Enter a valid email address",
+      });
+    }
+  }
+
   try {
     const access = await coworkerAccessService.createForCoworker(
       parsed.data.coworkerId,
-      { workspaceId: parsed.data.workspaceId },
+      toAccessTargetBody(parsed.data),
     );
 
     revalidatePath(`/developer/coworkers/${parsed.data.coworkerId}`);

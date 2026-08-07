@@ -29,7 +29,9 @@ const memberFindFirst = vi.fn();
 const memberFindMany = vi.fn();
 const workspaceFindUnique = vi.fn();
 const userFindUnique = vi.fn();
+const userFindFirst = vi.fn();
 const organizationFindUnique = vi.fn();
+const organizationFindFirst = vi.fn();
 const upsertWorkspaceForContextMock = vi.fn();
 const createNotificationMock = vi.fn();
 const requireVendorAdminMembershipMock = vi.fn();
@@ -58,9 +60,11 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     user: {
       findUnique: (...args: unknown[]) => userFindUnique(...args),
+      findFirst: (...args: unknown[]) => userFindFirst(...args),
     },
     organization: {
       findUnique: (...args: unknown[]) => organizationFindUnique(...args),
+      findFirst: (...args: unknown[]) => organizationFindFirst(...args),
     },
     $queryRaw: (...args: unknown[]) => queryRawMock(...args),
   },
@@ -183,6 +187,46 @@ describe("coworker-workspace-access helpers", () => {
       await expect(
         resolveCoworkerAccessTargetWorkspaceId({ userId: "missing" }),
       ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it("resolves personal workspace by email", async () => {
+      userFindFirst.mockResolvedValue({ id: "user-1" });
+      upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws-personal" });
+
+      await expect(
+        resolveCoworkerAccessTargetWorkspaceId({
+          email: "Pilot@Example.com",
+        }),
+      ).resolves.toBe("ws-personal");
+      expect(userFindFirst).toHaveBeenCalledWith({
+        where: {
+          email: {
+            equals: "Pilot@Example.com",
+            mode: "insensitive",
+          },
+        },
+        select: { id: true },
+      });
+    });
+
+    it("resolves organization workspace by slug", async () => {
+      organizationFindFirst.mockResolvedValue({ id: "org-1" });
+      upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws-org" });
+
+      await expect(
+        resolveCoworkerAccessTargetWorkspaceId({
+          organizationSlug: "Acme-Corp",
+        }),
+      ).resolves.toBe("ws-org");
+      expect(organizationFindFirst).toHaveBeenCalledWith({
+        where: {
+          slug: {
+            equals: "Acme-Corp",
+            mode: "insensitive",
+          },
+        },
+        select: { id: true },
+      });
     });
   });
 

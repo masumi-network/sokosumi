@@ -3486,7 +3486,7 @@ export type CreateCoworkerApiKeyResponse = {
 
 export type CoworkerWorkspaceAccessTarget = {
     /**
-     * Existing workspace id (vendor dogfood / raw target).
+     * Existing workspace id (raw target).
      */
     workspaceId?: string;
     /**
@@ -3497,6 +3497,14 @@ export type CoworkerWorkspaceAccessTarget = {
      * Organization id — resolves (or creates) the org workspace.
      */
     organizationId?: string;
+    /**
+     * User email — resolves (or creates) that user's personal workspace. Prefer for vendor targeting without directory search.
+     */
+    email?: string;
+    /**
+     * Organization slug — resolves (or creates) the org workspace. Prefer for vendor targeting without directory search.
+     */
+    organizationSlug?: string;
 };
 
 export type OrchestratorUsage = {
