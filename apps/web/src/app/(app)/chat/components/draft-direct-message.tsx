@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Coworker, Member } from "@/lib/clients/generated/core";
-import { EDITABLE_TEXT_SIZE_CLASSNAME } from "@/lib/utils/editable-text-size";
+import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 import { getInitials } from "@/lib/utils/text";
@@ -396,7 +396,9 @@ export function DraftDirectMessage({
                       ? t("Draft.searchPlaceholderMore")
                       : t("Draft.searchPlaceholderReplace")
                 }
-                className={`placeholder:text-muted-foreground h-9 w-full bg-transparent pr-2 pl-6 outline-none ${EDITABLE_TEXT_SIZE_CLASSNAME}`}
+                className={withEditableTextSize(
+                  "placeholder:text-muted-foreground h-9 w-full bg-transparent pr-2 pl-6 outline-none",
+                )}
               />
             </div>
           </div>

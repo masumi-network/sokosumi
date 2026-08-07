@@ -5,7 +5,7 @@ import { Command as CommandPrimitive } from "cmdk"
 import { SearchIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { EDITABLE_TEXT_SIZE_CLASSNAME } from "@/lib/utils/editable-text-size"
+import { withEditableTextSize } from "@/lib/utils/editable-text-size"
 import {
   Dialog,
   DialogContent,
@@ -71,9 +71,8 @@ function CommandInput({
       <SearchIcon className="size-4 shrink-0 opacity-50" />
       <CommandPrimitive.Input
         data-slot="command-input"
-        className={cn(
+        className={withEditableTextSize(
           "placeholder:text-muted-foreground flex h-10 w-full rounded-md bg-transparent py-3 outline-hidden disabled:cursor-not-allowed disabled:opacity-50",
-          EDITABLE_TEXT_SIZE_CLASSNAME,
           className
         )}
         {...props}
