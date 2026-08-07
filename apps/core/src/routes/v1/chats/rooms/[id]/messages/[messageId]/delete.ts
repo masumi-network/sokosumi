@@ -101,15 +101,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           return { message: existing, newlySoftDeleted: false };
         }
 
-        const updated = await tx.chatRoomMessage.update({
-          where: { id: messageId },
+        // Conditional write so concurrent DELETEs cannot both claim the
+        // tombstone transition (and double-publish parent reply counts).
+        const softDelete = await tx.chatRoomMessage.updateMany({
+          where: {
+            id: messageId,
+            roomId: id,
+            deletedAt: null,
+          },
           data: {
             deletedAt: new Date(),
             content: "",
             metadata: null,
           },
-          include: chatRoomMessageInclude,
         });
+        const newlySoftDeleted = softDelete.count === 1;
 
         // Soft-delete must stop coworker dispatch: otherwise waitUntil still
         // burns credits and can post a reply under a wiped tombstone.
@@ -124,7 +130,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           },
         });
 
-        return { message: updated, newlySoftDeleted: true };
+        const updated = await tx.chatRoomMessage.findFirst({
+          where: { id: messageId, roomId: id },
+          include: chatRoomMessageInclude,
+        });
+        if (!updated) {
+          throw notFound("Message not found");
+        }
+
+        return { message: updated, newlySoftDeleted };
       },
     );
 

@@ -12,8 +12,7 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   messageFindFirstMock,
-  messageUpdateMock,
-  messageFindUniqueOrThrowMock,
+  messageUpdateManyMock,
   mentionUpdateManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
@@ -21,8 +20,7 @@ const {
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   messageFindFirstMock: vi.fn(),
-  messageUpdateMock: vi.fn(),
-  messageFindUniqueOrThrowMock: vi.fn(),
+  messageUpdateManyMock: vi.fn(),
   mentionUpdateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
@@ -63,8 +61,7 @@ const tx = {
   },
   chatRoomMessage: {
     findFirst: messageFindFirstMock,
-    update: messageUpdateMock,
-    findUniqueOrThrow: messageFindUniqueOrThrowMock,
+    updateMany: messageUpdateManyMock,
   },
   chatRoomMention: {
     updateMany: mentionUpdateManyMock,
@@ -140,14 +137,17 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
       organizationId: "org_1",
       role: "member",
     });
-    messageFindFirstMock.mockResolvedValue(baseMessage());
+    const live = baseMessage();
     const tombstone = baseMessage({
       content: "",
       deletedAt: new Date("2026-08-02T05:00:00.000Z"),
       metadata: null,
     });
-    messageUpdateMock.mockResolvedValue(tombstone);
-    messageFindUniqueOrThrowMock.mockResolvedValue(tombstone);
+    // Auth load then post-update reload.
+    messageFindFirstMock
+      .mockResolvedValueOnce(live)
+      .mockResolvedValueOnce(tombstone);
+    messageUpdateManyMock.mockResolvedValue({ count: 1 });
     mentionUpdateManyMock.mockResolvedValue({ count: 0 });
   });
 
@@ -161,9 +161,13 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     const body = await response.json();
     expect(body.data.content).toBe("");
     expect(body.data.deletedAt).toBeTruthy();
-    expect(messageUpdateMock).toHaveBeenCalledWith(
+    expect(messageUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: MESSAGE_ID },
+        where: {
+          id: MESSAGE_ID,
+          roomId: ROOM_ID,
+          deletedAt: null,
+        },
         data: expect.objectContaining({
           content: "",
           metadata: null,
@@ -184,6 +188,7 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
   });
 
   it("returns 403 when a different member tries to delete", async () => {
+    messageFindFirstMock.mockReset();
     messageFindFirstMock.mockResolvedValue(
       baseMessage({ senderUserId: OTHER_USER_ID }),
     );
@@ -194,7 +199,7 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(messageUpdateMock).not.toHaveBeenCalled();
+    expect(messageUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("is idempotent when the author deletes an already-deleted message", async () => {
@@ -203,8 +208,8 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
       deletedAt: new Date("2026-08-01T00:00:00.000Z"),
       metadata: null,
     });
+    messageFindFirstMock.mockReset();
     messageFindFirstMock.mockResolvedValue(tombstone);
-    messageFindUniqueOrThrowMock.mockResolvedValue(tombstone);
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
@@ -212,7 +217,7 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(messageUpdateMock).not.toHaveBeenCalled();
+    expect(messageUpdateManyMock).not.toHaveBeenCalled();
     expect(mentionUpdateManyMock).toHaveBeenCalledWith({
       where: {
         messageId: MESSAGE_ID,
@@ -236,6 +241,7 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
       deletedAt: new Date("2026-08-01T00:00:00.000Z"),
       metadata: null,
     });
+    messageFindFirstMock.mockReset();
     messageFindFirstMock.mockResolvedValue(tombstone);
 
     const app = createApp(userAuthContext);
@@ -244,22 +250,24 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(messageUpdateMock).not.toHaveBeenCalled();
+    expect(messageUpdateManyMock).not.toHaveBeenCalled();
     expect(publishChatRoomMessageRealtimeByIdMock).not.toHaveBeenCalled();
   });
 
   it("re-publishes the thread parent when a reply is soft-deleted", async () => {
     const parentId = "550e8400-e29b-41d4-a716-446655440099";
+    const live = baseMessage({ parentMessageId: parentId });
     const replyTombstone = baseMessage({
       parentMessageId: parentId,
       content: "",
       deletedAt: new Date("2026-08-02T05:00:00.000Z"),
       metadata: null,
     });
-    messageFindFirstMock.mockResolvedValue(
-      baseMessage({ parentMessageId: parentId }),
-    );
-    messageUpdateMock.mockResolvedValue(replyTombstone);
+    messageFindFirstMock.mockReset();
+    messageFindFirstMock
+      .mockResolvedValueOnce(live)
+      .mockResolvedValueOnce(replyTombstone);
+    messageUpdateManyMock.mockResolvedValue({ count: 1 });
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
@@ -277,6 +285,44 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     );
   });
 
+  it("does not re-publish parent when concurrent delete loses the tombstone race", async () => {
+    const parentId = "550e8400-e29b-41d4-a716-446655440099";
+    const live = baseMessage({ parentMessageId: parentId });
+    const replyTombstone = baseMessage({
+      parentMessageId: parentId,
+      content: "",
+      deletedAt: new Date("2026-08-02T05:00:00.000Z"),
+      metadata: null,
+    });
+    messageFindFirstMock.mockReset();
+    messageFindFirstMock
+      .mockResolvedValueOnce(live)
+      .mockResolvedValueOnce(replyTombstone);
+    // Another request already wrote deletedAt — conditional update matches 0 rows.
+    messageUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(messageUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: MESSAGE_ID,
+          roomId: ROOM_ID,
+          deletedAt: null,
+        },
+      }),
+    );
+    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
+      replyTombstone,
+      "delete",
+    );
+    expect(publishChatRoomMessageRealtimeByIdMock).not.toHaveBeenCalled();
+  });
+
   it("does not re-publish a parent when a top-level message is deleted", async () => {
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
@@ -288,6 +334,7 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
   });
 
   it("returns 404 when the message is missing", async () => {
+    messageFindFirstMock.mockReset();
     messageFindFirstMock.mockResolvedValue(null);
 
     const app = createApp(userAuthContext);
