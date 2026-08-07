@@ -3,7 +3,7 @@
 import gravatarUrl from "gravatar-url";
 import { AlertTriangle, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ReactElement, useState } from "react";
+import type { ReactElement } from "react";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -33,6 +33,7 @@ import type {
   AccountSummaryCreditProps,
   AccountSummaryIdentityProps,
 } from "./account-summary-types";
+import { useAccountSummaryOpenState } from "./use-account-summary-open-state";
 
 const GRAVATAR_SIZE = 80;
 
@@ -78,8 +79,8 @@ function SidebarAccountChipDesktop({
   const tPresence = useTranslations("App.Channels.Presence");
   const { state } = useSidebar();
   const presence = useSelfPresence();
-  const [isOpen, setIsOpen] = useState(false);
-  const [menuInstance, setMenuInstance] = useState(0);
+  const { isOpen, menuInstance, handleOpenChange, closeMenu } =
+    useAccountSummaryOpenState();
 
   const isCollapsed = state === "collapsed";
   const displayName = resolveAccountDisplayName(
@@ -97,19 +98,6 @@ function SidebarAccountChipDesktop({
     planAndCredits: (plan, credits) => t("planAndCredits", { plan, credits }),
     detailsUnavailable: t("detailsUnavailable"),
   });
-
-  // Remount only on open so a drill panel (e.g. settings → billing) does not
-  // flash the credits root during the popover exit animation.
-  function handleOpenChange(open: boolean) {
-    if (open) {
-      setMenuInstance((value) => value + 1);
-    }
-    setIsOpen(open);
-  }
-
-  function closeChip() {
-    setIsOpen(false);
-  }
 
   const trigger = (
     <button
@@ -191,7 +179,7 @@ function SidebarAccountChipDesktop({
         buyCreditsLabel={buyCreditsLabel}
         buyCreditsPath={buyCreditsPath}
         adminSettingsChrome={adminSettingsChrome}
-        onRequestClose={closeChip}
+        onRequestClose={closeMenu}
       />
     </PopoverContent>
   );
