@@ -78,7 +78,10 @@ export const chatRoomMessageInclude = {
     },
     orderBy: { createdAt: "asc" },
   },
+  // Soft-deleted replies stay in the DB (tombstones) but must not inflate
+  // threadReplyCount / threadLastReplyAt — same rule as getChatRoomThreadAggregates.
   replies: {
+    where: { deletedAt: null },
     select: {
       createdAt: true,
     },
@@ -87,7 +90,7 @@ export const chatRoomMessageInclude = {
   },
   _count: {
     select: {
-      replies: true,
+      replies: { where: { deletedAt: null } },
     },
   },
 } as const satisfies Prisma.ChatRoomMessageInclude;

@@ -33,8 +33,17 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+const {
+  publishChatRoomMessageRealtimeMock,
+  publishChatRoomMessageRealtimeByIdMock,
+} = vi.hoisted(() => ({
+  publishChatRoomMessageRealtimeMock: vi.fn().mockResolvedValue(undefined),
+  publishChatRoomMessageRealtimeByIdMock: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
-  publishChatRoomMessageRealtime: vi.fn().mockResolvedValue(undefined),
+  publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+  publishChatRoomMessageRealtimeById: publishChatRoomMessageRealtimeByIdMock,
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -217,6 +226,65 @@ describe("DELETE /chat-rooms/:id/messages/:messageId", () => {
     const body = await response.json();
     expect(body.data.deletedAt).toBeTruthy();
     expect(body.data.content).toBe("");
+  });
+
+  it("does not re-publish parent on idempotent re-delete of a reply", async () => {
+    const parentId = "550e8400-e29b-41d4-a716-446655440099";
+    const tombstone = baseMessage({
+      parentMessageId: parentId,
+      content: "",
+      deletedAt: new Date("2026-08-01T00:00:00.000Z"),
+      metadata: null,
+    });
+    messageFindFirstMock.mockResolvedValue(tombstone);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(messageUpdateMock).not.toHaveBeenCalled();
+    expect(publishChatRoomMessageRealtimeByIdMock).not.toHaveBeenCalled();
+  });
+
+  it("re-publishes the thread parent when a reply is soft-deleted", async () => {
+    const parentId = "550e8400-e29b-41d4-a716-446655440099";
+    const replyTombstone = baseMessage({
+      parentMessageId: parentId,
+      content: "",
+      deletedAt: new Date("2026-08-02T05:00:00.000Z"),
+      metadata: null,
+    });
+    messageFindFirstMock.mockResolvedValue(
+      baseMessage({ parentMessageId: parentId }),
+    );
+    messageUpdateMock.mockResolvedValue(replyTombstone);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledWith(
+      replyTombstone,
+      "delete",
+    );
+    expect(publishChatRoomMessageRealtimeByIdMock).toHaveBeenCalledWith(
+      parentId,
+      "update",
+    );
+  });
+
+  it("does not re-publish a parent when a top-level message is deleted", async () => {
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}/messages/${MESSAGE_ID}`, {
+      method: "DELETE",
+    });
+
+    expect(response.status).toBe(200);
+    expect(publishChatRoomMessageRealtimeByIdMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the message is missing", async () => {
