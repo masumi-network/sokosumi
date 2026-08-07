@@ -10,12 +10,15 @@ vi.mock("@/components/chat/emoji-picker", () => ({
   EmojiPicker: () => null,
 }));
 
+const keyboardOpen = vi.hoisted(() => ({ current: false }));
+
 vi.mock("@/hooks/use-keyboard-open", () => ({
-  useKeyboardOpen: () => false,
+  useKeyboardOpen: () => keyboardOpen.current,
 }));
 
 describe("RoomMessageComposer safe-area padding", () => {
-  it("keeps mobile safe-area pb until an editable inside is focused", async () => {
+  it("keeps mobile safe-area pb on focus when the keyboard is not open", async () => {
+    keyboardOpen.current = false;
     const user = userEvent.setup();
     const { container } = render(
       <RoomMessageComposer
@@ -37,6 +40,28 @@ describe("RoomMessageComposer safe-area padding", () => {
 
     await user.click(screen.getByLabelText("message"));
 
-    expect(form?.className).not.toContain(CHAT_MOBILE_COMPOSER_SAFE_AREA_PB);
+    expect(form?.className).toContain(CHAT_MOBILE_COMPOSER_SAFE_AREA_PB);
+  });
+
+  it("drops mobile safe-area pb when the keyboard is open", () => {
+    keyboardOpen.current = true;
+    const { container } = render(
+      <RoomMessageComposer
+        onSubmit={(event) => event.preventDefault()}
+        attachments={[]}
+        onRemoveAttachment={() => undefined}
+        removeAttachmentLabel={(name) => name}
+        isSending={false}
+        sendDisabled={false}
+        sendAriaLabel="Send"
+        withSafeAreaPadding
+      >
+        <textarea aria-label="message" />
+      </RoomMessageComposer>,
+    );
+
+    expect(container.querySelector("form")?.className).not.toContain(
+      CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
+    );
   });
 });

@@ -1,31 +1,49 @@
 /**
  * Soft-keyboard heuristic for iOS Safari / standalone PWA and Android.
  *
- * iOS often keeps `window.innerHeight` in sync with the visual viewport, so a
- * plain `innerHeight - visualViewport.height` delta stays ~0. Prefer:
- * - session max layout height vs visual bottom (`height + offsetTop`)
- * - `documentElement.clientHeight` when it stays larger than the visual viewport
- * - layout shrink vs baseline when `interactive-widget: resizes-content` fires
+ * Must be gated on an editable focus: iOS programmatic focus (room
+ * `focusOnMount`) does not open the keyboard, and browser chrome can make
+ * bare height deltas look like a keyboard (false positive → lost safe-area pb).
  *
- * URL-bar chrome is smaller than a keyboard — threshold avoids most false positives.
+ * When focused, compare visual/layout height to session maxima captured while
+ * the keyboard was closed (and whenever the viewport grows).
  */
 export const VISUAL_VIEWPORT_KEYBOARD_OPEN_THRESHOLD_PX = 150;
 
-/** Largest layout viewport height seen; used when the layout itself resizes. */
+/** Largest layout viewport height seen while the keyboard was closed. */
 let maxLayoutHeightPx = 0;
+/** Largest visualViewport height seen while the keyboard was closed. */
+let maxVisualHeightPx = 0;
 
-/** Test / HMR helper — resets the layout baseline. */
+/** Test / HMR helper — resets layout/visual baselines. */
 export function resetVisualViewportKeyboardBaseline(): void {
   maxLayoutHeightPx = 0;
+  maxVisualHeightPx = 0;
+}
+
+export function isEditableKeyboardTarget(
+  target: EventTarget | null | undefined,
+): boolean {
+  if (target == null || typeof target !== "object") {
+    return false;
+  }
+  const el = target as {
+    tagName?: string;
+    isContentEditable?: boolean;
+  };
+  if (el.isContentEditable) {
+    return true;
+  }
+  const tag = el.tagName;
+  return tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT";
 }
 
 export interface VisualViewportKeyboardOpenOptions {
   thresholdPx?: number;
   maxLayoutHeightPx?: number;
-  /** iOS scrolls the visual viewport; include when known. */
-  visualViewportOffsetTop?: number;
-  /** Stable layout height; iOS often keeps this while vv shrinks. */
-  clientHeight?: number;
+  maxVisualHeightPx?: number;
+  /** When false, never report open (idle / autofocus without OSK). */
+  editableFocused?: boolean;
 }
 
 export function isVisualViewportKeyboardOpen(
@@ -35,25 +53,23 @@ export function isVisualViewportKeyboardOpen(
 ): boolean {
   const thresholdPx =
     options?.thresholdPx ?? VISUAL_VIEWPORT_KEYBOARD_OPEN_THRESHOLD_PX;
-  const baseline = options?.maxLayoutHeightPx ?? layoutHeight;
-  const offsetTop = options?.visualViewportOffsetTop ?? 0;
-  const clientHeight = options?.clientHeight ?? layoutHeight;
-
-  if (visualViewportHeight == null) {
-    return baseline - layoutHeight > thresholdPx;
+  const editableFocused = options?.editableFocused ?? true;
+  if (!editableFocused) {
+    return false;
   }
 
-  const visualDelta = layoutHeight - visualViewportHeight;
-  const clientDelta = clientHeight - visualViewportHeight;
-  const layoutShrink = baseline - layoutHeight;
-  // Visible span in layout coordinates; keyboard covers everything below.
-  const obscured = baseline - (visualViewportHeight + offsetTop);
+  const visualHeight = visualViewportHeight ?? layoutHeight;
+  const maxLayout = options?.maxLayoutHeightPx ?? layoutHeight;
+  const maxVisual = options?.maxVisualHeightPx ?? visualHeight;
+
+  const visualShrink = maxVisual - visualHeight;
+  const layoutShrink = maxLayout - layoutHeight;
+  const visualDelta = layoutHeight - visualHeight;
 
   return (
-    visualDelta > thresholdPx ||
-    clientDelta > thresholdPx ||
+    visualShrink > thresholdPx ||
     layoutShrink > thresholdPx ||
-    obscured > thresholdPx
+    visualDelta > thresholdPx
   );
 }
 
@@ -62,21 +78,25 @@ export function readVisualViewportKeyboardOpen(): boolean {
     return false;
   }
 
-  const clientHeight = document.documentElement.clientHeight;
-  const layoutHeight = Math.max(window.innerHeight, clientHeight);
+  const layoutHeight = Math.max(
+    window.innerHeight,
+    document.documentElement.clientHeight,
+  );
+  const visualHeight = window.visualViewport?.height ?? layoutHeight;
+  const editableFocused = isEditableKeyboardTarget(document.activeElement);
+
+  // Grow baselines whenever the viewport is larger (keyboard closed / UI chrome
+  // expanded). Do not shrink baselines while the keyboard is open.
   if (layoutHeight > maxLayoutHeightPx) {
     maxLayoutHeightPx = layoutHeight;
   }
+  if (visualHeight > maxVisualHeightPx) {
+    maxVisualHeightPx = visualHeight;
+  }
 
-  const visualViewport = window.visualViewport;
-
-  return isVisualViewportKeyboardOpen(
-    window.innerHeight,
-    visualViewport?.height,
-    {
-      maxLayoutHeightPx,
-      clientHeight,
-      visualViewportOffsetTop: visualViewport?.offsetTop,
-    },
-  );
+  return isVisualViewportKeyboardOpen(layoutHeight, visualHeight, {
+    maxLayoutHeightPx,
+    maxVisualHeightPx,
+    editableFocused,
+  });
 }

@@ -1,13 +1,7 @@
 "use client";
 
 import { ArrowUp, Loader2 } from "lucide-react";
-import {
-  type FocusEvent,
-  type FormEvent,
-  type ReactNode,
-  type Ref,
-  useState,
-} from "react";
+import { type FormEvent, type ReactNode, type Ref } from "react";
 
 import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
@@ -57,8 +51,8 @@ interface RoomMessageComposerProps {
   /**
    * Mobile/desktop safe-area `pb-*`. Defaults with `withOuterPadding`.
    * Set true when the parent supplies horizontal/top padding only (room).
-   * Dropped while the soft keyboard is open or an editable inside is focused
-   * (iOS often fails geometry-only detection on focus).
+   * Dropped only while the soft keyboard is open (editable focus + viewport
+   * shrink) — not on iOS autofocus alone, which does not open the OSK.
    */
   withSafeAreaPadding?: boolean;
   formRef?: Ref<HTMLFormElement | null>;
@@ -92,21 +86,6 @@ export function RoomMessageComposer({
   sendButtonTestId,
 }: RoomMessageComposerProps) {
   const keyboardOpen = useKeyboardOpen();
-  const [composerFocused, setComposerFocused] = useState(false);
-  // Focus is the reliable iOS signal; geometry covers Android / blur races.
-  const collapseSafeArea = keyboardOpen || composerFocused;
-
-  function handleFocusCapture() {
-    setComposerFocused(true);
-  }
-
-  function handleBlurCapture(event: FocusEvent<HTMLFormElement>) {
-    const next = event.relatedTarget;
-    if (next instanceof Node && event.currentTarget.contains(next)) {
-      return;
-    }
-    setComposerFocused(false);
-  }
 
   return (
     <form
@@ -114,13 +93,10 @@ export function RoomMessageComposer({
       className={cn(
         "shrink-0",
         withOuterPadding && "px-5 pt-2 md:pt-3",
-        withSafeAreaPadding &&
-          chatMobileComposerSafeAreaPbClass(collapseSafeArea),
+        withSafeAreaPadding && chatMobileComposerSafeAreaPbClass(keyboardOpen),
         className,
       )}
       onSubmit={onSubmit}
-      onFocusCapture={handleFocusCapture}
-      onBlurCapture={handleBlurCapture}
     >
       <div className="w-full">
         <div

@@ -6,8 +6,7 @@ import { readVisualViewportKeyboardOpen } from "@/lib/utils/visual-viewport-keyb
 
 function subscribe(onStoreChange: () => void): () => void {
   const visualViewport = window.visualViewport;
-  // iOS keyboard open often fires vv resize/scroll only (not window resize).
-  // focusin/out: re-check after focus settles; geometry may lag a frame.
+  // iOS: vv resize/scroll when the OSK opens; focusin/out for editable gate.
   window.addEventListener("resize", onStoreChange);
   window.addEventListener("orientationchange", onStoreChange);
   document.addEventListener("focusin", onStoreChange);
@@ -25,8 +24,8 @@ function subscribe(onStoreChange: () => void): () => void {
 }
 
 /**
- * True when the soft keyboard is likely open (visual vs layout viewport).
- * SSR / missing visualViewport → false unless layout shrunk vs baseline.
+ * True when an editable is focused and the soft keyboard is likely open.
+ * Autofocus without OSK (iOS `focusOnMount`) stays false so safe-area pb remains.
  */
 export function useKeyboardOpen(): boolean {
   return useSyncExternalStore(

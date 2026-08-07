@@ -45,9 +45,13 @@ function stubVisualViewport(height: number, offsetTop = 0): VisualViewportStub {
 describe("useKeyboardOpen", () => {
   const originalInnerHeight = window.innerHeight;
   const originalVisualViewport = window.visualViewport;
+  let textarea: HTMLTextAreaElement | undefined;
 
   afterEach(() => {
     resetVisualViewportKeyboardBaseline();
+    textarea?.remove();
+    textarea = undefined;
+    (document.activeElement as HTMLElement | null)?.blur?.();
     Object.defineProperty(window, "innerHeight", {
       configurable: true,
       writable: true,
@@ -61,52 +65,66 @@ describe("useKeyboardOpen", () => {
     vi.restoreAllMocks();
   });
 
-  it("is false when visualViewport is unavailable", () => {
+  function focusEditable() {
+    textarea = document.createElement("textarea");
+    document.body.append(textarea);
+    textarea.focus();
+  }
+
+  it("is false when visualViewport is unavailable and nothing is focused", () => {
     Object.defineProperty(window, "visualViewport", {
       configurable: true,
       writable: true,
       value: undefined,
     });
+    (document.activeElement as HTMLElement | null)?.blur?.();
 
     const { result } = renderHook(() => useKeyboardOpen());
     expect(result.current).toBe(false);
   });
 
-  it("is false when the layout/visual delta is small", () => {
+  it("is false when focused but the viewport has not shrunk (iOS autofocus)", () => {
     Object.defineProperty(window, "innerHeight", {
       configurable: true,
       writable: true,
       value: 800,
     });
-    stubVisualViewport(700);
+    stubVisualViewport(800);
+    focusEditable();
 
     const { result } = renderHook(() => useKeyboardOpen());
     expect(result.current).toBe(false);
   });
 
-  it("is true when the soft keyboard shrinks visualViewport", () => {
-    Object.defineProperty(window, "innerHeight", {
-      configurable: true,
-      writable: true,
-      value: 800,
-    });
-    stubVisualViewport(400);
-
-    const { result } = renderHook(() => useKeyboardOpen());
-    expect(result.current).toBe(true);
-  });
-
-  it("updates on visualViewport resize", () => {
+  it("is true when an editable is focused and visualViewport shrinks", () => {
     Object.defineProperty(window, "innerHeight", {
       configurable: true,
       writable: true,
       value: 800,
     });
     const vv = stubVisualViewport(800);
-
     const { result } = renderHook(() => useKeyboardOpen());
     expect(result.current).toBe(false);
 
+    focusEditable();
+    act(() => {
+      vv.height = 400;
+      vv.dispatch("resize");
+    });
+    expect(result.current).toBe(true);
+  });
+
+  it("updates on visualViewport resize while focused", () => {
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      writable: true,
+      value: 800,
+    });
+    const vv = stubVisualViewport(800);
+    const { result } = renderHook(() => useKeyboardOpen());
+    expect(result.current).toBe(false);
+
+    focusEditable();
     act(() => {
       vv.height = 400;
       vv.dispatch("resize");
