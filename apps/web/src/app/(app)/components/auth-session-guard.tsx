@@ -3,21 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useRef } from "react";
 
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
-import {
-  createAuthSessionGetter,
-  createDebouncedScheduler,
-  probeSessionWithRetry,
-  SESSION_RESUME_DEBOUNCE_MS,
-  type SessionValidateReason,
-} from "@/lib/auth/auth.utils";
+import { createAuthSessionGetter } from "@/lib/auth/auth.utils";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
 export function AuthSessionGuard() {
   const router = useRouter();
   const isRedirectingRef = useRef(false);
   const mountedRef = useRef(true);
-  const resumeGenerationRef = useRef(0);
+  const probeGenerationRef = useRef(0);
   const getFreshSession = createAuthSessionGetter(() =>
     authClient.getSession({
       query: {
@@ -26,8 +21,24 @@ export function AuthSessionGuard() {
     }),
   );
 
-  const redirectToSignIn = useEffectEvent(() => {
+  const validateSession = useEffectEvent(async () => {
     if (isRedirectingRef.current) {
+      return;
+    }
+
+    const generation = ++probeGenerationRef.current;
+
+    try {
+      const session = await getFreshSession();
+      if (
+        !mountedRef.current ||
+        isRedirectingRef.current ||
+        generation !== probeGenerationRef.current ||
+        session
+      ) {
+        return;
+      }
+    } catch {
       return;
     }
 
@@ -36,57 +47,24 @@ export function AuthSessionGuard() {
     router.replace(`/signin?returnUrl=${returnUrl}`);
   });
 
-  const validateSession = useEffectEvent(
-    async (reason: SessionValidateReason) => {
-      if (isRedirectingRef.current) {
-        return;
-      }
+  useMountEffect(() => {
+    mountedRef.current = true;
+    void validateSession();
 
-      if (reason === "mount") {
-        try {
-          const session = await getFreshSession();
-          if (isRedirectingRef.current || session) {
-            return;
-          }
-        } catch {
-          return;
-        }
-
-        redirectToSignIn();
-        return;
-      }
-
-      const generation = ++resumeGenerationRef.current;
-      const result = await probeSessionWithRetry({
-        getSession: getFreshSession,
-        shouldCancel: () =>
-          !mountedRef.current ||
-          isRedirectingRef.current ||
-          generation !== resumeGenerationRef.current,
-      });
-
-      if (result === "missing") {
-        redirectToSignIn();
-      }
-    },
-  );
+    return () => {
+      mountedRef.current = false;
+      probeGenerationRef.current += 1;
+    };
+  });
 
   useEffect(() => {
-    void validateSession("mount");
-  }, []);
-
-  useEffect(() => {
-    const scheduler = createDebouncedScheduler(() => {
-      void validateSession("resume");
-    }, SESSION_RESUME_DEBOUNCE_MS);
-
     function handleWindowFocus() {
-      scheduler.schedule();
+      void validateSession();
     }
 
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
-        scheduler.schedule();
+        void validateSession();
       }
     }
 
@@ -94,8 +72,6 @@ export function AuthSessionGuard() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      mountedRef.current = false;
-      scheduler.cancel();
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
