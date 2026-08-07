@@ -976,6 +976,35 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [handleInput],
   );
 
+  const tryFlushTrailingEmoticon = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const { text } = serializeEditor(editor);
+    const match = matchEmoticonClosedAtBoundary(text, text.length, {
+      flush: true,
+    });
+    if (!match) return;
+
+    const selection = window.getSelection();
+    const anchor =
+      selection && selection.rangeCount > 0
+        ? selection.getRangeAt(0).startContainer
+        : editor;
+    if (isInsideComposerProtectedContext(anchor, editor)) return;
+
+    const startPos = findPositionForOffset(editor, match.start);
+    const endPos = findPositionForOffset(editor, match.end);
+    const range = document.createRange();
+    range.setStart(startPos.node, startPos.offset);
+    range.setEnd(endPos.node, endPos.offset);
+    range.deleteContents();
+    const textNode = document.createTextNode(match.emoji);
+    range.insertNode(textNode);
+    setCaretAfterNode(editor, textNode);
+    isInternalChange.current = true;
+    syncFromEditor();
+  }, [syncFromEditor]);
+
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const key = event.key.toLowerCase();
@@ -1064,6 +1093,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         if (isOpen) closeSuggestions();
 
         if (action === "submit") {
+          tryFlushTrailingEmoticon();
           onSubmitShortcut?.();
           return;
         }
@@ -1088,6 +1118,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       selectableMentions,
       setActiveSuggestionIndex,
       suggestionKind,
+      tryFlushTrailingEmoticon,
       visibleSuggestionCount,
     ],
   );
@@ -1095,12 +1126,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
   const handleBlur = useCallback(() => {
     blurTimeoutRef.current = setTimeout(() => {
       if (!isSelectingRef.current) {
+        tryFlushTrailingEmoticon();
         closeSuggestions();
       }
       isSelectingRef.current = false;
       publishActiveFormats();
     }, 150);
-  }, [closeSuggestions, publishActiveFormats]);
+  }, [closeSuggestions, publishActiveFormats, tryFlushTrailingEmoticon]);
 
   useEffect(() => {
     const onSelectionChange = () => {

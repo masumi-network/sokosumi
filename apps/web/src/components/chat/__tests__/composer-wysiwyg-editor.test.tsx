@@ -811,4 +811,73 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor.textContent).toContain(":D");
     expect(editor.textContent).not.toContain("😄");
   });
+
+  it("converts bare trailing emoticon on blur (flush)", async () => {
+    vi.useFakeTimers();
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+    // Live mode should not convert without boundary
+    expect(editor.textContent).toContain(":)");
+
+    fireEvent.blur(editor);
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(editor.textContent).toContain("😃");
+    expect(editor.textContent).not.toContain(":)");
+    vi.useRealTimers();
+  });
+
+  it("converts bare trailing emoticon before submit shortcut", () => {
+    const onSubmitShortcut = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+          onSubmitShortcut={onSubmitShortcut}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ";)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(editor.textContent).toContain("😉");
+    expect(onSubmitShortcut).toHaveBeenCalled();
+  });
 });
