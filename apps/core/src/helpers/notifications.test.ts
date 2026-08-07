@@ -1,11 +1,13 @@
-import type { Notification, NotificationKind } from "@sokosumi/database";
+import { type Notification, NotificationKind } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
 import type prisma from "@/lib/db/prisma";
 
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "./notification-feed";
 import {
   type CreateNotificationInput,
   createNotification,
+  deletePendingVendorGrantNotifications,
 } from "./notifications";
 
 const { publishNotificationEventMock } = vi.hoisted(() => ({
@@ -22,7 +24,7 @@ vi.mock("@sentry/node", () => ({
 
 const CREATED_AT = new Date("2026-06-18T09:00:00.000Z");
 const READ_AT = new Date("2026-06-18T09:30:00.000Z");
-const JOB_KIND = "JOB" as NotificationKind;
+const JOB_KIND = NotificationKind.JOB;
 
 const notificationInput: CreateNotificationInput = {
   userId: "user_123",
@@ -66,6 +68,7 @@ function createPrismaMock() {
       findUnique: vi.fn(),
       update: vi.fn(),
       upsert: vi.fn(),
+      deleteMany: vi.fn(),
     },
   };
 }
@@ -215,5 +218,39 @@ describe("createNotification", () => {
     expect(publishNotificationEventMock).not.toHaveBeenCalled();
     expect(prismaMock.notification.update).not.toHaveBeenCalled();
     expect(prismaMock.notification.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("deletePendingVendorGrantNotifications", () => {
+  it("deletes SYSTEM pending vendor-grant notifications for the grant id", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.deleteMany.mockResolvedValue({ count: 2 });
+
+    await expect(
+      deletePendingVendorGrantNotifications(
+        "grant_123",
+        prismaMock as unknown as typeof prisma,
+      ),
+    ).resolves.toBe(2);
+
+    expect(prismaMock.notification.deleteMany).toHaveBeenCalledWith({
+      where: {
+        referenceId: "grant_123",
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        kind: NotificationKind.SYSTEM,
+      },
+    });
+  });
+
+  it("returns zero when no matching notifications exist", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.deleteMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      deletePendingVendorGrantNotifications(
+        "grant_missing",
+        prismaMock as unknown as typeof prisma,
+      ),
+    ).resolves.toBe(0);
   });
 });

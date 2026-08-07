@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useNotifications } from "@/contexts/notification-provider";
 import {
   approveMyVendorGrant,
   createMyVendorGrant,
@@ -154,6 +155,7 @@ function VendorCardActions({
   const tActions = useTranslations(`${namespace}.Actions`);
   const tGrantForm = useTranslations(`${namespace}.GrantForm`);
   const router = useRouter();
+  const { refetch: refetchNotifications } = useNotifications();
   const [loadingAction, setLoadingAction] = useState<VendorCardAction | null>(
     null,
   );
@@ -248,6 +250,11 @@ function VendorCardActions({
       }
       toast.success(tActions(successKey));
       router.refresh();
+      if (action === "approve" || action === "deny") {
+        void refetchNotifications().catch(() => {
+          // Feed will catch up on next open / realtime subscribe.
+        });
+      }
     } catch {
       toast.error(tActions(errorKey));
     } finally {
