@@ -28,13 +28,13 @@ import {
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
-
 import {
   getWorkspaceGrant,
   requestWorkspaceGrantCommitted,
   requireTaskNotParked,
   throwGrantAccessError,
 } from "./vendor-grants";
+import { buildAccessibleCoworkerMembershipOr } from "./vendor-membership";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 // -----------------------------------------------------------------------------
@@ -203,6 +203,37 @@ export function buildCoworkerUsableInWorkspaceWhere(
       },
     ],
   };
+}
+
+/**
+ * Prisma OR branches for coworkers a user may resolve by id (name chips,
+ * enrichment) without enumerating private rows: marketplace whitelist, vendor
+ * admin / assignment membership, or GRANTED workspace access on a personal or
+ * org workspace the user belongs to.
+ *
+ * User-scoped (not single-workspace) — used by Hermes confirmation enrich
+ * where instance context has no active workspace.
+ */
+export function buildCoworkerVisibleToUserOr(
+  userId: string,
+): Prisma.CoworkerWhereInput[] {
+  return [
+    { isWhitelisted: true },
+    ...buildAccessibleCoworkerMembershipOr(userId),
+    {
+      workspaceAccess: {
+        some: {
+          status: CoworkerWorkspaceAccessStatus.GRANTED,
+          workspace: {
+            OR: [
+              { userId },
+              { organization: { members: { some: { userId } } } },
+            ],
+          },
+        },
+      },
+    },
+  ];
 }
 
 /**

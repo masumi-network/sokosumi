@@ -12,10 +12,7 @@ import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
-import {
-  coworkerWorkspaceAccessesSchema,
-  coworkerWorkspaceAccessSchema,
-} from "@/schemas/coworker-workspace-access.schema";
+import { coworkerWorkspaceAccessesSchema } from "@/schemas/coworker-workspace-access.schema";
 
 const params = z.object({
   id: z.string().openapi({
@@ -70,11 +67,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     return ok(
       c,
       coworkerWorkspaceAccessesSchema.parse(
-        rows.map((row) =>
-          coworkerWorkspaceAccessSchema.parse(
-            toCoworkerWorkspaceAccessApiShape(row),
-          ),
-        ),
+        rows.map((row) => toCoworkerWorkspaceAccessApiShape(row)),
       ),
     );
   });

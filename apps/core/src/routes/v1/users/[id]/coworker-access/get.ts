@@ -15,10 +15,7 @@ import {
   requireUserRouteContext,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
-import {
-  coworkerWorkspaceAccessesSchema,
-  coworkerWorkspaceAccessSchema,
-} from "@/schemas/coworker-workspace-access.schema";
+import { coworkerWorkspaceAccessesSchema } from "@/schemas/coworker-workspace-access.schema";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -63,11 +60,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     return ok(
       c,
       coworkerWorkspaceAccessesSchema.parse(
-        rows.map((row) =>
-          coworkerWorkspaceAccessSchema.parse(
-            toCoworkerWorkspaceAccessApiShape(row),
-          ),
-        ),
+        rows.map((row) => toCoworkerWorkspaceAccessApiShape(row)),
       ),
     );
   });

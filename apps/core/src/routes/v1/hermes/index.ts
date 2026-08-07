@@ -69,6 +69,7 @@ import {
   getWebAppBaseUrl,
   resolveSokosumiEnvForOrchestrator,
 } from "@/config/env";
+import { buildCoworkerVisibleToUserOr } from "@/helpers/access-control";
 import {
   badRequest,
   conflict,
@@ -93,7 +94,6 @@ import {
   parseCursorPagination,
 } from "@/helpers/pagination";
 import { conflictWithData, ok } from "@/helpers/response";
-import { buildAccessibleCoworkerMembershipOr } from "@/helpers/vendor-membership";
 
 import prisma from "@/lib/db/prisma";
 import { isTransientFetchError } from "@/lib/external-service-errors";
@@ -433,10 +433,10 @@ function buildPersistedUserContent(
  * (e.g. "assign to coworker 0e8c93b0-…") into coworker / organization
  * records so the UI can render avatar + name chips instead of raw ids.
  *
- * Scoped to the caller — coworkers must be marketplace-whitelisted or
- * accessible via vendor-admin / assignment membership; organizations
- * require membership. Prevents enumerating private rows by feeding
- * crafted summaries through the orchestrator.
+ * Scoped to the caller — coworkers must be marketplace-whitelisted, accessible
+ * via vendor-admin / assignment membership, or GRANTED on a workspace the user
+ * belongs to; organizations require membership. Prevents enumerating private
+ * rows by feeding crafted summaries through the orchestrator.
  *
  * Best-effort: a DB hiccup here must not 500 the whole instance fetch.
  */
@@ -462,10 +462,7 @@ async function enrichPendingConfirmations(
       prisma.coworker.findMany({
         where: {
           id: { in: ids },
-          OR: [
-            { isWhitelisted: true },
-            ...buildAccessibleCoworkerMembershipOr(userId),
-          ],
+          OR: buildCoworkerVisibleToUserOr(userId),
         },
         select: { id: true, name: true, image: true },
       }),

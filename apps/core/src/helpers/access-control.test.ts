@@ -17,6 +17,7 @@ import type {
 import type { WorkspaceContext } from "@/middleware/workspace";
 import {
   buildCoworkerUsableInWorkspaceWhere,
+  buildCoworkerVisibleToUserOr,
   requireConversationCoworkerAccess,
   requireCoworkerCapability,
   requireCoworkerChatCapability,
@@ -1465,6 +1466,48 @@ describe("buildCoworkerUsableInWorkspaceWhere", () => {
         },
       ],
     });
+  });
+});
+
+describe("buildCoworkerVisibleToUserOr", () => {
+  it("includes whitelist, vendor membership, and GRANTED on user workspaces", () => {
+    expect(buildCoworkerVisibleToUserOr("user_123")).toEqual([
+      { isWhitelisted: true },
+      {
+        vendor: {
+          vendorMembers: {
+            some: {
+              userId: "user_123",
+              role: "admin",
+            },
+          },
+        },
+      },
+      {
+        assignments: {
+          some: {
+            userId: "user_123",
+          },
+        },
+      },
+      {
+        workspaceAccess: {
+          some: {
+            status: CoworkerWorkspaceAccessStatus.GRANTED,
+            workspace: {
+              OR: [
+                { userId: "user_123" },
+                {
+                  organization: {
+                    members: { some: { userId: "user_123" } },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    ]);
   });
 });
 
