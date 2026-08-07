@@ -24,9 +24,16 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+/**
+ * `viewport-fit=cover` so iOS `env(safe-area-inset-*)` is non-zero (PWA /
+ * notched devices). App, auth, and share chrome must pad those insets —
+ * see `app-shell-safe-area.ts`. Required on root (not chat-only) so hub
+ * routes like `/tasks` and `/history` keep the same bottom-nav inset.
+ */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export function generateMetadata(): Metadata {

@@ -41,6 +41,50 @@ export function preferTasksListFromDeviceType(
   return deviceType === "mobile" || deviceType === "tablet";
 }
 
+/**
+ * Client-side stand-in for Next `userAgent().device.type` mobile|tablet.
+ * Used by Instant Nav loading shells that cannot call `cookies()`/`headers()`.
+ */
+export function preferTasksListFromUserAgent(
+  userAgent: string | undefined,
+): boolean {
+  if (!userAgent) {
+    return false;
+  }
+
+  // Tablets first (Android tablet UAs omit "Mobile").
+  if (/ipad|tablet|playbook|silk|(android(?!.*mobile))/i.test(userAgent)) {
+    return true;
+  }
+
+  return /mobi|iphone|ipod|android.*mobile|windows phone/i.test(userAgent);
+}
+
+/** Read `tasks_view_mode` from a raw Cookie header / `document.cookie` string. */
+export function parseTasksViewModeCookieHeader(
+  documentCookie: string,
+): TasksViewMode | null {
+  const match = documentCookie.match(
+    new RegExp(`(?:^|;\\s*)${TASKS_VIEW_MODE_COOKIE_NAME}=([^;]*)`),
+  );
+
+  return parseTasksViewMode(match?.[1]);
+}
+
+/**
+ * Client resolve for Instant Nav / Suspense skeletons: cookie wins; else
+ * mobile/tablet UA → list, desktop → board (same as `getDefaultTasksViewMode`).
+ */
+export function resolveTasksViewModeFromClientCookie(
+  documentCookie: string,
+  userAgent: string | undefined,
+): TasksViewMode {
+  return resolveDefaultTasksViewMode({
+    persisted: parseTasksViewModeCookieHeader(documentCookie),
+    preferList: preferTasksListFromUserAgent(userAgent),
+  });
+}
+
 export function serializeTasksViewModeCookie(mode: TasksViewMode): string {
   return `${TASKS_VIEW_MODE_COOKIE_NAME}=${mode}; path=/; max-age=${TASKS_VIEW_MODE_COOKIE_MAX_AGE}`;
 }
