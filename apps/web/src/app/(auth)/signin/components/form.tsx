@@ -56,7 +56,9 @@ export default function SignInForm({
     defaultValues: {
       email: prefilledEmail ?? "",
       currentPassword: "",
-      rememberMe: false,
+      // Persistent session cookie (Max-Age). false → Better Auth omits Max-Age;
+      // iOS then drops the cookie when it kills the PWA after backgrounding.
+      rememberMe: true,
     },
   });
 
