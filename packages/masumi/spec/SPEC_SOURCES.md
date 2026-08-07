@@ -23,13 +23,35 @@ Record the new provenance below whenever a snapshot changes.
 
 | File | Source | Version | Recorded |
 | --- | --- | --- | --- |
-| `payment.openapi.json` | masumi-payment-service `codex/cardano-purchase-readiness` (based on `dev` @ `98e3470a`; checked-in `src/utils/generator/swagger-generator/openapi-docs.json`) | 1.0.0 | 2026-07-28 |
-| `registry.openapi.json` | masumi-registry-service `dev` @ `fe9ac5e` (checked-in `src/utils/swagger-generator/openapi-docs.json`) | 0.1.2 | 2026-07-27 |
+| `payment.openapi.json` | `https://payment.masumi.network/api-docs` | 1.0.0 | 2026-08-07 |
+| `registry.openapi.json` | `https://registry.masumi.network/api-docs` | 0.1.2 | 2026-08-07 |
 
-Both snapshots come from the service repos directly (not the deployed
-`/api-docs` endpoints) because the deployments had not been upgraded to the
-V2/x402 release when the snapshots were taken. Once the deployments are
-upgraded, `fetch:specs` fetches from them.
+## Why these hosts
+
+`fetch:specs` defaults to the deployments Core actually calls at runtime — the
+hosts behind `PAYMENT_API_URL` and `REGISTRY_API_URL` in
+`apps/core/.env.example`. A generated client is only as correct as the server it
+was generated from, so a snapshot taken from any other deployment would freeze a
+contract nobody talks to.
+
+That matters more here than for a live-URL setup, because a snapshot is stale by
+design: the version guard below cannot catch drift between two deployments that
+share a version number, and both of these have held their version across
+releases.
+
+Override per run to generate against a staging or local node:
+
+```sh
+PAYMENT_SPEC_URL=... REGISTRY_SPEC_URL=... pnpm --filter @sokosumi/masumi fetch:specs
+```
+
+Earlier snapshots (2026-07-27/28) were lifted from the service repos —
+masumi-payment-service `codex/cardano-purchase-readiness` and
+masumi-registry-service `dev` @ `fe9ac5e` — because the deployments had not yet
+been upgraded to the V2/x402 release. They have been since, and the deployed
+specs are byte-identical to those snapshots, so the two sources have converged.
+
+## Guards
 
 `fetch:specs` refuses to overwrite a snapshot with a lower `info.version`
 (deployment lagging behind the pin). Because upstream payment specs may retain

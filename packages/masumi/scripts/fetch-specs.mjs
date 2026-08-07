@@ -96,12 +96,25 @@ export function findMissingSpecLandmarks(
 
 const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
+/**
+ * Default to the SAME deployments Core calls at runtime — the hosts behind
+ * `PAYMENT_API_URL` and `REGISTRY_API_URL` (see apps/core/.env.example).
+ *
+ * The generated client is only ever as correct as the server it was generated
+ * from, so pinning a snapshot taken from a different deployment would freeze a
+ * contract nobody actually talks to. That is worse than the live-URL setup this
+ * replaced, which at least re-fetched on every codegen: a snapshot is stale by
+ * design, and the version guard below would not catch drift between two
+ * deployments that share a version number.
+ *
+ * Override per run when generating against a staging or local node:
+ *   PAYMENT_SPEC_URL=... REGISTRY_SPEC_URL=... pnpm fetch:specs
+ */
 const sources = [
   {
     name: "payment",
     url:
-      process.env.PAYMENT_SPEC_URL ??
-      "https://masumi-payment-sokosumi-dev-5xwcb.ondigitalocean.app/api-docs",
+      process.env.PAYMENT_SPEC_URL ?? "https://payment.masumi.network/api-docs",
     outFile: join(packageRoot, "spec", "payment.openapi.json"),
     ...SPEC_LANDMARKS.payment,
   },
@@ -109,7 +122,7 @@ const sources = [
     name: "registry",
     url:
       process.env.REGISTRY_SPEC_URL ??
-      "https://masumi-registry-sokosumi-dev-9f342.ondigitalocean.app/api-docs",
+      "https://registry.masumi.network/api-docs",
     outFile: join(packageRoot, "spec", "registry.openapi.json"),
     ...SPEC_LANDMARKS.registry,
   },

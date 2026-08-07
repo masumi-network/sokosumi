@@ -2437,7 +2437,7 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 128,
-                          "description": "Issuer KERI AID (ACDC sad.i) \u2014 the root trust anchor"
+                          "description": "Issuer KERI AID (ACDC sad.i) — the root trust anchor"
                         },
                         "oobi": {
                           "type": "string",
@@ -2472,7 +2472,7 @@
                         "said",
                         "oobi"
                       ],
-                      "description": "Credential schema \u2014 the ACDC structure definition"
+                      "description": "Credential schema — the ACDC structure definition"
                     },
                     "credential": {
                       "type": "object",
@@ -3150,7 +3150,7 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 128,
-                          "description": "Issuer KERI AID (ACDC sad.i) \u2014 the root trust anchor"
+                          "description": "Issuer KERI AID (ACDC sad.i) — the root trust anchor"
                         },
                         "oobi": {
                           "type": "string",
@@ -3185,7 +3185,7 @@
                         "said",
                         "oobi"
                       ],
-                      "description": "Credential schema \u2014 the ACDC structure definition"
+                      "description": "Credential schema — the ACDC structure definition"
                     },
                     "credential": {
                       "type": "object",
@@ -3909,7 +3909,7 @@
                       "type": "string",
                       "minLength": 1,
                       "maxLength": 128,
-                      "description": "Issuer KERI AID (ACDC sad.i) \u2014 the root trust anchor"
+                      "description": "Issuer KERI AID (ACDC sad.i) — the root trust anchor"
                     },
                     "oobi": {
                       "type": "string",
@@ -3944,7 +3944,7 @@
                     "said",
                     "oobi"
                   ],
-                  "description": "Credential schema \u2014 the ACDC structure definition"
+                  "description": "Credential schema — the ACDC structure definition"
                 },
                 "credential": {
                   "type": "object",
@@ -4303,7 +4303,7 @@
               "outdated_contract",
               "custom_address"
             ],
-            "description": "Whether a Web3CardanoV2 source is on the current on-chain contract. \"outdated_contract\": registry policyId differs from the current default (retired contract \u2014 agents orphaned, payment address stale); \"custom_address\": current version but a non-default admin-wallet address; \"in_sync\": matches the current default (also for V1 and any non-V2 source)."
+            "description": "Whether a Web3CardanoV2 source is on the current on-chain contract. \"outdated_contract\": registry policyId differs from the current default (retired contract — agents orphaned, payment address stale); \"custom_address\": current version but a non-default admin-wallet address; \"in_sync\": matches the current default (also for V1 and any non-V2 source)."
           },
           "PaymentSourceConfig": {
             "type": "object",
@@ -5880,7 +5880,7 @@
         "properties": {
           "triggered": {
             "type": "boolean",
-            "description": "Always true \u2014 indicates the request was received"
+            "description": "Always true — indicates the request was received"
           },
           "alreadyRunning": {
             "type": "boolean",
@@ -5918,7 +5918,7 @@
                 },
                 "isReady": {
                   "type": "boolean",
-                  "description": "Whether the rail can actually take payments right now. True only when every blocking check is complete \u2014 optional checks (e.g. outbound spending) do not affect it"
+                  "description": "Whether the rail can actually take payments right now. True only when every blocking check is complete — optional checks (e.g. outbound spending) do not affect it"
                 },
                 "Checks": {
                   "type": "array",
@@ -17399,7 +17399,7 @@
     },
     "/payment/x402": {
       "post": {
-        "description": "Builds an unsigned Cardano funds-locking transaction for an existing payment request. The seller calls this on behalf of the buyer (x402 protocol). No state is saved \u2014 the returned CBOR must be signed by the buyer and submitted to the network.",
+        "description": "Builds an unsigned Cardano funds-locking transaction for an existing payment request. The seller calls this on behalf of the buyer (x402 protocol). No state is saved — the returned CBOR must be signed by the buyer and submitted to the network.",
         "summary": "Build an unsigned x402 funds-locking transaction for a payment. (+READ access required)",
         "tags": [
           "payment"
@@ -19910,7 +19910,7 @@
                               "type": "string",
                               "minLength": 1,
                               "maxLength": 128,
-                              "description": "Issuer KERI AID (ACDC sad.i) \u2014 the root trust anchor"
+                              "description": "Issuer KERI AID (ACDC sad.i) — the root trust anchor"
                             },
                             "oobi": {
                               "type": "string",
@@ -19945,7 +19945,7 @@
                             "said",
                             "oobi"
                           ],
-                          "description": "Credential schema \u2014 the ACDC structure definition"
+                          "description": "Credential schema — the ACDC structure definition"
                         },
                         "credential": {
                           "type": "object",
@@ -21377,7 +21377,7 @@
                               "type": "string",
                               "minLength": 1,
                               "maxLength": 128,
-                              "description": "Issuer KERI AID (ACDC sad.i) \u2014 the root trust anchor"
+                              "description": "Issuer KERI AID (ACDC sad.i) — the root trust anchor"
                             },
                             "oobi": {
                               "type": "string",
@@ -21412,7 +21412,7 @@
                             "said",
                             "oobi"
                           ],
-                          "description": "Credential schema \u2014 the ACDC structure definition"
+                          "description": "Credential schema — the ACDC structure definition"
                         },
                         "credential": {
                           "type": "object",
@@ -22211,13 +22211,13 @@
                     },
                     "minItems": 1,
                     "maxItems": 50,
-                    "description": "V2 admin wallet slots. Repeated addresses ARE permitted and intentional: each entry is an independent voting slot, so the same Cardano address can be added multiple times to give that key proportionally more weight in the M-of-N quorum. Example: [addrA, addrA, addrB] with requiredAdminSignatures=2 means addrA alone satisfies the quorum (2 weighted slots) while addrB alone does not. No distinct-address check is enforced server-side \u2014 duplicates are by design, not a bug. Auditing operators must reason about effective vote weight, not raw row count."
+                    "description": "V2 admin wallet slots. Repeated addresses ARE permitted and intentional: each entry is an independent voting slot, so the same Cardano address can be added multiple times to give that key proportionally more weight in the M-of-N quorum. Example: [addrA, addrA, addrB] with requiredAdminSignatures=2 means addrA alone satisfies the quorum (2 weighted slots) while addrB alone does not. No distinct-address check is enforced server-side — duplicates are by design, not a bug. Auditing operators must reason about effective vote weight, not raw row count."
                   },
                   "requiredAdminSignatures": {
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 50,
-                    "description": "Required weighted admin signatures for Web3CardanoV2 dispute settlement. Minimum 1 (single-admin custody is allowed by design \u2014 operators choosing this trade fast settlement for centralized control). Weight is counted by AdminWallets row position, so duplicate addresses inflate effective weight; see AdminWallets docs."
+                    "description": "Required weighted admin signatures for Web3CardanoV2 dispute settlement. Minimum 1 (single-admin custody is allowed by design — operators choosing this trade fast settlement for centralized control). Weight is counted by AdminWallets row position, so duplicate addresses inflate effective weight; see AdminWallets docs."
                   },
                   "FeeReceiverNetworkWallet": {
                     "type": "object",
@@ -30132,7 +30132,7 @@
         }
       },
       "delete": {
-        "description": "Soft-deletes a fund wallet and disables its distribution config. Unclaimed source-level requests continue through another enabled fund wallet, or are cancelled when none remains. Does NOT move funds. A wallet with a broadcast or ambiguous distribution in flight cannot be deleted, even with force=true; wait for the transaction to settle first. Also refuses with 409 while the wallet still holds ADA or native assets, because deletion makes the mnemonic unexportable through the API \u2014 withdraw every asset first. Pass force=true only to skip the balance check, accepting that any remaining balance is recoverable only with direct database access.",
+        "description": "Soft-deletes a fund wallet and disables its distribution config. Unclaimed source-level requests continue through another enabled fund wallet, or are cancelled when none remains. Does NOT move funds. A wallet with a broadcast or ambiguous distribution in flight cannot be deleted, even with force=true; wait for the transaction to settle first. Also refuses with 409 while the wallet still holds ADA or native assets, because deletion makes the mnemonic unexportable through the API — withdraw every asset first. Pass force=true only to skip the balance check, accepting that any remaining balance is recoverable only with direct database access.",
         "summary": "Delete a fund wallet. (admin access required)",
         "tags": [
           "fund-wallet"
@@ -30415,7 +30415,7 @@
     },
     "/rail-readiness": {
       "get": {
-        "description": "Reports whether each payment rail is actually configured well enough to take payments, so setup UIs do not have to re-derive it from several list endpoints. Each rail returns isReady plus the individual checks behind it, each with a stable id the admin UI maps its setup steps onto. CardanoV2 also returns per-policy/contract PurchaseSources so read-auth consumers can gate outbound purchases against the exact source; these identifiers are public on-chain values. isReady covers blocking checks only: for x402 that means an enabled chain with exactly one facilitator mode configured (a row with both a facilitator wallet and a facilitator URL fails at settle time), while purchasing wallet and budget are reported but optional. Only configuration presence is exposed \u2014 no keys or private wallet data.",
+        "description": "Reports whether each payment rail is actually configured well enough to take payments, so setup UIs do not have to re-derive it from several list endpoints. Each rail returns isReady plus the individual checks behind it, each with a stable id the admin UI maps its setup steps onto. CardanoV2 also returns per-policy/contract PurchaseSources so read-auth consumers can gate outbound purchases against the exact source; these identifiers are public on-chain values. isReady covers blocking checks only: for x402 that means an enabled chain with exactly one facilitator mode configured (a row with both a facilitator wallet and a facilitator URL fails at settle time), while purchasing wallet and budget are reported but optional. Only configuration presence is exposed — no keys or private wallet data.",
         "summary": "Get payment rail readiness. (read access required)",
         "tags": [
           "rail-readiness"
@@ -30545,7 +30545,7 @@
                               "id": "cardano.selling_wallet",
                               "label": "Selling wallet",
                               "isComplete": false,
-                              "detail": "No selling wallet \u2014 the source cannot receive payments"
+                              "detail": "No selling wallet — the source cannot receive payments"
                             },
                             {
                               "id": "cardano.purchasing_wallet",
@@ -30593,13 +30593,13 @@
                               "id": "x402.purchasing_wallet",
                               "label": "Purchasing wallet",
                               "isComplete": false,
-                              "detail": "Optional \u2014 needed only to pay other agents"
+                              "detail": "Optional — needed only to pay other agents"
                             },
                             {
                               "id": "x402.budget",
                               "label": "Spending budget",
                               "isComplete": false,
-                              "detail": "Optional \u2014 needed only to pay other agents"
+                              "detail": "Optional — needed only to pay other agents"
                             }
                           ]
                         }
@@ -30618,7 +30618,7 @@
     },
     "/tx-sync-quarantine": {
       "get": {
-        "description": "Lists transactions the chain sync could not apply. The checkpoint has already advanced past these, so anything still pending is chain state the database has NOT caught up with \u2014 some request is running on stale information until it is applied.",
+        "description": "Lists transactions the chain sync could not apply. The checkpoint has already advanced past these, so anything still pending is chain state the database has NOT caught up with — some request is running on stale information until it is applied.",
         "summary": "List quarantined sync transactions. (admin access required)",
         "tags": [
           "tx-sync-quarantine"
@@ -30764,7 +30764,7 @@
         }
       },
       "delete": {
-        "description": "Permanently removes a quarantine entry. Deleting does NOT apply the transaction \u2014 the database stays behind the chain for whatever that transaction would have changed. Intended for entries that are genuinely irrelevant, or ones already repaired by hand.",
+        "description": "Permanently removes a quarantine entry. Deleting does NOT apply the transaction — the database stays behind the chain for whatever that transaction would have changed. Intended for entries that are genuinely irrelevant, or ones already repaired by hand.",
         "summary": "Delete a quarantine entry without applying it. (admin access required)",
         "tags": [
           "tx-sync-quarantine"
@@ -31170,7 +31170,7 @@
                   "force": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Skip chain validation and write the supplied onChainState verbatim. Only for cases validation cannot cover \u2014 a mistake here points the request at the wrong escrow and the automatic refund/withdraw logic will act on it."
+                    "description": "Skip chain validation and write the supplied onChainState verbatim. Only for cases validation cannot cover — a mistake here points the request at the wrong escrow and the automatic refund/withdraw logic will act on it."
                   },
                   "onChainState": {
                     "type": "string",
@@ -31186,7 +31186,7 @@
                       "RefundWithdrawn",
                       "DisputedWithdrawn"
                     ],
-                    "description": "Required when force is true. Ignored otherwise \u2014 the state is read from the transaction datum."
+                    "description": "Required when force is true. Ignored otherwise — the state is read from the transaction datum."
                   },
                   "requestVersion": {
                     "type": "string",
