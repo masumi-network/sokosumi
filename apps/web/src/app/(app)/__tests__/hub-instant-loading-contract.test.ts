@@ -6,9 +6,12 @@ import { describe, expect, it } from "vitest";
 const here = dirname(fileURLToPath(import.meta.url));
 const appDir = join(here, "..");
 
-/** Dynamic APIs that must not appear in Instant loading shell *code*. */
+/**
+ * Dynamic APIs that must not appear in Instant loading shell *code*.
+ * Includes Next request APIs and next-intl server helpers that suspend/dynamicize.
+ */
 const DYNAMIC_SHELL_API_RE =
-  /\bcookies\s*\(|\bconnection\s*\(|\bgetTranslations\s*\(|\bgetSession\s*\(/;
+  /\b(?:cookies|headers|draftMode|connection|getTranslations|getFormatter|getLocale|getMessages|getSession)\s*\(/;
 
 function readApp(rel: string): string {
   return readFileSync(join(appDir, rel), "utf8");
@@ -17,6 +20,21 @@ function readApp(rel: string): string {
 /** Drop comments so "no connection()" docs do not false-positive the scan. */
 function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
+/**
+ * Require default export's *only* body statement to be `return <SkeletonName />`.
+ * Thin Instant loaders must not hide a different return behind helpers/branches.
+ */
+function assertDefaultReturnsSkeleton(
+  source: string,
+  skeletonName: string,
+): void {
+  const code = stripComments(source);
+  const pattern = new RegExp(
+    String.raw`export\s+default\s+function\s+\w+\s*\([^)]*\)\s*\{\s*return\s+<\s*${skeletonName}\s*\/>\s*;?\s*\}`,
+  );
+  expect(code).toMatch(pattern);
 }
 
 const pages = [
@@ -84,54 +102,51 @@ describe("hub Instant Nav skeleton contract", () => {
   }
 
   it("notifications/loading.tsx returns NotificationsPageSkeleton", () => {
-    const code = stripComments(readApp("notifications/loading.tsx"));
-    expect(code).toMatch(
-      /export\s+default\s+function[\s\S]*?return\s+<\s*NotificationsPageSkeleton\s*\/>/,
+    assertDefaultReturnsSkeleton(
+      readApp("notifications/loading.tsx"),
+      "NotificationsPageSkeleton",
     );
   });
 
   it("connections/loading.tsx returns ConnectionsPageSkeleton", () => {
-    const code = stripComments(readApp("connections/loading.tsx"));
-    expect(code).toMatch(
-      /export\s+default\s+function[\s\S]*?return\s+<\s*ConnectionsPageSkeleton\s*\/>/,
+    assertDefaultReturnsSkeleton(
+      readApp("connections/loading.tsx"),
+      "ConnectionsPageSkeleton",
     );
   });
 
   for (const rel of cardSectionLoadings) {
     it(`${rel} returns DeveloperSectionPageSkeleton`, () => {
-      const code = stripComments(readApp(rel));
-      expect(code).toMatch(
-        /export\s+default\s+function[\s\S]*?return\s+<\s*DeveloperSectionPageSkeleton\s*\/>/,
+      assertDefaultReturnsSkeleton(
+        readApp(rel),
+        "DeveloperSectionPageSkeleton",
       );
     });
   }
 
   for (const rel of listSectionLoadings) {
     it(`${rel} returns DeveloperListPageSkeleton`, () => {
-      const code = stripComments(readApp(rel));
-      expect(code).toMatch(
-        /export\s+default\s+function[\s\S]*?return\s+<\s*DeveloperListPageSkeleton\s*\/>/,
-      );
+      assertDefaultReturnsSkeleton(readApp(rel), "DeveloperListPageSkeleton");
     });
   }
 
   for (const rel of formDetailLoadings) {
     it(`${rel} returns DeveloperDetailPageSkeleton`, () => {
-      const code = stripComments(readApp(rel));
-      expect(code).toMatch(
-        /export\s+default\s+function[\s\S]*?return\s+<\s*DeveloperDetailPageSkeleton\s*\/>/,
-      );
+      assertDefaultReturnsSkeleton(readApp(rel), "DeveloperDetailPageSkeleton");
     });
   }
 
   it(`${taskDetailLoading} returns DeveloperTaskDetailPageSkeleton`, () => {
-    const code = stripComments(readApp(taskDetailLoading));
-    expect(code).toMatch(
-      /export\s+default\s+function[\s\S]*?return\s+<\s*DeveloperTaskDetailPageSkeleton\s*\/>/,
+    assertDefaultReturnsSkeleton(
+      readApp(taskDetailLoading),
+      "DeveloperTaskDetailPageSkeleton",
     );
   });
 
-  it("developer root has no loading.tsx (redirect-only segment)", () => {
+  it("developer root is redirect-only with no loading.tsx", () => {
+    const code = stripComments(readApp("developer/page.tsx"));
+    expect(code).toMatch(/\bredirect\s*\(/);
+    expect(code).toMatch(/DEVELOPER_DEFAULT_HREF/);
     expect(() => readApp("developer/loading.tsx")).toThrow();
   });
 });

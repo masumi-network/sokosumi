@@ -1,14 +1,21 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
+interface DeveloperSectionRowsSkeletonProps {
+  rows?: number;
+}
+
+interface TaskSectionSkeletonProps {
+  name: string;
+  rows: number;
+}
+
 /**
  * Row bones only — safe inside CardContent / list sections while client data loads.
  * Sync only (no cookies/`connection()`/i18n).
  */
 export function DeveloperSectionRowsSkeleton({
   rows = 5,
-}: {
-  rows?: number;
-}): React.ReactElement {
+}: DeveloperSectionRowsSkeletonProps): React.ReactElement {
   return (
     <div data-testid="developer-section-loading-list" className="space-y-3">
       {Array.from({ length: rows }, (_, index) => (
@@ -160,10 +167,7 @@ export function DeveloperTaskDetailPageSkeleton(): React.ReactElement {
 function TaskSectionSkeleton({
   name,
   rows,
-}: {
-  name: string;
-  rows: number;
-}): React.ReactElement {
+}: TaskSectionSkeletonProps): React.ReactElement {
   return (
     <section className="space-y-4">
       <Skeleton className="h-3 w-24" />
