@@ -484,7 +484,7 @@ describe("dispatchChatRoomMention claim", () => {
             },
           ],
           capabilities: { has: "chat" },
-          baseURL: { not: null },
+          AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
         }),
       }),
     );

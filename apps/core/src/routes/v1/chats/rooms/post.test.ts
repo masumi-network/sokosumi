@@ -347,7 +347,9 @@ describe("POST /chats/rooms", () => {
     });
     roomFindFirstMock.mockResolvedValueOnce(null);
     roomCreateMock.mockResolvedValueOnce(created);
-    coworkerFindManyMock.mockResolvedValue([{ id: coworkerId }]);
+    coworkerFindManyMock.mockResolvedValue([
+      { id: coworkerId, baseURL: "https://chat.example.com" },
+    ]);
 
     const app = createApp({
       ...userAuthContext,
@@ -410,7 +412,9 @@ describe("POST /chats/rooms", () => {
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
     roomFindFirstMock.mockResolvedValueOnce(null);
     roomCreateMock.mockResolvedValueOnce(created);
-    coworkerFindManyMock.mockResolvedValue([{ id: coworkerId }]);
+    coworkerFindManyMock.mockResolvedValue([
+      { id: coworkerId, baseURL: "https://chat.example.com" },
+    ]);
 
     const app = createApp(userAuthContext);
     const response = await app.request("/", {

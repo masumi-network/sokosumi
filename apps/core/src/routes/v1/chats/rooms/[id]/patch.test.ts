@@ -429,7 +429,11 @@ describe("PATCH /chats/rooms/{id}", () => {
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     coworkerFindManyMock.mockResolvedValue([
-      { id: addedCoworkerId, name: "NewBot" },
+      {
+        id: addedCoworkerId,
+        name: "NewBot",
+        baseURL: "https://chat.example.com",
+      },
     ]);
     roomUpdateMock.mockResolvedValueOnce(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
@@ -534,7 +538,9 @@ describe("PATCH /chats/rooms/{id}", () => {
       ],
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
-    coworkerFindManyMock.mockResolvedValue([{ id: keptCoworkerId }]);
+    coworkerFindManyMock.mockResolvedValue([
+      { id: keptCoworkerId, baseURL: "https://chat.example.com" },
+    ]);
     roomUpdateMock.mockResolvedValueOnce(updated);
     mentionUpdateManyMock.mockResolvedValue({ count: 1 });
     coworkerMemberDeleteManyMock.mockResolvedValue({ count: 1 });
