@@ -61,7 +61,7 @@ Classic emoticons never hit step 4; they remain ASCII until `Markdown` renders t
 
 | Input | Composer result |
 | --- | --- |
-| `hello :D` + space | `hello 😄 ` (space kept) |
+| `hello :D` + space | `hello 😄` + space (space kept) |
 | `wink ;)` then `.` | `wink 😉.` |
 | Bare `:)` at end, then blur or send | `😃` (flush / end-of-input boundary) |
 | Inside inline/fenced code or mention chip | No conversion |
@@ -140,7 +140,7 @@ Reuse the same protected-context idea as `tryApplyComposerInputRuleAtCaret` (DOM
 
 ### Unit: `apps/web/src/lib/utils/__tests__/composer-emoticons.test.ts`
 
-- `:D ` / `;)` / `:-)` produce the correct emoji and ranges.
+- `:D` + space / `;)` / `:-)` produce the correct emoji and ranges.
 - Longest match: `:-)` wins over `:)`.
 - Left guard: no match inside `http://`.
 - No boundary → null.

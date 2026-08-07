@@ -25,8 +25,32 @@ export function isInsideComposerProtectedContext(
 }
 
 /**
+ * True when `range` intersects a CODE/PRE/mention element under `root`.
+ * Endpoint-only checks miss a range that fully encloses a protected chip.
+ */
+export function rangeIntersectsComposerProtected(
+  range: Range,
+  root: HTMLElement,
+): boolean {
+  if (
+    isInsideComposerProtectedContext(range.startContainer, root) ||
+    isInsideComposerProtectedContext(range.endContainer, root)
+  ) {
+    return true;
+  }
+
+  const protectedNodes = root.querySelectorAll("code, pre, [data-mention-key]");
+  for (const node of protectedNodes) {
+    if (range.intersectsNode(node)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Replace serialized offset range `[start, end)` with `insertText`.
- * Skips when either range endpoint is in a protected context.
+ * Skips when the range intersects CODE/PRE/mention (endpoints or enclosed).
  * Leaves caret after the inserted text node. Returns false if skipped.
  */
 export function replaceComposerTextRange(
@@ -39,16 +63,15 @@ export function replaceComposerTextRange(
 
   const startPos = findPositionForOffset(editor, start);
   const endPos = findPositionForOffset(editor, end);
-  if (
-    isInsideComposerProtectedContext(startPos.node, editor) ||
-    isInsideComposerProtectedContext(endPos.node, editor)
-  ) {
-    return false;
-  }
 
   const range = document.createRange();
   range.setStart(startPos.node, startPos.offset);
   range.setEnd(endPos.node, endPos.offset);
+
+  if (rangeIntersectsComposerProtected(range, editor)) {
+    return false;
+  }
+
   range.deleteContents();
 
   const textNode = document.createTextNode(insertText);

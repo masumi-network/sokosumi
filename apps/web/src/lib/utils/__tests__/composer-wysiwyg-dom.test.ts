@@ -69,4 +69,36 @@ describe("replaceComposerTextRange", () => {
 
     document.body.removeChild(editor);
   });
+
+  it("skips replace when range fully encloses a mention chip", () => {
+    const editor = document.createElement("div");
+    // "a " + mention token @alice:alice (12 chars) + " b" → total serialized length
+    // Token length = "@alice:alice".length = 12
+    editor.innerHTML =
+      'a <span data-mention-key="alice" data-mention-slug="alice" contenteditable="false">@Alice</span> b';
+    document.body.appendChild(editor);
+
+    // Range covering "a " (0-2) through end of mention (2+12=14) into " b"
+    // would wipe the chip if we only checked endpoints.
+    expect(replaceComposerTextRange(editor, 0, 14, "gone")).toBe(false);
+    expect(editor.querySelector("[data-mention-key='alice']")).not.toBeNull();
+    expect(editor.textContent).toContain("@Alice");
+
+    document.body.removeChild(editor);
+  });
+
+  it("allows replace of plain text after a mention chip", () => {
+    const editor = document.createElement("div");
+    editor.innerHTML =
+      '<span data-mention-key="alice" data-mention-slug="alice" contenteditable="false">@Alice</span> :D ';
+    document.body.appendChild(editor);
+
+    // serialize: "@alice:alice :D " — ":D " starts after 12-char token + space = 13
+    expect(replaceComposerTextRange(editor, 13, 16, "😄 ")).toBe(true);
+    expect(editor.querySelector("[data-mention-key='alice']")).not.toBeNull();
+    expect(editor.textContent).toContain("😄");
+    expect(editor.textContent).not.toContain(":D");
+
+    document.body.removeChild(editor);
+  });
 });
