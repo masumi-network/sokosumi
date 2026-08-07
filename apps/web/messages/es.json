@@ -4717,6 +4717,7 @@
       "MobileNav": {
         "home": "Inicio",
         "chats": "Chats",
+        "chatsUnread": "Chats no leídos",
         "search": "Buscar",
         "ariaLabel": "Navegación principal",
         "backToChats": "Volver a chats",
