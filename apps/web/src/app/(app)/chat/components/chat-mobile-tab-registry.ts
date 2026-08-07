@@ -78,18 +78,19 @@ export function chatMobileComposerSafeAreaPbClass(
  * Height shell when the mobile tab bar spacer is present.
  * Mobile fills the flex slot above the spacer; desktop keeps the svh shell.
  * Apple float inset lives on the spacer, not here.
- * `4rem` matches app Header `h-16` so Dynamic Type scales the offset with root rem.
+ * `4rem` matches header row; subtract top safe-area under cover.
+ * Full static class strings so Tailwind JIT sees them.
  */
 export const CHAT_MOBILE_HEIGHT_SHELL_CLASS =
-  "h-[calc(100svh-4rem)] max-md:h-full" as const;
+  "h-[calc(100svh-4rem-env(safe-area-inset-top))] max-md:h-full" as const;
 
 /**
  * Full shell height when the mobile tab bar is hidden (room / draft compose).
  * Matches desktop/`md` height — no tab-bar spacer below.
- * `4rem` matches app Header `h-16` so Dynamic Type scales the offset with root rem.
+ * Same below-header calc as `APP_SHELL_BELOW_HEADER_HEIGHT_CLASS`.
  */
 export const CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS =
-  "h-[calc(100svh-4rem)]" as const;
+  "h-[calc(100svh-4rem-env(safe-area-inset-top))]" as const;
 
 /** Height class for chat views: room and draft compose drop tab-bar spacer offset. */
 export function chatMobileHeightShellClass(

@@ -13,9 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Chat replaces the root viewport export. Keep `viewport-fit=cover` scoped to
- * chat (not root) so hub/auth shells stay clear of the notch, while iOS
- * `env(safe-area-inset-*)` still applies for composer / tab chrome.
+ * Chat replaces the root viewport export. Keep `viewport-fit=cover` (also on
+ * root for hub routes) so iOS `env(safe-area-inset-*)` stays non-zero.
  * `resizes-content` lifts the room composer above the soft keyboard.
  */
 export const viewport: Viewport = {
