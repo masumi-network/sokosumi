@@ -47,6 +47,12 @@ describe("HeaderLeadingControl", () => {
     expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
   });
 
+  it("shows brand on chats list", () => {
+    mockPathname = "/chat/chats";
+    render(<HeaderLeadingControl />);
+    expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
+  });
+
   it("shows back to chats on room", () => {
     mockPathname = "/chat/rooms/r1";
     render(<HeaderLeadingControl />);
@@ -61,34 +67,48 @@ describe("HeaderLeadingControl", () => {
     expect(back).toHaveAttribute("href", "/chat/chats");
   });
 
-  it("shows back to home on account (not sidebar trigger)", () => {
+  it("shows back to chats on account (not sidebar trigger)", () => {
     mockPathname = "/account";
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "backToHome" });
-    expect(back).toHaveAttribute("href", "/chat");
+    const back = screen.getByRole("link", { name: "backToChats" });
+    expect(back).toHaveAttribute("href", "/chat/chats");
     expect(
       screen.queryByRole("button", { name: "sidebar-trigger" }),
     ).toBeNull();
   });
 
-  it("shows back to home on billing", () => {
+  it("shows back to chats on billing", () => {
     mockPathname = "/billing";
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "backToHome" });
-    expect(back).toHaveAttribute("href", "/chat");
+    const back = screen.getByRole("link", { name: "backToChats" });
+    expect(back).toHaveAttribute("href", "/chat/chats");
   });
 
-  it("shows back to home on developer", () => {
+  it("shows back to chats on developer", () => {
     mockPathname = "/developer";
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "backToHome" });
-    expect(back).toHaveAttribute("href", "/chat");
+    const back = screen.getByRole("link", { name: "backToChats" });
+    expect(back).toHaveAttribute("href", "/chat/chats");
   });
 
-  it("shows hub back to home on tasks list", () => {
+  it("shows no leading back on tasks list root", () => {
     mockPathname = "/tasks";
     render(<HeaderLeadingControl />);
-    const back = screen.getByRole("link", { name: "backToHome" });
-    expect(back).toHaveAttribute("href", "/chat");
+    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.queryByTestId("sokosumi-icon")).toBeNull();
+  });
+
+  it("shows back to chats on personal-assistant root", () => {
+    mockPathname = "/personal-assistant";
+    render(<HeaderLeadingControl />);
+    const back = screen.getByRole("link", { name: "backToChats" });
+    expect(back).toHaveAttribute("href", "/chat/chats");
+  });
+
+  it("shows back to list root on nested tasks", () => {
+    mockPathname = "/tasks/t1";
+    render(<HeaderLeadingControl />);
+    const back = screen.getByRole("link", { name: "back" });
+    expect(back).toHaveAttribute("href", "/tasks");
   });
 });

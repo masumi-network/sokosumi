@@ -5,17 +5,29 @@ import {
 } from "@/app/chat/utils/chat-route-base";
 
 /**
- * Top-level Home-hub destinations (sidebar leaf list routes).
- * Exact matches get the mobile tab bar; nested paths get a back control.
+ * Bottom-nav tab list roots: exact matches get the mobile tab bar; nested
+ * paths get a back control to the list root (no back at the root itself).
  */
-const MAIN_APP_MOBILE_LIST_PATHS = [
+const MOBILE_TAB_LIST_PATHS = [
   "/tasks",
-  "/projects",
   "/agents",
+  "/projects",
   "/history",
+] as const;
+
+/**
+ * Non-tab hub list roots (PA / admin / notifications): tab bar at root;
+ * root back → Chats; nested → list root.
+ */
+const MOBILE_NON_TAB_HUB_LIST_PATHS = [
   "/personal-assistant",
   "/admin",
   "/notifications",
+] as const;
+
+const MAIN_APP_MOBILE_LIST_PATHS = [
+  ...MOBILE_TAB_LIST_PATHS,
+  ...MOBILE_NON_TAB_HUB_LIST_PATHS,
 ] as const;
 
 type MainAppMobileListPath = (typeof MAIN_APP_MOBILE_LIST_PATHS)[number];
@@ -24,20 +36,22 @@ const MAIN_APP_MOBILE_LIST_PATH_SET = new Set<string>(
   MAIN_APP_MOBILE_LIST_PATHS,
 );
 
+const MOBILE_TAB_LIST_PATH_SET = new Set<string>(MOBILE_TAB_LIST_PATHS);
+
 type SearchParamsLike =
   | URLSearchParams
   | { get?: (key: string) => string | null }
   | null
   | undefined;
 
-export type MobileAppBackLabelKey = "backToHome" | "back";
+export type MobileAppBackLabelKey = "backToChats" | "back";
 
 export interface MobileAppBackTarget {
   href: string;
   labelKey: MobileAppBackLabelKey;
 }
 
-/** True for exact main list routes opened from the mobile Home hub. */
+/** True for exact main list routes that show the mobile bottom tab bar. */
 export function isMainAppMobileChromePathname(
   pathname: string | null | undefined,
 ): boolean {
@@ -57,8 +71,8 @@ function findMainAppListRoot(pathname: string): MainAppMobileListPath | null {
 }
 
 /**
- * Back target for main hub list routes and their nested pages.
- * List roots → Home (`/chat`); nested → their list root.
+ * Back target for main list routes and their nested pages.
+ * Tab list roots → null; non-tab hub roots → Chats; nested → list root.
  */
 export function resolveMobileAppBackTarget(
   pathname: string | null | undefined,
@@ -71,14 +85,17 @@ export function resolveMobileAppBackTarget(
     return null;
   }
   if (pathname === root) {
-    return { href: "/chat", labelKey: "backToHome" };
+    if (MOBILE_TAB_LIST_PATH_SET.has(root)) {
+      return null;
+    }
+    return { href: "/chat/chats", labelKey: "backToChats" };
   }
   return { href: root, labelKey: "back" };
 }
 
 /**
- * Fixed Home/Chats/Search tab bar: chat shell (except rooms/drafts) + main hub
- * list routes. Drafts (`?dm=new`, `?create=channel`, `?welcome=1`) share `/chat`
+ * Fixed tab bar: chat shell (except rooms/drafts) + main list routes.
+ * Drafts (`?dm=new`, `?create=channel`, `?welcome=1`) share `/chat`
  * but hide the tab bar like rooms.
  */
 export function shouldShowMobileBottomNav(
@@ -101,7 +118,7 @@ export function shouldShowMobileBottomNav(
 }
 
 /**
- * Leading slot shows Sokosumi brand only on Home hub and Chats list.
+ * Leading slot shows Sokosumi brand only on Home surface and Chats list.
  */
 export function shouldShowMobileBrandLeading(
   pathname: string | null | undefined,
@@ -111,13 +128,11 @@ export function shouldShowMobileBrandLeading(
   return surface === "home" || surface === "chats";
 }
 
-/**
- * Floating create FAB: Home hub and Chats list only (not drafts / welcome).
- */
+/** Floating create FAB: Chats list only (not drafts / welcome / bare home). */
 export function shouldShowMobileCreateFab(
   pathname: string | null | undefined,
   searchParams?: SearchParamsLike,
 ): boolean {
   const surface = classifyChatChromeSurface(pathname, searchParams);
-  return surface === "home" || surface === "chats";
+  return surface === "chats";
 }
