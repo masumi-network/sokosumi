@@ -76,15 +76,25 @@ function accessUniqueWhere(coworkerId: string, workspaceId: string) {
   } as const;
 }
 
+export interface ResolveCoworkerAccessTargetOptions {
+  /**
+   * When true (create/propose), missing personal/org workspaces are upserted.
+   * When false (force-revoke), missing workspaces 404 — no side-effect create.
+   */
+  createIfMissing?: boolean;
+}
+
 /**
  * Resolve create/revoke target to a workspace id.
- * User/org targets upsert the personal/org workspace when missing (ops-friendly).
  * Email / organizationSlug are exact lookups only (no public directory).
  */
 export async function resolveCoworkerAccessTargetWorkspaceId(
   target: CoworkerWorkspaceAccessTargetBody,
+  options: ResolveCoworkerAccessTargetOptions = {},
   tx: Prisma.TransactionClient = prisma,
 ): Promise<string> {
+  const createIfMissing = options.createIfMissing ?? true;
+
   if (target.workspaceId) {
     const workspace = await tx.workspace.findUnique({
       where: { id: target.workspaceId },
@@ -114,12 +124,22 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
     if (!user) {
       throw notFound("User not found");
     }
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
-      user.id,
-      null,
-      tx,
-    );
-    return workspace.id;
+    if (createIfMissing) {
+      const workspace = await workspaceRepository.upsertWorkspaceForContext(
+        user.id,
+        null,
+        tx,
+      );
+      return workspace.id;
+    }
+    const existing = await tx.workspace.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw notFound("Workspace not found");
+    }
+    return existing.id;
   }
 
   if (target.organizationId || target.organizationSlug) {
@@ -140,13 +160,23 @@ export async function resolveCoworkerAccessTargetWorkspaceId(
     if (!organization) {
       throw notFound("Organization not found");
     }
-    // Org branch of upsert ignores userId; pass organization id as placeholder.
-    const workspace = await workspaceRepository.upsertWorkspaceForContext(
-      organization.id,
-      organization.id,
-      tx,
-    );
-    return workspace.id;
+    if (createIfMissing) {
+      // Org branch of upsert ignores userId; pass organization id as placeholder.
+      const workspace = await workspaceRepository.upsertWorkspaceForContext(
+        organization.id,
+        organization.id,
+        tx,
+      );
+      return workspace.id;
+    }
+    const existing = await tx.workspace.findUnique({
+      where: { organizationId: organization.id },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw notFound("Workspace not found");
+    }
+    return existing.id;
   }
 
   throw badRequest(

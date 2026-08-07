@@ -124,7 +124,12 @@ workspace do not leak into user B’s personal chat.
 {
   "id": "uuid",
   "coworkerId": "uuid",
+  "coworkerName": "Ops Pilot",
+  "coworkerSlug": "ops-pilot",
   "workspaceId": "uuid",
+  "workspaceKind": "user | organization",
+  "workspaceDisplayName": "Acme Corp",
+  "workspaceDisplayDetail": "acme-corp",
   "status": "PENDING | GRANTED | DENIED | REVOKED",
   "requestedByUserId": "string | null",
   "resolvedAt": "ISO-8601 | null",
@@ -133,6 +138,9 @@ workspace do not leak into user B’s personal chat.
   "updatedAt": "ISO-8601"
 }
 ```
+
+- **User workspace:** `workspaceKind = "user"`, name + email in display fields  
+- **Org workspace:** `workspaceKind = "organization"`, name + slug in display fields  
 
 Unique on `(coworkerId, workspaceId)`.
 
@@ -144,17 +152,30 @@ Unique on `(coworkerId, workspaceId)`.
 
 | Method | Route | Auth | Behavior |
 | --- | --- | --- | --- |
-| `POST` | `/v1/coworkers/{id}/workspace-access` | User session; platform admin **or** vendor admin for coworker’s vendor | Body: `{ "workspaceId": "<uuid>" }`. Status from write rules. `201` + access DTO. |
-| `GET` | `/v1/coworkers/{id}/workspace-access` | Platform admin **or** vendor admin for coworker’s vendor | List access rows for that coworker (newest first). |
+| `POST` | `/v1/coworkers/{id}/workspace-access` | User session; platform admin **or** vendor admin for coworker’s vendor | Body: **exactly one** of `workspaceId`, `userId`, `organizationId`, `email`, `organizationSlug`. Create may **upsert** missing personal/org workspaces. Status from write rules. `201` + access DTO. |
+| `GET` | `/v1/coworkers/{id}/workspace-access` | Platform admin **or** vendor admin for coworker’s vendor | List access rows for that coworker (newest first), with workspace display fields. |
+| `POST` | `/v1/coworkers/{id}/workspace-access/revoke` | Platform admin only | Same target body as create. **Find-only** (no workspace create). Force `GRANTED` → `REVOKED`. |
+
+**Target body examples:**
+
+```json
+{ "workspaceId": "…" }
+{ "userId": "…" }
+{ "organizationId": "…" }
+{ "email": "pilot@example.com" }
+{ "organizationSlug": "acme-corp" }
+```
+
+**Email / organizationSlug (intentional product tradeoff):** exact match only — no browse/search directory. Missing → `404`. Present → grant proceeds (`PENDING` or `GRANTED` per write rules). Vendor admins can therefore confirm whether a known email/slug exists on the platform. Accepted for v1 ops/vendor UX; not a full directory enumeration API.
 
 ### Workspace owner side
 
 | Method | Route | Auth | Behavior |
 | --- | --- | --- | --- |
-| `GET` | `/v1/users/{id}/coworker-access` | Personal workspace owner (self) | List access rows for user’s personal workspace |
-| `POST` | `/v1/users/{id}/coworker-access/{accessId}/approve` | Owner (self) | `PENDING` → `GRANTED` |
-| `POST` | `/v1/users/{id}/coworker-access/{accessId}/deny` | Owner (self) | `PENDING` → `DENIED` |
-| `POST` | `/v1/users/{id}/coworker-access/{accessId}/revoke` | Owner (self) | `GRANTED` → `REVOKED` |
+| `GET` | `/v1/users/{id}/coworker-access` | Personal workspace owner (self); platform admin may access concrete user ids they may manage | List access rows for user’s personal workspace |
+| `POST` | `/v1/users/{id}/coworker-access/{accessId}/approve` | Owner (self) / authorized admin path | `PENDING` → `GRANTED` |
+| `POST` | `/v1/users/{id}/coworker-access/{accessId}/deny` | Owner (self) / authorized admin path | `PENDING` → `DENIED` |
+| `POST` | `/v1/users/{id}/coworker-access/{accessId}/revoke` | Owner (self) / authorized admin path | `GRANTED` → `REVOKED` |
 | `GET` | `/v1/organizations/{id}/coworker-access` | Org owner/admin | List for org workspace |
 | `POST` | `/v1/organizations/{id}/coworker-access/{accessId}/approve` | Org owner/admin | `PENDING` → `GRANTED` |
 | `POST` | `/v1/organizations/{id}/coworker-access/{accessId}/deny` | Org owner/admin | `PENDING` → `DENIED` |

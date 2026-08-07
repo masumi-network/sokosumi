@@ -22,7 +22,7 @@ const route = createRoute({
   path: "/{id}/workspace-access/revoke",
   operationId: "revokeCoworkerWorkspaceAccessAsPlatformAdmin",
   description:
-    "Force-revoke GRANTED coworker workspace access (platform admin only). Undoes a pilot grant without requiring the workspace owner. Body: exactly one of workspaceId, userId, or organizationId.",
+    "Force-revoke GRANTED coworker workspace access (platform admin only). Undoes a pilot grant without requiring the workspace owner. Body: exactly one of workspaceId, userId, organizationId, email, or organizationSlug. Does not create missing workspaces.",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
@@ -54,8 +54,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const { id: coworkerId } = c.req.valid("param");
+    // Find-only: never create workspaces on ops undo.
     const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(
       c.req.valid("json"),
+      { createIfMissing: false },
     );
 
     const access = await forceRevokeCoworkerWorkspaceAccessByPair({

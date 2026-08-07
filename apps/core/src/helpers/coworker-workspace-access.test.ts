@@ -237,6 +237,36 @@ describe("coworker-workspace-access helpers", () => {
         select: { id: true },
       });
     });
+
+    it("find-only does not create personal workspace on revoke path", async () => {
+      userFindUnique.mockResolvedValue({ id: "user-1" });
+      workspaceFindUnique.mockResolvedValue(null);
+
+      await expect(
+        resolveCoworkerAccessTargetWorkspaceId(
+          { userId: "user-1" },
+          { createIfMissing: false },
+        ),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+    });
+
+    it("find-only returns existing personal workspace", async () => {
+      userFindUnique.mockResolvedValue({ id: "user-1" });
+      workspaceFindUnique.mockResolvedValue({ id: "ws-existing" });
+
+      await expect(
+        resolveCoworkerAccessTargetWorkspaceId(
+          { userId: "user-1" },
+          { createIfMissing: false },
+        ),
+      ).resolves.toBe("ws-existing");
+      expect(upsertWorkspaceForContextMock).not.toHaveBeenCalled();
+      expect(workspaceFindUnique).toHaveBeenCalledWith({
+        where: { userId: "user-1" },
+        select: { id: true },
+      });
+    });
   });
 
   describe("toCoworkerWorkspaceAccessApiShape", () => {
@@ -532,6 +562,44 @@ describe("coworker-workspace-access helpers", () => {
           }),
         }),
       );
+      expect(accessCreate).not.toHaveBeenCalled();
+    });
+
+    it("vendor admin on member workspace reopens DENIED to GRANTED", async () => {
+      workspaceFindUnique
+        .mockResolvedValueOnce({
+          id: "workspace-1",
+          userId: "actor-1",
+          organizationId: null,
+        })
+        .mockResolvedValueOnce({
+          userId: "actor-1",
+          organizationId: null,
+        });
+      coworkerFindFirst.mockResolvedValue({
+        id: "coworker-1",
+        vendorId: "vendor-1",
+      });
+      accessFindUnique.mockResolvedValue(
+        baseAccess({ status: CoworkerWorkspaceAccessStatus.DENIED }),
+      );
+      const granted = baseAccess({
+        status: CoworkerWorkspaceAccessStatus.GRANTED,
+        requestedByUserId: "actor-1",
+        resolvedById: "actor-1",
+        resolvedAt: now,
+      });
+      accessUpsert.mockResolvedValue(granted);
+
+      const result = await upsertCoworkerWorkspaceAccess({
+        coworkerId: "coworker-1",
+        workspaceId: "workspace-1",
+        actorUserId: "actor-1",
+        isPlatformAdmin: false,
+      });
+
+      expect(result.status).toBe(CoworkerWorkspaceAccessStatus.GRANTED);
+      expect(accessUpsert).toHaveBeenCalled();
       expect(accessCreate).not.toHaveBeenCalled();
     });
 
