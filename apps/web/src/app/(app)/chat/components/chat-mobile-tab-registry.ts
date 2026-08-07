@@ -49,6 +49,17 @@ export function chatMobileTabBarBottomOffset(isApple: boolean): string {
 }
 
 /**
+ * Composer outer `pb-*` when the mobile tab is hidden (room / draft).
+ * Matches Apple float bottom inset: `max(0.75rem, env(safe-area-inset-bottom))`.
+ */
+export const CHAT_MOBILE_COMPOSER_SAFE_AREA_PB =
+  "pb-[max(0.75rem,env(safe-area-inset-bottom))]" as const;
+
+/** Desktop composer outer `pb-*` (unchanged from prior md: path). */
+export const CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD =
+  "md:pb-[max(1.5rem,env(safe-area-inset-bottom))]" as const;
+
+/**
  * Height shell when the mobile tab bar spacer is present.
  * Mobile fills the flex slot above the spacer; desktop keeps the svh shell.
  * Apple float inset lives on the spacer, not here.

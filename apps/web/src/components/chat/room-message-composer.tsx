@@ -3,6 +3,10 @@
 import { ArrowUp, Loader2 } from "lucide-react";
 import { type FormEvent, type ReactNode, type Ref } from "react";
 
+import {
+  CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
+  CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD,
+} from "@/app/chat/components/chat-mobile-tab-registry";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
@@ -81,7 +85,11 @@ export function RoomMessageComposer({
       className={cn(
         "shrink-0",
         withOuterPadding &&
-          "px-5 pt-2 md:pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+          cn(
+            "px-5 pt-2 md:pt-3",
+            CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
+            CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD,
+          ),
         className,
       )}
       onSubmit={onSubmit}

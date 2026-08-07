@@ -22,6 +22,10 @@ import {
 } from "react";
 import { toast } from "sonner";
 import {
+  CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
+  CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD,
+} from "@/app/chat/components/chat-mobile-tab-registry";
+import {
   getFormatToolbarOpenPreference,
   resolveFormatToolbarOpenOnMount,
   setFormatToolbarOpenPreference,
@@ -458,7 +462,11 @@ export function RoomComposer({
         formRef={formRef}
         onSubmit={onSubmit}
         withOuterPadding={false}
-        className="px-3 pt-2 md:px-5 md:pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+        className={cn(
+          "px-3 pt-2 md:px-5 md:pt-3",
+          CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
+          CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD,
+        )}
         attachments={attachments}
         onRemoveAttachment={(attachment) =>
           removeAttachment({

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CHAT_MOBILE_COMPOSER_SAFE_AREA_PB,
+  CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD,
   CHAT_MOBILE_HEIGHT_SHELL_CLASS,
   CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS,
   chatMobileHeightShellClass,
@@ -55,5 +57,22 @@ describe("chatMobileHeightShellClass", () => {
       "h-[calc(100svh-4rem)]",
     );
     expect(CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS).not.toContain("64px");
+  });
+});
+
+describe("CHAT_MOBILE_COMPOSER_SAFE_AREA_PB", () => {
+  it("matches Apple float bottom inset on mobile", () => {
+    expect(CHAT_MOBILE_COMPOSER_SAFE_AREA_PB).toBe(
+      "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+    );
+    expect(CHAT_MOBILE_COMPOSER_SAFE_AREA_PB).toContain(
+      "max(0.75rem,env(safe-area-inset-bottom))",
+    );
+  });
+
+  it("keeps larger desktop md pb path", () => {
+    expect(CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD).toBe(
+      "md:pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+    );
   });
 });
