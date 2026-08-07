@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   isVisualViewportKeyboardOpen,
@@ -39,6 +39,24 @@ describe("isVisualViewportKeyboardOpen", () => {
     ).toBe(true);
   });
 
+  it("is true when clientHeight stays large while visualViewport shrinks (iOS)", () => {
+    expect(
+      isVisualViewportKeyboardOpen(400, 400, {
+        clientHeight: 800,
+        maxLayoutHeightPx: 800,
+      }),
+    ).toBe(true);
+  });
+
+  it("is true when visualViewport offsetTop shows the keyboard obscuring the bottom", () => {
+    expect(
+      isVisualViewportKeyboardOpen(800, 500, {
+        maxLayoutHeightPx: 800,
+        visualViewportOffsetTop: 200,
+      }),
+    ).toBe(true);
+  });
+
   it("respects a custom threshold", () => {
     expect(isVisualViewportKeyboardOpen(800, 650, { thresholdPx: 100 })).toBe(
       true,
@@ -52,6 +70,7 @@ describe("isVisualViewportKeyboardOpen", () => {
 describe("readVisualViewportKeyboardOpen", () => {
   const originalInnerHeight = window.innerHeight;
   const originalVisualViewport = window.visualViewport;
+  let clientHeight = 800;
 
   afterEach(() => {
     resetVisualViewportKeyboardBaseline();
@@ -65,7 +84,15 @@ describe("readVisualViewportKeyboardOpen", () => {
       writable: true,
       value: originalVisualViewport,
     });
+    vi.spyOn(document.documentElement, "clientHeight", "get").mockRestore();
   });
+
+  function stubClientHeight(height: number) {
+    clientHeight = height;
+    vi.spyOn(document.documentElement, "clientHeight", "get").mockReturnValue(
+      clientHeight,
+    );
+  }
 
   it("tracks layout baseline so resizes-content still detects the keyboard", () => {
     Object.defineProperty(window, "innerHeight", {
@@ -73,10 +100,11 @@ describe("readVisualViewportKeyboardOpen", () => {
       writable: true,
       value: 800,
     });
+    stubClientHeight(800);
     Object.defineProperty(window, "visualViewport", {
       configurable: true,
       writable: true,
-      value: { height: 800 },
+      value: { height: 800, offsetTop: 0 },
     });
     expect(readVisualViewportKeyboardOpen()).toBe(false);
 
@@ -85,10 +113,39 @@ describe("readVisualViewportKeyboardOpen", () => {
       writable: true,
       value: 500,
     });
+    stubClientHeight(500);
     Object.defineProperty(window, "visualViewport", {
       configurable: true,
       writable: true,
-      value: { height: 500 },
+      value: { height: 500, offsetTop: 0 },
+    });
+    expect(readVisualViewportKeyboardOpen()).toBe(true);
+  });
+
+  it("detects iOS when innerHeight tracks visualViewport but clientHeight does not", () => {
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      writable: true,
+      value: 800,
+    });
+    stubClientHeight(800);
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      writable: true,
+      value: { height: 800, offsetTop: 0 },
+    });
+    expect(readVisualViewportKeyboardOpen()).toBe(false);
+
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      writable: true,
+      value: 400,
+    });
+    stubClientHeight(800);
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      writable: true,
+      value: { height: 400, offsetTop: 0 },
     });
     expect(readVisualViewportKeyboardOpen()).toBe(true);
   });

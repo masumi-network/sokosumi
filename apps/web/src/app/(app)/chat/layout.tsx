@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { ChatRouteErrorBoundary } from "./components/chat-route-error-boundary.client";
@@ -13,11 +13,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * When the virtual keyboard opens on mobile, the layout viewport resizes so
- * the room composer stays above the keyboard.
+ * Chat replaces the root viewport export — keep device-width + viewport-fit
+ * so iOS `env(safe-area-inset-*)` still applies. `resizes-content` lifts the
+ * room composer above the soft keyboard.
  */
-export const viewport = {
-  interactiveWidget: "resizes-content" as const,
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
 };
 
 export default function ChatLayout({

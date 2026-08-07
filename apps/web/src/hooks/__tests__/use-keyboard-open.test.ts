@@ -7,15 +7,17 @@ import { useKeyboardOpen } from "../use-keyboard-open";
 
 interface VisualViewportStub {
   height: number;
+  offsetTop: number;
   addEventListener: ReturnType<typeof vi.fn>;
   removeEventListener: ReturnType<typeof vi.fn>;
   dispatch: (type: string) => void;
 }
 
-function stubVisualViewport(height: number): VisualViewportStub {
+function stubVisualViewport(height: number, offsetTop = 0): VisualViewportStub {
   const listeners = new Map<string, Set<() => void>>();
   const stub: VisualViewportStub = {
     height,
+    offsetTop,
     addEventListener: vi.fn((type: string, listener: () => void) => {
       const set = listeners.get(type) ?? new Set();
       set.add(listener);

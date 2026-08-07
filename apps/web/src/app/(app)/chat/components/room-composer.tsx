@@ -21,7 +21,6 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import {
   getFormatToolbarOpenPreference,
   resolveFormatToolbarOpenOnMount,
@@ -49,7 +48,6 @@ import {
   type MentionRecordEntry,
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
-import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type {
@@ -275,7 +273,6 @@ export function RoomComposer({
 }) {
   const t = useTranslations("App.Channels");
   const tToolbar = useTranslations("App.Channels.Toolbar");
-  const keyboardOpen = useKeyboardOpen();
   const formRef = useRef<HTMLFormElement | null>(null);
   const editorRef = useRef<ComposerWysiwygEditorHandle | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -461,10 +458,8 @@ export function RoomComposer({
         formRef={formRef}
         onSubmit={onSubmit}
         withOuterPadding={false}
-        className={cn(
-          "px-3 pt-2 md:px-5 md:pt-3",
-          chatMobileComposerSafeAreaPbClass(keyboardOpen),
-        )}
+        withSafeAreaPadding
+        className="px-3 pt-2 md:px-5 md:pt-3"
         attachments={attachments}
         onRemoveAttachment={(attachment) =>
           removeAttachment({
