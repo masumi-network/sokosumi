@@ -5,8 +5,10 @@
  * `focusOnMount`) does not open the keyboard, and browser chrome can make
  * bare height deltas look like a keyboard (false positive → lost safe-area pb).
  *
- * When focused, compare visual/layout height to session maxima captured while
- * the keyboard was closed (and whenever the viewport grows).
+ * Baselines track the closed-keyboard viewport: sync to current heights while
+ * idle; only raise them while an editable is focused (so an open OSK does not
+ * collapse the baseline). Permanent shrinks (rotation, split-screen) therefore
+ * realign before the next focus.
  */
 export const VISUAL_VIEWPORT_KEYBOARD_OPEN_THRESHOLD_PX = 150;
 
@@ -85,13 +87,18 @@ export function readVisualViewportKeyboardOpen(): boolean {
   const visualHeight = window.visualViewport?.height ?? layoutHeight;
   const editableFocused = isEditableKeyboardTarget(document.activeElement);
 
-  // Grow baselines whenever the viewport is larger (keyboard closed / UI chrome
-  // expanded). Do not shrink baselines while the keyboard is open.
-  if (layoutHeight > maxLayoutHeightPx) {
+  // Idle: always sync baselines (rotation / split-screen). Focused: only raise
+  // so an open soft keyboard cannot erase the closed-keyboard maxima.
+  if (!editableFocused) {
     maxLayoutHeightPx = layoutHeight;
-  }
-  if (visualHeight > maxVisualHeightPx) {
     maxVisualHeightPx = visualHeight;
+  } else {
+    if (layoutHeight > maxLayoutHeightPx) {
+      maxLayoutHeightPx = layoutHeight;
+    }
+    if (visualHeight > maxVisualHeightPx) {
+      maxVisualHeightPx = visualHeight;
+    }
   }
 
   return isVisualViewportKeyboardOpen(layoutHeight, visualHeight, {

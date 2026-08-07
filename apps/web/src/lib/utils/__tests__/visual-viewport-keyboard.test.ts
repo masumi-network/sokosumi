@@ -148,4 +148,24 @@ describe("readVisualViewportKeyboardOpen", () => {
     expect(isEditableKeyboardTarget(document.activeElement)).toBe(false);
     expect(readVisualViewportKeyboardOpen()).toBe(false);
   });
+
+  it("realigns baselines after a permanent shorter viewport so focus alone is not keyboard-open", () => {
+    stubViewport(900, 900);
+    expect(readVisualViewportKeyboardOpen()).toBe(false);
+
+    // Rotation / split-screen: layout permanently shorter while idle.
+    stubViewport(600, 600);
+    expect(readVisualViewportKeyboardOpen()).toBe(false);
+
+    const textarea = document.createElement("textarea");
+    document.body.append(textarea);
+    textarea.focus();
+    expect(document.activeElement).toBe(textarea);
+    expect(readVisualViewportKeyboardOpen()).toBe(false);
+
+    // Soft keyboard still detected after realignment.
+    stubViewport(600, 400);
+    expect(readVisualViewportKeyboardOpen()).toBe(true);
+    textarea.remove();
+  });
 });
