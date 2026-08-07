@@ -8,7 +8,6 @@ vi.mock("next-intl", () => ({
 }));
 
 const pushMock = vi.fn();
-const setOpenMobileMock = vi.fn();
 const showLogoutModalMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -22,14 +21,28 @@ vi.mock("@/components/modals/global-modals-context", () => ({
 const sidebarState = {
   isMobile: false,
   state: "expanded",
-  openMobile: false,
 };
 
 vi.mock("@/components/ui/sidebar", () => ({
-  useSidebar: () => ({ ...sidebarState, setOpenMobile: setOpenMobileMock }),
+  useSidebar: () => ({ ...sidebarState }),
 }));
 
+vi.mock("@/components/ui/popover", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/ui/popover")>();
+  const { createAccountSummaryPopoverMock } = await import(
+    "@/app/components/sidebar/components/__tests__/account-summary-popover-test-utils"
+  );
+  return createAccountSummaryPopoverMock(actual);
+});
+
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
+import type { MemberWithOrganization } from "@/lib/clients/generated/core";
+
+import {
+  accountSummaryPopoverTestFlags,
+  resetAccountSummaryPopoverTestFlags,
+} from "./account-summary-popover-test-utils";
 
 const sessionUser: SessionUser = {
   id: "user_1",
@@ -42,6 +55,15 @@ const sessionUser: SessionUser = {
   termsAccepted: true,
   marketingOptIn: false,
   onboardingCompleted: true,
+};
+
+const members: MemberWithOrganization[] = [];
+
+const defaultAdminSettingsChrome = {
+  adminMenuEnabled: true,
+  members,
+  activeOrganizationId: null as string | null,
+  showDeveloperVendors: false,
 };
 
 function renderChip(
@@ -59,6 +81,7 @@ function renderChip(
       lowCreditsThreshold={100}
       buyCreditsLabel="getMoreCredits"
       buyCreditsPath="/billing?tab=credits"
+      adminSettingsChrome={defaultAdminSettingsChrome}
       {...overrides}
     />,
   );
@@ -73,10 +96,11 @@ describe("SidebarAccountChip", () => {
     vi.clearAllMocks();
     sidebarState.isMobile = false;
     sidebarState.state = "expanded";
-    sidebarState.openMobile = false;
+    resetAccountSummaryPopoverTestFlags();
   });
 
   afterEach(() => {
+    resetAccountSummaryPopoverTestFlags();
     vi.restoreAllMocks();
   });
 
@@ -144,6 +168,97 @@ describe("SidebarAccountChip", () => {
     expect(screen.getByText("monthlyCredits")).toBeInTheDocument();
   });
 
+  it("shows Admin and Settings before Logout when admin is enabled", () => {
+    renderChip();
+    openChip();
+
+    const admin = screen.getByRole("button", { name: "admin" });
+    const settings = screen.getByRole("button", { name: "settings" });
+    const logout = screen.getByRole("button", { name: "logout" });
+
+    expect(
+      admin.compareDocumentPosition(settings) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      settings.compareDocumentPosition(logout) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("hides Admin when adminMenuEnabled is false", () => {
+    renderChip({
+      adminSettingsChrome: {
+        ...defaultAdminSettingsChrome,
+        adminMenuEnabled: false,
+      },
+    });
+    openChip();
+
+    expect(screen.queryByRole("button", { name: "admin" })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "settings" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "logout" })).toBeInTheDocument();
+  });
+
+  it("opens settings drill and navigates to an account destination", () => {
+    renderChip();
+    openChip();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+
+    expect(screen.getByRole("button", { name: "account" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "developer" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "account" }));
+
+    expect(pushMock).toHaveBeenCalledWith("/account");
+  });
+
+  it("does not flash the credits root when navigating away from settings", () => {
+    // forceMount keeps content through close (exit-animation window). If close
+    // remounted the menu at root, totalBalanceLabel would appear — assert the
+    // settings drill stays instead.
+    accountSummaryPopoverTestFlags.forceMount = true;
+    renderChip();
+    openChip();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "billing" }));
+
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+    expect(pushMock).toHaveBeenCalledWith("/billing");
+  });
+
+  it("starts at the root panel when reopened after closing from settings", () => {
+    // forceMount keeps the settings drill mounted across close so reopen must
+    // remount via menuInstance (open-only bump) to reach root again.
+    accountSummaryPopoverTestFlags.forceMount = true;
+    renderChip();
+    openChip();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /openSummary/ }));
+    openChip();
+
+    expect(
+      screen.getByRole("button", { name: "settings" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "back" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("totalBalanceLabel")).toBeInTheDocument();
+  });
+
   it("buys credits and logs out from inside the summary", () => {
     renderChip();
     openChip();
@@ -193,16 +308,23 @@ describe("SidebarAccountChip", () => {
     expect(screen.queryByText(/creditsExpires/)).not.toBeInTheDocument();
   });
 
-  it("closes the summary when the mobile sheet slides shut behind it", () => {
+  it("renders nothing on mobile (account control lives in the header)", () => {
     sidebarState.isMobile = true;
-    sidebarState.openMobile = true;
-    const { rerender } = renderChip();
+    const { container } = renderChip();
 
+    expect(container).toBeEmptyDOMElement();
+    expect(
+      screen.queryByRole("button", { name: /openSummary/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("closes the open summary when the layout becomes mobile", () => {
+    const { rerender } = renderChip();
     openChip();
 
     expect(screen.getByRole("button", { name: "logout" })).toBeInTheDocument();
 
-    sidebarState.openMobile = false;
+    sidebarState.isMobile = true;
     rerender(
       <SidebarAccountChip
         sessionUser={sessionUser}
@@ -215,12 +337,36 @@ describe("SidebarAccountChip", () => {
         lowCreditsThreshold={100}
         buyCreditsLabel="getMoreCredits"
         buyCreditsPath="/billing?tab=credits"
+        adminSettingsChrome={defaultAdminSettingsChrome}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "logout" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /openSummary/ }),
+    ).not.toBeInTheDocument();
+
+    sidebarState.isMobile = false;
+    rerender(
+      <SidebarAccountChip
+        sessionUser={sessionUser}
+        planName="Pro"
+        totalCredits={15_750}
+        extraCredits={750}
+        creditUsage={null}
+        subscriptionPeriodEndMs={null}
+        currentTimestampMs={1_700_000_000_000}
+        lowCreditsThreshold={100}
+        buyCreditsLabel="getMoreCredits"
+        buyCreditsPath="/billing?tab=credits"
+        adminSettingsChrome={defaultAdminSettingsChrome}
       />,
     );
 
     expect(
-      screen.queryByRole("button", { name: "logout" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /openSummary/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "logout" })).toBeNull();
   });
 
   it("shows the browser's offline state on the status dot", () => {

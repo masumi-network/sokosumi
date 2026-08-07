@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useRef, useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   ComposerWysiwygEditor,
   type ComposerWysiwygEditorHandle,
 } from "@/components/chat/composer-wysiwyg-editor";
+import { ROOM_COMPOSER_MENTION_ANCHOR_ATTR } from "@/components/chat/room-message-composer";
 
 const getPopupPositionFromRect = vi.hoisted(() =>
   vi.fn(() => ({
@@ -13,6 +14,16 @@ const getPopupPositionFromRect = vi.hoisted(() =>
     left: 80,
     side: "top" as const,
     maxHeight: 120,
+  })),
+);
+
+const getMentionPopupPositionFromAnchorRect = vi.hoisted(() =>
+  vi.fn(() => ({
+    top: 500,
+    left: 24,
+    side: "top" as const,
+    maxHeight: 200,
+    width: 420,
   })),
 );
 
@@ -24,10 +35,23 @@ vi.mock("@/components/ui/mention-textarea-utils", async (importOriginal) => {
   return {
     ...actual,
     getPopupPositionFromRect,
+    getMentionPopupPositionFromAnchorRect,
   };
 });
 
 describe("ComposerWysiwygEditor", () => {
+  afterEach(() => {
+    getPopupPositionFromRect.mockClear();
+    getMentionPopupPositionFromAnchorRect.mockReset();
+    getMentionPopupPositionFromAnchorRect.mockImplementation(() => ({
+      top: 500,
+      left: 24,
+      side: "top" as const,
+      maxHeight: 200,
+      width: 420,
+    }));
+  });
+
   it("disables Inter contextual alternates so ** markers stay aligned", () => {
     function Harness() {
       const [value, setValue] = useState("");
@@ -41,7 +65,9 @@ describe("ComposerWysiwygEditor", () => {
     }
 
     render(<Harness />);
-    expect(screen.getByRole("textbox")).toHaveClass("markdown-compose-surface");
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveClass("markdown-compose-surface");
+    expect(editor).toHaveStyle({ scrollMarginTop: "252px" });
   });
 
   it("applies top-side flip and dynamic maxHeight to the mention listbox", () => {
@@ -75,9 +101,326 @@ describe("ComposerWysiwygEditor", () => {
     const listbox = screen.getByRole("listbox");
     expect(listbox).toHaveStyle({
       maxHeight: "120px",
-      transform: "translateY(-100%)",
+      bottom: `${window.innerHeight - 400}px`,
     });
+    expect(listbox.style.transform).toBe("");
     expect(getPopupPositionFromRect).toHaveBeenCalled();
+    expect(getMentionPopupPositionFromAnchorRect).not.toHaveBeenCalled();
+  });
+
+  it("anchors mention listbox to the composer card when the data attr is present", () => {
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+            <ComposerWysiwygEditor
+              ref={editorRef}
+              value={value}
+              onChange={setValue}
+              mentions={{
+                alice: { value: "Alice" },
+                bob: { value: "Bob" },
+              }}
+            />
+          </div>
+        </>
+      );
+    }
+
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "200px",
+      bottom: `${window.innerHeight - 500}px`,
+      width: "420px",
+    });
+    expect(listbox.style.transform).toBe("");
+    expect(listbox).not.toHaveClass("w-72");
+  });
+
+  it("keeps composer-anchored mention placement when above-space collapses", () => {
+    getMentionPopupPositionFromAnchorRect.mockReturnValue({
+      top: 88,
+      left: 24,
+      side: "top" as const,
+      maxHeight: 80,
+      width: 420,
+    });
+
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+            <ComposerWysiwygEditor
+              ref={editorRef}
+              value={value}
+              onChange={setValue}
+              mentions={{
+                alice: { value: "Alice" },
+                bob: { value: "Bob" },
+              }}
+            />
+          </div>
+        </>
+      );
+    }
+
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "80px",
+      bottom: `${window.innerHeight - 88}px`,
+      width: "420px",
+    });
+    expect(listbox.style.transform).toBe("");
+    expect(listbox).not.toHaveClass("w-72");
+  });
+
+  it("keeps composer-anchored emoji placement when above-space is tight", () => {
+    getMentionPopupPositionFromAnchorRect.mockReturnValue({
+      top: 88,
+      left: 24,
+      side: "top" as const,
+      maxHeight: 80,
+      width: 420,
+    });
+
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+        </div>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":smi";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "80px",
+      bottom: `${window.innerHeight - 88}px`,
+      width: "420px",
+    });
+    expect(listbox.style.transform).toBe("");
+    expect(listbox).not.toHaveClass("w-72");
+  });
+
+  it("keeps the mention listbox open when openMentions runs after editor blur", () => {
+    vi.useFakeTimers();
+
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <ComposerWysiwygEditor
+            ref={editorRef}
+            value={value}
+            onChange={setValue}
+            mentions={{
+              alice: { value: "Alice" },
+              bob: { value: "Bob" },
+            }}
+          />
+        </>
+      );
+    }
+
+    try {
+      render(<Harness />);
+      const editor = screen.getByRole("textbox");
+      act(() => {
+        editor.focus();
+      });
+      // Toolbar click path: editor blurs before openMentions runs.
+      fireEvent.blur(editor);
+      fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("inserts a mention from the toolbar picker when no @ trigger is typed", () => {
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("hello");
+      return (
+        <>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <ComposerWysiwygEditor
+            ref={editorRef}
+            value={value}
+            onChange={setValue}
+            mentions={{
+              alice: { value: "Alice" },
+              bob: { value: "Bob" },
+            }}
+          />
+        </>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    act(() => {
+      editor.focus();
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+    const option = screen.getByRole("option", { name: /Alice/i });
+
+    // Listbox click leaves selection outside the editor (portal).
+    act(() => {
+      const selection = window.getSelection();
+      const outside = document.createTextNode("outside");
+      document.body.appendChild(outside);
+      const range = document.createRange();
+      range.setStart(outside, 0);
+      range.collapse(true);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+
+    fireEvent.mouseDown(option);
+    fireEvent.click(option);
+
+    expect(editor.querySelector("[data-mention-key='alice']")).not.toBeNull();
+    expect(editor.textContent).toMatch(/hello\s*@Alice/);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("anchors emoji shortcode popup to the composer shell", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+        </div>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":smi";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "200px",
+      bottom: `${window.innerHeight - 500}px`,
+      width: "420px",
+    });
+    expect(listbox.style.transform).toBe("");
+    expect(listbox).not.toHaveClass("w-72");
+  });
+
+  it("keeps emoji shortcode popup on the caret when no composer anchor", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":smi";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(getPopupPositionFromRect).toHaveBeenCalled();
+    expect(getMentionPopupPositionFromAnchorRect).not.toHaveBeenCalled();
+    expect(screen.getByRole("listbox")).toHaveClass("w-72");
   });
 
   it("submits on plain Enter on desktop and newlines on Shift+Enter", () => {
@@ -516,5 +859,282 @@ describe("ComposerWysiwygEditor", () => {
 
     expect(editor.innerHTML).not.toMatch(/color\s*:/i);
     expect(editor.textContent).toBe("stuck dark");
+  });
+
+  it("converts :D to emoji after trailing space", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":D ";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain("😄");
+    expect(editor.textContent).not.toContain(":D");
+    // Boundary space kept; caret after it so the next word needs no second space.
+    expect(editor.textContent).toBe("😄 ");
+    const caretRange = window.getSelection()?.getRangeAt(0);
+    expect(caretRange?.collapsed).toBe(true);
+    expect(caretRange?.startOffset).toBe(
+      caretRange?.startContainer.textContent?.length,
+    );
+  });
+
+  it("does not convert emoticons inside inline code", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.innerHTML = "<code>:D </code>";
+    const code = editor.querySelector("code");
+    expect(code).toBeTruthy();
+    const textNode = code!.firstChild as Text;
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode, textNode.length);
+    range.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain(":D");
+    expect(editor.textContent).not.toContain("😄");
+  });
+
+  it("does not convert emoticon match range inside code when caret is outside", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    // serialize flattens to "hello:D "; caret after outer space must not
+    // rewrite the `:D` still living inside <code>.
+    editor.innerHTML = "hello<code>:D</code> ";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain(":D");
+    expect(editor.textContent).not.toContain("😄");
+    expect(editor.querySelector("code")?.textContent).toBe(":D");
+  });
+
+  it("still converts emoticons after a mention chip", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{
+            alice: { value: "Alice" },
+          }}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    // Mention chip then plain ":D " — convert must apply only to plain text.
+    editor.innerHTML =
+      '<span data-mention-key="alice" data-mention-slug="alice" contenteditable="false">@Alice</span> :D ';
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain("😄");
+    expect(editor.textContent).not.toContain(":D");
+    expect(editor.querySelector("[data-mention-key='alice']")).not.toBeNull();
+  });
+
+  it("converts bare trailing emoticon on blur (flush)", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+    // Live mode should not convert without boundary
+    expect(editor.textContent).toContain(":)");
+
+    // Sync blur flush — no timer advance needed for convert
+    fireEvent.blur(editor);
+
+    expect(editor.textContent).toContain("😃");
+    expect(editor.textContent).not.toContain(":)");
+  });
+
+  it("converts bare trailing emoticon before submit shortcut", () => {
+    const onSubmitShortcut = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+          onSubmitShortcut={onSubmitShortcut}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ";)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(editor.textContent).toContain("😉");
+    expect(onSubmitShortcut).toHaveBeenCalled();
+  });
+
+  it("submits flushed emoticon markdown to parent state", () => {
+    const onSubmitted = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState("");
+      const formRef = useRef<HTMLFormElement>(null);
+      return (
+        <form
+          ref={formRef}
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmitted(value);
+          }}
+        >
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+            onSubmitShortcut={() => formRef.current?.requestSubmit()}
+          />
+        </form>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ";)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(onSubmitted).toHaveBeenCalledWith(expect.stringContaining("😉"));
+    expect(onSubmitted).not.toHaveBeenCalledWith(expect.stringContaining(";)"));
+  });
+
+  it("updates parent value on blur flush before form submit", () => {
+    const onSubmitted = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmitted(value);
+          }}
+        >
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+          <button type="submit">Send</button>
+        </form>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ";)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    // Blur (sync flush + flushSync) then Submit click — no timer advance
+    fireEvent.blur(editor);
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(onSubmitted).toHaveBeenCalledWith(expect.stringContaining("😉"));
+    expect(onSubmitted).not.toHaveBeenCalledWith(expect.stringContaining(";)"));
   });
 });

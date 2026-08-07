@@ -6,7 +6,6 @@ import { MobileHomeHub } from "@/app/chat/components/mobile-home-hub";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
-import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { RoomsClient } from "./components/rooms-client";
@@ -23,31 +22,23 @@ interface ChatPageProps {
 }
 
 /**
- * Soft-nav: keep previous screen (no Instant shell / route spinner).
- * Rooms still use Instant via `rooms/[roomId]`.
- */
-export const instant = false;
-
-/**
  * `/chat` landing: mobile Home hub (sidebar minus Channels/DMs); desktop
  * classic coworker welcome. Draft modes via query: `?create=channel`,
  * `?dm=new`, `?welcome=1` (mobile coworker compose). Open rooms:
  * `/chat/rooms/[roomId]`.
  *
- * Fully async, no route `loading.tsx` — soft nav keeps the previous screen
- * (same as `/history`). Opening a room uses `rooms/[roomId]/loading.tsx`.
+ * Instant Nav uses `chat/loading.tsx` while this page streams after
+ * `connection()`. Room open uses `rooms/[roomId]/loading.tsx`.
  */
 export default async function ChatPage({ searchParams }: ChatPageProps) {
   // Defer before any cookies()/headers()-bound work so PPR shell probing does
   // not soft-reject dynamic APIs on this dynamic page.
   await connection();
 
-  const [query, tChannels, activeOrganization, session] = await Promise.all([
-    searchParams,
-    getTranslations("App.Channels"),
-    userService.getActiveOrganization(),
-    getSession(),
-  ]);
+  // Ordinary landing only needs session + coworkers. Draft create/DM paths
+  // load org context and channel copy below so the Instant-streamed landing
+  // stays light (heavy work only when draft query modes are active).
+  const [query, session] = await Promise.all([searchParams, getSession()]);
 
   const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
   const isNewDirectMessage = firstSearchValue(query.dm) === "new";
@@ -56,6 +47,11 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   const landingNotice = <ChatLandingNotice notice={notice} />;
 
   if (isCreateChannelRequested || isNewDirectMessage) {
+    const [tChannels, activeOrganization] = await Promise.all([
+      getTranslations("App.Channels"),
+      userService.getActiveOrganization(),
+    ]);
+
     // Channels / create stay org-only. Start New DM (`?dm=new`) also works in
     // personal workspace: same DraftDirectMessage UI with empty members so the
     // picker is coworkers-only (solo coworker sends via room ensure).
@@ -161,10 +157,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     );
   }
 
-  const adminMenuEnabled = hasAdminRole(
-    (session.user as typeof session.user & { role?: string | null }).role,
-  );
-
   return (
     <>
       {landingNotice}
@@ -174,11 +166,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           userName={session.user.name ?? undefined}
         />
       </div>
-      <MobileHomeHub
-        sessionUser={session.user}
-        activeOrganizationId={session.session.activeOrganizationId ?? null}
-        adminMenuEnabled={adminMenuEnabled}
-      />
+      <MobileHomeHub sessionUser={session.user} />
     </>
   );
 }

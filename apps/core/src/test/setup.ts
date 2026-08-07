@@ -40,6 +40,7 @@ const envDefaults: Record<string, string> = {
   SHOW_AGENTS_BY_DEFAULT: "true",
   MAINTENANCE_MODE: "false",
   ABLY_PUBLISH_ONLY_KEY: "local-test",
+  ABLY_SUBSCRIBE_ONLY_KEY: "local-test-subscribe",
   JOB_FAILURE_NOTIFICATION_EMAILS: "",
   OPENROUTER_CHAT_API_KEY:
     "sk-or-v1-test-0000000000000000000000000000000000000000",

@@ -132,4 +132,16 @@ describe("MenuItems search action", () => {
 
     expect(screen.queryByRole("link", { name: /newTask/i })).toBeNull();
   });
+
+  it("shows Search by default", () => {
+    render(<MenuItems />);
+
+    expect(screen.getByRole("button", { name: /search/i })).toBeInTheDocument();
+  });
+
+  it("hides Search when hideSearch is set", () => {
+    render(<MenuItems hideSearch />);
+
+    expect(screen.queryByRole("button", { name: /search/i })).toBeNull();
+  });
 });

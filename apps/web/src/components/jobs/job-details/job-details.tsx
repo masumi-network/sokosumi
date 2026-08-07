@@ -1,9 +1,11 @@
 "use client";
 
+import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChannelProvider, useChannel } from "ably/react";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import { jobStatusDataSchema, makeAgentJobsChannelName } from "@/lib/ably";
+
+import { jobStatusDataSchema } from "@/lib/ably";
 import { useSession } from "@/lib/auth/auth.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { getJobQueryKey, getJobQueryOptions } from "@/queries";

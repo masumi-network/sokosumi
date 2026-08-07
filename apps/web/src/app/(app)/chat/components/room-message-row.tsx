@@ -454,7 +454,7 @@ function ChannelMessageText({
             return (
               <div
                 key={`files-${i}-${headLink.index}`}
-                className="my-2 flex min-w-0 max-w-full flex-wrap gap-2"
+                className="my-2 flex w-full min-w-0 max-w-full flex-wrap gap-2"
                 data-testid="room-message-attachment-row"
               >
                 {segment.links.map((link) => (

@@ -43,11 +43,14 @@ interface MenuItemsProps {
   hideHistory?: boolean;
   /** Mobile Home hub: New Task lives on the create FAB, so omit the leaf item. */
   hideNewTask?: boolean;
+  /** Mobile Home hub: Search lives on the bottom tab, so omit the leaf item. */
+  hideSearch?: boolean;
 }
 
 export default function MenuItems({
   hideHistory = false,
   hideNewTask = false,
+  hideSearch = false,
 }: MenuItemsProps) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
@@ -83,14 +86,18 @@ export default function MenuItems({
             separatorAfter: true,
           } satisfies MenuItemConfig,
         ]),
-    {
-      key: "search",
-      label: t("search"),
-      Icon: Search,
-      onClick: handleSearchClick,
-      shortcutLabel: historySearch?.searchShortcutLabel,
-      ariaKeyshortcuts: historySearch ? "Meta+K Control+K" : undefined,
-    },
+    ...(hideSearch
+      ? []
+      : [
+          {
+            key: "search",
+            label: t("search"),
+            Icon: Search,
+            onClick: handleSearchClick,
+            shortcutLabel: historySearch?.searchShortcutLabel,
+            ariaKeyshortcuts: historySearch ? "Meta+K Control+K" : undefined,
+          } satisfies MenuItemConfig,
+        ]),
     {
       key: "task-manager",
       href: "/tasks",
