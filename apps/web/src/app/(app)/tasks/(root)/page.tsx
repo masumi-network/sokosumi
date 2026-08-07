@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { TasksPageSkeleton } from "@/app/tasks/components/tasks-loading-view";
+import { TasksPageSkeletonHost } from "@/app/tasks/components/tasks-page-skeleton-host";
 import { TasksPendingVendorGrantBannerSlot } from "@/app/tasks/components/tasks-pending-vendor-grant-banner-slot";
 import { TasksView } from "@/app/tasks/components/tasks-view";
 import {
@@ -368,7 +368,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
 
 export default function TasksPage({ searchParams }: TasksPageProps) {
   return (
-    <Suspense fallback={<TasksPageSkeleton />}>
+    <Suspense fallback={<TasksPageSkeletonHost />}>
       <TasksPageContent searchParams={searchParams} />
     </Suspense>
   );
