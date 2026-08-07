@@ -473,12 +473,17 @@ export function ComposerWysiwygEditor<TData = unknown>({
       return;
     }
 
-    // Emoticon live convert: boundary char stays after `end` — insert emoji only.
+    // Emoticon live convert: include the closing boundary (space/punct) in the
+    // replace so caret lands after it — otherwise typing glues to the emoji and
+    // the user needs a second space for the next word.
     const emoticonMatch = matchEmoticonClosedAtBoundary(text, caret);
     if (emoticonMatch && editorRef.current) {
       const editor = editorRef.current;
+      // Live path: caret is just after the boundary char at match.end.
+      const boundarySuffix = text.slice(emoticonMatch.end, caret);
+      const deleteEnd = emoticonMatch.end + boundarySuffix.length;
       const startPos = findPositionForOffset(editor, emoticonMatch.start);
-      const endPos = findPositionForOffset(editor, emoticonMatch.end);
+      const endPos = findPositionForOffset(editor, deleteEnd);
       // Gate on match range (not only caret): serialize flattens text so a
       // caret after `</code>` can still match `:D` inside CODE.
       if (
@@ -490,9 +495,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
         range.setEnd(endPos.node, endPos.offset);
         range.deleteContents();
 
-        const textNode = document.createTextNode(emoticonMatch.emoji);
+        const textNode = document.createTextNode(
+          `${emoticonMatch.emoji}${boundarySuffix}`,
+        );
         range.insertNode(textNode);
-        // Caret after emoji, before trailing boundary still in DOM
         setCaretAfterNode(editor, textNode);
         // Commit parent value before any same-tick submit (e.g. Enter send).
         flushSync(() => {

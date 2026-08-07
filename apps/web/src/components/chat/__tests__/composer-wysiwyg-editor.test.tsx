@@ -887,6 +887,13 @@ describe("ComposerWysiwygEditor", () => {
 
     expect(editor.textContent).toContain("😄");
     expect(editor.textContent).not.toContain(":D");
+    // Boundary space kept; caret after it so the next word needs no second space.
+    expect(editor.textContent).toBe("😄 ");
+    const caretRange = window.getSelection()?.getRangeAt(0);
+    expect(caretRange?.collapsed).toBe(true);
+    expect(caretRange?.startOffset).toBe(
+      caretRange?.startContainer.textContent?.length,
+    );
   });
 
   it("does not convert emoticons inside inline code", () => {
