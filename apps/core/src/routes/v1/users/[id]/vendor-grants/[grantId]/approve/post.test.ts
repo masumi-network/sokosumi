@@ -1,10 +1,12 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
+  NotificationKind,
   TaskStatus,
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/helpers/notification-feed";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
@@ -22,6 +24,7 @@ const {
   workspaceFindUniqueMock,
   prismaTransactionMock,
   userFindUniqueMock,
+  notificationDeleteManyMock,
 } = vi.hoisted(() => ({
   taskFindManyMock: vi.fn(),
   taskUpdateManyMock: vi.fn(),
@@ -31,6 +34,7 @@ const {
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
+  notificationDeleteManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -90,6 +94,7 @@ beforeAll(async () => {
 describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    notificationDeleteManyMock.mockResolvedValue({ count: 0 });
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
     taskFindManyMock.mockResolvedValue([
@@ -111,6 +116,9 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
           },
           taskEvent: {
             create: taskEventCreateMock,
+          },
+          notification: {
+            deleteMany: notificationDeleteManyMock,
           },
         }),
     );
@@ -146,6 +154,13 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(notificationDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        referenceId: grantId,
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        kind: NotificationKind.SYSTEM,
+      },
+    });
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "task_1",
@@ -215,6 +230,13 @@ describe("POST /users/{id}/vendor-grants/{grantId}/approve", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(notificationDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        referenceId: grantId,
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        kind: NotificationKind.SYSTEM,
+      },
+    });
     expect(vendorGrantUpdateMock).toHaveBeenCalledTimes(1);
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
       where: {
