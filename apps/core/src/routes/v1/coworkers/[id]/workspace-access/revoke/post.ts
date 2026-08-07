@@ -8,6 +8,7 @@ import {
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
 import {
@@ -54,16 +55,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const { id: coworkerId } = c.req.valid("param");
-    // Find-only: never create workspaces on ops undo.
-    const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(
-      c.req.valid("json"),
-      { createIfMissing: false },
-    );
+    const target = c.req.valid("json");
 
-    const access = await forceRevokeCoworkerWorkspaceAccessByPair({
-      coworkerId,
-      workspaceId,
-      resolvedById: userAuth.userId,
+    // Resolve + lock + status flip share one transaction so FOR UPDATE holds.
+    // Find-only resolve: never create workspaces on ops undo.
+    const access = await prisma.$transaction(async (tx) => {
+      const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(
+        target,
+        { createIfMissing: false },
+        tx,
+      );
+      return forceRevokeCoworkerWorkspaceAccessByPair(
+        {
+          coworkerId,
+          workspaceId,
+          resolvedById: userAuth.userId,
+        },
+        tx,
+      );
     });
 
     return ok(

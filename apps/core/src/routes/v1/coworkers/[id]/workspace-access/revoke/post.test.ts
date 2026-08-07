@@ -6,10 +6,12 @@ import { notFound } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-const { forceRevokeMock, resolveWorkspaceMock } = vi.hoisted(() => ({
-  forceRevokeMock: vi.fn(),
-  resolveWorkspaceMock: vi.fn(),
-}));
+const { forceRevokeMock, resolveWorkspaceMock, prismaTransactionMock } =
+  vi.hoisted(() => ({
+    forceRevokeMock: vi.fn(),
+    resolveWorkspaceMock: vi.fn(),
+    prismaTransactionMock: vi.fn(),
+  }));
 
 vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
   const actual =
@@ -24,6 +26,12 @@ vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
       resolveWorkspaceMock(...args),
   };
 });
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+  },
+}));
 
 import mountPostRevokeCoworkerWorkspaceAccess from "./post";
 
@@ -90,6 +98,9 @@ describe("POST /coworkers/{id}/workspace-access/revoke", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resolveWorkspaceMock.mockResolvedValue(workspaceId);
+    prismaTransactionMock.mockImplementation(
+      async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+    );
   });
 
   it("revokes GRANTED access for platform admin", async () => {
@@ -107,11 +118,19 @@ describe("POST /coworkers/{id}/workspace-access/revoke", () => {
       workspaceId,
       status: CoworkerWorkspaceAccessStatus.REVOKED,
     });
-    expect(forceRevokeMock).toHaveBeenCalledWith({
-      coworkerId,
-      workspaceId,
-      resolvedById: actorUserId,
-    });
+    expect(resolveWorkspaceMock).toHaveBeenCalledWith(
+      { workspaceId },
+      { createIfMissing: false },
+      expect.anything(),
+    );
+    expect(forceRevokeMock).toHaveBeenCalledWith(
+      {
+        coworkerId,
+        workspaceId,
+        resolvedById: actorUserId,
+      },
+      expect.anything(),
+    );
   });
 
   it("returns 403 for non-platform-admin", async () => {

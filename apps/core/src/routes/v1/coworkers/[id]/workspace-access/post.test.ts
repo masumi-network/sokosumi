@@ -6,13 +6,13 @@ import { forbidden, notFound } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-const { upsertMock, resolveWorkspaceMock, prismaTransactionMock } = vi.hoisted(
-  () => ({
+const { upsertMock, resolveWorkspaceMock, notifyMock, prismaTransactionMock } =
+  vi.hoisted(() => ({
     upsertMock: vi.fn(),
     resolveWorkspaceMock: vi.fn(),
+    notifyMock: vi.fn(),
     prismaTransactionMock: vi.fn(),
-  }),
-);
+  }));
 
 vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
   const actual =
@@ -24,6 +24,8 @@ vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
     upsertCoworkerWorkspaceAccess: (...args: unknown[]) => upsertMock(...args),
     resolveCoworkerAccessTargetWorkspaceId: (...args: unknown[]) =>
       resolveWorkspaceMock(...args),
+    notifyWorkspaceApproversOfPendingCoworkerAccess: (...args: unknown[]) =>
+      notifyMock(...args),
   };
 });
 
@@ -105,15 +107,17 @@ describe("POST /coworkers/{id}/workspace-access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resolveWorkspaceMock.mockResolvedValue(workspaceId);
+    notifyMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
     );
   });
 
   it("platform admin → 201 GRANTED", async () => {
-    upsertMock.mockResolvedValue(
-      baseAccess({ status: CoworkerWorkspaceAccessStatus.GRANTED }),
-    );
+    upsertMock.mockResolvedValue({
+      access: baseAccess({ status: CoworkerWorkspaceAccessStatus.GRANTED }),
+      pendingNotify: null,
+    });
 
     const response = await postWorkspaceAccess(createApp("admin"));
     const body = await response.json();
@@ -146,9 +150,10 @@ describe("POST /coworkers/{id}/workspace-access", () => {
   });
 
   it("vendor admin member workspace → 201 GRANTED", async () => {
-    upsertMock.mockResolvedValue(
-      baseAccess({ status: CoworkerWorkspaceAccessStatus.GRANTED }),
-    );
+    upsertMock.mockResolvedValue({
+      access: baseAccess({ status: CoworkerWorkspaceAccessStatus.GRANTED }),
+      pendingNotify: null,
+    });
 
     const response = await postWorkspaceAccess(createApp("user"));
     const body = await response.json();
@@ -167,13 +172,18 @@ describe("POST /coworkers/{id}/workspace-access", () => {
   });
 
   it("vendor admin foreign → 201 PENDING", async () => {
-    upsertMock.mockResolvedValue(
-      baseAccess({
+    upsertMock.mockResolvedValue({
+      access: baseAccess({
         status: CoworkerWorkspaceAccessStatus.PENDING,
         resolvedAt: null,
         resolvedById: null,
       }),
-    );
+      pendingNotify: {
+        coworkerId,
+        workspaceId,
+        accessId,
+      },
+    });
 
     const response = await postWorkspaceAccess(createApp("user"));
     const body = await response.json();
@@ -183,6 +193,11 @@ describe("POST /coworkers/{id}/workspace-access", () => {
       status: "PENDING",
       resolvedAt: null,
       resolvedById: null,
+    });
+    expect(notifyMock).toHaveBeenCalledWith({
+      coworkerId,
+      workspaceId,
+      accessId,
     });
   });
 

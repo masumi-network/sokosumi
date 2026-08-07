@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import {
+  notifyWorkspaceApproversOfPendingCoworkerAccess,
   resolveCoworkerAccessTargetWorkspaceId,
   toCoworkerWorkspaceAccessApiShape,
   upsertCoworkerWorkspaceAccess,
@@ -52,7 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: coworkerId } = c.req.valid("param");
     const target = c.req.valid("json");
 
-    const access = await prisma.$transaction(async (tx) => {
+    const { access, pendingNotify } = await prisma.$transaction(async (tx) => {
       const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(
         target,
         {},
@@ -68,6 +69,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
       );
     });
+
+    if (pendingNotify) {
+      try {
+        await notifyWorkspaceApproversOfPendingCoworkerAccess(pendingNotify);
+      } catch (error) {
+        console.error(
+          "Failed to notify workspace approvers of pending coworker access:",
+          error,
+        );
+      }
+    }
 
     return created(
       c,

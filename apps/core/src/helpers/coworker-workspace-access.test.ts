@@ -297,6 +297,31 @@ describe("coworker-workspace-access helpers", () => {
         updatedAt: now.toISOString(),
       });
     });
+
+    it("redacts personal workspace email when revealPersonalEmail is false", () => {
+      const row = baseAccess({
+        status: CoworkerWorkspaceAccessStatus.GRANTED,
+      });
+      row.workspace = {
+        id: "ws-personal",
+        userId: "user-owner-1",
+        organizationId: null,
+        user: { name: "Pilot Owner", email: "pilot@example.com" },
+        organization: null,
+      };
+
+      expect(
+        toCoworkerWorkspaceAccessApiShape(row, { revealPersonalEmail: false }),
+      ).toMatchObject({
+        workspaceKind: "user",
+        workspaceDisplayName: "Pilot Owner",
+        workspaceDisplayDetail: "user-owner-1",
+      });
+
+      expect(toCoworkerWorkspaceAccessApiShape(row)).toMatchObject({
+        workspaceDisplayDetail: "pilot@example.com",
+      });
+    });
   });
 
   describe("userBelongsToWorkspace", () => {
@@ -420,7 +445,7 @@ describe("coworker-workspace-access helpers", () => {
         isPlatformAdmin: true,
       });
 
-      expect(result.status).toBe(CoworkerWorkspaceAccessStatus.GRANTED);
+      expect(result.access.status).toBe(CoworkerWorkspaceAccessStatus.GRANTED);
       expect(requireVendorAdminMembershipMock).not.toHaveBeenCalled();
       expect(accessUpsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -491,7 +516,8 @@ describe("coworker-workspace-access helpers", () => {
         isPlatformAdmin: true,
       });
 
-      expect(result).toBe(existing);
+      expect(result.access).toBe(existing);
+      expect(result.pendingNotify).toBeNull();
       expect(accessUpsert).not.toHaveBeenCalled();
     });
 
@@ -554,7 +580,7 @@ describe("coworker-workspace-access helpers", () => {
         isPlatformAdmin: false,
       });
 
-      expect(result.status).toBe(CoworkerWorkspaceAccessStatus.GRANTED);
+      expect(result.access.status).toBe(CoworkerWorkspaceAccessStatus.GRANTED);
       expect(requireVendorAdminMembershipMock).toHaveBeenCalledWith(
         "actor-1",
         "vendor-1",
@@ -602,7 +628,7 @@ describe("coworker-workspace-access helpers", () => {
         isPlatformAdmin: false,
       });
 
-      expect(result.status).toBe(CoworkerWorkspaceAccessStatus.GRANTED);
+      expect(result.access.status).toBe(CoworkerWorkspaceAccessStatus.GRANTED);
       expect(accessUpsert).toHaveBeenCalled();
       expect(accessCreate).not.toHaveBeenCalled();
     });
@@ -640,7 +666,7 @@ describe("coworker-workspace-access helpers", () => {
         isPlatformAdmin: false,
       });
 
-      expect(result.status).toBe(CoworkerWorkspaceAccessStatus.PENDING);
+      expect(result.access.status).toBe(CoworkerWorkspaceAccessStatus.PENDING);
       expect(accessCreate).toHaveBeenCalledWith({
         data: {
           coworkerId: "coworker-1",
@@ -675,18 +701,13 @@ describe("coworker-workspace-access helpers", () => {
           },
         },
       });
-      expect(createNotificationMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          userId: "owner-1",
-          messageKey: "notifications.coworkerAccess.pending",
-          metadata: {
-            coworkerId: "coworker-1",
-            workspaceId: "workspace-1",
-            organizationId: null,
-          },
-        }),
-        expect.anything(),
-      );
+      expect(result.pendingNotify).toEqual({
+        coworkerId: "coworker-1",
+        workspaceId: "workspace-1",
+        accessId: pending.id,
+      });
+      // Route notifies after commit — helper must not write notifications on tx.
+      expect(createNotificationMock).not.toHaveBeenCalled();
     });
 
     it("returns raced row on concurrent foreign PENDING create unique violation", async () => {
@@ -721,10 +742,11 @@ describe("coworker-workspace-access helpers", () => {
         isPlatformAdmin: false,
       });
 
-      expect(result).toMatchObject({
+      expect(result.access).toMatchObject({
         id: "raced-access",
         status: CoworkerWorkspaceAccessStatus.PENDING,
       });
+      expect(result.pendingNotify).toBeNull();
       expect(createNotificationMock).not.toHaveBeenCalled();
     });
 
@@ -816,7 +838,8 @@ describe("coworker-workspace-access helpers", () => {
         isPlatformAdmin: false,
       });
 
-      expect(result).toBe(existing);
+      expect(result.access).toBe(existing);
+      expect(result.pendingNotify).toBeNull();
       expect(accessCreate).not.toHaveBeenCalled();
       expect(createNotificationMock).not.toHaveBeenCalled();
     });

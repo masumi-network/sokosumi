@@ -50,7 +50,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Coworker not found");
     }
 
-    if (!hasAdminRole(userAuth.role)) {
+    const isPlatformAdmin = hasAdminRole(userAuth.role);
+    if (!isPlatformAdmin) {
       await requireVendorAdminMembership(userAuth.userId, coworker.vendorId);
     }
 
@@ -60,10 +61,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       include: coworkerWorkspaceAccessInclude,
     });
 
+    // Vendor admins must not receive personal-workspace owner emails.
     return ok(
       c,
       coworkerWorkspaceAccessesSchema.parse(
-        rows.map(toCoworkerWorkspaceAccessApiShape),
+        rows.map((row) =>
+          toCoworkerWorkspaceAccessApiShape(row, {
+            revealPersonalEmail: isPlatformAdmin,
+          }),
+        ),
       ),
     );
   });

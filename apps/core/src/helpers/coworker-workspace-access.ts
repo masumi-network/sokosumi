@@ -210,12 +210,25 @@ export function isCoworkerAccessTerminal(
   );
 }
 
+export interface CoworkerWorkspaceAccessApiShapeOptions {
+  /**
+   * When false, personal workspace rows omit the owner's email from
+   * `workspaceDisplayDetail` (use user id instead). Vendor-admin coworker
+   * listings must pass false; platform admin and workspace-owner lists keep
+   * the default (true).
+   */
+  revealPersonalEmail?: boolean;
+}
+
 function workspaceDisplayFields(
   workspace: CoworkerWorkspaceAccessWithCoworker["workspace"],
+  options: CoworkerWorkspaceAccessApiShapeOptions = {},
 ): Pick<
   CoworkerWorkspaceAccessDto,
   "workspaceKind" | "workspaceDisplayName" | "workspaceDisplayDetail"
 > {
+  const revealPersonalEmail = options.revealPersonalEmail !== false;
+
   if (workspace.organization) {
     return {
       workspaceKind: "organization",
@@ -228,7 +241,9 @@ function workspaceDisplayFields(
     return {
       workspaceKind: "user",
       workspaceDisplayName: workspace.user.name,
-      workspaceDisplayDetail: workspace.user.email,
+      workspaceDisplayDetail: revealPersonalEmail
+        ? workspace.user.email
+        : (workspace.userId ?? workspace.id),
     };
   }
 
@@ -250,6 +265,7 @@ function workspaceDisplayFields(
 
 export function toCoworkerWorkspaceAccessApiShape(
   row: CoworkerWorkspaceAccessWithCoworker,
+  options: CoworkerWorkspaceAccessApiShapeOptions = {},
 ): CoworkerWorkspaceAccessDto {
   return {
     id: row.id,
@@ -257,7 +273,7 @@ export function toCoworkerWorkspaceAccessApiShape(
     coworkerName: row.coworker.name,
     coworkerSlug: row.coworker.slug,
     workspaceId: row.workspaceId,
-    ...workspaceDisplayFields(row.workspace),
+    ...workspaceDisplayFields(row.workspace, options),
     status: row.status,
     requestedByUserId: row.requestedByUserId,
     resolvedAt: row.resolvedAt ? toIsoDateTime(row.resolvedAt) : null,
@@ -347,6 +363,28 @@ async function upsertGrantedAccess(
   return access;
 }
 
+export interface PendingCoworkerAccessNotify {
+  coworkerId: string;
+  workspaceId: string;
+  accessId: string;
+}
+
+export interface UpsertCoworkerWorkspaceAccessResult {
+  access: CoworkerWorkspaceAccessWithCoworker;
+  /**
+   * Set only when this call created a new PENDING row. Callers should notify
+   * after the surrounding transaction commits (do not notify on `tx`).
+   */
+  pendingNotify: PendingCoworkerAccessNotify | null;
+}
+
+function upsertResult(
+  access: CoworkerWorkspaceAccessWithCoworker,
+  pendingNotify: PendingCoworkerAccessNotify | null = null,
+): UpsertCoworkerWorkspaceAccessResult {
+  return { access, pendingNotify };
+}
+
 /**
  * Propose or directly grant coworker workspace access based on actor role.
  *
@@ -358,11 +396,15 @@ async function upsertGrantedAccess(
  * 5. Actor belongs to workspace → GRANTED (reopen terminal allowed; check before terminal block)
  * 6. Else terminal existing → badRequest (foreign propose only)
  * 7. Else PENDING (idempotent for existing PENDING/GRANTED)
+ *
+ * Does **not** send notifications. When `pendingNotify` is set, the caller
+ * must invoke {@link notifyWorkspaceApproversOfPendingCoworkerAccess} after
+ * the transaction commits.
  */
 export async function upsertCoworkerWorkspaceAccess(
   params: UpsertCoworkerWorkspaceAccessParams,
   tx: Prisma.TransactionClient = prisma,
-): Promise<CoworkerWorkspaceAccessWithCoworker> {
+): Promise<UpsertCoworkerWorkspaceAccessResult> {
   const workspace = await tx.workspace.findUnique({
     where: { id: params.workspaceId },
     select: { id: true, userId: true, organizationId: true },
@@ -393,16 +435,18 @@ export async function upsertCoworkerWorkspaceAccess(
   if (params.isPlatformAdmin) {
     if (existing?.status === CoworkerWorkspaceAccessStatus.GRANTED) {
       await deletePendingCoworkerAccessNotifications(existing.id, tx);
-      return existing;
+      return upsertResult(existing);
     }
 
-    return upsertGrantedAccess(
-      {
-        coworkerId: params.coworkerId,
-        workspaceId: params.workspaceId,
-        actorUserId: params.actorUserId,
-      },
-      tx,
+    return upsertResult(
+      await upsertGrantedAccess(
+        {
+          coworkerId: params.coworkerId,
+          workspaceId: params.workspaceId,
+          actorUserId: params.actorUserId,
+        },
+        tx,
+      ),
     );
   }
 
@@ -417,16 +461,18 @@ export async function upsertCoworkerWorkspaceAccess(
   if (belongs) {
     if (existing?.status === CoworkerWorkspaceAccessStatus.GRANTED) {
       await deletePendingCoworkerAccessNotifications(existing.id, tx);
-      return existing;
+      return upsertResult(existing);
     }
 
-    return upsertGrantedAccess(
-      {
-        coworkerId: params.coworkerId,
-        workspaceId: params.workspaceId,
-        actorUserId: params.actorUserId,
-      },
-      tx,
+    return upsertResult(
+      await upsertGrantedAccess(
+        {
+          coworkerId: params.coworkerId,
+          workspaceId: params.workspaceId,
+          actorUserId: params.actorUserId,
+        },
+        tx,
+      ),
     );
   }
 
@@ -435,8 +481,8 @@ export async function upsertCoworkerWorkspaceAccess(
       throw badRequest("Cannot re-request after deny/revoke");
     }
 
-    // PENDING or GRANTED — idempotent return
-    return existing;
+    // PENDING or GRANTED — idempotent return without re-notify
+    return upsertResult(existing);
   }
 
   let access: CoworkerWorkspaceAccessWithCoworker;
@@ -472,26 +518,14 @@ export async function upsertCoworkerWorkspaceAccess(
     }
 
     // Concurrent create won — idempotent return without re-notify
-    return raced;
+    return upsertResult(raced);
   }
 
-  try {
-    await notifyWorkspaceApproversOfPendingCoworkerAccess(
-      {
-        coworkerId: params.coworkerId,
-        workspaceId: params.workspaceId,
-        accessId: access.id,
-      },
-      tx,
-    );
-  } catch (error) {
-    console.error(
-      "Failed to notify workspace approvers of pending coworker access:",
-      error,
-    );
-  }
-
-  return access;
+  return upsertResult(access, {
+    coworkerId: params.coworkerId,
+    workspaceId: params.workspaceId,
+    accessId: access.id,
+  });
 }
 
 export async function notifyWorkspaceApproversOfPendingCoworkerAccess(

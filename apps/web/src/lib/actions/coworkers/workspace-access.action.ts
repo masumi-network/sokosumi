@@ -15,7 +15,7 @@ import {
 const grantCoworkerEarlyAccessSchema = z.object({
   coworkerId: z.string().uuid(),
   targetType: z.enum(["user", "organization"]),
-  targetValue: z.string().min(1),
+  targetValue: z.string().trim().min(1),
 });
 
 interface GrantDeveloperCoworkerEarlyAccessParameters

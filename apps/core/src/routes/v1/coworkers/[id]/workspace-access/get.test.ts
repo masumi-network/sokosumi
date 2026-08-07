@@ -162,6 +162,59 @@ describe("GET /coworkers/{id}/workspace-access", () => {
     );
   });
 
+  it("vendor admin list redacts personal workspace email", async () => {
+    coworkerFindFirstMock.mockResolvedValue({ id: coworkerId, vendorId });
+    accessFindManyMock.mockResolvedValue([
+      {
+        ...baseAccess({ status: CoworkerWorkspaceAccessStatus.GRANTED }),
+        workspace: {
+          id: "ws-personal",
+          userId: "user-owner-1",
+          organizationId: null,
+          user: { name: "Pilot Owner", email: "pilot@example.com" },
+          organization: null,
+        },
+      },
+    ]);
+
+    const response = await createApp("user", "vendor_admin").request(
+      `http://localhost/${coworkerId}/workspace-access`,
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0]).toMatchObject({
+      workspaceKind: "user",
+      workspaceDisplayName: "Pilot Owner",
+      workspaceDisplayDetail: "user-owner-1",
+    });
+    expect(body.data[0].workspaceDisplayDetail).not.toBe("pilot@example.com");
+  });
+
+  it("platform admin list keeps personal workspace email", async () => {
+    coworkerFindFirstMock.mockResolvedValue({ id: coworkerId, vendorId });
+    accessFindManyMock.mockResolvedValue([
+      {
+        ...baseAccess({ status: CoworkerWorkspaceAccessStatus.GRANTED }),
+        workspace: {
+          id: "ws-personal",
+          userId: "user-owner-1",
+          organizationId: null,
+          user: { name: "Pilot Owner", email: "pilot@example.com" },
+          organization: null,
+        },
+      },
+    ]);
+
+    const response = await createApp("admin").request(
+      `http://localhost/${coworkerId}/workspace-access`,
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0].workspaceDisplayDetail).toBe("pilot@example.com");
+  });
+
   it("random user → 403", async () => {
     coworkerFindFirstMock.mockResolvedValue({ id: coworkerId, vendorId });
     requireVendorAdminMembershipMock.mockRejectedValue(
