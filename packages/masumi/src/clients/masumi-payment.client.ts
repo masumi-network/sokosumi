@@ -16,7 +16,7 @@ import {
   postPurchaseResolveBlockchainIdentifier,
 } from "./openapi/generated/payment/index.js";
 
-export interface PaymentClientRequestOptions {
+interface PaymentClientRequestOptions {
   signal?: AbortSignal;
 }
 
@@ -51,7 +51,7 @@ type ResolvedPurchase =
 type CreatedPurchase = PostPurchaseResponses["200"]["data"];
 type PurchaseRequest = NonNullable<PostPurchaseData["body"]>;
 
-export interface ResolvedPurchaseSellerIdentity {
+interface ResolvedPurchaseSellerIdentity {
   SellerWallet: { walletVkey: string } | null | undefined;
 }
 
@@ -122,7 +122,7 @@ function classifyPurchaseFailureKind(
     : "ambiguous";
 }
 
-export interface TaskPurchaseResolutionFailure {
+interface TaskPurchaseResolutionFailure {
   kind: "not_found" | "mismatch" | "ambiguous";
   message: string;
   status?: number;

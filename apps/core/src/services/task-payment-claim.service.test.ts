@@ -614,7 +614,7 @@ describe("task payment claims", () => {
     );
   });
 
-  it("keeps draining the batch when one claim throws", async () => {
+  it("keeps draining the batch when acquisition itself throws", async () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
@@ -640,20 +640,14 @@ describe("task payment claims", () => {
       consoleErrorSpy.mockRestore();
     }
 
-    // The poison row must not just be skipped — it has to back off and become
-    // visible to the operator levers, all of which filter on reviewRequiredAt.
+    // Nothing is escalated here on purpose: the lease was never acquired, so
+    // the row is untouched and the next tick retries it normally.
     const escalation = claimUpdateManyMock.mock.calls.find(
       (call) =>
         (call[0] as { data?: Record<string, unknown> })?.data
           ?.reviewRequiredAt !== undefined,
     );
-    expect(escalation).toBeDefined();
-    expect(
-      (escalation?.[0] as { data: Record<string, unknown> }).data,
-    ).toMatchObject({
-      processingStartedAt: null,
-      processingToken: null,
-    });
+    expect(escalation).toBeUndefined();
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.any(Error),
       expect.objectContaining({
@@ -661,6 +655,50 @@ describe("task payment claims", () => {
         extra: { claimId: "claim-boom" },
       }),
     );
+  });
+
+  it("escalates under its own lease token when processing throws after acquisition", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    claimFindManyMock.mockResolvedValue([{ id: "claim-boom" }]);
+    claimCountMock.mockResolvedValueOnce(1).mockResolvedValueOnce(0);
+    claimUpdateManyMock.mockResolvedValue({ count: 1 });
+    claimFindFirstMock.mockResolvedValue({
+      id: "claim-boom",
+      attemptCount: 1,
+      purchasePayload,
+      processingToken: "token-boom",
+      reviewRequiredAt: null,
+    });
+    // Throws rather than returning an Err — the case scheduleTaskPaymentClaimRetry
+    // never sees, so nothing would otherwise back the row off.
+    createPurchaseMock.mockRejectedValue(new Error("socket hang up"));
+
+    try {
+      await syncPendingTaskPaymentClaims();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+
+    const escalation = claimUpdateManyMock.mock.calls.find(
+      (call) =>
+        (call[0] as { data?: Record<string, unknown> })?.data
+          ?.reviewRequiredAt !== undefined,
+    );
+    expect(escalation).toBeDefined();
+    const [escalationArgs] = escalation as [
+      { where: Record<string, unknown>; data: Record<string, unknown> },
+    ];
+    // Token-scoped: escalating must never clear a lease another worker holds.
+    expect(escalationArgs.where).toMatchObject({
+      id: "claim-boom",
+      processingToken: "token-boom",
+    });
+    expect(escalationArgs.data).toMatchObject({
+      processingStartedAt: null,
+      processingToken: null,
+    });
   });
 
   it("stays quiet while the backlog fits inside the retry cadence", async () => {

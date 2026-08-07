@@ -311,7 +311,7 @@ function parseEntryAgentPricing(
 
 export type RegistryDiffEntry =
   PostRegistryDiffResponse["data"]["entries"][number];
-export type RegistryPaymentSource =
+type RegistryPaymentSource =
   RegistryDiffEntry["SupportedPaymentSources"][number];
 
 const registryEntryCursorSchema = z.object({

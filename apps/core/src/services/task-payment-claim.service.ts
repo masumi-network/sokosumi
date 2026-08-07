@@ -441,6 +441,26 @@ export async function processTaskPaymentClaim(
     throw new Error(`Task payment claim ${claim.id} has no processing token`);
   }
 
+  try {
+    return await runAcquiredTaskPaymentClaim(claim, processingToken, options);
+  } catch (error) {
+    // The throw skipped scheduleTaskPaymentClaimRetry, so nothing has backed
+    // this row off or made it visible to an operator. Do both here, under the
+    // token we still own, then let the caller report the failure.
+    await escalateUnprocessableTaskPaymentClaim(
+      claim.id,
+      processingToken,
+      error instanceof Error ? error.message : String(error),
+    );
+    throw error;
+  }
+}
+
+async function runAcquiredTaskPaymentClaim(
+  claim: NonNullable<Awaited<ReturnType<typeof acquireTaskPaymentClaim>>>,
+  processingToken: string,
+  options: ProcessTaskPaymentClaimOptions,
+): Promise<TaskPaymentClaimProcessResult> {
   let payload: MasumiTaskPurchaseInput;
   try {
     payload = parsePurchasePayload(claim.purchasePayload);
@@ -680,39 +700,41 @@ export async function resolveReviewedTaskPaymentClaim(
 }
 
 /**
- * Last-resort handling for a claim whose processing threw before it could
- * schedule its own retry. Every backoff and every escalation to
- * `reviewRequiredAt` is written by scheduleTaskPaymentClaimRetry, which a throw
- * skips — so without this the row keeps `nextAttemptAt` in the past, sorts
- * first on every tick, and stays invisible to all three operator levers, each
- * of which filters on `reviewRequiredAt`.
+ * Backs a claim off and flags it for review after its processing threw.
  *
- * Escalates on the FIRST throw rather than after N attempts: the attempt
- * counter only advances through the normal path, so a row that throws every
- * time would never reach the threshold. Parking one claim for an operator is
- * the cheaper error here than looping silently on a charged-but-unpaid debit.
+ * Every backoff and every escalation to `reviewRequiredAt` is written by
+ * scheduleTaskPaymentClaimRetry, which a throw skips — so without this the row
+ * keeps `nextAttemptAt` in the past, sorts first on every tick, and stays
+ * invisible to all three operator levers, each of which filters on
+ * `reviewRequiredAt`.
  *
- * Two scoped writes, no read: `reviewRequiredAt: null` in the where clause both
- * targets the not-yet-escalated row and tells us, via the affected count,
- * whether this call is the one that escalated it — so the page fires exactly
- * once without a read-then-write race.
+ * Scoped on `processingToken` like every other mutation in this file. Without
+ * it, a worker whose throw was *caused by* losing its lease would clear the
+ * lease of the worker that legitimately took over — and if that worker's remote
+ * POST had already succeeded its `markTaskPaymentClaimPurchased` would then
+ * fail, leaving a live on-chain purchase attached to a claim an operator would
+ * go on to refund.
+ *
+ * Escalates on the FIRST throw rather than after N attempts: `attemptCount`
+ * only advances through the normal path, so a row that throws every time would
+ * never reach the threshold. Parking one claim for an operator is the cheaper
+ * error than looping silently on a charged-but-unpaid debit.
  */
 async function escalateUnprocessableTaskPaymentClaim(
   claimId: string,
+  processingToken: string,
   reason: string,
 ): Promise<void> {
-  const failureReason = reason.slice(0, MAX_FAILURE_REASON_LENGTH);
-  const nextAttemptAt = new Date(Date.now() + RETRY_MAX_MS);
   try {
     const escalated = await prisma.taskPaymentClaim.updateMany({
       where: {
         id: claimId,
         status: TaskPaymentClaimStatus.PENDING,
-        reviewRequiredAt: null,
+        processingToken,
       },
       data: {
-        failureReason,
-        nextAttemptAt,
+        failureReason: reason.slice(0, MAX_FAILURE_REASON_LENGTH),
+        nextAttemptAt: new Date(Date.now() + RETRY_MAX_MS),
         processingStartedAt: null,
         processingToken: null,
         reviewRequiredAt: new Date(),
@@ -722,21 +744,12 @@ async function escalateUnprocessableTaskPaymentClaim(
       Sentry.captureMessage("Task payment claim requires review", {
         level: "error",
         tags: { error_type: "task_payment_claim_review_required" },
-        extra: { claimId, reason: failureReason },
+        extra: {
+          claimId,
+          reason: reason.slice(0, MAX_FAILURE_REASON_LENGTH),
+        },
       });
-      return;
     }
-    // Already under review: still release the lease and back the row off so a
-    // repeat throw cannot re-enter the batch every two minutes.
-    await prisma.taskPaymentClaim.updateMany({
-      where: { id: claimId, status: TaskPaymentClaimStatus.PENDING },
-      data: {
-        failureReason,
-        nextAttemptAt,
-        processingStartedAt: null,
-        processingToken: null,
-      },
-    });
   } catch (escalationError) {
     // Best-effort: escalation must not abort the remaining batch.
     console.error(
@@ -809,10 +822,8 @@ export async function syncPendingTaskPaymentClaims(
       // the queue forever either. Every backoff and every escalation to
       // `reviewRequiredAt` is written by scheduleTaskPaymentClaimRetry, which a
       // throw skips — so without this the row keeps `nextAttemptAt` in the past,
-      // sorts first on every tick, and never becomes visible to the operator
-      // levers (all three filter on `reviewRequiredAt`). Push it out of the way
-      // AND into review here.
-      const reason = error instanceof Error ? error.message : String(error);
+      // sorts first on every tick. processTaskPaymentClaim escalates it under
+      // the lease token it still owns before rethrowing; this is the report.
       console.error(
         `[sync/task-payment-claims] Failed to process claim ${claim.id}:`,
         error,
@@ -821,7 +832,6 @@ export async function syncPendingTaskPaymentClaims(
         tags: { error_type: "task_payment_claim_process_failed" },
         extra: { claimId: claim.id },
       });
-      await escalateUnprocessableTaskPaymentClaim(claim.id, reason);
     }
   }
   return { processed, eligible, reviewRequired };

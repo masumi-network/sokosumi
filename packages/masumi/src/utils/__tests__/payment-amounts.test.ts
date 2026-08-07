@@ -144,10 +144,15 @@ describe("toMasumiPaymentNodeAmounts", () => {
     ).toEqual([{ unit: "", amount: "3000000" }]);
   });
 
-  it("also converts the empty-string spelling the registry sometimes serves", () => {
-    expect(toMasumiPaymentNodeAmounts([{ unit: "", amount: "1" }])).toEqual([
-      { unit: "", amount: "1" },
+  it("is idempotent for the empty-string spelling the registry also serves", () => {
+    // The registry emits ADA both ways; converting an already-converted value
+    // must not change it. Distinct from the lovelace case above, which is the
+    // one that actually converts.
+    const once = toMasumiPaymentNodeAmounts([
+      { unit: "lovelace", amount: "1" },
     ]);
+    expect(toMasumiPaymentNodeAmounts(once)).toEqual(once);
+    expect(once).toEqual([{ unit: "", amount: "1" }]);
   });
 
   it("leaves policy+asset units untouched", () => {
