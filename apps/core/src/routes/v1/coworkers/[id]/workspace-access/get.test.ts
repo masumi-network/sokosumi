@@ -47,6 +47,13 @@ function baseAccess(
     id: accessId,
     coworkerId,
     coworker: { name: "Ops Pilot", slug: "ops-pilot" },
+    workspace: {
+      id: "workspace-1",
+      userId: null,
+      organizationId: "org-1",
+      user: null,
+      organization: { name: "Acme Corp", slug: "acme-corp" },
+    },
     workspaceId,
     status: overrides.status ?? CoworkerWorkspaceAccessStatus.PENDING,
     requestedByUserId: "user_123",
@@ -113,6 +120,25 @@ describe("GET /coworkers/{id}/workspace-access", () => {
       include: {
         coworker: {
           select: { name: true, slug: true },
+        },
+        workspace: {
+          select: {
+            id: true,
+            userId: true,
+            organizationId: true,
+            user: {
+              select: {
+                name: true,
+                email: true,
+              },
+            },
+            organization: {
+              select: {
+                name: true,
+                slug: true,
+              },
+            },
+          },
         },
       },
     });

@@ -5,6 +5,7 @@ import { forbidden } from "@/helpers/error";
 
 import {
   approveCoworkerWorkspaceAccess,
+  type CoworkerWorkspaceAccessWithCoworker,
   denyCoworkerWorkspaceAccess,
   forceRevokeCoworkerWorkspaceAccessByPair,
   isCoworkerAccessTerminal,
@@ -100,6 +101,7 @@ function baseAccess(
     createdAt: Date;
     updatedAt: Date;
     coworker: { name: string; slug: string };
+    workspace: CoworkerWorkspaceAccessWithCoworker["workspace"];
   }> = {},
 ) {
   return {
@@ -113,6 +115,13 @@ function baseAccess(
     createdAt: now,
     updatedAt: now,
     coworker: { name: "Ops Pilot", slug: "ops-pilot" },
+    workspace: {
+      id: "workspace-1",
+      userId: null,
+      organizationId: "org-1",
+      user: null,
+      organization: { name: "Acme Corp", slug: "acme-corp" },
+    },
     ...overrides,
   };
 }
@@ -243,6 +252,9 @@ describe("coworker-workspace-access helpers", () => {
         coworkerName: "Ops Pilot",
         coworkerSlug: "ops-pilot",
         workspaceId: row.workspaceId,
+        workspaceKind: "organization",
+        workspaceDisplayName: "Acme Corp",
+        workspaceDisplayDetail: "acme-corp",
         status: CoworkerWorkspaceAccessStatus.GRANTED,
         requestedByUserId: row.requestedByUserId,
         resolvedAt: now.toISOString(),
@@ -398,6 +410,25 @@ describe("coworker-workspace-access helpers", () => {
             coworker: {
               select: { name: true, slug: true },
             },
+            workspace: {
+              select: {
+                id: true,
+                userId: true,
+                organizationId: true,
+                user: {
+                  select: {
+                    name: true,
+                    email: true,
+                  },
+                },
+                organization: {
+                  select: {
+                    name: true,
+                    slug: true,
+                  },
+                },
+              },
+            },
           },
         }),
       );
@@ -550,6 +581,25 @@ describe("coworker-workspace-access helpers", () => {
         include: {
           coworker: {
             select: { name: true, slug: true },
+          },
+          workspace: {
+            select: {
+              id: true,
+              userId: true,
+              organizationId: true,
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+              organization: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
           },
         },
       });
@@ -730,6 +780,25 @@ describe("coworker-workspace-access helpers", () => {
           coworker: {
             select: { name: true, slug: true },
           },
+          workspace: {
+            select: {
+              id: true,
+              userId: true,
+              organizationId: true,
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+              organization: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+          },
         },
       });
     });
@@ -777,6 +846,25 @@ describe("coworker-workspace-access helpers", () => {
           coworker: {
             select: { name: true, slug: true },
           },
+          workspace: {
+            select: {
+              id: true,
+              userId: true,
+              organizationId: true,
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+              organization: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+          },
         },
       });
     });
@@ -823,6 +911,25 @@ describe("coworker-workspace-access helpers", () => {
         include: {
           coworker: {
             select: { name: true, slug: true },
+          },
+          workspace: {
+            select: {
+              id: true,
+              userId: true,
+              organizationId: true,
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+              organization: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
           },
         },
       });
@@ -968,6 +1075,25 @@ describe("coworker-workspace-access helpers", () => {
           coworker: {
             select: { name: true, slug: true },
           },
+          workspace: {
+            select: {
+              id: true,
+              userId: true,
+              organizationId: true,
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+              organization: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
+          },
         },
       });
     });
@@ -1003,6 +1129,25 @@ describe("coworker-workspace-access helpers", () => {
         include: {
           coworker: {
             select: { name: true, slug: true },
+          },
+          workspace: {
+            select: {
+              id: true,
+              userId: true,
+              organizationId: true,
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+              organization: {
+                select: {
+                  name: true,
+                  slug: true,
+                },
+              },
+            },
           },
         },
       });

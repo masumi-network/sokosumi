@@ -40,6 +40,13 @@ function baseAccess(
     id: accessId,
     coworkerId,
     coworker: { name: "Ops Pilot", slug: "ops-pilot" },
+    workspace: {
+      id: "workspace-1",
+      userId: null,
+      organizationId: "org-1",
+      user: null,
+      organization: { name: "Acme Corp", slug: "acme-corp" },
+    },
     workspaceId,
     status: overrides.status ?? CoworkerWorkspaceAccessStatus.REVOKED,
     requestedByUserId: null,

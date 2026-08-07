@@ -7,6 +7,10 @@ export const coworkerWorkspaceAccessStatusSchema = z
   .enum(CoworkerWorkspaceAccessStatus)
   .openapi({ example: CoworkerWorkspaceAccessStatus.PENDING });
 
+export const coworkerWorkspaceAccessWorkspaceKindSchema = z
+  .enum(["user", "organization"])
+  .openapi({ example: "organization" });
+
 export const coworkerWorkspaceAccessSchema = z
   .object({
     id: z
@@ -17,6 +21,12 @@ export const coworkerWorkspaceAccessSchema = z
     coworkerName: z.string().openapi({ example: "Ops Pilot" }),
     coworkerSlug: z.string().openapi({ example: "ops-pilot" }),
     workspaceId: z.string().uuid(),
+    /** Personal vs organization workspace. */
+    workspaceKind: coworkerWorkspaceAccessWorkspaceKindSchema,
+    /** User name or organization name. */
+    workspaceDisplayName: z.string().openapi({ example: "Acme Corp" }),
+    /** User email or organization slug. */
+    workspaceDisplayDetail: z.string().openapi({ example: "acme-corp" }),
     status: coworkerWorkspaceAccessStatusSchema,
     requestedByUserId: z.string().nullable(),
     resolvedAt: dateTimeSchema.nullable(),

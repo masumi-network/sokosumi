@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
+import { WorkspaceAccessRow } from "@/components/coworker-access/workspace-access-row";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,7 +20,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { grantDeveloperCoworkerEarlyAccessAction } from "@/lib/actions/coworkers/workspace-access.action";
 import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
-import { coworkerAccessStatusMessageKey } from "@/lib/utils/coworker-access-display";
 
 interface DeveloperCoworkerEarlyAccessProps {
   coworkerId: string;
@@ -92,18 +91,11 @@ export function DeveloperCoworkerEarlyAccess({
           ) : (
             <ul className="divide-border divide-y rounded-lg border">
               {accessRows.map((row) => (
-                <li
+                <WorkspaceAccessRow
                   key={row.id}
-                  className="flex flex-col gap-1 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <span className="font-mono text-xs">{row.workspaceId}</span>
-                  <Badge
-                    variant="secondary"
-                    className="h-5 w-fit px-1.5 text-xs"
-                  >
-                    {t(coworkerAccessStatusMessageKey(row.status))}
-                  </Badge>
-                </li>
+                  row={row}
+                  statusNamespace="App.Developer.Coworkers.EarlyAccess"
+                />
               ))}
             </ul>
           )}

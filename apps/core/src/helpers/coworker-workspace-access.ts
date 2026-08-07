@@ -32,12 +32,38 @@ export const coworkerWorkspaceAccessInclude = {
       slug: true,
     },
   },
+  workspace: {
+    select: {
+      id: true,
+      userId: true,
+      organizationId: true,
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+      organization: {
+        select: {
+          name: true,
+          slug: true,
+        },
+      },
+    },
+  },
 } satisfies Prisma.CoworkerWorkspaceAccessInclude;
 
 export type CoworkerWorkspaceAccessWithCoworker = CoworkerWorkspaceAccess & {
   coworker: {
     name: string;
     slug: string;
+  };
+  workspace: {
+    id: string;
+    userId: string | null;
+    organizationId: string | null;
+    user: { name: string; email: string } | null;
+    organization: { name: string; slug: string } | null;
   };
 };
 
@@ -150,6 +176,44 @@ export function isCoworkerAccessTerminal(
   );
 }
 
+function workspaceDisplayFields(
+  workspace: CoworkerWorkspaceAccessWithCoworker["workspace"],
+): Pick<
+  CoworkerWorkspaceAccessDto,
+  "workspaceKind" | "workspaceDisplayName" | "workspaceDisplayDetail"
+> {
+  if (workspace.organization) {
+    return {
+      workspaceKind: "organization",
+      workspaceDisplayName: workspace.organization.name,
+      workspaceDisplayDetail: workspace.organization.slug,
+    };
+  }
+
+  if (workspace.user) {
+    return {
+      workspaceKind: "user",
+      workspaceDisplayName: workspace.user.name,
+      workspaceDisplayDetail: workspace.user.email,
+    };
+  }
+
+  // Degenerate row: prefer organizationId as kind when set.
+  if (workspace.organizationId) {
+    return {
+      workspaceKind: "organization",
+      workspaceDisplayName: workspace.id,
+      workspaceDisplayDetail: workspace.organizationId,
+    };
+  }
+
+  return {
+    workspaceKind: "user",
+    workspaceDisplayName: workspace.id,
+    workspaceDisplayDetail: workspace.userId ?? workspace.id,
+  };
+}
+
 export function toCoworkerWorkspaceAccessApiShape(
   row: CoworkerWorkspaceAccessWithCoworker,
 ): CoworkerWorkspaceAccessDto {
@@ -159,6 +223,7 @@ export function toCoworkerWorkspaceAccessApiShape(
     coworkerName: row.coworker.name,
     coworkerSlug: row.coworker.slug,
     workspaceId: row.workspaceId,
+    ...workspaceDisplayFields(row.workspace),
     status: row.status,
     requestedByUserId: row.requestedByUserId,
     resolvedAt: row.resolvedAt ? toIsoDateTime(row.resolvedAt) : null,

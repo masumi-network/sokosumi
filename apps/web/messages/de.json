@@ -3405,7 +3405,15 @@
             "success": "Coworker Early Access gewährt",
             "revokeSuccess": "Coworker Early Access widerrufen",
             "error": "Early Access konnte nicht gewährt werden",
-            "revokeError": "Early Access konnte nicht widerrufen werden"
+            "revokeError": "Early Access konnte nicht widerrufen werden",
+            "listTitle": "Workspace-Zugriff",
+            "listEmpty": "Noch keine Workspace-Zugriffszeilen.",
+            "workspaceKindOrganization": "Organisation",
+            "workspaceKindUser": "Benutzer",
+            "statusPending": "Ausstehend",
+            "statusGranted": "Freigegeben",
+            "statusDenied": "Abgelehnt",
+            "statusRevoked": "Widerrufen"
           },
           "cancel": "Cancel",
           "validation": {
@@ -4691,7 +4699,9 @@
           "statusPending": "Ausstehend",
           "statusGranted": "Freigegeben",
           "statusDenied": "Abgelehnt",
-          "statusRevoked": "Widerrufen"
+          "statusRevoked": "Widerrufen",
+          "workspaceKindOrganization": "Organisation",
+          "workspaceKindUser": "Benutzer"
         }
       },
       "Tasks": {

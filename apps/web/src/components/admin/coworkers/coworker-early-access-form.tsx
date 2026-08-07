@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
@@ -9,6 +10,7 @@ import {
   AsyncSearchCombobox,
   buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
+import { WorkspaceAccessRow } from "@/components/coworker-access/workspace-access-row";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,11 +29,13 @@ import {
   searchOrganizationsClient,
   searchUsersClient,
 } from "@/lib/actions/admin-search/client";
+import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 
 interface CoworkerEarlyAccessFormProps {
   coworkerId: string;
+  accessRows?: CoworkerWorkspaceAccess[];
   disabled?: boolean;
 }
 
@@ -39,11 +43,13 @@ type EarlyAccessTargetType = "organization" | "user";
 
 export function CoworkerEarlyAccessForm({
   coworkerId,
+  accessRows = [],
   disabled = false,
 }: CoworkerEarlyAccessFormProps) {
   const t = useTranslations("App.Admin.Coworkers.Form.EarlyAccess");
   const tOrg = useTranslations("Components.OrganizationCombobox");
   const tUser = useTranslations("Components.UserCombobox");
+  const router = useRouter();
   const [targetType, setTargetType] =
     useState<EarlyAccessTargetType>("organization");
   const [selectedOrg, setSelectedOrg] =
@@ -96,6 +102,7 @@ export function CoworkerEarlyAccessForm({
       setSelectedOrg(null);
       setSelectedUser(null);
       toast.success(mode === "grant" ? t("success") : t("revokeSuccess"));
+      router.refresh();
     } finally {
       setIsGranting(false);
       setIsRevoking(false);
@@ -110,7 +117,24 @@ export function CoworkerEarlyAccessForm({
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        <section className="space-y-3">
+          <h3 className="text-sm font-medium">{t("listTitle")}</h3>
+          {accessRows.length === 0 ? (
+            <p className="text-muted-foreground text-sm">{t("listEmpty")}</p>
+          ) : (
+            <ul className="divide-border divide-y rounded-lg border">
+              {accessRows.map((row) => (
+                <WorkspaceAccessRow
+                  key={row.id}
+                  row={row}
+                  statusNamespace="App.Admin.Coworkers.Form.EarlyAccess"
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+
         <form
           className="space-y-4"
           onSubmit={(event: FormEvent<HTMLFormElement>) => {

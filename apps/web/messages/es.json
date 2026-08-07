@@ -3473,7 +3473,15 @@
             "success": "Acceso anticipado concedido",
             "revokeSuccess": "Acceso anticipado revocado",
             "error": "No se pudo conceder el acceso anticipado",
-            "revokeError": "No se pudo revocar el acceso anticipado"
+            "revokeError": "No se pudo revocar el acceso anticipado",
+            "listTitle": "Acceso al espacio de trabajo",
+            "listEmpty": "Aún no hay filas de acceso.",
+            "workspaceKindOrganization": "Organización",
+            "workspaceKindUser": "Usuario",
+            "statusPending": "Pendiente",
+            "statusGranted": "Concedido",
+            "statusDenied": "Denegado",
+            "statusRevoked": "Revocado"
           },
           "cancel": "Cancel",
           "validation": {
@@ -4691,7 +4699,9 @@
           "statusPending": "Pendiente",
           "statusGranted": "Concedido",
           "statusDenied": "Denegado",
-          "statusRevoked": "Revocado"
+          "statusRevoked": "Revocado",
+          "workspaceKindOrganization": "Organización",
+          "workspaceKindUser": "Usuario"
         }
       },
       "Tasks": {

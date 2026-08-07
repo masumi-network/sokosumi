@@ -8851,6 +8851,22 @@ export const CoworkerWorkspaceAccessSchema = {
             type: 'string',
             format: 'uuid'
         },
+        workspaceKind: {
+            type: 'string',
+            enum: [
+                'user',
+                'organization'
+            ],
+            example: 'organization'
+        },
+        workspaceDisplayName: {
+            type: 'string',
+            example: 'Acme Corp'
+        },
+        workspaceDisplayDetail: {
+            type: 'string',
+            example: 'acme-corp'
+        },
         status: {
             type: 'string',
             enum: [
@@ -8898,6 +8914,9 @@ export const CoworkerWorkspaceAccessSchema = {
         'coworkerName',
         'coworkerSlug',
         'workspaceId',
+        'workspaceKind',
+        'workspaceDisplayName',
+        'workspaceDisplayDetail',
         'status',
         'requestedByUserId',
         'resolvedAt',

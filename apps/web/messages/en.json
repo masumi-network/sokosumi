@@ -3465,7 +3465,15 @@
             "success": "Coworker early access granted",
             "revokeSuccess": "Coworker early access revoked",
             "error": "Failed to grant coworker early access",
-            "revokeError": "Failed to revoke coworker early access"
+            "revokeError": "Failed to revoke coworker early access",
+            "listTitle": "Workspace access",
+            "listEmpty": "No workspace access rows yet.",
+            "workspaceKindOrganization": "Organization",
+            "workspaceKindUser": "User",
+            "statusPending": "Pending",
+            "statusGranted": "Granted",
+            "statusDenied": "Denied",
+            "statusRevoked": "Revoked"
           },
           "cancel": "Cancel",
           "validation": {
@@ -4719,7 +4727,9 @@
           "statusPending": "Pending",
           "statusGranted": "Granted",
           "statusDenied": "Denied",
-          "statusRevoked": "Revoked"
+          "statusRevoked": "Revoked",
+          "workspaceKindOrganization": "Organization",
+          "workspaceKindUser": "User"
         }
       },
       "Tasks": {

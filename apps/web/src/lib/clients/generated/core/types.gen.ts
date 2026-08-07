@@ -2630,6 +2630,9 @@ export type CoworkerWorkspaceAccess = {
     coworkerName: string;
     coworkerSlug: string;
     workspaceId: string;
+    workspaceKind: 'user' | 'organization';
+    workspaceDisplayName: string;
+    workspaceDisplayDetail: string;
     status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
     requestedByUserId: string | null;
     resolvedAt: Date | null;
