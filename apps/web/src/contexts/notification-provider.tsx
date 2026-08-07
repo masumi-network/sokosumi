@@ -45,6 +45,8 @@ interface NotificationContextValue {
   unreadCount: number;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
+  /** Drop a notification from local feed state (e.g. resolved vendor grant). */
+  removeNotification: (id: string) => void;
   refetch: () => Promise<void>;
   isLoading: boolean;
   hasFetchError: boolean;
@@ -103,7 +105,8 @@ type NotificationAction =
       updated: NotificationItem;
     }
   | { type: "mark_read_optimistic"; id: string }
-  | { type: "mark_all_read" };
+  | { type: "mark_all_read" }
+  | { type: "remove"; id: string };
 
 export function notificationReducer(
   state: NotificationState,
@@ -214,6 +217,24 @@ export function notificationReducer(
             : state.unreadCount,
       };
     }
+    case "remove": {
+      const existing = state.notifications.find(
+        (notification) => notification.id === action.id,
+      );
+
+      if (!existing) {
+        return state;
+      }
+
+      return {
+        notifications: state.notifications.filter(
+          (notification) => notification.id !== action.id,
+        ),
+        unreadCount: existing.isRead
+          ? state.unreadCount
+          : Math.max(0, state.unreadCount - 1),
+      };
+    }
     case "mark_all_read": {
       const readAt = new Date();
 
@@ -246,11 +267,14 @@ export function useNotifications() {
 
 async function noopAsync(): Promise<void> {}
 
+function noopRemove(_id: string): void {}
+
 const NOTIFICATION_FALLBACK_VALUE: NotificationContextValue = {
   notifications: [],
   unreadCount: 0,
   markRead: noopAsync,
   markAllRead: noopAsync,
+  removeNotification: noopRemove,
   refetch: noopAsync,
   isLoading: true,
   hasFetchError: false,
@@ -394,6 +418,11 @@ export function NotificationProvider({
     [fetchNotifications],
   );
 
+  const removeNotification = useCallback((id: string) => {
+    dispatch({ type: "remove", id });
+    dismissNotificationToast(id);
+  }, []);
+
   const handleNotificationEvent = useCallback(
     (notification: NotificationEventData) => {
       dispatch({
@@ -422,6 +451,7 @@ export function NotificationProvider({
     unreadCount,
     markRead,
     markAllRead,
+    removeNotification,
     refetch: fetchNotifications,
     isLoading,
     hasFetchError,

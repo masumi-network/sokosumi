@@ -10,6 +10,7 @@ import {
   approveVendorGrantInWorkspace,
   buildCoworkerTaskListAccessFilter,
   cancelParkedTasksForGrant,
+  denyVendorGrantInWorkspace,
   grantWorkspaceAccess,
   hasGrantedWorkspaceAccess,
   isBaselineCoworkerTaskAccess,
@@ -34,6 +35,7 @@ const taskEventCreate = vi.fn();
 const memberFindMany = vi.fn();
 const workspaceFindUnique = vi.fn();
 const createNotificationMock = vi.fn();
+const deletePendingVendorGrantNotificationsMock = vi.fn();
 const queryRawMock = vi.fn();
 const executeRawMock = vi.fn();
 
@@ -67,6 +69,8 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/helpers/notifications", () => ({
   createNotification: (...args: unknown[]) => createNotificationMock(...args),
+  deletePendingVendorGrantNotifications: (...args: unknown[]) =>
+    deletePendingVendorGrantNotificationsMock(...args),
 }));
 
 describe("vendor-grants helpers", () => {
@@ -74,6 +78,7 @@ describe("vendor-grants helpers", () => {
     vi.clearAllMocks();
     queryRawMock.mockResolvedValue([]);
     executeRawMock.mockResolvedValue(undefined);
+    deletePendingVendorGrantNotificationsMock.mockResolvedValue(0);
   });
 
   it("maps Prisma workspace permission to API string", () => {
@@ -536,6 +541,10 @@ describe("vendor-grants helpers", () => {
       }),
     );
     expect(taskUpdateMany).toHaveBeenCalled();
+    expect(deletePendingVendorGrantNotificationsMock).toHaveBeenCalledWith(
+      "g1",
+      expect.anything(),
+    );
   });
 
   it("unparks on approve even when grant is already GRANTED", async () => {
@@ -594,8 +603,117 @@ describe("vendor-grants helpers", () => {
         grantResumeStatus: null,
       },
     });
+    expect(deletePendingVendorGrantNotificationsMock).toHaveBeenCalledWith(
+      "g1",
+      tx,
+    );
     const lockSql = queryRawMock.mock.calls[0]![0] as TemplateStringsArray;
     expect(lockSql.join(" ")).toContain("FOR UPDATE");
+  });
+
+  it("deletes pending notifications when approving a PENDING grant", async () => {
+    const existing = {
+      id: "g1",
+      vendorId: "v1",
+      workspaceId: "w1",
+      permission: VendorPermission.workspace,
+      status: VendorGrantStatus.PENDING,
+      requestedByUserId: "u0",
+      resolvedAt: null,
+      resolvedById: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: { name: "V", slug: "v" },
+    };
+    vendorGrantFindFirst.mockResolvedValue(existing);
+    vendorGrantUpdate.mockResolvedValue({
+      ...existing,
+      status: VendorGrantStatus.GRANTED,
+      resolvedAt: new Date(),
+      resolvedById: "u1",
+    });
+    taskFindMany.mockResolvedValue([]);
+    taskUpdateMany.mockResolvedValue({ count: 0 });
+
+    const tx = {
+      $queryRaw: queryRawMock,
+      vendorGrant: {
+        findFirst: vendorGrantFindFirst,
+        update: vendorGrantUpdate,
+      },
+      task: {
+        findMany: taskFindMany,
+        updateMany: taskUpdateMany,
+      },
+      taskEvent: { create: taskEventCreate },
+    };
+
+    await approveVendorGrantInWorkspace(
+      {
+        grantId: "g1",
+        workspaceId: "w1",
+        resolvedById: "u1",
+      },
+      tx as never,
+    );
+
+    expect(deletePendingVendorGrantNotificationsMock).toHaveBeenCalledWith(
+      "g1",
+      tx,
+    );
+  });
+
+  it("deletes pending notifications when denying a PENDING grant", async () => {
+    const existing = {
+      id: "g1",
+      vendorId: "v1",
+      workspaceId: "w1",
+      permission: VendorPermission.workspace,
+      status: VendorGrantStatus.PENDING,
+      requestedByUserId: "u0",
+      resolvedAt: null,
+      resolvedById: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      vendor: { name: "V", slug: "v" },
+    };
+    vendorGrantFindFirst.mockResolvedValue(existing);
+    vendorGrantUpdate.mockResolvedValue({
+      ...existing,
+      status: VendorGrantStatus.DENIED,
+      resolvedAt: new Date(),
+      resolvedById: "u1",
+    });
+    taskFindMany.mockResolvedValue([]);
+    taskUpdateMany.mockResolvedValue({ count: 0 });
+    taskEventCreate.mockResolvedValue({ id: "ev1" });
+
+    const tx = {
+      $queryRaw: queryRawMock,
+      vendorGrant: {
+        findFirst: vendorGrantFindFirst,
+        update: vendorGrantUpdate,
+      },
+      task: {
+        findMany: taskFindMany,
+        updateMany: taskUpdateMany,
+      },
+      taskEvent: { create: taskEventCreate },
+    };
+
+    await denyVendorGrantInWorkspace(
+      {
+        grantId: "g1",
+        workspaceId: "w1",
+        resolvedById: "u1",
+      },
+      tx as never,
+    );
+
+    expect(deletePendingVendorGrantNotificationsMock).toHaveBeenCalledWith(
+      "g1",
+      tx,
+    );
   });
 
   it("notifies approvers via notifyWorkspaceApproversOfPendingGrant", async () => {

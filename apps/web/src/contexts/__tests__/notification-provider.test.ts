@@ -92,6 +92,32 @@ describe("notificationReducer", () => {
     expect(afterMarkRead.unreadCount).toBe(1);
   });
 
+  it("removes a notification and decrements unread when it was unread", () => {
+    const unread = createNotification({ id: "n1", isRead: false });
+    const read = createNotification({ id: "n2", isRead: true });
+
+    const afterRemove = notificationReducer(
+      { notifications: [unread, read], unreadCount: 1 },
+      { type: "remove", id: "n1" },
+    );
+
+    expect(afterRemove.notifications.map((n) => n.id)).toEqual(["n2"]);
+    expect(afterRemove.unreadCount).toBe(0);
+  });
+
+  it("removes a read notification without changing unread count", () => {
+    const unread = createNotification({ id: "n1", isRead: false });
+    const read = createNotification({ id: "n2", isRead: true });
+
+    const afterRemove = notificationReducer(
+      { notifications: [unread, read], unreadCount: 1 },
+      { type: "remove", id: "n2" },
+    );
+
+    expect(afterRemove.notifications.map((n) => n.id)).toEqual(["n1"]);
+    expect(afterRemove.unreadCount).toBe(1);
+  });
+
   it("applies fetch and realtime updates atomically without losing unread count", () => {
     const realtimeNotification = createNotification({
       id: "notification-realtime",

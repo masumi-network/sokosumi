@@ -7,6 +7,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useNotifications } from "@/contexts/notification-provider";
 import type { ActionError } from "@/lib/actions/errors";
 import type { Result } from "@/lib/ts-res";
 
@@ -38,6 +39,7 @@ export function VendorGrantApprovalActions({
   onDeny,
 }: VendorGrantApprovalActionsProps) {
   const router = useRouter();
+  const { refetch: refetchNotifications } = useNotifications();
   const [loadingAction, setLoadingAction] = useState<"approve" | "deny" | null>(
     null,
   );
@@ -48,6 +50,7 @@ export function VendorGrantApprovalActions({
   ) {
     setLoadingAction(action);
     let shouldRefresh = false;
+    let shouldRefetchNotifications = false;
     try {
       const result = await mutation();
       if (!result.ok) {
@@ -66,6 +69,7 @@ export function VendorGrantApprovalActions({
           : (labels.denySuccess ?? labels.approveSuccess);
       toast.success(successMessage);
       shouldRefresh = true;
+      shouldRefetchNotifications = true;
     } catch {
       toast.error(
         action === "approve"
@@ -76,6 +80,11 @@ export function VendorGrantApprovalActions({
     } finally {
       if (shouldRefresh) {
         router.refresh();
+      }
+      if (shouldRefetchNotifications) {
+        void refetchNotifications().catch(() => {
+          // Feed will catch up on next open / realtime subscribe.
+        });
       }
       setLoadingAction(null);
     }

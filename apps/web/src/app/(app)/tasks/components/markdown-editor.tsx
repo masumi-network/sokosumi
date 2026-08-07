@@ -47,6 +47,7 @@ import {
   htmlToMarkdown,
   markdownToHtml,
 } from "@/lib/utils/composer-markdown-dom";
+import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { normalizeUrl } from "@/lib/utils/markdown-editor-utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 
@@ -700,9 +701,9 @@ export const MarkdownEditor = forwardRef<
         data-placeholder={placeholder}
         role="textbox"
         aria-multiline="true"
-        className={cn(
+        className={withEditableTextSize(
           "markdown-compose-surface",
-          "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto px-3 py-2 text-base md:text-sm",
+          "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto px-3 py-2",
           "outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
           "empty:before:text-muted-foreground empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]",

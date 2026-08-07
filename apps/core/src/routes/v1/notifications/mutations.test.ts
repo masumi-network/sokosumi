@@ -11,23 +11,31 @@ import mountGetUnreadCount from "./unread-count/get";
 
 const {
   notificationCountMock,
+  notificationFindManyMock,
   notificationFindUniqueMock,
   notificationUpdateManyMock,
   notificationUpdateMock,
+  vendorGrantFindManyMock,
 } = vi.hoisted(() => ({
   notificationCountMock: vi.fn(),
+  notificationFindManyMock: vi.fn(),
   notificationFindUniqueMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
   notificationUpdateMock: vi.fn(),
+  vendorGrantFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     notification: {
       count: notificationCountMock,
+      findMany: notificationFindManyMock,
       findUnique: notificationFindUniqueMock,
       update: notificationUpdateMock,
       updateMany: notificationUpdateManyMock,
+    },
+    vendorGrant: {
+      findMany: vendorGrantFindManyMock,
     },
   },
 }));
@@ -235,6 +243,8 @@ describe("GET /notifications/unread-count", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     notificationCountMock.mockResolvedValue(5);
+    notificationFindManyMock.mockResolvedValue([]);
+    vendorGrantFindManyMock.mockResolvedValue([]);
   });
 
   it("returns the unread count for the authenticated user", async () => {
@@ -268,6 +278,33 @@ describe("GET /notifications/unread-count", () => {
         userId: "user_123",
         isRead: false,
         kind: { notIn: [NotificationKind.CHAT] },
+      },
+    });
+  });
+
+  it("excludes resolved vendor-grant notifications from unread count", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { referenceId: "grant_resolved" },
+    ]);
+    vendorGrantFindManyMock.mockResolvedValue([
+      { id: "grant_resolved", status: "GRANTED" },
+    ]);
+
+    const app = createApp(mountGetUnreadCount);
+    const response = await app.request("http://localhost/unread-count");
+
+    expect(response.status).toBe(200);
+    expect(notificationCountMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_123",
+        isRead: false,
+        kind: { notIn: [NotificationKind.CHAT] },
+        NOT: {
+          AND: [
+            { messageKey: "notifications.vendorGrant.pending" },
+            { referenceId: { in: ["grant_resolved"] } },
+          ],
+        },
       },
     });
   });
