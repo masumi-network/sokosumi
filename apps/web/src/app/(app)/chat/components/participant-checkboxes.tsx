@@ -60,10 +60,10 @@ export function ParticipantCheckboxes({
   }, [coworkers, normalizedQuery]);
 
   return (
-    <div className="rounded-lg border bg-background">
-      <div className="border-b px-4 py-3">
+    <div className="min-w-0 overflow-hidden rounded-lg border bg-background">
+      <div className="border-b px-3 py-3">
         <div className="flex items-center justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-medium">{t("Dialog.participants")}</p>
             <p className="text-muted-foreground text-xs">
               {selectedCount > 0
@@ -84,7 +84,7 @@ export function ParticipantCheckboxes({
         </div>
       </div>
 
-      <ScrollArea className="h-[300px]">
+      <ScrollArea className="h-[300px]" shrinkContent>
         <div className="p-2">
           {membersLoadFailed ? (
             <div className="pb-2">
@@ -104,11 +104,11 @@ export function ParticipantCheckboxes({
                     <label
                       key={member.user.id}
                       className={cn(
-                        "flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
+                        "flex min-w-0 cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
                         checked ? "bg-muted/70" : "hover:bg-muted/50",
                       )}
                     >
-                      <Avatar className="size-8">
+                      <Avatar className="size-8 shrink-0">
                         <AvatarImage
                           src={member.user.image ?? undefined}
                           alt=""
@@ -126,6 +126,7 @@ export function ParticipantCheckboxes({
                         </span>
                       </span>
                       <Checkbox
+                        className="shrink-0"
                         checked={checked}
                         onCheckedChange={(nextChecked) =>
                           onMemberIdsChange(
@@ -158,11 +159,11 @@ export function ParticipantCheckboxes({
                     <label
                       key={coworker.id}
                       className={cn(
-                        "flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
+                        "flex min-w-0 cursor-pointer items-center gap-3 rounded-md px-2 py-2 transition-colors",
                         checked ? "bg-muted/70" : "hover:bg-muted/50",
                       )}
                     >
-                      <Avatar className="size-8">
+                      <Avatar className="size-8 shrink-0">
                         <AvatarImage src={coworker.image ?? undefined} alt="" />
                         <AvatarFallback className="text-xs">
                           {getInitials(coworker.name)}
@@ -180,6 +181,7 @@ export function ParticipantCheckboxes({
                         </span>
                       </span>
                       <Checkbox
+                        className="shrink-0"
                         checked={checked}
                         onCheckedChange={(nextChecked) =>
                           onCoworkerIdsChange(

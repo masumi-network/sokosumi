@@ -42,7 +42,14 @@ vi.mock("@/components/ui/mention-textarea-utils", async (importOriginal) => {
 describe("ComposerWysiwygEditor", () => {
   afterEach(() => {
     getPopupPositionFromRect.mockClear();
-    getMentionPopupPositionFromAnchorRect.mockClear();
+    getMentionPopupPositionFromAnchorRect.mockReset();
+    getMentionPopupPositionFromAnchorRect.mockImplementation(() => ({
+      top: 500,
+      left: 24,
+      side: "top" as const,
+      maxHeight: 200,
+      width: 420,
+    }));
   });
 
   it("disables Inter contextual alternates so ** markers stay aligned", () => {
@@ -58,7 +65,9 @@ describe("ComposerWysiwygEditor", () => {
     }
 
     render(<Harness />);
-    expect(screen.getByRole("textbox")).toHaveClass("markdown-compose-surface");
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveClass("markdown-compose-surface");
+    expect(editor).toHaveStyle({ scrollMarginTop: "252px" });
   });
 
   it("applies top-side flip and dynamic maxHeight to the mention listbox", () => {
@@ -92,8 +101,9 @@ describe("ComposerWysiwygEditor", () => {
     const listbox = screen.getByRole("listbox");
     expect(listbox).toHaveStyle({
       maxHeight: "120px",
-      transform: "translateY(-100%)",
+      bottom: `${window.innerHeight - 400}px`,
     });
+    expect(listbox.style.transform).toBe("");
     expect(getPopupPositionFromRect).toHaveBeenCalled();
     expect(getMentionPopupPositionFromAnchorRect).not.toHaveBeenCalled();
   });
@@ -133,9 +143,106 @@ describe("ComposerWysiwygEditor", () => {
     expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
       maxHeight: "200px",
-      transform: "translateY(-100%)",
+      bottom: `${window.innerHeight - 500}px`,
       width: "420px",
     });
+    expect(listbox.style.transform).toBe("");
+    expect(listbox).not.toHaveClass("w-72");
+  });
+
+  it("keeps composer-anchored mention placement when above-space collapses", () => {
+    getMentionPopupPositionFromAnchorRect.mockReturnValue({
+      top: 88,
+      left: 24,
+      side: "top" as const,
+      maxHeight: 80,
+      width: 420,
+    });
+
+    function Harness() {
+      const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button
+            type="button"
+            onClick={() => editorRef.current?.openMentions()}
+          >
+            open-mentions
+          </button>
+          <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+            <ComposerWysiwygEditor
+              ref={editorRef}
+              value={value}
+              onChange={setValue}
+              mentions={{
+                alice: { value: "Alice" },
+                bob: { value: "Bob" },
+              }}
+            />
+          </div>
+        </>
+      );
+    }
+
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "open-mentions" }));
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "80px",
+      bottom: `${window.innerHeight - 88}px`,
+      width: "420px",
+    });
+    expect(listbox.style.transform).toBe("");
+    expect(listbox).not.toHaveClass("w-72");
+  });
+
+  it("keeps composer-anchored emoji placement when above-space is tight", () => {
+    getMentionPopupPositionFromAnchorRect.mockReturnValue({
+      top: 88,
+      left: 24,
+      side: "top" as const,
+      maxHeight: 80,
+      width: 420,
+    });
+
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <div {...{ [ROOM_COMPOSER_MENTION_ANCHOR_ATTR]: "" }}>
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+        </div>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":smi";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    const listbox = screen.getByRole("listbox");
+    expect(getMentionPopupPositionFromAnchorRect).toHaveBeenCalled();
+    expect(getPopupPositionFromRect).not.toHaveBeenCalled();
+    expect(listbox).toHaveStyle({
+      maxHeight: "80px",
+      bottom: `${window.innerHeight - 88}px`,
+      width: "420px",
+    });
+    expect(listbox.style.transform).toBe("");
     expect(listbox).not.toHaveClass("w-72");
   });
 
@@ -279,9 +386,10 @@ describe("ComposerWysiwygEditor", () => {
     expect(getPopupPositionFromRect).not.toHaveBeenCalled();
     expect(listbox).toHaveStyle({
       maxHeight: "200px",
-      transform: "translateY(-100%)",
+      bottom: `${window.innerHeight - 500}px`,
       width: "420px",
     });
+    expect(listbox.style.transform).toBe("");
     expect(listbox).not.toHaveClass("w-72");
   });
 

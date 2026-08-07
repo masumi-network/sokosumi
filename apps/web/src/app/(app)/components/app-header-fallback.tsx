@@ -1,10 +1,12 @@
 import { Suspense } from "react";
 
+import { HeaderCenter } from "./header/header-center.client";
 import { HeaderChrome } from "./header/header-chrome.client";
 import {
   HeaderLeadingBrandFallback,
   HeaderLeadingControl,
 } from "./header/header-leading-control.client";
+import { HeaderTrailing } from "./header/header-trailing.client";
 
 interface AppHeaderFallbackProps {
   className?: string;
@@ -19,11 +21,11 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
         </Suspense>
       </div>
 
-      <div className="hidden min-w-0 flex-1 flex-row gap-2 sm:flex">
+      <HeaderCenter>
         <div className="bg-muted h-4 w-40 animate-pulse rounded-md" />
-      </div>
+      </HeaderCenter>
 
-      <div className="ml-auto flex min-w-0 shrink-0 items-center gap-2">
+      <HeaderTrailing>
         <div className="flex items-center gap-2">
           <div className="flex flex-col items-end gap-1">
             <div className="bg-muted h-4 w-28 animate-pulse rounded-md" />
@@ -31,7 +33,7 @@ export function AppHeaderFallback({ className }: AppHeaderFallbackProps) {
           </div>
           <div className="bg-muted size-8 animate-pulse rounded-full" />
         </div>
-      </div>
+      </HeaderTrailing>
     </HeaderChrome>
   );
 }

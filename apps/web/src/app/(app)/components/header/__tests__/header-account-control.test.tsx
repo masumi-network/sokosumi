@@ -1,6 +1,10 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  accountSummaryPopoverTestFlags,
+  resetAccountSummaryPopoverTestFlags,
+} from "@/app/components/sidebar/components/__tests__/account-summary-popover-test-utils";
 
 async function flushAnimationFrame() {
   await act(async () => {
@@ -25,6 +29,15 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/modals/global-modals-context", () => ({
   useGlobalModalsContext: () => ({ showLogoutModal: showLogoutModalMock }),
 }));
+
+vi.mock("@/components/ui/popover", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/ui/popover")>();
+  const { createAccountSummaryPopoverMock } = await import(
+    "@/app/components/sidebar/components/__tests__/account-summary-popover-test-utils"
+  );
+  return createAccountSummaryPopoverMock(actual);
+});
 
 import { HeaderAccountControl } from "@/app/components/header/header-account-control.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
@@ -85,6 +98,11 @@ function getPopoverScrollContainer(): HTMLElement {
 describe("HeaderAccountControl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetAccountSummaryPopoverTestFlags();
+  });
+
+  afterEach(() => {
+    resetAccountSummaryPopoverTestFlags();
   });
 
   it("shows Admin and Settings before Logout when admin is enabled", () => {
@@ -139,6 +157,47 @@ describe("HeaderAccountControl", () => {
     fireEvent.click(screen.getByRole("button", { name: "account" }));
 
     expect(pushMock).toHaveBeenCalledWith("/account");
+  });
+
+  it("does not flash the credits root when navigating away from settings", () => {
+    // forceMount keeps content through close (exit-animation window). If close
+    // remounted the menu at root, totalBalanceLabel would appear — assert the
+    // settings drill stays instead.
+    accountSummaryPopoverTestFlags.forceMount = true;
+    renderControl();
+    openControl();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "billing" }));
+
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+    expect(pushMock).toHaveBeenCalledWith("/billing");
+  });
+
+  it("starts at the root panel when reopened after closing from settings", () => {
+    // forceMount keeps the settings drill mounted across close so reopen must
+    // remount via menuInstance (open-only bump) to reach root again.
+    accountSummaryPopoverTestFlags.forceMount = true;
+    renderControl();
+    openControl();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /openSummary/ }));
+    openControl();
+
+    expect(
+      screen.getByRole("button", { name: "settings" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "back" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("totalBalanceLabel")).toBeInTheDocument();
   });
 
   it("moves keyboard focus into the settings drill when Settings is activated", async () => {
