@@ -27,7 +27,7 @@ export function normalizeMasumiPaymentUnit(unit: string): string {
  * `doMasumiPaymentAmountsMatch` normalizes both sides, so a node response that
  * spells ADA as "" still reconciles against a stored `lovelace` amount.
  */
-export function toMasumiPaymentNodeUnit(unit: string): string {
+function toMasumiPaymentNodeUnit(unit: string): string {
   return normalizeMasumiPaymentUnit(unit) === "lovelace" ? "" : unit;
 }
 

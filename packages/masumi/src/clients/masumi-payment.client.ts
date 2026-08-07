@@ -101,10 +101,6 @@ export interface PurchaseFailure {
 }
 
 /**
- * A 4xx other than the two retryable ones is the node rejecting this payload
- * as such; anything else (5xx, timeout, transport) leaves the outcome unknown.
- */
-/**
  * Statuses that mean "our infrastructure or credentials are wrong", not "the
  * node rejected this payload". They must stay retryable: on the task-payment
  * rail a `permanent` verdict is terminal — it refunds the claim, takes it out

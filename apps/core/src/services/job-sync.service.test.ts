@@ -1086,6 +1086,58 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(publishJobStatusDataMock).not.toHaveBeenCalled();
   });
 
+  it("still reconciles refunds when the agent phase has no budget left", async () => {
+    // The agent phase runs against a deadline reduced by REFUND_PHASE_RESERVED_MS
+    // (20s). With only 5s left in the run, the agent phase must get nothing and
+    // the refund phase — which returns money to users — must still run.
+    mockInitialJobQueries({
+      agent: [
+        createJob({
+          id: "job_agent_would_poll",
+          status: SokosumiJobStatus.PROCESSING,
+        }),
+      ],
+      pendingLocalRefunds: [
+        createJob({
+          id: "job_needs_refund",
+          status: SokosumiJobStatus.PAYMENT_FAILED,
+          payByTime: new Date("2026-03-18T09:45:00.000Z"),
+          purchase: {
+            externalId: "purchase_needs_refund",
+            onChainStatus: null,
+            resultHash: null,
+            nextAction: "NONE",
+            nextActionErrorType: null,
+            nextActionErrorNote: null,
+          },
+        }),
+      ],
+    });
+    getJobByIdMock.mockResolvedValueOnce(
+      createJob({
+        id: "job_needs_refund",
+        status: SokosumiJobStatus.REFUND_PENDING,
+        payByTime: new Date("2026-03-18T09:45:00.000Z"),
+        purchase: {
+          externalId: "purchase_needs_refund",
+          onChainStatus: null,
+          resultHash: null,
+          nextAction: "SET_REFUND_REQUESTED_REQUESTED",
+          nextActionErrorType: null,
+          nextActionErrorNote: null,
+        },
+      }),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(
+      createExecutionOptions({ deadlineMs: Date.now() + 5_000 }),
+    );
+
+    expect(refundJobMock).toHaveBeenCalledWith("job_needs_refund", {});
+    // Starved on purpose: the reserve is what buys the refund phase its budget.
+    expect(fetchAgentJobStatusMock).not.toHaveBeenCalled();
+  });
+
   it("skips new events and notifications when the agent status hash is unchanged", async () => {
     mockInitialJobQueries({
       unfinished: [createJob()],

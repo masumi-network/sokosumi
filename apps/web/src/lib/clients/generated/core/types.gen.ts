@@ -5928,7 +5928,7 @@ export type ListAdminTaskPaymentClaimsRequiringReviewResponses = {
 export type ListAdminTaskPaymentClaimsRequiringReviewResponse = ListAdminTaskPaymentClaimsRequiringReviewResponses[keyof ListAdminTaskPaymentClaimsRequiringReviewResponses];
 
 export type RefundAdminTaskPaymentClaimData = {
-    body?: RefundAdminTaskPaymentClaimBody;
+    body: RefundAdminTaskPaymentClaimBody;
     path: {
         /**
          * Task payment claim ID
@@ -6017,7 +6017,7 @@ export type RefundAdminTaskPaymentClaimResponses = {
 export type RefundAdminTaskPaymentClaimResponse = RefundAdminTaskPaymentClaimResponses[keyof RefundAdminTaskPaymentClaimResponses];
 
 export type ResolveAdminTaskPaymentClaimData = {
-    body?: ReviewedTaskPaymentClaimActionBody;
+    body: ReviewedTaskPaymentClaimActionBody;
     path: {
         /**
          * Task payment claim ID
@@ -6106,7 +6106,7 @@ export type ResolveAdminTaskPaymentClaimResponses = {
 export type ResolveAdminTaskPaymentClaimResponse = ResolveAdminTaskPaymentClaimResponses[keyof ResolveAdminTaskPaymentClaimResponses];
 
 export type RetryAdminTaskPaymentClaimData = {
-    body?: ReviewedTaskPaymentClaimActionBody;
+    body: ReviewedTaskPaymentClaimActionBody;
     path: {
         /**
          * Task payment claim ID

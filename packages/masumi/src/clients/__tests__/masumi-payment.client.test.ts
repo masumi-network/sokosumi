@@ -723,7 +723,9 @@ describe("createPurchase duplicate handling", () => {
     });
     expect(postPurchaseResolveBlockchainIdentifierMock).not.toHaveBeenCalled();
   });
+});
 
+describe("createPurchase failure classification", () => {
   // A `permanent` verdict is terminal on the task-payment rail: it refunds the
   // claim, drops it out of PENDING and the unique index blocks resubmission.
   // Credential/routing failures must therefore stay retryable.
