@@ -534,6 +534,15 @@ function projectSourcePricing(
     }
     case "Free":
       return { pricingType: PricingType.FREE };
+    // The payment node's third pricing type, deliberately unsupported rather
+    // than overlooked. The catalog advertises one price per agent and charges
+    // credits against it before the hire; a dynamically priced source has no
+    // price to advertise or charge, so there is nothing honest to show. UNKNOWN
+    // keeps the agent out of the catalog (buildAvailableAgentWhereClause
+    // excludes it) instead of guessing a number the seller never quoted.
+    case "Dynamic":
+      return { pricingType: PricingType.UNKNOWN };
+    // Anything the node adds later lands here and is likewise excluded.
     default:
       return { pricingType: PricingType.UNKNOWN };
   }
