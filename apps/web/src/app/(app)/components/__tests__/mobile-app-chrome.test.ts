@@ -28,26 +28,25 @@ describe("mobile-app-chrome", () => {
   });
 
   describe("resolveMobileAppBackTarget", () => {
-    it("sends list roots back to Home", () => {
-      expect(resolveMobileAppBackTarget("/tasks")).toEqual({
-        href: "/chat",
-        labelKey: "backToHome",
-      });
-      expect(resolveMobileAppBackTarget("/agents")).toEqual({
-        href: "/chat",
-        labelKey: "backToHome",
-      });
-      expect(resolveMobileAppBackTarget("/history")).toEqual({
-        href: "/chat",
-        labelKey: "backToHome",
+    it("returns null on tab list roots (no leading back)", () => {
+      expect(resolveMobileAppBackTarget("/tasks")).toBeNull();
+      expect(resolveMobileAppBackTarget("/agents")).toBeNull();
+      expect(resolveMobileAppBackTarget("/projects")).toBeNull();
+      expect(resolveMobileAppBackTarget("/history")).toBeNull();
+    });
+
+    it("sends non-tab hub roots back to Chats", () => {
+      expect(resolveMobileAppBackTarget("/personal-assistant")).toEqual({
+        href: "/chat/chats",
+        labelKey: "backToChats",
       });
       expect(resolveMobileAppBackTarget("/admin")).toEqual({
-        href: "/chat",
-        labelKey: "backToHome",
+        href: "/chat/chats",
+        labelKey: "backToChats",
       });
       expect(resolveMobileAppBackTarget("/notifications")).toEqual({
-        href: "/chat",
-        labelKey: "backToHome",
+        href: "/chat/chats",
+        labelKey: "backToChats",
       });
     });
 
@@ -114,6 +113,7 @@ describe("mobile-app-chrome", () => {
     it("shows on main hub list routes", () => {
       expect(shouldShowMobileBottomNav("/tasks")).toBe(true);
       expect(shouldShowMobileBottomNav("/agents")).toBe(true);
+      expect(shouldShowMobileBottomNav("/projects")).toBe(true);
       expect(shouldShowMobileBottomNav("/history")).toBe(true);
       expect(shouldShowMobileBottomNav("/admin")).toBe(true);
       expect(shouldShowMobileBottomNav("/notifications")).toBe(true);
@@ -130,14 +130,16 @@ describe("mobile-app-chrome", () => {
   });
 
   describe("shouldShowMobileBrandLeading", () => {
-    it("shows brand only on home and chats", () => {
+    it("shows brand on chats and every bottom-nav tab root", () => {
       expect(shouldShowMobileBrandLeading("/chat")).toBe(true);
       expect(shouldShowMobileBrandLeading("/chat/chats")).toBe(true);
-      expect(shouldShowMobileBrandLeading("/tasks")).toBe(false);
-      expect(shouldShowMobileBrandLeading("/agents")).toBe(false);
+      expect(shouldShowMobileBrandLeading("/tasks")).toBe(true);
+      expect(shouldShowMobileBrandLeading("/agents")).toBe(true);
+      expect(shouldShowMobileBrandLeading("/projects")).toBe(true);
+      expect(shouldShowMobileBrandLeading("/history")).toBe(true);
     });
 
-    it("hides brand for rooms, drafts, and nested detail", () => {
+    it("hides brand for rooms, drafts, hubs, and nested detail", () => {
       expect(shouldShowMobileBrandLeading("/chat/rooms/r1")).toBe(false);
       expect(
         shouldShowMobileBrandLeading(
@@ -152,13 +154,14 @@ describe("mobile-app-chrome", () => {
         shouldShowMobileBrandLeading("/chat", new URLSearchParams("welcome=1")),
       ).toBe(false);
       expect(shouldShowMobileBrandLeading("/tasks/t1")).toBe(false);
+      expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);
     });
   });
 
   describe("shouldShowMobileCreateFab", () => {
-    it("shows on home and chats only", () => {
-      expect(shouldShowMobileCreateFab("/chat")).toBe(true);
+    it("shows on chats list only", () => {
+      expect(shouldShowMobileCreateFab("/chat")).toBe(false);
       expect(shouldShowMobileCreateFab("/chat/chats")).toBe(true);
       expect(shouldShowMobileCreateFab("/tasks")).toBe(false);
       expect(shouldShowMobileCreateFab("/chat/rooms/r1")).toBe(false);

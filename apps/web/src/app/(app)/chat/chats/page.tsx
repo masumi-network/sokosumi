@@ -1,7 +1,11 @@
 import { connection } from "next/server";
+import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
+import { Sheet } from "@/components/ui/sheet";
+import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
+import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import {
   type ChatRoomsPage,
   chatRoomService,
@@ -14,8 +18,9 @@ const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
 };
 
 /**
- * Mobile Chats tab: Channels + DMs list (`md:hidden`).
- * Desktop keeps the sidebar list; this route shows nothing meaningful above `md`.
+ * Mobile Chats tab: Personal Assistant (beta-gated) above Channels + DMs
+ * (`md:hidden`). Desktop keeps the sidebar list; this route shows nothing
+ * meaningful above `md`.
  *
  * Instant Nav uses `chats/loading.tsx` while this page streams after
  * `connection()`.
@@ -54,19 +59,25 @@ export default async function ChatChatsPage() {
       ),
   );
 
+  const hermesMenuEnabled = isHermesBetaAccessEmail(session?.user.email);
+
   return (
-    <div className="md:hidden -m-4 min-h-0 flex-1 overflow-y-auto">
-      <OrganizationChatList
-        key={activeOrganizationId ?? "personal"}
-        rooms={chatRoomsPage.rooms}
-        roomsNextCursor={chatRoomsPage.nextCursor}
-        archivedRooms={archivedChatRoomsPage.rooms}
-        archivedRoomsNextCursor={archivedChatRoomsPage.nextCursor}
-        currentUserId={session?.user.id ?? ""}
-        organizationId={activeOrganizationId}
-        canDeleteArchivedRooms={canDeleteArchivedRooms}
-        dismissSheetOnNavigate={false}
-      />
-    </div>
+    <Sheet open>
+      <div className="md:hidden -m-4 flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
+        <PersonalAssistantNav enabled={hermesMenuEnabled} />
+        {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+        <OrganizationChatList
+          key={activeOrganizationId ?? "personal"}
+          rooms={chatRoomsPage.rooms}
+          roomsNextCursor={chatRoomsPage.nextCursor}
+          archivedRooms={archivedChatRoomsPage.rooms}
+          archivedRoomsNextCursor={archivedChatRoomsPage.nextCursor}
+          currentUserId={session?.user.id ?? ""}
+          organizationId={activeOrganizationId}
+          canDeleteArchivedRooms={canDeleteArchivedRooms}
+          dismissSheetOnNavigate={false}
+        />
+      </div>
+    </Sheet>
   );
 }
