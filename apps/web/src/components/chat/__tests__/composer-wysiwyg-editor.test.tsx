@@ -812,6 +812,37 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor.textContent).not.toContain("😄");
   });
 
+  it("does not convert emoticon match range inside code when caret is outside", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    // serialize flattens to "hello:D "; caret after outer space must not
+    // rewrite the `:D` still living inside <code>.
+    editor.innerHTML = "hello<code>:D</code> ";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain(":D");
+    expect(editor.textContent).not.toContain("😄");
+    expect(editor.querySelector("code")?.textContent).toBe(":D");
+  });
+
   it("converts bare trailing emoticon on blur (flush)", () => {
     function Harness() {
       const [value, setValue] = useState("");
