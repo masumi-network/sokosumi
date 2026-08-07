@@ -654,8 +654,8 @@ async function syncRegistryAgents(
   let batchCount = 0;
 
   // Loop batches within the run's time budget (shouldStopSync consults the
-  // handler deadline) instead of one 50-entry batch per cron run — a full
-  // replay after /sync/agents/reset-cursor would otherwise freeze status
+  // handler deadline) instead of one 50-entry batch per cron run — the full
+  // replay that follows a cursor reset would otherwise freeze status
   // propagation for hours.
   while (true) {
     if (shouldStopSync(options, "registry sync canceled before diff request")) {

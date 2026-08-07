@@ -369,39 +369,6 @@ describe("sync routes", () => {
     );
   });
 
-  it("refreshes readiness and resets the cursor on the recovery route", async () => {
-    const app = await createApp();
-
-    const response = await app.request(
-      "http://localhost/sync/agents/reset-cursor",
-      {
-        headers: {
-          Authorization: "Bearer test-cron-secret",
-        },
-      },
-    );
-
-    expect(response.status).toBe(200);
-    expect(acquireLockMock).toHaveBeenCalledWith("agents-sync");
-    await flushMicrotasks();
-    expect(syncCardanoV2RailReadinessMock).toHaveBeenCalledTimes(1);
-    expect(syncRegistryAgentsMock).toHaveBeenCalledWith(
-      "agents-sync-metadata",
-      expect.objectContaining({ resetCursor: true }),
-    );
-  });
-
-  it("returns 401 for missing cron auth on the reset-cursor route", async () => {
-    const app = await createApp();
-
-    const response = await app.request(
-      "http://localhost/sync/agents/reset-cursor",
-    );
-
-    expect(response.status).toBe(401);
-    expect(syncRegistryAgentsMock).not.toHaveBeenCalled();
-  });
-
   it("returns 200 and starts summary sync exactly once in background", async () => {
     const app = await createApp();
 

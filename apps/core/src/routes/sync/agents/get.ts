@@ -27,24 +27,4 @@ export default function mount(app: Hono) {
       });
     });
   });
-
-  // One-off recovery lever (CRON_SECRET-protected like the sync itself, same
-  // lock): clears the active rollout cursor and starts a full registry replay.
-  // Refresh readiness first so source-priced agents are replayed against a
-  // current policy/contract set.
-  app.get("/agents/reset-cursor", async (c) => {
-    return await handleSyncRequest(c, AGENTS_SYNC_LOCK_KEY, async (context) => {
-      await agentSyncService.syncCardanoV2RailReadiness({
-        signal: AbortSignal.any([
-          context.abortSignal,
-          AbortSignal.timeout(10_000),
-        ]),
-      });
-      await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
-        abortSignal: context.abortSignal,
-        shouldContinue: context.shouldContinue,
-        resetCursor: true,
-      });
-    });
-  });
 }
