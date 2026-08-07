@@ -1,6 +1,7 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 async function flushAnimationFrame() {
   await act(async () => {
@@ -25,6 +26,31 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/modals/global-modals-context", () => ({
   useGlobalModalsContext: () => ({ showLogoutModal: showLogoutModalMock }),
 }));
+
+/**
+ * When true, render popover children outside Radix Presence so the exit-path
+ * remount (settings → root flash) is observable in jsdom.
+ */
+const popoverTestFlags = { forceMount: false };
+
+vi.mock("@/components/ui/popover", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/ui/popover")>();
+  function PopoverContent(props: ComponentProps<typeof actual.PopoverContent>) {
+    if (popoverTestFlags.forceMount) {
+      return (
+        <div data-slot="popover-content" data-testid="forced-popover-content">
+          {props.children}
+        </div>
+      );
+    }
+    return <actual.PopoverContent {...props} />;
+  }
+  return {
+    ...actual,
+    PopoverContent,
+  };
+});
 
 import { HeaderAccountControl } from "@/app/components/header/header-account-control.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
@@ -85,6 +111,11 @@ function getPopoverScrollContainer(): HTMLElement {
 describe("HeaderAccountControl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    popoverTestFlags.forceMount = false;
+  });
+
+  afterEach(() => {
+    popoverTestFlags.forceMount = false;
   });
 
   it("shows Admin and Settings before Logout when admin is enabled", () => {
@@ -139,6 +170,45 @@ describe("HeaderAccountControl", () => {
     fireEvent.click(screen.getByRole("button", { name: "account" }));
 
     expect(pushMock).toHaveBeenCalledWith("/account");
+  });
+
+  it("does not flash the credits root when navigating away from settings", () => {
+    // forceMount keeps content in the tree through close (same window as the
+    // real exit animation) so a remount-to-root is visible as totalBalanceLabel.
+    popoverTestFlags.forceMount = true;
+    renderControl();
+    openControl();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "billing" }));
+
+    // Close remounted menu at root while the popover exit animation still
+    // runs → brief credits flash. Keep drill content until unmount.
+    expect(screen.queryByText("totalBalanceLabel")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+    expect(pushMock).toHaveBeenCalledWith("/billing");
+  });
+
+  it("starts at the root panel when reopened after closing from settings", () => {
+    renderControl();
+    openControl();
+
+    fireEvent.click(screen.getByRole("button", { name: "settings" }));
+    expect(screen.getByRole("button", { name: "billing" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /openSummary/ }));
+    openControl();
+
+    expect(
+      screen.getByRole("button", { name: "settings" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "back" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("totalBalanceLabel")).toBeInTheDocument();
   });
 
   it("moves keyboard focus into the settings drill when Settings is activated", async () => {
