@@ -27,6 +27,7 @@ export interface TriggerPosition {
   left: number;
   side: "top" | "bottom";
   maxHeight: number;
+  width?: number;
 }
 
 export interface MentionDisplay {
@@ -45,8 +46,12 @@ export interface MentionSpanStyleOptions {
 }
 
 export const POPUP_HEIGHT_PX = 240;
+export const POPUP_MIN_HEIGHT_PX = 80;
 export const POPUP_WIDTH_PX = 288;
 export const VIEWPORT_PADDING_PX = 8;
+export const MENTION_COMPOSER_GAP_PX = 4;
+export const MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX =
+  POPUP_HEIGHT_PX + MENTION_COMPOSER_GAP_PX + VIEWPORT_PADDING_PX;
 export const MENTION_CLASSNAME =
   "text-primary cursor-pointer font-semibold hover:underline";
 export const UNKNOWN_MENTION_CLASSNAME = "opacity-80";
@@ -466,7 +471,10 @@ export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
     belowSpace < POPUP_HEIGHT_PX && aboveSpace > belowSpace ? "top" : "bottom";
   const maxHeight = Math.min(
     POPUP_HEIGHT_PX,
-    Math.max(80, side === "top" ? aboveSpace - 4 : belowSpace - 4),
+    Math.max(
+      POPUP_MIN_HEIGHT_PX,
+      side === "top" ? aboveSpace - 4 : belowSpace - 4,
+    ),
   );
   const top = side === "top" ? rect.top - 4 : rect.bottom + 4;
   let left = rect.left;
@@ -476,6 +484,96 @@ export function getPopupPositionFromRect(rect: DOMRect): TriggerPosition {
   if (left > maxLeft && maxLeft > 0) left = maxLeft;
 
   return { top, left, side, maxHeight };
+}
+
+function maxHeightFittingAboveAnchor(aboveSpace: number): number {
+  return Math.min(
+    POPUP_HEIGHT_PX,
+    Math.max(POPUP_MIN_HEIGHT_PX, aboveSpace),
+  );
+}
+
+function aboveSpaceForComposerAnchor(
+  anchorTop: number,
+  viewportTop: number,
+  visualHeight: number,
+): { aboveSpace: number; viewportOrigin: number } {
+  const withOffset =
+    anchorTop - viewportTop - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
+  if (withOffset >= POPUP_MIN_HEIGHT_PX) {
+    return { aboveSpace: withOffset, viewportOrigin: viewportTop };
+  }
+  const withoutOffset =
+    anchorTop - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
+  const cappedByVisual =
+    visualHeight - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
+  if (withoutOffset > withOffset) {
+    return {
+      aboveSpace: Math.min(cappedByVisual, withoutOffset),
+      viewportOrigin: 0,
+    };
+  }
+  return { aboveSpace: withOffset, viewportOrigin: viewportTop };
+}
+
+export function getSuggestionPopupFixedStyle(position: TriggerPosition): {
+  left: number;
+  maxHeight: number;
+  width?: number;
+  top?: number;
+  bottom?: number;
+} {
+  const shared = {
+    left: position.left,
+    maxHeight: position.maxHeight,
+    ...(position.width != null ? { width: position.width } : {}),
+  };
+  if (position.side === "top") {
+    return {
+      ...shared,
+      bottom: window.innerHeight - position.top,
+    };
+  }
+  return {
+    ...shared,
+    top: position.top,
+  };
+}
+
+export function getMentionPopupPositionFromAnchorRect(
+  anchorRect: DOMRect,
+): TriggerPosition {
+  const visual = window.visualViewport;
+  // Visual viewport edges (not layout 0) — pinch-zoom + pan shift offsetLeft/Top.
+  const viewportTop = visual ? visual.offsetTop : 0;
+  const viewportLeft = visual ? visual.offsetLeft : 0;
+  const viewportWidth = visual ? visual.width : window.innerWidth;
+  const visualHeight = visual ? visual.height : window.innerHeight;
+  const { aboveSpace, viewportOrigin } = aboveSpaceForComposerAnchor(
+    anchorRect.top,
+    viewportTop,
+    visualHeight,
+  );
+  const maxHeight = maxHeightFittingAboveAnchor(aboveSpace);
+  const anchoredBottom = anchorRect.top - MENTION_COMPOSER_GAP_PX;
+  const minTopForViewportBand =
+    viewportOrigin + VIEWPORT_PADDING_PX + maxHeight;
+  const top = Math.max(anchoredBottom, minTopForViewportBand);
+  let left = anchorRect.left;
+  let width = anchorRect.width;
+
+  const minLeft = viewportLeft + VIEWPORT_PADDING_PX;
+  const maxRight = viewportLeft + viewportWidth - VIEWPORT_PADDING_PX;
+  if (left < minLeft) {
+    width -= minLeft - left;
+    left = minLeft;
+  }
+  if (left + width > maxRight) {
+    width = maxRight - left;
+  }
+  if (width < 0) width = 0;
+
+  return { top, left, side: "top", maxHeight, width };
 }
 
 export function getCaretRect(root: HTMLElement): DOMRect | null {

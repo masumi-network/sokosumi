@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
+import { DeveloperSectionRowsSkeleton } from "@/app/developer/components/developer-loading-view";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 
@@ -25,11 +26,7 @@ export function ApiKeysList({
   );
 
   if (isInitialLoading) {
-    return (
-      <div className="text-muted-foreground py-8 text-center">
-        {t("loading")}
-      </div>
-    );
+    return <DeveloperSectionRowsSkeleton />;
   }
 
   // Full error UI only when there is nothing useful to show. If a later

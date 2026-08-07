@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("RoomsClient Ably island", () => {
-  it("wraps rooms ChannelProvider + bridge in local LazyAblyProvider", () => {
+  it("wraps multi-room realtime bridge in local LazyAblyProvider (no single-user ChannelProvider)", () => {
     const source = readFileSync(
       join(import.meta.dirname, "../rooms-client.tsx"),
       "utf8",
@@ -11,9 +11,17 @@ describe("RoomsClient Ably island", () => {
 
     expect(source).toContain('from "@/contexts/lazy-ably-provider"');
     expect(source).toMatch(
-      /LazyAblyProvider>\s*<ChannelProvider[\s\S]*RoomMessageRealtimeBridge[\s\S]*<\/ChannelProvider>\s*<\/LazyAblyProvider>/,
+      /LazyAblyProvider>\s*<RoomMessageRealtimeBridge[\s\S]*<\/LazyAblyProvider>/,
     );
-    expect(source).toContain('<main className="relative flex min-h-0 flex-1">');
+    expect(source).not.toContain("ChannelProvider");
+    expect(source).toContain("roomIds={rooms.map((room) => room.id)}");
+    expect(source).toContain(
+      '<main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">',
+    );
+    // Message list only — not global ScrollArea (keeps horizontal examples).
+    expect(source).toMatch(
+      /<ScrollArea[\s\S]*?shrinkContent[\s\S]*?className="min-h-0 min-w-0 flex-1"/,
+    );
   });
 
   it("routes realtime through scope helper and only merges room on top-level", () => {
@@ -29,7 +37,7 @@ describe("RoomsClient Ably island", () => {
     expect(source).toContain("filterTopLevelChatRoomMessages");
     expect(source).toContain("isReplyUnderThreadParent");
     expect(source).toMatch(
-      /const route = routeRealtimeChatRoomMessage\(\s*message,\s*threadParentMessageIdRef\.current,\s*\)/,
+      /const route = routeRealtimeChatRoomMessage\(\s*message,\s*threadParentMessageIdRef\.current,\s*event\.eventType,\s*\)/,
     );
     expect(source).toMatch(
       /if \(route\.mergeIntoRoomTimeline\) \{\s*setMessagesState/,

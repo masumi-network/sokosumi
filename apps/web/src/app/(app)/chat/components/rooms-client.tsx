@@ -1,6 +1,5 @@
 "use client";
 
-import { ChannelProvider } from "ably/react";
 import { Hash, Loader2, MessageCircle } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,6 +11,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
   deleteRoomMessageAction,
@@ -47,6 +47,7 @@ import {
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
 import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-signal-unread-threads-attention";
+import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
@@ -58,10 +59,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
+import { useIsMobileMedia } from "@/hooks/use-mobile";
 import {
   type ChatRoomMessageEventData,
-  makeUserChatRoomsChannelName,
+  isChatRoomMessagePatchEvent,
 } from "@/lib/ably";
+import { applyChatRoomMessagePatch } from "@/lib/ably/apply-chat-room-message-patch";
 import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import type {
@@ -141,14 +144,17 @@ const COWORKER_RESPONSE_POLL_MAX_ATTEMPTS = 60;
 const ROOM_LIVE_POLL_MS = 3000;
 
 function RoomMessageRealtimeBridge({
-  userId,
+  roomIds,
+  currentUserId,
   onMessage,
 }: {
-  userId: string;
+  roomIds: readonly string[];
+  currentUserId: string;
   onMessage: (event: ChatRoomMessageEventData) => void;
 }) {
   useChatRoomRealtime({
-    userId,
+    roomIds,
+    currentUserId,
     onMessage,
     onError: (error) => {
       console.error("Ably chat room message error:", error);
@@ -180,57 +186,174 @@ function RoomParticipantStack({
   }
 
   return (
-    <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
-      <div
-        className="flex -space-x-2"
-        aria-label={participants
-          .map((participant) => participant.name)
-          .join(", ")}
-      >
-        {visibleParticipants.map((participant, index) => (
-          <ChatParticipantHoverCard
-            key={`${participant.kind}-${participant.id}`}
-            profile={participant}
-            side="bottom"
-            align="center"
-            className="relative size-6 shrink-0 md:size-7"
-            style={{ zIndex: visibleParticipants.length - index }}
-            currentUserId={currentUserId}
-            canOpenHumanDirect={canOpenHumanDirect}
-            onOpenDirect={onOpenDirect}
-            isOpeningDirect={
-              openingDirectKey === participantDirectKey(participant)
-            }
-            isDirectActionBusy={openingDirectKey != null}
-          >
-            <span className="relative inline-flex size-full">
-              <Avatar className="border-background ring-border/60 size-full border-2 shadow-xs ring-1">
-                <AvatarImage src={participant.image ?? undefined} alt="" />
-                <AvatarFallback
-                  className={cn(
-                    "text-[0.625rem]",
-                    participant.kind === "coworker"
-                      ? "bg-primary/10 text-primary"
-                      : "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {getInitials(participant.name)}
-                </AvatarFallback>
-              </Avatar>
-              <PresenceDot
-                presence={participant.presence}
-                label={presenceLabel(t, participant.presence)}
-                className="absolute -right-0.5 -bottom-0.5"
-              />
-            </span>
-          </ChatParticipantHoverCard>
-        ))}
-      </div>
+    <div
+      className="flex -space-x-2"
+      aria-label={participants
+        .map((participant) => participant.name)
+        .join(", ")}
+    >
+      {visibleParticipants.map((participant, index) => (
+        <ChatParticipantHoverCard
+          key={`${participant.kind}-${participant.id}`}
+          profile={participant}
+          side="bottom"
+          align="center"
+          className="relative size-6 shrink-0 md:size-7"
+          style={{ zIndex: visibleParticipants.length - index }}
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirect={onOpenDirect}
+          isOpeningDirect={
+            openingDirectKey === participantDirectKey(participant)
+          }
+          isDirectActionBusy={openingDirectKey != null}
+        >
+          <span className="relative inline-flex size-full">
+            <Avatar className="border-background ring-border/60 size-full border-2 shadow-xs ring-1">
+              <AvatarImage src={participant.image ?? undefined} alt="" />
+              <AvatarFallback
+                className={cn(
+                  "text-[0.625rem]",
+                  participant.kind === "coworker"
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                {getInitials(participant.name)}
+              </AvatarFallback>
+            </Avatar>
+            <PresenceDot
+              presence={participant.presence}
+              label={presenceLabel(t, participant.presence)}
+              className="absolute -right-0.5 -bottom-0.5"
+            />
+          </span>
+        </ChatParticipantHoverCard>
+      ))}
       {remainingCount > 0 ? (
-        <span className="text-muted-foreground whitespace-nowrap text-xs font-medium">
-          {t("participantOverflow", { count: remainingCount })}
+        <span
+          className="border-background bg-muted text-muted-foreground ring-border/60 relative inline-flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-[0.625rem] font-medium shadow-xs ring-1 md:size-7"
+          style={{ zIndex: 0 }}
+          aria-label={t("participantOverflowCount", { count: remainingCount })}
+        >
+          +{remainingCount}
         </span>
       ) : null}
+    </div>
+  );
+}
+
+interface RoomHeaderChromeProps {
+  room: ChatRoom;
+  displayName: string;
+  isDirectRoom: boolean;
+  currentUserId: string;
+  canOpenHumanDirect: boolean;
+  onOpenDirect: (profile: ChatParticipantHoverProfile) => void;
+  openingDirectKey: string | null;
+  topLevelRoomMessages: ChatRoomMessage[];
+  onOpenThread: (message: ChatRoomMessage) => boolean | Promise<boolean>;
+  attentionRefreshToken: number;
+  onAllThreadsLooked: () => void;
+  organizationMembers: Member[];
+  coworkers: Coworker[];
+  canEditMembers: boolean;
+  canManageSettings: boolean;
+  canArchive: boolean;
+  canLeave: boolean;
+  membersLoadFailed: boolean;
+}
+
+function RoomHeaderChrome({
+  room,
+  displayName,
+  isDirectRoom,
+  currentUserId,
+  canOpenHumanDirect,
+  onOpenDirect,
+  openingDirectKey,
+  topLevelRoomMessages,
+  onOpenThread,
+  attentionRefreshToken,
+  onAllThreadsLooked,
+  organizationMembers,
+  coworkers,
+  canEditMembers,
+  canManageSettings,
+  canArchive,
+  canLeave,
+  membersLoadFailed,
+}: RoomHeaderChromeProps) {
+  const t = useTranslations("App.Channels");
+
+  return (
+    <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden md:gap-4">
+      <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
+        {isDirectRoom ? (
+          <MessageCircle className="text-muted-foreground size-4 shrink-0" />
+        ) : (
+          <ChannelDiscoverabilityIcon
+            className="text-muted-foreground"
+            discoverability={room.discoverability}
+          />
+        )}
+        <p className="text-muted-foreground truncate text-sm">{displayName}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
+        <RoomSearchPanel
+          key={room.id}
+          roomId={room.id}
+          loadedMessages={topLevelRoomMessages}
+          onOpenThread={onOpenThread}
+          labels={{
+            open: t("RoomSearch.open"),
+            placeholder: t("RoomSearch.placeholder"),
+            idle: t("RoomSearch.idle"),
+            empty: t("RoomSearch.empty"),
+            loading: t("RoomSearch.loading"),
+            error: t("RoomSearch.error"),
+            replyBadge: t("RoomSearch.replyBadge"),
+          }}
+        />
+        <UnreadThreadsPanel
+          key={`unread-threads-${room.id}`}
+          roomId={room.id}
+          attentionRefreshToken={attentionRefreshToken}
+          onOpenThread={onOpenThread}
+          onAllThreadsLooked={onAllThreadsLooked}
+          labels={{
+            open: t("UnreadThreads.open"),
+            title: t("UnreadThreads.title"),
+            markAllRead: t("UnreadThreads.markAllRead"),
+            empty: t("UnreadThreads.empty"),
+            loading: t("UnreadThreads.loading"),
+            error: t("UnreadThreads.error"),
+            markAllReadError: t("UnreadThreads.markAllReadError"),
+            startedBy: (name) => t("UnreadThreads.startedBy", { name }),
+            unreadReplies: (count) =>
+              t("UnreadThreads.unreadReplies", { count }),
+          }}
+        />
+        <RoomParticipantStack
+          room={room}
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirect={onOpenDirect}
+          openingDirectKey={openingDirectKey}
+        />
+        {isDirectRoom ? null : (
+          <EditChannelDialog
+            channel={room}
+            members={organizationMembers}
+            coworkers={coworkers}
+            canEditMembers={canEditMembers}
+            canManageSettings={canManageSettings}
+            canArchive={canArchive}
+            canLeave={canLeave}
+            membersLoadFailed={membersLoadFailed}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -255,6 +378,8 @@ export function RoomsClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isApple = useIsApplePlatform();
+  const isMobile = useIsMobileMedia();
+  const headerRoomSlotHost = useHeaderRoomSlotHost();
   // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
   const localCalendarReady = useClientLocalCalendarReady();
   const canOpenHumanDirect = Boolean(activeOrganization);
@@ -451,14 +576,70 @@ export function RoomsClient({
 
   const handleChatRoomRealtimeMessage = useCallback(
     (event: ChatRoomMessageEventData) => {
-      const message = hydrateChatRoomMessageFromRealtime(event.message);
-      if (message.roomId !== selectedRoomIdRef.current) {
-        return;
-      }
       if (
         skipRealtimeWhileStreamingRef.current &&
         isCoworkerStreamingRef.current
       ) {
+        return;
+      }
+
+      // SOK-737: high-chatter types arrive as field patches — merge by id.
+      // Missing local id → no-op (do not invent a row). Patches are not new
+      // messages, so skip unread-threads attention (full create path still does).
+      if (isChatRoomMessagePatchEvent(event)) {
+        if (event.roomId !== selectedRoomIdRef.current) {
+          return;
+        }
+
+        const route = routeRealtimeChatRoomMessage(
+          {
+            id: event.messageId,
+            parentMessageId: event.parentMessageId,
+          },
+          threadParentMessageIdRef.current,
+          event.eventType,
+        );
+
+        if (route.mergeIntoRoomTimeline) {
+          setMessagesState((current) => {
+            const existing = current.find(
+              (message) => message.id === event.messageId,
+            );
+            if (!existing) {
+              return current;
+            }
+            const merged = applyChatRoomMessagePatch(existing, event);
+            return filterTopLevelChatRoomMessages(
+              mergeRoomMessages(current, [merged]),
+            );
+          });
+        }
+
+        setThreadParentMessage((current) => {
+          if (current?.id !== event.messageId) {
+            return current;
+          }
+          return applyChatRoomMessagePatch(current, event);
+        });
+
+        if (route.mergeIntoOpenThread) {
+          setThreadMessages((current) => {
+            const existing = current.find(
+              (message) => message.id === event.messageId,
+            );
+            if (!existing) {
+              return current;
+            }
+            return mergeRoomMessages(current, [
+              applyChatRoomMessagePatch(existing, event),
+            ]);
+          });
+        }
+        return;
+      }
+
+      const message = hydrateChatRoomMessageFromRealtime(event.message);
+      if (message.roomId !== selectedRoomIdRef.current) {
         return;
       }
 
@@ -467,6 +648,7 @@ export function RoomsClient({
       const route = routeRealtimeChatRoomMessage(
         message,
         threadParentMessageIdRef.current,
+        event.eventType,
       );
       if (route.mergeIntoRoomTimeline) {
         setMessagesState((current) =>
@@ -546,11 +728,14 @@ export function RoomsClient({
   }, [streamOverlayMessages, threadParentMessage]);
 
   const displayThreadMessages = useMemo(() => {
-    return mergeMessagesWithStreamOverlay(
-      threadMessages,
-      threadStreamOverlayMessages,
-    );
-  }, [threadMessages, threadStreamOverlayMessages]);
+    // Defense: parent is rendered above the divider — never as a reply row.
+    const parentId = threadParentMessage?.id;
+    const replies =
+      parentId == null
+        ? threadMessages
+        : threadMessages.filter((message) => message.id !== parentId);
+    return mergeMessagesWithStreamOverlay(replies, threadStreamOverlayMessages);
+  }, [threadMessages, threadStreamOverlayMessages, threadParentMessage?.id]);
 
   // Draft coworker DM stashes text then navigates — auto-stream once room opens.
   // Keep sessionStorage until stream actually starts so Strict Mode remount
@@ -1041,11 +1226,19 @@ export function RoomsClient({
         ),
       );
     });
-    setThreadMessages((current) =>
-      current.map((message) =>
-        message.id === updatedMessage.id ? updatedMessage : message,
-      ),
-    );
+    // Parent lives in threadParentMessage only — never in the replies list.
+    // Purge any prior leak (e.g. pre-fix Ably merge of the root).
+    if (isTopLevelChatRoomMessage(updatedMessage)) {
+      setThreadMessages((current) =>
+        current.filter((message) => message.id !== updatedMessage.id),
+      );
+    } else {
+      setThreadMessages((current) =>
+        current.map((message) =>
+          message.id === updatedMessage.id ? updatedMessage : message,
+        ),
+      );
+    }
     setThreadParentMessage((current) =>
       current?.id === updatedMessage.id ? updatedMessage : current,
     );
@@ -1412,27 +1605,56 @@ export function RoomsClient({
     [partitionMentionIds, selectedRoom, sendStreamMessage, threadParentMessage],
   );
 
+  const roomHeaderChrome =
+    selectedRoom != null ? (
+      <RoomHeaderChrome
+        room={selectedRoom}
+        displayName={selectedRoomDisplayName}
+        isDirectRoom={isDirectRoom}
+        currentUserId={currentUserId}
+        canOpenHumanDirect={canOpenHumanDirect}
+        onOpenDirect={handleOpenDirectMessage}
+        openingDirectKey={openingDirectKey}
+        topLevelRoomMessages={topLevelRoomMessages}
+        onOpenThread={loadThreadMessages}
+        attentionRefreshToken={attentionRefreshToken}
+        onAllThreadsLooked={() => {
+          void syncRoomAttentionAfterThreadLook(selectedRoom.id);
+        }}
+        organizationMembers={organizationMembers}
+        coworkers={coworkers}
+        canEditMembers={canEditSelectedRoomMembers}
+        canManageSettings={canManageSelectedRoomSettings}
+        canArchive={canArchiveSelectedRoom}
+        canLeave={canLeaveSelectedRoom}
+        membersLoadFailed={membersLoadFailed}
+      />
+    ) : null;
+
   return (
     <div
       className={cn(
-        "-m-4 flex min-h-0 flex-col overflow-hidden bg-background",
+        "-m-4 flex min-h-0 min-w-0 flex-col overflow-hidden bg-background",
         chatMobileHeightShellClass(pathname, isApple, searchParams),
       )}
     >
+      {selectedRoom &&
+      isMobile === true &&
+      headerRoomSlotHost &&
+      roomHeaderChrome
+        ? createPortal(roomHeaderChrome, headerRoomSlotHost)
+        : null}
       {currentUserId ? (
         <LazyAblyProvider>
-          <ChannelProvider
-            channelName={makeUserChatRoomsChannelName(currentUserId)}
-          >
-            <RoomMessageRealtimeBridge
-              userId={currentUserId}
-              onMessage={handleChatRoomRealtimeMessage}
-            />
-          </ChannelProvider>
+          <RoomMessageRealtimeBridge
+            roomIds={rooms.map((room) => room.id)}
+            currentUserId={currentUserId}
+            onMessage={handleChatRoomRealtimeMessage}
+          />
         </LazyAblyProvider>
       ) : null}
       {/* `relative` anchors the thread panel's mobile full-screen takeover. */}
-      <main className="relative flex min-h-0 flex-1">
+      <main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
           {isCreateChannelRequested ? (
             <>
@@ -1471,83 +1693,19 @@ export function RoomsClient({
                 roomComposerRef.current?.attachFiles(files);
               }}
               label={t("Toolbar.dropToAttach")}
-              className="flex min-h-0 flex-1 flex-col"
+              className="flex min-h-0 min-w-0 flex-1 flex-col"
             >
-              <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-3 md:h-16 md:gap-4 md:px-6">
-                <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
-                  {isDirectRoom ? (
-                    <MessageCircle className="text-muted-foreground size-4 shrink-0" />
-                  ) : (
-                    <ChannelDiscoverabilityIcon
-                      className="text-muted-foreground"
-                      discoverability={selectedRoom.discoverability}
-                    />
-                  )}
-                  <p className="text-muted-foreground truncate text-sm">
-                    {selectedRoomDisplayName}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
-                  <RoomSearchPanel
-                    key={selectedRoom.id}
-                    roomId={selectedRoom.id}
-                    loadedMessages={topLevelRoomMessages}
-                    onOpenThread={loadThreadMessages}
-                    labels={{
-                      open: t("RoomSearch.open"),
-                      placeholder: t("RoomSearch.placeholder"),
-                      idle: t("RoomSearch.idle"),
-                      empty: t("RoomSearch.empty"),
-                      loading: t("RoomSearch.loading"),
-                      error: t("RoomSearch.error"),
-                      replyBadge: t("RoomSearch.replyBadge"),
-                    }}
-                  />
-                  <UnreadThreadsPanel
-                    key={`unread-threads-${selectedRoom.id}`}
-                    roomId={selectedRoom.id}
-                    attentionRefreshToken={attentionRefreshToken}
-                    onOpenThread={loadThreadMessages}
-                    onAllThreadsLooked={() => {
-                      void syncRoomAttentionAfterThreadLook(selectedRoom.id);
-                    }}
-                    labels={{
-                      open: t("UnreadThreads.open"),
-                      title: t("UnreadThreads.title"),
-                      markAllRead: t("UnreadThreads.markAllRead"),
-                      empty: t("UnreadThreads.empty"),
-                      loading: t("UnreadThreads.loading"),
-                      error: t("UnreadThreads.error"),
-                      markAllReadError: t("UnreadThreads.markAllReadError"),
-                      startedBy: (name) =>
-                        t("UnreadThreads.startedBy", { name }),
-                      unreadReplies: (count) =>
-                        t("UnreadThreads.unreadReplies", { count }),
-                    }}
-                  />
-                  <RoomParticipantStack
-                    room={selectedRoom}
-                    currentUserId={currentUserId}
-                    canOpenHumanDirect={canOpenHumanDirect}
-                    onOpenDirect={handleOpenDirectMessage}
-                    openingDirectKey={openingDirectKey}
-                  />
-                  {isDirectRoom ? null : (
-                    <EditChannelDialog
-                      channel={selectedRoom}
-                      members={organizationMembers}
-                      coworkers={coworkers}
-                      canEditMembers={canEditSelectedRoomMembers}
-                      canManageSettings={canManageSelectedRoomSettings}
-                      canArchive={canArchiveSelectedRoom}
-                      canLeave={canLeaveSelectedRoom}
-                      membersLoadFailed={membersLoadFailed}
-                    />
-                  )}
-                </div>
-              </header>
+              {isMobile === false && roomHeaderChrome ? (
+                <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
+                  {roomHeaderChrome}
+                </header>
+              ) : null}
 
-              <ScrollArea ref={scrollerRef} className="min-h-0 min-w-0 flex-1">
+              <ScrollArea
+                ref={scrollerRef}
+                shrinkContent
+                className="min-h-0 min-w-0 flex-1"
+              >
                 <div
                   ref={contentRef}
                   className="flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0"

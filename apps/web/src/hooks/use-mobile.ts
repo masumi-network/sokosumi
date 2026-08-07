@@ -2,7 +2,11 @@ import * as React from "react";
 
 export const MOBILE_BREAKPOINT = 768;
 
-export function useIsMobile() {
+/**
+ * Mobile match from `(max-width: MOBILE_BREAKPOINT - 1)`.
+ * `undefined` until the media-query subscription runs after mount.
+ */
+export function useIsMobileMedia(): boolean | undefined {
   const [isMobile, setIsMobile] = React.useState<boolean | undefined>(
     undefined,
   );
@@ -19,5 +23,10 @@ export function useIsMobile() {
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  return !!isMobile;
+  return isMobile;
+}
+
+/** Coerces unresolved media to `false` (desktop-first). Prefer `useIsMobileMedia` when layout must wait. */
+export function useIsMobile() {
+  return !!useIsMobileMedia();
 }

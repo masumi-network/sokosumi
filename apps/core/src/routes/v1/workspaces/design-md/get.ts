@@ -3,7 +3,7 @@ import {
   memberRepository,
   userRepository,
 } from "@sokosumi/database/repositories";
-
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import {
   readOrganizationDesignMd,
   readUserDesignMd,
@@ -12,7 +12,6 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { effectiveDesignMdSchema } from "@/schemas/design-md.schema";
 
 const DESIGN_MD_ATTACHMENT_LABEL = "DESIGN.md";
@@ -53,7 +52,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { userId, organizationId } = requireUserContext(c.var.authContext);
+    const { userId, organizationId } = await requireAuthorizedUserContext(
+      c.var.authContext,
+    );
 
     if (organizationId) {
       const member = await memberRepository.getMemberByUserIdAndOrganizationId(

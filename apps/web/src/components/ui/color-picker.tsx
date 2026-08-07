@@ -96,7 +96,7 @@ const ColorPicker = React.forwardRef<HTMLInputElement, ColorPickerProps>(
                   onBlur={onBlur}
                   disabled={disabled}
                   placeholder="#000000"
-                  className="flex-1 font-mono text-sm"
+                  className="flex-1 font-mono text-base md:text-sm"
                 />
               </div>
 

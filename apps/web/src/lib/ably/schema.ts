@@ -1,3 +1,4 @@
+import { CHAT_ROOM_MESSAGE_EVENT_TYPES } from "@sokosumi/utils";
 import * as z from "zod";
 import {
   NotificationKind,
@@ -43,29 +44,97 @@ const chatRoomMessageUnfurlEventSchema = z.object({
   siteName: z.string().nullable(),
 });
 
-export const chatRoomMessageEventDataSchema = z.object({
-  message: z
-    .object({
-      id: z.string().min(1),
-      roomId: z.string().min(1),
-      parentMessageId: z.string().nullable(),
-      content: z.string(),
-      createdAt: z.string(),
-      deletedAt: z.string().nullable(),
-      editedAt: z.string().nullable(),
-      sender: z.unknown(),
-      mentions: z.array(z.unknown()),
-      reactions: z.array(z.unknown()),
-      threadReplyCount: z.number().int().min(0),
-      threadLastReplyAt: z.string().nullable(),
-      metadata: z.record(z.string(), z.unknown()).nullable(),
-      quote: z.unknown().nullable(),
-      membership: z.unknown().nullable(),
-      unfurls: z.array(chatRoomMessageUnfurlEventSchema).max(3).nullable(),
-    })
-    .passthrough(),
+export const chatRoomMessageEventTypeSchema = z.enum(
+  CHAT_ROOM_MESSAGE_EVENT_TYPES,
+);
+
+/** Full message DTO carried on create / update / delete Ably events. */
+export const chatRoomMessageFullEventMessageSchema = z
+  .object({
+    id: z.string().min(1),
+    roomId: z.string().min(1),
+    parentMessageId: z.string().nullable(),
+    content: z.string(),
+    createdAt: z.string(),
+    deletedAt: z.string().nullable(),
+    editedAt: z.string().nullable(),
+    sender: z.unknown(),
+    mentions: z.array(z.unknown()),
+    reactions: z.array(z.unknown()),
+    threadReplyCount: z.number().int().min(0),
+    threadLastReplyAt: z.string().nullable(),
+    metadata: z.record(z.string(), z.unknown()).nullable(),
+    quote: z.unknown().nullable(),
+    membership: z.unknown().nullable(),
+    unfurls: z.array(chatRoomMessageUnfurlEventSchema).max(3).nullable(),
+  })
+  .passthrough();
+
+const chatRoomMessageFullEventSchema = z.object({
+  eventType: z.enum(["create", "update", "delete"]),
+  message: chatRoomMessageFullEventMessageSchema,
 });
+
+const chatRoomMessageReactionEventSchema = z.object({
+  eventType: z.literal("reaction"),
+  messageId: z.string().min(1),
+  roomId: z.string().min(1),
+  parentMessageId: z.string().nullable(),
+  patch: z.object({
+    reactions: z.array(z.unknown()),
+  }),
+});
+
+const chatRoomMessageUnfurlEventDataSchema = z.object({
+  eventType: z.literal("unfurl"),
+  messageId: z.string().min(1),
+  roomId: z.string().min(1),
+  parentMessageId: z.string().nullable(),
+  patch: z.object({
+    unfurls: z.array(chatRoomMessageUnfurlEventSchema).max(3).nullable(),
+  }),
+});
+
+const chatRoomMessageMentionStatusEventSchema = z.object({
+  eventType: z.literal("mention_status"),
+  messageId: z.string().min(1),
+  roomId: z.string().min(1),
+  parentMessageId: z.string().nullable(),
+  patch: z.object({
+    mentions: z.array(z.unknown()),
+  }),
+});
+
+/**
+ * Ably `chat_room_message` body (SOK-736 + SOK-737).
+ * Full DTO for create/update/delete; field patch for reaction/unfurl/mention_status.
+ */
+export const chatRoomMessageEventDataSchema = z.union([
+  chatRoomMessageFullEventSchema,
+  chatRoomMessageReactionEventSchema,
+  chatRoomMessageUnfurlEventDataSchema,
+  chatRoomMessageMentionStatusEventSchema,
+]);
 
 export type ChatRoomMessageEventData = z.infer<
   typeof chatRoomMessageEventDataSchema
 >;
+
+export type ChatRoomMessageFullEventData = z.infer<
+  typeof chatRoomMessageFullEventSchema
+>;
+
+export type ChatRoomMessagePatchEventData = Exclude<
+  ChatRoomMessageEventData,
+  ChatRoomMessageFullEventData
+>;
+
+export function isChatRoomMessagePatchEvent(
+  event: ChatRoomMessageEventData,
+): event is ChatRoomMessagePatchEventData {
+  return (
+    event.eventType === "reaction" ||
+    event.eventType === "unfurl" ||
+    event.eventType === "mention_status"
+  );
+}

@@ -7,6 +7,7 @@ import {
 import { KeyRound, Pencil, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
+import { DeveloperSectionRowsSkeleton } from "@/app/developer/components/developer-loading-view";
 import { Button } from "@/components/ui/button";
 
 import type { OAuthClientsListProps } from "./types";
@@ -24,11 +25,7 @@ export function OAuthClientsList({
   const format = useFormatter();
 
   if (isInitialLoading) {
-    return (
-      <div className="text-muted-foreground py-8 text-center">
-        {t("loading")}
-      </div>
-    );
+    return <DeveloperSectionRowsSkeleton />;
   }
 
   // Full error UI only when there is nothing useful to show. If a later

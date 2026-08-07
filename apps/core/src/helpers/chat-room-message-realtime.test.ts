@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  findManyMembersMock,
   findUniqueMessageMock,
   publishChatRoomMessageEventMock,
   mapChatRoomMessageMock,
 } = vi.hoisted(() => ({
-  findManyMembersMock: vi.fn(),
   findUniqueMessageMock: vi.fn(),
   publishChatRoomMessageEventMock: vi.fn(),
   mapChatRoomMessageMock: vi.fn(),
@@ -14,9 +12,6 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    chatRoomUserMember: {
-      findMany: (...args: unknown[]) => findManyMembersMock(...args),
-    },
     chatRoomMessage: {
       findUnique: (...args: unknown[]) => findUniqueMessageMock(...args),
     },
@@ -63,127 +58,168 @@ const baseMessage = {
   metadata: null,
 };
 
+const viewerNeutralDto = {
+  id: baseMessage.id,
+  roomId: baseMessage.roomId,
+  parentMessageId: null as string | null,
+  reactions: [] as unknown[],
+  mentions: [] as unknown[],
+  unfurls: null as unknown,
+};
+
 describe("publishChatRoomMessageRealtime", () => {
   beforeEach(() => {
-    findManyMembersMock.mockReset();
     findUniqueMessageMock.mockReset();
     publishChatRoomMessageEventMock.mockReset();
     mapChatRoomMessageMock.mockReset();
     publishChatRoomMessageEventMock.mockResolvedValue(undefined);
-    mapChatRoomMessageMock.mockImplementation((_message, userId: string) => ({
-      id: baseMessage.id,
-      roomId: baseMessage.roomId,
-      forUser: userId,
-    }));
+    mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
   });
 
-  it("fans out a personalized DTO to each room user member", async () => {
-    findManyMembersMock.mockResolvedValue([
-      { userId: "user_a" },
-      { userId: "user_b" },
-    ]);
+  it("maps once without a viewer id and publishes once to the room channel", async () => {
+    await publishChatRoomMessageRealtime(baseMessage as never, "create");
 
-    await publishChatRoomMessageRealtime(baseMessage as never);
-
-    expect(findManyMembersMock).toHaveBeenCalledWith({
-      where: { roomId: baseMessage.roomId },
-      select: { userId: true },
-    });
-    expect(publishChatRoomMessageEventMock).toHaveBeenCalledTimes(2);
+    expect(mapChatRoomMessageMock).toHaveBeenCalledTimes(1);
+    expect(mapChatRoomMessageMock).toHaveBeenCalledWith(baseMessage);
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledTimes(1);
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
-      userId: "user_a",
-      message: {
-        id: baseMessage.id,
-        roomId: baseMessage.roomId,
-        forUser: "user_a",
-      },
-    });
-    expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
-      userId: "user_b",
-      message: {
-        id: baseMessage.id,
-        roomId: baseMessage.roomId,
-        forUser: "user_b",
-      },
+      eventType: "create",
+      message: viewerNeutralDto,
     });
   });
 
   it("swallows publish errors", async () => {
-    findManyMembersMock.mockResolvedValue([{ userId: "user_a" }]);
     publishChatRoomMessageEventMock.mockRejectedValue(new Error("ably down"));
 
     await expect(
-      publishChatRoomMessageRealtime(baseMessage as never),
+      publishChatRoomMessageRealtime(baseMessage as never, "create"),
     ).resolves.toBeUndefined();
   });
 
-  it("keeps publishing to other members when one fan-out fails", async () => {
-    findManyMembersMock.mockResolvedValue([
-      { userId: "user_a" },
-      { userId: "user_b" },
-    ]);
-    publishChatRoomMessageEventMock.mockImplementation(
-      async ({ userId }: { userId: string }) => {
-        if (userId === "user_a") {
-          throw new Error("ably down for user_a");
-        }
+  it("publishes a reaction patch, not a full message DTO", async () => {
+    mapChatRoomMessageMock.mockReturnValue({
+      ...viewerNeutralDto,
+      content: "hello",
+      reactions: [
+        {
+          emoji: "👍",
+          count: 1,
+          reactedByCurrentUser: false,
+          reactors: [{ id: "user_a", name: "Alice" }],
+        },
+      ],
+    });
+
+    await publishChatRoomMessageRealtime(baseMessage as never, "reaction");
+
+    expect(mapChatRoomMessageMock).toHaveBeenCalledWith(baseMessage);
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
+      eventType: "reaction",
+      messageId: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: null,
+      patch: {
+        reactions: [
+          {
+            emoji: "👍",
+            count: 1,
+            reactedByCurrentUser: false,
+            reactors: [{ id: "user_a", name: "Alice" }],
+          },
+        ],
       },
+    });
+  });
+
+  it("publishes an unfurl patch with unfurls only", async () => {
+    const unfurls = [
+      {
+        url: "https://example.com",
+        title: "Example",
+        description: null,
+        imageUrl: null,
+        siteName: null,
+      },
+    ];
+    mapChatRoomMessageMock.mockReturnValue({
+      ...viewerNeutralDto,
+      parentMessageId: "parent-1",
+      content: "link",
+      unfurls,
+    });
+
+    await publishChatRoomMessageRealtime(baseMessage as never, "unfurl");
+
+    expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
+      eventType: "unfurl",
+      messageId: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: "parent-1",
+      patch: { unfurls },
+    });
+  });
+
+  it("publishes a mention_status patch with mentions only", async () => {
+    const mentions = [
+      {
+        id: "men-1",
+        coworkerId: "cow-1",
+        status: "completed",
+        responseMessageId: "resp-1",
+      },
+    ];
+    mapChatRoomMessageMock.mockReturnValue({
+      ...viewerNeutralDto,
+      content: "hey",
+      mentions,
+    });
+
+    await publishChatRoomMessageRealtime(
+      baseMessage as never,
+      "mention_status",
     );
 
-    await expect(
-      publishChatRoomMessageRealtime(baseMessage as never),
-    ).resolves.toBeUndefined();
-
-    expect(publishChatRoomMessageEventMock).toHaveBeenCalledTimes(2);
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
-      userId: "user_b",
-      message: {
-        id: baseMessage.id,
-        roomId: baseMessage.roomId,
-        forUser: "user_b",
-      },
+      eventType: "mention_status",
+      messageId: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: null,
+      patch: { mentions },
     });
   });
 });
 
 describe("publishChatRoomMessageRealtimeById", () => {
   beforeEach(() => {
-    findManyMembersMock.mockReset();
     findUniqueMessageMock.mockReset();
     publishChatRoomMessageEventMock.mockReset();
     mapChatRoomMessageMock.mockReset();
     publishChatRoomMessageEventMock.mockResolvedValue(undefined);
-    mapChatRoomMessageMock.mockImplementation((_message, userId: string) => ({
-      id: baseMessage.id,
-      roomId: baseMessage.roomId,
-      forUser: userId,
-    }));
+    mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
   });
 
-  it("loads the message then fans out", async () => {
+  it("loads the message then publishes once", async () => {
     findUniqueMessageMock.mockResolvedValue(baseMessage);
-    findManyMembersMock.mockResolvedValue([{ userId: "user_a" }]);
 
-    await publishChatRoomMessageRealtimeById(baseMessage.id);
+    await publishChatRoomMessageRealtimeById(baseMessage.id, "unfurl");
 
     expect(findUniqueMessageMock).toHaveBeenCalledWith({
       where: { id: baseMessage.id },
       include: {},
     });
     expect(publishChatRoomMessageEventMock).toHaveBeenCalledWith({
-      userId: "user_a",
-      message: {
-        id: baseMessage.id,
-        roomId: baseMessage.roomId,
-        forUser: "user_a",
-      },
+      eventType: "unfurl",
+      messageId: baseMessage.id,
+      roomId: baseMessage.roomId,
+      parentMessageId: null,
+      patch: { unfurls: null },
     });
   });
 
   it("no-ops when the message is missing", async () => {
     findUniqueMessageMock.mockResolvedValue(null);
 
-    await publishChatRoomMessageRealtimeById(baseMessage.id);
+    await publishChatRoomMessageRealtimeById(baseMessage.id, "create");
 
     expect(publishChatRoomMessageEventMock).not.toHaveBeenCalled();
   });

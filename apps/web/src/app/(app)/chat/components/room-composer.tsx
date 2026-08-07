@@ -565,6 +565,7 @@ export function RoomComposer({
                 className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
                 title={t("Toolbar.mention")}
                 aria-label={t("Toolbar.mention")}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => editorRef.current?.openMentions()}
               >
                 <AtSign className="size-4" aria-hidden />

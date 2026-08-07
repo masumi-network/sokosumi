@@ -1,12 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
-
+import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
 import { workspaceOrganizationSchema } from "@/schemas/workspace.schema";
 
 const paramsSchema = z.object({
@@ -50,7 +49,7 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    const userContext = requireUserContext(authContext);
+    const userContext = await requireAuthorizedUserContext(authContext);
     const { id } = c.req.valid("param");
 
     const workspace = await prisma.workspace.findUnique({

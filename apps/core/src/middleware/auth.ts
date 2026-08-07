@@ -153,8 +153,20 @@ export function isCoworkerAgentContext(
 /**
  * Effective user context for a handler: either a Better Auth session (`source: "session"`)
  * or a coworker key / orchestrator service token with context headers
- * (`source: "context"`). Use {@link requireUserAuthContext} when the operation
- * must not run under coworker context (PII, session-bound consent, etc.).
+ * (`source: "context"`).
+ *
+ * ## Handler actor menu (pick one helper — do not branch on `actor` in routes)
+ *
+ * | Helper | Who | When |
+ * | --- | --- | --- |
+ * | {@link requireUserContext} | Session, orchestrator+context, **or coworker+context (unbound)** | Task/job grant-gated flows only (e.g. first-contact delegated create → `GRANT_PENDING`). Does **not** check vendor grants. |
+ * | `requireAuthorizedUserContext` (`@/helpers/coworker-user-context-binding`) | Session, orchestrator+context, or coworker+context **after** grant/baseline binding | Default for **user-scoped** reads/writes (profile, credits, projects, org metadata, …). DENIED/REVOKED grants win over assignment. |
+ * | {@link requireOwnerUserContext} | Session or orchestrator+context only | Human/owner surfaces: notifications, history, billing, member lists, … **No coworker.** |
+ * | {@link requireUserAuthContext} | Interactive session only | Must be the real session user (admin role check, consent, …). Rejects coworker **and** orchestrator. |
+ *
+ * Middleware (`coworkerContextMiddleware`) only **attaches** validated
+ * `X-Context-*` headers. Policy lives in these helpers — not per-handler
+ * `if (actor === "coworker")` checks.
  */
 export type UserContext =
   | ({ source: "session" } & UserAuthenticationContext)
@@ -168,6 +180,13 @@ export type UserContext =
  * Resolves the effective user context for this request (session user or
  * coworker/orchestrator with workspace context). Contextual actors must send
  * `X-Context-User-Id` (and optional org header validated in middleware).
+ *
+ * **No vendor-grant check.** Prefer `requireAuthorizedUserContext` (see
+ * `@/helpers/coworker-user-context-binding`) for user-scoped operations so
+ * coworkers cannot act as arbitrary users. Prefer {@link requireOwnerUserContext}
+ * when coworkers must not run the handler at all. Keep this helper for task/job
+ * paths that intentionally allow unbound coworker context (delegated create /
+ * grant gates live in access-control).
  */
 export function requireUserContext(
   authContext: AuthenticationContext,
@@ -204,7 +223,8 @@ export function requireUserContext(
  * before an admin-role check).
  *
  * For the effective user (session or contextual coworker/orchestrator), use
- * {@link requireUserContext}.
+ * {@link requireUserContext}, `requireAuthorizedUserContext`, or
+ * {@link requireOwnerUserContext} per the handler actor menu on {@link UserContext}.
  */
 export function requireUserAuthContext(
   authContext: AuthenticationContext,
@@ -232,10 +252,12 @@ export function forbidCoworkerActor(
 }
 
 /**
- * Owner-mutation user context: session user, or orchestrator with workspace
- * context. Rejects coworker actors (bare or contextual) so
- * `X-Context-User-Id` cannot impersonate the resource owner (task owner, org
- * owner/admin for grant/seat mutations, etc.).
+ * Owner-mutation / human-only user context: session user, or orchestrator with
+ * workspace context. Rejects coworker actors (bare or contextual) so
+ * `X-Context-User-Id` cannot impersonate the resource owner.
+ *
+ * Use for notifications, history, billing, org member lists, and similar
+ * surfaces. See the handler actor menu on {@link UserContext}.
  */
 export function requireOwnerUserContext(
   authContext: AuthenticationContext,
