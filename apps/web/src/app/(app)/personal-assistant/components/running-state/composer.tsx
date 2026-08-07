@@ -134,7 +134,7 @@ export function Composer({
               minHeight={44}
               autoFocus
               disabled={disabled}
-              className="placeholder:text-muted-foreground scrollbar-none grow resize-none border-0! bg-transparent p-4 text-base ring-0 outline-none [-ms-overflow-style:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
+              className="placeholder:text-muted-foreground scrollbar-none grow resize-none border-0! bg-transparent p-4 ring-0 outline-none [-ms-overflow-style:none] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none [&::-webkit-scrollbar]:hidden"
             />
           </FileUploadDropzone>
 
