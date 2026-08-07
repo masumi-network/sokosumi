@@ -77,7 +77,7 @@ function PendingAccessNotificationToast({
         <VendorGrantNotificationActions
           notification={notification}
           layout="toast"
-          onDismissed={() => {
+          onAccepted={() => {
             toast.dismiss(notification.id);
           }}
         />
@@ -86,7 +86,7 @@ function PendingAccessNotificationToast({
         <CoworkerAccessNotificationActions
           notification={notification}
           layout="toast"
-          onDismissed={() => {
+          onAccepted={() => {
             toast.dismiss(notification.id);
           }}
         />

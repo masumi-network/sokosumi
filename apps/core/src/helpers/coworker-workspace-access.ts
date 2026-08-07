@@ -8,7 +8,11 @@ import {
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
 import { badRequest, notFound } from "@/helpers/error";
-import { createNotification } from "@/helpers/notifications";
+import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/helpers/notification-feed";
+import {
+  createNotification,
+  deletePendingCoworkerAccessNotifications,
+} from "@/helpers/notifications";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { requireVendorAdminMembership } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
@@ -320,7 +324,7 @@ async function upsertGrantedAccess(
   tx: Prisma.TransactionClient,
 ): Promise<CoworkerWorkspaceAccessWithCoworker> {
   const now = new Date();
-  return tx.coworkerWorkspaceAccess.upsert({
+  const access = await tx.coworkerWorkspaceAccess.upsert({
     where: accessUniqueWhere(params.coworkerId, params.workspaceId),
     create: {
       coworkerId: params.coworkerId,
@@ -338,6 +342,9 @@ async function upsertGrantedAccess(
     },
     include: coworkerWorkspaceAccessInclude,
   });
+
+  await deletePendingCoworkerAccessNotifications(access.id, tx);
+  return access;
 }
 
 /**
@@ -385,6 +392,7 @@ export async function upsertCoworkerWorkspaceAccess(
 
   if (params.isPlatformAdmin) {
     if (existing?.status === CoworkerWorkspaceAccessStatus.GRANTED) {
+      await deletePendingCoworkerAccessNotifications(existing.id, tx);
       return existing;
     }
 
@@ -408,6 +416,7 @@ export async function upsertCoworkerWorkspaceAccess(
 
   if (belongs) {
     if (existing?.status === CoworkerWorkspaceAccessStatus.GRANTED) {
+      await deletePendingCoworkerAccessNotifications(existing.id, tx);
       return existing;
     }
 
@@ -533,7 +542,7 @@ export async function notifyWorkspaceApproversOfPendingCoworkerAccess(
         kind: NotificationKind.SYSTEM,
         referenceId: params.accessId,
         eventId: params.accessId,
-        messageKey: "notifications.coworkerAccess.pending",
+        messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
         messageParams: {
           coworkerName: coworker?.name ?? params.coworkerId,
           coworkerSlug: coworker?.slug ?? null,
@@ -558,6 +567,8 @@ interface TransitionCoworkerWorkspaceAccessParams {
   from: CoworkerWorkspaceAccessStatus;
   to: CoworkerWorkspaceAccessStatus;
   wrongStatusMessage: string;
+  /** When true, drop pending request notifications after the status change. */
+  clearPendingNotifications?: boolean;
 }
 
 async function transitionCoworkerWorkspaceAccess(
@@ -578,7 +589,7 @@ async function transitionCoworkerWorkspaceAccess(
     throw badRequest(params.wrongStatusMessage);
   }
 
-  return tx.coworkerWorkspaceAccess.update({
+  const updated = await tx.coworkerWorkspaceAccess.update({
     where: { id: params.accessId },
     data: {
       status: params.to,
@@ -587,6 +598,12 @@ async function transitionCoworkerWorkspaceAccess(
     },
     include: coworkerWorkspaceAccessInclude,
   });
+
+  if (params.clearPendingNotifications) {
+    await deletePendingCoworkerAccessNotifications(updated.id, tx);
+  }
+
+  return updated;
 }
 
 export async function approveCoworkerWorkspaceAccess(
@@ -604,6 +621,7 @@ export async function approveCoworkerWorkspaceAccess(
       to: CoworkerWorkspaceAccessStatus.GRANTED,
       wrongStatusMessage:
         "Only PENDING coworker workspace access can be approved",
+      clearPendingNotifications: true,
     },
     tx,
   );
@@ -624,6 +642,7 @@ export async function denyCoworkerWorkspaceAccess(
       to: CoworkerWorkspaceAccessStatus.DENIED,
       wrongStatusMessage:
         "Only PENDING coworker workspace access can be denied",
+      clearPendingNotifications: true,
     },
     tx,
   );

@@ -35,6 +35,7 @@ const organizationFindUnique = vi.fn();
 const organizationFindFirst = vi.fn();
 const upsertWorkspaceForContextMock = vi.fn();
 const createNotificationMock = vi.fn();
+const deletePendingCoworkerAccessNotificationsMock = vi.fn();
 const requireVendorAdminMembershipMock = vi.fn();
 const queryRawMock = vi.fn();
 
@@ -80,6 +81,8 @@ vi.mock("@sokosumi/database/repositories", () => ({
 
 vi.mock("@/helpers/notifications", () => ({
   createNotification: (...args: unknown[]) => createNotificationMock(...args),
+  deletePendingCoworkerAccessNotifications: (...args: unknown[]) =>
+    deletePendingCoworkerAccessNotificationsMock(...args),
 }));
 
 vi.mock("@/helpers/vendor-membership", () => ({
@@ -132,6 +135,7 @@ describe("coworker-workspace-access helpers", () => {
     queryRawMock.mockResolvedValue(undefined);
     requireVendorAdminMembershipMock.mockResolvedValue(undefined);
     createNotificationMock.mockResolvedValue({ created: true });
+    deletePendingCoworkerAccessNotificationsMock.mockResolvedValue(0);
   });
 
   describe("isCoworkerAccessTerminal", () => {
@@ -869,6 +873,10 @@ describe("coworker-workspace-access helpers", () => {
           },
         },
       });
+      expect(deletePendingCoworkerAccessNotificationsMock).toHaveBeenCalledWith(
+        "access-1",
+        expect.anything(),
+      );
     });
 
     it("rejects approve when not PENDING", async () => {
@@ -903,6 +911,10 @@ describe("coworker-workspace-access helpers", () => {
       });
 
       expect(result.status).toBe(CoworkerWorkspaceAccessStatus.DENIED);
+      expect(deletePendingCoworkerAccessNotificationsMock).toHaveBeenCalledWith(
+        "access-1",
+        expect.anything(),
+      );
       expect(accessUpdate).toHaveBeenCalledWith({
         where: { id: "access-1" },
         data: {

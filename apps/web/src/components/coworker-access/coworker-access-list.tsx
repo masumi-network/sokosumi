@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useNotifications } from "@/contexts/notification-provider";
 import {
   approveMyCoworkerAccess,
   denyMyCoworkerAccess,
@@ -133,6 +134,7 @@ function CoworkerAccessCardActions({
 }: CoworkerAccessCardActionsProps) {
   const tActions = useTranslations(`${namespace}.Actions`);
   const router = useRouter();
+  const { refetch: refetchNotifications } = useNotifications();
   const [loadingAction, setLoadingAction] =
     useState<CoworkerAccessCardAction | null>(null);
 
@@ -198,6 +200,7 @@ function CoworkerAccessCardActions({
     errorKey: "approveError" | "denyError" | "revokeError",
   ) {
     setLoadingAction(action);
+    let shouldRefetchNotifications = false;
     try {
       const result = await step();
       if (!result.ok) {
@@ -205,11 +208,17 @@ function CoworkerAccessCardActions({
         return;
       }
       toast.success(tActions(successKey));
+      shouldRefetchNotifications = action === "approve" || action === "deny";
       router.refresh();
     } catch {
       toast.error(tActions(errorKey));
     } finally {
       setLoadingAction(null);
+      if (shouldRefetchNotifications) {
+        void refetchNotifications().catch(() => {
+          // Feed will catch up on next open/poll.
+        });
+      }
     }
   }
 

@@ -285,6 +285,11 @@ export function NotificationsPageContent({
                   )}
                   timeLabel={formatTime(notification.createdAt)}
                   onClick={handleNotificationClick}
+                  onAccessRequestAccepted={(notificationId) => {
+                    setNotifications((prev) =>
+                      prev.filter((item) => item.id !== notificationId),
+                    );
+                  }}
                 />
               ))}
             </div>
@@ -312,6 +317,7 @@ interface NotificationRowProps {
   message: string;
   timeLabel: string;
   onClick: (notification: NotificationItem) => void;
+  onAccessRequestAccepted: (notificationId: string) => void;
 }
 
 function NotificationRow({
@@ -320,6 +326,7 @@ function NotificationRow({
   message,
   timeLabel,
   onClick,
+  onAccessRequestAccepted,
 }: NotificationRowProps) {
   const showVendorGrantActions = isPendingVendorGrantNotification(notification);
   const showCoworkerAccessActions =
@@ -365,12 +372,18 @@ function NotificationRow({
           <VendorGrantNotificationActions
             notification={notification}
             layout="inline"
+            onAccepted={() => {
+              onAccessRequestAccepted(notification.id);
+            }}
           />
         ) : null}
         {showCoworkerAccessActions ? (
           <CoworkerAccessNotificationActions
             notification={notification}
             layout="inline"
+            onAccepted={() => {
+              onAccessRequestAccepted(notification.id);
+            }}
           />
         ) : null}
       </div>
