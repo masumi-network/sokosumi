@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useRef } from "react";
 
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import { createAuthSessionGetter } from "@/lib/auth/auth.utils";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
@@ -10,6 +11,8 @@ import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 export function AuthSessionGuard() {
   const router = useRouter();
   const isRedirectingRef = useRef(false);
+  const mountedRef = useRef(true);
+  const probeGenerationRef = useRef(0);
   const getFreshSession = createAuthSessionGetter(() =>
     authClient.getSession({
       query: {
@@ -23,9 +26,16 @@ export function AuthSessionGuard() {
       return;
     }
 
+    const generation = ++probeGenerationRef.current;
+
     try {
       const session = await getFreshSession();
-      if (isRedirectingRef.current || session) {
+      if (
+        !mountedRef.current ||
+        isRedirectingRef.current ||
+        generation !== probeGenerationRef.current ||
+        session
+      ) {
         return;
       }
     } catch {
@@ -37,9 +47,15 @@ export function AuthSessionGuard() {
     router.replace(`/signin?returnUrl=${returnUrl}`);
   });
 
-  useEffect(() => {
+  useMountEffect(() => {
+    mountedRef.current = true;
     void validateSession();
-  }, []);
+
+    return () => {
+      mountedRef.current = false;
+      probeGenerationRef.current += 1;
+    };
+  });
 
   useEffect(() => {
     function handleWindowFocus() {
