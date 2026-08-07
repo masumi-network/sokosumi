@@ -20,6 +20,7 @@ const {
   taskEventCreateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
+  notificationDeleteManyMock,
 } = vi.hoisted(() => ({
   resolveMemberOrganizationByIdMock: vi.fn(),
   vendorFindUniqueMock: vi.fn(),
@@ -29,6 +30,7 @@ const {
   taskEventCreateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  notificationDeleteManyMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/organization", () => ({
@@ -101,6 +103,7 @@ beforeAll(async () => {
 describe("POST /organizations/{id}/vendor-grants", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    notificationDeleteManyMock.mockResolvedValue({ count: 0 });
     resolveMemberOrganizationByIdMock.mockResolvedValue({ id: orgId });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
     vendorFindUniqueMock.mockResolvedValue({
@@ -126,6 +129,9 @@ describe("POST /organizations/{id}/vendor-grants", () => {
           },
           taskEvent: {
             create: taskEventCreateMock,
+          },
+          notification: {
+            deleteMany: notificationDeleteManyMock,
           },
         }),
     );

@@ -22,6 +22,7 @@ const {
   workspaceFindUniqueMock,
   prismaTransactionMock,
   userFindUniqueMock,
+  notificationDeleteManyMock,
 } = vi.hoisted(() => ({
   vendorFindUniqueMock: vi.fn(),
   vendorGrantUpsertMock: vi.fn(),
@@ -31,6 +32,7 @@ const {
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
+  notificationDeleteManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -104,6 +106,7 @@ beforeAll(async () => {
 describe("POST /users/{id}/vendor-grants", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    notificationDeleteManyMock.mockResolvedValue({ count: 0 });
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
     vendorFindUniqueMock.mockResolvedValue({
@@ -129,6 +132,9 @@ describe("POST /users/{id}/vendor-grants", () => {
           },
           taskEvent: {
             create: taskEventCreateMock,
+          },
+          notification: {
+            deleteMany: notificationDeleteManyMock,
           },
         }),
     );
