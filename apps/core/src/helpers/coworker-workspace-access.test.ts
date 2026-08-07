@@ -584,6 +584,7 @@ describe("coworker-workspace-access helpers", () => {
       expect(requireVendorAdminMembershipMock).toHaveBeenCalledWith(
         "actor-1",
         "vendor-1",
+        expect.anything(),
       );
       expect(accessUpsert).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -450,7 +450,7 @@ export async function upsertCoworkerWorkspaceAccess(
     );
   }
 
-  await requireVendorAdminMembership(params.actorUserId, coworker.vendorId);
+  await requireVendorAdminMembership(params.actorUserId, coworker.vendorId, tx);
 
   const belongs = await userBelongsToWorkspace(
     params.actorUserId,
