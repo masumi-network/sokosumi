@@ -4,12 +4,13 @@ import { describe, expect, it } from "vitest";
 import { ChatHomePageSkeleton } from "../chat-home-loading-view";
 
 describe("ChatHomePageSkeleton", () => {
-  it("renders desktop welcome skeleton only (no mobile hub)", () => {
+  it("renders desktop welcome skeleton and mobile chats skeleton", () => {
     render(<ChatHomePageSkeleton />);
 
     const desktop = screen.getByTestId("chat-home-loading-desktop");
     expect(desktop.className).toMatch(/md:flex/);
-    expect(screen.queryByTestId("chat-home-loading-mobile")).toBeNull();
+    const mobile = screen.getByTestId("chat-chats-loading");
+    expect(mobile.className).toMatch(/md:hidden/);
   });
 
   it("uses pulse skeleton bones (no async APIs)", () => {
