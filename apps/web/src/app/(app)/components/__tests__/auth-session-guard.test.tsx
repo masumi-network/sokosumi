@@ -73,15 +73,52 @@ describe("AuthSessionGuard", () => {
   });
 
   it("redirects to sign-in when the session is missing", async () => {
+    vi.useFakeTimers();
     vi.mocked(authClient.getSession).mockResolvedValue(missingSession);
 
     render(<AuthSessionGuard />);
+    await flushMicrotasks();
+    await advance(250);
+    await flushMicrotasks();
+    await advance(750);
+    await flushMicrotasks();
 
-    await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith(
-        "/signin?returnUrl=%2Fagents%3Fview%3Dgrid",
-      );
-    });
+    expect(replaceMock).toHaveBeenCalledWith(
+      "/signin?returnUrl=%2Fagents%3Fview%3Dgrid",
+    );
+    expect(authClient.getSession).toHaveBeenCalledTimes(3);
+  });
+
+  it("stays signed in when mount briefly returns null then a session", async () => {
+    vi.useFakeTimers();
+    vi.mocked(authClient.getSession)
+      .mockResolvedValueOnce(missingSession)
+      .mockResolvedValueOnce(presentSession);
+
+    render(<AuthSessionGuard />);
+    await flushMicrotasks();
+
+    expect(authClient.getSession).toHaveBeenCalledTimes(1);
+    expect(replaceMock).not.toHaveBeenCalled();
+
+    await advance(250);
+    await flushMicrotasks();
+
+    expect(authClient.getSession).toHaveBeenCalledTimes(2);
+    expect(replaceMock).not.toHaveBeenCalled();
+  });
+
+  it("does not redirect when mount probing throws", async () => {
+    vi.useFakeTimers();
+    vi.mocked(authClient.getSession).mockRejectedValueOnce(
+      new Error("network"),
+    );
+
+    render(<AuthSessionGuard />);
+    await flushMicrotasks();
+
+    expect(authClient.getSession).toHaveBeenCalledTimes(1);
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 
   it("revalidates again on focus without redirecting when the session is present", async () => {

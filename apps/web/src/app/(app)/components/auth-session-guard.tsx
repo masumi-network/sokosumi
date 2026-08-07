@@ -37,22 +37,8 @@ export function AuthSessionGuard() {
   });
 
   const validateSession = useEffectEvent(
-    async (reason: SessionValidateReason) => {
+    async (_reason: SessionValidateReason) => {
       if (isRedirectingRef.current) {
-        return;
-      }
-
-      if (reason === "mount") {
-        try {
-          const session = await getFreshSession();
-          if (isRedirectingRef.current || session) {
-            return;
-          }
-        } catch {
-          return;
-        }
-
-        redirectToSignIn();
         return;
       }
 
