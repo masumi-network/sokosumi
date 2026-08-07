@@ -14,6 +14,7 @@ import {
   buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
+  chatRoomMessageInclude,
   contentIncludesRoomAllMention,
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
@@ -775,6 +776,19 @@ describe("mapChatRoomMessage quote", () => {
     expect(mapped.metadata).toBeNull();
     expect(mapped.reactions).toEqual([]);
     expect(mapped.threadReplyCount).toBe(2);
+  });
+});
+
+describe("chatRoomMessageInclude thread reply aggregates", () => {
+  it("excludes soft-deleted replies from threadReplyCount and last-reply preview", () => {
+    // Soft-deleted replies must not inflate "N replies" on the parent
+    // (matches getChatRoomThreadAggregates reply."deletedAt" IS NULL).
+    expect(chatRoomMessageInclude._count.select.replies).toEqual({
+      where: { deletedAt: null },
+    });
+    expect(chatRoomMessageInclude.replies.where).toEqual({
+      deletedAt: null,
+    });
   });
 });
 
