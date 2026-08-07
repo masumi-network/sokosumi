@@ -1,6 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { notificationFeedKindWhere } from "@/helpers/notification-feed";
+import {
+  excludeResolvedVendorGrantNotificationsWhere,
+  findStaleVendorGrantNotificationReferenceIds,
+  notificationFeedKindWhere,
+} from "@/helpers/notification-feed";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -36,11 +40,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireOwnerUserContext(c.var.authContext);
 
+    const staleVendorGrantReferenceIds =
+      await findStaleVendorGrantNotificationReferenceIds(userContext.userId);
+
     const count = await prisma.notification.count({
       where: {
         userId: userContext.userId,
         isRead: false,
         kind: notificationFeedKindWhere(),
+        ...excludeResolvedVendorGrantNotificationsWhere(
+          staleVendorGrantReferenceIds,
+        ),
       },
     });
 

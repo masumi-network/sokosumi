@@ -283,6 +283,11 @@ export function NotificationsPageContent({
                   )}
                   timeLabel={formatTime(notification.createdAt)}
                   onClick={handleNotificationClick}
+                  onVendorGrantAccepted={(notificationId) => {
+                    setNotifications((prev) =>
+                      prev.filter((item) => item.id !== notificationId),
+                    );
+                  }}
                 />
               ))}
             </div>
@@ -310,6 +315,7 @@ interface NotificationRowProps {
   message: string;
   timeLabel: string;
   onClick: (notification: NotificationItem) => void;
+  onVendorGrantAccepted: (notificationId: string) => void;
 }
 
 function NotificationRow({
@@ -318,6 +324,7 @@ function NotificationRow({
   message,
   timeLabel,
   onClick,
+  onVendorGrantAccepted,
 }: NotificationRowProps) {
   const showVendorGrantActions = isPendingVendorGrantNotification(notification);
   const rowClassName = cn(
@@ -359,6 +366,9 @@ function NotificationRow({
           <VendorGrantNotificationActions
             notification={notification}
             layout="inline"
+            onAccepted={() => {
+              onVendorGrantAccepted(notification.id);
+            }}
           />
         ) : null}
       </div>

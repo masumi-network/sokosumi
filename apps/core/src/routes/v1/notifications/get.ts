@@ -2,7 +2,11 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { type NotificationKind, type Prisma } from "@sokosumi/database";
 
 import { badRequest } from "@/helpers/error";
-import { notificationFeedKindWhere } from "@/helpers/notification-feed";
+import {
+  excludeResolvedVendorGrantNotificationsWhere,
+  findStaleVendorGrantNotificationReferenceIds,
+  notificationFeedKindWhere,
+} from "@/helpers/notification-feed";
 import {
   jsonErrorResponse,
   jsonPaginatedSuccessResponse,
@@ -152,9 +156,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
+    const staleVendorGrantReferenceIds =
+      await findStaleVendorGrantNotificationReferenceIds(userContext.userId);
+
     const where: Prisma.NotificationWhereInput = {
       userId: userContext.userId,
       kind: notificationFeedKindWhere(queryParams.kind),
+      ...excludeResolvedVendorGrantNotificationsWhere(
+        staleVendorGrantReferenceIds,
+      ),
     };
 
     if (queryParams.isRead !== undefined) {

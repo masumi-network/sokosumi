@@ -70,7 +70,7 @@ function VendorGrantNotificationToast({
       <VendorGrantNotificationActions
         notification={notification}
         layout="toast"
-        onDismissed={() => {
+        onAccepted={() => {
           toast.dismiss(notification.id);
         }}
       />
