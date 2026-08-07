@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 let mockPathname = "/chat";
 let mockSearchParams = new URLSearchParams();
 let mockIsApple = false;
+let mockShowUnreadDot = false;
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
@@ -16,6 +17,10 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => mockIsApple,
+}));
+
+vi.mock("../use-chat-tab-unread-presence", () => ({
+  useChatTabUnreadPresence: () => ({ showUnreadDot: mockShowUnreadDot }),
 }));
 
 vi.mock("next/link", () => ({
@@ -83,6 +88,7 @@ describe("ChatMobileBottomNav", () => {
     mockPathname = "/chat";
     mockSearchParams = new URLSearchParams();
     mockIsApple = false;
+    mockShowUnreadDot = false;
   });
 
   it("renders Home, Chats, and Search as links — Search goes to /history", () => {
@@ -190,5 +196,26 @@ describe("ChatMobileBottomNav", () => {
     render(<ChatMobileBottomNav />);
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
+  });
+
+  it("shows an unread presence dot on the Chats tab when attention exists", () => {
+    mockShowUnreadDot = true;
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.getByLabelText("chatsUnread")).toBeTruthy();
+    expect(screen.getByLabelText("chatsUnread").className).toContain(
+      "bg-primary",
+    );
+    expect(screen.getByLabelText("chatsUnread").className).toContain(
+      "size-1.5",
+    );
+    expect(screen.getByRole("link", { name: /chats/i })).toBeTruthy();
+  });
+
+  it("hides the unread presence dot when no attention remains", () => {
+    mockShowUnreadDot = false;
+    render(<ChatMobileBottomNav />);
+
+    expect(screen.queryByLabelText("chatsUnread")).toBeNull();
   });
 });

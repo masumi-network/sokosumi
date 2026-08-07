@@ -702,7 +702,7 @@ export const MarkdownEditor = forwardRef<
         aria-multiline="true"
         className={cn(
           "markdown-compose-surface",
-          "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto px-3 py-2 text-sm",
+          "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto px-3 py-2 text-base md:text-sm",
           "outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
           "empty:before:text-muted-foreground empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]",

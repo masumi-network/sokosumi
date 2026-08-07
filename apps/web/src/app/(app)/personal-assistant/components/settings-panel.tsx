@@ -386,7 +386,7 @@ export default function SettingsPanel({
                   spellCheck={false}
                   maxLength={60}
                   disabled={nameSaving}
-                  className="border-border/60 bg-card/40 text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-ring h-9 w-full rounded-lg border px-3 text-sm outline-none focus-visible:ring-2"
+                  className="border-border/60 bg-card/40 text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-ring h-9 w-full rounded-lg border px-3 text-base outline-none focus-visible:ring-2 md:text-sm"
                 />
                 <Button
                   type="button"
