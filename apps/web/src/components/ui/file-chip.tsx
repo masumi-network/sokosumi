@@ -32,14 +32,19 @@ export interface FileChipProps extends React.ComponentPropsWithoutRef<"a"> {
   iconPx?: number;
 }
 
+/** Matches Tailwind `max-h-80` (20rem). Used to derive width from aspect ratio. */
+const VIDEO_FRAME_MAX_HEIGHT_REM = 20;
+
 /**
  * Native `<video controls>` reports a large min-content width (~476–570px in
  * Chromium). Inside Radix ScrollArea's `display:table` content wrapper that
  * floor becomes the message column's minimum and Chrome device mode appears
  * to "stop resizing". Absolutely positioning the video removes it from
  * min-content; chat message ScrollAreas also pass `shrinkContent` so the
- * table wrapper can shrink. The frame keeps width from the row and height
- * from aspect-ratio (capped like large image previews).
+ * table wrapper can shrink.
+ *
+ * `maxWidth = max-height × aspect-ratio` so portrait clips shrink the box
+ * instead of letterboxing inside a full-row frame when height hits max-h-80.
  */
 function FileChipVideoFrame({
   src,
@@ -49,12 +54,19 @@ function FileChipVideoFrame({
   fileName: string;
 }) {
   const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
+  const resolvedAspectRatio = aspectRatio ?? 16 / 9;
 
   return (
     <div
       data-testid="file-chip-video-frame"
-      className="relative min-w-0 w-full max-w-full max-h-80 overflow-hidden rounded-lg bg-black/20"
-      style={{ aspectRatio: aspectRatio ?? 16 / 9 }}
+      className="relative min-w-0 w-full overflow-hidden rounded-lg bg-black/20"
+      style={{
+        aspectRatio: resolvedAspectRatio,
+        maxHeight: `${VIDEO_FRAME_MAX_HEIGHT_REM}rem`,
+        // Portrait: cap width so the box matches the video (no side bars).
+        // Landscape: cap is above max-w-sm chip, so frame fills the chip.
+        maxWidth: `${VIDEO_FRAME_MAX_HEIGHT_REM * resolvedAspectRatio}rem`,
+      }}
     >
       <video
         src={src}
@@ -212,9 +224,9 @@ export function FileChip(props: FileChipProps) {
     return (
       <div
         className={cn(
-          // min-w-0 lets the chip shrink in flex message rows (large images do
-          // the same); overflow-hidden clamps native video control min-width.
-          "flex min-w-0 w-full max-w-full flex-col gap-2 overflow-hidden rounded-md border p-2",
+          // Cap like large solo image thumbs (`max-w-sm`) — not full message
+          // column. min-w-0 + overflow-hidden clamps native control min-width.
+          "flex min-w-0 w-full max-w-sm flex-col gap-2 overflow-hidden rounded-md border p-2",
           className,
         )}
         title={title}

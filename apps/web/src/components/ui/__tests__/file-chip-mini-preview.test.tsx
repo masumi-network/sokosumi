@@ -209,15 +209,15 @@ describe("FileChipMiniPreviewFrame", () => {
     expect(screen.getByTestId("file-chip-video")).toHaveClass(
       "min-w-0",
       "w-full",
-      "max-w-full",
-      "basis-full",
+      "max-w-sm",
       "overflow-hidden",
       "shrink",
     );
+    expect(screen.getByTestId("file-chip-video")).not.toHaveClass("basis-full");
     expect(screen.getByTestId("file-chip-video-frame")).toHaveClass(
       "relative",
       "min-w-0",
-      "max-h-80",
+      "w-full",
       "overflow-hidden",
     );
   });

@@ -167,17 +167,16 @@ describe("FileChip", () => {
     expect(screen.getByTestId("file-chip-video")).toHaveClass(
       "min-w-0",
       "w-full",
-      "max-w-full",
+      "max-w-sm",
       "overflow-hidden",
     );
-    expect(screen.getByTestId("file-chip-video-frame")).toHaveClass(
-      "relative",
-      "min-w-0",
-      "w-full",
-      "max-w-full",
-      "max-h-80",
-      "overflow-hidden",
-    );
+    const frame = screen.getByTestId("file-chip-video-frame");
+    expect(frame).toHaveClass("relative", "min-w-0", "w-full", "overflow-hidden");
+    // Default 16:9: maxWidth = 20rem * 16/9 (above max-w-sm → fills chip).
+    // happy-dom normalizes aspect-ratio to "N / 1".
+    expect(frame.style.aspectRatio).toMatch(/^1\.7777777777777777(\s*\/\s*1)?$/);
+    expect(frame.style.maxHeight).toBe("20rem");
+    expect(frame.style.maxWidth).toBe(`${(20 * 16) / 9}rem`);
     // download secondary still available (exact name avoids nested media fallback)
     expect(screen.getByRole("link", { name: /^download$/i })).toHaveAttribute(
       "href",
@@ -205,9 +204,13 @@ describe("FileChip", () => {
     });
     fireEvent.loadedMetadata(video!);
 
-    expect(screen.getByTestId("file-chip-video-frame")).toHaveStyle({
-      aspectRatio: "0.5625",
-    });
+    // Portrait 9:16 → width shrinks with max-height so the player is not a
+    // full-row letterbox (controls spanning the message column).
+    const portraitFrame = screen.getByTestId("file-chip-video-frame");
+    expect(portraitFrame.style.aspectRatio).toMatch(/^0\.5625(\s*\/\s*1)?$/);
+    // 20rem × 9/16 → ~11.25rem player (not full message column letterbox)
+    expect(portraitFrame.style.maxWidth).toBe(`${20 * 0.5625}rem`);
+    expect(portraitFrame.style.maxHeight).toBe("20rem");
 
     rerender(
       <FileChip
@@ -217,9 +220,11 @@ describe("FileChip", () => {
     );
 
     // key={mediaSrc} remounts the frame so stale portrait ratio cannot stick.
-    expect(screen.getByTestId("file-chip-video-frame")).toHaveStyle({
-      aspectRatio: String(16 / 9),
-    });
+    const landscapeFrame = screen.getByTestId("file-chip-video-frame");
+    expect(landscapeFrame.style.aspectRatio).toMatch(
+      /^1\.7777777777777777(\s*\/\s*1)?$/,
+    );
+    expect(landscapeFrame.style.maxWidth).toBe(`${(20 * 16) / 9}rem`);
     expect(container.querySelector("video")).toHaveAttribute(
       "src",
       "https://blob.example.com/uploads/landscape.mp4",

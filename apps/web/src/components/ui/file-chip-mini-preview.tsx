@@ -237,7 +237,8 @@ export function FileChipMiniPreviewFrame(props: FileChipMiniPreviewProps) {
         mediaType={props.mediaType}
         size={props.size}
         className={cn(
-          "min-w-0 w-full max-w-full basis-full shrink",
+          // Match FileChip media cap; avoid basis-full (forces full message row).
+          "min-w-0 w-full max-w-sm shrink",
           props.className,
         )}
       />
