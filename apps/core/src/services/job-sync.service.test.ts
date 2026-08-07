@@ -670,16 +670,16 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
-  it("refuses to write a polled purchase belonging to a different job", async () => {
+  it("refuses to write a polled purchase for a different blockchain identifier", async () => {
     // The poll path looks the purchase up by blockchain identifier rather
-    // than by its own id, so the reply is not self-evidently this job's.
-    // Writing it would stamp another job's on-chain status — and therefore
-    // its refund or completion — onto this one.
+    // than by its own id, so confirm the node answered with the identifier
+    // asked for. Writing a different row would stamp another job's on-chain
+    // status — and therefore its refund or completion — onto this one.
     mockInitialJobQueries({ purchase: [createJob()] });
     getPurchaseByBlockchainIdentifierMock.mockReturnValue(
       ok({
         id: "purchase_foreign",
-        inputHash: "foreign-input-hash",
+        blockchainIdentifier: "blockchain-job-2",
         onChainStatus: "REFUND_WITHDRAWN",
         nextAction: "NONE",
         nextActionErrorType: null,
@@ -693,13 +693,37 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(captureExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         message: expect.stringContaining(
-          "Resolved purchase does not belong to job job_1",
+          "Resolved purchase is for a different blockchain identifier than job job_1",
         ),
       }),
     );
   });
 
-  it("still writes a polled purchase that carries no input hash", async () => {
+  it("accepts a polled purchase whose identifier differs only in casing", async () => {
+    // Casing never carries meaning in these hex-encoded protocol values, so
+    // an uppercase echo is the same purchase, not a foreign one.
+    mockInitialJobQueries({ purchase: [createJob()] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok({
+        id: "purchase_1",
+        blockchainIdentifier: "BLOCKCHAIN-JOB-1",
+        onChainStatus: "FUNDS_LOCKED",
+        nextAction: "NONE",
+        nextActionErrorType: null,
+        nextActionErrorNote: null,
+      }),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(updateJobPurchaseByJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      expect.objectContaining({ onChainStatus: "FUNDS_LOCKED" }),
+      {},
+    );
+  });
+
+  it("still writes a polled purchase that echoes no blockchain identifier", async () => {
     // Legacy tolerance: this guard runs on every paid job every tick,
     // including rows predating the snapshot columns. An absent value must
     // read as unverifiable, not as foreign — otherwise those jobs would stop

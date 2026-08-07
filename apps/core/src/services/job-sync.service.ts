@@ -544,32 +544,40 @@ function matchesDeadline(
 }
 
 /**
- * Refuses a polled purchase that provably belongs to a different job.
+ * Verifies that the node answered the identifier this job actually asked for.
  *
- * Deliberately weaker than the backfill guard above. Backfill runs once, on a
- * job with no purchase attached, so it can demand every term match. This runs
- * on every paid job every cron tick — including jobs created before the
- * snapshot columns existed — so an absent value on either side must NOT be
- * treated as a mismatch, or those jobs would stop syncing entirely and never
- * reach a terminal state.
+ * The blockchain identifier IS the job's on-chain identity — it is what the
+ * seller signed and what the escrow is keyed on — so it is the only field that
+ * distinguishes one job's purchase from another's. Nothing else here does:
+ * `inputHash` is a hash of the input alone, so two hires of the same agent with
+ * the same input share it; deadlines and amounts collide freely; and the
+ * purchase id may legitimately change if the node replaces the row.
  *
- * Compares only `inputHash`: it is derived from this job's own input, it is
- * part of what the seller signed, and it has been stored on every paid job
- * since long before this release. `sellerVkey` is deliberately not compared —
- * a purchase that carries no seller identity would then read as foreign and
- * wedge a legitimate job. The purchase id is not compared either: the node may
- * legitimately replace a purchase row for the same blockchainIdentifier.
+ * Since the lookup is keyed on that identifier, this is a narrow echo check —
+ * it catches the node answering with a different row, not a purchase that is
+ * plausibly-but-wrongly matched. That is the whole gap the id-based lookup used
+ * to close for free.
+ *
+ * An absent identifier on the response reads as unverifiable, not foreign: this
+ * runs on every paid job every cron tick, including rows predating the snapshot
+ * columns, and refusing those would stop them syncing forever.
  */
 function isPolledPurchaseForeign(
-  purchase: { inputHash?: string | null; id: string },
-  job: { inputHash: string | null; id: string },
+  purchase: { blockchainIdentifier?: string | null },
+  job: { blockchainIdentifier: string | null },
 ): boolean {
+  if (
+    typeof purchase.blockchainIdentifier !== "string" ||
+    purchase.blockchainIdentifier.length === 0 ||
+    typeof job.blockchainIdentifier !== "string" ||
+    job.blockchainIdentifier.length === 0
+  ) {
+    return false;
+  }
+  // Casing never carries meaning in these hex-encoded protocol values.
   return (
-    typeof purchase.inputHash === "string" &&
-    purchase.inputHash.length > 0 &&
-    typeof job.inputHash === "string" &&
-    job.inputHash.length > 0 &&
-    purchase.inputHash !== job.inputHash
+    purchase.blockchainIdentifier.toLowerCase() !==
+    job.blockchainIdentifier.toLowerCase()
   );
 }
 
@@ -792,18 +800,19 @@ async function syncPurchaseState(
 
   if (onChainPurchaseResult.isOk()) {
     const polledPurchase = onChainPurchaseResult.value;
-    // The lookup key changed from the purchase id to the blockchain
-    // identifier (V2 purchases are invisible to the id cursor), so the reply
-    // is no longer self-evidently this job's purchase. Writing a foreign one
-    // here would stamp another job's on-chain status — and therefore its
-    // refund or completion — onto this one.
+    // The lookup key changed from the purchase id — a value read straight off
+    // this job's own row — to the blockchain identifier, because V2 purchases
+    // are invisible to the id cursor. Confirm the node answered with that
+    // identifier: writing a different row's state would stamp another job's
+    // refund or completion onto this one.
     if (isPolledPurchaseForeign(polledPurchase, job)) {
       const foreignPurchaseError = new Error(
-        `Resolved purchase does not belong to job ${job.id}; refusing purchase state update`,
+        `Resolved purchase is for a different blockchain identifier than job ${job.id}; refusing purchase state update`,
       );
       console.error(foreignPurchaseError.message, {
         jobId: job.id,
         blockchainIdentifier: job.blockchainIdentifier,
+        resolvedBlockchainIdentifier: polledPurchase.blockchainIdentifier,
         purchaseId: polledPurchase.id,
       });
       Sentry.captureException(foreignPurchaseError);
