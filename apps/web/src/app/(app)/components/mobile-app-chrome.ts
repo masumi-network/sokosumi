@@ -118,14 +118,21 @@ export function shouldShowMobileBottomNav(
 }
 
 /**
- * Leading slot shows Sokosumi brand only on Home surface and Chats list.
+ * Leading slot shows Sokosumi brand on Chats list and every bottom-nav tab
+ * root (Tasks / Agents / Projects / Search). Nested pages keep back.
  */
 export function shouldShowMobileBrandLeading(
   pathname: string | null | undefined,
   searchParams?: SearchParamsLike,
 ): boolean {
   const surface = classifyChatChromeSurface(pathname, searchParams);
-  return surface === "home" || surface === "chats";
+  if (surface === "home" || surface === "chats") {
+    return true;
+  }
+  if (!pathname) {
+    return false;
+  }
+  return MOBILE_TAB_LIST_PATH_SET.has(pathname);
 }
 
 /** Floating create FAB: Chats list only (not drafts / welcome / bare home). */
