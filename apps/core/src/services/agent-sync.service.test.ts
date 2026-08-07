@@ -84,8 +84,6 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({
     NETWORK: "Preprod",
     SHOW_AGENTS_BY_DEFAULT: true,
-    // Ingestion tests exercise the flag-on behavior; the flag-off rollback
-    // fence has its own dedicated tests.
   }),
 }));
 

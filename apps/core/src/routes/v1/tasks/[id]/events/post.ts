@@ -238,9 +238,9 @@ async function settleTaskEventCharge({
       agentIdentifier: masumiPayment.agentIdentifier,
       paymentSourceType: masumiPayment.paymentSourceType,
     });
-    // V2 payments are gated exactly like the job flow: rollout flag AND a
-    // payment node that recently reported the payload's EXACT policy/contract
-    // source as purchase-ready. Rejecting before the charge avoids a pointless
+    // V2 payments are gated exactly like the job flow: a payment node that
+    // recently reported the payload's EXACT policy/contract source as
+    // purchase-ready. Rejecting before the charge avoids a pointless
     // debit/refund cycle; unexpected node rejection is compensated below.
     const isV2TaskPayment = isV2MasumiTaskPayment(masumiPayment);
     if (isV2TaskPayment) {

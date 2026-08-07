@@ -321,8 +321,8 @@ async function upsertRegistryAgent(
   if (!existing) {
     // A seller re-registering under the V2 policy produces a BRAND NEW row
     // with no link to their existing one, so admin curation must be carried
-    // across explicitly — otherwise turning the rollout flag on silently
-    // re-publishes agents an admin suppressed and resets their risk rating.
+    // across explicitly — otherwise the V2 registration silently re-publishes
+    // an agent an admin suppressed and resets its risk rating.
     const curation = await resolveCuratedTwinDefaults(entry);
     await prisma.agent.create({
       data: {

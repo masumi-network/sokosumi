@@ -238,8 +238,8 @@ const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
 
 /**
  * Exact Cardano V2 policy/contract sources the payment node reported
- * purchase-ready recently. Returns an empty list while the rollout flag is
- * off, the cache is stale, or the cache payload is invalid.
+ * purchase-ready recently. Returns an empty list when readiness has never been
+ * recorded, the cache is stale, or the cache payload is invalid.
  *
  * Memoized for a few seconds (see cardano-v2-readiness-cache) because this runs
  * on every catalog request while the underlying row only changes once per cron
@@ -378,8 +378,8 @@ export const buildAvailableAgentWhereClause = (
       },
       // Membership of the V2 registry policy — NOT the payment type — decides
       // whether the V2 rules apply: free and EVM-only V2 agents report
-      // paymentType "None" and would otherwise skip both the rollout flag and
-      // the purchase-ready requirement (mirrors isV2RegistryIdentifier).
+      // paymentType "None" and would otherwise skip the purchase-ready
+      // requirement entirely (mirrors isV2RegistryIdentifier).
       isCardanoV2Enabled
         ? {
             OR: [

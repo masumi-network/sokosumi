@@ -147,9 +147,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     // No agent-status gate here on purpose. main has none, and adding one
-    // regressed the flag-off path: a FREE job whose agent went offline
-    // mid-run could no longer receive the input it had just been asked for,
-    // and free jobs have no refund path, so it was stuck permanently. Jobs
+    // regressed FREE jobs: one whose agent went offline mid-run could no
+    // longer receive the input it had just been asked for, and free jobs have
+    // no refund path, so it was stuck permanently. Jobs
     // are pinned to their own endpoint snapshot (toMasumiAgentForJob), so a
     // newer, offline agent revision cannot redirect an in-flight job.
 

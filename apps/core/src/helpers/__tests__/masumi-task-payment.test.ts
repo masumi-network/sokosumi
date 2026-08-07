@@ -36,8 +36,8 @@ describe("isV2MasumiTaskPayment", () => {
 
   it("keeps a V1 payment on V1 when the seller echoes a stray index", () => {
     // Sellers on a newer SDK emit the index on V1 responses. Treating that as
-    // V2 would 422 the payload while the rollout flag is off, losing the
-    // coworker's completed work.
+    // V2 would put the payload through the V2 readiness gate and 422 it,
+    // losing the coworker's completed work.
     expect(
       isV2MasumiTaskPayment({
         agentIdentifier: V1_IDENTIFIER,
