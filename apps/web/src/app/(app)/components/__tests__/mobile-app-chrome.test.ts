@@ -130,14 +130,16 @@ describe("mobile-app-chrome", () => {
   });
 
   describe("shouldShowMobileBrandLeading", () => {
-    it("shows brand only on home and chats", () => {
+    it("shows brand on chats and every bottom-nav tab root", () => {
       expect(shouldShowMobileBrandLeading("/chat")).toBe(true);
       expect(shouldShowMobileBrandLeading("/chat/chats")).toBe(true);
-      expect(shouldShowMobileBrandLeading("/tasks")).toBe(false);
-      expect(shouldShowMobileBrandLeading("/agents")).toBe(false);
+      expect(shouldShowMobileBrandLeading("/tasks")).toBe(true);
+      expect(shouldShowMobileBrandLeading("/agents")).toBe(true);
+      expect(shouldShowMobileBrandLeading("/projects")).toBe(true);
+      expect(shouldShowMobileBrandLeading("/history")).toBe(true);
     });
 
-    it("hides brand for rooms, drafts, and nested detail", () => {
+    it("hides brand for rooms, drafts, hubs, and nested detail", () => {
       expect(shouldShowMobileBrandLeading("/chat/rooms/r1")).toBe(false);
       expect(
         shouldShowMobileBrandLeading(
@@ -152,6 +154,7 @@ describe("mobile-app-chrome", () => {
         shouldShowMobileBrandLeading("/chat", new URLSearchParams("welcome=1")),
       ).toBe(false);
       expect(shouldShowMobileBrandLeading("/tasks/t1")).toBe(false);
+      expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);
     });
   });

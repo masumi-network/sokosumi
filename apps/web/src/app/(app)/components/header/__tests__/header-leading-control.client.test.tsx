@@ -91,11 +91,21 @@ describe("HeaderLeadingControl", () => {
     expect(back).toHaveAttribute("href", "/chat/chats");
   });
 
-  it("shows no leading back on tasks list root", () => {
+  it("shows brand on tasks list root", () => {
     mockPathname = "/tasks";
     render(<HeaderLeadingControl />);
     expect(screen.queryByRole("link")).toBeNull();
-    expect(screen.queryByTestId("sokosumi-icon")).toBeNull();
+    expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
+  });
+
+  it("shows brand on agents, projects, and search tab roots", () => {
+    for (const path of ["/agents", "/projects", "/history"]) {
+      mockPathname = path;
+      const { unmount } = render(<HeaderLeadingControl />);
+      expect(screen.queryByRole("link")).toBeNull();
+      expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
+      unmount();
+    }
   });
 
   it("shows back to chats on personal-assistant root", () => {
