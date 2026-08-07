@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   APP_HEADER_SAFE_AREA_PADDING_CLASS,
+  APP_HEADER_SAFE_AREA_UNDERLAY_CLASS,
   APP_MAIN_MOBILE_PT_CLASS,
   APP_SHELL_BELOW_HEADER_HEIGHT_CLASS,
   APP_SHELL_BELOW_HEADER_MAX_HEIGHT_CLASS,
@@ -22,6 +23,15 @@ describe("app-shell-safe-area", () => {
     expect(APP_HEADER_SAFE_AREA_PADDING_CLASS).toContain(
       "env(safe-area-inset-right)",
     );
+  });
+
+  it("paints opaque top underlay sized to safe-area inset", () => {
+    expect(APP_HEADER_SAFE_AREA_UNDERLAY_CLASS).toContain(
+      "env(safe-area-inset-top)",
+    );
+    expect(APP_HEADER_SAFE_AREA_UNDERLAY_CLASS).toContain("bg-background");
+    expect(APP_HEADER_SAFE_AREA_UNDERLAY_CLASS).toContain("absolute");
+    expect(APP_HEADER_SAFE_AREA_UNDERLAY_CLASS).toContain("md:hidden");
   });
 
   it("extends former pt-20 main offset by top safe-area", () => {
