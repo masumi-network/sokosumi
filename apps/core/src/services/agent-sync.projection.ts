@@ -831,8 +831,14 @@ export function isSameAgentPricing(
   if (currentAmounts.length !== nextAmounts.length) {
     return false;
   }
+  // Normalize both sides. Rows ingested before this release stored the
+  // registry's unit verbatim, so an ADA price sits as "" while this release
+  // projects it as "lovelace" — the same money. Comparing raw would call every
+  // such agent repriced and delete/recreate its pricing rows for a spelling
+  // change, and V1 registry pricing is immutable, so those would be the only
+  // "reprices" the first replay ever reported.
   const toKey = (row: { unit: string; amount: bigint }) =>
-    `${row.unit}:${row.amount}`;
+    `${normalizeMasumiPaymentUnit(row.unit)}:${row.amount}`;
   const sortedCurrent = currentAmounts.map(toKey).sort();
   const sortedNext = nextAmounts.map(toKey).sort();
   return sortedCurrent.every((value, index) => value === sortedNext[index]);

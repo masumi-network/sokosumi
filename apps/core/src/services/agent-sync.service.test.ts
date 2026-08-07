@@ -1993,6 +1993,47 @@ describe("agentSyncService.syncRegistryAgents", () => {
     );
   });
 
+  it("does not treat the legacy ADA spelling as a reprice", async () => {
+    // V1 registry pricing is immutable, so a V1 agent can never genuinely
+    // reprice. Rows ingested before this release stored ADA as "" while this
+    // release projects "lovelace" — the same money. Comparing raw would
+    // delete/recreate pricing for every such agent and report a reprice that
+    // did not happen.
+    agentFindUniqueMock.mockResolvedValue({
+      id: "agent-db-1",
+      pricingId: "pricing-1",
+      registryVersion: 0,
+    });
+    agentPricingFindUniqueMock.mockResolvedValue({
+      pricingType: PricingType.FIXED,
+      agentFixedPricingId: "fixed-pricing-old",
+      fixedPricing: { amounts: [{ unit: "", amount: BigInt(10) }] },
+    });
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-legacy-ada", {
+          AgentPricing: {
+            pricingType: "Fixed",
+            FixedPricing: { Amounts: [{ amount: "10", unit: "lovelace" }] },
+          },
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(captureMessageMock).not.toHaveBeenCalledWith(
+      "Registry pricing changed for a live agent",
+      expect.anything(),
+    );
+    // No delete/recreate churn either: the pricing rows are left alone.
+    expect(unitValueDeleteManyMock).not.toHaveBeenCalled();
+  });
+
   it("does not record an audit entry when the registry price is unchanged", async () => {
     agentFindUniqueMock.mockResolvedValue({
       id: "agent-db-1",
