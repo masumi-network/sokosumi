@@ -9,14 +9,6 @@ import {
 } from "../chat-mobile-create-fab-actions";
 
 describe("mobileCreateFabActions", () => {
-  it("returns home actions with existing create routes", () => {
-    expect(mobileCreateFabActions("home")).toEqual([
-      { id: "newTask", href: "/tasks?create=true" },
-      { id: "createChannel", href: "/chat?create=channel" },
-      { id: "newDm", href: "/chat?dm=new" },
-    ]);
-  });
-
   it("returns chats actions with channel and dm only", () => {
     expect(mobileCreateFabActions("chats")).toEqual([
       { id: "createChannel", href: "/chat?create=channel" },

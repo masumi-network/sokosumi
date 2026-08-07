@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-let mockPathname = "/chat";
+let mockPathname = "/chat/chats";
 let mockSearchParams = new URLSearchParams();
 let mockIsApple = false;
 
@@ -134,12 +134,12 @@ import { ChatMobileCreateFab } from "../chat-mobile-create-fab";
 
 describe("ChatMobileCreateFab", () => {
   beforeEach(() => {
-    mockPathname = "/chat";
+    mockPathname = "/chat/chats";
     mockSearchParams = new URLSearchParams();
     mockIsApple = false;
   });
 
-  it("shows on home and opens overlay list menu with home actions", () => {
+  it("shows chats actions without new chat or new task", () => {
     const { container } = render(<ChatMobileCreateFab />);
 
     fireEvent.click(screen.getByRole("button", { name: "openMenu" }));
@@ -151,8 +151,8 @@ describe("ChatMobileCreateFab", () => {
       screen.queryByRole("menuitem", { name: /newChat\.title/i }),
     ).toBeNull();
     expect(
-      screen.getByRole("menuitem", { name: /newTask\.title/i }),
-    ).toHaveAttribute("href", "/tasks?create=true");
+      screen.queryByRole("menuitem", { name: /newTask\.title/i }),
+    ).toBeNull();
     expect(
       screen.getByRole("menuitem", { name: /createChannel\.title/i }),
     ).toHaveAttribute("href", "/chat?create=channel");
@@ -161,27 +161,14 @@ describe("ChatMobileCreateFab", () => {
     ).toHaveAttribute("href", "/chat?dm=new");
   });
 
-  it("shows chats actions without new chat or new task", () => {
-    mockPathname = "/chat/chats";
+  it("hides on bare /chat home surface", () => {
+    mockPathname = "/chat";
     render(<ChatMobileCreateFab />);
-
-    fireEvent.click(screen.getByRole("button", { name: "openMenu" }));
-
-    expect(
-      screen.queryByRole("menuitem", { name: /newChat\.title/i }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("menuitem", { name: /newTask\.title/i }),
-    ).toBeNull();
-    expect(
-      screen.getByRole("menuitem", { name: /createChannel\.title/i }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("menuitem", { name: /newDm\.title/i }),
-    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
   });
 
   it("hides on welcome compose and draft query surfaces", () => {
+    mockPathname = "/chat";
     mockSearchParams = new URLSearchParams("welcome=1");
     const { unmount } = render(<ChatMobileCreateFab />);
     expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
@@ -214,7 +201,7 @@ describe("ChatMobileCreateFab", () => {
     expect(screen.queryByRole("menu")).toBeNull();
     expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
 
-    mockPathname = "/chat";
+    mockPathname = "/chat/chats";
     rerender(<ChatMobileCreateFab />);
     expect(screen.getByRole("button", { name: "openMenu" })).toBeTruthy();
     expect(screen.queryByRole("menu")).toBeNull();

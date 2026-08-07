@@ -14,10 +14,10 @@ import { SokosumiIcon } from "@/components/masumi-logos";
 
 /**
  * Mobile header leading slot (`md:hidden` size-8):
- * - chat home / chats list → Sokosumi icon (no back / hamburger)
+ * - chats + bottom-nav tab roots → Sokosumi icon (no back / hamburger)
  * - chat room / draft compose → back to `/chat/chats`
- * - main hub lists + nested → back (home or list root)
- * - otherwise → back to home
+ * - non-tab hub roots + nested → back (chats or list root)
+ * - otherwise → back to chats
  */
 export function HeaderLeadingControl(): React.ReactElement {
   const pathname = usePathname();
@@ -60,8 +60,8 @@ export function HeaderLeadingControl(): React.ReactElement {
 
   return (
     <Link
-      href="/chat"
-      aria-label={t("backToHome")}
+      href="/chat/chats"
+      aria-label={t("backToChats")}
       className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
     >
       <ChevronLeft className="size-5" aria-hidden />

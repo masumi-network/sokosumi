@@ -1,7 +1,13 @@
-import { Home, type LucideIcon, MessageCircle, Search } from "lucide-react";
+import {
+  Bot,
+  FolderKanban,
+  ListTodo,
+  type LucideIcon,
+  MessageCircle,
+  Search,
+} from "lucide-react";
 
 import { classifyChatChromeSurface } from "@/app/chat/utils/chat-route-base";
-import { isMainAppMobileChromePathname } from "@/app/components/mobile-app-chrome";
 
 type SearchParamsLike =
   | URLSearchParams
@@ -105,13 +111,23 @@ export function chatMobileHeightShellClass(
   return CHAT_MOBILE_HEIGHT_SHELL_CLASS;
 }
 
-export type ChatMobileTabId = "home" | "chats" | "search";
-export type ChatMobileTabLabelKey = "home" | "chats" | "search";
+export type ChatMobileTabId =
+  | "tasks"
+  | "agents"
+  | "chats"
+  | "projects"
+  | "search";
+export type ChatMobileTabLabelKey =
+  | "tasks"
+  | "agents"
+  | "chats"
+  | "projects"
+  | "search";
 
 export interface ChatMobileTab {
   kind: "link";
   id: ChatMobileTabId;
-  href: "/chat" | "/chat/chats" | "/history";
+  href: "/tasks" | "/agents" | "/chat/chats" | "/projects" | "/history";
   labelKey: ChatMobileTabLabelKey;
   icon: LucideIcon;
   isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
@@ -119,20 +135,20 @@ export interface ChatMobileTab {
 
 export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
   {
-    id: "home",
+    id: "tasks",
     kind: "link",
-    href: "/chat",
-    labelKey: "home",
-    icon: Home,
-    isActive: (pathname, searchParams) => {
-      // Draft/welcome flows (`?create=channel`, `?dm=new`, `?welcome=1`) share
-      // pathname `/chat` but are not Home — classifyChatChromeSurface returns
-      // "draft".
-      if (classifyChatChromeSurface(pathname, searchParams) === "home") {
-        return true;
-      }
-      return isMainAppMobileChromePathname(pathname) && pathname !== "/history";
-    },
+    href: "/tasks",
+    labelKey: "tasks",
+    icon: ListTodo,
+    isActive: (pathname) => pathname === "/tasks",
+  },
+  {
+    id: "agents",
+    kind: "link",
+    href: "/agents",
+    labelKey: "agents",
+    icon: Bot,
+    isActive: (pathname) => pathname === "/agents",
   },
   {
     id: "chats",
@@ -141,6 +157,14 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     labelKey: "chats",
     icon: MessageCircle,
     isActive: (pathname) => pathname === "/chat/chats",
+  },
+  {
+    id: "projects",
+    kind: "link",
+    href: "/projects",
+    labelKey: "projects",
+    icon: FolderKanban,
+    isActive: (pathname) => pathname === "/projects",
   },
   {
     id: "search",
