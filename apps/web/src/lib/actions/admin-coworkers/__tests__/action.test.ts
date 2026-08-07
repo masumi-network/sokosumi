@@ -197,7 +197,8 @@ describe("admin coworker actions", () => {
     const result = await grantAdminCoworkerEarlyAccessAction({
       session: memberSession,
       coworkerId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      workspaceId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      targetType: "organization",
+      targetId: "org_123",
     });
 
     expect(result.ok).toBe(false);
@@ -209,7 +210,7 @@ describe("admin coworker actions", () => {
     expect(createForCoworkerMock).not.toHaveBeenCalled();
   });
 
-  it("grants early access for admin sessions", async () => {
+  it("grants early access for admin sessions by organization", async () => {
     const { grantAdminCoworkerEarlyAccessAction } = await import("../action");
 
     createForCoworkerMock.mockResolvedValue({
@@ -220,7 +221,8 @@ describe("admin coworker actions", () => {
     const result = await grantAdminCoworkerEarlyAccessAction({
       session: adminSession,
       coworkerId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      workspaceId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      targetType: "organization",
+      targetId: "org_123",
     });
 
     expect(result.ok).toBe(true);
@@ -230,7 +232,7 @@ describe("admin coworker actions", () => {
 
     expect(createForCoworkerMock).toHaveBeenCalledWith(
       "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      { organizationId: "org_123" },
     );
     expect(result.data).toEqual({
       accessId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
@@ -238,14 +240,37 @@ describe("admin coworker actions", () => {
     });
   });
 
-  it("rejects invalid workspace UUID for early access grant", async () => {
+  it("grants early access for admin sessions by user", async () => {
+    const { grantAdminCoworkerEarlyAccessAction } = await import("../action");
+
+    createForCoworkerMock.mockResolvedValue({
+      id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      status: "GRANTED",
+    });
+
+    const result = await grantAdminCoworkerEarlyAccessAction({
+      session: adminSession,
+      coworkerId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      targetType: "user",
+      targetId: "user_123",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(createForCoworkerMock).toHaveBeenCalledWith(
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      { userId: "user_123" },
+    );
+  });
+
+  it("rejects missing target id for early access grant", async () => {
     const { grantAdminCoworkerEarlyAccessAction } = await import("../action");
     const { CommonErrorCode } = await import("@/lib/actions/errors");
 
     const result = await grantAdminCoworkerEarlyAccessAction({
       session: adminSession,
       coworkerId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      workspaceId: "not-a-uuid",
+      targetType: "user",
+      targetId: "",
     });
 
     expect(result.ok).toBe(false);

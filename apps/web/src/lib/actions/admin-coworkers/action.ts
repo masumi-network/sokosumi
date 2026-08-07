@@ -244,24 +244,37 @@ export const unarchiveAdminCoworkerAction = withSession<
 
 const grantCoworkerEarlyAccessSchema = z.object({
   coworkerId: z.string().uuid(),
-  workspaceId: z.string().uuid(),
+  targetType: z.enum(["user", "organization"]),
+  targetId: z.string().min(1),
 });
 
 interface GrantAdminCoworkerEarlyAccessParameters extends AuthenticatedRequest {
   coworkerId: string;
-  workspaceId: string;
+  targetType: "user" | "organization";
+  targetId: string;
+}
+
+function toAccessTargetBody(parsed: {
+  targetType: "user" | "organization";
+  targetId: string;
+}): { userId: string } | { organizationId: string } {
+  if (parsed.targetType === "user") {
+    return { userId: parsed.targetId };
+  }
+  return { organizationId: parsed.targetId };
 }
 
 export const grantAdminCoworkerEarlyAccessAction = withSession<
   GrantAdminCoworkerEarlyAccessParameters,
   Result<{ accessId: string; status: string }, ActionError>
->(async ({ session, coworkerId, workspaceId }) => {
+>(async ({ session, coworkerId, targetType, targetId }) => {
   try {
     assertAdminSession(session);
 
     const parsed = grantCoworkerEarlyAccessSchema.safeParse({
       coworkerId,
-      workspaceId,
+      targetType,
+      targetId,
     });
     if (!parsed.success) {
       return Err({ code: CommonErrorCode.BAD_INPUT });
@@ -269,7 +282,7 @@ export const grantAdminCoworkerEarlyAccessAction = withSession<
 
     const access = await coworkerAccessService.createForCoworker(
       parsed.data.coworkerId,
-      parsed.data.workspaceId,
+      toAccessTargetBody(parsed.data),
     );
 
     revalidateAdminCoworkerRoutes(parsed.data.coworkerId);
@@ -282,13 +295,14 @@ export const grantAdminCoworkerEarlyAccessAction = withSession<
 export const revokeAdminCoworkerEarlyAccessAction = withSession<
   GrantAdminCoworkerEarlyAccessParameters,
   Result<{ accessId: string; status: string }, ActionError>
->(async ({ session, coworkerId, workspaceId }) => {
+>(async ({ session, coworkerId, targetType, targetId }) => {
   try {
     assertAdminSession(session);
 
     const parsed = grantCoworkerEarlyAccessSchema.safeParse({
       coworkerId,
-      workspaceId,
+      targetType,
+      targetId,
     });
     if (!parsed.success) {
       return Err({ code: CommonErrorCode.BAD_INPUT });
@@ -296,7 +310,7 @@ export const revokeAdminCoworkerEarlyAccessAction = withSession<
 
     const access = await coworkerAccessService.forceRevokeForCoworker(
       parsed.data.coworkerId,
-      parsed.data.workspaceId,
+      toAccessTargetBody(parsed.data),
     );
 
     revalidateAdminCoworkerRoutes(parsed.data.coworkerId);

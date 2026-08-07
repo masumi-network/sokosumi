@@ -34,7 +34,40 @@ export type CoworkerWorkspaceAccessDto = z.infer<
   typeof coworkerWorkspaceAccessSchema
 >;
 
-/** Body for create and platform force-revoke (workspaceId only). */
-export const coworkerWorkspaceAccessWorkspaceIdBodySchema = z.object({
-  workspaceId: z.string().uuid(),
-});
+/**
+ * Target for create and platform force-revoke.
+ * Exactly one of: workspaceId, userId (personal workspace), organizationId (org workspace).
+ */
+export const coworkerWorkspaceAccessWorkspaceIdBodySchema = z
+  .object({
+    workspaceId: z.string().uuid().optional().openapi({
+      description: "Existing workspace id (vendor dogfood / raw target).",
+    }),
+    userId: z.string().min(1).optional().openapi({
+      description:
+        "User id — resolves (or creates) that user's personal workspace.",
+    }),
+    organizationId: z.string().min(1).optional().openapi({
+      description: "Organization id — resolves (or creates) the org workspace.",
+    }),
+  })
+  .superRefine((value, ctx) => {
+    const provided = [
+      value.workspaceId != null && value.workspaceId.length > 0,
+      value.userId != null && value.userId.length > 0,
+      value.organizationId != null && value.organizationId.length > 0,
+    ].filter(Boolean).length;
+
+    if (provided !== 1) {
+      ctx.addIssue({
+        code: "custom",
+        message:
+          "Provide exactly one of workspaceId, userId, or organizationId",
+      });
+    }
+  })
+  .openapi("CoworkerWorkspaceAccessTarget");
+
+export type CoworkerWorkspaceAccessTargetBody = z.infer<
+  typeof coworkerWorkspaceAccessWorkspaceIdBodySchema
+>;

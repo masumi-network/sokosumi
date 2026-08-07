@@ -10,6 +10,7 @@ import {
   isCoworkerAccessTerminal,
   listCoworkerAccessForWorkspace,
   notifyWorkspaceApproversOfPendingCoworkerAccess,
+  resolveCoworkerAccessTargetWorkspaceId,
   revokeCoworkerWorkspaceAccess,
   toCoworkerWorkspaceAccessApiShape,
   upsertCoworkerWorkspaceAccess,
@@ -27,6 +28,9 @@ const coworkerFindUnique = vi.fn();
 const memberFindFirst = vi.fn();
 const memberFindMany = vi.fn();
 const workspaceFindUnique = vi.fn();
+const userFindUnique = vi.fn();
+const organizationFindUnique = vi.fn();
+const upsertWorkspaceForContextMock = vi.fn();
 const createNotificationMock = vi.fn();
 const requireVendorAdminMembershipMock = vi.fn();
 const queryRawMock = vi.fn();
@@ -52,7 +56,20 @@ vi.mock("@/lib/db/prisma", () => ({
     workspace: {
       findUnique: (...args: unknown[]) => workspaceFindUnique(...args),
     },
+    user: {
+      findUnique: (...args: unknown[]) => userFindUnique(...args),
+    },
+    organization: {
+      findUnique: (...args: unknown[]) => organizationFindUnique(...args),
+    },
     $queryRaw: (...args: unknown[]) => queryRawMock(...args),
+  },
+}));
+
+vi.mock("@sokosumi/database/repositories", () => ({
+  workspaceRepository: {
+    upsertWorkspaceForContext: (...args: unknown[]) =>
+      upsertWorkspaceForContextMock(...args),
   },
 }));
 
@@ -118,6 +135,54 @@ describe("coworker-workspace-access helpers", () => {
       expect(
         isCoworkerAccessTerminal(CoworkerWorkspaceAccessStatus.GRANTED),
       ).toBe(false);
+    });
+  });
+
+  describe("resolveCoworkerAccessTargetWorkspaceId", () => {
+    it("returns existing workspace id", async () => {
+      workspaceFindUnique.mockResolvedValue({ id: "workspace-1" });
+
+      await expect(
+        resolveCoworkerAccessTargetWorkspaceId({
+          workspaceId: "workspace-1",
+        }),
+      ).resolves.toBe("workspace-1");
+    });
+
+    it("upserts personal workspace for userId", async () => {
+      userFindUnique.mockResolvedValue({ id: "user-1" });
+      upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws-personal" });
+
+      await expect(
+        resolveCoworkerAccessTargetWorkspaceId({ userId: "user-1" }),
+      ).resolves.toBe("ws-personal");
+      expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+        "user-1",
+        null,
+        expect.anything(),
+      );
+    });
+
+    it("upserts organization workspace for organizationId", async () => {
+      organizationFindUnique.mockResolvedValue({ id: "org-1" });
+      upsertWorkspaceForContextMock.mockResolvedValue({ id: "ws-org" });
+
+      await expect(
+        resolveCoworkerAccessTargetWorkspaceId({ organizationId: "org-1" }),
+      ).resolves.toBe("ws-org");
+      expect(upsertWorkspaceForContextMock).toHaveBeenCalledWith(
+        "org-1",
+        "org-1",
+        expect.anything(),
+      );
+    });
+
+    it("404 when user missing", async () => {
+      userFindUnique.mockResolvedValue(null);
+
+      await expect(
+        resolveCoworkerAccessTargetWorkspaceId({ userId: "missing" }),
+      ).rejects.toMatchObject({ status: 404 });
     });
   });
 

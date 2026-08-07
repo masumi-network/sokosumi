@@ -5,6 +5,10 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
+import {
+  AsyncSearchCombobox,
+  buildComboboxLabels,
+} from "@/components/admin/async-search-combobox";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,36 +17,54 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   grantAdminCoworkerEarlyAccessAction,
   revokeAdminCoworkerEarlyAccessAction,
 } from "@/lib/actions/admin-coworkers/action";
-import { isUuidString } from "@/lib/utils/uuid";
+import {
+  searchOrganizationsClient,
+  searchUsersClient,
+} from "@/lib/actions/admin-search/client";
+import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
+import type { AdminUserOption } from "@/lib/services/admin-user.service";
 
 interface CoworkerEarlyAccessFormProps {
   coworkerId: string;
   disabled?: boolean;
 }
 
+type EarlyAccessTargetType = "organization" | "user";
+
 export function CoworkerEarlyAccessForm({
   coworkerId,
   disabled = false,
 }: CoworkerEarlyAccessFormProps) {
   const t = useTranslations("App.Admin.Coworkers.Form.EarlyAccess");
-  const [workspaceId, setWorkspaceId] = useState("");
+  const tOrg = useTranslations("Components.OrganizationCombobox");
+  const tUser = useTranslations("Components.UserCombobox");
+  const [targetType, setTargetType] =
+    useState<EarlyAccessTargetType>("organization");
+  const [selectedOrg, setSelectedOrg] =
+    useState<AdminOrganizationOption | null>(null);
+  const [selectedUser, setSelectedUser] = useState<AdminUserOption | null>(
+    null,
+  );
   const [isGranting, setIsGranting] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
+
+  const orgLabels = buildComboboxLabels(tOrg);
+  const userLabels = buildComboboxLabels(tUser);
 
   async function runAction(mode: "grant" | "revoke") {
     if (disabled || isGranting || isRevoking) {
       return;
     }
 
-    const trimmed = workspaceId.trim();
-    if (!isUuidString(trimmed)) {
-      toast.error(t("error"));
+    const targetId = targetType === "user" ? selectedUser?.id : selectedOrg?.id;
+    if (!targetId) {
+      toast.error(t("targetRequired"));
       return;
     }
 
@@ -53,16 +75,15 @@ export function CoworkerEarlyAccessForm({
     }
 
     try {
+      const payload = {
+        coworkerId,
+        targetType,
+        targetId,
+      };
       const result =
         mode === "grant"
-          ? await grantAdminCoworkerEarlyAccessAction({
-              coworkerId,
-              workspaceId: trimmed,
-            })
-          : await revokeAdminCoworkerEarlyAccessAction({
-              coworkerId,
-              workspaceId: trimmed,
-            });
+          ? await grantAdminCoworkerEarlyAccessAction(payload)
+          : await revokeAdminCoworkerEarlyAccessAction(payload);
 
       if (!result.ok) {
         toast.error(
@@ -72,7 +93,8 @@ export function CoworkerEarlyAccessForm({
         return;
       }
 
-      setWorkspaceId("");
+      setSelectedOrg(null);
+      setSelectedUser(null);
       toast.success(mode === "grant" ? t("success") : t("revokeSuccess"));
     } finally {
       setIsGranting(false);
@@ -97,18 +119,64 @@ export function CoworkerEarlyAccessForm({
           }}
         >
           <div className="space-y-2">
-            <Label htmlFor="early-access-workspace-id">
-              {t("workspaceIdLabel")}
-            </Label>
-            <Input
-              id="early-access-workspace-id"
-              value={workspaceId}
-              onChange={(event) => setWorkspaceId(event.target.value)}
-              placeholder={t("workspaceIdPlaceholder")}
-              disabled={disabled || busy}
-              autoComplete="off"
-              spellCheck={false}
-            />
+            <Label htmlFor="early-access-target">{t("targetLabel")}</Label>
+            <Tabs
+              value={targetType}
+              onValueChange={(value) => {
+                setTargetType(value as EarlyAccessTargetType);
+                setSelectedOrg(null);
+                setSelectedUser(null);
+              }}
+            >
+              <TabsList>
+                <TabsTrigger value="organization" disabled={disabled || busy}>
+                  {t("tabs.organization")}
+                </TabsTrigger>
+                <TabsTrigger value="user" disabled={disabled || busy}>
+                  {t("tabs.user")}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+            {targetType === "organization" ? (
+              <AsyncSearchCombobox<AdminOrganizationOption>
+                id="early-access-target"
+                value={selectedOrg}
+                onChange={setSelectedOrg}
+                search={searchOrganizationsClient}
+                getKey={(org) => org.id}
+                getTriggerLabel={(org) => org.name}
+                renderOption={(org) => (
+                  <span className="flex flex-col">
+                    <span>{org.name}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {org.slug}
+                    </span>
+                  </span>
+                )}
+                labels={orgLabels}
+                disabled={disabled || busy}
+              />
+            ) : (
+              <AsyncSearchCombobox<AdminUserOption>
+                id="early-access-target"
+                value={selectedUser}
+                onChange={setSelectedUser}
+                search={searchUsersClient}
+                getKey={(user) => user.id}
+                getTriggerLabel={(user) => user.name}
+                renderOption={(user) => (
+                  <span className="flex flex-col">
+                    <span>{user.name}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {user.email}
+                    </span>
+                  </span>
+                )}
+                labels={userLabels}
+                disabled={disabled || busy}
+              />
+            )}
+            <p className="text-muted-foreground text-xs">{t("targetHint")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="submit" disabled={disabled || busy}>

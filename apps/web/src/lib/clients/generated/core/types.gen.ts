@@ -3484,6 +3484,21 @@ export type CreateCoworkerApiKeyResponse = {
     expiresAt: Date | null;
 };
 
+export type CoworkerWorkspaceAccessTarget = {
+    /**
+     * Existing workspace id (vendor dogfood / raw target).
+     */
+    workspaceId?: string;
+    /**
+     * User id — resolves (or creates) that user's personal workspace.
+     */
+    userId?: string;
+    /**
+     * Organization id — resolves (or creates) the org workspace.
+     */
+    organizationId?: string;
+};
+
 export type OrchestratorUsage = {
     id: string;
     createdAt: Date;
@@ -26190,9 +26205,7 @@ export type ListCoworkerWorkspaceAccessResponses = {
 export type ListCoworkerWorkspaceAccessResponse = ListCoworkerWorkspaceAccessResponses[keyof ListCoworkerWorkspaceAccessResponses];
 
 export type CreateCoworkerWorkspaceAccessData = {
-    body?: {
-        workspaceId: string;
-    };
+    body?: CoworkerWorkspaceAccessTarget;
     path: {
         id: string;
     };
@@ -26278,9 +26291,7 @@ export type CreateCoworkerWorkspaceAccessResponses = {
 export type CreateCoworkerWorkspaceAccessResponse = CreateCoworkerWorkspaceAccessResponses[keyof CreateCoworkerWorkspaceAccessResponses];
 
 export type RevokeCoworkerWorkspaceAccessAsPlatformAdminData = {
-    body?: {
-        workspaceId: string;
-    };
+    body?: CoworkerWorkspaceAccessTarget;
     path: {
         id: string;
     };

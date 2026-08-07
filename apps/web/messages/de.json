@@ -3391,16 +3391,21 @@
             }
           },
           "EarlyAccess": {
-            "title": "Coworker-Early-Access",
-            "description": "Diesen Coworker vor der globalen Whitelist freigeben oder force-revoken. Plattform-direkt — keine Eigentümer-Genehmigung.",
-            "workspaceIdLabel": "Workspace-ID",
-            "workspaceIdPlaceholder": "Workspace-UUID",
+            "title": "Coworker Early Access",
+            "description": "Gewähre oder entziehe diesem Coworker Early Access für einen persönlichen oder Organisations-Workspace vor der globalen Whitelist. Plattform-direkt — ohne Owner-Freigabe.",
+            "targetLabel": "Empfänger",
+            "targetHint": "Organisation → Suche nach Name oder Slug. Benutzer → Suche nach Name oder E-Mail. Workspace wird automatisch aufgelöst.",
+            "targetRequired": "Organisation oder Benutzer auswählen",
+            "tabs": {
+              "organization": "Organisation",
+              "user": "Benutzer"
+            },
             "submit": "Early Access gewähren",
-            "revoke": "Force-Revoke",
-            "success": "Coworker-Early-Access gewährt",
-            "revokeSuccess": "Coworker-Early-Access widerrufen",
-            "error": "Coworker-Early-Access konnte nicht gewährt werden",
-            "revokeError": "Coworker-Early-Access konnte nicht widerrufen werden"
+            "revoke": "Erzwungen widerrufen",
+            "success": "Coworker Early Access gewährt",
+            "revokeSuccess": "Coworker Early Access widerrufen",
+            "error": "Early Access konnte nicht gewährt werden",
+            "revokeError": "Early Access konnte nicht widerrufen werden"
           },
           "cancel": "Cancel",
           "validation": {

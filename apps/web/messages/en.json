@@ -3452,9 +3452,14 @@
           },
           "EarlyAccess": {
             "title": "Coworker early access",
-            "description": "Grant or force-revoke this coworker for a workspace before global whitelist. Platform direct — no owner approval.",
-            "workspaceIdLabel": "Workspace ID",
-            "workspaceIdPlaceholder": "Workspace UUID",
+            "description": "Grant or force-revoke this coworker for a personal or organization workspace before global whitelist. Platform direct — no owner approval.",
+            "targetLabel": "Recipient",
+            "targetHint": "Organization → search by name or slug. User → search by name or email. Resolves to that workspace automatically.",
+            "targetRequired": "Select an organization or user",
+            "tabs": {
+              "organization": "Organization",
+              "user": "User"
+            },
             "submit": "Grant early access",
             "revoke": "Force revoke",
             "success": "Coworker early access granted",

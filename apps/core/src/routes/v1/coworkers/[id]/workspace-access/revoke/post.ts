@@ -2,6 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 
 import {
   forceRevokeCoworkerWorkspaceAccessByPair,
+  resolveCoworkerAccessTargetWorkspaceId,
   toCoworkerWorkspaceAccessApiShape,
 } from "@/helpers/coworker-workspace-access";
 import { forbidden } from "@/helpers/error";
@@ -21,7 +22,7 @@ const route = createRoute({
   path: "/{id}/workspace-access/revoke",
   operationId: "revokeCoworkerWorkspaceAccessAsPlatformAdmin",
   description:
-    "Force-revoke GRANTED coworker workspace access (platform admin only). Undoes a pilot grant without requiring the workspace owner.",
+    "Force-revoke GRANTED coworker workspace access (platform admin only). Undoes a pilot grant without requiring the workspace owner. Body: exactly one of workspaceId, userId, or organizationId.",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
@@ -53,7 +54,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const { id: coworkerId } = c.req.valid("param");
-    const { workspaceId } = c.req.valid("json");
+    const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(
+      c.req.valid("json"),
+    );
 
     const access = await forceRevokeCoworkerWorkspaceAccessByPair({
       coworkerId,

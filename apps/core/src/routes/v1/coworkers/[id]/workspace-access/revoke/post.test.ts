@@ -6,8 +6,9 @@ import { notFound } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-const { forceRevokeMock } = vi.hoisted(() => ({
+const { forceRevokeMock, resolveWorkspaceMock } = vi.hoisted(() => ({
   forceRevokeMock: vi.fn(),
+  resolveWorkspaceMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
@@ -19,6 +20,8 @@ vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
     ...actual,
     forceRevokeCoworkerWorkspaceAccessByPair: (...args: unknown[]) =>
       forceRevokeMock(...args),
+    resolveCoworkerAccessTargetWorkspaceId: (...args: unknown[]) =>
+      resolveWorkspaceMock(...args),
   };
 });
 
@@ -79,6 +82,7 @@ async function postRevoke(app: ReturnType<typeof createApp>) {
 describe("POST /coworkers/{id}/workspace-access/revoke", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveWorkspaceMock.mockResolvedValue(workspaceId);
   });
 
   it("revokes GRANTED access for platform admin", async () => {

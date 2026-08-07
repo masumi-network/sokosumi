@@ -2276,7 +2276,7 @@ export const listCoworkerWorkspaceAccess = <ThrowOnError extends boolean = false
 });
 
 /**
- * Propose or directly grant coworker workspace access. Platform admin and vendor admin (member workspace) grant immediately; vendor admin foreign workspace creates PENDING.
+ * Propose or directly grant coworker workspace access. Platform admin and vendor admin (member workspace) grant immediately; vendor admin foreign workspace creates PENDING. Body: exactly one of workspaceId, userId (personal workspace), or organizationId (org workspace).
  */
 export const createCoworkerWorkspaceAccess = <ThrowOnError extends boolean = false>(options: Options<CreateCoworkerWorkspaceAccessData, ThrowOnError>): RequestResult<CreateCoworkerWorkspaceAccessResponses, CreateCoworkerWorkspaceAccessErrors, ThrowOnError> => (options.client ?? client).post<CreateCoworkerWorkspaceAccessResponses, CreateCoworkerWorkspaceAccessErrors, ThrowOnError>({
     responseTransformer: createCoworkerWorkspaceAccessResponseTransformer,
@@ -2289,7 +2289,7 @@ export const createCoworkerWorkspaceAccess = <ThrowOnError extends boolean = fal
 });
 
 /**
- * Force-revoke GRANTED coworker workspace access (platform admin only). Undoes a pilot grant without requiring the workspace owner.
+ * Force-revoke GRANTED coworker workspace access (platform admin only). Undoes a pilot grant without requiring the workspace owner. Body: exactly one of workspaceId, userId, or organizationId.
  */
 export const revokeCoworkerWorkspaceAccessAsPlatformAdmin = <ThrowOnError extends boolean = false>(options: Options<RevokeCoworkerWorkspaceAccessAsPlatformAdminData, ThrowOnError>): RequestResult<RevokeCoworkerWorkspaceAccessAsPlatformAdminResponses, RevokeCoworkerWorkspaceAccessAsPlatformAdminErrors, ThrowOnError> => (options.client ?? client).post<RevokeCoworkerWorkspaceAccessAsPlatformAdminResponses, RevokeCoworkerWorkspaceAccessAsPlatformAdminErrors, ThrowOnError>({
     responseTransformer: revokeCoworkerWorkspaceAccessAsPlatformAdminResponseTransformer,

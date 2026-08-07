@@ -6,8 +6,9 @@ import { forbidden, notFound } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
 
-const { upsertMock } = vi.hoisted(() => ({
+const { upsertMock, resolveWorkspaceMock } = vi.hoisted(() => ({
   upsertMock: vi.fn(),
+  resolveWorkspaceMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
@@ -18,6 +19,8 @@ vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
   return {
     ...actual,
     upsertCoworkerWorkspaceAccess: (...args: unknown[]) => upsertMock(...args),
+    resolveCoworkerAccessTargetWorkspaceId: (...args: unknown[]) =>
+      resolveWorkspaceMock(...args),
   };
 });
 
@@ -85,6 +88,7 @@ async function postWorkspaceAccess(app: ReturnType<typeof createApp>) {
 describe("POST /coworkers/{id}/workspace-access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolveWorkspaceMock.mockResolvedValue(workspaceId);
   });
 
   it("platform admin → 201 GRANTED", async () => {

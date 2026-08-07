@@ -42,7 +42,7 @@ export const grantDeveloperCoworkerEarlyAccessAction = withSession<
   try {
     const access = await coworkerAccessService.createForCoworker(
       parsed.data.coworkerId,
-      parsed.data.workspaceId,
+      { workspaceId: parsed.data.workspaceId },
     );
 
     revalidatePath(`/developer/coworkers/${parsed.data.coworkerId}`);

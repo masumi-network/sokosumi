@@ -11993,6 +11993,27 @@ export const CreateCoworkerApiKeyResponseSchema = {
     ]
 } as const;
 
+export const CoworkerWorkspaceAccessTargetSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Existing workspace id (vendor dogfood / raw target).'
+        },
+        userId: {
+            type: 'string',
+            minLength: 1,
+            description: 'User id — resolves (or creates) that user\'s personal workspace.'
+        },
+        organizationId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Organization id — resolves (or creates) the org workspace.'
+        }
+    }
+} as const;
+
 export const OrchestratorUsageSchema = {
     type: 'object',
     properties: {

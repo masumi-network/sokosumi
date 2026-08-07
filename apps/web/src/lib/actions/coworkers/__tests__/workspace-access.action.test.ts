@@ -51,7 +51,7 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
     }
     expect(createForCoworkerMock).toHaveBeenCalledWith(
       "11111111-1111-4111-8111-111111111111",
-      "22222222-2222-4222-8222-222222222222",
+      { workspaceId: "22222222-2222-4222-8222-222222222222" },
     );
     expect(revalidatePathMock).toHaveBeenCalledWith(
       "/developer/coworkers/11111111-1111-4111-8111-111111111111",

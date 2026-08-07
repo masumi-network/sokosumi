@@ -175,7 +175,7 @@ describe("coworkerAccessService", () => {
 
     const result = await coworkerAccessService.createForCoworker(
       accessRow.coworkerId,
-      accessRow.workspaceId,
+      { workspaceId: accessRow.workspaceId },
     );
 
     expect(createCoworkerWorkspaceAccessMock).toHaveBeenCalledWith(

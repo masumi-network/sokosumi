@@ -5,13 +5,17 @@ import {
   NotificationKind,
   type Prisma,
 } from "@sokosumi/database";
+import { workspaceRepository } from "@sokosumi/database/repositories";
 
 import { badRequest, notFound } from "@/helpers/error";
 import { createNotification } from "@/helpers/notifications";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { requireVendorAdminMembership } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
-import type { CoworkerWorkspaceAccessDto } from "@/schemas/coworker-workspace-access.schema";
+import type {
+  CoworkerWorkspaceAccessDto,
+  CoworkerWorkspaceAccessTargetBody,
+} from "@/schemas/coworker-workspace-access.schema";
 
 export interface UpsertCoworkerWorkspaceAccessParams {
   coworkerId: string;
@@ -44,6 +48,63 @@ function accessUniqueWhere(coworkerId: string, workspaceId: string) {
       workspaceId,
     },
   } as const;
+}
+
+/**
+ * Resolve create/revoke target to a workspace id.
+ * User/org targets upsert the personal/org workspace when missing (ops-friendly).
+ */
+export async function resolveCoworkerAccessTargetWorkspaceId(
+  target: CoworkerWorkspaceAccessTargetBody,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<string> {
+  if (target.workspaceId) {
+    const workspace = await tx.workspace.findUnique({
+      where: { id: target.workspaceId },
+      select: { id: true },
+    });
+    if (!workspace) {
+      throw notFound("Workspace not found");
+    }
+    return workspace.id;
+  }
+
+  if (target.userId) {
+    const user = await tx.user.findUnique({
+      where: { id: target.userId },
+      select: { id: true },
+    });
+    if (!user) {
+      throw notFound("User not found");
+    }
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
+      user.id,
+      null,
+      tx,
+    );
+    return workspace.id;
+  }
+
+  if (target.organizationId) {
+    const organization = await tx.organization.findUnique({
+      where: { id: target.organizationId },
+      select: { id: true },
+    });
+    if (!organization) {
+      throw notFound("Organization not found");
+    }
+    // Org branch of upsert ignores userId; pass organization id as placeholder.
+    const workspace = await workspaceRepository.upsertWorkspaceForContext(
+      organization.id,
+      organization.id,
+      tx,
+    );
+    return workspace.id;
+  }
+
+  throw badRequest(
+    "Provide exactly one of workspaceId, userId, or organizationId",
+  );
 }
 
 function toIsoDateTime(value: Date): string {

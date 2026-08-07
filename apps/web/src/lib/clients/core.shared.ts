@@ -1753,7 +1753,13 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   async function createCoworkerWorkspaceAccess(
     coworkerId: string,
-    body: { workspaceId: string },
+    body:
+      | { workspaceId?: string; userId?: string; organizationId?: string }
+      | {
+          workspaceId: string;
+        }
+      | { userId: string }
+      | { organizationId: string },
   ) {
     return executeCoreOperation(
       getClient,
@@ -1769,7 +1775,13 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   async function revokeCoworkerWorkspaceAccessAsPlatformAdmin(
     coworkerId: string,
-    body: { workspaceId: string },
+    body:
+      | { workspaceId?: string; userId?: string; organizationId?: string }
+      | {
+          workspaceId: string;
+        }
+      | { userId: string }
+      | { organizationId: string },
   ) {
     return executeCoreOperation(
       getClient,

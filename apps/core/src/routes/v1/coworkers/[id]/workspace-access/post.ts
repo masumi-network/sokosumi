@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import {
+  resolveCoworkerAccessTargetWorkspaceId,
   toCoworkerWorkspaceAccessApiShape,
   upsertCoworkerWorkspaceAccess,
 } from "@/helpers/coworker-workspace-access";
@@ -20,7 +21,7 @@ const route = createRoute({
   path: "/{id}/workspace-access",
   operationId: "createCoworkerWorkspaceAccess",
   description:
-    "Propose or directly grant coworker workspace access. Platform admin and vendor admin (member workspace) grant immediately; vendor admin foreign workspace creates PENDING.",
+    "Propose or directly grant coworker workspace access. Platform admin and vendor admin (member workspace) grant immediately; vendor admin foreign workspace creates PENDING. Body: exactly one of workspaceId, userId (personal workspace), or organizationId (org workspace).",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
@@ -48,7 +49,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userAuth = requireUserAuthContext(c.var.authContext);
     const { id: coworkerId } = c.req.valid("param");
-    const { workspaceId } = c.req.valid("json");
+    const target = c.req.valid("json");
+    const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(target);
 
     const access = await upsertCoworkerWorkspaceAccess({
       coworkerId,

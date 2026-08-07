@@ -73,23 +73,29 @@ export const coworkerAccessService = (() => {
 
   async function createForCoworker(
     coworkerId: string,
-    workspaceId: string,
+    target:
+      | { workspaceId: string }
+      | { userId: string }
+      | { organizationId: string },
   ): Promise<CoworkerWorkspaceAccess> {
     const { data } = await coreClient.createCoworkerWorkspaceAccess(
       coworkerId,
-      { workspaceId },
+      target,
     );
     return data;
   }
 
   async function forceRevokeForCoworker(
     coworkerId: string,
-    workspaceId: string,
+    target:
+      | { workspaceId: string }
+      | { userId: string }
+      | { organizationId: string },
   ): Promise<CoworkerWorkspaceAccess> {
     const { data } =
       await coreClient.revokeCoworkerWorkspaceAccessAsPlatformAdmin(
         coworkerId,
-        { workspaceId },
+        target,
       );
     return data;
   }
