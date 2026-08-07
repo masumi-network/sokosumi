@@ -3,7 +3,7 @@ import "./globals.css";
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
 import { DEFAULT_LOCALE } from "@sokosumi/utils";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Suspense } from "react";
@@ -23,6 +23,11 @@ const inter = Inter({
   fallback: ["sans-serif"],
   variable: "--font-inter",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
 
 export function generateMetadata(): Metadata {
   const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";

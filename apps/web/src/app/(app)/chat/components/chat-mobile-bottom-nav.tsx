@@ -11,6 +11,7 @@ import {
   CHAT_MOBILE_TABS,
   type ChatMobileTabId,
 } from "./chat-mobile-tab-registry";
+import { useChatTabUnreadPresence } from "./use-chat-tab-unread-presence";
 
 type SearchParamsLike =
   | URLSearchParams
@@ -37,6 +38,7 @@ export function ChatMobileBottomNav(): React.ReactElement {
   const t = useTranslations("App.Channels.MobileNav");
   const activeTabId = resolveChatMobileActiveTabId(pathname, searchParams);
   const isApple = useIsApplePlatform();
+  const { showUnreadDot } = useChatTabUnreadPresence();
 
   return (
     <nav
@@ -59,6 +61,7 @@ export function ChatMobileBottomNav(): React.ReactElement {
           const Icon = tab.icon;
           const label = t(tab.labelKey);
           const isActive = activeTabId === tab.id;
+          const showChatsUnreadDot = tab.id === "chats" && showUnreadDot;
 
           return (
             <li key={tab.id} className="flex min-w-0 flex-1">
@@ -76,7 +79,15 @@ export function ChatMobileBottomNav(): React.ReactElement {
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon className="size-5" aria-hidden />
+                <span className="relative">
+                  <Icon className="size-5" aria-hidden />
+                  {showChatsUnreadDot ? (
+                    <span
+                      aria-label={t("chatsUnread")}
+                      className="bg-primary ring-background absolute -top-0.5 -right-0.5 size-1.5 rounded-full ring-2"
+                    />
+                  ) : null}
+                </span>
                 <span className="truncate">{label}</span>
               </Link>
             </li>
