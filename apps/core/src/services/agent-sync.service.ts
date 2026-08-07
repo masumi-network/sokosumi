@@ -1,5 +1,9 @@
 import * as Sentry from "@sentry/node";
-import { AgentStatus, type Prisma } from "@sokosumi/database";
+import {
+  AgentStatus,
+  type Prisma,
+  RiskClassification,
+} from "@sokosumi/database";
 import {
   isV2RegistryIdentifier,
   normalizeMasumiPaymentUnit,
@@ -7,13 +11,13 @@ import {
 
 import { registryClient } from "@/clients/masumi-registry.client";
 import { openrouterClient } from "@/clients/openrouter.client";
+import { getEnv } from "@/config/env";
 import { getAgentDescription, getCardanoV2ReadySources } from "@/helpers/agent";
 import prisma from "@/lib/db/prisma";
 
 import {
   consolidateDuplicateAgentRelations,
   PARKED_IDENTIFIER_PREFIX,
-  resolveCuratedTwinDefaults,
   retargetDuplicateAgentNotifications,
 } from "./agent-sync.consolidation.js";
 import {
@@ -319,11 +323,20 @@ async function upsertRegistryAgent(
   }
 
   if (!existing) {
-    // A seller re-registering under the V2 policy produces a BRAND NEW row
-    // with no link to their existing one, so admin curation must be carried
-    // across explicitly — otherwise the V2 registration silently re-publishes
-    // an agent an admin suppressed and resets its risk rating.
-    const curation = await resolveCuratedTwinDefaults(entry);
+    // A new registry identity is a NEW AGENT. No curation is inferred from
+    // any existing row — not visibility, not risk, not categories.
+    //
+    // The only link available between a re-registration and its predecessor is
+    // name + apiBaseUrl, and both are registry-controlled free text. That
+    // cannot distinguish "the same seller re-registering under V2" from
+    // "someone cloning a popular agent's name and endpoint", in EITHER
+    // direction: inheriting from a clone that registered first would stamp an
+    // impostor's suppression and risk rating onto the genuine seller's later
+    // registration. Since the signal cannot tell the two apart, it is not used.
+    //
+    // The cost is that an admin re-reviews a re-registered agent. That is the
+    // correct place for the decision — a human who can actually tell whether
+    // this is the same product.
     await prisma.agent.create({
       data: {
         blockchainIdentifier: entry.agentIdentifier,
@@ -331,12 +344,8 @@ async function upsertRegistryAgent(
         registryVersion: version.registryVersion,
         ...registryFields,
         tags: { connect: tagReferences },
-        // Categories are deliberately NOT inherited from a curated twin — see
-        // resolveCuratedTwinDefaults: the twin lookup keys on registry-controlled
-        // fields, so carrying placement across would hand an impostor curated
-        // placement. A new row starts uncategorized until an admin says otherwise.
-        riskClassification: curation.riskClassification,
-        isShown: curation.isShown,
+        riskClassification: RiskClassification.MINIMAL,
+        isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
         pricing: {
           create: {
             pricingType: pricing.pricingType,

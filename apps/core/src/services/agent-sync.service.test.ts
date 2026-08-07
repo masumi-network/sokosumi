@@ -685,25 +685,22 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(overrideUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("inherits suppression and risk rating from an existing twin under another policy", async () => {
-    const entries = [
-      createRegistryEntry("entry-v2-twin", {
-        agentIdentifier: createV2AgentIdentifier(0),
-        paymentType: "Web3CardanoV2",
-        AgentPricing: null,
-        SupportedPaymentSources: [createCardanoV2PaymentSource()],
-      }),
-    ];
-    getAgentsDiffMock.mockResolvedValue(ok(entries));
-    // Same name + endpoint under the V1 policy, hidden by an admin.
-    agentFindManyMock.mockResolvedValue([
-      {
-        isShown: false,
-        riskClassification: "HIGH",
-        updatedAt: new Date("2026-05-01"),
-        categories: [{ id: "cat-legal" }],
-      },
-    ]);
+  it("treats a re-registration as a new agent, inheriting no curation", async () => {
+    // The only available link to a predecessor is name + apiBaseUrl, both
+    // registry-controlled free text. That cannot tell "the same seller
+    // re-registering" from "someone cloning a popular agent", in either
+    // direction — a clone that registered FIRST and was correctly hidden and
+    // rated HIGH would stamp both onto the genuine seller's later entry.
+    // So nothing is inherited and an admin re-reviews.
+    const suppressedTwin = {
+      isShown: false,
+      riskClassification: "UNACCEPTABLE",
+      updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+    };
+    agentFindManyMock.mockResolvedValue([suppressedTwin]);
+    getAgentsDiffMock.mockResolvedValue(
+      ok([createRegistryEntry("entry-clone")]),
+    );
 
     const agentSyncService = await getAgentSyncService();
     await agentSyncService.syncRegistryAgents(
@@ -711,81 +708,10 @@ describe("agentSyncService.syncRegistryAgents", () => {
       createSyncExecutionOptions(),
     );
 
-    expect(agentCreateMock).toHaveBeenCalledTimes(1);
     const created = agentCreateMock.mock.calls[0]?.[0];
-    // An admin's suppression must not be undone by a V2 re-registration.
-    expect(created.data.isShown).toBe(false);
-    expect(created.data.riskClassification).toBe("HIGH");
-    // Categories are NOT inherited: the twin lookup keys on registry-controlled
-    // name + apiBaseUrl, so an impostor registration would otherwise land in a
-    // curated category. Only restrictive curation carries across.
+    expect(created.data.riskClassification).toBe("MINIMAL");
+    expect(created.data.isShown).toBe(true);
     expect(created.data.categories).toBeUndefined();
-  });
-
-  it("does not inherit a LOWER risk rating than the default from a twin", async () => {
-    const entries = [
-      createRegistryEntry("entry-v2-twin-minimal", {
-        agentIdentifier: createV2AgentIdentifier(0),
-        paymentType: "Web3CardanoV2",
-        AgentPricing: null,
-        SupportedPaymentSources: [createCardanoV2PaymentSource()],
-      }),
-    ];
-    getAgentsDiffMock.mockResolvedValue(ok(entries));
-    agentFindManyMock.mockResolvedValue([
-      {
-        isShown: true,
-        riskClassification: "MINIMAL",
-        updatedAt: new Date("2026-05-02"),
-        categories: [{ id: "cat-legal" }],
-      },
-      {
-        isShown: true,
-        riskClassification: "UNACCEPTABLE",
-        updatedAt: new Date("2026-05-01"),
-        categories: [],
-      },
-    ]);
-
-    const agentSyncService = await getAgentSyncService();
-    await agentSyncService.syncRegistryAgents(
-      AGENTS_SYNC_METADATA_KEY,
-      createSyncExecutionOptions(),
-    );
-
-    const created = agentCreateMock.mock.calls[0]?.[0];
-    // Most severe wins — the newest twin must not launder a lower rating onto
-    // a fresh registration.
-    expect(created.data.riskClassification).toBe("UNACCEPTABLE");
-  });
-
-  it("ignores parked duplicates when inheriting curation", async () => {
-    const entries = [
-      createRegistryEntry("entry-after-park", {
-        agentIdentifier: createV2AgentIdentifier(0),
-        paymentType: "Web3CardanoV2",
-        AgentPricing: null,
-        SupportedPaymentSources: [createCardanoV2PaymentSource()],
-      }),
-    ];
-    getAgentsDiffMock.mockResolvedValue(ok(entries));
-    // A parked row keeps its name/apiBaseUrl but is hidden as bookkeeping —
-    // the query must exclude it, so the lookup returns no twin at all.
-    agentFindManyMock.mockResolvedValue([]);
-
-    const agentSyncService = await getAgentSyncService();
-    await agentSyncService.syncRegistryAgents(
-      AGENTS_SYNC_METADATA_KEY,
-      createSyncExecutionOptions(),
-    );
-
-    const where = agentFindManyMock.mock.calls[0]?.[0]?.where;
-    // The parked prefix alone identifies bookkeeping rows; filtering on
-    // INVALID as well would discard genuinely invalid but curated twins.
-    expect(where.status).toBeUndefined();
-    expect(where.NOT).toEqual({
-      blockchainIdentifier: { startsWith: "legacy-v2:" },
-    });
   });
 
   it("uses defaults when a newly discovered entry has no twin", async () => {

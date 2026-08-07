@@ -1,10 +1,7 @@
 import * as Sentry from "@sentry/node";
-import { type Prisma, RiskClassification } from "@sokosumi/database";
+import { type Prisma } from "@sokosumi/database";
 
-import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
-
-import type { RegistryDiffEntry } from "./agent-sync.projection.js";
 
 /**
  * Prefix stamped onto a duplicate Agent row's identifiers when it is parked,
@@ -139,97 +136,5 @@ export async function retargetDuplicateAgentNotifications(
       error,
     );
     Sentry.captureException(error);
-  }
-}
-
-/** Ordering for "most severe wins" — mirrors the enum's own progression. */
-const RISK_CLASSIFICATION_SEVERITY: Record<RiskClassification, number> = {
-  [RiskClassification.MINIMAL]: 0,
-  [RiskClassification.LIMITED]: 1,
-  [RiskClassification.HIGH]: 2,
-  [RiskClassification.UNACCEPTABLE]: 3,
-};
-
-interface CuratedTwinDefaults {
-  isShown: boolean;
-  riskClassification: RiskClassification;
-}
-
-/**
- * Curation defaults for a newly discovered registry entry, inherited from an
- * existing row for the same agent under a DIFFERENT registry policy (the V1
- * twin of a seller who re-registered under V2). Admin decisions live on the
- * local row, not in the registry, so without this a V2 registration would
- * resurrect a suppressed agent and reset its risk rating.
- *
- * Suppression is inherited pessimistically: if ANY twin is hidden the new row
- * starts hidden. The admin metadata override is deliberately NOT moved — it
- * is unique per agent and still serves the twin.
- */
-export async function resolveCuratedTwinDefaults(
-  entry: RegistryDiffEntry,
-): Promise<CuratedTwinDefaults> {
-  const fallback: CuratedTwinDefaults = {
-    isShown: getEnv().SHOW_AGENTS_BY_DEFAULT,
-    riskClassification: RiskClassification.MINIMAL,
-  };
-  if (!entry.apiBaseUrl || !entry.name) {
-    return fallback;
-  }
-
-  try {
-    const twins = await prisma.agent.findMany({
-      where: {
-        name: entry.name,
-        apiBaseUrl: entry.apiBaseUrl,
-        blockchainIdentifier: { not: entry.agentIdentifier },
-        // Parked duplicates keep their name and endpoint but are hidden and
-        // INVALID as bookkeeping, not as an admin decision. Treating them as
-        // curation twins would pin every future registration of that agent to
-        // hidden forever — and since parking bumps updatedAt they would
-        // usually also win the risk inheritance below.
-        // The parked prefix alone identifies bookkeeping rows. Filtering on
-        // INVALID as well would discard genuinely invalid twins that may
-        // still carry the admin curation this lookup exists to preserve.
-        NOT: {
-          blockchainIdentifier: { startsWith: PARKED_IDENTIFIER_PREFIX },
-        },
-      },
-      select: {
-        isShown: true,
-        riskClassification: true,
-        updatedAt: true,
-      },
-      orderBy: { updatedAt: "desc" },
-    });
-    if (twins.length === 0) {
-      return fallback;
-    }
-
-    // Inherit RESTRICTIVE curation only. The twin lookup keys on `name` and
-    // `apiBaseUrl`, both registry-controlled, so anyone who knows a curated
-    // agent's public name and endpoint can seed a matching registration.
-    // Carrying suppression and risk across is safe in that world — the worst an
-    // impostor can do is inherit a stricter rating than the default. Carrying
-    // categories or a *lower* risk rating is not: that hands the impostor
-    // curated placement and launders an admin's rating onto an unrelated entry.
-    return {
-      isShown: twins.every((twin) => twin.isShown) && fallback.isShown,
-      riskClassification: twins.reduce(
-        (mostSevere, twin) =>
-          RISK_CLASSIFICATION_SEVERITY[twin.riskClassification] >
-          RISK_CLASSIFICATION_SEVERITY[mostSevere]
-            ? twin.riskClassification
-            : mostSevere,
-        fallback.riskClassification,
-      ),
-    };
-  } catch (error) {
-    // Curation lookup must never break ingestion; fail to the safe default.
-    console.warn(
-      `[sync/agents] Failed to resolve curated twin for ${entry.agentIdentifier}; using defaults:`,
-      error,
-    );
-    return fallback;
   }
 }
