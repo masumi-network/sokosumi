@@ -43,8 +43,9 @@ const VIDEO_FRAME_MAX_HEIGHT_REM = 20;
  * min-content; chat message ScrollAreas also pass `shrinkContent` so the
  * table wrapper can shrink.
  *
- * `maxWidth = max-height × aspect-ratio` so portrait clips shrink the box
- * instead of letterboxing inside a full-row frame when height hits max-h-80.
+ * Explicit width from max-height × aspect-ratio so a `w-fit` chip hugs the
+ * video (portrait ≈ phone width). `maxWidth: 100%` still fits narrow columns;
+ * height stays capped at max-h-80.
  */
 function FileChipVideoFrame({
   src,
@@ -55,17 +56,20 @@ function FileChipVideoFrame({
 }) {
   const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
   const resolvedAspectRatio = aspectRatio ?? 16 / 9;
+  // Fixed precision so style stays stable across engines (happy-dom rounds).
+  const frameWidthRem = (
+    VIDEO_FRAME_MAX_HEIGHT_REM * resolvedAspectRatio
+  ).toFixed(4);
 
   return (
     <div
       data-testid="file-chip-video-frame"
-      className="relative min-w-0 w-full overflow-hidden rounded-lg bg-black/20"
+      className="relative min-w-0 max-w-full overflow-hidden rounded-lg bg-black/20"
       style={{
         aspectRatio: resolvedAspectRatio,
+        width: `${frameWidthRem}rem`,
+        maxWidth: "100%",
         maxHeight: `${VIDEO_FRAME_MAX_HEIGHT_REM}rem`,
-        // Portrait: cap width so the box matches the video (no side bars).
-        // Landscape: cap is above max-w-sm chip, so frame fills the chip.
-        maxWidth: `${VIDEO_FRAME_MAX_HEIGHT_REM * resolvedAspectRatio}rem`,
       }}
     >
       <video
@@ -224,15 +228,21 @@ export function FileChip(props: FileChipProps) {
     return (
       <div
         className={cn(
-          // Cap like large solo image thumbs (`max-w-sm`) — not full message
-          // column. min-w-0 + overflow-hidden clamps native control min-width.
-          "flex min-w-0 w-full max-w-sm flex-col gap-2 overflow-hidden rounded-md border p-2",
+          // Video: w-fit so the card hugs the frame (chat-bubble style).
+          // Audio: w-full for usable native controls. Both cap at max-w-sm.
+          // overflow-hidden clamps native control min-width in ScrollAreas.
+          "flex min-w-0 max-w-sm flex-col gap-2 overflow-hidden rounded-md border p-2",
+          isVideo ? "w-fit" : "w-full",
           className,
         )}
         title={title}
         data-testid={isVideo ? "file-chip-video" : "file-chip-audio"}
       >
-        <div className="flex min-w-0 items-center gap-3">
+        {/*
+          w-0 min-w-full: size header to the video frame, not the full filename
+          max-content (keeps long names truncated inside a portrait chip).
+        */}
+        <div className="flex w-0 min-w-full items-center gap-3">
           <div
             className={cn(
               "bg-accent/50 relative flex shrink-0 items-center justify-center rounded",
