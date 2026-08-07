@@ -20,7 +20,12 @@ import mountGetCoworkerMe from "./me/get.js";
 import mountPostCoworkerMeUsage from "./me/usage/post.js";
 import mountPostCoworker from "./post.js";
 
-const app = new OpenAPIHonoWithAuth();
+// Product catalog scope=available needs workspace resolution (whitelist ∪
+// GRANTED for active workspace). Without this, requireWorkspaceContext always
+// throws "Workspace is missing" and chat/task pickers 403.
+const app = new OpenAPIHonoWithAuth({
+  includeWorkspaceContext: true,
+});
 
 mountGetCoworkers(app);
 mountPostCoworker(app);
