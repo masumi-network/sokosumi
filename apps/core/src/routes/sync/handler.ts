@@ -61,27 +61,10 @@ async function releaseOwnedLock(
   }
 }
 
-/**
- * Hard ceiling on a single sync run, kept below the `maxDuration` these routes
- * run under (300s — see apps/core/vercel.json) with room for the handler's
- * `finally` to release the lock. Without it a LOCK_TIMEOUT larger than
- * maxDuration lets a long run — e.g. the full registry replay — be killed by
- * the platform before the lock is released, so the next cron tick 409s and the
- * effective cadence halves.
- *
- * Sized to leave the registry replay as much of the platform budget as
- * possible: a lower ceiling does not make the replay safer, it just spreads
- * ~2.4k entries over proportionally more cron cycles.
- */
-const MAX_SYNC_TIMEOUT_MS = 280_000;
-
 function getSyncTimeoutMs(): number {
   const env = getEnv();
   const timeoutMs = env.LOCK_TIMEOUT - env.LOCK_TIMEOUT_BUFFER;
-  return Math.min(
-    Math.max(timeoutMs, MIN_SYNC_TIMEOUT_MS),
-    MAX_SYNC_TIMEOUT_MS,
-  );
+  return Math.max(timeoutMs, MIN_SYNC_TIMEOUT_MS);
 }
 
 /**

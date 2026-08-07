@@ -51,7 +51,6 @@ describe("createTaskEventRequestSchema", () => {
     ["sellerVkey", "not-a-vkey"],
     ["submitResultTime", "tomorrow"],
     ["submitResultTime", "0"],
-    ["blockchainIdentifier", "not-hex"],
   ])("rejects node-invalid %s before charging", (field, value) => {
     const result = createTaskEventRequestSchema().safeParse({
       status: TaskStatus.COMPLETED,
@@ -62,6 +61,24 @@ describe("createTaskEventRequestSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("takes blockchainIdentifier exactly as the node defines it", () => {
+    // POST /purchase declares this `type: string, maxLength: 8000` with no
+    // pattern. It is the seller's own value, so validating a format the node
+    // never promised would reject legal payloads, and rewriting its casing
+    // would forward the node something the seller did not send.
+    const sellerValue = "NotHex-With_Mixed-Case";
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        blockchainIdentifier: sellerValue,
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.masumiPayment?.blockchainIdentifier).toBe(sellerValue);
   });
 
   it("accepts the payment node's empty unit spelling for lovelace", () => {

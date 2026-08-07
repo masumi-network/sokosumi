@@ -12652,9 +12652,8 @@ export const MasumiPaymentSchema = {
     properties: {
         blockchainIdentifier: {
             type: 'string',
-            minLength: 2,
+            minLength: 1,
             maxLength: 8000,
-            pattern: '^[0-9a-fA-F]+$',
             example: '0b00e04c0860a60c61066056281180462d0b12'
         },
         identifierFromPurchaser: {

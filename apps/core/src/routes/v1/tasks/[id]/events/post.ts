@@ -231,12 +231,8 @@ async function settleTaskEventCharge({
   tx,
 }: SettleTaskEventChargeParams): Promise<SettleTaskEventChargeResult> {
   if (masumiPayment) {
-    // Log identifiers, not the payload: the full object carries the seller
-    // vkey, amounts, and deadlines into retained logs for every charge.
     console.info("[tasks] masumi task payment: using masumiPayment", {
-      blockchainIdentifier: masumiPayment.blockchainIdentifier,
-      agentIdentifier: masumiPayment.agentIdentifier,
-      paymentSourceType: masumiPayment.paymentSourceType,
+      masumiPayment,
     });
     // V2 payments are gated exactly like the job flow: a payment node that
     // recently reported the payload's EXACT policy/contract source as
@@ -620,7 +616,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         taskPaymentClaimId = await createTaskPaymentClaim({
           network: getEnv().NETWORK,
-          blockchainIdentifier: masumiPayment.blockchainIdentifier,
+          // Dedupe key only. Lowercased so the (network, blockchainIdentifier)
+          // unique index catches a resubmission that differs solely in casing
+          // — without it that payment would claim a second row, and the outbox
+          // would place a second purchase for work already paid for. The
+          // payload below deliberately keeps the seller's original casing,
+          // which is what the node is sent.
+          blockchainIdentifier:
+            masumiPayment.blockchainIdentifier.toLowerCase(),
           purchasePayload: {
             blockchainIdentifier: masumiPayment.blockchainIdentifier,
             agentIdentifier: masumiPayment.agentIdentifier,

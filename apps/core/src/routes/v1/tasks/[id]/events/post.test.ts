@@ -1991,6 +1991,66 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
+  it("lowercases only the claim's dedupe key, not the payload sent to the node", async () => {
+    // The (network, blockchainIdentifier) unique index is the duplicate-payment
+    // guard. Without normalizing its key, a resubmission differing only in
+    // casing would claim a second row and the outbox would place a second
+    // purchase for work already paid for. The node still receives the seller's
+    // original value, because POST /purchase defines no format for it.
+    const mixedCaseIdentifier = "0B00E04c0860A60c61066056281180462d0b12";
+    requireTaskCollaborationMock.mockResolvedValue(
+      createTask({ status: TaskStatus.RUNNING }),
+    );
+
+    const tx: TransactionMock = {
+      taskEvent: {
+        create: vi.fn().mockResolvedValue(
+          createTaskEvent({
+            id: "evt_running_masumi",
+            status: null,
+            cents: convertCreditsToCents(5),
+            transactionId: "txn_masumi_running",
+          }),
+        ),
+      },
+      task: {
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+
+    mockTransaction(tx);
+    createTaskEventTransactionMock.mockResolvedValue("txn_masumi_running");
+
+    const app = createApp({
+      actor: "coworker",
+      coworkerId: COWORKER_ID,
+      vendorId: TEST_VENDOR_ID,
+    });
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        masumiPayment: {
+          ...validMasumiPaymentBody,
+          blockchainIdentifier: mixedCaseIdentifier,
+        },
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(createTaskPaymentClaimMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        blockchainIdentifier: mixedCaseIdentifier.toLowerCase(),
+        purchasePayload: expect.objectContaining({
+          blockchainIdentifier: mixedCaseIdentifier,
+        }),
+      }),
+    );
+  });
+
   it("accepts charge-only masumiPayment without status change", async () => {
     requireTaskCollaborationMock.mockResolvedValue(
       createTask({ status: TaskStatus.RUNNING }),

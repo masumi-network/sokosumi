@@ -73,19 +73,16 @@ const masumiPaymentSourceSchema = z
 
 const masumiPaymentPayloadSchema = z
   .object({
-    blockchainIdentifier: z
-      .string()
-      .min(2)
-      .max(8000)
-      .regex(HEX_PATTERN, "blockchainIdentifier must be hex")
-      .refine(
-        (value) => value.length % 2 === 0,
-        "blockchainIdentifier must be even-length hex",
-      )
-      .toLowerCase()
-      .openapi({
-        example: "0b00e04c0860a60c61066056281180462d0b12",
-      }),
+    // Matches POST /purchase exactly: `type: string, maxLength: 8000`, with
+    // no pattern. The node does NOT define this as hex, and it is the seller's
+    // own value — validating a format it never promised would reject legal
+    // payloads, and normalizing the casing would hand the node something the
+    // seller did not send. The duplicate-payment guard still compares
+    // case-insensitively; it lowercases the claim's unique key at the call
+    // site rather than rewriting the value forwarded to the node.
+    blockchainIdentifier: z.string().min(1).max(8000).openapi({
+      example: "0b00e04c0860a60c61066056281180462d0b12",
+    }),
     // Mirrors the payment node's request limits (min 14 / max 26, hex with an
     // even number of digits — it must decode to whole bytes) so a payload the
     // node deterministically rejects fails BEFORE the charge.
