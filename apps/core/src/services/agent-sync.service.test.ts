@@ -380,6 +380,63 @@ describe("agentSyncService.syncRegistryAgents", () => {
     expect(agentCreateMock).toHaveBeenCalledTimes(51);
   });
 
+  it("moves the denormalized jobCount with the jobs it belongs to", async () => {
+    // Agent.jobCount backs the public execution count and the default
+    // `jobCount DESC` catalog order, and its only other writer increments on
+    // job creation. Reassigning Job rows without it leaves the canonical row
+    // undercounting every hire it just inherited.
+    jobUpdateManyMock.mockResolvedValue({ count: 3 });
+    const entries = [
+      createRegistryEntry("entry-v2-promote", {
+        agentIdentifier: createV2AgentIdentifier(2),
+        paymentType: "Web3CardanoV2",
+        AgentPricing: null,
+        SupportedPaymentSources: [createCardanoV2PaymentSource()],
+      }),
+    ];
+    getAgentsDiffMock.mockResolvedValue(ok(entries));
+    agentFindUniqueMock.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) => {
+        if (where.registryIdentity) {
+          return {
+            id: "agent-canonical",
+            pricingId: "pricing-canonical",
+            registryVersion: 1,
+            blockchainIdentifier: createV2AgentIdentifier(1),
+            metadataVersion: 1,
+            apiBaseUrl: "https://canonical.example.com",
+            isShown: true,
+          };
+        }
+        return null;
+      },
+    );
+    agentFindFirstMock.mockResolvedValue({
+      id: "agent-rollback-dup",
+      pricingId: "pricing-dup",
+      registryVersion: 2,
+      blockchainIdentifier: createV2AgentIdentifier(2).toUpperCase(),
+      metadataVersion: 1,
+      apiBaseUrl: "https://rollback-agent.example.com",
+      isShown: true,
+    });
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    expect(agentUpdateMock).toHaveBeenCalledWith({
+      where: { id: "agent-canonical" },
+      data: { jobCount: { increment: 3 } },
+    });
+    expect(agentUpdateMock).toHaveBeenCalledWith({
+      where: { id: "agent-rollback-dup" },
+      data: { jobCount: { decrement: 3 } },
+    });
+  });
+
   it("parks a rollback-created duplicate before the canonical row adopts its identifier", async () => {
     const rollbackDuplicateIdentifier =
       createV2AgentIdentifier(2).toUpperCase();
@@ -458,6 +515,12 @@ describe("agentSyncService.syncRegistryAgents", () => {
       where: { agentId: "agent-rollback-dup" },
       data: { agentId: "agent-canonical" },
     });
+    // Jobs moved but none existed, so the denormalized counter is untouched.
+    expect(agentUpdateMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ jobCount: expect.anything() }),
+      }),
+    );
     expect(agentUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "agent-rollback-dup" },

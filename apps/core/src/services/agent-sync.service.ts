@@ -475,10 +475,25 @@ async function upsertRegistryAgent(
           data: { agentApiBaseUrl: duplicateApiBaseUrl },
         });
       }
-      await tx.job.updateMany({
+      const movedJobs = await tx.job.updateMany({
         where: { agentId: conflictingByIdentifier.id },
         data: { agentId: existing.id },
       });
+      // Agent.jobCount is denormalized — it backs the public execution count
+      // and the default `jobCount DESC` catalog order, and its only other
+      // writer increments on job creation. Moving Job rows without moving the
+      // counter would leave the canonical agent undercounting every hire it
+      // just inherited, and ranking below agents it has actually outsold.
+      if (movedJobs.count > 0) {
+        await tx.agent.update({
+          where: { id: existing.id },
+          data: { jobCount: { increment: movedJobs.count } },
+        });
+        await tx.agent.update({
+          where: { id: conflictingByIdentifier.id },
+          data: { jobCount: { decrement: movedJobs.count } },
+        });
+      }
 
       // Consolidate the duplicate's user-owned relations onto the canonical
       // row before parking it, mirroring migration 20260803152000 — parking
