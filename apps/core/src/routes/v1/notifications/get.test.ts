@@ -13,11 +13,13 @@ const {
   notificationFindFirstMock,
   notificationFindManyMock,
   prismaTransactionMock,
+  vendorGrantFindManyMock,
 } = vi.hoisted(() => ({
   notificationCountMock: vi.fn(),
   notificationFindFirstMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  vendorGrantFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -27,6 +29,9 @@ vi.mock("@/lib/db/prisma", () => ({
       count: notificationCountMock,
       findFirst: notificationFindFirstMock,
       findMany: notificationFindManyMock,
+    },
+    vendorGrant: {
+      findMany: vendorGrantFindManyMock,
     },
   },
 }));
@@ -78,8 +83,10 @@ describe("GET /notifications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     notificationFindFirstMock.mockResolvedValue(null);
+    // Default: stale-grant lookup finds no vendor-grant notifications.
     notificationFindManyMock.mockResolvedValue([]);
     notificationCountMock.mockResolvedValue(0);
+    vendorGrantFindManyMock.mockResolvedValue([]);
     prismaTransactionMock.mockImplementation(
       async (operations: Array<Promise<unknown>>) =>
         await Promise.all(operations),
@@ -88,14 +95,18 @@ describe("GET /notifications", () => {
 
   it("lists notifications scoped to the authenticated user", async () => {
     const row = createNotificationRow();
-    notificationFindManyMock.mockResolvedValue([row]);
+    // First findMany: stale vendor-grant reference lookup (empty).
+    // Second findMany: page of notifications.
+    notificationFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([row]);
     notificationCountMock.mockResolvedValue(1);
 
     const app = createApp();
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(notificationFindManyMock).toHaveBeenCalledWith({
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith({
       where: {
         userId: "user_123",
         kind: { notIn: [NotificationKind.CHAT] },
@@ -232,6 +243,58 @@ describe("GET /notifications", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(notificationFindManyMock).not.toHaveBeenCalled();
+    // Only the stale vendor-grant lookup runs; the page query does not.
+    expect(notificationFindManyMock).toHaveBeenCalledTimes(1);
+    expect(notificationFindManyMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_123",
+        messageKey: "notifications.vendorGrant.pending",
+      },
+      select: { referenceId: true },
+    });
+  });
+
+  it("excludes resolved vendor-grant notifications from the feed where clause", async () => {
+    notificationFindManyMock
+      .mockResolvedValueOnce([
+        { referenceId: "grant_resolved" },
+        { referenceId: "grant_pending" },
+      ])
+      .mockResolvedValueOnce([]);
+    vendorGrantFindManyMock.mockResolvedValue([
+      { id: "grant_pending", status: "PENDING" },
+      { id: "grant_resolved", status: "GRANTED" },
+    ]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+
+    expect(response.status).toBe(200);
+    expect(notificationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: "user_123",
+          kind: { notIn: [NotificationKind.CHAT] },
+          NOT: {
+            AND: [
+              { messageKey: "notifications.vendorGrant.pending" },
+              { referenceId: { in: ["grant_resolved"] } },
+            ],
+          },
+        },
+      }),
+    );
+    expect(notificationCountMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_123",
+        kind: { notIn: [NotificationKind.CHAT] },
+        NOT: {
+          AND: [
+            { messageKey: "notifications.vendorGrant.pending" },
+            { referenceId: { in: ["grant_resolved"] } },
+          ],
+        },
+      },
+    });
   });
 });

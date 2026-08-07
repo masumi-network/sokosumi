@@ -1,12 +1,14 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import {
   MemberRole,
+  NotificationKind,
   TaskStatus,
   VendorGrantStatus,
   VendorPermission,
 } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/helpers/notification-feed";
 
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
@@ -20,6 +22,7 @@ const {
   taskEventCreateMock,
   workspaceFindUniqueMock,
   prismaTransactionMock,
+  notificationDeleteManyMock,
 } = vi.hoisted(() => ({
   resolveMemberOrganizationByIdMock: vi.fn(),
   vendorFindUniqueMock: vi.fn(),
@@ -29,6 +32,7 @@ const {
   taskEventCreateMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  notificationDeleteManyMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/organization", () => ({
@@ -101,6 +105,7 @@ beforeAll(async () => {
 describe("POST /organizations/{id}/vendor-grants", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    notificationDeleteManyMock.mockResolvedValue({ count: 0 });
     resolveMemberOrganizationByIdMock.mockResolvedValue({ id: orgId });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
     vendorFindUniqueMock.mockResolvedValue({
@@ -127,6 +132,9 @@ describe("POST /organizations/{id}/vendor-grants", () => {
           taskEvent: {
             create: taskEventCreateMock,
           },
+          notification: {
+            deleteMany: notificationDeleteManyMock,
+          },
         }),
     );
   });
@@ -144,6 +152,13 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     );
 
     expect(response.status).toBe(201);
+    expect(notificationDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        referenceId: grantId,
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        kind: NotificationKind.SYSTEM,
+      },
+    });
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: "task_1",
@@ -239,6 +254,13 @@ describe("POST /organizations/{id}/vendor-grants", () => {
     });
 
     expect(response.status).toBe(201);
+    expect(notificationDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        referenceId: grantId,
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        kind: NotificationKind.SYSTEM,
+      },
+    });
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
       expect.objectContaining({ userId: "user_123", id: orgId }),
     );

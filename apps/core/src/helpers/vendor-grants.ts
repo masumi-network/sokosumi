@@ -16,7 +16,11 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
-import { createNotification } from "@/helpers/notifications";
+import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/helpers/notification-feed";
+import {
+  createNotification,
+  deletePendingVendorGrantNotifications,
+} from "@/helpers/notifications";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
@@ -283,7 +287,7 @@ export async function notifyWorkspaceApproversOfPendingGrant(
         kind: NotificationKind.SYSTEM,
         referenceId: params.grantId,
         eventId: params.grantId,
-        messageKey: "notifications.vendorGrant.pending",
+        messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
         messageParams: {
           vendorName: vendor?.name ?? params.vendorId,
           vendorSlug: vendor?.slug ?? null,
@@ -340,6 +344,7 @@ export async function grantWorkspaceAccess(
 
   await lockVendorGrantById(grant.id, tx);
   await unparkTasksForGrant(grant.id, tx, params.resolvedById);
+  await deletePendingVendorGrantNotifications(grant.id, tx);
 
   return grant;
 }
@@ -366,6 +371,7 @@ export async function approveVendorGrantInWorkspace(
   switch (existing.status) {
     case VendorGrantStatus.GRANTED:
       await unparkTasksForGrant(existing.id, tx, params.resolvedById);
+      await deletePendingVendorGrantNotifications(existing.id, tx);
       return existing;
     case VendorGrantStatus.PENDING:
     case VendorGrantStatus.DENIED:
@@ -389,6 +395,7 @@ export async function approveVendorGrantInWorkspace(
   });
 
   await unparkTasksForGrant(updated.id, tx, params.resolvedById);
+  await deletePendingVendorGrantNotifications(updated.id, tx);
 
   return updated;
 }
@@ -430,6 +437,7 @@ export async function denyVendorGrantInWorkspace(
     { grantId: updated.id, resolvedById: params.resolvedById },
     tx,
   );
+  await deletePendingVendorGrantNotifications(updated.id, tx);
 
   return updated;
 }
