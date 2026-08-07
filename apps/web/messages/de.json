@@ -4790,6 +4790,7 @@
       "MobileNav": {
         "home": "Start",
         "chats": "Chats",
+        "chatsUnread": "Ungelesene Chats",
         "search": "Suche",
         "ariaLabel": "Hauptnavigation",
         "backToChats": "Zurück zu Chats",
