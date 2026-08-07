@@ -15,6 +15,7 @@ const {
   messageCreateMock,
   prismaTransactionMock,
   publishChatRoomMessageRealtimeMock,
+  publishChatMembershipRevokedMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   userMemberFindUniqueMock: vi.fn(),
@@ -23,6 +24,7 @@ const {
   messageCreateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
+  publishChatMembershipRevokedMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -31,6 +33,10 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: publishChatRoomMessageRealtimeMock,
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatMembershipRevoked: publishChatMembershipRevokedMock,
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -155,6 +161,7 @@ describe("DELETE /chats/rooms/{id}/members/{userId}", () => {
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
     readStateDeleteManyMock.mockResolvedValue({ count: 1 });
     publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+    publishChatMembershipRevokedMock.mockResolvedValue(undefined);
   });
 
   it("removes a guest when caller is a host member", async () => {
@@ -175,6 +182,11 @@ describe("DELETE /chats/rooms/{id}/members/{userId}", () => {
     });
     expect(readStateDeleteManyMock).toHaveBeenCalledWith({
       where: { roomId: ROOM_ID, userId: GUEST_ID },
+    });
+    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
+      userId: GUEST_ID,
+      roomId: ROOM_ID,
+      reason: "removed",
     });
   });
 
