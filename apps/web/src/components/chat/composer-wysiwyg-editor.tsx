@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 
 import {
   type ComposerSuggestion,
@@ -501,8 +501,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
       range.insertNode(textNode);
       // Caret after emoji, before trailing boundary still in DOM
       setCaretAfterNode(editorRef.current, textNode);
-      isInternalChange.current = true;
-      syncFromEditor();
+      // Commit parent value before any same-tick submit (e.g. Enter send).
+      flushSync(() => {
+        isInternalChange.current = true;
+        syncFromEditor();
+      });
       closeSuggestions();
       return;
     }
@@ -1001,8 +1004,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
     const textNode = document.createTextNode(match.emoji);
     range.insertNode(textNode);
     setCaretAfterNode(editor, textNode);
-    isInternalChange.current = true;
-    syncFromEditor();
+    // flushSync so parent composerValue updates before requestSubmit/onSubmit.
+    flushSync(() => {
+      isInternalChange.current = true;
+      syncFromEditor();
+    });
   }, [syncFromEditor]);
 
   const handleKeyDown = useCallback(
@@ -1124,9 +1130,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
   );
 
   const handleBlur = useCallback(() => {
+    // Sync flush so Send click (blur → submit same tick) sees emoji in parent state.
+    // Suggestion-close stays deferred so listbox mousedown can set isSelectingRef.
+    tryFlushTrailingEmoticon();
     blurTimeoutRef.current = setTimeout(() => {
       if (!isSelectingRef.current) {
-        tryFlushTrailingEmoticon();
         closeSuggestions();
       }
       isSelectingRef.current = false;

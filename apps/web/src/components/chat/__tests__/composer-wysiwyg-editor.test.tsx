@@ -812,8 +812,7 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor.textContent).not.toContain("😄");
   });
 
-  it("converts bare trailing emoticon on blur (flush)", async () => {
-    vi.useFakeTimers();
+  it("converts bare trailing emoticon on blur (flush)", () => {
     function Harness() {
       const [value, setValue] = useState("");
       return (
@@ -839,14 +838,11 @@ describe("ComposerWysiwygEditor", () => {
     // Live mode should not convert without boundary
     expect(editor.textContent).toContain(":)");
 
+    // Sync blur flush — no timer advance needed for convert
     fireEvent.blur(editor);
-    await act(async () => {
-      vi.advanceTimersByTime(200);
-    });
 
     expect(editor.textContent).toContain("😃");
     expect(editor.textContent).not.toContain(":)");
-    vi.useRealTimers();
   });
 
   it("converts bare trailing emoticon before submit shortcut", () => {
@@ -879,5 +875,87 @@ describe("ComposerWysiwygEditor", () => {
 
     expect(editor.textContent).toContain("😉");
     expect(onSubmitShortcut).toHaveBeenCalled();
+  });
+
+  it("submits flushed emoticon markdown to parent state", () => {
+    const onSubmitted = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState("");
+      const formRef = useRef<HTMLFormElement>(null);
+      return (
+        <form
+          ref={formRef}
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmitted(value);
+          }}
+        >
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+            onSubmitShortcut={() => formRef.current?.requestSubmit()}
+          />
+        </form>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ";)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(onSubmitted).toHaveBeenCalledWith(expect.stringContaining("😉"));
+    expect(onSubmitted).not.toHaveBeenCalledWith(expect.stringContaining(";)"));
+  });
+
+  it("updates parent value on blur flush before form submit", () => {
+    const onSubmitted = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmitted(value);
+          }}
+        >
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+          <button type="submit">Send</button>
+        </form>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ";)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    // Blur (sync flush + flushSync) then Submit click — no timer advance
+    fireEvent.blur(editor);
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(onSubmitted).toHaveBeenCalledWith(expect.stringContaining("😉"));
+    expect(onSubmitted).not.toHaveBeenCalledWith(expect.stringContaining(";)"));
   });
 });
