@@ -24,31 +24,30 @@ const PRIMITIVE_SOURCES = [
 ] as const;
 
 const MD_SHRINK = /md:text-(?:sm|xs)\b/;
-const FLOOR_TOKEN = "max(1rem,16px)";
+const PX_FLOOR = /max\(1rem,\s*16px\)/;
 
 describe("editable text size primitives", () => {
-  it("exports a single floor classname without md shrink", () => {
-    expect(EDITABLE_TEXT_SIZE_CLASSNAME).toContain(FLOOR_TOKEN);
+  it("exports pure rem text-base without md shrink or px floor", () => {
+    expect(EDITABLE_TEXT_SIZE_CLASSNAME).toBe("text-base");
     expect(EDITABLE_TEXT_SIZE_CLASSNAME).not.toContain("md:text-sm");
-    expect(EDITABLE_TEXT_SIZE_CLASSNAME).not.toMatch(/\btext-base\b/);
+    expect(EDITABLE_TEXT_SIZE_CLASSNAME).not.toMatch(PX_FLOOR);
   });
 
-  it("keeps the floor last when callers pass text-base or text-sm", () => {
-    const merged = withEditableTextSize("p-4 text-base", "text-sm");
-    expect(merged).toContain(EDITABLE_TEXT_SIZE_CLASSNAME);
-    expect(merged).not.toMatch(/\btext-base\b/);
+  it("keeps text-base last when callers pass text-sm or other sizes", () => {
+    const merged = withEditableTextSize("p-4 text-sm", "text-xs");
+    expect(merged).toContain("text-base");
+    expect(merged).toContain("p-4");
     expect(merged).not.toMatch(/\btext-sm\b/);
+    expect(merged).not.toMatch(/\btext-xs\b/);
   });
 
   it.each(PRIMITIVE_SOURCES)(
-    "%s uses withEditableTextSize / floor and has no md shrink",
+    "%s uses withEditableTextSize and has no md shrink or px floor",
     (rel) => {
       const content = readFileSync(path.join(SRC_ROOT, rel), "utf8");
       expect(content).not.toMatch(MD_SHRINK);
-      expect(
-        content.includes("withEditableTextSize") ||
-          content.includes(FLOOR_TOKEN),
-      ).toBe(true);
+      expect(content).not.toMatch(PX_FLOOR);
+      expect(content.includes("withEditableTextSize")).toBe(true);
     },
   );
 });
