@@ -6,6 +6,7 @@ export const COWORKER_ACCESS_PENDING_MESSAGE_KEY =
 interface CoworkerAccessNotificationTarget {
   accessId: string;
   organizationId: string | null;
+  organizationSlug: string | null;
 }
 
 export function isPendingCoworkerAccessNotification(
@@ -33,7 +34,14 @@ export function resolveCoworkerAccessNotificationTarget(
   const organizationId =
     typeof rawOrganizationId === "string" ? rawOrganizationId : null;
 
-  return { accessId, organizationId };
+  const rawOrganizationSlug = notification.metadata?.organizationSlug;
+  const organizationSlug =
+    typeof rawOrganizationSlug === "string" &&
+    rawOrganizationSlug.trim().length > 0
+      ? rawOrganizationSlug
+      : null;
+
+  return { accessId, organizationId, organizationSlug };
 }
 
 export function buildCoworkerAccessReviewHref(params: {

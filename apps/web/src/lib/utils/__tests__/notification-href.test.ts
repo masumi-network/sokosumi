@@ -91,7 +91,7 @@ describe("getNotificationHref", () => {
     ).toBe("/account#coworker-early-access");
   });
 
-  it("deep-links pending coworker access SYSTEM to org review", () => {
+  it("deep-links pending coworker access SYSTEM to org review by id when slug missing", () => {
     expect(
       getNotificationHref({
         kind: "SYSTEM",
@@ -103,6 +103,21 @@ describe("getNotificationHref", () => {
         },
       }),
     ).toBe("/organizations/org_1#coworker-early-access");
+  });
+
+  it("prefers organizationSlug for coworker access org deep links", () => {
+    expect(
+      getNotificationHref({
+        kind: "SYSTEM",
+        referenceId: "access-1",
+        messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+        metadata: {
+          coworkerId: "c-1",
+          organizationId: "org_1",
+          organizationSlug: "acme",
+        },
+      }),
+    ).toBe("/organizations/acme#coworker-early-access");
   });
 
   it("falls back to home for non-pending SYSTEM notifications", () => {

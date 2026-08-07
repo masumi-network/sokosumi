@@ -26,44 +26,78 @@ describe("isPendingCoworkerAccessNotification", () => {
 });
 
 describe("resolveCoworkerAccessNotificationTarget", () => {
-  it("returns accessId from referenceId and organizationId from metadata", () => {
+  it("returns accessId, organizationId, and organizationSlug from metadata", () => {
     expect(
       resolveCoworkerAccessNotificationTarget({
         messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
         referenceId: "access-1",
-        metadata: { organizationId: "org-1", coworkerId: "c-1" },
+        metadata: {
+          organizationId: "org-1",
+          organizationSlug: "acme",
+          coworkerId: "c-1",
+        },
       }),
-    ).toEqual({ accessId: "access-1", organizationId: "org-1" });
+    ).toEqual({
+      accessId: "access-1",
+      organizationId: "org-1",
+      organizationSlug: "acme",
+    });
   });
 
-  it("returns null organizationId for personal workspace access", () => {
+  it("returns null organization fields for personal workspace access", () => {
     expect(
       resolveCoworkerAccessNotificationTarget({
         messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
         referenceId: "access-2",
         metadata: { organizationId: null, workspaceId: "ws-1" },
       }),
-    ).toEqual({ accessId: "access-2", organizationId: null });
+    ).toEqual({
+      accessId: "access-2",
+      organizationId: null,
+      organizationSlug: null,
+    });
   });
 
-  it("returns null organizationId when metadata lacks organizationId", () => {
+  it("returns null organization fields when metadata lacks them", () => {
     expect(
       resolveCoworkerAccessNotificationTarget({
         messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
         referenceId: "access-3",
         metadata: null,
       }),
-    ).toEqual({ accessId: "access-3", organizationId: null });
+    ).toEqual({
+      accessId: "access-3",
+      organizationId: null,
+      organizationSlug: null,
+    });
   });
 
-  it("returns null organizationId when organizationId is not a string", () => {
+  it("returns null organization fields when values are not strings", () => {
     expect(
       resolveCoworkerAccessNotificationTarget({
         messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
         referenceId: "access-4",
-        metadata: { organizationId: 42 },
+        metadata: { organizationId: 42, organizationSlug: 99 },
       }),
-    ).toEqual({ accessId: "access-4", organizationId: null });
+    ).toEqual({
+      accessId: "access-4",
+      organizationId: null,
+      organizationSlug: null,
+    });
+  });
+
+  it("treats blank organizationSlug as null", () => {
+    expect(
+      resolveCoworkerAccessNotificationTarget({
+        messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+        referenceId: "access-4b",
+        metadata: { organizationId: "org-1", organizationSlug: "  " },
+      }),
+    ).toEqual({
+      accessId: "access-4b",
+      organizationId: "org-1",
+      organizationSlug: null,
+    });
   });
 
   it("returns null for non-coworker-access notifications", () => {

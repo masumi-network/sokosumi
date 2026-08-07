@@ -538,7 +538,11 @@ export async function notifyWorkspaceApproversOfPendingCoworkerAccess(
 ): Promise<void> {
   const workspace = await tx.workspace.findUnique({
     where: { id: params.workspaceId },
-    select: { userId: true, organizationId: true },
+    select: {
+      userId: true,
+      organizationId: true,
+      organization: { select: { slug: true } },
+    },
   });
 
   if (!workspace) {
@@ -569,6 +573,8 @@ export async function notifyWorkspaceApproversOfPendingCoworkerAccess(
     select: { name: true, slug: true },
   });
 
+  const organizationSlug = workspace.organization?.slug ?? null;
+
   for (const userId of recipientUserIds) {
     await createNotification(
       {
@@ -582,11 +588,14 @@ export async function notifyWorkspaceApproversOfPendingCoworkerAccess(
           coworkerSlug: coworker?.slug ?? null,
           workspaceId: params.workspaceId,
           organizationId: workspace.organizationId,
+          organizationSlug,
         },
         metadata: {
           coworkerId: params.coworkerId,
           workspaceId: params.workspaceId,
           organizationId: workspace.organizationId,
+          // Web deep-links use slug; org pages resolve by slug only.
+          organizationSlug,
         },
       },
       tx,

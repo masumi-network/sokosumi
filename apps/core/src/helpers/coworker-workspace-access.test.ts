@@ -1073,6 +1073,7 @@ describe("coworker-workspace-access helpers", () => {
       workspaceFindUnique.mockResolvedValue({
         userId: "owner-1",
         organizationId: null,
+        organization: null,
       });
       coworkerFindUnique.mockResolvedValue({
         name: "Pilot Coworker",
@@ -1097,11 +1098,13 @@ describe("coworker-workspace-access helpers", () => {
             coworkerSlug: "pilot-coworker",
             workspaceId: "workspace-1",
             organizationId: null,
+            organizationSlug: null,
           },
           metadata: {
             coworkerId: "coworker-1",
             workspaceId: "workspace-1",
             organizationId: null,
+            organizationSlug: null,
           },
         },
         expect.anything(),
@@ -1112,6 +1115,7 @@ describe("coworker-workspace-access helpers", () => {
       workspaceFindUnique.mockResolvedValue({
         userId: "owner-1",
         organizationId: null,
+        organization: null,
       });
       coworkerFindUnique.mockResolvedValue(null);
 
@@ -1132,10 +1136,11 @@ describe("coworker-workspace-access helpers", () => {
       );
     });
 
-    it("notifies org OWNER and ADMIN members", async () => {
+    it("notifies org OWNER and ADMIN members with organizationSlug", async () => {
       workspaceFindUnique.mockResolvedValue({
         userId: null,
         organizationId: "org-1",
+        organization: { slug: "acme" },
       });
       memberFindMany.mockResolvedValue([
         { userId: "admin-1" },
@@ -1160,6 +1165,19 @@ describe("coworker-workspace-access helpers", () => {
         select: { userId: true },
       });
       expect(createNotificationMock).toHaveBeenCalledTimes(2);
+      expect(createNotificationMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "admin-1",
+          metadata: expect.objectContaining({
+            organizationId: "org-1",
+            organizationSlug: "acme",
+          }),
+          messageParams: expect.objectContaining({
+            organizationSlug: "acme",
+          }),
+        }),
+        expect.anything(),
+      );
     });
   });
 

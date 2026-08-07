@@ -59,6 +59,7 @@ export function getNotificationHref(
           return (
             buildCoworkerAccessReviewHref({
               organizationId: coworkerTarget.organizationId,
+              organizationSlug: coworkerTarget.organizationSlug,
             }) ?? `/`
           );
         }
