@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { NotificationsListSkeleton } from "@/app/notifications/components/notifications-loading-view";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { Button } from "@/components/ui/button";
@@ -248,16 +249,7 @@ export function NotificationsPageContent({
       ) : null}
 
       {isLoading && notifications.length === 0 ? (
-        <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
-          <div className="divide-border/50 divide-y">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-2 p-4">
-                <div className="bg-muted h-4 w-3/4 animate-pulse rounded" />
-                <div className="bg-muted h-3 w-1/4 animate-pulse rounded" />
-              </div>
-            ))}
-          </div>
-        </div>
+        <NotificationsListSkeleton />
       ) : hasFetchError && notifications.length === 0 ? (
         <div className="bg-muted/30 border-border/50 flex flex-col items-center justify-center gap-3 rounded-xl border p-8">
           <p className="text-muted-foreground text-center">
