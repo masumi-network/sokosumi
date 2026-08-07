@@ -860,4 +860,281 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor.innerHTML).not.toMatch(/color\s*:/i);
     expect(editor.textContent).toBe("stuck dark");
   });
+
+  it("converts :D to emoji after trailing space", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":D ";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain("😄");
+    expect(editor.textContent).not.toContain(":D");
+    // Boundary space kept; caret after it so the next word needs no second space.
+    expect(editor.textContent).toBe("😄 ");
+    const caretRange = window.getSelection()?.getRangeAt(0);
+    expect(caretRange?.collapsed).toBe(true);
+    expect(caretRange?.startOffset).toBe(
+      caretRange?.startContainer.textContent?.length,
+    );
+  });
+
+  it("does not convert emoticons inside inline code", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.innerHTML = "<code>:D </code>";
+    const code = editor.querySelector("code");
+    expect(code).toBeTruthy();
+    const textNode = code!.firstChild as Text;
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.setStart(textNode, textNode.length);
+    range.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain(":D");
+    expect(editor.textContent).not.toContain("😄");
+  });
+
+  it("does not convert emoticon match range inside code when caret is outside", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    // serialize flattens to "hello:D "; caret after outer space must not
+    // rewrite the `:D` still living inside <code>.
+    editor.innerHTML = "hello<code>:D</code> ";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain(":D");
+    expect(editor.textContent).not.toContain("😄");
+    expect(editor.querySelector("code")?.textContent).toBe(":D");
+  });
+
+  it("still converts emoticons after a mention chip", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{
+            alice: { value: "Alice" },
+          }}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    // Mention chip then plain ":D " — convert must apply only to plain text.
+    editor.innerHTML =
+      '<span data-mention-key="alice" data-mention-slug="alice" contenteditable="false">@Alice</span> :D ';
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    expect(editor.textContent).toContain("😄");
+    expect(editor.textContent).not.toContain(":D");
+    expect(editor.querySelector("[data-mention-key='alice']")).not.toBeNull();
+  });
+
+  it("converts bare trailing emoticon on blur (flush)", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ":)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+    // Live mode should not convert without boundary
+    expect(editor.textContent).toContain(":)");
+
+    // Sync blur flush — no timer advance needed for convert
+    fireEvent.blur(editor);
+
+    expect(editor.textContent).toContain("😃");
+    expect(editor.textContent).not.toContain(":)");
+  });
+
+  it("converts bare trailing emoticon before submit shortcut", () => {
+    const onSubmitShortcut = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+          onSubmitShortcut={onSubmitShortcut}
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ";)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(editor.textContent).toContain("😉");
+    expect(onSubmitShortcut).toHaveBeenCalled();
+  });
+
+  it("submits flushed emoticon markdown to parent state", () => {
+    const onSubmitted = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState("");
+      const formRef = useRef<HTMLFormElement>(null);
+      return (
+        <form
+          ref={formRef}
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmitted(value);
+          }}
+        >
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+            onSubmitShortcut={() => formRef.current?.requestSubmit()}
+          />
+        </form>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ";)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    fireEvent.keyDown(editor, { key: "Enter" });
+
+    expect(onSubmitted).toHaveBeenCalledWith(expect.stringContaining("😉"));
+    expect(onSubmitted).not.toHaveBeenCalledWith(expect.stringContaining(";)"));
+  });
+
+  it("updates parent value on blur flush before form submit", () => {
+    const onSubmitted = vi.fn();
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmitted(value);
+          }}
+        >
+          <ComposerWysiwygEditor
+            value={value}
+            onChange={setValue}
+            mentions={{}}
+          />
+          <button type="submit">Send</button>
+        </form>
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    editor.focus();
+    editor.textContent = ";)";
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    fireEvent.input(editor);
+
+    // Blur (sync flush + flushSync) then Submit click — no timer advance
+    fireEvent.blur(editor);
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    expect(onSubmitted).toHaveBeenCalledWith(expect.stringContaining("😉"));
+    expect(onSubmitted).not.toHaveBeenCalledWith(expect.stringContaining(";)"));
+  });
 });

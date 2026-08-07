@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 
 import {
   type ComposerSuggestion,
@@ -48,6 +48,7 @@ import {
   type ComposerFormatCommand,
   getComposerActiveFormats,
 } from "@/lib/utils/composer-active-formats";
+import { matchEmoticonClosedAtBoundary } from "@/lib/utils/composer-emoticons";
 import {
   htmlToMarkdown,
   markdownToHtml,
@@ -58,6 +59,7 @@ import {
 } from "@/lib/utils/composer-paste-sanitize";
 import { tryExitComposerInlineFormatOnArrow } from "@/lib/utils/composer-wysiwyg-arrow-exit";
 import { toggleComposerInlineCode } from "@/lib/utils/composer-wysiwyg-code-format";
+import { replaceComposerTextRange } from "@/lib/utils/composer-wysiwyg-dom";
 import {
   resolveComposerEnterAction,
   tryApplyComposerInputRuleAtCaret,
@@ -432,27 +434,49 @@ export function ComposerWysiwygEditor<TData = unknown>({
 
     const exactEmoji = matchExactEmojiShortcodeClosed(text, caret);
     if (exactEmoji) {
-      const startPos = findPositionForOffset(
-        editorRef.current,
-        exactEmoji.triggerStart,
-      );
-      const endPos = findPositionForOffset(editorRef.current, exactEmoji.end);
-      const range = document.createRange();
-      range.setStart(startPos.node, startPos.offset);
-      range.setEnd(endPos.node, endPos.offset);
-      range.deleteContents();
-
       const nextChar = text[exactEmoji.end];
       const insert = shouldAppendTrailingSpace(nextChar)
         ? `${exactEmoji.emoji} `
         : exactEmoji.emoji;
-      const textNode = document.createTextNode(insert);
-      range.insertNode(textNode);
-      setCaretAfterNode(editorRef.current, textNode);
-      isInternalChange.current = true;
-      syncFromEditor();
-      closeSuggestions();
-      return;
+      if (
+        replaceComposerTextRange(
+          editorRef.current,
+          exactEmoji.triggerStart,
+          exactEmoji.end,
+          insert,
+        )
+      ) {
+        isInternalChange.current = true;
+        syncFromEditor();
+        closeSuggestions();
+        return;
+      }
+    }
+
+    // Emoticon live convert: include the closing boundary (space/punct) in the
+    // replace so caret lands after it — otherwise typing glues to the emoji and
+    // the user needs a second space for the next word.
+    // Converts only at the caret boundary (not a full-document scan); paste of
+    // multiple mid-string emoticons still converts on send via remark-emoji.
+    const emoticonMatch = matchEmoticonClosedAtBoundary(text, caret);
+    if (emoticonMatch && editorRef.current) {
+      const boundarySuffix = text.slice(emoticonMatch.end, caret);
+      const deleteEnd = emoticonMatch.end + boundarySuffix.length;
+      if (
+        replaceComposerTextRange(
+          editorRef.current,
+          emoticonMatch.start,
+          deleteEnd,
+          `${emoticonMatch.emoji}${boundarySuffix}`,
+        )
+      ) {
+        // Live path: no flushSync — next keystroke/blur/submit sees state.
+        // flushSync reserved for tryFlushTrailingEmoticon (same-tick submit).
+        isInternalChange.current = true;
+        syncFromEditor();
+        closeSuggestions();
+        return;
+      }
     }
 
     if (manualMentionOpenRef.current && normalizedMentions.length > 0) {
@@ -954,6 +978,27 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [handleInput],
   );
 
+  const tryFlushTrailingEmoticon = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const { text } = serializeEditor(editor);
+    const match = matchEmoticonClosedAtBoundary(text, text.length, {
+      flush: true,
+    });
+    if (!match) return;
+
+    if (
+      !replaceComposerTextRange(editor, match.start, match.end, match.emoji)
+    ) {
+      return;
+    }
+    // flushSync so parent composerValue updates before requestSubmit/onSubmit.
+    flushSync(() => {
+      isInternalChange.current = true;
+      syncFromEditor();
+    });
+  }, [syncFromEditor]);
+
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       const key = event.key.toLowerCase();
@@ -1042,6 +1087,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         if (isOpen) closeSuggestions();
 
         if (action === "submit") {
+          tryFlushTrailingEmoticon();
           onSubmitShortcut?.();
           return;
         }
@@ -1066,11 +1112,15 @@ export function ComposerWysiwygEditor<TData = unknown>({
       selectableMentions,
       setActiveSuggestionIndex,
       suggestionKind,
+      tryFlushTrailingEmoticon,
       visibleSuggestionCount,
     ],
   );
 
   const handleBlur = useCallback(() => {
+    // Sync flush so Send click (blur → submit same tick) sees emoji in parent state.
+    // Suggestion-close stays deferred so listbox mousedown can set isSelectingRef.
+    tryFlushTrailingEmoticon();
     blurTimeoutRef.current = setTimeout(() => {
       if (!isSelectingRef.current) {
         closeSuggestions();
@@ -1078,7 +1128,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       isSelectingRef.current = false;
       publishActiveFormats();
     }, 150);
-  }, [closeSuggestions, publishActiveFormats]);
+  }, [closeSuggestions, publishActiveFormats, tryFlushTrailingEmoticon]);
 
   useEffect(() => {
     const onSelectionChange = () => {
