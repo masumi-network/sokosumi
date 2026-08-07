@@ -95,14 +95,18 @@ export interface JobSyncResult {
 }
 
 /**
- * Budget held back from the agent phase so the refund phase always runs.
+ * Budget held back from BOTH network-bound phases so the refund phase always
+ * runs. The three phases share one run deadline and execute in order:
+ * purchase, then agent, then refund.
  *
- * The agent phase polls sellers over the network and, since this release, keeps
- * polling snapshot-backed jobs whose agent has gone offline (see
- * `buildInFlightAgentSnapshotWhere`) — free jobs stay eligible for 30 days. A
- * batch of dead endpoints can therefore consume the whole shared run deadline.
- * The refund phase is database-only, cheap, and returns money to users, so it
- * must not be the thing that gets starved.
+ * Purchase polls the payment node once per job (10s timeout, 5 concurrent),
+ * and agent polls sellers — and since this release keeps polling
+ * snapshot-backed jobs whose agent has gone offline (see
+ * `buildInFlightAgentSnapshotWhere`), free jobs for 30 days. Either can
+ * consume the whole run on its own: a slow payment node exhausts the budget in
+ * the purchase phase before the agent phase starts. Refund is database-only,
+ * cheap, and returns money to users, so it must not be the thing that starves
+ * — and a slow node is exactly when refunds are most likely to be needed.
  *
  * Reserving budget rather than reordering the phases on purpose: `seenJobIds`
  * makes the first phase to claim a job the one that processes it, so swapping
@@ -1082,24 +1086,31 @@ export const jobSyncService = {
     let agentPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
     let refundPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
 
+    // Both network-bound phases share one reserved deadline, so whichever of
+    // them is slow, the refund phase still gets its budget. Reserving only
+    // against the agent phase left the purchase phase — which is equally
+    // network-bound, and runs FIRST — able to consume the whole run on its
+    // own, collapsing the agent budget to zero and starving refunds anyway.
+    const networkPhaseOptions = {
+      ...runOptions,
+      deadlineMs: Math.max(
+        Date.now(),
+        runOptions.deadlineMs - REFUND_PHASE_RESERVED_MS,
+      ),
+    };
+
     try {
       purchasePhase = await runSyncPhase(
         "purchase",
         buildJobsNeedingPurchaseSyncWhere(),
-        runOptions,
+        networkPhaseOptions,
         seenJobIds,
         syncPurchaseState,
       );
       agentPhase = await runSyncPhase(
         "agent",
         buildJobsNeedingAgentStatusSyncWhere(),
-        {
-          ...runOptions,
-          deadlineMs: Math.max(
-            Date.now(),
-            runOptions.deadlineMs - REFUND_PHASE_RESERVED_MS,
-          ),
-        },
+        networkPhaseOptions,
         seenJobIds,
         syncAgentStatus,
       );
