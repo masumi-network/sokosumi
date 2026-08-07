@@ -78,6 +78,7 @@ function baseAccess(
     resolvedById: string | null;
     createdAt: Date;
     updatedAt: Date;
+    coworker: { name: string; slug: string };
   }> = {},
 ) {
   return {
@@ -90,6 +91,7 @@ function baseAccess(
     resolvedById: null,
     createdAt: now,
     updatedAt: now,
+    coworker: { name: "Ops Pilot", slug: "ops-pilot" },
     ...overrides,
   };
 }
@@ -129,6 +131,8 @@ describe("coworker-workspace-access helpers", () => {
       expect(toCoworkerWorkspaceAccessApiShape(row)).toEqual({
         id: row.id,
         coworkerId: row.coworkerId,
+        coworkerName: "Ops Pilot",
+        coworkerSlug: "ops-pilot",
         workspaceId: row.workspaceId,
         status: CoworkerWorkspaceAccessStatus.GRANTED,
         requestedByUserId: row.requestedByUserId,
@@ -281,6 +285,11 @@ describe("coworker-workspace-access helpers", () => {
             requestedByUserId: "platform-1",
             resolvedById: "platform-1",
           }),
+          include: {
+            coworker: {
+              select: { name: true, slug: true },
+            },
+          },
         }),
       );
     });
@@ -428,6 +437,11 @@ describe("coworker-workspace-access helpers", () => {
           requestedByUserId: "actor-1",
           resolvedAt: null,
           resolvedById: null,
+        },
+        include: {
+          coworker: {
+            select: { name: true, slug: true },
+          },
         },
       });
       expect(createNotificationMock).toHaveBeenCalledWith(
@@ -603,6 +617,11 @@ describe("coworker-workspace-access helpers", () => {
           resolvedAt: expect.any(Date),
           resolvedById: "owner-1",
         },
+        include: {
+          coworker: {
+            select: { name: true, slug: true },
+          },
+        },
       });
     });
 
@@ -645,6 +664,11 @@ describe("coworker-workspace-access helpers", () => {
           resolvedAt: expect.any(Date),
           resolvedById: "owner-1",
         },
+        include: {
+          coworker: {
+            select: { name: true, slug: true },
+          },
+        },
       });
     });
 
@@ -686,6 +710,11 @@ describe("coworker-workspace-access helpers", () => {
           status: CoworkerWorkspaceAccessStatus.REVOKED,
           resolvedAt: expect.any(Date),
           resolvedById: "owner-1",
+        },
+        include: {
+          coworker: {
+            select: { name: true, slug: true },
+          },
         },
       });
     });
@@ -826,6 +855,11 @@ describe("coworker-workspace-access helpers", () => {
       expect(accessFindMany).toHaveBeenCalledWith({
         where: { workspaceId: "workspace-1" },
         orderBy: { createdAt: "desc" },
+        include: {
+          coworker: {
+            select: { name: true, slug: true },
+          },
+        },
       });
     });
   });
@@ -857,6 +891,11 @@ describe("coworker-workspace-access helpers", () => {
           status: CoworkerWorkspaceAccessStatus.REVOKED,
           resolvedById: "admin-1",
         }),
+        include: {
+          coworker: {
+            select: { name: true, slug: true },
+          },
+        },
       });
     });
 

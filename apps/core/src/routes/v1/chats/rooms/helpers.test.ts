@@ -122,7 +122,9 @@ describe("validateChatCoworkerIds", () => {
   });
 
   it("queries workspace usability (whitelist OR GRANTED access)", async () => {
-    coworkerFindManyMock.mockResolvedValue([{ id: "cow_1" }]);
+    coworkerFindManyMock.mockResolvedValue([
+      { id: "cow_1", baseURL: "https://chat.example.com" },
+    ]);
 
     await expect(
       validateChatCoworkerIds(["cow_1"], workspaceId, tx),
@@ -143,10 +145,10 @@ describe("validateChatCoworkerIds", () => {
             },
           },
         ],
-        baseURL: { not: null },
+        AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
         capabilities: { has: "chat" },
       },
-      select: { id: true },
+      select: { id: true, baseURL: true },
     });
   });
 

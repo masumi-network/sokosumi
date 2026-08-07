@@ -19,14 +19,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { grantDeveloperCoworkerEarlyAccessAction } from "@/lib/actions/coworkers/workspace-access.action";
 import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
+import { coworkerAccessStatusMessageKey } from "@/lib/utils/coworker-access-display";
+import { isUuidString } from "@/lib/utils/uuid";
 
 interface DeveloperCoworkerEarlyAccessProps {
   coworkerId: string;
   accessRows: CoworkerWorkspaceAccess[];
 }
-
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export function DeveloperCoworkerEarlyAccess({
   coworkerId,
@@ -44,7 +43,7 @@ export function DeveloperCoworkerEarlyAccess({
     }
 
     const trimmed = workspaceId.trim();
-    if (!UUID_PATTERN.test(trimmed)) {
+    if (!isUuidString(trimmed)) {
       toast.error(t("error"));
       return;
     }
@@ -71,23 +70,6 @@ export function DeveloperCoworkerEarlyAccess({
     }
   }
 
-  function statusLabel(status: CoworkerWorkspaceAccess["status"]): string {
-    switch (status) {
-      case "PENDING":
-        return t("statusPending");
-      case "GRANTED":
-        return t("statusGranted");
-      case "DENIED":
-        return t("statusDenied");
-      case "REVOKED":
-        return t("statusRevoked");
-      default: {
-        const _exhaustive: never = status;
-        return _exhaustive;
-      }
-    }
-  }
-
   return (
     <Card id="coworker-early-access">
       <CardHeader>
@@ -111,7 +93,7 @@ export function DeveloperCoworkerEarlyAccess({
                     variant="secondary"
                     className="h-5 w-fit px-1.5 text-xs"
                   >
-                    {statusLabel(row.status)}
+                    {t(coworkerAccessStatusMessageKey(row.status))}
                   </Badge>
                 </li>
               ))}

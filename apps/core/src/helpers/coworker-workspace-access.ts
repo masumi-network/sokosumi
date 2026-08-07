@@ -21,6 +21,22 @@ export interface UpsertCoworkerWorkspaceAccessParams {
   isPlatformAdmin: boolean;
 }
 
+export const coworkerWorkspaceAccessInclude = {
+  coworker: {
+    select: {
+      name: true,
+      slug: true,
+    },
+  },
+} satisfies Prisma.CoworkerWorkspaceAccessInclude;
+
+export type CoworkerWorkspaceAccessWithCoworker = CoworkerWorkspaceAccess & {
+  coworker: {
+    name: string;
+    slug: string;
+  };
+};
+
 function accessUniqueWhere(coworkerId: string, workspaceId: string) {
   return {
     coworkerId_workspaceId: {
@@ -53,11 +69,13 @@ export function isCoworkerAccessTerminal(
 }
 
 export function toCoworkerWorkspaceAccessApiShape(
-  row: CoworkerWorkspaceAccess,
+  row: CoworkerWorkspaceAccessWithCoworker,
 ): CoworkerWorkspaceAccessDto {
   return {
     id: row.id,
     coworkerId: row.coworkerId,
+    coworkerName: row.coworker.name,
+    coworkerSlug: row.coworker.slug,
     workspaceId: row.workspaceId,
     status: row.status,
     requestedByUserId: row.requestedByUserId,
@@ -105,6 +123,17 @@ export async function userBelongsToWorkspace(
   return membership != null;
 }
 
+async function findAccessByPair(
+  coworkerId: string,
+  workspaceId: string,
+  tx: Prisma.TransactionClient,
+): Promise<CoworkerWorkspaceAccessWithCoworker | null> {
+  return tx.coworkerWorkspaceAccess.findUnique({
+    where: accessUniqueWhere(coworkerId, workspaceId),
+    include: coworkerWorkspaceAccessInclude,
+  });
+}
+
 async function upsertGrantedAccess(
   params: {
     coworkerId: string;
@@ -112,7 +141,7 @@ async function upsertGrantedAccess(
     actorUserId: string;
   },
   tx: Prisma.TransactionClient,
-): Promise<CoworkerWorkspaceAccess> {
+): Promise<CoworkerWorkspaceAccessWithCoworker> {
   const now = new Date();
   return tx.coworkerWorkspaceAccess.upsert({
     where: accessUniqueWhere(params.coworkerId, params.workspaceId),
@@ -130,6 +159,7 @@ async function upsertGrantedAccess(
       resolvedAt: now,
       resolvedById: params.actorUserId,
     },
+    include: coworkerWorkspaceAccessInclude,
   });
 }
 
@@ -148,7 +178,7 @@ async function upsertGrantedAccess(
 export async function upsertCoworkerWorkspaceAccess(
   params: UpsertCoworkerWorkspaceAccessParams,
   tx: Prisma.TransactionClient = prisma,
-): Promise<CoworkerWorkspaceAccess> {
+): Promise<CoworkerWorkspaceAccessWithCoworker> {
   const workspace = await tx.workspace.findUnique({
     where: { id: params.workspaceId },
     select: { id: true, userId: true, organizationId: true },
@@ -170,9 +200,11 @@ export async function upsertCoworkerWorkspaceAccess(
     throw notFound("Coworker not found");
   }
 
-  const existing = await tx.coworkerWorkspaceAccess.findUnique({
-    where: accessUniqueWhere(params.coworkerId, params.workspaceId),
-  });
+  const existing = await findAccessByPair(
+    params.coworkerId,
+    params.workspaceId,
+    tx,
+  );
 
   if (params.isPlatformAdmin) {
     if (existing?.status === CoworkerWorkspaceAccessStatus.GRANTED) {
@@ -221,7 +253,7 @@ export async function upsertCoworkerWorkspaceAccess(
     return existing;
   }
 
-  let access: CoworkerWorkspaceAccess;
+  let access: CoworkerWorkspaceAccessWithCoworker;
   try {
     access = await tx.coworkerWorkspaceAccess.create({
       data: {
@@ -232,15 +264,18 @@ export async function upsertCoworkerWorkspaceAccess(
         resolvedAt: null,
         resolvedById: null,
       },
+      include: coworkerWorkspaceAccessInclude,
     });
   } catch (error) {
     if (!isPrismaUniqueViolation(error)) {
       throw error;
     }
 
-    const raced = await tx.coworkerWorkspaceAccess.findUnique({
-      where: accessUniqueWhere(params.coworkerId, params.workspaceId),
-    });
+    const raced = await findAccessByPair(
+      params.coworkerId,
+      params.workspaceId,
+      tx,
+    );
 
     if (!raced) {
       throw error;
@@ -339,14 +374,19 @@ export async function notifyWorkspaceApproversOfPendingCoworkerAccess(
   }
 }
 
-export async function approveCoworkerWorkspaceAccess(
-  params: {
-    accessId: string;
-    workspaceId: string;
-    resolvedById: string;
-  },
+interface TransitionCoworkerWorkspaceAccessParams {
+  accessId: string;
+  workspaceId: string;
+  resolvedById: string;
+  from: CoworkerWorkspaceAccessStatus;
+  to: CoworkerWorkspaceAccessStatus;
+  wrongStatusMessage: string;
+}
+
+async function transitionCoworkerWorkspaceAccess(
+  params: TransitionCoworkerWorkspaceAccessParams,
   tx: Prisma.TransactionClient = prisma,
-): Promise<CoworkerWorkspaceAccess> {
+): Promise<CoworkerWorkspaceAccessWithCoworker> {
   await lockCoworkerWorkspaceAccessById(params.accessId, tx);
 
   const existing = await tx.coworkerWorkspaceAccess.findFirst({
@@ -357,18 +397,39 @@ export async function approveCoworkerWorkspaceAccess(
     throw notFound("Coworker workspace access not found");
   }
 
-  if (existing.status !== CoworkerWorkspaceAccessStatus.PENDING) {
-    throw badRequest("Only PENDING coworker workspace access can be approved");
+  if (existing.status !== params.from) {
+    throw badRequest(params.wrongStatusMessage);
   }
 
   return tx.coworkerWorkspaceAccess.update({
     where: { id: params.accessId },
     data: {
-      status: CoworkerWorkspaceAccessStatus.GRANTED,
+      status: params.to,
       resolvedAt: new Date(),
       resolvedById: params.resolvedById,
     },
+    include: coworkerWorkspaceAccessInclude,
   });
+}
+
+export async function approveCoworkerWorkspaceAccess(
+  params: {
+    accessId: string;
+    workspaceId: string;
+    resolvedById: string;
+  },
+  tx: Prisma.TransactionClient = prisma,
+): Promise<CoworkerWorkspaceAccessWithCoworker> {
+  return transitionCoworkerWorkspaceAccess(
+    {
+      ...params,
+      from: CoworkerWorkspaceAccessStatus.PENDING,
+      to: CoworkerWorkspaceAccessStatus.GRANTED,
+      wrongStatusMessage:
+        "Only PENDING coworker workspace access can be approved",
+    },
+    tx,
+  );
 }
 
 export async function denyCoworkerWorkspaceAccess(
@@ -378,29 +439,17 @@ export async function denyCoworkerWorkspaceAccess(
     resolvedById: string;
   },
   tx: Prisma.TransactionClient = prisma,
-): Promise<CoworkerWorkspaceAccess> {
-  await lockCoworkerWorkspaceAccessById(params.accessId, tx);
-
-  const existing = await tx.coworkerWorkspaceAccess.findFirst({
-    where: { id: params.accessId, workspaceId: params.workspaceId },
-  });
-
-  if (!existing) {
-    throw notFound("Coworker workspace access not found");
-  }
-
-  if (existing.status !== CoworkerWorkspaceAccessStatus.PENDING) {
-    throw badRequest("Only PENDING coworker workspace access can be denied");
-  }
-
-  return tx.coworkerWorkspaceAccess.update({
-    where: { id: params.accessId },
-    data: {
-      status: CoworkerWorkspaceAccessStatus.DENIED,
-      resolvedAt: new Date(),
-      resolvedById: params.resolvedById,
+): Promise<CoworkerWorkspaceAccessWithCoworker> {
+  return transitionCoworkerWorkspaceAccess(
+    {
+      ...params,
+      from: CoworkerWorkspaceAccessStatus.PENDING,
+      to: CoworkerWorkspaceAccessStatus.DENIED,
+      wrongStatusMessage:
+        "Only PENDING coworker workspace access can be denied",
     },
-  });
+    tx,
+  );
 }
 
 export async function revokeCoworkerWorkspaceAccess(
@@ -410,38 +459,27 @@ export async function revokeCoworkerWorkspaceAccess(
     resolvedById: string;
   },
   tx: Prisma.TransactionClient = prisma,
-): Promise<CoworkerWorkspaceAccess> {
-  await lockCoworkerWorkspaceAccessById(params.accessId, tx);
-
-  const existing = await tx.coworkerWorkspaceAccess.findFirst({
-    where: { id: params.accessId, workspaceId: params.workspaceId },
-  });
-
-  if (!existing) {
-    throw notFound("Coworker workspace access not found");
-  }
-
-  if (existing.status !== CoworkerWorkspaceAccessStatus.GRANTED) {
-    throw badRequest("Only GRANTED coworker workspace access can be revoked");
-  }
-
-  return tx.coworkerWorkspaceAccess.update({
-    where: { id: params.accessId },
-    data: {
-      status: CoworkerWorkspaceAccessStatus.REVOKED,
-      resolvedAt: new Date(),
-      resolvedById: params.resolvedById,
+): Promise<CoworkerWorkspaceAccessWithCoworker> {
+  return transitionCoworkerWorkspaceAccess(
+    {
+      ...params,
+      from: CoworkerWorkspaceAccessStatus.GRANTED,
+      to: CoworkerWorkspaceAccessStatus.REVOKED,
+      wrongStatusMessage:
+        "Only GRANTED coworker workspace access can be revoked",
     },
-  });
+    tx,
+  );
 }
 
 export async function listCoworkerAccessForWorkspace(
   workspaceId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<CoworkerWorkspaceAccess[]> {
+): Promise<CoworkerWorkspaceAccessWithCoworker[]> {
   return tx.coworkerWorkspaceAccess.findMany({
     where: { workspaceId },
     orderBy: { createdAt: "desc" },
+    include: coworkerWorkspaceAccessInclude,
   });
 }
 
@@ -456,10 +494,12 @@ export async function forceRevokeCoworkerWorkspaceAccessByPair(
     resolvedById: string;
   },
   tx: Prisma.TransactionClient = prisma,
-): Promise<CoworkerWorkspaceAccess> {
-  const existing = await tx.coworkerWorkspaceAccess.findUnique({
-    where: accessUniqueWhere(params.coworkerId, params.workspaceId),
-  });
+): Promise<CoworkerWorkspaceAccessWithCoworker> {
+  const existing = await findAccessByPair(
+    params.coworkerId,
+    params.workspaceId,
+    tx,
+  );
 
   if (!existing) {
     throw notFound("Coworker workspace access not found");
@@ -469,6 +509,7 @@ export async function forceRevokeCoworkerWorkspaceAccessByPair(
 
   const locked = await tx.coworkerWorkspaceAccess.findUnique({
     where: { id: existing.id },
+    include: coworkerWorkspaceAccessInclude,
   });
 
   if (!locked) {
@@ -486,5 +527,6 @@ export async function forceRevokeCoworkerWorkspaceAccessByPair(
       resolvedAt: new Date(),
       resolvedById: params.resolvedById,
     },
+    include: coworkerWorkspaceAccessInclude,
   });
 }

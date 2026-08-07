@@ -14,6 +14,8 @@ see [Vendor workspace grants](./vendor-workspace-grants-api.md).
   `findUsableCoworkerByCapabilityInWorkspace`)
 - **Source of truth (OpenAPI shape):**
   `apps/core/src/schemas/coworker-workspace-access.schema.ts`
+  (includes `coworkerName` / `coworkerSlug` on every access DTO — same pattern as
+  vendor grants)
 - **Design:**
   [`docs/superpowers/specs/2026-08-05-coworker-workspace-access-design.md`](../superpowers/specs/2026-08-05-coworker-workspace-access-design.md)
 

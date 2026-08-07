@@ -22,15 +22,24 @@ import {
 import type { Result } from "@/lib/ts-res";
 import {
   type CoworkerAccessEntry,
+  coworkerAccessStatusMessageKey,
   isAccessGranted,
   isAccessPending,
 } from "@/lib/utils/coworker-access-display";
 
-type CoworkerAccessMode = "organization" | "personal";
+interface CoworkerAccessModeMap {
+  organization: true;
+  personal: true;
+}
 
-type CoworkerAccessNamespace =
-  | "App.Organizations.OrganizationDetail.CoworkerAccess"
-  | "App.Account.CoworkerAccess";
+type CoworkerAccessMode = keyof CoworkerAccessModeMap;
+
+interface CoworkerAccessNamespaceMap {
+  "App.Organizations.OrganizationDetail.CoworkerAccess": true;
+  "App.Account.CoworkerAccess": true;
+}
+
+type CoworkerAccessNamespace = keyof CoworkerAccessNamespaceMap;
 
 interface CoworkerAccessListProps {
   entries: CoworkerAccessEntry[];
@@ -80,24 +89,6 @@ function CoworkerAccessCard({
   namespace,
 }: CoworkerAccessCardProps) {
   const t = useTranslations(namespace);
-  const status = entry.access.status;
-
-  function statusLabel(): string {
-    switch (status) {
-      case "PENDING":
-        return t("statusPending");
-      case "GRANTED":
-        return t("statusGranted");
-      case "DENIED":
-        return t("statusDenied");
-      case "REVOKED":
-        return t("statusRevoked");
-      default: {
-        const _exhaustive: never = status;
-        return _exhaustive;
-      }
-    }
-  }
 
   return (
     <li className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
@@ -110,7 +101,7 @@ function CoworkerAccessCard({
             </span>
           ) : null}
           <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-            {statusLabel()}
+            {t(coworkerAccessStatusMessageKey(entry.access.status))}
           </Badge>
         </div>
       </div>

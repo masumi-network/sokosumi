@@ -36,6 +36,7 @@ function baseAccess(
   return {
     id: accessId,
     coworkerId,
+    coworker: { name: "Ops Pilot", slug: "ops-pilot" },
     workspaceId,
     status: overrides.status ?? CoworkerWorkspaceAccessStatus.REVOKED,
     requestedByUserId: null,
@@ -90,6 +91,8 @@ describe("POST /coworkers/{id}/workspace-access/revoke", () => {
     expect(body.data).toMatchObject({
       id: accessId,
       coworkerId,
+      coworkerName: "Ops Pilot",
+      coworkerSlug: "ops-pilot",
       workspaceId,
       status: CoworkerWorkspaceAccessStatus.REVOKED,
     });

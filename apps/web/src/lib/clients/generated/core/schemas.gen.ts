@@ -8839,6 +8839,14 @@ export const CoworkerWorkspaceAccessSchema = {
             type: 'string',
             format: 'uuid'
         },
+        coworkerName: {
+            type: 'string',
+            example: 'Ops Pilot'
+        },
+        coworkerSlug: {
+            type: 'string',
+            example: 'ops-pilot'
+        },
         workspaceId: {
             type: 'string',
             format: 'uuid'
@@ -8887,6 +8895,8 @@ export const CoworkerWorkspaceAccessSchema = {
     required: [
         'id',
         'coworkerId',
+        'coworkerName',
+        'coworkerSlug',
         'workspaceId',
         'status',
         'requestedByUserId',

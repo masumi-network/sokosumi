@@ -46,6 +46,7 @@ function baseAccess(
   return {
     id: accessId,
     coworkerId,
+    coworker: { name: "Ops Pilot", slug: "ops-pilot" },
     workspaceId,
     status: overrides.status ?? CoworkerWorkspaceAccessStatus.PENDING,
     requestedByUserId: "user_123",
@@ -100,6 +101,8 @@ describe("GET /coworkers/{id}/workspace-access", () => {
     expect(body.data[0]).toMatchObject({
       id: accessId,
       coworkerId,
+      coworkerName: "Ops Pilot",
+      coworkerSlug: "ops-pilot",
       workspaceId,
       status: "GRANTED",
     });
@@ -107,6 +110,11 @@ describe("GET /coworkers/{id}/workspace-access", () => {
     expect(accessFindManyMock).toHaveBeenCalledWith({
       where: { coworkerId },
       orderBy: { createdAt: "desc" },
+      include: {
+        coworker: {
+          select: { name: true, slug: true },
+        },
+      },
     });
   });
 

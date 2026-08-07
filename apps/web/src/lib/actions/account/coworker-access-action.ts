@@ -19,62 +19,30 @@ interface CoworkerAccessMutationParameters extends AuthenticatedRequest {
   accessId: string;
 }
 
-export const approveMyCoworkerAccess = withSession<
-  CoworkerAccessMutationParameters,
-  Result<{ accessId: string }, ActionError>
->(async ({ accessId }) => {
-  const parsed = coworkerAccessActionSchema.safeParse({ accessId });
-  if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
-  }
+type PersonalAccessMutation = "approve" | "deny" | "revoke";
 
-  try {
-    const access = await coworkerAccessService.approve(parsed.data.accessId, {
-      type: "personal",
-    });
-    return Ok({ accessId: access.id });
-  } catch (error) {
-    console.error("Failed to approve personal coworker access", error);
-    return Err(toCoreApiActionError(error));
-  }
-});
+function personalCoworkerAccessAction(method: PersonalAccessMutation) {
+  return withSession<
+    CoworkerAccessMutationParameters,
+    Result<{ accessId: string }, ActionError>
+  >(async ({ accessId }) => {
+    const parsed = coworkerAccessActionSchema.safeParse({ accessId });
+    if (!parsed.success) {
+      return Err({ code: CommonErrorCode.BAD_INPUT });
+    }
 
-export const denyMyCoworkerAccess = withSession<
-  CoworkerAccessMutationParameters,
-  Result<{ accessId: string }, ActionError>
->(async ({ accessId }) => {
-  const parsed = coworkerAccessActionSchema.safeParse({ accessId });
-  if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
-  }
+    try {
+      const access = await coworkerAccessService[method](parsed.data.accessId, {
+        type: "personal",
+      });
+      return Ok({ accessId: access.id });
+    } catch (error) {
+      console.error(`Failed to ${method} personal coworker access`, error);
+      return Err(toCoreApiActionError(error));
+    }
+  });
+}
 
-  try {
-    const access = await coworkerAccessService.deny(parsed.data.accessId, {
-      type: "personal",
-    });
-    return Ok({ accessId: access.id });
-  } catch (error) {
-    console.error("Failed to deny personal coworker access", error);
-    return Err(toCoreApiActionError(error));
-  }
-});
-
-export const revokeMyCoworkerAccess = withSession<
-  CoworkerAccessMutationParameters,
-  Result<{ accessId: string }, ActionError>
->(async ({ accessId }) => {
-  const parsed = coworkerAccessActionSchema.safeParse({ accessId });
-  if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
-  }
-
-  try {
-    const access = await coworkerAccessService.revoke(parsed.data.accessId, {
-      type: "personal",
-    });
-    return Ok({ accessId: access.id });
-  } catch (error) {
-    console.error("Failed to revoke personal coworker access", error);
-    return Err(toCoreApiActionError(error));
-  }
-});
+export const approveMyCoworkerAccess = personalCoworkerAccessAction("approve");
+export const denyMyCoworkerAccess = personalCoworkerAccessAction("deny");
+export const revokeMyCoworkerAccess = personalCoworkerAccessAction("revoke");

@@ -1607,9 +1607,7 @@ describe("requireCoworkerChatCapability", () => {
         capabilities: {
           has: "chat",
         },
-        baseURL: {
-          not: null,
-        },
+        AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
       },
       select: {
         id: true,
@@ -1649,9 +1647,7 @@ describe("requireCoworkerChatCapabilityInWorkspace", () => {
         capabilities: {
           has: "chat",
         },
-        baseURL: {
-          not: null,
-        },
+        AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
       },
       select: {
         id: true,

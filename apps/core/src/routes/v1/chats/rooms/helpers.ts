@@ -5,7 +5,11 @@ import {
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "@sokosumi/utils";
 
-import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
+import {
+  buildCoworkerNonEmptyBaseUrlWhere,
+  buildCoworkerUsableInWorkspaceWhere,
+  hasNonEmptyBaseUrl,
+} from "@/helpers/access-control";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import prisma from "@/lib/db/prisma";
@@ -1500,12 +1504,16 @@ export async function validateChatCoworkerIds(
     where: {
       id: { in: uniqueCoworkerIds },
       ...buildCoworkerUsableInWorkspaceWhere(workspaceId),
-      baseURL: { not: null },
+      ...buildCoworkerNonEmptyBaseUrlWhere(),
       capabilities: { has: "chat" },
     },
-    select: { id: true },
+    select: { id: true, baseURL: true },
   });
-  const found = new Set(coworkers.map((coworker) => coworker.id));
+  const found = new Set(
+    coworkers
+      .filter((coworker) => hasNonEmptyBaseUrl(coworker.baseURL))
+      .map((coworker) => coworker.id),
+  );
   const missing = uniqueCoworkerIds.filter(
     (coworkerId) => !found.has(coworkerId),
   );

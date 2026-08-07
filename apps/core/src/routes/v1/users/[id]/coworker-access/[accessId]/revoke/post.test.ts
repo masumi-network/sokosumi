@@ -98,6 +98,7 @@ describe("POST /users/{id}/coworker-access/{accessId}/revoke", () => {
     revokeMock.mockResolvedValue({
       id: accessId,
       coworkerId,
+      coworker: { name: "Ops Pilot", slug: "ops-pilot" },
       workspaceId,
       status: CoworkerWorkspaceAccessStatus.REVOKED,
       requestedByUserId: "requester",

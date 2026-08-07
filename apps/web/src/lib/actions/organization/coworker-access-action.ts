@@ -21,74 +21,37 @@ interface CoworkerAccessMutationParameters extends AuthenticatedRequest {
   accessId: string;
 }
 
-export const approveOrganizationCoworkerAccess = withSession<
-  CoworkerAccessMutationParameters,
-  Result<{ accessId: string }, ActionError>
->(async ({ organizationId, accessId }) => {
-  const parsed = coworkerAccessActionSchema.safeParse({
-    organizationId,
-    accessId,
-  });
-  if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
-  }
+type OrganizationAccessMutation = "approve" | "deny" | "revoke";
 
-  try {
-    const access = await coworkerAccessService.approve(parsed.data.accessId, {
-      type: "organization",
-      organizationId: parsed.data.organizationId,
+function organizationCoworkerAccessAction(method: OrganizationAccessMutation) {
+  return withSession<
+    CoworkerAccessMutationParameters,
+    Result<{ accessId: string }, ActionError>
+  >(async ({ organizationId, accessId }) => {
+    const parsed = coworkerAccessActionSchema.safeParse({
+      organizationId,
+      accessId,
     });
-    return Ok({ accessId: access.id });
-  } catch (error) {
-    console.error("Failed to approve organization coworker access", error);
-    return Err(toCoreApiActionError(error));
-  }
-});
+    if (!parsed.success) {
+      return Err({ code: CommonErrorCode.BAD_INPUT });
+    }
 
-export const denyOrganizationCoworkerAccess = withSession<
-  CoworkerAccessMutationParameters,
-  Result<{ accessId: string }, ActionError>
->(async ({ organizationId, accessId }) => {
-  const parsed = coworkerAccessActionSchema.safeParse({
-    organizationId,
-    accessId,
+    try {
+      const access = await coworkerAccessService[method](parsed.data.accessId, {
+        type: "organization",
+        organizationId: parsed.data.organizationId,
+      });
+      return Ok({ accessId: access.id });
+    } catch (error) {
+      console.error(`Failed to ${method} organization coworker access`, error);
+      return Err(toCoreApiActionError(error));
+    }
   });
-  if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
-  }
+}
 
-  try {
-    const access = await coworkerAccessService.deny(parsed.data.accessId, {
-      type: "organization",
-      organizationId: parsed.data.organizationId,
-    });
-    return Ok({ accessId: access.id });
-  } catch (error) {
-    console.error("Failed to deny organization coworker access", error);
-    return Err(toCoreApiActionError(error));
-  }
-});
-
-export const revokeOrganizationCoworkerAccess = withSession<
-  CoworkerAccessMutationParameters,
-  Result<{ accessId: string }, ActionError>
->(async ({ organizationId, accessId }) => {
-  const parsed = coworkerAccessActionSchema.safeParse({
-    organizationId,
-    accessId,
-  });
-  if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
-  }
-
-  try {
-    const access = await coworkerAccessService.revoke(parsed.data.accessId, {
-      type: "organization",
-      organizationId: parsed.data.organizationId,
-    });
-    return Ok({ accessId: access.id });
-  } catch (error) {
-    console.error("Failed to revoke organization coworker access", error);
-    return Err(toCoreApiActionError(error));
-  }
-});
+export const approveOrganizationCoworkerAccess =
+  organizationCoworkerAccessAction("approve");
+export const denyOrganizationCoworkerAccess =
+  organizationCoworkerAccessAction("deny");
+export const revokeOrganizationCoworkerAccess =
+  organizationCoworkerAccessAction("revoke");

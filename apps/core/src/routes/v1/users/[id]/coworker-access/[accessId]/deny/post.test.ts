@@ -98,6 +98,7 @@ describe("POST /users/{id}/coworker-access/{accessId}/deny", () => {
     denyMock.mockResolvedValue({
       id: accessId,
       coworkerId,
+      coworker: { name: "Ops Pilot", slug: "ops-pilot" },
       workspaceId,
       status: CoworkerWorkspaceAccessStatus.DENIED,
       requestedByUserId: "requester",

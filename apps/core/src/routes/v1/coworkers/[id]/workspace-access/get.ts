@@ -1,6 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { toCoworkerWorkspaceAccessApiShape } from "@/helpers/coworker-workspace-access";
+import {
+  coworkerWorkspaceAccessInclude,
+  toCoworkerWorkspaceAccessApiShape,
+} from "@/helpers/coworker-workspace-access";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -54,6 +57,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const rows = await prisma.coworkerWorkspaceAccess.findMany({
       where: { coworkerId },
       orderBy: { createdAt: "desc" },
+      include: coworkerWorkspaceAccessInclude,
     });
 
     return ok(

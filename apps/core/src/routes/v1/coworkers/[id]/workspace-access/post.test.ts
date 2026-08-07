@@ -39,6 +39,7 @@ function baseAccess(
   return {
     id: accessId,
     coworkerId,
+    coworker: { name: "Ops Pilot", slug: "ops-pilot" },
     workspaceId,
     status: overrides.status ?? CoworkerWorkspaceAccessStatus.GRANTED,
     requestedByUserId: actorUserId,
@@ -98,6 +99,8 @@ describe("POST /coworkers/{id}/workspace-access", () => {
     expect(body.data).toMatchObject({
       id: accessId,
       coworkerId,
+      coworkerName: "Ops Pilot",
+      coworkerSlug: "ops-pilot",
       workspaceId,
       status: "GRANTED",
       requestedByUserId: actorUserId,

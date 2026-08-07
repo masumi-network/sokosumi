@@ -90,6 +90,7 @@ describe("POST /organizations/{id}/coworker-access/{accessId}/approve", () => {
     approveMock.mockResolvedValue({
       id: accessId,
       coworkerId,
+      coworker: { name: "Ops Pilot", slug: "ops-pilot" },
       workspaceId,
       status: CoworkerWorkspaceAccessStatus.GRANTED,
       requestedByUserId: "requester",

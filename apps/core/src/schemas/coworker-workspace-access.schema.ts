@@ -14,6 +14,8 @@ export const coworkerWorkspaceAccessSchema = z
       .uuid()
       .openapi({ example: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }),
     coworkerId: z.string().uuid(),
+    coworkerName: z.string().openapi({ example: "Ops Pilot" }),
+    coworkerSlug: z.string().openapi({ example: "ops-pilot" }),
     workspaceId: z.string().uuid(),
     status: coworkerWorkspaceAccessStatusSchema,
     requestedByUserId: z.string().nullable(),
@@ -32,6 +34,7 @@ export type CoworkerWorkspaceAccessDto = z.infer<
   typeof coworkerWorkspaceAccessSchema
 >;
 
-export const createCoworkerWorkspaceAccessRequestSchema = z.object({
+/** Body for create and platform force-revoke (workspaceId only). */
+export const coworkerWorkspaceAccessWorkspaceIdBodySchema = z.object({
   workspaceId: z.string().uuid(),
 });

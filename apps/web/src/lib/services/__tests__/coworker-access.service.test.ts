@@ -43,6 +43,8 @@ import { coworkerAccessService } from "../coworker-access.service";
 const accessRow = {
   id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   coworkerId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+  coworkerName: "Ops Pilot",
+  coworkerSlug: "ops-pilot",
   workspaceId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
   status: "PENDING" as const,
   requestedByUserId: "user_1",

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
-import { enrichCoworkerAccessEntries } from "@/lib/utils/enrich-coworker-access-entries";
+import { toCoworkerAccessEntries } from "@/lib/utils/coworker-access-display";
 
 export async function AccountCoworkerAccess() {
   const t = await getTranslations("App.Account.CoworkerAccess");
@@ -22,7 +22,7 @@ export async function AccountCoworkerAccess() {
     console.error("Failed to load personal coworker access", error);
   }
 
-  const entries = await enrichCoworkerAccessEntries(rows);
+  const entries = toCoworkerAccessEntries(rows);
 
   return (
     <Card id="coworker-early-access">

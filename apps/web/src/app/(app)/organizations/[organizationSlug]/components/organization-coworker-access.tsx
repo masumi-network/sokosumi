@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
-import { enrichCoworkerAccessEntries } from "@/lib/utils/enrich-coworker-access-entries";
+import { toCoworkerAccessEntries } from "@/lib/utils/coworker-access-display";
 
 interface OrganizationCoworkerAccessProps {
   organizationId: string;
@@ -30,7 +30,7 @@ export async function OrganizationCoworkerAccess({
     console.error("Failed to load organization coworker access", error);
   }
 
-  const entries = await enrichCoworkerAccessEntries(rows);
+  const entries = toCoworkerAccessEntries(rows);
 
   return (
     <Card id="coworker-early-access">

@@ -75,6 +75,7 @@ describe("GET /organizations/{id}/coworker-access", () => {
       {
         id: accessId,
         coworkerId,
+        coworker: { name: "Ops Pilot", slug: "ops-pilot" },
         workspaceId,
         status: CoworkerWorkspaceAccessStatus.PENDING,
         requestedByUserId: "requester",

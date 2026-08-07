@@ -10,7 +10,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
 import {
   coworkerWorkspaceAccessSchema,
-  createCoworkerWorkspaceAccessRequestSchema,
+  coworkerWorkspaceAccessWorkspaceIdBodySchema,
 } from "@/schemas/coworker-workspace-access.schema";
 
 import { paramsSchema } from "../schema";
@@ -27,7 +27,7 @@ const route = createRoute({
     body: {
       content: {
         "application/json": {
-          schema: createCoworkerWorkspaceAccessRequestSchema,
+          schema: coworkerWorkspaceAccessWorkspaceIdBodySchema,
         },
       },
     },

@@ -206,6 +206,23 @@ export function buildCoworkerUsableInWorkspaceWhere(
 }
 
 /**
+ * Chat baseURL must be present and non-empty (spec: usability rule).
+ * Does not reject whitespace-only strings at SQL layer — callers that need
+ * that also run {@link hasNonEmptyBaseUrl}.
+ */
+export function buildCoworkerNonEmptyBaseUrlWhere(): Prisma.CoworkerWhereInput {
+  return {
+    AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
+  };
+}
+
+export function hasNonEmptyBaseUrl(
+  baseURL: string | null | undefined,
+): baseURL is string {
+  return typeof baseURL === "string" && baseURL.trim().length > 0;
+}
+
+/**
  * Actor API-key paths: active (non-archived) + capability only.
  * No global whitelist and no workspace-access row required.
  */
@@ -224,7 +241,7 @@ async function findActiveCoworkerByCapability(
       capabilities: {
         has: capability,
       },
-      ...(options?.requireBaseUrl ? { baseURL: { not: null } } : {}),
+      ...(options?.requireBaseUrl ? buildCoworkerNonEmptyBaseUrlWhere() : {}),
     },
     select: {
       id: true,
@@ -253,7 +270,7 @@ export async function findUsableCoworkerByCapabilityInWorkspace(
       capabilities: {
         has: capability,
       },
-      ...(options?.requireBaseUrl ? { baseURL: { not: null } } : {}),
+      ...(options?.requireBaseUrl ? buildCoworkerNonEmptyBaseUrlWhere() : {}),
     },
     select: {
       id: true,
@@ -303,7 +320,7 @@ export async function requireCoworkerChatCapability(
     },
   );
 
-  if (!coworker) {
+  if (!coworker || !hasNonEmptyBaseUrl(coworker.baseURL)) {
     throw forbidden("Coworker chat is not available");
   }
 
@@ -332,7 +349,7 @@ export async function requireCoworkerChatCapabilityInWorkspace(
     },
   );
 
-  if (!coworker) {
+  if (!coworker || !hasNonEmptyBaseUrl(coworker.baseURL)) {
     throw forbidden("Coworker chat is not available");
   }
 

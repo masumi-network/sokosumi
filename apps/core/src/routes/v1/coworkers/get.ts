@@ -1,4 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import type { Prisma } from "@sokosumi/database";
+
 import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { COWORKER_CAPABILITIES } from "@/helpers/coworker-capability";
@@ -72,7 +74,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { scope, capability } = c.req.valid("query");
     const { authContext } = c.var;
 
-    let baseScope: Record<string, unknown>;
+    let baseScope: Prisma.CoworkerWhereInput;
     if (scope === "owned") {
       const userAuthContext = requireUserAuthContext(authContext);
       baseScope = {
@@ -93,7 +95,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         ...(scope === "whitelisted" ? { isWhitelisted: true } : {}),
       };
     }
-    const where = {
+    const where: Prisma.CoworkerWhereInput = {
       ...baseScope,
       ...(capability ? { capabilities: { hasEvery: capability } } : {}),
     };

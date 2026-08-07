@@ -2627,6 +2627,8 @@ export type UtmAttributionRequest = {
 export type CoworkerWorkspaceAccess = {
     id: string;
     coworkerId: string;
+    coworkerName: string;
+    coworkerSlug: string;
     workspaceId: string;
     status: 'PENDING' | 'GRANTED' | 'DENIED' | 'REVOKED';
     requestedByUserId: string | null;
