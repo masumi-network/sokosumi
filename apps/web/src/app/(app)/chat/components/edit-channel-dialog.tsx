@@ -215,15 +215,17 @@ export function EditChannelDialog({
             scroll. Cap the dialog to the viewport and scroll the form body rather
             than the padded dialog box, whose children do not reflow around their
             own scrollbar. */}
-        <DialogContent className="max-h-[calc(100svh-2rem)] space-y-4 overflow-y-auto shadow-none sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
-            <DialogDescription>{t("Dialog.editDescription")}</DialogDescription>
-          </DialogHeader>
-          {/* Settings form stays separate from guest invite (nested forms invalid). */}
-          <form className="space-y-4" onSubmit={handleSubmit}>
+        {/* Settings form stays separate from guest invite (nested forms invalid). */}
+        <DialogContent className="max-h-[calc(100svh-2rem)] min-w-0 overflow-x-hidden overflow-y-auto px-5 py-6 shadow-none sm:max-w-2xl">
+          <form className="min-w-0 space-y-4" onSubmit={handleSubmit}>
+            <DialogHeader className="pr-6">
+              <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
+              <DialogDescription>
+                {t("Dialog.editDescription")}
+              </DialogDescription>
+            </DialogHeader>
             {canManageSettings || canEditMembers ? (
-              <div className="grid gap-4">
+              <div className="grid min-w-0 gap-4">
                 {canManageSettings ? (
                   <>
                     <div className="space-y-2">

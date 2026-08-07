@@ -25,6 +25,7 @@ import {
   getCaretRect,
   getMentionToken,
   getPopupPositionFromRect,
+  getSuggestionPopupFixedStyle,
   isLineBreak,
   isMentionSpan,
   isWhitespaceChar,
@@ -886,14 +887,7 @@ function MentionTextareaInner<TData = unknown>(
             ref={listRef}
             style={
               popupPosition
-                ? {
-                    top: popupPosition.top,
-                    left: popupPosition.left,
-                    maxHeight: popupPosition.maxHeight,
-                    ...(popupPosition.side === "top"
-                      ? { transform: "translateY(-100%)" }
-                      : {}),
-                  }
+                ? getSuggestionPopupFixedStyle(popupPosition)
                 : undefined
             }
             className="bg-popover text-popover-foreground fixed z-50 w-72 overflow-y-auto rounded-md border p-1 shadow-md"
