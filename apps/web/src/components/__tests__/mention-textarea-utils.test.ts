@@ -7,9 +7,12 @@ import {
   getActiveTrigger,
   getMentionPopupPositionFromAnchorRect,
   getPopupPositionFromRect,
+  getSuggestionPopupFixedStyle,
+  MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX,
   MENTION_COMPOSER_GAP_PX,
   type NormalizedMention,
   POPUP_HEIGHT_PX,
+  POPUP_MIN_HEIGHT_PX,
   serializeEditorText,
   setEditorFromRaw,
   VIEWPORT_PADDING_PX,
@@ -43,6 +46,11 @@ function rectNearBottom(options: {
 }
 
 describe("mention-textarea utils", () => {
+  it("sizes scroll margin to preferred picker height plus composer gap", () => {
+    expect(MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX).toBe(
+      POPUP_HEIGHT_PX + MENTION_COMPOSER_GAP_PX + VIEWPORT_PADDING_PX,
+    );
+  });
   it("round-trips mention markup with friendly labels", () => {
     const root = document.createElement("div");
     const raw = "Hello @agent1:stock-photos-agent world";
@@ -124,6 +132,32 @@ describe("mention-textarea utils", () => {
     expect(getActiveTrigger(text, text.length)).toBeNull();
   });
 
+  describe("getSuggestionPopupFixedStyle", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("pins top-side popups with bottom and no translateY", () => {
+      stubViewport(800);
+      const style = getSuggestionPopupFixedStyle({
+        top: 500,
+        left: 24,
+        side: "top",
+        maxHeight: 200,
+        width: 420,
+      });
+
+      expect(style).toEqual({
+        left: 24,
+        maxHeight: 200,
+        width: 420,
+        bottom: 800 - 500,
+      });
+      expect(style).not.toHaveProperty("top");
+      expect(style).not.toHaveProperty("transform");
+    });
+  });
+
   describe("getPopupPositionFromRect", () => {
     afterEach(() => {
       vi.unstubAllGlobals();
@@ -135,9 +169,8 @@ describe("mention-textarea utils", () => {
         rectNearBottom({ top: 600, bottom: 620 }),
       );
 
-      // belowSpace ≈ 172 (< 240 preferred), aboveSpace ≈ 592
       expect(position.side).toBe("top");
-      expect(position.maxHeight).toBeGreaterThanOrEqual(80);
+      expect(position.maxHeight).toBeGreaterThanOrEqual(POPUP_MIN_HEIGHT_PX);
       expect(position.maxHeight).toBeLessThanOrEqual(POPUP_HEIGHT_PX);
     });
 
@@ -194,23 +227,78 @@ describe("mention-textarea utils", () => {
       expect(position.maxHeight).toBe(
         Math.min(
           POPUP_HEIGHT_PX,
-          Math.max(0, top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX),
+          Math.max(
+            POPUP_MIN_HEIGHT_PX,
+            top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX,
+          ),
         ),
       );
     });
 
-    it("caps maxHeight to available space when less than 80px remains above", () => {
+    it("floors maxHeight and clamps top when less than 80px remains above", () => {
       stubViewport(800);
       const top = 50;
       const aboveSpace = top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
-      expect(aboveSpace).toBeLessThan(80);
+      expect(aboveSpace).toBeLessThan(POPUP_MIN_HEIGHT_PX);
 
       const position = getMentionPopupPositionFromAnchorRect(
         anchorRect({ left: 40, width: 360, top }),
       );
 
-      expect(position.maxHeight).toBe(aboveSpace);
-      expect(position.maxHeight).toBeLessThan(80);
+      expect(position.maxHeight).toBe(POPUP_MIN_HEIGHT_PX);
+      expect(position.top).toBe(VIEWPORT_PADDING_PX + POPUP_MIN_HEIGHT_PX);
+    });
+
+    it("keeps min height when aboveSpace collapses (iOS keyboard scroll)", () => {
+      stubViewport(800);
+      const top = VIEWPORT_PADDING_PX + MENTION_COMPOSER_GAP_PX;
+      const aboveSpace = top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX;
+      expect(aboveSpace).toBe(0);
+
+      const position = getMentionPopupPositionFromAnchorRect(
+        anchorRect({ left: 40, width: 360, top }),
+      );
+
+      expect(position.maxHeight).toBe(POPUP_MIN_HEIGHT_PX);
+      expect(position.top).toBe(VIEWPORT_PADDING_PX + POPUP_MIN_HEIGHT_PX);
+    });
+
+    it("recovers aboveSpace when offsetTop collapses a visual-relative rect", () => {
+      stubViewport(800);
+      vi.stubGlobal("visualViewport", {
+        offsetTop: 120,
+        offsetLeft: 0,
+        width: 390,
+        height: 400,
+      });
+      const top = 120 + VIEWPORT_PADDING_PX + MENTION_COMPOSER_GAP_PX;
+      const position = getMentionPopupPositionFromAnchorRect(
+        anchorRect({ left: 40, width: 360, top }),
+      );
+
+      expect(position.maxHeight).toBe(
+        Math.min(
+          POPUP_HEIGHT_PX,
+          top - VIEWPORT_PADDING_PX - MENTION_COMPOSER_GAP_PX,
+        ),
+      );
+      expect(position.top).toBe(top - MENTION_COMPOSER_GAP_PX);
+    });
+
+    it("does not under-count aboveSpace when client rects are visual-relative", () => {
+      stubViewport(800);
+      vi.stubGlobal("visualViewport", {
+        offsetTop: 320,
+        offsetLeft: 0,
+        width: 390,
+        height: 420,
+      });
+      const position = getMentionPopupPositionFromAnchorRect(
+        anchorRect({ left: 16, width: 360, top: 340, height: 72 }),
+      );
+
+      expect(position.maxHeight).toBe(POPUP_HEIGHT_PX);
+      expect(position.top).toBe(340 - MENTION_COMPOSER_GAP_PX);
     });
 
     it("clamps left and width into the viewport padding", () => {
