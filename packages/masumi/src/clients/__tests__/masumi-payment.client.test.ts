@@ -1063,6 +1063,49 @@ describe("createPurchaseFromMasumiTaskPayment", () => {
     );
   });
 
+  it("spells ADA the node's way, leaving other assets untouched", async () => {
+    const client = createPaymentClient(
+      "Preprod",
+      "https://payment.example.com",
+      "api-key",
+    );
+
+    // A caller may spell ADA either way — the registry serves both, and the
+    // credit charge normalizes both to `lovelace`. POST /purchase documents an
+    // empty unit for ADA, so `lovelace` must not reach the node: it names no
+    // asset there, and the purchase could never settle against a debit that
+    // was already taken and correct.
+    const result = await client.createPurchaseFromMasumiTaskPayment({
+      blockchainIdentifier: "chain1",
+      agentIdentifier: "agent1",
+      sellerVkey: "vkey1",
+      submitResultTime: "1775681853000",
+      payByTime: "1775737949000",
+      unlockTime: "1775763149000",
+      externalDisputeUnlockTime: "1775784749000",
+      inputHash: "abc",
+      Amounts: [
+        { amount: "470000000000", unit: "lovelace" },
+        { amount: "1000000", unit: "" },
+        { amount: "25", unit: "16a55b2a349361ff" },
+      ],
+      identifierFromPurchaser: "aabbccddeeff00112233",
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(postPurchaseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          Amounts: [
+            { amount: "470000000000", unit: "" },
+            { amount: "1000000", unit: "" },
+            { amount: "25", unit: "16a55b2a349361ff" },
+          ],
+        }),
+      }),
+    );
+  });
+
   it("confirms a 409 duplicate through the scope-filtered resolve endpoint", async () => {
     postPurchaseMock.mockResolvedValue({
       data: undefined,

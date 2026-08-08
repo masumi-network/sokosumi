@@ -4,7 +4,10 @@ import type {
 } from "@sokosumi/masumi/schemas";
 import { err, ok, type Result } from "neverthrow";
 
-import { doMasumiPaymentAmountsMatch } from "../utils/payment-amounts.js";
+import {
+  doMasumiPaymentAmountsMatch,
+  toMasumiPaymentNodeAmounts,
+} from "../utils/payment-amounts.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
   getRailReadiness,
@@ -303,7 +306,22 @@ export function createPaymentClient(
     unlockTime: input.unlockTime,
     externalDisputeUnlockTime: input.externalDisputeUnlockTime,
     inputHash: input.inputHash,
-    Amounts: input.Amounts,
+    // Spell ADA the way POST /purchase documents it — an empty unit — exactly
+    // as the hire path does before calling createPurchase. A task payment is
+    // charged in credits from these same Amounts, and
+    // calculateCentsFromMasumiAmountStrings normalizes "" and "lovelace" to
+    // one scale, so a caller spelling ADA as "lovelace" is billed correctly
+    // and would then be sent to the node as a non-hex asset that names
+    // nothing. That purchase can never succeed: the outbox would burn its
+    // whole retry ladder and escalate to human review before refunding a
+    // debit that was correct all along.
+    //
+    // Applied here rather than where the claim is written so replays of
+    // already-stored claims are converted too, and so all three callers —
+    // create, the 409 resolve, and resolve-only — go through one seam.
+    // doesPurchaseMatchRequest stays correct because
+    // doMasumiPaymentAmountsMatch normalizes both sides before comparing.
+    Amounts: toMasumiPaymentNodeAmounts(input.Amounts),
     identifierFromPurchaser: input.identifierFromPurchaser,
     network,
     paymentSourceType: input.paymentSourceType,
