@@ -7,6 +7,8 @@ import {
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CARDANO_V2_RAIL_READINESS_KEY } from "@/helpers/agent";
+
 const {
   agentCreateMock,
   captureExceptionMock,
@@ -290,11 +292,34 @@ describe("agentSyncService.syncRegistryAgents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     creditCostFindManyMock.mockResolvedValue([{ unit: "lovelace" }]);
-    syncMetadataFindUniqueMock.mockResolvedValue({
-      key: "agents-sync-metadata",
-      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
-      cursorId: null,
-    });
+    // Key-aware: the sync cursor and the rail-readiness payload share this
+    // mock but are different rows. Serving the cursor row for the readiness
+    // key made getCardanoV2ReadySources parse a cursor string as JSON, come
+    // back empty, and silently put every test behind the rollback fence.
+    //
+    // Default is READY, so ingestion tests exercise ingestion. Tests that care
+    // about the fence override this to return null for the readiness key.
+    syncMetadataFindUniqueMock.mockImplementation(
+      ({ where }: { where: { key: string } }) =>
+        Promise.resolve(
+          where.key === CARDANO_V2_RAIL_READINESS_KEY
+            ? {
+                key: CARDANO_V2_RAIL_READINESS_KEY,
+                lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+                cursorId: JSON.stringify([
+                  {
+                    policyId: V2_AGENT_ROOT.slice(0, 56),
+                    smartContractAddress: "addr_test1_contract",
+                  },
+                ]),
+              }
+            : {
+                key: "agents-sync-metadata",
+                lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+                cursorId: null,
+              },
+        ),
+    );
     syncMetadataDeleteManyMock.mockResolvedValue({ count: 0 });
     tagUpsertMock.mockResolvedValue(undefined);
     agentFindFirstMock.mockResolvedValue(null);
@@ -1727,6 +1752,48 @@ describe("agentSyncService.syncRegistryAgents", () => {
     consoleWarnSpy.mockRestore();
   });
 
+  it("defers rows the previous release cannot read until the rail is ready", async () => {
+    // Rollback fence. This branch adds WEB3_CARDANO_V2 to Agent.paymentType
+    // and drops NOT NULL from Agent.apiBaseUrl; the previous release's Prisma
+    // enum has neither, so one such row turns a binary rollback from
+    // "redeploy" into "redeploy after rewriting rows". Writing them only once
+    // the node reports a purchase-ready source moves that point from the first
+    // cron tick after deploy to the actual go-live moment.
+    syncMetadataFindUniqueMock.mockResolvedValue(null); // readiness unrecorded
+    getAgentsDiffMock.mockResolvedValue(
+      ok([
+        createRegistryEntry("entry-v1-safe", {
+          agentIdentifier: "v1agent",
+          paymentType: "Web3CardanoV1",
+        }),
+        createRegistryEntry("entry-v2-unsafe", {
+          agentIdentifier: createV2AgentIdentifier(1),
+          paymentType: "Web3CardanoV2",
+          SupportedPaymentSources: [createCardanoV2PaymentSource()],
+        }),
+        createRegistryEntry("entry-endpointless-unsafe", {
+          agentIdentifier: "pointer-agent",
+          paymentType: "None",
+          apiBaseUrl: null,
+        }),
+      ]),
+    );
+
+    const agentSyncService = await getAgentSyncService();
+    await agentSyncService.syncRegistryAgents(
+      AGENTS_SYNC_METADATA_KEY,
+      createSyncExecutionOptions(),
+    );
+
+    // Only the V1 entry is written; the fence is not a failure, so the cursor
+    // still advances past all three and the readiness transition replays them.
+    expect(agentCreateMock).toHaveBeenCalledTimes(1);
+    expect(agentCreateMock.mock.calls[0]?.[0].data.blockchainIdentifier).toBe(
+      "v1agent",
+    );
+    expect(syncMetadataUpsertMock).toHaveBeenCalledTimes(1);
+  });
+
   it("stores V2 entries without a matching-network source with UNKNOWN pricing", async () => {
     const entries = [
       createRegistryEntry("entry-v2-mainnet", {
@@ -3050,6 +3117,13 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       .mockImplementation(() => undefined);
     const agentSyncService = await getAgentSyncService();
 
+    // Warm: readiness HAS been recorded, so readers keep serving the last
+    // known value and a failed check costs nothing user-visible. One page.
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: CARDANO_V2_RAIL_READINESS_KEY,
+      cursorId: JSON.stringify(readySources),
+      lastSyncedAt: new Date("2026-02-24T00:00:00.000Z"),
+    });
     getCardanoV2RailReadinessMock.mockResolvedValue(
       err("payment node unavailable"),
     );
@@ -3060,12 +3134,50 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
         message:
           "Cardano V2 rail readiness check failed: payment node unavailable",
       }),
+      expect.objectContaining({ tags: { cardano_v2_readiness: "stale" } }),
     );
 
     // A different process loses the atomic insert race and also dedupes.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
     await agentSyncService.syncCardanoV2RailReadiness();
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it("keeps paging while readiness has never been recorded", async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+    const agentSyncService = await getAgentSyncService();
+
+    // Cold start: no readiness row has ever been written, so
+    // getCardanoV2ReadySources returns [] and the ENTIRE V2 catalogue is
+    // hidden — every V2 agent unlistable, every V2 task payment 422. The
+    // one-shot latch is right for the warm case but would spend its single
+    // page minutes after deploy and then go quiet through the whole outage,
+    // leaving silence indistinguishable from "no V2 agents configured".
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
+    getCardanoV2RailReadinessMock.mockResolvedValue(
+      err("payment node unavailable"),
+    );
+
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("has never been recorded"),
+      }),
+      expect.objectContaining({
+        tags: { cardano_v2_readiness: "never_recorded" },
+      }),
+    );
+
+    // The latch is now held by the earlier insert, so a warm failure would go
+    // quiet here. Never-recorded must page anyway.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
+    await agentSyncService.syncCardanoV2RailReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(2);
 
     consoleWarnSpy.mockRestore();
   });

@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import {
+  AgentEntryType,
   AgentStatus,
   type Prisma,
   RiskClassification,
@@ -24,6 +25,7 @@ import {
   buildPaymentSourceRows,
   buildPaymentSourcesCreate,
   buildRegistryAgentFields,
+  convertEntryType,
   getRegistryEntryCursor,
   getRegistryEntryStorageIssue,
   isSameAgentPricing,
@@ -614,6 +616,38 @@ function shouldStopSync(
   return false;
 }
 
+/**
+ * Rollback fence: an entry whose row the PREVIOUS release cannot read.
+ *
+ * This branch adds `WEB3_CARDANO_V2` to `Agent.paymentType` and drops NOT NULL
+ * from `Agent.apiBaseUrl`. The previous release's Prisma enum is
+ * `WEB3_CARDANO_V1 | NONE | UNKNOWN`, so it throws on any row carrying the new
+ * value — writing one turns a binary rollback from "redeploy" into "redeploy
+ * after rewriting rows".
+ *
+ * Keyed on rail readiness rather than on a flag, because readiness is already
+ * the go-live signal: the catalogue gates on it, and a readiness transition
+ * resets the sync cursor (routes/sync/agents/get.ts), so everything deferred
+ * here is replayed in full the first time the node reports a purchase-ready
+ * source. The rollback window therefore closes at go-live, not at the first
+ * cron tick after deploy.
+ *
+ * Nothing user-visible is withheld: `buildAvailableAgentWhereClause` already
+ * requires `type: STANDARD`, an endpoint, and — for V2 — a ready source, so
+ * every entry deferred here would have been hidden from the catalogue anyway.
+ */
+function isRollbackUnsafeEntry(entry: RegistryDiffEntry): boolean {
+  return (
+    (entry.paymentType !== "Web3CardanoV1" && entry.paymentType !== "None") ||
+    // Free and EVM-only V2 entries report paymentType "None", so payment type
+    // alone would let them through the fence. Membership of the V2 registry
+    // policy is the authoritative test, exactly as it is for versioning.
+    isV2RegistryIdentifier(entry.agentIdentifier) ||
+    !entry.apiBaseUrl ||
+    convertEntryType(entry.type) !== AgentEntryType.STANDARD
+  );
+}
+
 async function syncRegistryAgents(
   metadataKey: string,
   options: SyncExecutionOptions & { resetCursor?: boolean },
@@ -660,6 +694,10 @@ async function syncRegistryAgents(
   );
   let totalProcessedCount = 0;
   let totalQuarantinedCount = 0;
+  let totalDeferredCount = 0;
+  // Closed by the first readiness success, which also resets the cursor and
+  // replays everything deferred while it was open.
+  const deferRollbackUnsafeEntries = cardanoV2ReadySources.length === 0;
   let batchCount = 0;
 
   // Loop batches within the run's time budget (shouldStopSync consults the
@@ -760,6 +798,15 @@ async function syncRegistryAgents(
           lastProcessedCursor = entryCursor;
           continue;
         }
+        // See isRollbackUnsafeEntry. Deferred, not failed: the cursor advances
+        // past it, and the readiness transition that lifts the fence resets
+        // the cursor so the whole registry is replayed with the fence open.
+        if (deferRollbackUnsafeEntries && isRollbackUnsafeEntry(entry)) {
+          totalDeferredCount++;
+          processedEntryCount++;
+          lastProcessedCursor = entryCursor;
+          continue;
+        }
         const normalizedEntry = normalizeRegistryEntry(entry);
         const pricing = resolveEntryPricing(
           normalizedEntry,
@@ -830,7 +877,7 @@ async function syncRegistryAgents(
   }
 
   console.info(
-    `[sync/agents] Completed registry sync (batches=${batchCount}, processed=${totalProcessedCount}, quarantined=${totalQuarantinedCount}, durationMs=${Date.now() - startedAt})`,
+    `[sync/agents] Completed registry sync (batches=${batchCount}, processed=${totalProcessedCount}, quarantined=${totalQuarantinedCount}, deferred=${totalDeferredCount}, durationMs=${Date.now() - startedAt})`,
   );
 }
 
