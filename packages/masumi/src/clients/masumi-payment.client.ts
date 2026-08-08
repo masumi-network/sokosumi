@@ -4,6 +4,7 @@ import type {
 } from "@sokosumi/masumi/schemas";
 import { err, ok, type Result } from "neverthrow";
 
+import { doHexValuesMatch } from "../utils/hex.js";
 import {
   doMasumiPaymentAmountsMatch,
   toMasumiPaymentNodeAmounts,
@@ -139,19 +140,6 @@ function doPurchaseAmountsMatchRequest(
     return true;
   }
   return doMasumiPaymentAmountsMatch(request.Amounts, purchase.PaidFunds);
-}
-
-/**
- * Compares two hex-encoded protocol values. Casing never carries meaning in
- * these fields, and a mismatch here is not cosmetic: it classifies the claim
- * as `mismatch`, which refunds the buyer while the remote purchase stays live.
- */
-function doHexValuesMatch(
-  left: string | null | undefined,
-  right: string,
-): boolean {
-  // An absent value never matches — same as the strict equality this replaced.
-  return left != null && left.toLowerCase() === right.toLowerCase();
 }
 
 /**

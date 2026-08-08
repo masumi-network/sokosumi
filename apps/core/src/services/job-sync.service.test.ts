@@ -1014,6 +1014,32 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(createJobPurchaseMock).not.toHaveBeenCalled();
   });
 
+  it("backfills when the node echoes the input hash in a different case", async () => {
+    // The hash crosses a boundary we do not control: we send one spelling, the
+    // node stores and echoes whatever it likes. Every sibling term in this
+    // conjunction already compares case-insensitively, and a false mismatch
+    // here refuses to attach a real purchase to its job — leaving a funded
+    // escrow that the local refund path can compensate a second time.
+    const pendingJob = createJob({
+      purchase: null,
+      status: SokosumiJobStatus.PAYMENT_PENDING,
+      inputHash: "abcdef0123456789",
+    });
+    mockInitialJobQueries({ purchase: [pendingJob] });
+    getPurchaseByBlockchainIdentifierMock.mockReturnValue(
+      ok(
+        matchingResolvedPurchase(pendingJob, {
+          id: "purchase_uppercase_hash",
+          inputHash: "ABCDEF0123456789",
+        }),
+      ),
+    );
+
+    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
+
+    expect(createJobPurchaseMock).toHaveBeenCalledTimes(1);
+  });
+
   it("reconciles timed-out missing purchases without running the standard sync pipeline", async () => {
     const reconciliationJob = createJob({
       id: "job_missing_purchase",

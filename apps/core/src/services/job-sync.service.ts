@@ -29,6 +29,7 @@ import {
 import {
   createAgentClient,
   doesResolvedPurchaseSellerMatch,
+  doHexValuesMatch,
   doMasumiPaymentAmountsMatch,
   normalizeV2RegistryIdentifier,
 } from "@sokosumi/masumi";
@@ -680,7 +681,14 @@ async function syncPurchaseState(
       const doesPurchaseMatchJob =
         typeof job.inputHash === "string" &&
         job.inputHash.length > 0 &&
-        purchase.inputHash === job.inputHash &&
+        // Case-insensitive, like every sibling term in this conjunction:
+        // agentIdentifier normalizes both sides, sellerVkey lowercases via
+        // doesResolvedPurchaseSellerMatch. The hash crosses the same
+        // uncontrolled boundary as those — we send one spelling, the node
+        // echoes whatever it stores — and a false mismatch here refuses to
+        // attach a real purchase to its job, leaving a funded escrow the
+        // local refund path can then compensate a second time.
+        doHexValuesMatch(purchase.inputHash, job.inputHash) &&
         typeof job.sellerVkey === "string" &&
         job.sellerVkey.length > 0 &&
         doesResolvedPurchaseSellerMatch(purchase, job.sellerVkey) &&
