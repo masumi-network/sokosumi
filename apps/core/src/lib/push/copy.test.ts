@@ -1,24 +1,35 @@
+import { globSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { pushCopyFor } from "./copy";
-
-const KEYS = [
-  "Notifications.Job.completed",
-  "Notifications.Job.inputRequired",
-  "Notifications.Job.paymentFailed",
-  "Notifications.Task.inputRequired",
-  "Notifications.Chat.directMessage",
-  "Notifications.Chat.mentioned",
-  "notifications.vendorGrant.pending",
-];
+import { PUSH_MESSAGE_KEYS, pushCopyFor } from "./copy";
 
 describe("pushCopyFor", () => {
-  it("renders every key Core actually emits", () => {
-    // If a key Core emits has no copy it silently never pushes, which is a
-    // failure nobody sees.
-    for (const key of KEYS) {
+  it("renders every key Core emits", () => {
+    // A key with no copy silently never pushes, which is a failure nobody sees.
+    for (const key of PUSH_MESSAGE_KEYS) {
       expect(pushCopyFor(key, {}), key).not.toBeNull();
     }
+  });
+
+  it("stays in step with the keys Core actually emits", () => {
+    // Jobs and tasks assign their key from a switch, which is easy to extend
+    // without noticing the push copy did not follow. This is the guard.
+    const sources = globSync("src/**/*.ts", { cwd: process.cwd() }).filter(
+      (file) => !file.includes(".test.") && !file.includes("lib/push/"),
+    );
+
+    const emitted = new Set<string>();
+    for (const file of sources) {
+      const text = readFileSync(file, "utf8");
+      for (const match of text.matchAll(
+        /"([Nn]otifications\.[A-Za-z]+\.[A-Za-z]+)"/g,
+      )) {
+        emitted.add(match[1]);
+      }
+    }
+
+    const missing = [...emitted].filter((key) => pushCopyFor(key, {}) === null);
+    expect(missing, `keys emitted by Core with no push copy`).toEqual([]);
   });
 
   it("uses the parameters it is given", () => {
@@ -31,32 +42,40 @@ describe("pushCopyFor", () => {
     expect(copy?.body).toContain("Market Analysis");
   });
 
-  it("falls back rather than printing undefined", () => {
-    const copy = pushCopyFor("Notifications.Job.completed", {});
-
-    expect(copy?.title).toBe("Your agent");
-    expect(JSON.stringify(copy)).not.toContain("undefined");
-  });
-
-  it("ignores a parameter of the wrong type", () => {
-    const copy = pushCopyFor("Notifications.Job.completed", { agentName: 42 });
-
-    expect(copy?.title).toBe("Your agent");
-  });
-
-  it("ignores a blank parameter", () => {
-    const copy = pushCopyFor("Notifications.Job.completed", {
-      agentName: "   ",
+  it("uses the author name chat actually sends", () => {
+    // Chat emits `authorName`; reading `senderName` would fall back every time
+    // and nobody would notice, because the fallback reads fine.
+    const copy = pushCopyFor("Notifications.Chat.mentioned", {
+      authorName: "Andreas",
+      roomName: "Mobile",
     });
 
-    expect(copy?.title).toBe("Your agent");
+    expect(copy?.title).toBe("Andreas");
+    expect(copy?.body).toContain("Mobile");
+  });
+
+  it("falls back rather than printing undefined", () => {
+    for (const key of PUSH_MESSAGE_KEYS) {
+      expect(JSON.stringify(pushCopyFor(key, {})), key).not.toContain(
+        "undefined",
+      );
+    }
+  });
+
+  it("ignores a parameter of the wrong type or a blank one", () => {
+    expect(
+      pushCopyFor("Notifications.Job.completed", { agentName: 42 })?.title,
+    ).toBe("Your agent");
+    expect(
+      pushCopyFor("Notifications.Job.completed", { agentName: "  " })?.title,
+    ).toBe("Your agent");
   });
 
   it("never puts message text on a lock screen", () => {
     // Whoever is holding the phone can read it, and the sender did not agree
     // to that.
     const copy = pushCopyFor("Notifications.Chat.directMessage", {
-      senderName: "Andreas",
+      authorName: "Andreas",
       content: "the quarterly numbers are wrong",
     });
 
@@ -65,7 +84,6 @@ describe("pushCopyFor", () => {
   });
 
   it("says nothing for a key it does not know", () => {
-    // Better silence than "Notifications.Some.newKey" on a lock screen.
     expect(pushCopyFor("Notifications.Some.newKey", {})).toBeNull();
   });
 });
