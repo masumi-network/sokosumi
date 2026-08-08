@@ -301,12 +301,25 @@ export const buildAvailableAgentWhereClause = (
   creditCosts: CreditCost[],
   cardanoV2ReadySources: readonly CardanoV2ReadySource[],
 ): Prisma.AgentWhereInput => {
+  // Both spellings of every unit, because the two sides of this comparison
+  // were written in different eras. Ingestion now stores
+  // normalizeMasumiPaymentUnit(...) — lowercased — but `CreditCost.unit` is
+  // free-form operator input (POST /v1/credit-costs takes z.string().min(1)),
+  // and rows ingested before this branch kept the registry's original casing.
+  // isSameAgentPricing normalizes before comparing, so a pure case change
+  // reads as "unchanged" and those older rows are never rewritten.
+  //
+  // Prisma `in` is a case-sensitive `= ANY(...)`, so matching on one spelling
+  // alone silently drops agents in SQL — no buildAgentSummaries skip, no log
+  // line, the row is simply absent from /v1/agents and /v1/categories and
+  // 404s from /v1/agents/{id}. Carrying both keeps pre- and post-branch rows
+  // matchable without a UnitValue backfill.
   const validUnits = Array.from(
     new Set(
       creditCosts.flatMap((creditCost) =>
         normalizeMasumiPaymentUnit(creditCost.unit) === "lovelace"
           ? [creditCost.unit, "lovelace", ""]
-          : [creditCost.unit],
+          : [creditCost.unit, normalizeMasumiPaymentUnit(creditCost.unit)],
       ),
     ),
   );

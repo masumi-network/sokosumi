@@ -99,19 +99,46 @@ describe("buildAvailableAgentWhereClause", () => {
           fixedPricing: {
             amounts: {
               every: {
-                unit: { in: ["USD", "EUR"] },
+                unit: { in: ["USD", "usd", "EUR", "eur"] },
               },
               // `every` alone is vacuously true while a registry replay has
               // deleted the amount rows; such an agent would be counted but
               // then dropped from the page by buildAgentSummaries.
               some: {
-                unit: { in: ["USD", "EUR"] },
+                unit: { in: ["USD", "usd", "EUR", "eur"] },
               },
             },
           },
         },
       ],
     });
+  });
+
+  it("matches a credit cost against both the stored and the normalized unit spelling", () => {
+    // Ingestion normalizes every stored unit (lowercased), but CreditCost.unit
+    // is free-form operator input and rows ingested before that change kept
+    // the registry's casing — isSameAgentPricing treats a pure case change as
+    // "unchanged", so they are never rewritten. Prisma `in` is case-sensitive,
+    // so matching one spelling drops the other's agents in SQL, with no
+    // buildAgentSummaries skip and no log line to notice it by.
+    const upperCaseAssetUnit =
+      "C48CBB3D5E57ED56E276BC45F99AB39ABE94E6CD7AC39FB402DA47AD0014DF105553444D";
+    const where = buildAvailableAgentWhereClause(
+      [createCreditCost(upperCaseAssetUnit)],
+      [],
+    );
+
+    const fixedBranch = (
+      where.pricing as {
+        OR: {
+          fixedPricing?: { amounts: { some: { unit: { in: string[] } } } };
+        }[];
+      }
+    ).OR[1];
+    expect(fixedBranch.fixedPricing?.amounts.some.unit.in).toEqual([
+      upperCaseAssetUnit,
+      upperCaseAssetUnit.toLowerCase(),
+    ]);
   });
 
   it("excludes pointer types, endpointless, unknown-rail, and V2-contract agents when the rail is not ready", () => {
