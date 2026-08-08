@@ -33,6 +33,6 @@ describe("chatMobileCreateFabBottom", () => {
 
 describe("CHAT_MOBILE_CREATE_FAB_CLEARANCE", () => {
   it("pads for size-14 FAB plus gap above the tab bar", () => {
-    expect(CHAT_MOBILE_CREATE_FAB_CLEARANCE).toBe("pb-[calc(3.5rem+0.75rem)]");
+    expect(CHAT_MOBILE_CREATE_FAB_CLEARANCE).toBe("pb-[calc(3.5rem+1rem)]");
   });
 });
