@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { CHAT_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/chat/components/chat-mobile-create-fab-actions";
 import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import { Sheet } from "@/components/ui/sheet";
@@ -11,6 +12,7 @@ import {
   chatRoomService,
   userService,
 } from "@/lib/services";
+import { cn } from "@/lib/utils";
 
 const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
   rooms: [],
@@ -63,7 +65,12 @@ export default async function ChatChatsPage() {
 
   return (
     <Sheet open>
-      <div className="md:hidden -m-4 flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
+      <div
+        className={cn(
+          "md:hidden -m-4 flex min-h-0 flex-1 flex-col overflow-y-auto bg-background",
+          CHAT_MOBILE_CREATE_FAB_CLEARANCE,
+        )}
+      >
         <PersonalAssistantNav enabled={hermesMenuEnabled} />
         {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
         <OrganizationChatList
