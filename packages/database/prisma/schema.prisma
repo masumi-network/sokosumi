@@ -56,6 +56,7 @@ model User {
 
   // Notifications
   notificationsOptIn Boolean @default(true) // Whether the user wants to receive notifications
+  pushDevices        PushDevice[]
 
   // UTM Attribution
   utmAttribution UTMAttribution?
@@ -388,6 +389,41 @@ model Notification {
   @@index([eventId])
   @@index([kind, eventId])
   @@map("notification")
+}
+
+/// A device this user has asked to be notified on.
+///
+/// One row per (user, token). A token identifies an app install rather than a
+/// device, so reinstalling produces a new one and the old one goes stale — the
+/// push provider reports that when a send is rejected, which is when the row is
+/// removed. Nothing here is a credential: an Expo push token is a public
+/// address, safe to lose and useless without the notification payload.
+model PushDevice {
+  id       String             @id @default(uuid(7)) @db.Uuid
+  userId   String
+  user     User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// The provider's address for this install. Opaque to Core.
+  token    String
+  platform PushDevicePlatform
+
+  /// Set when the app last registered, so a stale install can be pruned even if
+  /// no send has failed for it yet.
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  /// Re-registering the same token for the same user is an update, not a second
+  /// row — the app registers on every launch.
+  @@unique([userId, token])
+  /// A send failure knows only the token, and has to find every row holding it.
+  @@index([token])
+  @@index([userId])
+  @@map("push_device")
+}
+
+enum PushDevicePlatform {
+  IOS
+  ANDROID
 }
 
 model Project {
