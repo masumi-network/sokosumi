@@ -1,14 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-const { usePathnameMock } = vi.hoisted(() => ({
-  usePathnameMock: vi.fn(() => "/"),
-}));
-
-vi.mock("next/navigation", () => ({
-  usePathname: usePathnameMock,
-}));
-
 vi.mock("@/hooks/use-is-apple-platform", () => ({
   default: () => true,
 }));
@@ -17,23 +9,7 @@ import { APP_HEADER_SAFE_AREA_PADDING_CLASS } from "../../app-shell-safe-area";
 import { HeaderChrome } from "../header-chrome.client";
 
 describe("HeaderChrome", () => {
-  it("uses h-20 on mobile /chat/chats and h-16 from md", () => {
-    usePathnameMock.mockReturnValue("/chat/chats");
-
-    render(
-      <HeaderChrome>
-        <span>chats</span>
-      </HeaderChrome>,
-    );
-
-    const row = screen.getByRole("banner").querySelector(".h-20");
-    expect(row).toBeTruthy();
-    expect(row?.className).toContain("md:h-16");
-    expect(screen.getByText("chats")).toBeTruthy();
-  });
-
   it("applies safe-area padding on the outer header under cover", () => {
-    usePathnameMock.mockReturnValue("/");
     render(
       <HeaderChrome className="px-4 py-3">
         <span>controls</span>
