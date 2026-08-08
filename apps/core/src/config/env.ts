@@ -187,6 +187,10 @@ const envSchema = z.object({
   /** Subscribe-only key used to mint client TokenRequests (SOK-741). */
   ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
 
+  // Push notifications. Expo tokens are self-authenticating, so sending works
+  // without this; setting it restricts who may send to them.
+  EXPO_ACCESS_TOKEN: z.string().min(1).optional(),
+
   // Optional outbound webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),
   WEBHOOK_USER_UPDATED: z.url().optional(),

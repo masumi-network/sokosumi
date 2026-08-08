@@ -8,6 +8,7 @@ import type {
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishNotificationEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { dispatchPushNotification } from "@/lib/push/dispatch";
 
 export interface CreateNotificationInput {
   userId: string;
@@ -98,6 +99,10 @@ export async function createNotification(
     });
 
     await publishNotificationCreated(notification);
+    // Only here, on first creation. The duplicate path below returns the
+    // existing row without pushing, so a repeated emit does not buzz the phone
+    // again for something already delivered.
+    await dispatchPushNotification(notification, prisma);
 
     return { notification, created: true };
   } catch (error) {
