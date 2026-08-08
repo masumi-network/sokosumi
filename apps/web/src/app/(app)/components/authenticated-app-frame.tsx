@@ -9,9 +9,15 @@ import { NotificationProvider } from "@/contexts/notification-provider";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import type { Notice } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 
 import { AppMobileChrome } from "./app-mobile-chrome.client";
 import AppShellOverlays from "./app-shell-overlays";
+import {
+  APP_MAIN_MOBILE_PT_CLASS,
+  APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
+  APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
+} from "./app-shell-safe-area";
 import { AppSidebarFallback } from "./app-sidebar-fallback";
 import Header from "./header";
 import { LoginAccountNoticeToast } from "./login-account-notice-toast.client";
@@ -71,12 +77,17 @@ export default async function AuthenticatedAppFrame({
                     data-app-content-inner
                   >
                     <Header
-                      className="h-16 px-4 py-3 md:p-4"
+                      className="px-4 py-3 md:p-4"
                       session={session}
                       adminMenuEnabled={adminMenuEnabled}
                     />
                     <main
-                      className="relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:max-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-4rem)] md:pt-4"
+                      className={cn(
+                        "relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",
+                        APP_MAIN_MOBILE_PT_CLASS,
+                        APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
+                        APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
+                      )}
                       data-app-main
                     >
                       <EmergencyDialog />

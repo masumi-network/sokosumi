@@ -4713,22 +4713,19 @@
     },
     "Channels": {
       "MobileNav": {
-        "home": "Home",
+        "tasks": "Tasks",
+        "agents": "Agents",
         "chats": "Chats",
+        "projects": "Projects",
         "chatsUnread": "Unread chats",
         "search": "Search",
         "ariaLabel": "Main navigation",
         "backToChats": "Back to chats",
-        "backToHome": "Back to home",
         "back": "Back"
       },
       "MobileCreateFab": {
         "openMenu": "Create",
         "closeMenu": "Close create menu",
-        "newTask": {
-          "title": "New Task",
-          "subtitle": "Create a new long running task"
-        },
         "createChannel": {
           "title": "Create channel",
           "subtitle": "Start a new stream channel"

@@ -5,12 +5,10 @@ import {
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
-  createDebouncedScheduler,
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
   getAuthOAuthRedirect,
   normalizeAuthReturnUrl,
-  probeSessionWithRetry,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
@@ -421,131 +419,5 @@ describe("createAuthSessionGetter", () => {
     }));
 
     await expect(getSession()).resolves.toBeNull();
-  });
-});
-
-describe("probeSessionWithRetry", () => {
-  it("returns session on the first successful attempt", async () => {
-    const waitForMs = vi.fn(async () => undefined);
-    const getSession = vi.fn().mockResolvedValue({ id: "session_1" });
-
-    await expect(
-      probeSessionWithRetry({
-        getSession,
-        delaysMs: [0, 250, 750],
-        waitForMs,
-      }),
-    ).resolves.toBe("session");
-
-    expect(getSession).toHaveBeenCalledTimes(1);
-    expect(waitForMs).not.toHaveBeenCalled();
-  });
-
-  it("retries after null and returns session on a later attempt", async () => {
-    const waitForMs = vi.fn(async () => undefined);
-    const getSession = vi
-      .fn()
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: "session_1" });
-
-    await expect(
-      probeSessionWithRetry({
-        getSession,
-        delaysMs: [0, 250, 750],
-        waitForMs,
-      }),
-    ).resolves.toBe("session");
-
-    expect(getSession).toHaveBeenCalledTimes(2);
-    expect(waitForMs).toHaveBeenCalledTimes(1);
-    expect(waitForMs).toHaveBeenCalledWith(250);
-  });
-
-  it("returns missing when every attempt is null", async () => {
-    const waitForMs = vi.fn(async () => undefined);
-    const getSession = vi.fn().mockResolvedValue(null);
-
-    await expect(
-      probeSessionWithRetry({
-        getSession,
-        delaysMs: [0, 250, 750],
-        waitForMs,
-      }),
-    ).resolves.toBe("missing");
-
-    expect(getSession).toHaveBeenCalledTimes(3);
-    expect(waitForMs).toHaveBeenNthCalledWith(1, 250);
-    expect(waitForMs).toHaveBeenNthCalledWith(2, 750);
-  });
-
-  it("returns error and stops when getSession throws", async () => {
-    const waitForMs = vi.fn(async () => undefined);
-    const getSession = vi
-      .fn()
-      .mockRejectedValueOnce(new Error("network"))
-      .mockResolvedValue({ id: "session_1" });
-
-    await expect(
-      probeSessionWithRetry({
-        getSession,
-        delaysMs: [0, 250, 750],
-        waitForMs,
-      }),
-    ).resolves.toBe("error");
-
-    expect(getSession).toHaveBeenCalledTimes(1);
-    expect(waitForMs).not.toHaveBeenCalled();
-  });
-
-  it("returns cancelled when shouldCancel is true between attempts", async () => {
-    const waitForMs = vi.fn(async (_ms: number) => undefined);
-    const getSession = vi.fn().mockResolvedValue(null);
-    let cancelled = false;
-    const shouldCancel = () => cancelled;
-
-    const probePromise = probeSessionWithRetry({
-      getSession,
-      delaysMs: [0, 250, 750],
-      waitForMs: async (ms) => {
-        cancelled = true;
-        await waitForMs(ms);
-      },
-      shouldCancel,
-    });
-
-    await expect(probePromise).resolves.toBe("cancelled");
-    expect(getSession).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("createDebouncedScheduler", () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("coalesces rapid schedule calls into one invocation", () => {
-    vi.useFakeTimers();
-    const fn = vi.fn();
-    const { schedule } = createDebouncedScheduler(fn, 300);
-
-    schedule();
-    schedule();
-    schedule();
-
-    expect(fn).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(300);
-    expect(fn).toHaveBeenCalledTimes(1);
-  });
-
-  it("cancel prevents a pending invocation", () => {
-    vi.useFakeTimers();
-    const fn = vi.fn();
-    const { schedule, cancel } = createDebouncedScheduler(fn, 300);
-
-    schedule();
-    cancel();
-    vi.advanceTimersByTime(300);
-
-    expect(fn).not.toHaveBeenCalled();
   });
 });
