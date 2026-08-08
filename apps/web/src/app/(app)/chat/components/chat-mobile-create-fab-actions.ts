@@ -51,8 +51,8 @@ export function chatMobileCreateFabScrimBottom(isApple: boolean): string {
 
 /**
  * Scroll padding on `/chat/chats` so the last row clears the floating create
- * FAB (`size-14` + the same 0.75rem gap used above the tab bar). Tab-bar
- * clearance is separate (`CHAT_MOBILE_TAB_BAR_CLEARANCE`).
+ * FAB (`size-14` + 1rem gap). Tab-bar clearance is separate
+ * (`CHAT_MOBILE_TAB_BAR_CLEARANCE`).
  */
 export const CHAT_MOBILE_CREATE_FAB_CLEARANCE =
-  "pb-[calc(3.5rem+0.75rem)]" as const;
+  "pb-[calc(3.5rem+1rem)]" as const;
