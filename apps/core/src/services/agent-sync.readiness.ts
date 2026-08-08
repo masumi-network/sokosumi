@@ -9,12 +9,18 @@ import prisma from "@/lib/db/prisma";
 
 /**
  * Refreshes the recorded Cardano V2 rail readiness of the payment node (read
- * by getCardanoV2ReadySources). On check failure the last known value is kept
- * and a marker is written, so readers keep serving it rather than losing the
- * V2 catalog to an outage of our own polling.
+ * by getCardanoV2ReadySources).
+ *
+ * On check failure the last known value is kept and a marker is written, so
+ * readers keep serving it rather than losing the V2 catalog to an outage of
+ * our own polling. That graceful degradation only exists once a value HAS been
+ * recorded — before then there is nothing to fall back on and the whole V2
+ * catalogue is hidden, which is why the two cases alert differently.
  *
  * Returns whether the purchase-ready source set CHANGED, which is what makes
- * the caller replay the registry.
+ * the caller replay the registry — and, since a change from "nothing recorded"
+ * to a ready source also lifts the ingestion rollback fence in
+ * syncRegistryAgents, that replay is what first writes the V2 rows.
  */
 export async function syncCardanoV2RailReadiness(
   options: { signal?: AbortSignal } = {},
@@ -29,6 +35,24 @@ export async function syncCardanoV2RailReadiness(
       readinessResult.error,
     );
     try {
+      // Has readiness EVER been recorded? The two cases degrade completely
+      // differently and must not share one alert.
+      //
+      // Warm (a row exists): readers keep serving the last known value, so a
+      // failed check costs nothing user-visible. One page is right — repeating
+      // it for the length of an outage would be noise.
+      //
+      // Cold (no row): getCardanoV2ReadySources cannot tell "never recorded"
+      // from "nothing ready" and returns [], which hides the ENTIRE V2
+      // catalogue and 422s every V2 task payment. That is an outage, and it is
+      // the state a fresh environment or a deploy landing before the node
+      // serves /rail-readiness starts in.
+      const recordedReadiness = await prisma.syncMetadata.findUnique({
+        where: { key: CARDANO_V2_RAIL_READINESS_KEY },
+        select: { key: true },
+      });
+      const hasNeverBeenRecorded = !recordedReadiness;
+
       // createMany + skipDuplicates is an atomic cross-instance latch:
       // exactly one serverless worker creates the marker and reports the
       // failure; later workers see count=0 until a successful check clears it.
@@ -42,11 +66,25 @@ export async function syncCardanoV2RailReadiness(
         ],
         skipDuplicates: true,
       });
-      if (marker.count > 0) {
+      // The latch is deliberately bypassed while readiness has never been
+      // recorded: silence would otherwise be indistinguishable from a healthy
+      // deployment that simply has no V2 agents, and the single page that the
+      // latch does allow is spent on the first tick — minutes after deploy,
+      // long before anyone looks.
+      if (marker.count > 0 || hasNeverBeenRecorded) {
         Sentry.captureException(
           new Error(
-            `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
+            hasNeverBeenRecorded
+              ? `Cardano V2 rail readiness has never been recorded; the entire V2 catalogue is hidden. Last error: ${readinessResult.error}`
+              : `Cardano V2 rail readiness check failed: ${readinessResult.error}`,
           ),
+          {
+            tags: {
+              cardano_v2_readiness: hasNeverBeenRecorded
+                ? "never_recorded"
+                : "stale",
+            },
+          },
         );
       }
     } catch (markerError) {
