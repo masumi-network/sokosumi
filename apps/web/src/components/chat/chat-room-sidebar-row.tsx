@@ -184,7 +184,7 @@ export function ChatRoomSidebarRow({
 
   return (
     <SidebarMenuItem className="group/room-row relative">
-      <SidebarMenuButton asChild isActive={isActive} className="h-12 md:h-8">
+      <SidebarMenuButton asChild isActive={isActive} className="h-10 md:h-8">
         {dismissSheetOnNavigate ? (
           <SheetClose asChild>{roomLink}</SheetClose>
         ) : (

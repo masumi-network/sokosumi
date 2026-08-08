@@ -216,7 +216,7 @@ function SectionHeader({
   ) : null;
 
   return (
-    <div className="group-data-[collapsible=icon]:hidden relative flex h-12 items-center gap-1 px-3 md:h-8">
+    <div className="group-data-[collapsible=icon]:hidden relative flex h-10 items-center gap-1 px-3 md:h-8">
       <CollapsibleTrigger
         className={cn(
           "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium transition-colors md:text-xs",
