@@ -2,7 +2,7 @@ import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { ChatWelcomeClient } from "@/app/chat/components/chat-welcome-client";
-import { MobileHomeHub } from "@/app/chat/components/mobile-home-hub";
+import { MobileChatHomeRedirect } from "@/app/chat/components/mobile-chat-home-redirect.client";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
@@ -22,8 +22,8 @@ interface ChatPageProps {
 }
 
 /**
- * `/chat` landing: mobile Home hub (sidebar minus Channels/DMs); desktop
- * classic coworker welcome. Draft modes via query: `?create=channel`,
+ * `/chat` landing: desktop classic coworker welcome; mobile bare home
+ * redirects to `/chat/chats`. Draft modes via query: `?create=channel`,
  * `?dm=new`, `?welcome=1` (mobile coworker compose). Open rooms:
  * `/chat/rooms/[roomId]`.
  *
@@ -146,27 +146,16 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     );
   }
 
-  if (!session?.user) {
-    return (
-      <>
-        {landingNotice}
-        <div className="hidden md:contents">
-          <ChatWelcomeClient coworkers={coworkers} />
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       {landingNotice}
       <div className="hidden md:contents">
         <ChatWelcomeClient
           coworkers={coworkers}
-          userName={session.user.name ?? undefined}
+          userName={session?.user.name ?? undefined}
         />
       </div>
-      <MobileHomeHub sessionUser={session.user} />
+      <MobileChatHomeRedirect />
     </>
   );
 }

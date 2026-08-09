@@ -102,12 +102,12 @@ export function BrowseChannelsDialog({
           size="icon"
           className={
             triggerClassName ??
-            "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground size-7 rounded-md"
+            "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground size-8 rounded-md md:size-7"
           }
           aria-label={t("trigger")}
           title={t("trigger")}
         >
-          <List className="size-4 md:size-3.5" aria-hidden />
+          <List className="size-5 md:size-3.5" aria-hidden />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-hidden shadow-none sm:max-w-lg">
@@ -121,7 +121,7 @@ export function BrowseChannelsDialog({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("searchPlaceholder")}
-            className="h-9 pl-9"
+            className="h-10 pl-9"
             aria-label={t("searchPlaceholder")}
           />
         </div>

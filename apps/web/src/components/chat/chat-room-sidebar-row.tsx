@@ -50,7 +50,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Trailing controls. Touch: pin/mute then overflow side by side.
- * Hover-capable: one size-7 slot that swaps status ↔ overflow on hover.
+ * Hover-capable: one size-8 slot that swaps status ↔ overflow on hover.
  */
 const TRAILING_CLUSTER_CLASS =
   "absolute top-1/2 right-1 z-10 flex -translate-y-1/2 items-center";
@@ -174,8 +174,8 @@ export function ChatRoomSidebarRow({
       <MentionBadge count={badgeCount} />
       <span
         className={cn(
-          "h-7 w-7 shrink-0",
-          (isMuted || isPinned) && "[@media(hover:none)]:w-14",
+          "size-8 shrink-0 md:size-7",
+          (isMuted || isPinned) && "[@media(hover:none)]:w-16",
         )}
         aria-hidden
       />
@@ -195,7 +195,7 @@ export function ChatRoomSidebarRow({
         {isMuted || isPinned ? (
           <span
             className={cn(
-              "text-muted-foreground pointer-events-none flex size-7 items-center justify-center",
+              "text-muted-foreground pointer-events-none flex size-8 items-center justify-center md:size-7",
               "[@media(hover:hover)]:absolute [@media(hover:hover)]:top-1/2 [@media(hover:hover)]:right-0 [@media(hover:hover)]:-translate-y-1/2",
               "[@media(hover:hover)]:group-hover/room-row:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-0 group-has-[[data-state=open]]/room-row:opacity-0",
             )}
@@ -216,11 +216,11 @@ export function ChatRoomSidebarRow({
               size="icon"
               disabled={isPending}
               className={cn(
-                "text-muted-foreground size-7 opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
+                "text-muted-foreground size-8 opacity-100 md:size-7 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100 data-[state=open]:opacity-100",
               )}
               aria-label={tActions("roomMenu", { name: label })}
             >
-              <Ellipsis className="size-4" aria-hidden />
+              <Ellipsis className="size-5 md:size-4" aria-hidden />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">

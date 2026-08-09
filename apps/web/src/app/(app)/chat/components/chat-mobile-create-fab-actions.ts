@@ -1,17 +1,11 @@
-export type MobileCreateFabSurface = "home" | "chats";
+export type MobileCreateFabSurface = "chats";
 
-export type MobileCreateFabActionId = "newTask" | "createChannel" | "newDm";
+export type MobileCreateFabActionId = "createChannel" | "newDm";
 
 export interface MobileCreateFabAction {
   id: MobileCreateFabActionId;
   href: string;
 }
-
-const HOME_ACTIONS: readonly MobileCreateFabAction[] = [
-  { id: "newTask", href: "/tasks?create=true" },
-  { id: "createChannel", href: "/chat?create=channel" },
-  { id: "newDm", href: "/chat?dm=new" },
-] as const;
 
 const CHATS_ACTIONS: readonly MobileCreateFabAction[] = [
   { id: "createChannel", href: "/chat?create=channel" },
@@ -20,9 +14,9 @@ const CHATS_ACTIONS: readonly MobileCreateFabAction[] = [
 
 /** Create actions for the mobile FAB overlay menu (existing routes only). */
 export function mobileCreateFabActions(
-  surface: MobileCreateFabSurface,
+  _surface: MobileCreateFabSurface = "chats",
 ): readonly MobileCreateFabAction[] {
-  return surface === "home" ? HOME_ACTIONS : CHATS_ACTIONS;
+  return CHATS_ACTIONS;
 }
 
 /**
@@ -54,3 +48,11 @@ export function chatMobileCreateFabScrimBottom(isApple: boolean): string {
     ? CHAT_MOBILE_CREATE_FAB_SCRIM_BOTTOM_APPLE
     : CHAT_MOBILE_CREATE_FAB_SCRIM_BOTTOM;
 }
+
+/**
+ * Scroll padding on `/chat/chats` so the last row clears the floating create
+ * FAB (`size-14` + 1rem gap). Tab-bar clearance is separate
+ * (`CHAT_MOBILE_TAB_BAR_CLEARANCE`).
+ */
+export const CHAT_MOBILE_CREATE_FAB_CLEARANCE =
+  "pb-[calc(3.5rem+1rem)]" as const;

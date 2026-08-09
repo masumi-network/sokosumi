@@ -1,7 +1,13 @@
-import { Home, type LucideIcon, MessageCircle, Search } from "lucide-react";
+import {
+  Bot,
+  FolderKanban,
+  ListTodo,
+  type LucideIcon,
+  MessageCircle,
+  Search,
+} from "lucide-react";
 
 import { classifyChatChromeSurface } from "@/app/chat/utils/chat-route-base";
-import { isMainAppMobileChromePathname } from "@/app/components/mobile-app-chrome";
 
 type SearchParamsLike =
   | URLSearchParams
@@ -49,21 +55,48 @@ export function chatMobileTabBarBottomOffset(isApple: boolean): string {
 }
 
 /**
+ * Composer outer `pb-*` when the mobile tab is hidden (room / draft).
+ * Matches Apple float bottom inset: `max(0.75rem, env(safe-area-inset-bottom))`.
+ * Drop on soft-keyboard open — layout already clears the home indicator.
+ */
+export const CHAT_MOBILE_COMPOSER_SAFE_AREA_PB =
+  "pb-[max(0.75rem,env(safe-area-inset-bottom))]" as const;
+
+/** Desktop composer outer `pb-*` (unchanged from prior md: path). */
+export const CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD =
+  "md:pb-[max(1.5rem,env(safe-area-inset-bottom))]" as const;
+
+/**
+ * Mobile safe-area `pb-*` plus desktop `md:pb-*`.
+ * When the keyboard is open, omit mobile inset so the composer sits flush
+ * above the keyboard (md path unchanged).
+ */
+export function chatMobileComposerSafeAreaPbClass(
+  keyboardOpen = false,
+): string {
+  if (keyboardOpen) {
+    return CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD;
+  }
+  return `${CHAT_MOBILE_COMPOSER_SAFE_AREA_PB} ${CHAT_MOBILE_COMPOSER_SAFE_AREA_PB_MD}`;
+}
+
+/**
  * Height shell when the mobile tab bar spacer is present.
  * Mobile fills the flex slot above the spacer; desktop keeps the svh shell.
  * Apple float inset lives on the spacer, not here.
- * `4rem` matches app Header `h-16` so Dynamic Type scales the offset with root rem.
+ * `4rem` matches header row; subtract top safe-area under cover.
+ * Full static class strings so Tailwind JIT sees them.
  */
 export const CHAT_MOBILE_HEIGHT_SHELL_CLASS =
-  "h-[calc(100svh-4rem)] max-md:h-full" as const;
+  "h-[calc(100svh-4rem-env(safe-area-inset-top))] max-md:h-full" as const;
 
 /**
  * Full shell height when the mobile tab bar is hidden (room / draft compose).
  * Matches desktop/`md` height — no tab-bar spacer below.
- * `4rem` matches app Header `h-16` so Dynamic Type scales the offset with root rem.
+ * Same below-header calc as `APP_SHELL_BELOW_HEADER_HEIGHT_CLASS`.
  */
 export const CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS =
-  "h-[calc(100svh-4rem)]" as const;
+  "h-[calc(100svh-4rem-env(safe-area-inset-top))]" as const;
 
 /** Height class for chat views: room and draft compose drop tab-bar spacer offset. */
 export function chatMobileHeightShellClass(
@@ -78,13 +111,23 @@ export function chatMobileHeightShellClass(
   return CHAT_MOBILE_HEIGHT_SHELL_CLASS;
 }
 
-export type ChatMobileTabId = "home" | "chats" | "search";
-export type ChatMobileTabLabelKey = "home" | "chats" | "search";
+export type ChatMobileTabId =
+  | "tasks"
+  | "agents"
+  | "chats"
+  | "projects"
+  | "search";
+export type ChatMobileTabLabelKey =
+  | "tasks"
+  | "agents"
+  | "chats"
+  | "projects"
+  | "search";
 
 export interface ChatMobileTab {
   kind: "link";
   id: ChatMobileTabId;
-  href: "/chat" | "/chat/chats" | "/history";
+  href: "/tasks" | "/agents" | "/chat/chats" | "/projects" | "/history";
   labelKey: ChatMobileTabLabelKey;
   icon: LucideIcon;
   isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
@@ -92,20 +135,20 @@ export interface ChatMobileTab {
 
 export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
   {
-    id: "home",
+    id: "tasks",
     kind: "link",
-    href: "/chat",
-    labelKey: "home",
-    icon: Home,
-    isActive: (pathname, searchParams) => {
-      // Draft/welcome flows (`?create=channel`, `?dm=new`, `?welcome=1`) share
-      // pathname `/chat` but are not Home — classifyChatChromeSurface returns
-      // "draft".
-      if (classifyChatChromeSurface(pathname, searchParams) === "home") {
-        return true;
-      }
-      return isMainAppMobileChromePathname(pathname) && pathname !== "/history";
-    },
+    href: "/tasks",
+    labelKey: "tasks",
+    icon: ListTodo,
+    isActive: (pathname) => pathname === "/tasks",
+  },
+  {
+    id: "agents",
+    kind: "link",
+    href: "/agents",
+    labelKey: "agents",
+    icon: Bot,
+    isActive: (pathname) => pathname === "/agents",
   },
   {
     id: "chats",
@@ -114,6 +157,14 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
     labelKey: "chats",
     icon: MessageCircle,
     isActive: (pathname) => pathname === "/chat/chats",
+  },
+  {
+    id: "projects",
+    kind: "link",
+    href: "/projects",
+    labelKey: "projects",
+    icon: FolderKanban,
+    isActive: (pathname) => pathname === "/projects",
   },
   {
     id: "search",
