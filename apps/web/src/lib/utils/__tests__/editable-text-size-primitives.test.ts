@@ -47,7 +47,8 @@ describe("editable text size primitives", () => {
       const content = readFileSync(path.join(SRC_ROOT, rel), "utf8");
       expect(content).not.toMatch(MD_SHRINK);
       expect(content).not.toMatch(PX_FLOOR);
-      expect(content.includes("withEditableTextSize")).toBe(true);
+      // Call site required — import/comment alone must not pass.
+      expect(content).toMatch(/\bwithEditableTextSize\s*\(/);
     },
   );
 });
