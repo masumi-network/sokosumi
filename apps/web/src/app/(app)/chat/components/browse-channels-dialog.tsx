@@ -121,7 +121,7 @@ export function BrowseChannelsDialog({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t("searchPlaceholder")}
-            className="h-9 pl-9"
+            className="h-10 pl-9"
             aria-label={t("searchPlaceholder")}
           />
         </div>
