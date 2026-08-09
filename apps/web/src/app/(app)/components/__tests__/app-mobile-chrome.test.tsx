@@ -58,7 +58,7 @@ describe("AppMobileChrome", () => {
     mockIsApple = false;
   });
 
-  it("renders bottom nav, create FAB, and tab-bar clearance spacer on chat home", () => {
+  it("renders bottom nav and tab-bar clearance spacer on chat home without FAB", () => {
     const { container } = render(
       <AppMobileChrome>
         <div>child</div>
@@ -66,7 +66,7 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "openMenu" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
     const spacer = getTabBarSpacer(container);
     expect(spacer?.className).toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });

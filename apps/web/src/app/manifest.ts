@@ -1,12 +1,18 @@
 import type { MetadataRoute } from "next";
 
+/**
+ * `scope: "/"` is required: default scope is the directory of `start_url`, so
+ * install from `/chat/chats` would scope to `/chat/` and tab links (`/tasks`,
+ * …) open outside the PWA. Keep `start_url` origin-relative for preview hosts.
+ */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Sokosumi",
     short_name: "Sokosumi",
     description:
       "Hire yourself an agent to finish the most time consuming tasks",
-    start_url: "https://app.sokosumi.com",
+    start_url: "/",
+    scope: "/",
     display: "standalone",
     background_color: "#6400FF",
     icons: [

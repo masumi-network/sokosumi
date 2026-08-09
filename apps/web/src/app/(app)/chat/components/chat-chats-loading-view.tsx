@@ -1,14 +1,21 @@
+import { CHAT_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/chat/components/chat-mobile-create-fab-actions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 /**
  * Sync Instant Nav shell for `/chat/chats` (no cookies/`connection()`/i18n).
- * Matches mobile-only OrganizationChatList page wrapper.
+ * Matches the non-beta mobile Chats page: OrganizationChatList only.
+ * Personal Assistant is beta-gated and omitted here so non-beta users do not
+ * flash PA chrome that never mounts.
  */
 export function ChatChatsPageSkeleton(): React.ReactElement {
   return (
     <div
       data-testid="chat-chats-loading"
-      className="md:hidden -m-4 min-h-0 flex-1 overflow-y-auto p-4"
+      className={cn(
+        "md:hidden -m-4 min-h-0 flex-1 overflow-y-auto p-4",
+        CHAT_MOBILE_CREATE_FAB_CLEARANCE,
+      )}
     >
       <div className="mb-3 flex items-center justify-between">
         <Skeleton className="h-5 w-24" />

@@ -10,6 +10,14 @@ export const APP_HEADER_SAFE_AREA_PADDING_CLASS =
   "pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]" as const;
 
 /**
+ * Opaque paint for the top inset only. Used by HeaderChrome underlay so
+ * backdrop-blur does not sample empty/black notch. Height must match the
+ * `pt-[env(safe-area-inset-top)]` token above.
+ */
+export const APP_HEADER_SAFE_AREA_UNDERLAY_CLASS =
+  "pointer-events-none absolute inset-x-0 top-0 z-0 h-[env(safe-area-inset-top)] bg-background md:hidden" as const;
+
+/**
  * Main mobile top padding: former `pt-20` (5rem) plus top safe area so
  * content clears the fixed header's taller cover height.
  */
