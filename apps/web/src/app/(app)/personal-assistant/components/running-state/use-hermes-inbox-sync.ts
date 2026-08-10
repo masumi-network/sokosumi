@@ -31,7 +31,7 @@ export function useHermesInboxSync({
     }
     const result = await listHermesMessagesAction({});
     if (!result.ok || isReplyingRef.current) return;
-    const next = result.data
+    const next = result.value
       .map(persistedToMessage)
       .filter((m): m is Message => m !== null);
     const latest = next[next.length - 1];
@@ -70,7 +70,7 @@ export function useHermesInboxSync({
       // user's just-typed bubble. (Same race fixed in sendMessage by setting
       // isReplyingRef synchronously before any awaits.)
       if (isReplyingRef.current) return;
-      const next = result.data
+      const next = result.value
         .map(persistedToMessage)
         .filter((m): m is Message => m !== null);
 

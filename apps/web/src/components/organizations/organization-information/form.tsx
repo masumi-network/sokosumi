@@ -206,7 +206,7 @@ export default function OrganizationInformationForm({
           return;
         }
 
-        const slug = slugResult.data;
+        const slug = slugResult.value;
         result = await authClient.organization.create({
           slug,
           name: values.name,

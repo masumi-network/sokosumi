@@ -156,7 +156,7 @@ function useOnboardingProgress(
       consecutiveFailures = 0;
       setState((prev) => ({
         progress: {
-          status: result.data.status as ProgressShape["status"],
+          status: result.value.status as ProgressShape["status"],
           // Keep the last non-empty list: the contract doesn't guarantee
           // steps on every poll (Core maps an absent array to []), and a
           // step-less 200 mid-run — or right at the terminal flip — must
@@ -166,12 +166,12 @@ function useOnboardingProgress(
           // no usable ETA either — adopting that 0 would flash
           // "Almost done…" during the 1–2 min machine boot.
           steps:
-            result.data.steps.length > 0
-              ? result.data.steps
+            result.value.steps.length > 0
+              ? result.value.steps
               : prev.progress.steps,
           etaSeconds:
-            result.data.steps.length > 0
-              ? result.data.etaSeconds
+            result.value.steps.length > 0
+              ? result.value.etaSeconds
               : prev.progress.etaSeconds,
         },
         pollError: false,

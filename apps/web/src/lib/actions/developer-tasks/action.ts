@@ -1,12 +1,17 @@
 "use server";
 
+import { err, ok } from "neverthrow";
+
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import {
   type DeveloperTaskListPage,
   developerTaskService,
   type ListDeveloperTasksParams,
 } from "@/lib/services/developer-task.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -25,13 +30,13 @@ interface ListDeveloperTasksRequest
 
 export const listDeveloperTasksAction = withSession<
   ListDeveloperTasksRequest,
-  Result<DeveloperTaskListPage, ActionError>
+  ActionResultDto<DeveloperTaskListPage, ActionError>
 >(async ({ cursor, limit, coworkerId }) => {
   try {
-    return Ok(
-      await developerTaskService.listTasks({ cursor, limit, coworkerId }),
+    return toActionResult(
+      ok(await developerTaskService.listTasks({ cursor, limit, coworkerId })),
     );
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });

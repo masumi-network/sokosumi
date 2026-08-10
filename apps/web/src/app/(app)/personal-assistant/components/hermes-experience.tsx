@@ -364,13 +364,13 @@ export default function HermesExperience({
       }
       // Any successful instance fetch resets the fail-open counter.
       backgroundFailureCountRef.current = 0;
-      if (!instanceResult.data) {
+      if (!instanceResult.value) {
         if (background) return;
         setUiState("idle");
         clearInstanceSnapshot();
         return;
       }
-      const next = uiStateForServerStatus(instanceResult.data.status);
+      const next = uiStateForServerStatus(instanceResult.value.status);
       // Forward-only guard for background refreshes — same shape as the
       // provisioning/onboarding polling loop's `isForwardTransition` check.
       // Without this, a stale orchestrator read could yank the user from
@@ -389,9 +389,9 @@ export default function HermesExperience({
       const messagesResult = await listHermesMessagesAction({});
       if (isCancelled?.()) return;
       if (messagesResult.ok) {
-        setInitialMessages(messagesResult.data);
+        setInitialMessages(messagesResult.value);
       }
-      applyInstanceSnapshot(instanceResult.data);
+      applyInstanceSnapshot(instanceResult.value);
     },
     [t, applyInstanceSnapshot, clearInstanceSnapshot],
   );
@@ -446,8 +446,8 @@ export default function HermesExperience({
         timer = setTimeout(() => void tick(), POLL_INTERVAL_MS);
         return;
       }
-      if (result.data) {
-        const next = uiStateForServerStatus(result.data.status);
+      if (result.value) {
+        const next = uiStateForServerStatus(result.value.status);
         // Ignore stale polls that would walk the state backwards (e.g. a poll
         // racing the orchestrator's status flip right after we POST /onboard).
         if (!isForwardTransition(uiState, next)) {
@@ -463,14 +463,14 @@ export default function HermesExperience({
             // so the chat opens with the welcome already rendered.
             const messagesResult = await listHermesMessagesAction({});
             if (cancelled) return;
-            if (messagesResult.ok) setInitialMessages(messagesResult.data);
+            if (messagesResult.ok) setInitialMessages(messagesResult.value);
           }
           if (cancelled) return;
-          applyInstanceSnapshot(result.data);
+          applyInstanceSnapshot(result.value);
           setUiState(next);
           return;
         }
-        applyInstanceSnapshot(result.data);
+        applyInstanceSnapshot(result.value);
         if (next !== uiState) setUiState(next);
       } else {
         // Provision call succeeded but the instance disappeared — treat as error.
@@ -581,11 +581,11 @@ export default function HermesExperience({
       setErrorMessage(result.error.message ?? t("provisionFailed"));
       return;
     }
-    applyInstanceSnapshot(result.data);
-    const nextUi = uiStateForServerStatus(result.data.status);
+    applyInstanceSnapshot(result.value);
+    const nextUi = uiStateForServerStatus(result.value.status);
     if (nextUi === "running") {
       const messagesResult = await listHermesMessagesAction({});
-      if (messagesResult.ok) setInitialMessages(messagesResult.data);
+      if (messagesResult.ok) setInitialMessages(messagesResult.value);
     }
     // Immediately reflect server-side status — if it already came back as
     // "running" the polling effect will just no-op.

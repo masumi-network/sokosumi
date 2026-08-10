@@ -2,8 +2,13 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { convertCentsToCredits } from "@sokosumi/utils";
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { toCoreJobInputData } from "@/lib/actions/job/core-job-input";
 import {
@@ -21,7 +26,6 @@ import {
   startJobInputSchema,
 } from "@/lib/schemas";
 import { callAgentHiredWebHook, jobService } from "@/lib/services";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {
   type AuthenticatedRequest,
@@ -168,7 +172,7 @@ interface StartJobParameters extends AuthenticatedRequest {
 
 export const startJob = withSession<
   StartJobParameters,
-  Result<{ jobId: string }, ActionError>
+  ActionResultDto<{ jobId: string }, ActionError>
 >(async ({ input, session }) => {
   return await Sentry.withScope(async (scope) => {
     try {
@@ -220,10 +224,12 @@ export const startJob = withSession<
 
         Sentry.captureMessage("Job start validation failed", "warning");
 
-        return Err({
-          message: "Bad Input",
-          code: CommonErrorCode.BAD_INPUT,
-        });
+        return toActionResult(
+          err({
+            message: "Bad Input",
+            code: CommonErrorCode.BAD_INPUT,
+          }),
+        );
       }
       const parsed = parsedResult.data;
       const coreInputData = toCoreJobInputData(parsed.inputData);
@@ -238,10 +244,12 @@ export const startJob = withSession<
           "warning",
         );
 
-        return Err({
-          message: "Bad Input",
-          code: CommonErrorCode.BAD_INPUT,
-        });
+        return toActionResult(
+          err({
+            message: "Bad Input",
+            code: CommonErrorCode.BAD_INPUT,
+          }),
+        );
       }
 
       const agentRow = await fetchAgentRowForCoreJobStart(parsed.agentId);
@@ -251,17 +259,21 @@ export const startJob = withSession<
 
       if (parsed.maxAcceptedCents === ZERO_ACCEPTED_CENTS) {
         if (agentCredits == null) {
-          return Err({
-            message: "Credit cost is too high",
-            code: JobErrorCode.COST_TOO_HIGH,
-          });
+          return toActionResult(
+            err({
+              message: "Credit cost is too high",
+              code: JobErrorCode.COST_TOO_HIGH,
+            }),
+          );
         }
 
         if (agentCredits > 0) {
-          return Err({
-            message: "Credit cost is too high",
-            code: JobErrorCode.COST_TOO_HIGH,
-          });
+          return toActionResult(
+            err({
+              message: "Credit cost is too high",
+              code: JobErrorCode.COST_TOO_HIGH,
+            }),
+          );
         }
       }
 
@@ -272,17 +284,21 @@ export const startJob = withSession<
         const availableCredits = await resolveAvailableCredits();
 
         if (availableCredits == null) {
-          return Err({
-            message: "Failed to verify credit balance",
-            code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-          });
+          return toActionResult(
+            err({
+              message: "Failed to verify credit balance",
+              code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+            }),
+          );
         }
 
         if (availableCredits < agentCredits) {
-          return Err({
-            message: "Insufficient balance",
-            code: JobErrorCode.INSUFFICIENT_BALANCE,
-          });
+          return toActionResult(
+            err({
+              message: "Insufficient balance",
+              code: JobErrorCode.INSUFFICIENT_BALANCE,
+            }),
+          );
         }
       }
 
@@ -311,7 +327,7 @@ export const startJob = withSession<
       // call after agent hired webhook
       void callAgentHiredWebHook(userId, session.user.email);
       revalidatePath(`/agents/${input.agentId}/jobs/${job.data.id}`, "layout");
-      return Ok({ jobId: job.data.id });
+      return toActionResult(ok({ jobId: job.data.id }));
     } catch (error) {
       scope.setTag("error_type", "job_start_error");
 
@@ -338,7 +354,7 @@ export const startJob = withSession<
             },
           },
         });
-        return Err(actionError);
+        return toActionResult(err(actionError));
       } else if (isJobError(error)) {
         // Type-safe error handling using error.code
         let sentryLevel: "warning" | "error" | "fatal" = "error";
@@ -371,10 +387,12 @@ export const startJob = withSession<
             },
           },
         });
-        return Err({
-          message: error.message,
-          code: error.code,
-        });
+        return toActionResult(
+          err({
+            message: error.message,
+            code: error.code,
+          }),
+        );
       } else {
         // Generic fallback for unexpected errors
         scope.setTag("error_code", CommonErrorCode.INTERNAL_SERVER_ERROR);
@@ -391,10 +409,12 @@ export const startJob = withSession<
             },
           },
         });
-        return Err({
-          message: "Internal server error",
-          code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-        });
+        return toActionResult(
+          err({
+            message: "Internal server error",
+            code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+          }),
+        );
       }
     }
   });
@@ -412,7 +432,7 @@ interface MoveJobToWorkspaceParameters extends AuthenticatedRequest {
 
 export const provideJobInput = withSession<
   ProvideJobInputParameters,
-  Result<{ jobId: string }, ActionError>
+  ActionResultDto<{ jobId: string }, ActionError>
 >(async ({ input, session }) => {
   return await Sentry.withScope(async (scope) => {
     try {
@@ -432,10 +452,12 @@ export const provideJobInput = withSession<
           "warning",
         );
 
-        return Err({
-          message: "Bad Input",
-          code: CommonErrorCode.BAD_INPUT,
-        });
+        return toActionResult(
+          err({
+            message: "Bad Input",
+            code: CommonErrorCode.BAD_INPUT,
+          }),
+        );
       }
 
       // Set user context for Sentry
@@ -467,10 +489,12 @@ export const provideJobInput = withSession<
       // uploaded client-side and replaced with references).
       const coreInputData = toCoreJobInputData(inputData);
       if (!coreInputData) {
-        return Err({
-          message: "Bad Input",
-          code: CommonErrorCode.BAD_INPUT,
-        });
+        return toActionResult(
+          err({
+            message: "Bad Input",
+            code: CommonErrorCode.BAD_INPUT,
+          }),
+        );
       }
 
       // Provide job input through core (ownership + agent call + input write
@@ -491,7 +515,7 @@ export const provideJobInput = withSession<
         },
       });
 
-      return Ok({ jobId });
+      return toActionResult(ok({ jobId }));
     } catch (error) {
       scope.setTag("error_type", "job_input_submission_error");
       scope.setContext("error", {
@@ -509,20 +533,24 @@ export const provideJobInput = withSession<
       });
 
       if (error instanceof CoreApiRequestError) {
-        return Err(toCoreApiActionError(error));
+        return toActionResult(err(toCoreApiActionError(error)));
       }
 
       if (isJobError(error)) {
-        return Err({
-          message: error.message,
-          code: error.code,
-        });
+        return toActionResult(
+          err({
+            message: error.message,
+            code: error.code,
+          }),
+        );
       }
 
-      return Err({
-        message: "Failed to submit job input",
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
+      return toActionResult(
+        err({
+          message: "Failed to submit job input",
+          code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        }),
+      );
     }
   });
 });
@@ -550,14 +578,16 @@ interface UpdateJobNameParameters extends AuthenticatedRequest {
 
 export const updateJobName = withSession<
   UpdateJobNameParameters,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async ({ jobId, data }) => {
   const parsedResult = jobDetailsNameFormSchema().safeParse(data);
   if (!parsedResult.success) {
-    return Err({
-      message: "Bad Input",
-      code: CommonErrorCode.BAD_INPUT,
-    });
+    return toActionResult(
+      err({
+        message: "Bad Input",
+        code: CommonErrorCode.BAD_INPUT,
+      }),
+    );
   }
   const parsed = parsedResult.data;
 
@@ -566,25 +596,29 @@ export const updateJobName = withSession<
       name: parsed.name === "" ? null : parsed.name,
     });
 
-    return Ok();
+    return toActionResult(ok());
   } catch (error) {
     if (error instanceof CoreApiRequestError) {
       if (error.status === 404) {
-        return Err({
-          message: "Job not found",
-          code: JobErrorCode.JOB_NOT_FOUND,
-        });
+        return toActionResult(
+          err({
+            message: "Job not found",
+            code: JobErrorCode.JOB_NOT_FOUND,
+          }),
+        );
       }
 
       if (error.status === 401 || error.status === 403) {
-        return Err({
-          message: "Unauthorized",
-          code: CommonErrorCode.UNAUTHORIZED,
-        });
+        return toActionResult(
+          err({
+            message: "Unauthorized",
+            code: CommonErrorCode.UNAUTHORIZED,
+          }),
+        );
       }
     }
 
-    return Err(toCoreApiActionError(error));
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
@@ -600,41 +634,49 @@ interface RequestRefundJobResponse {
 
 export const requestRefundJob = withSession<
   RequestRefundJobParameters,
-  Result<{ job: RequestRefundJobResponse }, ActionError>
+  ActionResultDto<{ job: RequestRefundJobResponse }, ActionError>
 >(async ({ jobId }) => {
   try {
     const { data: job } = await coreClient.requestJobRefund(jobId);
     if (job.jobType !== "PAID") {
-      return Err({
-        message: "Job not found",
-        code: JobErrorCode.JOB_NOT_FOUND,
-      });
+      return toActionResult(
+        err({
+          message: "Job not found",
+          code: JobErrorCode.JOB_NOT_FOUND,
+        }),
+      );
     }
 
-    return Ok({
-      job: {
-        id: job.id,
-        jobType: job.jobType,
-        status: job.status as Job["status"],
-      },
-    });
+    return toActionResult(
+      ok({
+        job: {
+          id: job.id,
+          jobType: job.jobType,
+          status: job.status as Job["status"],
+        },
+      }),
+    );
   } catch (error) {
     if (error instanceof CoreApiRequestError) {
       if (error.status === 404) {
-        return Err({
-          message: "Job not found",
-          code: JobErrorCode.JOB_NOT_FOUND,
-        });
+        return toActionResult(
+          err({
+            message: "Job not found",
+            code: JobErrorCode.JOB_NOT_FOUND,
+          }),
+        );
       }
 
       if (error.status === 401 || error.status === 403) {
-        return Err({
-          message: "Unauthorized",
-          code: CommonErrorCode.UNAUTHORIZED,
-        });
+        return toActionResult(
+          err({
+            message: "Unauthorized",
+            code: CommonErrorCode.UNAUTHORIZED,
+          }),
+        );
       }
     }
 
-    return Err(toCoreApiActionError(error));
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
