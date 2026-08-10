@@ -1,8 +1,10 @@
 import type { Prisma } from "@sokosumi/database";
 
-import { TIME } from "@/config/constants";
-import { badRequest } from "@/helpers/error";
+import { LIMITS, TIME } from "@/config/constants";
+import { badRequest, tooManyRequests } from "@/helpers/error";
+import { CHAT_ROOM_ACCESS } from "@/schemas/chat-room.schema";
 import {
+  CHAT_ROOM_INVITATION_STATUS,
   type ChatRoomInvitation,
   chatRoomInvitationSchema,
 } from "@/schemas/chat-room-invitation.schema";
@@ -143,11 +145,47 @@ export async function assertInviteeNotRoomMember(
     return;
   }
 
-  if (existingMember.access === "guest") {
+  if (existingMember.access === CHAT_ROOM_ACCESS.GUEST) {
     throw badRequest("User is already a guest in this channel.");
   }
 
   throw badRequest("User is already a member of this channel.");
+}
+
+/**
+ * Abuse caps for guest invites: pending per room + creates per inviter/hour.
+ * Uses existing unique-pending uniqueness for exact email duplicates.
+ */
+export async function assertChatRoomInvitationRateLimits(
+  roomId: string,
+  inviterId: string,
+  tx: Prisma.TransactionClient,
+  now: Date = new Date(),
+): Promise<void> {
+  const pendingCount = await tx.chatRoomGuestInvitation.count({
+    where: {
+      roomId,
+      status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+    },
+  });
+  if (pendingCount >= LIMITS.CHAT_ROOM_GUEST_INVITATION_PENDING_LIMIT) {
+    throw tooManyRequests(
+      `This channel already has ${LIMITS.CHAT_ROOM_GUEST_INVITATION_PENDING_LIMIT} pending invitations. Revoke some before inviting more.`,
+    );
+  }
+
+  const createWindowStart = new Date(now.getTime() - 60 * 60 * 1000);
+  const recentCreateCount = await tx.chatRoomGuestInvitation.count({
+    where: {
+      inviterId,
+      createdAt: { gte: createWindowStart },
+    },
+  });
+  if (recentCreateCount >= LIMITS.CHAT_ROOM_GUEST_INVITATION_CREATE_PER_HOUR) {
+    throw tooManyRequests(
+      `You can create at most ${LIMITS.CHAT_ROOM_GUEST_INVITATION_CREATE_PER_HOUR} guest invitations per hour. Try again later.`,
+    );
+  }
 }
 
 export function invitationExpiresAt(from: Date = new Date()): Date {

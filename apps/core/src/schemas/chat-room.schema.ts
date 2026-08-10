@@ -40,8 +40,14 @@ export const discoverableChannelDiscoverabilitySchema = z
     example: "public",
   });
 
+/** Room membership access values (Prisma column + OpenAPI enum). */
+export const CHAT_ROOM_ACCESS = {
+  MEMBER: "member",
+  GUEST: "guest",
+} as const;
+
 export const chatRoomAccessSchema = z
-  .enum(["member", "guest"])
+  .enum([CHAT_ROOM_ACCESS.MEMBER, CHAT_ROOM_ACCESS.GUEST])
   .openapi("ChatRoomAccess");
 
 export const chatRoomUserParticipantSchema = z

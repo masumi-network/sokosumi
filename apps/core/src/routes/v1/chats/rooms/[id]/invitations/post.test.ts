@@ -17,6 +17,7 @@ const {
   memberFindFirstMock,
   roomUserMemberFindFirstMock,
   invitationFindFirstMock,
+  invitationCountMock,
   invitationCreateMock,
   prismaTransactionMock,
   renderChatRoomInvitationEmailMock,
@@ -30,6 +31,7 @@ const {
   memberFindFirstMock: vi.fn(),
   roomUserMemberFindFirstMock: vi.fn(),
   invitationFindFirstMock: vi.fn(),
+  invitationCountMock: vi.fn(),
   invitationCreateMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   renderChatRoomInvitationEmailMock: vi.fn(),
@@ -86,6 +88,7 @@ const tx = {
   },
   chatRoomGuestInvitation: {
     findFirst: invitationFindFirstMock,
+    count: invitationCountMock,
     create: invitationCreateMock,
   },
 };
@@ -172,6 +175,8 @@ beforeEach(() => {
   memberFindFirstMock.mockResolvedValue(null);
   roomUserMemberFindFirstMock.mockResolvedValue(null);
   invitationFindFirstMock.mockResolvedValue(null);
+  invitationCountMock.mockReset();
+  invitationCountMock.mockResolvedValue(0);
   invitationCreateMock.mockResolvedValue({
     id: INVITE_ID,
     roomId: ROOM_ID,
@@ -306,6 +311,50 @@ describe("POST /chats/rooms/{id}/invitations", () => {
     expect(response.status).toBe(409);
     const body = await response.json();
     expect(body.message).toMatch(/pending invitation already exists/i);
+    expect(invitationCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the room already has the pending invitation cap", async () => {
+    invitationCountMock.mockImplementation(
+      async (args: { where?: { status?: string; inviterId?: string } }) => {
+        if (args.where?.status === "pending") {
+          return 100;
+        }
+        return 0;
+      },
+    );
+
+    const response = await createApp().request(`/${ROOM_ID}/invitations`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "guest@example.com" }),
+    });
+
+    expect(response.status).toBe(429);
+    const body = await response.json();
+    expect(body.message).toMatch(/pending invitations/i);
+    expect(invitationCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the inviter exceeds the hourly create cap", async () => {
+    invitationCountMock.mockImplementation(
+      async (args: { where?: { status?: string; inviterId?: string } }) => {
+        if (args.where?.inviterId) {
+          return 30;
+        }
+        return 0;
+      },
+    );
+
+    const response = await createApp().request(`/${ROOM_ID}/invitations`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "guest@example.com" }),
+    });
+
+    expect(response.status).toBe(429);
+    const body = await response.json();
+    expect(body.message).toMatch(/per hour/i);
     expect(invitationCreateMock).not.toHaveBeenCalled();
   });
 

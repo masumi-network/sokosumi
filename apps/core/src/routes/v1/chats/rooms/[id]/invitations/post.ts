@@ -5,6 +5,7 @@ import { getEmailLocale } from "@sokosumi/utils";
 import { sendEmail } from "@/clients/email.client";
 import { getWebAppBaseUrl } from "@/config/env";
 import {
+  assertChatRoomInvitationRateLimits,
   assertInviteeNotHostOrgMember,
   assertInviteeNotRoomMember,
   invitationExpiresAt,
@@ -23,6 +24,7 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
+  CHAT_ROOM_INVITATION_STATUS,
   chatRoomInvitationSchema,
   createChatRoomInvitationRequestSchema,
 } from "@/schemas/chat-room-invitation.schema";
@@ -66,6 +68,7 @@ const route = withGlobalHeaderParameters(
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
       409: jsonErrorResponse("Pending invitation already exists"),
+      429: jsonErrorResponse("Invitation rate limit exceeded"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -91,12 +94,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       await assertInviteeNotHostOrgMember(room.organizationId, email, tx);
       await assertInviteeNotRoomMember(room.id, email, tx);
+      await assertChatRoomInvitationRateLimits(room.id, userContext.userId, tx);
 
       const existingPending = await tx.chatRoomGuestInvitation.findFirst({
         where: {
           roomId: room.id,
           email,
-          status: "pending",
+          status: CHAT_ROOM_INVITATION_STATUS.PENDING,
         },
         select: { id: true },
       });
@@ -113,7 +117,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             roomId: room.id,
             email,
             inviterId: userContext.userId,
-            status: "pending",
+            status: CHAT_ROOM_INVITATION_STATUS.PENDING,
             expiresAt: invitationExpiresAt(),
           },
           include: {

@@ -2,6 +2,7 @@ import { HTTPException } from "hono/http-exception";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  assertChatRoomInvitationRateLimits,
   assertInviteeNotHostOrgMember,
   INVITE_TTL_MS,
   invitationExpiresAt,
@@ -111,6 +112,54 @@ describe("assertInviteeNotHostOrgMember", () => {
         error instanceof HTTPException &&
         error.status === 400 &&
         error.message.includes("organization member"),
+    );
+  });
+});
+
+describe("assertChatRoomInvitationRateLimits", () => {
+  it("allows under both caps", async () => {
+    const tx = {
+      chatRoomGuestInvitation: {
+        count: vi.fn().mockResolvedValueOnce(2).mockResolvedValueOnce(3),
+      },
+    };
+
+    await expect(
+      assertChatRoomInvitationRateLimits("room_1", "user_1", tx as never),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects when pending per room is at the cap", async () => {
+    const tx = {
+      chatRoomGuestInvitation: {
+        count: vi.fn().mockResolvedValue(100),
+      },
+    };
+
+    await expect(
+      assertChatRoomInvitationRateLimits("room_1", "user_1", tx as never),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof HTTPException &&
+        error.status === 429 &&
+        error.message.includes("pending invitations"),
+    );
+  });
+
+  it("rejects when inviter hourly create cap is hit", async () => {
+    const tx = {
+      chatRoomGuestInvitation: {
+        count: vi.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(30),
+      },
+    };
+
+    await expect(
+      assertChatRoomInvitationRateLimits("room_1", "user_1", tx as never),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof HTTPException &&
+        error.status === 429 &&
+        error.message.includes("per hour"),
     );
   });
 });

@@ -225,7 +225,8 @@ describe("POST /chats/rooms/{id}/archive", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(await response.text()).toMatch(/not a member of this organization/i);
+    expect(await response.text()).toMatch(/guests cannot archive/i);
     expect(roomUpdateManyMock).not.toHaveBeenCalled();
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 });

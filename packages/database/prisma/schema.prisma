@@ -1898,6 +1898,7 @@ model ChatRoomUserMember {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   /// `"member"` = host-org participant; `"guest"` = external channel only (not org Member).
+  /// Values constrained by SQL CHECK; guests only on discoverability=external via trigger.
   access String @default("member")
 
   /// Null = unpinned. Set to now when the user pins the room in their sidebar.
@@ -1928,6 +1929,7 @@ model ChatRoomGuestInvitation {
   inviterId String
   inviter   User   @relation("ChatRoomGuestInvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
 
+  /// Values constrained by SQL CHECK (pending|accepted|revoked|declined|expired).
   status     String    @default("pending")
   expiresAt  DateTime
   acceptedAt DateTime?
@@ -1940,6 +1942,7 @@ model ChatRoomGuestInvitation {
 
   @@index([roomId, status])
   @@index([email, status])
+  @@index([inviterId, createdAt])
   @@map("chat_room_guest_invitation")
 }
 
