@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { APP_VIEWPORT_BASE } from "@/lib/app-viewport";
+
 import { ChatRouteErrorBoundary } from "./components/chat-route-error-boundary.client";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -13,16 +15,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Chat replaces the root viewport export. Keep `viewport-fit=cover` (also on
- * root for hub routes) so iOS `env(safe-area-inset-*)` stays non-zero.
- * `resizes-content` lifts the room composer above the soft keyboard.
- * `maximumScale: 1` matches root — stops iOS focus auto-zoom on the composer.
+ * Chat replaces the root viewport export. Spreads `APP_VIEWPORT_BASE`
+ * (fit cover + maximumScale 1). `resizes-content` lifts the room composer
+ * above the soft keyboard.
  */
 export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  viewportFit: "cover",
+  ...APP_VIEWPORT_BASE,
   interactiveWidget: "resizes-content",
 };
 

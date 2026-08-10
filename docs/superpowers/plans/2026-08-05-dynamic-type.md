@@ -10,13 +10,15 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-05-dynamic-type-design.md`
 
+> **Superseded (viewport, 2026-08-10 / PR #3746):** `maximumScale: 1` is required app-wide (`APP_VIEWPORT_BASE`). Normative: `.cursor/rules/dynamic-type.mdc`. Historical “do not set maximum-scale” constraints below are not current policy.
+
 ## Global Constraints
 
 - Cap: `DYNAMIC_TYPE_MAX_SCALE = 1.25`, default root `16px`, max root `20px`
 - Brand face: Inter only (size from Dynamic Type; no SF Pro switch)
 - Whole UI scales via root rem
 - **No fixed `px` font sizes** in product UI (allowlist only true non-UI export/print if unavoidable)
-- Do not set `maximum-scale=1` / `user-scalable=no`
+- ~~Do not set `maximum-scale=1` / `user-scalable=no`~~ **Superseded (PR #3746):** set `maximumScale: 1`
 - Do not set fixed `px` on `html`/`body` except the documented 20px cap path
 - Web-only; no Core API / schema / new deps
 - Conventional Commits; Biome format; pin no registry ranges
@@ -567,7 +569,7 @@ Sokosumi web opts into Apple Dynamic Type for whole-UI rem scaling.
 1. **Root size** may come from `-apple-system-body` on `html` (see `apps/web/src/app/globals.css`). Brand face stays **Inter** (`next/font`).
 2. **Cap is 1.25×** default (`DYNAMIC_TYPE_MAX_SCALE = 1.25`, max root **20px** when default is 16px). Implemented in `apps/web/src/lib/utils/dynamic-type.ts` + `DynamicTypeRootCap`. Do not raise the cap without product decision.
 3. **No fixed `px` font sizes** in product UI. Use Tailwind `text-*` or `rem`/`em` (e.g. `text-[0.625rem]` not `text-[10px]`). Guard: `apps/web/src/lib/utils/__tests__/no-fixed-font-size.test.ts`.
-4. Do **not** set viewport `maximum-scale=1` or `user-scalable=no`.
+4. ~~Do **not** set viewport `maximum-scale=1` or `user-scalable=no`.~~ **Superseded (PR #3746):** `maximumScale: 1` required; see live `.cursor/rules/dynamic-type.mdc`.
 5. Do **not** set `html`/`body` `font-size` to a fixed `px` that kills Dynamic Type, except the documented 20px cap path.
 
 Allowlist for px font sizes: true non-interactive export/print only (e.g. PDF Puppeteer chrome), named in the guard test.

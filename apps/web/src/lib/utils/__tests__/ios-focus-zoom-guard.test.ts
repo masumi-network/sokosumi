@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { ROOM_COMPOSER_TEXTAREA_CLASSNAME } from "@/components/chat/room-message-composer";
+import { APP_VIEWPORT_BASE } from "@/lib/app-viewport";
 import { EDITABLE_TEXT_SIZE_CLASSNAME } from "@/lib/utils/editable-text-size";
 
 /**
@@ -24,17 +25,27 @@ const VIEWPORT_LAYOUTS = [
 ] as const;
 
 describe("iOS focus-zoom guard", () => {
+  it("APP_VIEWPORT_BASE locks maximumScale at 1", () => {
+    expect(APP_VIEWPORT_BASE.maximumScale).toBe(1);
+    const source = readFileSync(
+      path.join(SRC_ROOT, "lib/app-viewport.ts"),
+      "utf8",
+    );
+    expect(source).toMatch(/maximumScale:\s*1\b/);
+  });
+
   it.each(VIEWPORT_LAYOUTS)(
-    "%s declares maximumScale: 1 on the viewport object (not only in comments)",
+    "%s spreads APP_VIEWPORT_BASE into the viewport export",
     (rel) => {
       const content = readFileSync(path.join(SRC_ROOT, rel), "utf8");
+      expect(content).toMatch(
+        /import\s*\{\s*APP_VIEWPORT_BASE\s*\}\s*from\s*["']@\/lib\/app-viewport["']/,
+      );
       const block = content.match(
         /export const viewport:\s*Viewport\s*=\s*\{([\s\S]*?)\n\};/,
       );
       expect(block, `missing viewport export object in ${rel}`).not.toBeNull();
-      // Require the property on the object body so a leftover JSDoc mention
-      // cannot keep this green after the real field is removed.
-      expect(block?.[1]).toMatch(/maximumScale:\s*1\b/);
+      expect(block?.[1]).toMatch(/\.\.\.APP_VIEWPORT_BASE\b/);
     },
   );
 
