@@ -330,10 +330,19 @@ describe("dispatchChatRoomMention claim", () => {
             reasoning: [
               { type: "reasoning", text: "Looked up the room context." },
             ],
+            thought_timing_ms: expect.objectContaining({
+              start: expect.any(Number),
+              end: expect.any(Number),
+            }),
           }),
         }),
       }),
     );
+    const createArg = createMock.mock.calls[0]?.[0] as {
+      data: { metadata: { thought_timing_ms: { start: number; end: number } } };
+    };
+    const timing = createArg.data.metadata.thought_timing_ms;
+    expect(timing.end).toBeGreaterThanOrEqual(timing.start);
   });
 
   it("discards the reply when finalize loses the claim race", async () => {

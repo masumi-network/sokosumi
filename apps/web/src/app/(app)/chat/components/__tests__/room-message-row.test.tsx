@@ -1683,9 +1683,9 @@ describe("ChatMessageRow coworker Thought", () => {
     const trace = screen.getByTestId("coworker-thought-trace");
     expect(trace).toHaveAttribute("data-working", "true");
     expect(trace).toHaveTextContent("reasoning.thinking");
-    expect(screen.getByTestId("coworker-thought-body")).toHaveTextContent(
-      "Counting registrations in last 30 days",
-    );
+    const body = screen.getByTestId("coworker-thought-body");
+    expect(body).toHaveTextContent("Counting registrations in last 30 days");
+    expect(body.className).toMatch(/line-clamp-3/);
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
   });
 

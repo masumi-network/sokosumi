@@ -316,7 +316,11 @@ export function CoworkerThoughtTrace({
               />
               <div ref={traceRef} className="flex flex-col gap-1 py-1">
                 <p
-                  className="text-muted-foreground text-xs leading-relaxed whitespace-pre-wrap"
+                  className={cn(
+                    "text-muted-foreground text-xs leading-relaxed whitespace-pre-wrap",
+                    // Spec: clamp live beat so multi-reader rooms do not flood.
+                    working && "line-clamp-3",
+                  )}
                   data-testid="coworker-thought-body"
                 >
                   {bodyText}
