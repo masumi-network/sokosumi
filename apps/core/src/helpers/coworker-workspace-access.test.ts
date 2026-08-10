@@ -33,6 +33,8 @@ const userFindUnique = vi.fn();
 const userFindFirst = vi.fn();
 const organizationFindUnique = vi.fn();
 const organizationFindFirst = vi.fn();
+const chatRoomCoworkerMemberDeleteMany = vi.fn();
+const chatRoomMentionUpdateMany = vi.fn();
 const upsertWorkspaceForContextMock = vi.fn();
 const createNotificationMock = vi.fn();
 const deletePendingCoworkerAccessNotificationsMock = vi.fn();
@@ -67,6 +69,13 @@ vi.mock("@/lib/db/prisma", () => ({
     organization: {
       findUnique: (...args: unknown[]) => organizationFindUnique(...args),
       findFirst: (...args: unknown[]) => organizationFindFirst(...args),
+    },
+    chatRoomCoworkerMember: {
+      deleteMany: (...args: unknown[]) =>
+        chatRoomCoworkerMemberDeleteMany(...args),
+    },
+    chatRoomMention: {
+      updateMany: (...args: unknown[]) => chatRoomMentionUpdateMany(...args),
     },
     $queryRaw: (...args: unknown[]) => queryRawMock(...args),
   },
@@ -136,6 +145,8 @@ describe("coworker-workspace-access helpers", () => {
     requireVendorAdminMembershipMock.mockResolvedValue(undefined);
     createNotificationMock.mockResolvedValue({ created: true });
     deletePendingCoworkerAccessNotificationsMock.mockResolvedValue(0);
+    chatRoomCoworkerMemberDeleteMany.mockResolvedValue({ count: 0 });
+    chatRoomMentionUpdateMany.mockResolvedValue({ count: 0 });
   });
 
   describe("isCoworkerAccessTerminal", () => {
@@ -1039,6 +1050,88 @@ describe("coworker-workspace-access helpers", () => {
       });
     });
 
+    it("detaches org-room chat memberships after revoke", async () => {
+      accessFindFirst.mockResolvedValue(
+        baseAccess({ status: CoworkerWorkspaceAccessStatus.GRANTED }),
+      );
+      accessUpdate.mockResolvedValue(
+        baseAccess({
+          status: CoworkerWorkspaceAccessStatus.REVOKED,
+          resolvedById: "owner-1",
+        }),
+      );
+
+      await revokeCoworkerWorkspaceAccess({
+        accessId: "access-1",
+        workspaceId: "workspace-1",
+        resolvedById: "owner-1",
+      });
+
+      expect(chatRoomMentionUpdateMany).toHaveBeenCalledWith({
+        where: {
+          coworkerId: "coworker-1",
+          status: { in: ["pending", "sent"] },
+          message: {
+            room: { organizationId: "org-1" },
+          },
+        },
+        data: {
+          status: "failed",
+          error: "Coworker is no longer a member of this room",
+        },
+      });
+      expect(chatRoomCoworkerMemberDeleteMany).toHaveBeenCalledWith({
+        where: {
+          coworkerId: "coworker-1",
+          room: { organizationId: "org-1" },
+        },
+      });
+    });
+
+    it("detaches personal-room chat memberships after revoke", async () => {
+      accessFindFirst.mockResolvedValue(
+        baseAccess({
+          status: CoworkerWorkspaceAccessStatus.GRANTED,
+          workspace: {
+            id: "workspace-personal",
+            userId: "owner-1",
+            organizationId: null,
+            user: { name: "Owner", email: "owner@example.com" },
+            organization: null,
+          },
+        }),
+      );
+      accessUpdate.mockResolvedValue(
+        baseAccess({
+          status: CoworkerWorkspaceAccessStatus.REVOKED,
+          resolvedById: "owner-1",
+          workspace: {
+            id: "workspace-personal",
+            userId: "owner-1",
+            organizationId: null,
+            user: { name: "Owner", email: "owner@example.com" },
+            organization: null,
+          },
+        }),
+      );
+
+      await revokeCoworkerWorkspaceAccess({
+        accessId: "access-1",
+        workspaceId: "workspace-personal",
+        resolvedById: "owner-1",
+      });
+
+      expect(chatRoomCoworkerMemberDeleteMany).toHaveBeenCalledWith({
+        where: {
+          coworkerId: "coworker-1",
+          room: {
+            organizationId: null,
+            userMembers: { some: { userId: "owner-1" } },
+          },
+        },
+      });
+    });
+
     it("rejects revoke when not GRANTED", async () => {
       accessFindFirst.mockResolvedValue(
         baseAccess({ status: CoworkerWorkspaceAccessStatus.PENDING }),
@@ -1051,6 +1144,7 @@ describe("coworker-workspace-access helpers", () => {
           resolvedById: "owner-1",
         }),
       ).rejects.toMatchObject({ status: 400 });
+      expect(chatRoomCoworkerMemberDeleteMany).not.toHaveBeenCalled();
     });
 
     it("throws notFound when access row missing for workspace", async () => {
@@ -1273,6 +1367,25 @@ describe("coworker-workspace-access helpers", () => {
           },
         },
       });
+      expect(chatRoomCoworkerMemberDeleteMany).toHaveBeenCalledWith({
+        where: {
+          coworkerId: "coworker-1",
+          room: { organizationId: "org-1" },
+        },
+      });
+      expect(chatRoomMentionUpdateMany).toHaveBeenCalledWith({
+        where: {
+          coworkerId: "coworker-1",
+          status: { in: ["pending", "sent"] },
+          message: {
+            room: { organizationId: "org-1" },
+          },
+        },
+        data: {
+          status: "failed",
+          error: "Coworker is no longer a member of this room",
+        },
+      });
     });
 
     it("throws when access row missing", async () => {
@@ -1285,6 +1398,7 @@ describe("coworker-workspace-access helpers", () => {
           resolvedById: "admin-1",
         }),
       ).rejects.toMatchObject({ status: 404 });
+      expect(chatRoomCoworkerMemberDeleteMany).not.toHaveBeenCalled();
     });
 
     it("throws when status is not GRANTED", async () => {
@@ -1302,6 +1416,7 @@ describe("coworker-workspace-access helpers", () => {
           resolvedById: "admin-1",
         }),
       ).rejects.toMatchObject({ status: 400 });
+      expect(chatRoomCoworkerMemberDeleteMany).not.toHaveBeenCalled();
     });
   });
 });

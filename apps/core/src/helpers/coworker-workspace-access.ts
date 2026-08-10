@@ -691,6 +691,68 @@ export async function denyCoworkerWorkspaceAccess(
   );
 }
 
+/**
+ * Rooms that belong to a workspace for chat roster cleanup.
+ * Org workspace → org rooms. Personal → personal rooms where the workspace
+ * owner is a user member (personal rooms are not multi-tenant).
+ */
+function chatRoomWhereForWorkspace(workspace: {
+  userId: string | null;
+  organizationId: string | null;
+}): Prisma.ChatRoomWhereInput | null {
+  if (workspace.organizationId) {
+    return { organizationId: workspace.organizationId };
+  }
+  if (workspace.userId) {
+    return {
+      organizationId: null,
+      userMembers: { some: { userId: workspace.userId } },
+    };
+  }
+  return null;
+}
+
+/**
+ * After revoke: drop coworker chat memberships in rooms scoped to the
+ * workspace, and fail open mentions so queued dispatch cannot post.
+ * Same transaction as the status flip (callers pass `tx`).
+ */
+async function detachCoworkerChatMembershipsForWorkspace(
+  params: {
+    coworkerId: string;
+    workspace: {
+      userId: string | null;
+      organizationId: string | null;
+    };
+  },
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  const roomWhere = chatRoomWhereForWorkspace(params.workspace);
+  if (!roomWhere) {
+    return;
+  }
+
+  // Match room roster PATCH: fail pending/sent mentions before membership gone.
+  await tx.chatRoomMention.updateMany({
+    where: {
+      coworkerId: params.coworkerId,
+      status: { in: ["pending", "sent"] },
+      message: { room: roomWhere },
+    },
+    data: {
+      status: "failed",
+      error: "Coworker is no longer a member of this room",
+    },
+  });
+
+  await tx.chatRoomCoworkerMember.deleteMany({
+    where: {
+      coworkerId: params.coworkerId,
+      room: roomWhere,
+    },
+  });
+}
+
 export async function revokeCoworkerWorkspaceAccess(
   params: {
     accessId: string;
@@ -699,7 +761,7 @@ export async function revokeCoworkerWorkspaceAccess(
   },
   tx: Prisma.TransactionClient = prisma,
 ): Promise<CoworkerWorkspaceAccessWithCoworker> {
-  return transitionCoworkerWorkspaceAccess(
+  const updated = await transitionCoworkerWorkspaceAccess(
     {
       ...params,
       from: CoworkerWorkspaceAccessStatus.GRANTED,
@@ -709,6 +771,16 @@ export async function revokeCoworkerWorkspaceAccess(
     },
     tx,
   );
+
+  await detachCoworkerChatMembershipsForWorkspace(
+    {
+      coworkerId: updated.coworkerId,
+      workspace: updated.workspace,
+    },
+    tx,
+  );
+
+  return updated;
 }
 
 export async function listCoworkerAccessForWorkspace(
@@ -759,7 +831,7 @@ export async function forceRevokeCoworkerWorkspaceAccessByPair(
     throw badRequest("Only GRANTED coworker workspace access can be revoked");
   }
 
-  return tx.coworkerWorkspaceAccess.update({
+  const updated = await tx.coworkerWorkspaceAccess.update({
     where: { id: locked.id },
     data: {
       status: CoworkerWorkspaceAccessStatus.REVOKED,
@@ -768,4 +840,14 @@ export async function forceRevokeCoworkerWorkspaceAccessByPair(
     },
     include: coworkerWorkspaceAccessInclude,
   });
+
+  await detachCoworkerChatMembershipsForWorkspace(
+    {
+      coworkerId: updated.coworkerId,
+      workspace: updated.workspace,
+    },
+    tx,
+  );
+
+  return updated;
 }

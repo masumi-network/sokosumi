@@ -108,7 +108,15 @@ workspace do not leak into user B’s personal chat.
 | Vendor admin (own-vendor coworker) × workspace they **belong to** | Same create path | Immediate `GRANTED` (reopens terminal) |
 | Vendor admin (own-vendor coworker) × **foreign** workspace | Same create path | Upsert `PENDING` if not terminal; `400` if `DENIED` / `REVOKED` |
 | Workspace owner / org owner-admin | Approve / deny / revoke on their workspace | `PENDING` → `GRANTED` or `DENIED`; `GRANTED` → `REVOKED` (no force reopen) |
+| Platform / vendor admin | Force-revoke by `(coworkerId, workspace)` | `GRANTED` → `REVOKED` |
 | Anyone else | — | `403` |
+
+**Revoke roster cleanup:** successful owner/admin revoke and platform force-revoke
+also detach `ChatRoomCoworkerMember` rows for that coworker in rooms scoped to
+the workspace (org rooms by `organizationId`; personal rooms where the workspace
+owner is a user member), and fail open `pending`/`sent` mentions in those rooms.
+Dispatch / stream remain fail-closed if a membership is somehow still present.
+Same database transaction as the status flip.
 
 **Belonging to a workspace** (vendor direct grant eligibility):
 
