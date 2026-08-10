@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "../../chat-message-list-scroller";
+
 describe("RoomsClient Ably island", () => {
   it("wraps multi-room realtime bridge in local LazyAblyProvider (no single-user ChannelProvider)", () => {
     const source = readFileSync(
@@ -18,8 +20,13 @@ describe("RoomsClient Ably island", () => {
     expect(source).toContain(
       '<main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">',
     );
-    // Message list only — not global ScrollArea (keeps horizontal examples).
+    // Message list uses native overflow scroller (not Radix ScrollArea).
+    expect(CHAT_MESSAGE_LIST_SCROLLER_CLASS).toContain("overflow-y-auto");
+    expect(source).toContain("CHAT_MESSAGE_LIST_SCROLLER_CLASS");
     expect(source).toMatch(
+      /<div\s+ref=\{scrollerRef\}\s+className=\{CHAT_MESSAGE_LIST_SCROLLER_CLASS\}/,
+    );
+    expect(source).not.toMatch(
       /<ScrollArea[\s\S]*?shrinkContent[\s\S]*?className="min-h-0 min-w-0 flex-1"/,
     );
   });

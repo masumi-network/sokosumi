@@ -3,10 +3,10 @@
 import { Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
+import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -189,11 +189,7 @@ export function ThreadPanel({
             <X className="size-4" aria-hidden />
           </Button>
         </header>
-        <ScrollArea
-          ref={scrollerRef}
-          shrinkContent
-          className="min-h-0 min-w-0 flex-1"
-        >
+        <div ref={scrollerRef} className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}>
           <div
             ref={contentRef}
             className="flex min-w-0 w-full flex-col justify-end px-4 pt-4 pb-0"
@@ -287,7 +283,7 @@ export function ThreadPanel({
               </>
             )}
           </div>
-        </ScrollArea>
+        </div>
         <RoomSessionComposer
           key={draftKey}
           ref={threadComposerRef}

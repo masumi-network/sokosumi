@@ -30,8 +30,8 @@ export function useStickToBottom({
   // Last observed scroller scrollHeight so ResizeObserver can recover when a
   // growth-driven scroll event clears the sticky flag mid-frame.
   const lastScrollHeightRef = useRef(0);
-  // Pixel min-height so short transcripts can justify-end inside Radix's
-  // display:table viewport wrapper (percentage min-height does not resolve).
+  // Pixel min-height so short transcripts can justify-end in the scroller
+  // (kept after native overflow swap; was required for Radix display:table).
   const [contentMinHeight, setContentMinHeight] = useState<number>();
 
   const scrollToBottom = useCallback(() => {
