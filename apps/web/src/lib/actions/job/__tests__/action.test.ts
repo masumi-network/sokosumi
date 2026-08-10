@@ -816,7 +816,7 @@ describe("provideJobInput", () => {
 
   it("submits input through the core client and returns the job id", async () => {
     provideJobInputCoreMock.mockResolvedValue({
-      value: { id: "input-1", input: "{}", inputHash: "h", signature: "s" },
+      data: { id: "input-1", input: "{}", inputHash: "h", signature: "s" },
     });
 
     const { provideJobInput } = await import("../action");

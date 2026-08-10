@@ -50,9 +50,6 @@ export function useJobSubmission({
       setLoading(true);
 
       try {
-        let result:
-          | { ok: true; value: { jobId: string } }
-          | { ok: false; error: { code: string } };
         const uploadFiles = async (
           inputData: ReturnType<typeof prepareInputValues>,
         ) => {
@@ -72,7 +69,7 @@ export function useJobSubmission({
         const didUploadFiles = await uploadFiles(transformedInputData);
         if (!didUploadFiles) return;
 
-        result = await startJob({
+        const result = await startJob({
           input: {
             agentId: agentId,
             maxAcceptedCents,
