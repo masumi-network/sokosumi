@@ -67,6 +67,7 @@ import {
   formatRoomMarkdownMentions,
   type PendingRoomQuote,
   partitionRoomMentionSuggestions,
+  ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
 } from "./room-helpers";
 
@@ -195,7 +196,7 @@ function PendingQuotePreview({
           ) : null}
           {quote.snippet.trim() ? (
             <div className="text-muted-foreground line-clamp-4 min-w-0 flex-1 text-xs leading-5">
-              <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+              <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
                 {formatRoomMarkdownMentions({
                   content: quote.snippet,
                   coworkersById,
