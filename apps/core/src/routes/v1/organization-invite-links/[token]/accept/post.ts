@@ -7,6 +7,7 @@ import {
 import { evaluateInviteLinkStatus } from "@sokosumi/utils";
 import { APIError } from "better-auth/api";
 
+import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
@@ -127,6 +128,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userContext.userId,
           organizationId,
           MemberRole.MEMBER,
+          tx,
+        );
+        await upgradeGuestChatRoomMembershipsToMember(
+          userContext.userId,
+          organizationId,
           tx,
         );
         return "joined";

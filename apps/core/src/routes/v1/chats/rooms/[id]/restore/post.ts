@@ -10,11 +10,15 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { restoredChatRoomSchema } from "@/schemas/chat-room.schema";
+import {
+  CHAT_ROOM_ACCESS,
+  restoredChatRoomSchema,
+} from "@/schemas/chat-room.schema";
 
 import {
   canManageChatRoomLifecycle,
   mapChatRoomWithSidebarFlags,
+  membershipAccessForUser,
   requireArchivedChatRoomUserAccess,
   requireChatRoomUserAccess,
 } from "../../helpers";
@@ -71,6 +75,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (!existing.organizationId) {
         throw badRequest("Organization rooms require an organization.");
+      }
+
+      // Guests pass archived-room access but never restore.
+      if (
+        membershipAccessForUser(existing.userMembers, userContext.userId) ===
+        CHAT_ROOM_ACCESS.GUEST
+      ) {
+        throw forbidden("Guests cannot restore channels.");
       }
 
       const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`

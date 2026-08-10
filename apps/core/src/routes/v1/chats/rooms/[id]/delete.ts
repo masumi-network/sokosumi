@@ -9,9 +9,11 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
+import { CHAT_ROOM_ACCESS } from "@/schemas/chat-room.schema";
 
 import {
   canPermanentlyDeleteChatRoom,
+  membershipAccessForUser,
   requireArchivedChatRoomUserAccess,
 } from "../helpers";
 
@@ -66,6 +68,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (!existing.organizationId) {
         throw badRequest("Organization rooms require an organization.");
+      }
+
+      // Guests pass archived-room access but never permanently delete.
+      if (
+        membershipAccessForUser(existing.userMembers, userContext.userId) ===
+        CHAT_ROOM_ACCESS.GUEST
+      ) {
+        throw forbidden("Guests cannot permanently delete channels.");
       }
 
       const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`

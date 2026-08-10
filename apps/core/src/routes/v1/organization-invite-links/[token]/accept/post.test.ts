@@ -97,6 +97,10 @@ vi.mock("@/services/organization-subscription-auth.service", () => ({
     syncSeatsMock(...args),
 }));
 
+vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
+  upgradeGuestChatRoomMembershipsToMember: vi.fn().mockResolvedValue(0),
+}));
+
 const NOW = Date.now();
 
 function liveLink(overrides: Record<string, unknown> = {}) {
