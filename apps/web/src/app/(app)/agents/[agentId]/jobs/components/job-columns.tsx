@@ -1,12 +1,11 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import type { useFormatter, useTranslations } from "next-intl";
 import { useEffect } from "react";
 import {
+  createAppColumnHelper,
   DataTableColumnHeader,
-  type DataTableFeatures,
 } from "@/components/data-table";
 import { JobStatusBadge } from "@/components/jobs";
 import { MiddleTruncate } from "@/components/middle-truncate";
@@ -16,7 +15,7 @@ import type { JobSummary } from "@/lib/clients/generated/core";
 import { getJobStatusData } from "@/lib/helpers/job";
 import { getJobQueryKey } from "@/queries";
 
-const columnHelper = createColumnHelper<DataTableFeatures, JobSummary>();
+const columnHelper = createAppColumnHelper<JobSummary>();
 
 export function getJobColumns(
   userId: string,
@@ -45,7 +44,7 @@ export function getJobColumns(
       ),
       sortFn: "datetime",
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, JobSummary>,
+    }),
 
     statusColumn: columnHelper.accessor("status", {
       id: "status",
@@ -66,7 +65,7 @@ export function getJobColumns(
       },
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, JobSummary>,
+    }),
 
     nameColumn: columnHelper.accessor("name", {
       id: "name",
@@ -83,8 +82,23 @@ export function getJobColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, JobSummary>,
+    }),
   };
+}
+
+export function getJobTableColumns(
+  userId: string,
+  t: ReturnType<typeof useTranslations>,
+  dateFormatter: ReturnType<typeof useFormatter>,
+  highlightQuery?: string,
+) {
+  const { createdAtColumn, statusColumn, nameColumn } = getJobColumns(
+    userId,
+    t,
+    dateFormatter,
+    highlightQuery,
+  );
+  return columnHelper.columns([createdAtColumn, statusColumn, nameColumn]);
 }
 
 function JobNameCell({
