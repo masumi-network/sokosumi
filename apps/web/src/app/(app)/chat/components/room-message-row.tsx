@@ -3,7 +3,6 @@
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
   CheckCircle2,
-  Loader2,
   MessageCircle,
   Pencil,
   Quote,
@@ -24,6 +23,7 @@ import {
 } from "react";
 import {
   CoworkerLiveThought,
+  CoworkerLoadingState,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
@@ -1262,11 +1262,23 @@ function MessageMetaFooter({
         </button>
       ) : null}
       {!isDeleted && message.mentions.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5 pt-1.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1.5">
           {message.mentions.map((mention) => {
             const name =
               coworkersById.get(mention.coworkerId)?.name ??
               t("MentionStatus.nameFallback");
+            const label = t(`MentionStatus.${mention.status}`, { name });
+            // Channel @mentions have no client stream overlay — show Beautiful UI
+            // loading here (pending/sent) so "Noodles is thinking" is not a dead badge.
+            if (mention.status === "pending" || mention.status === "sent") {
+              return (
+                <CoworkerLoadingState
+                  key={mention.id}
+                  label={label}
+                  startedAtMs={new Date(message.createdAt).getTime()}
+                />
+              );
+            }
             return (
               <Badge
                 key={mention.id}
@@ -1276,10 +1288,8 @@ function MessageMetaFooter({
               >
                 {mention.status === "responded" ? (
                   <CheckCircle2 className="size-3" />
-                ) : mention.status === "failed" ? null : (
-                  <Loader2 className="size-3 animate-spin" />
-                )}
-                {t(`MentionStatus.${mention.status}`, { name })}
+                ) : null}
+                {label}
               </Badge>
             );
           })}

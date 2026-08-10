@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomMessage,
+} from "@/lib/clients/generated/core";
 
 import { ChatMessageRow } from "../room-message-row";
 
@@ -137,6 +140,7 @@ function renderRow({
   onCancelEdit,
   onSaveEdit,
   isSavingEdit = false,
+  coworkersById = new Map(),
 }: {
   message?: ChatRoomMessage;
   isContinuation?: boolean;
@@ -151,11 +155,12 @@ function renderRow({
   onCancelEdit?: () => void;
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
+  coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
 } = {}) {
   render(
     <ChatMessageRow
       message={message}
-      coworkersById={new Map()}
+      coworkersById={coworkersById}
       coworkersBySlug={new Map()}
       currentUserId={currentUserId}
       onToggleReaction={vi.fn()}
@@ -1548,6 +1553,40 @@ describe("ChatMessageRow", () => {
 });
 
 describe("ChatMessageRow coworker Thought", () => {
+  it("shows Beautiful UI loading on mention status while coworker is thinking", () => {
+    renderRow({
+      message: userMessage({
+        content: "@Noodles which org has the most members?",
+        createdAt: new Date("2026-08-10T12:00:00.000Z"),
+        mentions: [
+          {
+            id: "mention-1",
+            coworkerId: "cow-1",
+            status: "sent",
+            responseMessageId: null,
+          },
+        ],
+      }),
+      coworkersById: new Map([
+        [
+          "cow-1",
+          {
+            id: "cow-1",
+            name: "Noodles",
+            slug: "noodles",
+            caption: null,
+            image: null,
+            presence: "online",
+          },
+        ],
+      ]),
+    });
+
+    const loading = screen.getByTestId("coworker-loading-state");
+    expect(loading).toHaveTextContent("MentionStatus.sent");
+    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+  });
+
   it("shows Beautiful UI loading state on empty stream overlay", () => {
     renderRow({
       message: coworkerMessage({
