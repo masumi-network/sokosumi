@@ -55,7 +55,7 @@ function canCommitStream(text: string, minGoodChars: number): boolean {
 }
 
 /**
- * Progress parts that must leave the gate before answer text commits.
+ * Parts that leave the gate before answer text commits.
  *
  * Room coworker `streamText` uses AI SDK `firstChunkMs` / `chunkMs`. Those
  * timers only reset on output chunks (non-empty reasoning-delta, tool-call,
@@ -63,11 +63,20 @@ function canCommitStream(text: string, minGoodChars: number): boolean {
  * only emitting reasoning heartbeats — if the gate buffers those, Sokosumi
  * aborts as stalled even though the upstream stream is alive.
  *
- * Answer `text-*` (and finish/lifecycle) stay buffered so agent-error and
- * short-tail retries still hide bad first attempts.
+ * Also pass through stream lifecycle that must precede progress (`stream-start`,
+ * `response-metadata`) so AI SDK protocol order stays intact, and `error` so
+ * mid-stream failures are not held until a late text commit.
+ *
+ * Answer `text-*` and `finish` stay buffered so agent-error / short-tail
+ * retries still hide bad first attempts. Structural start/end parts that are
+ * not themselves keepalive chunks (e.g. reasoning-start) still pass through so
+ * block integrity is preserved when deltas stream early.
  */
-function isProgressPassThroughPart(part: LanguageModelV4StreamPart): boolean {
+function isPreCommitPassThroughPart(part: LanguageModelV4StreamPart): boolean {
   switch (part.type) {
+    case "stream-start":
+    case "response-metadata":
+    case "error":
     case "reasoning-start":
     case "reasoning-delta":
     case "reasoning-end":
@@ -119,7 +128,7 @@ export function createCommitGateStream(
 
           if (committed) {
             controller.enqueue(value);
-          } else if (isProgressPassThroughPart(value)) {
+          } else if (isPreCommitPassThroughPart(value)) {
             controller.enqueue(value);
           } else {
             buffer.push(value);

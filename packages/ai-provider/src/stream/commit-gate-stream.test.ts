@@ -8,6 +8,8 @@ import {
 import { createCommitGateStream } from "./commit-gate-stream.js";
 
 type TestPart =
+  | { type: "stream-start"; warnings: [] }
+  | { type: "response-metadata"; id: string }
   | { type: "text-delta"; delta: string }
   | { type: "reasoning-start"; id: string }
   | { type: "reasoning-delta"; id: string; delta: string }
@@ -230,34 +232,106 @@ describe("createCommitGateStream", () => {
   });
 
   it("forwards tool progress before answer text commits", async () => {
-    const onRetryNeeded = vi.fn(async () => null);
+    let sourceController!: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
+    const source = new ReadableStream<LanguageModelV4StreamPart>({
+      start(controller) {
+        sourceController = controller;
+      },
+    });
 
-    const stream = createCommitGateStream(
-      partsStream([
-        {
-          type: "tool-call",
-          toolCallId: "call_1",
-          toolName: "list_jobs",
-          input: "{}",
-        },
-        { type: "tool-input-delta", id: "call_1", delta: '{"q":' },
-        {
-          type: "text-delta",
-          delta: "This is a complete coworker reply with enough text.",
-        },
-        { type: "finish" },
-      ]),
-      { onRetryNeeded },
+    const onRetryNeeded = vi.fn(async () => null);
+    const gated = createCommitGateStream(source, { onRetryNeeded });
+    const reader = gated.getReader();
+
+    sourceController.enqueue(
+      asPart({
+        type: "tool-call",
+        toolCallId: "call_1",
+        toolName: "list_jobs",
+        input: "{}",
+      }),
+    );
+    sourceController.enqueue(
+      asPart({ type: "tool-input-delta", id: "call_1", delta: '{"q":' }),
     );
 
-    const types = await collectTypes(stream);
-    expect(types).toEqual([
-      "tool-call",
-      "tool-input-delta",
-      "text-delta",
-      "finish",
-    ]);
+    // Tool parts must leave the gate before any answer text is enqueued.
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: { type: "tool-call", toolCallId: "call_1" },
+    });
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: { type: "tool-input-delta", id: "call_1", delta: '{"q":' },
+    });
+
+    sourceController.enqueue(
+      asPart({
+        type: "text-delta",
+        delta: "This is a complete coworker reply with enough text.",
+      }),
+    );
+    sourceController.enqueue(asPart({ type: "finish" }));
+    sourceController.close();
+
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: {
+        type: "text-delta",
+        delta: "This is a complete coworker reply with enough text.",
+      },
+    });
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: { type: "finish" },
+    });
     expect(onRetryNeeded).not.toHaveBeenCalled();
+  });
+
+  it("forwards stream-start and response-metadata before progress", async () => {
+    let sourceController!: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
+    const source = new ReadableStream<LanguageModelV4StreamPart>({
+      start(controller) {
+        sourceController = controller;
+      },
+    });
+
+    const gated = createCommitGateStream(source, {
+      onRetryNeeded: async () => null,
+    });
+    const reader = gated.getReader();
+
+    sourceController.enqueue(asPart({ type: "stream-start", warnings: [] }));
+    sourceController.enqueue(
+      asPart({ type: "response-metadata", id: "resp_1" }),
+    );
+    sourceController.enqueue(asPart({ type: "reasoning-start", id: "rs_1" }));
+    sourceController.enqueue(
+      asPart({
+        type: "reasoning-delta",
+        id: "rs_1",
+        delta: "Working…",
+      }),
+    );
+
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: { type: "stream-start" },
+    });
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: { type: "response-metadata", id: "resp_1" },
+    });
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: { type: "reasoning-start", id: "rs_1" },
+    });
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: { type: "reasoning-delta", id: "rs_1", delta: "Working…" },
+    });
+
+    sourceController.close();
   });
 
   it("still retries agent-error after reasoning was already forwarded", async () => {
