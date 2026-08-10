@@ -17,14 +17,14 @@ import { getJobQueryKey } from "@/queries";
 
 const columnHelper = createAppColumnHelper<JobSummary>();
 
-export function getJobColumns(
+export function getJobTableColumns(
   userId: string,
   t: ReturnType<typeof useTranslations>,
   dateFormatter: ReturnType<typeof useFormatter>,
   highlightQuery?: string,
 ) {
-  return {
-    createdAtColumn: columnHelper.accessor("createdAt", {
+  return columnHelper.columns([
+    columnHelper.accessor("createdAt", {
       id: "createdAt",
       minSize: 80,
       header: ({ column }) => (
@@ -45,8 +45,7 @@ export function getJobColumns(
       sortFn: "datetime",
       enableHiding: false,
     }),
-
-    statusColumn: columnHelper.accessor("status", {
+    columnHelper.accessor("status", {
       id: "status",
       minSize: 160,
       header: ({ column }) => (
@@ -66,8 +65,7 @@ export function getJobColumns(
       enableSorting: true,
       enableHiding: false,
     }),
-
-    nameColumn: columnHelper.accessor("name", {
+    columnHelper.accessor("name", {
       id: "name",
       minSize: 180,
       header: ({ column }) => (
@@ -83,22 +81,7 @@ export function getJobColumns(
       enableSorting: true,
       enableHiding: false,
     }),
-  };
-}
-
-export function getJobTableColumns(
-  userId: string,
-  t: ReturnType<typeof useTranslations>,
-  dateFormatter: ReturnType<typeof useFormatter>,
-  highlightQuery?: string,
-) {
-  const { createdAtColumn, statusColumn, nameColumn } = getJobColumns(
-    userId,
-    t,
-    dateFormatter,
-    highlightQuery,
-  );
-  return columnHelper.columns([createdAtColumn, statusColumn, nameColumn]);
+  ]);
 }
 
 function JobNameCell({
