@@ -63,7 +63,7 @@ describe("useProvideJobInput", () => {
     });
     provideJobInputMock.mockResolvedValue({
       ok: true,
-      data: {
+      value: {
         jobId: "job_123",
       },
     });

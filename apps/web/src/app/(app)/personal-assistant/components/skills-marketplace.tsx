@@ -228,7 +228,7 @@ export default function SkillsMarketplace({
         const res = await searchSkillsAction({ q, limit: 24 });
         if (cancelled) return;
         if (res.ok) {
-          setResults(res.data);
+          setResults(res.value);
           setSearchError(null);
         } else {
           const message = res.error.message ?? t("emptyCatalog");
@@ -283,8 +283,8 @@ export default function SkillsMarketplace({
         toast.error(res.error.message ?? t("addFailed"));
         return;
       }
-      markInstalled(item, res.data.status);
-      if (res.data.status === "installing") {
+      markInstalled(item, res.value.status);
+      if (res.value.status === "installing") {
         toast(t("pendingToast", { name: item.name }));
       } else {
         toast.success(t("addedToast", { name: item.name }));
@@ -311,7 +311,7 @@ export default function SkillsMarketplace({
         toast.error(res.error.message ?? t("addFailed"));
         return;
       }
-      const { auditRisk, audits } = res.data;
+      const { auditRisk, audits } = res.value;
       const hasFail = audits.some((a) => a.status === "fail");
       if (auditRisk === "HIGH" || auditRisk === "CRITICAL" || hasFail) {
         toast.error(t("blockedHelp"));

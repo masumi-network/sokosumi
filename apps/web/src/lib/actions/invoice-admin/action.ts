@@ -1,7 +1,12 @@
 "use server";
 
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
@@ -16,7 +21,6 @@ import {
   InvoiceValidationError,
   invoiceAdminService,
 } from "@/lib/services/invoice-admin.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -67,7 +71,7 @@ interface CreateAdminInvoiceParameters extends AuthenticatedRequest {
 
 export const createAdminInvoiceAction = withSession<
   CreateAdminInvoiceParameters,
-  Result<InvoiceSummary, ActionError>
+  ActionResultDto<InvoiceSummary, ActionError>
 >(async ({ session, targetType, targetId, credits, ttlDays, priceId }) => {
   try {
     assertAdminSession(session);
@@ -78,9 +82,9 @@ export const createAdminInvoiceAction = withSession<
       priceId,
     });
     revalidatePath("/admin/invoices");
-    return Ok(summary);
+    return toActionResult(ok(summary));
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });
 
@@ -91,7 +95,7 @@ interface ListAdminInvoicesParameters extends AuthenticatedRequest {
 
 export const listAdminInvoicesAction = withSession<
   ListAdminInvoicesParameters,
-  Result<InvoiceListItem[], ActionError>
+  ActionResultDto<InvoiceListItem[], ActionError>
 >(async ({ session, status, recipient }) => {
   try {
     assertAdminSession(session);
@@ -99,9 +103,9 @@ export const listAdminInvoicesAction = withSession<
       status,
       recipient,
     });
-    return Ok(invoices);
+    return toActionResult(ok(invoices));
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });
 
@@ -111,20 +115,22 @@ interface GetAdminInvoiceParameters extends AuthenticatedRequest {
 
 export const getAdminInvoiceAction = withSession<
   GetAdminInvoiceParameters,
-  Result<InvoiceSummary, ActionError>
+  ActionResultDto<InvoiceSummary, ActionError>
 >(async ({ session, invoiceId }) => {
   try {
     assertAdminSession(session);
     const summary = await invoiceAdminService.getInvoice(invoiceId);
     if (!summary) {
-      return Err({
-        code: CommonErrorCode.NOT_FOUND,
-        message: "Admin invoice not found",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.NOT_FOUND,
+          message: "Admin invoice not found",
+        }),
+      );
     }
-    return Ok(summary);
+    return toActionResult(ok(summary));
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });
 
@@ -134,15 +140,15 @@ interface MarkAdminInvoicePaidParameters extends AuthenticatedRequest {
 
 export const markAdminInvoicePaidAction = withSession<
   MarkAdminInvoicePaidParameters,
-  Result<InvoiceSummary, ActionError>
+  ActionResultDto<InvoiceSummary, ActionError>
 >(async ({ session, invoiceId }) => {
   try {
     assertAdminSession(session);
     const summary = await invoiceAdminService.markInvoicePaid(invoiceId);
     revalidatePath("/admin/invoices");
-    return Ok(summary);
+    return toActionResult(ok(summary));
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });
 
@@ -152,15 +158,15 @@ interface DeleteAdminInvoiceParameters extends AuthenticatedRequest {
 
 export const deleteAdminInvoiceAction = withSession<
   DeleteAdminInvoiceParameters,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async ({ session, invoiceId }) => {
   try {
     assertAdminSession(session);
     await invoiceAdminService.deleteInvoice(invoiceId);
     revalidatePath("/admin/invoices");
-    return Ok(undefined);
+    return toActionResult(ok(undefined));
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });
 
@@ -172,15 +178,15 @@ interface GetAdminRecipientBillingDetailsParameters
 
 export const getAdminRecipientBillingDetailsAction = withSession<
   GetAdminRecipientBillingDetailsParameters,
-  Result<StripeCustomerBillingDetails, ActionError>
+  ActionResultDto<StripeCustomerBillingDetails, ActionError>
 >(async ({ session, targetType, targetId }) => {
   try {
     assertAdminSession(session);
     const billingDetails = await invoiceAdminService.getRecipientBillingDetails(
       { targetType, targetId },
     );
-    return Ok(billingDetails);
+    return toActionResult(ok(billingDetails));
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });

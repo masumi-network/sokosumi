@@ -45,7 +45,7 @@ export function OnboardingSubscriptionReturnHandler() {
           return;
         }
 
-        router.replace(result.data.redirectUrl ?? "/tasks");
+        router.replace(result.value.redirectUrl ?? "/tasks");
       } catch {
         hasHandledRef.current = false;
         toast.error(tErrors("unexpectedError"));

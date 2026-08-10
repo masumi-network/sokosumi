@@ -74,7 +74,7 @@ describe("credits actions", () => {
     });
     expect(result).toEqual({
       ok: true,
-      data: { url: "https://checkout.stripe.com/session/tiered" },
+      value: { url: "https://checkout.stripe.com/session/tiered" },
     });
   });
 
@@ -99,7 +99,7 @@ describe("credits actions", () => {
     });
     expect(result).toEqual({
       ok: true,
-      data: { url: "https://checkout.stripe.com/session/tiered" },
+      value: { url: "https://checkout.stripe.com/session/tiered" },
     });
   });
 
@@ -142,7 +142,7 @@ describe("credits actions", () => {
     });
     expect(result).toEqual({
       ok: true,
-      data: { url: "https://checkout.stripe.com/session/coupon" },
+      value: { url: "https://checkout.stripe.com/session/coupon" },
     });
   });
 

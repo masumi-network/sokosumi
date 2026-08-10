@@ -1,11 +1,14 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import * as z from "zod";
-
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { vendorGrantService } from "@/lib/services/vendor-grant.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -33,11 +36,11 @@ interface CreateVendorGrantParameters extends AuthenticatedRequest {
 
 export const approveOrganizationVendorGrant = withSession<
   VendorGrantMutationParameters,
-  Result<{ grantId: string }, ActionError>
+  ActionResultDto<{ grantId: string }, ActionError>
 >(async ({ organizationId, grantId }) => {
   const parsed = vendorGrantActionSchema.safeParse({ organizationId, grantId });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
@@ -45,20 +48,20 @@ export const approveOrganizationVendorGrant = withSession<
       parsed.data.organizationId,
       parsed.data.grantId,
     );
-    return Ok({ grantId: grant.id });
+    return toActionResult(ok({ grantId: grant.id }));
   } catch (error) {
     console.error("Failed to approve vendor grant", error);
-    return Err(toCoreApiActionError(error));
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
 export const denyOrganizationVendorGrant = withSession<
   VendorGrantMutationParameters,
-  Result<{ grantId: string }, ActionError>
+  ActionResultDto<{ grantId: string }, ActionError>
 >(async ({ organizationId, grantId }) => {
   const parsed = vendorGrantActionSchema.safeParse({ organizationId, grantId });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
@@ -66,20 +69,20 @@ export const denyOrganizationVendorGrant = withSession<
       parsed.data.organizationId,
       parsed.data.grantId,
     );
-    return Ok({ grantId: grant.id });
+    return toActionResult(ok({ grantId: grant.id }));
   } catch (error) {
     console.error("Failed to deny vendor grant", error);
-    return Err(toCoreApiActionError(error));
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
 export const revokeOrganizationVendorGrant = withSession<
   VendorGrantMutationParameters,
-  Result<{ grantId: string }, ActionError>
+  ActionResultDto<{ grantId: string }, ActionError>
 >(async ({ organizationId, grantId }) => {
   const parsed = vendorGrantActionSchema.safeParse({ organizationId, grantId });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
@@ -87,23 +90,23 @@ export const revokeOrganizationVendorGrant = withSession<
       parsed.data.organizationId,
       parsed.data.grantId,
     );
-    return Ok({ grantId: grant.id });
+    return toActionResult(ok({ grantId: grant.id }));
   } catch (error) {
     console.error("Failed to revoke vendor grant", error);
-    return Err(toCoreApiActionError(error));
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
 export const createOrganizationVendorGrant = withSession<
   CreateVendorGrantParameters,
-  Result<{ grantId: string }, ActionError>
+  ActionResultDto<{ grantId: string }, ActionError>
 >(async ({ organizationId, vendorId }) => {
   const parsed = createVendorGrantActionSchema.safeParse({
     organizationId,
     vendorId,
   });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
@@ -111,9 +114,9 @@ export const createOrganizationVendorGrant = withSession<
       parsed.data.organizationId,
       parsed.data.vendorId,
     );
-    return Ok({ grantId: grant.id });
+    return toActionResult(ok({ grantId: grant.id }));
   } catch (error) {
     console.error("Failed to create vendor grant", error);
-    return Err(toCoreApiActionError(error));
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });

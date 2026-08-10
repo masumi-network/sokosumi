@@ -270,7 +270,7 @@ export function VendorForm(props: VendorFormProps) {
           return;
         }
 
-        const vendorId = result.data.id;
+        const vendorId = result.value.id;
         let lightUrl = logosForCreate.light;
         let darkUrl = logosForCreate.dark;
 
@@ -309,8 +309,8 @@ export function VendorForm(props: VendorFormProps) {
                 name: values.name,
                 logos: { light: lightUrl, dark: darkUrl },
                 current: {
-                  name: result.data.name,
-                  logos: result.data.logos,
+                  name: result.value.name,
+                  logos: result.value.logos,
                 },
               },
             });
@@ -366,17 +366,17 @@ export function VendorForm(props: VendorFormProps) {
         void cleanupVendorLogoBestEffort(baseline.id, previous.dark);
       }
       logosAtOpenRef.current = {
-        light: result.data.logos.light,
-        dark: result.data.logos.dark,
+        light: result.value.logos.light,
+        dark: result.value.logos.dark,
       };
 
-      setBaseline(result.data);
+      setBaseline(result.value);
       form.reset({
-        name: result.data.name,
-        slug: result.data.slug,
+        name: result.value.name,
+        slug: result.value.slug,
         logos: {
-          light: result.data.logos.light,
-          dark: result.data.logos.dark,
+          light: result.value.logos.light,
+          dark: result.value.logos.dark,
         },
       });
       toast.success(t("saveSuccess"));

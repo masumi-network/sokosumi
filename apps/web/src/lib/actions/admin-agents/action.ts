@@ -1,6 +1,11 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { updateTag } from "next/cache";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import {
@@ -15,7 +20,6 @@ import {
   adminAgentService,
   type ListAdminAgentsParams,
 } from "@/lib/services/admin-agent.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -42,22 +46,24 @@ interface ListAdminAgentsRequest
 
 export const listAdminAgentsAction = withSession<
   ListAdminAgentsRequest,
-  Result<AdminAgentListPage, ActionError>
+  ActionResultDto<AdminAgentListPage, ActionError>
 >(async ({ session, q, cursor, limit, status, sortBy, sortOrder }) => {
   try {
     assertAdminSession(session);
-    return Ok(
-      await adminAgentService.listAgents({
-        q,
-        cursor,
-        limit,
-        status,
-        sortBy,
-        sortOrder,
-      }),
+    return toActionResult(
+      ok(
+        await adminAgentService.listAgents({
+          q,
+          cursor,
+          limit,
+          status,
+          sortBy,
+          sortOrder,
+        }),
+      ),
     );
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });
 
@@ -68,7 +74,7 @@ interface PatchAdminAgentMetadataOverrideRequest extends AuthenticatedRequest {
 
 export const patchAdminAgentMetadataOverrideAction = withSession<
   PatchAdminAgentMetadataOverrideRequest,
-  Result<
+  ActionResultDto<
     Awaited<ReturnType<typeof adminAgentService.patchMetadataOverride>>,
     ActionError
   >
@@ -78,9 +84,9 @@ export const patchAdminAgentMetadataOverrideAction = withSession<
     const detail = await adminAgentService.patchMetadataOverride(agentId, body);
     updateTag(AGENTS_CACHE_TAG);
     updateTag(CATEGORIES_CACHE_TAG);
-    return Ok(detail);
+    return toActionResult(ok(detail));
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });
 
@@ -90,7 +96,7 @@ interface DeleteAdminAgentMetadataOverrideRequest extends AuthenticatedRequest {
 
 export const deleteAdminAgentMetadataOverrideAction = withSession<
   DeleteAdminAgentMetadataOverrideRequest,
-  Result<
+  ActionResultDto<
     Awaited<ReturnType<typeof adminAgentService.deleteMetadataOverride>>,
     ActionError
   >
@@ -100,8 +106,8 @@ export const deleteAdminAgentMetadataOverrideAction = withSession<
     const detail = await adminAgentService.deleteMetadataOverride(agentId);
     updateTag(AGENTS_CACHE_TAG);
     updateTag(CATEGORIES_CACHE_TAG);
-    return Ok(detail);
+    return toActionResult(ok(detail));
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });

@@ -157,7 +157,7 @@ describe("startJob", () => {
     );
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         jobId: "job-1",
       },
     });
@@ -194,7 +194,7 @@ describe("startJob", () => {
     expect(createAgentJobMock.mock.calls[0][1]).not.toHaveProperty("name");
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         jobId: "job-project",
       },
     });
@@ -425,7 +425,7 @@ describe("startJob", () => {
     expect(createAgentJobMock).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         jobId: "job-addon-credits",
       },
     });
@@ -471,7 +471,7 @@ describe("startJob", () => {
     expect(createAgentJobMock).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         jobId: "job-summed-credits",
       },
     });
@@ -583,7 +583,7 @@ describe("updateJobName", () => {
     expect(patchJobMock).toHaveBeenCalledWith("job-1", {
       name: "Renamed Job",
     });
-    expect(result).toEqual({ ok: true, data: undefined });
+    expect(result).toEqual({ ok: true, value: undefined });
   });
 
   it("normalizes an empty name to null before calling core", async () => {
@@ -710,7 +710,7 @@ describe("requestRefundJob", () => {
     expect(requestJobRefundMock).toHaveBeenCalledWith("job-1");
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         job: {
           id: "job-1",
           jobType: "PAID",
@@ -832,7 +832,7 @@ describe("provideJobInput", () => {
       eventId: "event-1",
       inputData: { answer: "8" },
     });
-    expect(result).toEqual({ ok: true, data: { jobId: "job-1" } });
+    expect(result).toEqual({ ok: true, value: { jobId: "job-1" } });
   });
 
   it("returns BAD_INPUT and skips core for input it cannot narrow", async () => {

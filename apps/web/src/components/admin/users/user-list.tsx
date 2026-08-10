@@ -74,10 +74,10 @@ export function UserList({ initialPage }: UserListProps) {
         return;
       }
       setUsers((current) =>
-        cursor ? [...current, ...result.data.users] : result.data.users,
+        cursor ? [...current, ...result.value.users] : result.value.users,
       );
-      setTotal(result.data.total);
-      setNextCursor(result.data.nextCursor);
+      setTotal(result.value.total);
+      setNextCursor(result.value.nextCursor);
     });
   }
 

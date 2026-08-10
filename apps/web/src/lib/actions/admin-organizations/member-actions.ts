@@ -1,12 +1,16 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import * as z from "zod";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -60,11 +64,11 @@ interface AddAdminOrganizationMemberRequest extends AuthenticatedRequest {
 
 export const addAdminOrganizationMemberAction = withSession<
   AddAdminOrganizationMemberRequest,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async ({ session, slug, userId, role }) => {
   const parsed = addMemberSchema.safeParse({ slug, userId, role });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
@@ -73,9 +77,11 @@ export const addAdminOrganizationMemberAction = withSession<
       userId: parsed.data.userId,
       role: parsed.data.role,
     });
-    return Ok(undefined);
+    return toActionResult(ok(undefined));
   } catch (error) {
-    return Err(mapMemberActionError(error, "Failed to add member"));
+    return toActionResult(
+      err(mapMemberActionError(error, "Failed to add member")),
+    );
   }
 });
 
@@ -86,11 +92,11 @@ interface AdminOrganizationMemberRequest extends AuthenticatedRequest {
 
 export const removeAdminOrganizationMemberAction = withSession<
   AdminOrganizationMemberRequest,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async ({ session, slug, memberId }) => {
   const parsed = memberMutationSchema.safeParse({ slug, memberId });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
@@ -99,9 +105,11 @@ export const removeAdminOrganizationMemberAction = withSession<
       parsed.data.slug,
       parsed.data.memberId,
     );
-    return Ok(undefined);
+    return toActionResult(ok(undefined));
   } catch (error) {
-    return Err(mapMemberActionError(error, "Failed to remove member"));
+    return toActionResult(
+      err(mapMemberActionError(error, "Failed to remove member")),
+    );
   }
 });
 
@@ -112,11 +120,11 @@ interface UpdateAdminOrganizationMemberRoleRequest
 
 export const updateAdminOrganizationMemberRoleAction = withSession<
   UpdateAdminOrganizationMemberRoleRequest,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async ({ session, slug, memberId, role }) => {
   const parsed = updateRoleSchema.safeParse({ slug, memberId, role });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
@@ -126,19 +134,21 @@ export const updateAdminOrganizationMemberRoleAction = withSession<
       parsed.data.memberId,
       { role: parsed.data.role },
     );
-    return Ok(undefined);
+    return toActionResult(ok(undefined));
   } catch (error) {
-    return Err(mapMemberActionError(error, "Failed to update member role"));
+    return toActionResult(
+      err(mapMemberActionError(error, "Failed to update member role")),
+    );
   }
 });
 
 export const assignAdminOrganizationMemberSeatAction = withSession<
   AdminOrganizationMemberRequest,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async ({ session, slug, memberId }) => {
   const parsed = memberMutationSchema.safeParse({ slug, memberId });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
@@ -147,19 +157,21 @@ export const assignAdminOrganizationMemberSeatAction = withSession<
       parsed.data.slug,
       parsed.data.memberId,
     );
-    return Ok(undefined);
+    return toActionResult(ok(undefined));
   } catch (error) {
-    return Err(mapMemberActionError(error, "Failed to assign seat"));
+    return toActionResult(
+      err(mapMemberActionError(error, "Failed to assign seat")),
+    );
   }
 });
 
 export const unassignAdminOrganizationMemberSeatAction = withSession<
   AdminOrganizationMemberRequest,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async ({ session, slug, memberId }) => {
   const parsed = memberMutationSchema.safeParse({ slug, memberId });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
@@ -168,8 +180,10 @@ export const unassignAdminOrganizationMemberSeatAction = withSession<
       parsed.data.slug,
       parsed.data.memberId,
     );
-    return Ok(undefined);
+    return toActionResult(ok(undefined));
   } catch (error) {
-    return Err(mapMemberActionError(error, "Failed to unassign seat"));
+    return toActionResult(
+      err(mapMemberActionError(error, "Failed to unassign seat")),
+    );
   }
 });

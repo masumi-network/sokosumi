@@ -176,9 +176,9 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
         toast.error(result.error.message ?? t("saveError"));
         return;
       }
-      setForm(toFormState(result.data));
-      setResolved(result.data.resolved);
-      setHasOverride(result.data.override !== null);
+      setForm(toFormState(result.value));
+      setResolved(result.value.resolved);
+      setHasOverride(result.value.override !== null);
       toast.success(t("saveSuccess"));
       router.refresh();
     });
@@ -191,9 +191,9 @@ export function AgentMetadataForm({ agentId, detail }: AgentMetadataFormProps) {
         toast.error(result.error.message ?? t("clearError"));
         return;
       }
-      setForm(toFormState(result.data));
+      setForm(toFormState(result.value));
       setHasOverride(false);
-      setResolved(result.data.resolved);
+      setResolved(result.value.resolved);
       toast.success(t("clearSuccess"));
       router.refresh();
     });

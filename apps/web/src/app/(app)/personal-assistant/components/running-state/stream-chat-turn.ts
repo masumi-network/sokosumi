@@ -339,7 +339,7 @@ export async function streamChatTurn({
     try {
       const result = await listHermesMessagesAction({});
       if (result.ok) {
-        const next = persistedToMessages(result.data);
+        const next = persistedToMessages(result.value);
         setMessages((prev) => {
           const base =
             abortedPartialId !== null

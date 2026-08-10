@@ -34,7 +34,7 @@ export function InvoiceDetail({ invoice: initialInvoice }: InvoiceDetailProps) {
         toast.error(result.error.message ?? t("Result.paidError"));
         return;
       }
-      setInvoice(result.data);
+      setInvoice(result.value);
       toast.success(t("Result.paidSuccess"));
     } finally {
       setIsMarkingPaid(false);

@@ -180,7 +180,7 @@ export function useComposioOAuth() {
         };
       }
 
-      const { redirectUrl, connectionId } = initiate.data;
+      const { redirectUrl, connectionId } = initiate.value;
       try {
         popup.location.href = redirectUrl;
       } catch {
@@ -284,9 +284,9 @@ export function useComposioOAuth() {
           addOAuthBreadcrumb("recovery finalize succeeded", {
             provider,
             mode,
-            integrationProvider: recovery.data.provider,
+            integrationProvider: recovery.value.provider,
           });
-          return { ok: true, integration: recovery.data };
+          return { ok: true, integration: recovery.value };
         }
         captureOAuthFailure("popup_closed", {
           provider,
@@ -337,9 +337,9 @@ export function useComposioOAuth() {
       addOAuthBreadcrumb("finalize succeeded", {
         provider,
         mode,
-        integrationProvider: finalize.data.provider,
+        integrationProvider: finalize.value.provider,
       });
-      return { ok: true, integration: finalize.data };
+      return { ok: true, integration: finalize.value };
     },
     [cleanup],
   );

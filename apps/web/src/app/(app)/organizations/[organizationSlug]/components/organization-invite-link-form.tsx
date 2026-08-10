@@ -115,7 +115,7 @@ export function OrganizationInviteLinkForm({
       }
 
       toast.success(t("success"));
-      await handleCopyCreatedLink(result.data.url);
+      await handleCopyCreatedLink(result.value.url);
       router.refresh();
     } catch {
       toast.error(t("error"));

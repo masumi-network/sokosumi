@@ -87,7 +87,10 @@ describe("NotificationItem vendor-grant Accept", () => {
     approveMyVendorGrantMock.mockReset();
     approveOrganizationVendorGrantMock.mockReset();
     removeNotificationMock.mockReset();
-    approveMyVendorGrantMock.mockResolvedValue({ ok: true, data: {} });
+    approveMyVendorGrantMock.mockResolvedValue({
+      ok: true,
+      value: { grantId: "grant-1" },
+    });
   });
 
   it("does not fire row navigation onClick when Accept is clicked", async () => {

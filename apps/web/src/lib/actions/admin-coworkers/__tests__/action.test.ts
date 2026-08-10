@@ -234,7 +234,7 @@ describe("admin coworker actions", () => {
       "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       { organizationId: "org_123" },
     );
-    expect(result.data).toEqual({
+    expect(result.value).toEqual({
       accessId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
       status: "GRANTED",
     });

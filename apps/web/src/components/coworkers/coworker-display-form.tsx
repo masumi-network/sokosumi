@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
@@ -34,7 +35,6 @@ import type {
   CoworkerImageIntent,
   UpdateCoworkerDisplayResult,
 } from "@/lib/services/coworker-display.service";
-import type { Result } from "@/lib/ts-res";
 
 import {
   buildCoworkerDisplayPatchBody,
@@ -51,7 +51,7 @@ export type UpdateCoworkerDisplayAction = (input: {
   };
   imageIntent?: CoworkerImageIntent;
   imageFile?: File;
-}) => Promise<Result<UpdateCoworkerDisplayResult, ActionError>>;
+}) => Promise<ActionResultDto<UpdateCoworkerDisplayResult, ActionError>>;
 
 interface CoworkerDisplayFormProps {
   coworker: Coworker;
@@ -109,7 +109,7 @@ export function CoworkerDisplayForm({
     setImageValue(toImageDisplayValue(saved.image));
   }
 
-  function handleActionError(result: Result<unknown, ActionError>) {
+  function handleActionError(result: ActionResultDto<unknown, ActionError>) {
     if (result.ok) {
       return false;
     }
@@ -154,8 +154,8 @@ export function CoworkerDisplayForm({
           return;
         }
 
-        applySavedCoworker(result.data.coworker);
-        if (result.data.imageError) {
+        applySavedCoworker(result.value.coworker);
+        if (result.value.imageError) {
           toast.error(t("errors.imageSaveFailed"));
         } else {
           toast.success(t("success.imageSaved"));
@@ -188,8 +188,8 @@ export function CoworkerDisplayForm({
           return;
         }
 
-        applySavedCoworker(result.data.coworker);
-        if (result.data.imageError) {
+        applySavedCoworker(result.value.coworker);
+        if (result.value.imageError) {
           toast.error(t("errors.imageSaveFailed"));
         } else {
           toast.success(t("success.imageRemoved"));
@@ -253,8 +253,8 @@ export function CoworkerDisplayForm({
           return;
         }
 
-        applySavedCoworker(result.data.coworker);
-        if (result.data.imageError) {
+        applySavedCoworker(result.value.coworker);
+        if (result.value.imageError) {
           toast.success(t("success.saved"));
           toast.error(t("errors.imageSaveFailed"));
         } else {

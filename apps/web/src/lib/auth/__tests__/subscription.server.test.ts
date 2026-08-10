@@ -54,7 +54,7 @@ describe("subscription.server", () => {
     });
 
     expect(result).toEqual({
-      data: {
+      value: {
         mode: "redirect",
         url: "https://checkout.stripe.com/session/test",
       },
@@ -177,7 +177,7 @@ describe("subscription.server", () => {
     });
 
     expect(result).toEqual({
-      data: { url: "https://billing.stripe.com/session/test" },
+      value: { url: "https://billing.stripe.com/session/test" },
       ok: true,
     });
     expect(subscriptionBillingPortalMock).toHaveBeenCalledWith({
@@ -208,7 +208,7 @@ describe("subscription.server", () => {
     });
 
     expect(result).toEqual({
-      data: {
+      value: {
         mode: "redirect",
         url: "https://checkout.stripe.com/session/org-test",
       },
@@ -247,7 +247,7 @@ describe("subscription.server", () => {
     });
 
     expect(result).toEqual({
-      data: { url: "https://billing.stripe.com/session/org-test" },
+      value: { url: "https://billing.stripe.com/session/org-test" },
       ok: true,
     });
     expect(subscriptionBillingPortalMock).toHaveBeenCalledWith({

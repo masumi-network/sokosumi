@@ -14,13 +14,13 @@ import {
   denyMyCoworkerAccess,
   revokeMyCoworkerAccess,
 } from "@/lib/actions/account/coworker-access-action";
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors";
 import {
   approveOrganizationCoworkerAccess,
   denyOrganizationCoworkerAccess,
   revokeOrganizationCoworkerAccess,
 } from "@/lib/actions/organization";
-import type { Result } from "@/lib/ts-res";
 import {
   type CoworkerAccessEntry,
   coworkerAccessStatusMessageKey,
@@ -147,7 +147,7 @@ function CoworkerAccessCardActions({
 
   async function approveAccess(
     accessId: string,
-  ): Promise<Result<{ accessId: string }, ActionError>> {
+  ): Promise<ActionResultDto<{ accessId: string }, ActionError>> {
     if (mode === "organization") {
       const id = requireOrganizationId();
       if (!id) {
@@ -163,7 +163,7 @@ function CoworkerAccessCardActions({
 
   async function denyAccess(
     accessId: string,
-  ): Promise<Result<{ accessId: string }, ActionError>> {
+  ): Promise<ActionResultDto<{ accessId: string }, ActionError>> {
     if (mode === "organization") {
       const id = requireOrganizationId();
       if (!id) {
@@ -179,7 +179,7 @@ function CoworkerAccessCardActions({
 
   async function revokeAccess(
     accessId: string,
-  ): Promise<Result<{ accessId: string }, ActionError>> {
+  ): Promise<ActionResultDto<{ accessId: string }, ActionError>> {
     if (mode === "organization") {
       const id = requireOrganizationId();
       if (!id) {
@@ -195,7 +195,7 @@ function CoworkerAccessCardActions({
 
   async function runAction(
     action: CoworkerAccessCardAction,
-    step: () => Promise<Result<unknown, ActionError>>,
+    step: () => Promise<ActionResultDto<unknown, ActionError>>,
     successKey: "approveSuccess" | "denySuccess" | "revokeSuccess",
     errorKey: "approveError" | "denyError" | "revokeError",
   ) {

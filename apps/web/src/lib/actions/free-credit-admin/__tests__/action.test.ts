@@ -83,7 +83,7 @@ describe("grantFreeCreditsAction", () => {
     if (!result.ok) {
       throw new Error("Expected success result");
     }
-    expect(result.data).toEqual(GRANT);
+    expect(result.value).toEqual(GRANT);
     expect(grantFreeCreditsMock).toHaveBeenCalledWith({
       target: { targetType: "user", targetId: "user_1" },
       credits: 500,

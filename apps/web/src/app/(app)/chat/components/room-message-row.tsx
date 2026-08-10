@@ -80,6 +80,8 @@ import {
   formatMessageTime,
   formatRoomMarkdownMentions,
   messageSender,
+  ROOM_MESSAGE_MARKDOWN_CLASSNAME,
+  ROOM_QUOTE_MARKDOWN_CLASSNAME,
   scrollToRoomMessageElement,
 } from "./room-helpers";
 
@@ -267,7 +269,7 @@ function MessageQuoteBlock({
               expanded ? null : "line-clamp-4",
             )}
           >
-            <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+            <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
               {formatRoomMarkdownMentions({
                 content: quote.snippet,
                 coworkersById,
@@ -393,7 +395,7 @@ function ChannelMarkdownSegment({
   }
 
   return (
-    <Markdown className="text-base! md:text-sm! prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
+    <Markdown className={ROOM_MESSAGE_MARKDOWN_CLASSNAME}>
       {formatRoomMarkdownMentions({
         content,
         coworkersById,
@@ -940,9 +942,17 @@ function TouchMessageActionsSheet({
   showDeleteButton: boolean;
 }) {
   const t = useTranslations("App.Channels");
+  const [portalHost, setPortalHost] = useState<HTMLDivElement | null>(null);
   const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
     onOpenChange(false);
   });
+  const setSheetContentRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      contentRef.current = node;
+      setPortalHost(node);
+    },
+    [contentRef],
+  );
   const whoReactedRows = message.reactions.flatMap((reaction) => {
     const whoReactedLabel = formatWhoReactedLabel(reaction, t);
     if (!whoReactedLabel) {
@@ -959,7 +969,7 @@ function TouchMessageActionsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        ref={contentRef}
+        ref={setSheetContentRef}
         side="bottom"
         showCloseButton={false}
         className="gap-0 rounded-t-2xl touch-none pb-[max(1rem,env(safe-area-inset-bottom))]"
@@ -1003,6 +1013,7 @@ function TouchMessageActionsSheet({
             ariaLabel={t("Reactions.add")}
             align="center"
             triggerClassName="size-11 rounded-full"
+            portalContainer={portalHost}
             onPick={(emoji) => {
               runAndClose(() => {
                 onToggleReaction(message, emoji);

@@ -166,7 +166,7 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
         return;
       }
 
-      applySavedCoworker(result.data.coworker);
+      applySavedCoworker(result.value.coworker);
       toast.success(t("success.whitelistSaved"));
       router.refresh();
     } finally {
@@ -192,7 +192,7 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
         return;
       }
 
-      applySavedCoworker(result.data.coworker);
+      applySavedCoworker(result.value.coworker);
       toast.success(t("success.archived"));
       router.refresh();
     } finally {
@@ -218,7 +218,7 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
         return;
       }
 
-      applySavedCoworker(result.data.coworker);
+      applySavedCoworker(result.value.coworker);
       toast.success(t("success.unarchived"));
       router.refresh();
     } finally {
@@ -265,7 +265,7 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
         return;
       }
 
-      applySavedCoworker(result.data.coworker);
+      applySavedCoworker(result.value.coworker);
       toast.success(t("success.controlsSaved"));
       router.refresh();
     } finally {

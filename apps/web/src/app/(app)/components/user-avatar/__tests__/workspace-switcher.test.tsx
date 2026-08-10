@@ -69,7 +69,7 @@ describe("workspace switcher", () => {
       });
       vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
         ok: true,
-        data: {
+        value: {
           organizationId: "org-7",
         },
       });
@@ -91,7 +91,7 @@ describe("workspace switcher", () => {
       });
       vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
         ok: true,
-        data: {
+        value: {
           organizationId: null,
         },
       });
@@ -172,7 +172,7 @@ describe("workspace switcher", () => {
     });
     vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
-      data: {
+      value: {
         organizationId: "org-1",
       },
     });
@@ -202,7 +202,7 @@ describe("workspace switcher", () => {
     });
     vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
-      data: {
+      value: {
         organizationId: "org-1",
       },
     });
@@ -232,7 +232,7 @@ describe("workspace switcher", () => {
     });
     vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
-      data: {
+      value: {
         organizationId: "org-1",
       },
     });
@@ -261,7 +261,7 @@ describe("workspace switcher", () => {
     });
     vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
-      data: {
+      value: {
         organizationId: "org-1",
       },
     });
@@ -312,7 +312,7 @@ describe("workspace switcher", () => {
     });
     vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
-      data: {
+      value: {
         organizationId: "org-1",
       },
     });
@@ -364,7 +364,7 @@ describe("workspace switcher", () => {
     );
     vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
-      data: {
+      value: {
         organizationId: "org-1",
       },
     });

@@ -48,9 +48,9 @@ export function DeveloperTaskList({ initialPage }: DeveloperTaskListProps) {
         return;
       }
 
-      setTasks((current) => [...current, ...result.data.tasks]);
-      setTotal(result.data.total);
-      setNextCursor(result.data.nextCursor);
+      setTasks((current) => [...current, ...result.value.tasks]);
+      setTotal(result.value.total);
+      setNextCursor(result.value.nextCursor);
     });
   }
 
