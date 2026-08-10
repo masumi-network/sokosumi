@@ -7,18 +7,15 @@ import { useEffect, useRef } from "react";
 
 import {
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+  type ChatMembershipRevokedEvent,
   chatMembershipRevokedEventSchema,
 } from "./chat-membership-revoked-event";
 
-export interface ChatMembershipRevokedPayload {
-  roomId: string;
-  reason: "removed" | "left";
-  at: string;
-}
+export type { ChatMembershipRevokedEvent };
 
 interface UseChatMembershipRevokedControlOptions {
   currentUserId: string;
-  onRevoked: (event: ChatMembershipRevokedPayload) => void;
+  onRevoked: (event: ChatMembershipRevokedEvent) => void;
 }
 
 /**

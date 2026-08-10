@@ -436,6 +436,50 @@ describe("useChatRoomRealtime", () => {
     });
   });
 
+  it("does not re-attach a revoked room when capability falls back to props", async () => {
+    authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
+
+    renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a", "room-b"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-b").subscribe).toHaveBeenCalled();
+      expect(controlSubscribeHandler()).toBeTypeOf("function");
+    });
+
+    // Post-revoke authorize returns unparseable capability so sync would
+    // otherwise fall back to stale prop roomIds including room-b.
+    authorizeMock.mockClear();
+    authorizeMock.mockResolvedValue({ capability: "not-json" });
+    getMock.mockClear();
+    channelFor("chat_rooms:room_room-b").subscribe.mockClear();
+
+    act(() => {
+      controlSubscribeHandler()?.({
+        data: {
+          roomId: "room-b",
+          reason: "removed",
+          at: "2026-08-06T12:00:00.000Z",
+        },
+      });
+    });
+
+    expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(getMock).not.toHaveBeenCalledWith("chat_rooms:room_room-b");
+    expect(
+      channelFor("chat_rooms:room_room-b").subscribe,
+    ).not.toHaveBeenCalled();
+  });
+
   it("detaches all chat rooms when token grants no room channels", async () => {
     authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
 

@@ -63,7 +63,6 @@ import { useChatMembershipRevokedControl } from "@/lib/ably/use-chat-membership-
 import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
-import { applyChatMembershipRevokedUi } from "./apply-chat-membership-revoked-ui";
 import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
 import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
@@ -268,33 +267,18 @@ function getActiveRoomIdFromPathname(pathname: string | null): string | null {
 /**
  * List-mounted control-channel UI (SOK-746). Soft-removes membership-visible
  * rooms when kicked even if the open-room Ably island is not mounted.
+ * Navigation/refresh lives only on the open-room bridge so both mounts never
+ * double `replace`/`refresh` for the same event.
  */
 function ChatMembershipRevokedListBridge({
   currentUserId,
 }: {
   currentUserId: string;
 }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const activeRoomIdRef = useRef(getActiveRoomIdFromPathname(pathname));
-  activeRoomIdRef.current = getActiveRoomIdFromPathname(pathname);
-
   useChatMembershipRevokedControl({
     currentUserId,
     onRevoked: (event) => {
-      applyChatMembershipRevokedUi({
-        roomId: event.roomId,
-        activeRoomId: activeRoomIdRef.current,
-        replace: (href) => {
-          router.replace(href);
-        },
-        refresh: () => {
-          router.refresh();
-        },
-        notifyRemoved: (roomId) => {
-          notifyOrganizationChatRoomsChanged({ removedRoomId: roomId });
-        },
-      });
+      notifyOrganizationChatRoomsChanged({ removedRoomId: event.roomId });
     },
   });
 
