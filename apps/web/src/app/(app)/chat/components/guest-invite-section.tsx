@@ -28,20 +28,20 @@ import { isValidEmail } from "@/lib/utils/email";
 
 interface GuestInviteSectionProps {
   roomId: string;
-  /** When false, section is not rendered (guests / non-external). */
-  enabled: boolean;
-  /** Reload pending list when the parent dialog opens. */
-  open: boolean;
   /** Current guest participants (from room DTO). */
   guests: ChatRoomUserParticipant[];
   /** Called after a guest is removed so the parent can refresh room state. */
   onGuestRemoved?: (userId: string) => void;
 }
 
+/**
+ * Guest invite UI for external channels.
+ *
+ * Parent mounts this only while the edit dialog is open (and keys by room id)
+ * so reopen remounts and refetches pending invites — no open-synced useEffect.
+ */
 export function GuestInviteSection({
   roomId,
-  enabled,
-  open,
   guests,
   onGuestRemoved,
 }: GuestInviteSectionProps) {
@@ -49,7 +49,7 @@ export function GuestInviteSection({
   const [email, setEmail] = useState("");
   const [invitations, setInvitations] = useState<ChatRoomInvitation[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
@@ -67,16 +67,10 @@ export function GuestInviteSection({
     setInvitations(result.value.filter((inv) => inv.status === "pending"));
   }, [roomId]);
 
+  // Mount-only fetch; parent remounts on dialog open so reopen is fresh.
   useEffect(() => {
-    if (!enabled || !open) return;
     void loadInvitations();
-  }, [enabled, open, loadInvitations]);
-
-  useEffect(() => {
-    if (!open) {
-      setEmail("");
-    }
-  }, [open]);
+  }, [loadInvitations]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -127,10 +121,6 @@ export function GuestInviteSection({
     }
     toast.success(t("removeGuestSuccess", { name: label }));
     onGuestRemoved?.(userId);
-  }
-
-  if (!enabled) {
-    return null;
   }
 
   return (

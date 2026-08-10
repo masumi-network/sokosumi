@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import {
-  mapChatRoomInvitation,
+  mapChatRoomInvitationFromRecord,
   normalizeInvitationEmail,
 } from "@/helpers/chat-room-invitation";
 import { notFound } from "@/helpers/error";
@@ -95,21 +95,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(
       c,
-      mapChatRoomInvitation({
-        id: row.id,
-        roomId: row.room.id,
-        roomName: row.room.name ?? "",
-        organizationId: row.room.organizationId,
-        organizationName: row.room.organization?.name ?? "",
-        email: row.email,
-        status,
-        inviter: {
-          id: row.inviter.id,
-          name: row.inviter.name,
+      mapChatRoomInvitationFromRecord(
+        row,
+        {
+          id: row.room.id,
+          name: row.room.name,
+          organizationId: row.room.organizationId,
+          organizationName: row.room.organization?.name,
         },
-        expiresAt: row.expiresAt,
-        createdAt: row.createdAt,
-      }),
+        { status },
+      ),
     );
   });
 }

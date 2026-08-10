@@ -397,8 +397,10 @@ export function OrganizationChatList({
           ? listOrganizationArchivedChatRoomsAction()
           : Promise.resolve({
               ok: true as const,
-              data: [] as ChatRoom[],
-              nextCursor: null as string | null,
+              value: {
+                rooms: [] as ChatRoom[],
+                nextCursor: null as string | null,
+              },
             }),
         listPendingChatRoomInvitationsAction(),
       ]);
@@ -409,22 +411,24 @@ export function OrganizationChatList({
         setRoomRows((current) =>
           applyRoomReadOverlays(
             hasAppendedActiveRef.current
-              ? upsertFirstPageRooms(activeResult.data, current)
-              : activeResult.data,
+              ? upsertFirstPageRooms(activeResult.value.rooms, current)
+              : activeResult.value.rooms,
           ),
         );
         setActiveNextCursor((prev) =>
-          hasAppendedActiveRef.current ? prev : activeResult.nextCursor,
+          hasAppendedActiveRef.current ? prev : activeResult.value.nextCursor,
         );
       }
       if (archivedResult.ok) {
         setArchivedRows((current) =>
           hasAppendedArchivedRef.current
-            ? upsertFirstPageRooms(archivedResult.data, current)
-            : archivedResult.data,
+            ? upsertFirstPageRooms(archivedResult.value.rooms, current)
+            : archivedResult.value.rooms,
         );
         setArchivedNextCursor((prev) =>
-          hasAppendedArchivedRef.current ? prev : archivedResult.nextCursor,
+          hasAppendedArchivedRef.current
+            ? prev
+            : archivedResult.value.nextCursor,
         );
       }
       if (pendingResult.ok) {
@@ -523,8 +527,10 @@ export function OrganizationChatList({
           ? listOrganizationArchivedChatRoomsAction()
           : Promise.resolve({
               ok: true as const,
-              data: [] as ChatRoom[],
-              nextCursor: null as string | null,
+              value: {
+                rooms: [] as ChatRoom[],
+                nextCursor: null as string | null,
+              },
             }),
         listPendingChatRoomInvitationsAction(),
       ]).then(([activeResult, archivedResult, pendingResult]) => {
@@ -537,22 +543,24 @@ export function OrganizationChatList({
           setRoomRows((current) =>
             applyRoomReadOverlays(
               hasAppendedActiveRef.current
-                ? upsertFirstPageRooms(activeResult.data, current)
-                : activeResult.data,
+                ? upsertFirstPageRooms(activeResult.value.rooms, current)
+                : activeResult.value.rooms,
             ),
           );
           setActiveNextCursor((prev) =>
-            hasAppendedActiveRef.current ? prev : activeResult.nextCursor,
+            hasAppendedActiveRef.current ? prev : activeResult.value.nextCursor,
           );
         }
         if (archivedResult.ok) {
           setArchivedRows((current) =>
             hasAppendedArchivedRef.current
-              ? upsertFirstPageRooms(archivedResult.data, current)
-              : archivedResult.data,
+              ? upsertFirstPageRooms(archivedResult.value.rooms, current)
+              : archivedResult.value.rooms,
           );
           setArchivedNextCursor((prev) =>
-            hasAppendedArchivedRef.current ? prev : archivedResult.nextCursor,
+            hasAppendedArchivedRef.current
+              ? prev
+              : archivedResult.value.nextCursor,
           );
         }
         if (pendingResult.ok) {
@@ -639,9 +647,9 @@ export function OrganizationChatList({
       }
       hasAppendedActiveRef.current = true;
       setRoomRows((current) =>
-        applyRoomReadOverlays(appendUniqueRooms(current, result.data)),
+        applyRoomReadOverlays(appendUniqueRooms(current, result.value.rooms)),
       );
-      setActiveNextCursor(result.nextCursor);
+      setActiveNextCursor(result.value.nextCursor);
     });
   }
 
@@ -657,8 +665,10 @@ export function OrganizationChatList({
         return;
       }
       hasAppendedArchivedRef.current = true;
-      setArchivedRows((current) => appendUniqueRooms(current, result.data));
-      setArchivedNextCursor(result.nextCursor);
+      setArchivedRows((current) =>
+        appendUniqueRooms(current, result.value.rooms),
+      );
+      setArchivedNextCursor(result.value.nextCursor);
     });
   }
 
@@ -683,7 +693,7 @@ export function OrganizationChatList({
       if (roomsResult.ok) {
         setRoomRows((current) =>
           applyRoomReadOverlays(
-            upsertFirstPageRooms(roomsResult.data, current),
+            upsertFirstPageRooms(roomsResult.value.rooms, current),
           ),
         );
       }

@@ -20,6 +20,7 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import {
   markOrganizationChatRoomUnreadAction,
   muteOrganizationChatRoomAction,
+  type OrganizationChatListActionResult,
   pinOrganizationChatRoomAction,
   unmuteOrganizationChatRoomAction,
   unpinOrganizationChatRoomAction,
@@ -114,7 +115,7 @@ export function ChatRoomSidebarRow({
   function runRoomAction(
     action: (
       roomId: string,
-    ) => Promise<{ ok: true; data: ChatRoom } | { ok: false }>,
+    ) => Promise<OrganizationChatListActionResult<ChatRoom>>,
     optimisticRoom?: ChatRoom,
   ) {
     if (optimisticRoom) {
@@ -127,7 +128,7 @@ export function ChatRoomSidebarRow({
         toast.error(tActions("actionFailed"));
         return;
       }
-      onRoomUpdated(result.data);
+      onRoomUpdated(result.value);
     });
   }
 

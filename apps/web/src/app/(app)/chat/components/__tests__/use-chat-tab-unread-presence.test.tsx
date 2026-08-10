@@ -63,8 +63,7 @@ describe("useChatTabUnreadPresence", () => {
     listRoomsMock.mockReset();
     listRoomsMock.mockResolvedValue({
       ok: true,
-      data: [],
-      nextCursor: null,
+      value: { rooms: [], nextCursor: null },
     });
   });
 
@@ -75,8 +74,7 @@ describe("useChatTabUnreadPresence", () => {
   it("shows unread when a non-active room has attention", async () => {
     listRoomsMock.mockResolvedValue({
       ok: true,
-      data: [room({ id: "a", unreadCount: 2 })],
-      nextCursor: null,
+      value: { rooms: [room({ id: "a", unreadCount: 2 })], nextCursor: null },
     });
 
     render(<Harness />);
@@ -93,8 +91,7 @@ describe("useChatTabUnreadPresence", () => {
     mockPathname = "/chat/rooms/a";
     listRoomsMock.mockResolvedValue({
       ok: true,
-      data: [room({ id: "a", unreadCount: 2 })],
-      nextCursor: null,
+      value: { rooms: [room({ id: "a", unreadCount: 2 })], nextCursor: null },
     });
 
     render(<Harness />);
@@ -109,10 +106,12 @@ describe("useChatTabUnreadPresence", () => {
     listRoomsMock
       .mockResolvedValueOnce({
         ok: true,
-        data: [room({ id: "a", unreadCount: 1 })],
-        nextCursor: null,
+        value: { rooms: [room({ id: "a", unreadCount: 1 })], nextCursor: null },
       })
-      .mockResolvedValueOnce({ ok: false });
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR", message: "fail" },
+      });
 
     render(<Harness />);
 
@@ -137,8 +136,7 @@ describe("useChatTabUnreadPresence", () => {
     const unread = room({ id: "a", unreadCount: 3 });
     listRoomsMock.mockResolvedValue({
       ok: true,
-      data: [unread],
-      nextCursor: null,
+      value: { rooms: [unread], nextCursor: null },
     });
 
     render(<Harness />);

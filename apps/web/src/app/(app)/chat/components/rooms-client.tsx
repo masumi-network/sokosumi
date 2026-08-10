@@ -1025,13 +1025,13 @@ export function RoomsClient({
       if (!result.ok) {
         return;
       }
-      applyRoomReadResultToOverlay(result.data);
+      applyRoomReadResultToOverlay(result.value);
       if (cancelled) {
         return;
       }
       window.dispatchEvent(
         new CustomEvent("organization-chat-room-read", {
-          detail: { room: result.data, roomId: selectedRoomReadId },
+          detail: { room: result.value, roomId: selectedRoomReadId },
         }),
       );
     });
@@ -1320,10 +1320,10 @@ export function RoomsClient({
     if (!roomResult.ok) {
       return;
     }
-    applyRoomReadResultToOverlay(roomResult.data);
+    applyRoomReadResultToOverlay(roomResult.value);
     window.dispatchEvent(
       new CustomEvent("organization-chat-room-read", {
-        detail: { room: roomResult.data, roomId },
+        detail: { room: roomResult.value, roomId },
       }),
     );
   }

@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { mapChatRoomInvitation } from "@/helpers/chat-room-invitation";
+import { mapChatRoomInvitationFromRecord } from "@/helpers/chat-room-invitation";
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -81,25 +81,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }),
     ]);
 
-    const organizationName = organization?.name ?? "";
-    const roomName = room.name ?? "";
+    const roomContext = {
+      id: room.id,
+      name: room.name,
+      organizationId,
+      organizationName: organization?.name,
+    };
 
     const invitations = rows.map((row) =>
-      mapChatRoomInvitation({
-        id: row.id,
-        roomId: room.id,
-        roomName,
-        organizationId,
-        organizationName,
-        email: row.email,
-        status: row.status,
-        inviter: {
-          id: row.inviter.id,
-          name: row.inviter.name,
-        },
-        expiresAt: row.expiresAt,
-        createdAt: row.createdAt,
-      }),
+      mapChatRoomInvitationFromRecord(row, roomContext),
     );
 
     return ok(c, invitations);

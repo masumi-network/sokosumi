@@ -31,6 +31,24 @@ export interface MapChatRoomInvitationInput {
   createdAt: Date;
 }
 
+/** Invitation row fields shared by Prisma selects used in invitation routes. */
+export interface ChatRoomInvitationRecord {
+  id: string;
+  email: string;
+  status: string;
+  expiresAt: Date;
+  createdAt: Date;
+  inviter: { id: string; name: string };
+}
+
+/** Room/org context needed to build the public invitation DTO. */
+export interface ChatRoomInvitationRoomContext {
+  id: string;
+  name?: string | null;
+  organizationId: string;
+  organizationName?: string | null;
+}
+
 export function mapChatRoomInvitation(
   input: MapChatRoomInvitationInput,
 ): ChatRoomInvitation {
@@ -48,6 +66,32 @@ export function mapChatRoomInvitation(
     },
     expiresAt: input.expiresAt,
     createdAt: input.createdAt,
+  });
+}
+
+/**
+ * Map a Prisma invitation record + room/org context to the public DTO.
+ * Prefer this over hand-assembling mapChatRoomInvitation fields in routes.
+ */
+export function mapChatRoomInvitationFromRecord(
+  invitation: ChatRoomInvitationRecord,
+  room: ChatRoomInvitationRoomContext,
+  options?: { status?: string },
+): ChatRoomInvitation {
+  return mapChatRoomInvitation({
+    id: invitation.id,
+    roomId: room.id,
+    roomName: room.name ?? "",
+    organizationId: room.organizationId,
+    organizationName: room.organizationName ?? "",
+    email: invitation.email,
+    status: options?.status ?? invitation.status,
+    inviter: {
+      id: invitation.inviter.id,
+      name: invitation.inviter.name,
+    },
+    expiresAt: invitation.expiresAt,
+    createdAt: invitation.createdAt,
   });
 }
 

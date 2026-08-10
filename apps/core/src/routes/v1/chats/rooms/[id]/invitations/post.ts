@@ -8,7 +8,7 @@ import {
   assertInviteeNotHostOrgMember,
   assertInviteeNotRoomMember,
   invitationExpiresAt,
-  mapChatRoomInvitation,
+  mapChatRoomInvitationFromRecord,
   normalizeInvitationEmail,
 } from "@/helpers/chat-room-invitation";
 import { badRequest, conflict } from "@/helpers/error";
@@ -134,20 +134,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         select: { name: true },
       });
 
-      return mapChatRoomInvitation({
-        id: createdInvitation.id,
-        roomId: room.id,
-        roomName: room.name ?? "",
+      return mapChatRoomInvitationFromRecord(createdInvitation, {
+        id: room.id,
+        name: room.name,
         organizationId: room.organizationId,
-        organizationName: organization?.name ?? "",
-        email: createdInvitation.email,
-        status: createdInvitation.status,
-        inviter: {
-          id: createdInvitation.inviter.id,
-          name: createdInvitation.inviter.name,
-        },
-        expiresAt: createdInvitation.expiresAt,
-        createdAt: createdInvitation.createdAt,
+        organizationName: organization?.name,
       });
     });
 

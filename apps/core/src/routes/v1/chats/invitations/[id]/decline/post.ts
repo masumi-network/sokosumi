@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import {
-  mapChatRoomInvitation,
+  mapChatRoomInvitationFromRecord,
   normalizeInvitationEmail,
 } from "@/helpers/chat-room-invitation";
 import { badRequest, notFound } from "@/helpers/error";
@@ -85,21 +85,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       if (row.status === "declined") {
-        return mapChatRoomInvitation({
-          id: row.id,
-          roomId: row.room.id,
-          roomName: row.room.name ?? "",
-          organizationId: row.room.organizationId,
-          organizationName: row.room.organization?.name ?? "",
-          email: row.email,
-          status: "declined",
-          inviter: {
-            id: row.inviter.id,
-            name: row.inviter.name,
+        return mapChatRoomInvitationFromRecord(
+          row,
+          {
+            id: row.room.id,
+            name: row.room.name,
+            organizationId: row.room.organizationId,
+            organizationName: row.room.organization?.name,
           },
-          expiresAt: row.expiresAt,
-          createdAt: row.createdAt,
-        });
+          { status: "declined" },
+        );
       }
 
       if (row.status !== "pending") {
@@ -134,20 +129,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Invitation not found");
       }
 
-      return mapChatRoomInvitation({
-        id: updated.id,
-        roomId: updated.room.id,
-        roomName: updated.room.name ?? "",
+      return mapChatRoomInvitationFromRecord(updated, {
+        id: updated.room.id,
+        name: updated.room.name,
         organizationId: updated.room.organizationId,
-        organizationName: updated.room.organization?.name ?? "",
-        email: updated.email,
-        status: updated.status,
-        inviter: {
-          id: updated.inviter.id,
-          name: updated.inviter.name,
-        },
-        expiresAt: updated.expiresAt,
-        createdAt: updated.createdAt,
+        organizationName: updated.room.organization?.name,
       });
     });
 

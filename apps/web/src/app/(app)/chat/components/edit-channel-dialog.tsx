@@ -339,11 +339,11 @@ export function EditChannelDialog({
               </DialogFooter>
             ) : null}
           </form>
-          {showGuestInvite ? (
+          {/* Mount only while open so pending invites load on remount, not via open-synced Effect. */}
+          {showGuestInvite && open ? (
             <GuestInviteSection
+              key={channel.id}
               roomId={channel.id}
-              enabled={showGuestInvite}
-              open={open}
               guests={guestMembers}
               onGuestRemoved={(userId) => {
                 setGuestMembers((prev) =>

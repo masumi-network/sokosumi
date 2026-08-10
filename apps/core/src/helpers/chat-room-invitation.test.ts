@@ -6,6 +6,7 @@ import {
   INVITE_TTL_MS,
   invitationExpiresAt,
   mapChatRoomInvitation,
+  mapChatRoomInvitationFromRecord,
   normalizeInvitationEmail,
 } from "./chat-room-invitation";
 
@@ -53,6 +54,36 @@ describe("mapChatRoomInvitation", () => {
       status: "pending",
       inviter: { id: "user_123", name: "Jane Doe" },
       expiresAt: "2026-08-12T12:00:00.000Z",
+    });
+  });
+});
+
+describe("mapChatRoomInvitationFromRecord", () => {
+  it("maps invitation + room context, with optional status override", () => {
+    const mapped = mapChatRoomInvitationFromRecord(
+      {
+        id: "550e8400-e29b-41d4-a716-446655440000",
+        email: "guest@example.com",
+        status: "pending",
+        inviter: { id: "user_123", name: "Jane Doe" },
+        expiresAt: new Date("2026-08-12T12:00:00.000Z"),
+        createdAt: new Date("2026-08-05T12:00:00.000Z"),
+      },
+      {
+        id: "550e8400-e29b-41d4-a716-446655440001",
+        name: "Client Room",
+        organizationId: "org_123",
+        organizationName: "Acme Corp",
+      },
+      { status: "accepted" },
+    );
+
+    expect(mapped).toMatchObject({
+      roomId: "550e8400-e29b-41d4-a716-446655440001",
+      roomName: "Client Room",
+      organizationName: "Acme Corp",
+      status: "accepted",
+      inviter: { id: "user_123", name: "Jane Doe" },
     });
   });
 });

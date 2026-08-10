@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import {
-  mapChatRoomInvitation,
+  mapChatRoomInvitationFromRecord,
   normalizeInvitationEmail,
 } from "@/helpers/chat-room-invitation";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
@@ -121,21 +121,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             status = "accepted";
           }
           return {
-            invitation: mapChatRoomInvitation({
-              id: row.id,
-              roomId: room.id,
-              roomName: room.name ?? "",
-              organizationId: room.organizationId,
-              organizationName: room.organization?.name ?? "",
-              email: row.email,
-              status,
-              inviter: {
-                id: row.inviter.id,
-                name: row.inviter.name,
+            invitation: mapChatRoomInvitationFromRecord(
+              row,
+              {
+                id: room.id,
+                name: room.name,
+                organizationId: room.organizationId,
+                organizationName: room.organization?.name,
               },
-              expiresAt: row.expiresAt,
-              createdAt: row.createdAt,
-            }),
+              { status },
+            ),
             statusMessages: [] as Awaited<
               ReturnType<typeof recordChannelMembershipStatus>
             >,
@@ -234,21 +229,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
 
         return {
-          invitation: mapChatRoomInvitation({
-            id: row.id,
-            roomId: room.id,
-            roomName: room.name ?? "",
-            organizationId: room.organizationId,
-            organizationName: room.organization?.name ?? "",
-            email: row.email,
-            status: "accepted",
-            inviter: {
-              id: row.inviter.id,
-              name: row.inviter.name,
+          invitation: mapChatRoomInvitationFromRecord(
+            row,
+            {
+              id: room.id,
+              name: room.name,
+              organizationId: room.organizationId,
+              organizationName: room.organization?.name,
             },
-            expiresAt: row.expiresAt,
-            createdAt: row.createdAt,
-          }),
+            { status: "accepted" },
+          ),
           statusMessages,
         };
       },
