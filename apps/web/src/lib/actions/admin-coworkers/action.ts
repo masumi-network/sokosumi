@@ -1,6 +1,6 @@
 "use server";
 
-import { err, ok } from "neverthrow";
+import { err, ok, type Result } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 import {
@@ -87,12 +87,16 @@ interface UpdateAdminCoworkerControlsParameters extends AuthenticatedRequest {
   priority?: number;
 }
 
+/**
+ * In-process validation only — returns neverthrow Result.
+ * Map to ActionResultDto at the server-action boundary via toActionResult.
+ */
 function sanitizeControlsPatchBody(
   input: Pick<
     UpdateAdminCoworkerControlsParameters,
     "capabilities" | "priority"
   >,
-): ActionResultDto<AdminCoworkerControlsPatchBody, ActionError> {
+): Result<AdminCoworkerControlsPatchBody, ActionError> {
   const patchBody: AdminCoworkerControlsPatchBody = {};
 
   if (input.capabilities !== undefined) {
@@ -101,38 +105,32 @@ function sanitizeControlsPatchBody(
       (capability) => !ADMIN_COWORKER_CAPABILITIES.includes(capability),
     );
     if (invalidCapability) {
-      return toActionResult(
-        err({
-          code: CommonErrorCode.BAD_INPUT,
-          message: `Invalid capability: ${invalidCapability}`,
-        }),
-      );
+      return err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: `Invalid capability: ${invalidCapability}`,
+      });
     }
     patchBody.capabilities = capabilities;
   }
 
   if (input.priority !== undefined) {
     if (!Number.isInteger(input.priority)) {
-      return toActionResult(
-        err({
-          code: CommonErrorCode.BAD_INPUT,
-          message: "Priority must be an integer",
-        }),
-      );
+      return err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Priority must be an integer",
+      });
     }
     patchBody.priority = input.priority;
   }
 
   if (Object.keys(patchBody).length === 0) {
-    return toActionResult(
-      err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "No coworker control changes to save",
-      }),
-    );
+    return err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: "No coworker control changes to save",
+    });
   }
 
-  return toActionResult(ok(patchBody));
+  return ok(patchBody);
 }
 
 export const updateAdminCoworkerControlsAction = withSession<
@@ -151,8 +149,8 @@ export const updateAdminCoworkerControlsAction = withSession<
       capabilities,
       priority,
     });
-    if (!sanitizeResult.ok) {
-      return sanitizeResult;
+    if (sanitizeResult.isErr()) {
+      return toActionResult(err(sanitizeResult.error));
     }
 
     const coworker = await adminCoworkerService.updateControls(
