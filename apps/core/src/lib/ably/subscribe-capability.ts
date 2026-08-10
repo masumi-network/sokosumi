@@ -1,25 +1,48 @@
 import {
   makeChatRoomChannelName,
+  makeOrgPresenceChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
 } from "@sokosumi/utils";
 
-/** Ably capability map: channel name → ops (subscribe-only for clients). */
+/** Ably capability ops granted to browser clients. */
+export type AblyClientCapabilityOps = string[];
+
+/** Ably capability map: channel name → ops. */
 export interface AblySubscribeCapabilityMap {
-  [channel: string]: ["subscribe"];
+  [channel: string]: AblyClientCapabilityOps;
+}
+
+export interface BuildAblyClientCapabilityInput {
+  userId: string;
+  roomIds: readonly string[];
+  organizationIds: readonly string[];
 }
 
 /**
- * Ably subscribe capabilities for a user session.
- * Chat rooms are granted per membership room id (SOK-741), not a user wildcard.
- * Chat control is always granted so remote membership revoke can be signaled
- * without holding a room channel cap (SOK-742).
+ * Ably capabilities for a user session.
+ * - Chat rooms: per-membership room id subscribe (SOK-741)
+ * - Chat control: always subscribe (SOK-742 membership revoke)
+ * - Org presence: presence enter/update/leave + subscribe (ADR-0002)
  */
 export function buildAblySubscribeCapability(
   userId: string,
   roomIds: readonly string[],
+  organizationIds: readonly string[] = [],
 ): AblySubscribeCapabilityMap {
+  return buildAblyClientCapability({
+    userId,
+    roomIds,
+    organizationIds,
+  });
+}
+
+export function buildAblyClientCapability({
+  userId,
+  roomIds,
+  organizationIds,
+}: BuildAblyClientCapabilityInput): AblySubscribeCapabilityMap {
   const capability: AblySubscribeCapabilityMap = {
     // Jobs channels use agent_id in the middle segment; wildcard keeps job pages working.
     [`agent_jobs:*:user_${userId}`]: ["subscribe"],
@@ -30,6 +53,10 @@ export function buildAblySubscribeCapability(
 
   for (const roomId of roomIds) {
     capability[makeChatRoomChannelName(roomId)] = ["subscribe"];
+  }
+
+  for (const organizationId of organizationIds) {
+    capability[makeOrgPresenceChannelName(organizationId)] = ["presence"];
   }
 
   return capability;

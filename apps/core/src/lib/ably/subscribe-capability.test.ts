@@ -19,6 +19,18 @@ describe("buildAblySubscribeCapability", () => {
     });
   });
 
+  it("grants presence on each organization channel", () => {
+    const capability = buildAblySubscribeCapability(
+      "user_123",
+      ["room-a"],
+      ["org_a", "org_b"],
+    );
+
+    expect(capability["presence:org_org_a"]).toEqual(["presence"]);
+    expect(capability["presence:org_org_b"]).toEqual(["presence"]);
+    expect(capability["chat_rooms:room_room-a"]).toEqual(["subscribe"]);
+  });
+
   it("omits chat room channels when the user has no memberships", () => {
     const capability = buildAblySubscribeCapability("user_123", []);
 

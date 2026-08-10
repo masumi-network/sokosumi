@@ -1,10 +1,12 @@
 export {
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeOrgPresenceChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   parseChatRoomIdFromChannelName,
+  parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel.js";
 export {
   betterAuthOrganizationAdditionalFields,
@@ -32,6 +34,19 @@ export {
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
   type ChatMembershipRevokeReason,
 } from "./chat-membership-revoked.js";
+export {
+  ABLY_CLIENT_INSTANCE_ID_PATTERN,
+  ABLY_PRESENCE_CLIENT_ID_SEPARATOR,
+  aggregateChatPresenceByUserId,
+  buildAblyPresenceClientId,
+  type ChatPresenceMemberData,
+  type ChatPresenceState,
+  isValidAblyClientInstanceId,
+  type PresenceConnectionInput,
+  parseChatPresenceMemberData,
+  parseUserIdFromAblyPresenceClientId,
+  resolveUserChatPresence,
+} from "./chat-presence.js";
 export {
   CHAT_PRESENCE_AFK_WINDOW_MS,
   CHAT_PRESENCE_ONLINE_WINDOW_MS,

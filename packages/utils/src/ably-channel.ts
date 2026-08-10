@@ -47,3 +47,24 @@ export function parseChatRoomIdFromChannelName(
   const roomId = channelName.slice(CHAT_ROOM_CHANNEL_PREFIX.length);
   return roomId.length > 0 ? roomId : null;
 }
+
+/** Org-scoped Ably Presence channel (ADR-0002). */
+const ORG_PRESENCE_CHANNEL_PREFIX = "presence:org_";
+
+export function makeOrgPresenceChannelName(organizationId: string): string {
+  return `${ORG_PRESENCE_CHANNEL_PREFIX}${organizationId}`;
+}
+
+/**
+ * Inverse of {@link makeOrgPresenceChannelName}. Null when not an org presence
+ * channel or empty org id.
+ */
+export function parseOrganizationIdFromPresenceChannelName(
+  channelName: string,
+): string | null {
+  if (!channelName.startsWith(ORG_PRESENCE_CHANNEL_PREFIX)) {
+    return null;
+  }
+  const organizationId = channelName.slice(ORG_PRESENCE_CHANNEL_PREFIX.length);
+  return organizationId.length > 0 ? organizationId : null;
+}
