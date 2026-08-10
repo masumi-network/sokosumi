@@ -13,9 +13,9 @@ export interface ResolveEmojiPickerMaxHeightPxInput {
 }
 
 /**
- * Keyboard-safe max height for the emoji picker popover.
- * Stays within the visual viewport; when the keyboard leaves less than
- * chrome+minGrid, uses the remaining budget (best effort).
+ * Keyboard-aware max height for the emoji picker popover.
+ * Prefers fitting the visual viewport, but never goes below chrome+minGrid
+ * so nav/search + the min scroll region stay usable under a soft keyboard.
  */
 export function resolveEmojiPickerMaxHeightPx({
   visualViewportHeightPx,
@@ -26,7 +26,6 @@ export function resolveEmojiPickerMaxHeightPx({
 }: ResolveEmojiPickerMaxHeightPxInput): number {
   const available = Math.max(0, visualViewportHeightPx - viewportMarginPx);
   const minTotal = chromePx + minGridPx;
-  if (available <= 0) return minTotal;
-  if (available < minTotal) return available;
+  if (available < minTotal) return minTotal;
   return Math.min(capPx, available);
 }

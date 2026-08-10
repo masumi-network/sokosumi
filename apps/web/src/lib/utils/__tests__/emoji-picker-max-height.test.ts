@@ -20,7 +20,7 @@ describe("resolveEmojiPickerMaxHeightPx", () => {
     ).toBe(EMOJI_PICKER_MAX_HEIGHT_CAP_PX);
   });
 
-  it("equals available when the keyboard shrinks below minTotal", () => {
+  it("floors at minTotal when the keyboard shrinks below chrome+minGrid", () => {
     const visualViewportHeightPx = 150;
     const available = visualViewportHeightPx - 16;
     expect(available).toBeLessThan(minTotal);
@@ -29,19 +29,18 @@ describe("resolveEmojiPickerMaxHeightPx", () => {
         visualViewportHeightPx,
         chromePx,
       }),
-    ).toBe(available);
+    ).toBe(minTotal);
   });
 
-  it("never exceeds available when available is positive", () => {
-    for (const visualViewportHeightPx of [50, 200, 300, 400, 800]) {
+  it("never exceeds available when available is at least minTotal", () => {
+    for (const visualViewportHeightPx of [250, 300, 400, 800]) {
       const available = Math.max(0, visualViewportHeightPx - 16);
+      expect(available).toBeGreaterThanOrEqual(minTotal);
       const result = resolveEmojiPickerMaxHeightPx({
         visualViewportHeightPx,
         chromePx,
       });
-      if (available > 0) {
-        expect(result).toBeLessThanOrEqual(available);
-      }
+      expect(result).toBeLessThanOrEqual(available);
     }
   });
 
