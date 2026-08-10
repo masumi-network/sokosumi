@@ -171,14 +171,14 @@ export function CoworkerLoadingState({
   const elapsedMs = useLiveElapsedMs(startedAtMs);
   return (
     <div
-      className={cn("flex w-fit max-w-full items-center gap-2.5", className)}
+      className={cn("flex w-fit max-w-full items-center gap-1.5", className)}
       role="status"
       aria-live="polite"
       data-testid="coworker-loading-state"
     >
       <DrivePixelGrid />
       <span
-        className="bui-shimmer-text truncate text-sm font-medium"
+        className="bui-shimmer-text truncate text-xs font-medium"
         data-testid="coworker-loading-label"
       >
         {label}
@@ -272,7 +272,7 @@ export function CoworkerThoughtTrace({
           }
         }}
         className={cn(
-          "-mx-1.5 flex w-fit max-w-full items-center gap-2 rounded-md px-1.5 py-1 text-left",
+          "-mx-1 flex w-fit max-w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left",
           "transition-colors duration-100",
           hasBody &&
             "hover:bg-muted/60 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
@@ -280,11 +280,11 @@ export function CoworkerThoughtTrace({
         )}
       >
         <svg
-          width="16"
-          height="16"
+          width="12"
+          height="12"
           viewBox="0 0 24 24"
           aria-hidden
-          className="shrink-0"
+          className="size-3 shrink-0"
           fill={
             working
               ? "var(--muted-foreground)"
@@ -294,18 +294,18 @@ export function CoworkerThoughtTrace({
           <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
         </svg>
         {working ? (
-          <span className="bui-shimmer-text truncate text-sm font-medium whitespace-nowrap">
+          <span className="bui-shimmer-text truncate text-xs font-medium whitespace-nowrap">
             {headerLabel}
           </span>
         ) : (
-          <span className="text-muted-foreground truncate text-sm font-medium whitespace-nowrap">
+          <span className="text-muted-foreground truncate text-xs font-medium whitespace-nowrap">
             {headerLabel}
           </span>
         )}
         {hasBody ? (
           <svg
-            width="14"
-            height="14"
+            width="12"
+            height="12"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -313,7 +313,7 @@ export function CoworkerThoughtTrace({
             strokeLinecap="round"
             strokeLinejoin="round"
             aria-hidden
-            className="text-muted-foreground shrink-0 transition-transform duration-300"
+            className="text-muted-foreground size-3 shrink-0 transition-transform duration-300"
             style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
           >
             <path d="M6 9l6 6 6-6" />
@@ -334,17 +334,17 @@ export function CoworkerThoughtTrace({
           aria-hidden={!expanded}
         >
           <div className="overflow-hidden">
-            <div className="relative mt-1 ml-[5px] pl-4">
+            <div className="relative mt-0.5 ml-1 pl-3">
               <span
                 aria-hidden
-                className="bg-border absolute left-[3px] w-px"
+                className="bg-border absolute left-px w-px"
                 style={{
-                  top: -8,
+                  top: -6,
                   height: lineHeight ? lineHeight - 2 : 0,
                   transition: "height 500ms cubic-bezier(0.23,1,0.32,1)",
                 }}
               />
-              <div ref={traceRef} className="flex flex-col gap-1 py-1">
+              <div ref={traceRef} className="flex flex-col gap-0.5 py-0.5">
                 <p
                   className={cn(
                     "text-muted-foreground text-xs leading-relaxed whitespace-pre-wrap",
@@ -394,7 +394,7 @@ export function CoworkerLiveThought({
       />
       <span
         aria-hidden
-        className="text-muted-foreground ml-[26px] font-mono text-xs tabular-nums"
+        className="text-muted-foreground ml-5 font-mono text-xs tabular-nums"
         data-testid="live-stream-elapsed"
       >
         <LiveElapsed startedAtMs={startedAtMs} />
