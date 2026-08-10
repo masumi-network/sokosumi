@@ -15,6 +15,17 @@ import type {
 } from "@/lib/clients/generated/core";
 import { parseMentions } from "@/lib/utils/mention-parser";
 
+/**
+ * Room markdown density: zero default paragraph margin so single-block
+ * messages stay tight, but restore vertical gap between consecutive `<p>`
+ * nodes so blank lines (`\n\n` after send) stay visible.
+ */
+export const ROOM_MESSAGE_MARKDOWN_CLASSNAME =
+  "text-base! md:text-sm! prose-p:my-0 [&_p+p]:mt-3 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2";
+
+export const ROOM_QUOTE_MARKDOWN_CLASSNAME =
+  "prose-p:my-0 [&_p+p]:mt-2 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0";
+
 export interface DirectParticipantPreview {
   id: string;
   name: string;

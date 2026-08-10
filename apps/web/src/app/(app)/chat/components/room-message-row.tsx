@@ -80,6 +80,8 @@ import {
   formatMessageTime,
   formatRoomMarkdownMentions,
   messageSender,
+  ROOM_MESSAGE_MARKDOWN_CLASSNAME,
+  ROOM_QUOTE_MARKDOWN_CLASSNAME,
   scrollToRoomMessageElement,
 } from "./room-helpers";
 
@@ -267,7 +269,7 @@ function MessageQuoteBlock({
               expanded ? null : "line-clamp-4",
             )}
           >
-            <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+            <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
               {formatRoomMarkdownMentions({
                 content: quote.snippet,
                 coworkersById,
@@ -393,7 +395,7 @@ function ChannelMarkdownSegment({
   }
 
   return (
-    <Markdown className="text-base! md:text-sm! prose-p:my-0 prose-p:leading-6 prose-ul:my-1 prose-ol:my-1 prose-pre:my-2">
+    <Markdown className={ROOM_MESSAGE_MARKDOWN_CLASSNAME}>
       {formatRoomMarkdownMentions({
         content,
         coworkersById,
