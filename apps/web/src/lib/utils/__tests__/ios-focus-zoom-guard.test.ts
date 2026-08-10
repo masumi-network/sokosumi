@@ -25,11 +25,16 @@ const VIEWPORT_LAYOUTS = [
 
 describe("iOS focus-zoom guard", () => {
   it.each(VIEWPORT_LAYOUTS)(
-    "%s declares maximumScale: 1 on the viewport export",
+    "%s declares maximumScale: 1 on the viewport object (not only in comments)",
     (rel) => {
       const content = readFileSync(path.join(SRC_ROOT, rel), "utf8");
-      expect(content).toMatch(/maximumScale:\s*1\b/);
-      expect(content).toMatch(/export const viewport/);
+      const block = content.match(
+        /export const viewport:\s*Viewport\s*=\s*\{([\s\S]*?)\n\};/,
+      );
+      expect(block, `missing viewport export object in ${rel}`).not.toBeNull();
+      // Require the property on the object body so a leftover JSDoc mention
+      // cannot keep this green after the real field is removed.
+      expect(block?.[1]).toMatch(/maximumScale:\s*1\b/);
     },
   );
 
