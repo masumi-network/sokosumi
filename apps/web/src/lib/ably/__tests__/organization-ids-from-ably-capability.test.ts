@@ -5,8 +5,8 @@ import { organizationIdsFromAblyCapability } from "../organization-ids-from-ably
 describe("organizationIdsFromAblyCapability", () => {
   it("extracts org ids from presence channels", () => {
     const ids = organizationIdsFromAblyCapability({
-      "presence:org_org_a": ["presence"],
-      "presence:org_org_b": ["presence"],
+      "presence:org_org_a": ["presence", "subscribe"],
+      "presence:org_org_b": ["presence", "subscribe"],
       "chat_rooms:room_x": ["subscribe"],
     });
     expect(ids).toEqual(["org_a", "org_b"]);

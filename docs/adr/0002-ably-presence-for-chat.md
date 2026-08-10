@@ -9,7 +9,7 @@ Chat roster dots mean **reachable** (live client connection), not auth-session f
 **Shape (product + wire):**
 - **Online** = connected + recent activity; **AFK** = connected but idle (~5m) or tab hidden; **Offline** = no live connection (disconnect grace later, ~30–60s).
 - Visibility: **same organization only**. Enter presence on **every org** the user belongs to. No human presence dots in personal workspace. Coworkers stay always-online for v1.
-- Channel: `presence:org_{orgId}`. Token grants **`presence`** on those channels only (least privilege). Multi-device: `clientId = userId:instanceId`, aggregate any member with that userId.
+- Channel: `presence:org_{orgId}`. Token grants **`presence` + `subscribe`** on those channels (enter/update/leave needs `presence`; `presence.get` + presence events need `subscribe`). Multi-device: `clientId = userId:instanceId`, aggregate any member with that userId.
 - App shell owns the Ably connection for always-on presence; room message channel subs stay chat-scoped.
 - UI: `presence.get()` for first paint + live presence events; **do not** use `Session.updatedAt` for green dots. Last seen (members table) stays a separate concept.
 

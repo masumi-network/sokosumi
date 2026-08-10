@@ -26,8 +26,8 @@ describe("buildAblySubscribeCapability", () => {
       ["org_a", "org_b"],
     );
 
-    expect(capability["presence:org_org_a"]).toEqual(["presence"]);
-    expect(capability["presence:org_org_b"]).toEqual(["presence"]);
+    expect(capability["presence:org_org_a"]).toEqual(["presence", "subscribe"]);
+    expect(capability["presence:org_org_b"]).toEqual(["presence", "subscribe"]);
     expect(capability["chat_rooms:room_room-a"]).toEqual(["subscribe"]);
   });
 

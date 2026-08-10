@@ -10,9 +10,22 @@ import type * as Ably from "ably";
 import { useAbly } from "ably/react";
 import { useEffect, useState } from "react";
 
-import { safeDetachChannel } from "./safe-detach-channel";
-
 const RECLASSIFY_TICK_MS = 30_000;
+
+function samePresenceMap(
+  a: Map<string, ChatPresenceState>,
+  b: Map<string, ChatPresenceState>,
+): boolean {
+  if (a.size !== b.size) {
+    return false;
+  }
+  for (const [userId, state] of a) {
+    if (b.get(userId) !== state) {
+      return false;
+    }
+  }
+  return true;
+}
 
 function membersToInputs(
   members: Ably.PresenceMessage[],
@@ -51,7 +64,10 @@ export function useOrgPresenceMap(
         return;
       }
       const inputs = membersToInputs([...members.values()]);
-      setPresenceByUserId(aggregateChatPresenceByUserId(inputs));
+      const next = aggregateChatPresenceByUserId(inputs);
+      setPresenceByUserId((previous) =>
+        samePresenceMap(previous, next) ? previous : next,
+      );
     }
 
     function upsertMember(message: Ably.PresenceMessage) {
@@ -107,7 +123,8 @@ export function useOrgPresenceMap(
       channel.presence.unsubscribe("present", upsertMember);
       channel.presence.unsubscribe("leave", removeMember);
       channel.presence.unsubscribe("absent", removeMember);
-      safeDetachChannel(channel);
+      // Do not detach: publisher owns channel lifecycle on shared RealtimeChannel
+      // instances. Detach here would leave this client from org presence.
     };
   }, [ably, organizationId]);
 

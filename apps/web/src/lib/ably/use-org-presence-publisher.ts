@@ -32,6 +32,7 @@ function buildPresenceData(
 /**
  * Enter Ably Presence on every org channel granted on the token (ADR-0002).
  * Updates lastActiveAt / visible from browser activity and visibility.
+ * Owns channel attach/detach for presence channels (map only subscribes).
  */
 export function useOrgPresencePublisher(): void {
   const ably = useAbly();
@@ -43,6 +44,9 @@ export function useOrgPresencePublisher(): void {
   useEffect(() => {
     let cancelled = false;
     const channels = channelsRef.current;
+    /** Coalesce mount + connected so authorize never overlaps. */
+    let syncInFlight = false;
+    let syncQueued = false;
 
     async function publishPresence(force: boolean): Promise<void> {
       if (cancelled) {
@@ -62,33 +66,42 @@ export function useOrgPresencePublisher(): void {
         return;
       }
 
-      lastPublishedAtRef.current = now;
-      lastPublishedVisibleRef.current = visible;
-
-      await Promise.all(
+      const results = await Promise.all(
         [...channels.values()].map(async (channel) => {
           if (cancelled) {
-            return;
+            return false;
           }
           try {
             await channel.presence.update(data);
+            return true;
           } catch {
             if (cancelled) {
-              return;
+              return false;
             }
             try {
               await channel.presence.enter(data);
+              return true;
             } catch (error) {
               if (!cancelled) {
                 console.error("Ably presence enter/update failed:", error);
               }
+              return false;
             }
           }
         }),
       );
+
+      if (cancelled) {
+        return;
+      }
+
+      if (results.some(Boolean)) {
+        lastPublishedAtRef.current = Date.now();
+        lastPublishedVisibleRef.current = visible;
+      }
     }
 
-    async function syncChannels(): Promise<void> {
+    async function runSyncOnce(): Promise<void> {
       if (cancelled) {
         return;
       }
@@ -157,6 +170,22 @@ export function useOrgPresencePublisher(): void {
       lastPublishedVisibleRef.current = !document.hidden;
     }
 
+    async function syncChannels(): Promise<void> {
+      if (syncInFlight) {
+        syncQueued = true;
+        return;
+      }
+      syncInFlight = true;
+      try {
+        do {
+          syncQueued = false;
+          await runSyncOnce();
+        } while (syncQueued && !cancelled);
+      } finally {
+        syncInFlight = false;
+      }
+    }
+
     function handleActivity() {
       lastActiveAtRef.current = Date.now();
       void publishPresence(false);
@@ -188,6 +217,7 @@ export function useOrgPresencePublisher(): void {
 
     return () => {
       cancelled = true;
+      syncQueued = false;
       for (const event of ACTIVITY_EVENTS) {
         window.removeEventListener(event, handleActivity);
       }
