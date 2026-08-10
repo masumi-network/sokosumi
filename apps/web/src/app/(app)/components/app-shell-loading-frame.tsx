@@ -28,7 +28,7 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
           className="flex min-w-0 flex-1 flex-col overflow-clip"
           data-app-content-inner
         >
-          <AppHeaderFallback className="px-4 py-3 md:p-4" />
+          <AppHeaderFallback className="px-4 py-3 md:px-4 md:py-0" />
           <main
             className={cn(
               "relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",

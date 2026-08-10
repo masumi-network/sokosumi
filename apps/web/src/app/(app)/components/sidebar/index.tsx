@@ -93,7 +93,11 @@ export default function Sidebar({
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
-      <SidebarHeader className="h-16 border-b p-0">
+      {/*
+        h-16 border-b must match HeaderChrome's desktop control row so the
+        hairline is one continuous rule across the sidebar/content seam.
+      */}
+      <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
         <div className="flex h-full w-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
           <SidebarLogo />
           <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
