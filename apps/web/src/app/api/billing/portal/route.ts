@@ -103,10 +103,10 @@ export async function GET(request: NextRequest) {
     return redirectToReturnPathWithError(request, safeReturnPath);
   }
 
-  if (!isAllowedStripeBillingPortalUrl(result.data.url)) {
-    console.error("[billing-portal] rejected redirect url", result.data.url);
+  if (!isAllowedStripeBillingPortalUrl(result.value.url)) {
+    console.error("[billing-portal] rejected redirect url", result.value.url);
     return redirectToReturnPathWithError(request, safeReturnPath);
   }
 
-  return NextResponse.redirect(result.data.url);
+  return NextResponse.redirect(result.value.url);
 }
