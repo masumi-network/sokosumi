@@ -74,7 +74,7 @@ import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { participantDirectKey } from "./open-direct-with-participant";
-import { AiCoworkerIcon } from "./room-draft-shared";
+import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   formatMessageTime,
@@ -1414,19 +1414,26 @@ export function ChatMessageRow({
           profile={hoverProfile}
           side="top"
           align="start"
-          className="mt-0.5 shrink-0"
+          // self-start: article is flex; stretch made this full row height so absolute badge sat at bottom
+          className="mt-0.5 shrink-0 self-start"
           currentUserId={currentUserId}
           canOpenHumanDirect={canOpenHumanDirect}
           onOpenDirect={onOpenDirectMessage}
           isOpeningDirect={isOpeningDirect}
           isDirectActionBusy={isDirectActionBusy}
         >
-          <Avatar className="size-8">
-            <AvatarImage src={sender.image ?? undefined} alt="" />
-            <AvatarFallback className="text-xs">
-              {getInitials(sender.name)}
-            </AvatarFallback>
-          </Avatar>
+          <span
+            data-testid="message-sender-avatar"
+            className="relative inline-flex size-8 shrink-0"
+          >
+            <Avatar className="size-8">
+              <AvatarImage src={sender.image ?? undefined} alt="" />
+              <AvatarFallback className="text-xs">
+                {getInitials(sender.name)}
+              </AvatarFallback>
+            </Avatar>
+            {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
+          </span>
         </ChatParticipantHoverCard>
       )}
       <div
@@ -1436,7 +1443,7 @@ export function ChatMessageRow({
         )}
       >
         {isContinuation ? null : (
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
             <ChatParticipantHoverCard
               profile={hoverProfile}
               side="top"
@@ -1452,7 +1459,6 @@ export function ChatMessageRow({
                 {sender.name}
               </span>
             </ChatParticipantHoverCard>
-            {sender.kind === "coworker" ? <AiCoworkerIcon /> : null}
             <MessageWallClockTime
               value={message.createdAt}
               className="text-muted-foreground text-xs"
