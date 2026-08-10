@@ -1531,10 +1531,8 @@
           "thinking": "Denkt nach...",
           "searchingFiles": "Dateien werden durchsucht...",
           "callingTools": "Tools werden aufgerufen...",
-          "thoughtForSeconds": "Gedacht für {seconds}s",
           "thoughtForDuration": "Gedacht für {duration}",
-          "expandSteps": "Überlegung anzeigen",
-          "collapseSteps": "Überlegung ausblenden"
+          "expandSteps": "Überlegung anzeigen"
         },
         "chatErrorTitle": "Chat-Fehler",
         "errorFallbackDescription": "Bei der Chat-Oberfläche ist ein Problem aufgetreten. Bitte lade die Seite neu oder kontaktiere den Support, falls das Problem weiterhin besteht.",

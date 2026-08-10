@@ -130,4 +130,3 @@ Good tests assert **external behavior** (what the user/view model exposes), not 
 - Commit-gate / stall-timer work that pass-throughs reasoning is complementary; this spec is about **showing** Thought, not inventing heartbeats.
 - Optional follow-ups (not v1): tool steps in disclosure; soft DM default peek; badge elapsed timer only.
 - Domain language: use **Mention status**, **Thought**, **Thought disclosure** from `CONTEXT.md`.
-)

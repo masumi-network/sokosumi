@@ -63,12 +63,17 @@ export function drivePixelOpacity(
   return drivePixelOpacityAtPhase(t / cycleMs);
 }
 
+/**
+ * Deterministic first paint (SSR/client match), then live clock after mount.
+ * Seeding with `startedAtMs` yields 0.0s until the effect runs.
+ */
 function useLiveElapsedMs(startedAtMs: number): number {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(startedAtMs);
   useEffect(() => {
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 100);
     return () => clearInterval(id);
-  }, []);
+  }, [startedAtMs]);
   return Math.max(0, now - startedAtMs);
 }
 
@@ -78,29 +83,58 @@ function useLiveElapsedMs(startedAtMs: number): number {
 function DrivePixelGrid() {
   const cellRefs = useRef<(HTMLSpanElement | null)[]>([]);
   useEffect(() => {
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      return;
-    }
-    const start = performance.now();
+    const media =
+      typeof window !== "undefined"
+        ? window.matchMedia("(prefers-reduced-motion: reduce)")
+        : null;
     let frame = 0;
-    const tick = (now: number) => {
-      const elapsedMs = now - start;
-      const cells = cellRefs.current;
-      for (let i = 0; i < DRIVE_PIXEL_DELAYS_MS.length; i += 1) {
-        const el = cells[i];
+    let start = performance.now();
+
+    const stop = () => {
+      if (frame !== 0) {
+        cancelAnimationFrame(frame);
+        frame = 0;
+      }
+      for (const el of cellRefs.current) {
         if (el) {
-          el.style.opacity = String(
-            drivePixelOpacity(elapsedMs, DRIVE_PIXEL_DELAYS_MS[i]!),
-          );
+          el.style.opacity = "0.15";
         }
       }
+    };
+
+    const startWave = () => {
+      stop();
+      start = performance.now();
+      const tick = (now: number) => {
+        const elapsedMs = now - start;
+        const cells = cellRefs.current;
+        for (let i = 0; i < DRIVE_PIXEL_DELAYS_MS.length; i += 1) {
+          const el = cells[i];
+          if (el) {
+            el.style.opacity = String(
+              drivePixelOpacity(elapsedMs, DRIVE_PIXEL_DELAYS_MS[i]!),
+            );
+          }
+        }
+        frame = requestAnimationFrame(tick);
+      };
       frame = requestAnimationFrame(tick);
     };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+
+    const onMotionPreferenceChange = () => {
+      if (media?.matches) {
+        stop();
+      } else {
+        startWave();
+      }
+    };
+
+    onMotionPreferenceChange();
+    media?.addEventListener("change", onMotionPreferenceChange);
+    return () => {
+      media?.removeEventListener("change", onMotionPreferenceChange);
+      stop();
+    };
   }, []);
 
   return (
@@ -149,6 +183,7 @@ export function CoworkerLoadingState({
         {label}
       </span>
       <span
+        aria-hidden
         className="text-muted-foreground shrink-0 font-mono text-xs tabular-nums"
         data-testid="live-stream-elapsed"
       >
@@ -372,6 +407,7 @@ export function CoworkerLiveThought({
         defaultExpanded
       />
       <span
+        aria-hidden
         className="text-muted-foreground ml-[26px] font-mono text-xs tabular-nums"
         data-testid="live-stream-elapsed"
       >

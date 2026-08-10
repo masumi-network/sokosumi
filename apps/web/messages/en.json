@@ -1540,10 +1540,8 @@
           "thinking": "Thinking...",
           "searchingFiles": "Searching files...",
           "callingTools": "Calling tools...",
-          "thoughtForSeconds": "Thought for {seconds}s",
           "thoughtForDuration": "Thought for {duration}",
-          "expandSteps": "Show thought",
-          "collapseSteps": "Hide thought"
+          "expandSteps": "Show thought"
         },
         "chatErrorTitle": "Chat Error",
         "errorFallbackDescription": "Something went wrong with the chat interface. Please try refreshing or contact support if the issue persists.",

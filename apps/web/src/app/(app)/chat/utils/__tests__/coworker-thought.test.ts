@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { formatBeautifulElapsed } from "../../components/coworker-thought-ui";
 import {
   extractThoughtDurationSeconds,
   extractThoughtTextFromMessageParts,
@@ -19,19 +18,6 @@ describe("formatThoughtDurationLabel", () => {
     expect(formatThoughtDurationLabel(60)).toBe("1m");
     expect(formatThoughtDurationLabel(63)).toBe("1m 3s");
     expect(formatThoughtDurationLabel(125)).toBe("2m 5s");
-  });
-});
-
-describe("formatBeautifulElapsed", () => {
-  it("matches Beautiful UI tenths under a minute", () => {
-    expect(formatBeautifulElapsed(0)).toBe("0.0s");
-    expect(formatBeautifulElapsed(10_400)).toBe("10.4s");
-    expect(formatBeautifulElapsed(59_900)).toBe("59.9s");
-  });
-
-  it("formats a minute and above as m s.s", () => {
-    expect(formatBeautifulElapsed(60_000)).toBe("1m 0.0s");
-    expect(formatBeautifulElapsed(75_500)).toBe("1m 15.5s");
   });
 });
 

@@ -1531,10 +1531,8 @@
           "thinking": "Pensando...",
           "searchingFiles": "Buscando archivos...",
           "callingTools": "Usando herramientas...",
-          "thoughtForSeconds": "Pensado durante {seconds}s",
           "thoughtForDuration": "Pensado durante {duration}",
-          "expandSteps": "Mostrar pensamiento",
-          "collapseSteps": "Ocultar pensamiento"
+          "expandSteps": "Mostrar pensamiento"
         },
         "chatErrorTitle": "Error en el chat",
         "errorFallbackDescription": "Hubo un problema con la interfaz del chat. Por favor, recarga la página o contacta con soporte si el problema persiste.",
