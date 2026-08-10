@@ -56,14 +56,26 @@ const coworker: Coworker = {
   id: "elena-id",
   slug: "elena",
   name: "Elena",
+  caption: "Strategy",
   description: "Helper",
   useCase: "",
   capabilities: ["chat"],
   canChat: true,
 };
 
-async function reachConfirm() {
-  render(<ChatOnboardingHost coworkers={[coworker]} userName="Francis" />);
+const coworkerAlex: Coworker = {
+  id: "alex-id",
+  slug: "alex",
+  name: "Alex",
+  caption: "Coding",
+  description: "Coder",
+  useCase: "",
+  capabilities: ["chat"],
+  canChat: true,
+};
+
+async function reachConfirm(coworkers: Coworker[] = [coworker]) {
+  render(<ChatOnboardingHost coworkers={coworkers} userName="Francis" />);
   fireEvent.click(screen.getByLabelText(/intentChoices\.chat/i));
   fireEvent.click(screen.getByRole("button", { name: "next" }));
   fireEvent.click(screen.getByRole("button", { name: "skip" }));
@@ -108,5 +120,13 @@ describe("ChatOnboardingHost confirm", () => {
     });
     expect(notifyMock).toHaveBeenCalled();
     expect(replaceMock).toHaveBeenCalledWith("/chat/rooms/room-99");
+  });
+
+  it("rail switcher updates selected gallery card", async () => {
+    await reachConfirm([coworker, coworkerAlex]);
+
+    expect(screen.getByTestId("gallery-card").textContent).toBe("Elena");
+    fireEvent.click(screen.getAllByRole("button", { name: /Alex/i })[0]!);
+    expect(screen.getByTestId("gallery-card").textContent).toBe("Alex");
   });
 });

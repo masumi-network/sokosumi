@@ -1583,7 +1583,7 @@
         "finish": "Weiter",
         "confirmTitle": "Dein Coworker",
         "confirmDescription": "Bestätige, um den Chat zu öffnen. Deine erste Nachricht bleibt im Composer, bis du sie sendest.",
-        "switchCoworker": "Anderen Coworker wählen",
+        "coworkerListLabel": "Coworkers",
         "draftPreviewLabel": "Erste Nachricht",
         "confirmCta": "Chat öffnen",
         "opening": "Wird geöffnet…",

@@ -139,7 +139,14 @@ export function ChatOnboardingHost({
       )}
       data-chat-onboarding-host
     >
-      <div className="mx-auto flex min-h-0 w-full max-w-lg flex-1 flex-col px-4 py-6 md:py-10">
+      <div
+        className={cn(
+          "mx-auto flex min-h-0 w-full flex-1 flex-col px-4 py-6 md:py-10",
+          state.phase.kind === "confirm" || state.phase.kind === "opening"
+            ? "max-w-4xl"
+            : "max-w-lg",
+        )}
+      >
         {state.phase.kind === "questionnaire" ? (
           <>
             <div className="mb-6 space-y-1">

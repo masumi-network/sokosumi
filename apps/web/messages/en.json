@@ -1583,7 +1583,7 @@
         "finish": "Continue",
         "confirmTitle": "Meet your coworker",
         "confirmDescription": "Confirm to open a chat. Your first message stays in the composer until you send it.",
-        "switchCoworker": "Choose a different coworker",
+        "coworkerListLabel": "Coworkers",
         "draftPreviewLabel": "First message",
         "confirmCta": "Open chat",
         "opening": "Opening…",

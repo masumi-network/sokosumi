@@ -1583,7 +1583,7 @@
         "finish": "Continuar",
         "confirmTitle": "Conoce a tu coworker",
         "confirmDescription": "Confirma para abrir el chat. Tu primer mensaje permanece en el compositor hasta que lo envíes.",
-        "switchCoworker": "Elegir otro coworker",
+        "coworkerListLabel": "Coworkers",
         "draftPreviewLabel": "Primer mensaje",
         "confirmCta": "Abrir chat",
         "opening": "Abriendo…",
