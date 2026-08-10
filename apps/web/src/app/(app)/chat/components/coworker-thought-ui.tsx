@@ -73,7 +73,7 @@ export function CoworkerLoadingState({
         ))}
       </span>
       <span
-        className="bui-shimmer-text truncate text-[13px] font-medium"
+        className="bui-shimmer-text truncate text-sm font-medium"
         data-testid="coworker-loading-label"
       >
         {label}
@@ -155,11 +155,11 @@ export function CoworkerThoughtTrace({
           <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
         </svg>
         {working ? (
-          <span className="bui-shimmer-text truncate text-[13px] font-medium whitespace-nowrap">
+          <span className="bui-shimmer-text truncate text-sm font-medium whitespace-nowrap">
             {headerLabel}
           </span>
         ) : (
-          <span className="text-muted-foreground truncate text-[13px] font-medium whitespace-nowrap">
+          <span className="text-muted-foreground truncate text-sm font-medium whitespace-nowrap">
             {headerLabel}
           </span>
         )}
@@ -207,7 +207,7 @@ export function CoworkerThoughtTrace({
               />
               <div ref={traceRef} className="flex flex-col gap-1 py-1">
                 <p
-                  className="text-muted-foreground text-[12.5px] leading-relaxed whitespace-pre-wrap"
+                  className="text-muted-foreground text-xs leading-relaxed whitespace-pre-wrap"
                   data-testid="coworker-thought-body"
                 >
                   {bodyText}
