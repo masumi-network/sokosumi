@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useEmojiPickerMaxHeight } from "@/hooks/use-emoji-picker-max-height";
 import { cn } from "@/lib/utils";
 import {
   type EmojiCatalogEntry,
@@ -37,6 +38,8 @@ export interface EmojiPickerProps {
   ariaLabel: string;
   align?: "start" | "end" | "center";
   triggerClassName?: string;
+  /** Portal host for Sheet/Dialog embedding so touch scroll stays allowlisted. */
+  portalContainer?: HTMLElement | null;
 }
 
 function readFrequentlyUsedEmojis(): string[] {
@@ -114,6 +117,7 @@ export function EmojiPicker({
   ariaLabel,
   align = "start",
   triggerClassName,
+  portalContainer,
 }: EmojiPickerProps) {
   const t = useTranslations("Components.EmojiPicker");
   const [open, setOpen] = useState(false);
@@ -123,6 +127,7 @@ export function EmojiPicker({
     useState<NavTargetId>("smileys-emotion");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const maxHeightPx = useEmojiPickerMaxHeight();
 
   const categories = listEmojiCategories();
   const categoryLabelById = new Map(
@@ -193,7 +198,9 @@ export function EmojiPicker({
       </PopoverTrigger>
       <PopoverContent
         align={align}
-        className="flex max-h-[360px] w-80 flex-col overflow-hidden p-0"
+        container={portalContainer}
+        style={{ maxHeight: maxHeightPx }}
+        className="flex w-80 flex-col overflow-hidden p-0"
       >
         <nav className="border-border flex shrink-0 gap-0.5 overflow-x-auto border-b px-1.5 py-1">
           <NavButton
@@ -241,7 +248,7 @@ export function EmojiPicker({
           />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+        <div className="min-h-[7.5rem] flex-1 touch-pan-y overflow-y-auto overscroll-contain p-2">
           {isSearching ? (
             searchResults.length === 0 ? (
               <p className="text-muted-foreground px-1 py-6 text-center text-sm">
