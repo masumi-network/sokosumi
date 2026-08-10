@@ -182,10 +182,13 @@ describe("ChatMessageRow", () => {
   it("shows coworker bot badge on avatar, not beside name", () => {
     renderRow({ message: coworkerMessage() });
 
-    expect(screen.getByLabelText("coworkerBadge")).toBeInTheDocument();
+    const badge = screen.getByLabelText("coworkerBadge");
+    expect(badge).toBeInTheDocument();
     expect(screen.getByText("Jamal").closest("span")?.textContent).toBe(
       "Jamal",
     );
+    // Containing box must stay avatar-sized (not stretched full row height)
+    expect(badge.closest(".size-8")).toHaveClass("relative", "self-start");
   });
 
   it("does not show coworker bot badge for human senders", () => {

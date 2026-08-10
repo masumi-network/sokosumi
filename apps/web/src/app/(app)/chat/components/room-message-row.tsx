@@ -1414,14 +1414,15 @@ export function ChatMessageRow({
           profile={hoverProfile}
           side="top"
           align="start"
-          className="mt-0.5 shrink-0"
+          className="mt-0.5 shrink-0 self-start"
           currentUserId={currentUserId}
           canOpenHumanDirect={canOpenHumanDirect}
           onOpenDirect={onOpenDirectMessage}
           isOpeningDirect={isOpeningDirect}
           isDirectActionBusy={isDirectActionBusy}
         >
-          <span className="relative inline-flex">
+          {/* self-start: article is flex; stretch made this full row height so absolute badge sat at bottom */}
+          <span className="relative inline-flex size-8 shrink-0 self-start">
             <Avatar className="size-8">
               <AvatarImage src={sender.image ?? undefined} alt="" />
               <AvatarFallback className="text-xs">
