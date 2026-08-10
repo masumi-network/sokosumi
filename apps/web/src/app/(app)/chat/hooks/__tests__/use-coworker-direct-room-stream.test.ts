@@ -4,6 +4,7 @@ import { mergeMessagesWithStreamOverlay } from "@/app/chat/utils/merge-room-mess
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
+  assignStableOverlayCreatedAtMs,
   buildCoworkerStreamSendMessageOptions,
   createResumePendingCoworkerShell,
   RESUME_PENDING_STREAM_MESSAGE_ID,
@@ -50,6 +51,23 @@ function persistedUser(content: string): ChatRoomMessage {
     deletedAt: null,
   };
 }
+
+describe("assignStableOverlayCreatedAtMs", () => {
+  it("reuses the first-seen timestamp for the same message id", () => {
+    const map = new Map<string, number>();
+    const first = assignStableOverlayCreatedAtMs(map, "msg-a", 0, 1_000);
+    const second = assignStableOverlayCreatedAtMs(map, "msg-a", 0, 5_000);
+    expect(first).toBe(1_000);
+    expect(second).toBe(1_000);
+  });
+
+  it("keeps later message ids strictly after earlier ones when assigned in order", () => {
+    const map = new Map<string, number>();
+    const user = assignStableOverlayCreatedAtMs(map, "user", 0, 1_000);
+    const assistant = assignStableOverlayCreatedAtMs(map, "asst", 1, 1_000);
+    expect(assistant).toBeGreaterThan(user);
+  });
+});
 
 describe("buildCoworkerStreamSendMessageOptions", () => {
   it("returns undefined when neither parent nor quote is set", () => {
