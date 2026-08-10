@@ -105,7 +105,7 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
             {resolvedViewMode === "board" ? (
               <TasksBoardLoading labels={labels} />
             ) : (
-              <TasksListLoading labels={labels} />
+              <TasksListLoading />
             )}
           </div>
         </div>
@@ -161,37 +161,14 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
   );
 }
 
-function TasksListLoading({ labels }: { labels: TasksLoadingLabels }) {
-  const orderedColumns = [...KANBAN_COLUMNS].reverse();
-
+function TasksListLoading() {
   return (
     <div className="bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
-      <div className="divide-border/50 divide-y">
-        {orderedColumns.map((column, index) => {
-          const isFirstVisibleSection = index === 0;
-
-          return (
-            <section key={column.id} className="flex flex-col gap-1">
-              <div className="bg-muted/40 sticky top-0 z-10 px-4 py-2 backdrop-blur-sm">
-                <ColumnHeader
-                  title={labels.columns[column.id]}
-                  count={0}
-                  statusColorClass={COLUMN_STATUS_COLORS[column.id]}
-                />
-              </div>
-              {isFirstVisibleSection ? (
-                <div className="flex items-center justify-center px-4 py-6">
-                  <Loader2
-                    className="text-muted-foreground size-5 animate-spin"
-                    aria-hidden
-                  />
-                </div>
-              ) : (
-                <div className="px-4 py-6" />
-              )}
-            </section>
-          );
-        })}
+      <div className="flex items-center justify-center px-4 py-16">
+        <Loader2
+          className="text-muted-foreground size-5 animate-spin"
+          aria-hidden
+        />
       </div>
     </div>
   );
