@@ -29,24 +29,6 @@ function coworkerStreamTextLooksSuspiciouslyShort(
   return trimmed.length > 0 && trimmed.length < minGoodChars;
 }
 
-async function pipeStreamToController(
-  source: ReadableStream<LanguageModelV4StreamPart>,
-  controller: ReadableStreamDefaultController<LanguageModelV4StreamPart>,
-): Promise<void> {
-  const reader = source.getReader();
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-      controller.enqueue(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-}
-
 function canCommitStream(text: string, minGoodChars: number): boolean {
   if (coworkerStreamTextLooksLikeAgentError(text)) {
     return false;
@@ -55,7 +37,15 @@ function canCommitStream(text: string, minGoodChars: number): boolean {
 }
 
 /**
- * Parts that leave the gate before answer text commits.
+ * Setup lifecycle held until first progress/commit so order is
+ * stream-start → progress, without leaking setup on a discarded first attempt.
+ */
+function isHeldSetupLifecyclePart(part: LanguageModelV4StreamPart): boolean {
+  return part.type === "stream-start" || part.type === "response-metadata";
+}
+
+/**
+ * Progress parts that leave the gate before answer text commits.
  *
  * Room coworker `streamText` uses AI SDK `firstChunkMs` / `chunkMs`. Those
  * timers only reset on output chunks (non-empty reasoning-delta, tool-call,
@@ -63,19 +53,12 @@ function canCommitStream(text: string, minGoodChars: number): boolean {
  * only emitting reasoning heartbeats — if the gate buffers those, Sokosumi
  * aborts as stalled even though the upstream stream is alive.
  *
- * Also pass through stream lifecycle that must precede progress (`stream-start`,
- * `response-metadata`) so AI SDK protocol order stays intact, and `error` so
- * mid-stream failures are not held until a late text commit.
- *
- * Answer `text-*` and `finish` stay buffered so agent-error / short-tail
- * retries still hide bad first attempts. Structural start/end parts that are
- * not themselves keepalive chunks (e.g. reasoning-start) still pass through so
- * block integrity is preserved when deltas stream early.
+ * `error` also leaves early so mid-stream failures are not held until a late
+ * text commit. Answer `text-*` and `finish` stay buffered for agent-error /
+ * short-tail retries.
  */
-function isPreCommitPassThroughPart(part: LanguageModelV4StreamPart): boolean {
+function isProgressPassThroughPart(part: LanguageModelV4StreamPart): boolean {
   switch (part.type) {
-    case "stream-start":
-    case "response-metadata":
     case "error":
     case "reasoning-start":
     case "reasoning-delta":
@@ -101,9 +84,55 @@ export function createCommitGateStream(
 
   return new ReadableStream<LanguageModelV4StreamPart>({
     async start(controller) {
-      const buffer: LanguageModelV4StreamPart[] = [];
+      /** Answer-side parts held until commit (or discarded on successful retry). */
+      const answerBuffer: LanguageModelV4StreamPart[] = [];
+      /** `stream-start` / `response-metadata` until first progress or commit. */
+      const setupBuffer: LanguageModelV4StreamPart[] = [];
       let textSoFar = "";
       let committed = false;
+      /** At most one `stream-start` leaves the gate (retries must not re-emit). */
+      let streamStartEmitted = false;
+
+      function enqueue(part: LanguageModelV4StreamPart): void {
+        if (part.type === "stream-start") {
+          if (streamStartEmitted) {
+            return;
+          }
+          streamStartEmitted = true;
+        }
+        controller.enqueue(part);
+      }
+
+      function flushSetupBuffer(): void {
+        for (const part of setupBuffer) {
+          enqueue(part);
+        }
+        setupBuffer.length = 0;
+      }
+
+      function flushAnswerBuffer(): void {
+        for (const part of answerBuffer) {
+          enqueue(part);
+        }
+        answerBuffer.length = 0;
+      }
+
+      async function pipeRetryStream(
+        source: ReadableStream<LanguageModelV4StreamPart>,
+      ): Promise<void> {
+        const reader = source.getReader();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              break;
+            }
+            enqueue(value);
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      }
 
       try {
         while (true) {
@@ -118,20 +147,22 @@ export function createCommitGateStream(
 
           if (!committed && canCommitStream(textSoFar, minGoodChars)) {
             committed = true;
-            for (const bufferedPart of buffer) {
-              controller.enqueue(bufferedPart);
-            }
-            buffer.length = 0;
-            controller.enqueue(value);
+            flushSetupBuffer();
+            flushAnswerBuffer();
+            enqueue(value);
             continue;
           }
 
           if (committed) {
-            controller.enqueue(value);
-          } else if (isPreCommitPassThroughPart(value)) {
-            controller.enqueue(value);
+            enqueue(value);
+          } else if (isHeldSetupLifecyclePart(value)) {
+            setupBuffer.push(value);
+          } else if (isProgressPassThroughPart(value)) {
+            // Lifecycle must precede progress for AI SDK protocol order.
+            flushSetupBuffer();
+            enqueue(value);
           } else {
-            buffer.push(value);
+            answerBuffer.push(value);
           }
         }
 
@@ -148,17 +179,19 @@ export function createCommitGateStream(
           if (retryReason) {
             const retryStream = await options.onRetryNeeded(retryReason);
             if (retryStream) {
-              // Progress may already have been forwarded; retry only replaces
-              // the buffered answer path (text/finish), not leaked reasoning.
-              await pipeStreamToController(retryStream, controller);
+              // Discard held setup + answer from the failed attempt. Progress
+              // already enqueued may remain. Retry stream is filtered so a
+              // second stream-start is not emitted.
+              setupBuffer.length = 0;
+              answerBuffer.length = 0;
+              await pipeRetryStream(retryStream);
               controller.close();
               return;
             }
           }
 
-          for (const bufferedPart of buffer) {
-            controller.enqueue(bufferedPart);
-          }
+          flushSetupBuffer();
+          flushAnswerBuffer();
         }
 
         controller.close();

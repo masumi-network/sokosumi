@@ -288,7 +288,7 @@ describe("createCommitGateStream", () => {
     expect(onRetryNeeded).not.toHaveBeenCalled();
   });
 
-  it("forwards stream-start and response-metadata before progress", async () => {
+  it("flushes held stream-start and response-metadata before progress", async () => {
     let sourceController!: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
     const source = new ReadableStream<LanguageModelV4StreamPart>({
       start(controller) {
@@ -305,6 +305,7 @@ describe("createCommitGateStream", () => {
     sourceController.enqueue(
       asPart({ type: "response-metadata", id: "resp_1" }),
     );
+    // Setup is held until progress arrives (not enqueued yet).
     sourceController.enqueue(asPart({ type: "reasoning-start", id: "rs_1" }));
     sourceController.enqueue(
       asPart({
@@ -332,6 +333,93 @@ describe("createCommitGateStream", () => {
     });
 
     sourceController.close();
+  });
+
+  it("retries without re-emitting stream-start when first attempt setup was held", async () => {
+    const onRetryNeeded = vi.fn(async () =>
+      partsStream([
+        { type: "stream-start", warnings: [] },
+        { type: "response-metadata", id: "resp_retry" },
+        {
+          type: "text-delta",
+          delta: "This is a complete coworker reply with enough text.",
+        },
+        { type: "finish" },
+      ]),
+    );
+
+    const stream = createCommitGateStream(
+      partsStream([
+        { type: "stream-start", warnings: [] },
+        { type: "response-metadata", id: "resp_fail" },
+        {
+          type: "text-delta",
+          delta: `${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`,
+        },
+        { type: "finish" },
+      ]),
+      { onRetryNeeded },
+    );
+
+    const types = await collectTypes(stream);
+    expect(onRetryNeeded).toHaveBeenCalledOnce();
+    expect(onRetryNeeded).toHaveBeenCalledWith("agent-error");
+    // Failed attempt setup was discarded; only retry stream-start leaves the gate.
+    expect(types).toEqual([
+      "stream-start",
+      "response-metadata",
+      "text-delta",
+      "finish",
+    ]);
+  });
+
+  it("retries after progress without a second stream-start", async () => {
+    const onRetryNeeded = vi.fn(async () =>
+      partsStream([
+        { type: "stream-start", warnings: [] },
+        { type: "response-metadata", id: "resp_retry" },
+        {
+          type: "text-delta",
+          delta: "This is a complete coworker reply with enough text.",
+        },
+        { type: "finish" },
+      ]),
+    );
+
+    const stream = createCommitGateStream(
+      partsStream([
+        { type: "stream-start", warnings: [] },
+        { type: "response-metadata", id: "resp_fail" },
+        { type: "reasoning-start", id: "rs_1" },
+        {
+          type: "reasoning-delta",
+          id: "rs_1",
+          delta: "Still working…",
+        },
+        { type: "reasoning-end", id: "rs_1" },
+        {
+          type: "text-delta",
+          delta: `${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`,
+        },
+        { type: "finish" },
+      ]),
+      { onRetryNeeded },
+    );
+
+    const types = await collectTypes(stream);
+    expect(onRetryNeeded).toHaveBeenCalledOnce();
+    // Setup flushed with first progress; retry must not re-emit stream-start.
+    expect(types.filter((t) => t === "stream-start")).toHaveLength(1);
+    expect(types).toEqual([
+      "stream-start",
+      "response-metadata",
+      "reasoning-start",
+      "reasoning-delta",
+      "reasoning-end",
+      "response-metadata",
+      "text-delta",
+      "finish",
+    ]);
   });
 
   it("still retries agent-error after reasoning was already forwarded", async () => {
