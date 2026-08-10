@@ -942,9 +942,17 @@ function TouchMessageActionsSheet({
   showDeleteButton: boolean;
 }) {
   const t = useTranslations("App.Channels");
+  const [portalHost, setPortalHost] = useState<HTMLDivElement | null>(null);
   const { contentRef, swipeHandlers } = useBottomSheetSwipeDismiss(open, () => {
     onOpenChange(false);
   });
+  const setSheetContentRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      contentRef.current = node;
+      setPortalHost(node);
+    },
+    [contentRef],
+  );
   const whoReactedRows = message.reactions.flatMap((reaction) => {
     const whoReactedLabel = formatWhoReactedLabel(reaction, t);
     if (!whoReactedLabel) {
@@ -961,7 +969,7 @@ function TouchMessageActionsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        ref={contentRef}
+        ref={setSheetContentRef}
         side="bottom"
         showCloseButton={false}
         className="gap-0 rounded-t-2xl touch-none pb-[max(1rem,env(safe-area-inset-bottom))]"
@@ -1005,6 +1013,7 @@ function TouchMessageActionsSheet({
             ariaLabel={t("Reactions.add")}
             align="center"
             triggerClassName="size-11 rounded-full"
+            portalContainer={portalHost}
             onPick={(emoji) => {
               runAndClose(() => {
                 onToggleReaction(message, emoji);
