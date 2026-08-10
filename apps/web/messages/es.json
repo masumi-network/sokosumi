@@ -4928,8 +4928,7 @@
       "MentionStatus": {
         "pending": "Llamando a {name}",
         "sent": "{name} está pensando",
-        "responded": "{name} respondió",
-        "failed": "{name} falló",
+        "failed": "{name} no pudo responder",
         "nameFallback": "Coworker"
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
