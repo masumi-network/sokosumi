@@ -99,7 +99,7 @@ export function ProjectsView({
         </div>
 
         {hasLoadedProjects ? (
-          <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
+          <div className="bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
             <div className="divide-border/50 divide-y px-2">
               {items.map((project) => (
                 <ProjectListItem
