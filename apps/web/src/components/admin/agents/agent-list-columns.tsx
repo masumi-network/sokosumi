@@ -1,12 +1,11 @@
 "use client";
 
-import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import Link from "next/link";
 import type { useFormatter, useTranslations } from "next-intl";
 
 import {
+  createAppColumnHelper,
   DataTableColumnHeader,
-  type DataTableFeatures,
 } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,16 +16,13 @@ const dateTimeOptions = {
   timeStyle: "short",
 } as const;
 
-const columnHelper = createColumnHelper<
-  DataTableFeatures,
-  AdminAgentListItem
->();
+const columnHelper = createAppColumnHelper<AdminAgentListItem>();
 
 export function getAgentListColumns(
   t: ReturnType<typeof useTranslations<"App.Admin.Agents.AgentList">>,
   formatter: ReturnType<typeof useFormatter>,
-): ColumnDef<DataTableFeatures, AdminAgentListItem>[] {
-  return [
+) {
+  return columnHelper.columns([
     columnHelper.accessor("displayName", {
       id: "displayName",
       minSize: 140,
@@ -39,7 +35,7 @@ export function getAgentListColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, AdminAgentListItem>,
+    }),
 
     columnHelper.accessor("registryName", {
       id: "registryName",
@@ -55,7 +51,7 @@ export function getAgentListColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, AdminAgentListItem>,
+    }),
 
     columnHelper.accessor("hasOverride", {
       id: "hasOverride",
@@ -74,7 +70,7 @@ export function getAgentListColumns(
         ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, AdminAgentListItem>,
+    }),
 
     columnHelper.accessor("status", {
       id: "status",
@@ -86,7 +82,7 @@ export function getAgentListColumns(
       cell: ({ row }) => row.original.status,
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, AdminAgentListItem>,
+    }),
 
     columnHelper.accessor("createdAt", {
       id: "createdAt",
@@ -102,7 +98,7 @@ export function getAgentListColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, AdminAgentListItem>,
+    }),
 
     columnHelper.display({
       id: "actions",
@@ -121,6 +117,6 @@ export function getAgentListColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, AdminAgentListItem>,
-  ];
+    }),
+  ]);
 }
