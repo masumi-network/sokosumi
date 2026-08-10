@@ -5,7 +5,7 @@ alwaysApply: true
 
 ## Result Type Convention
 
-When you need a Result type for error handling, **always use `neverthrow`**. Do not invent custom Result types.
+When you need a Result type for error handling, **always use `neverthrow`**. Do not invent custom Result types. Do **not** use or extend `@/lib/ts-res` (legacy; migration under SOK-754).
 
 ```typescript
 import { ok, err, type Result } from "neverthrow";
@@ -13,8 +13,8 @@ import { ok, err, type Result } from "neverthrow";
 
 ### Don't
 
-- Create custom `Result<T, E>` types
-- Use `{ ok: boolean, value?: T, error?: E }` patterns
+- Create custom in-process `Result<T, E>` types or `{ ok, data }` / `{ ok, error }` libraries
+- Import `@/lib/ts-res` in **new or changed** code (remaining call sites migrate under SOK-754 children; do not add new ones)
 - Import Result types from other packages (unless they re-export neverthrow)
 
 ### Do
@@ -23,6 +23,39 @@ import { ok, err, type Result } from "neverthrow";
 - Use `isOk()` / `isErr()` for type-safe checks
 - Use `.map()`, `.mapErr()`, `.andThen()` for transformations
 
+## Server actions (web) — wire DTO
+
+Next.js Flight **does not preserve** neverthrow class methods. Server actions must **not** return raw `Result` instances to the client.
+
+In-process: neverthrow. At the action return boundary, map with the shared helper:
+
+```typescript
+import { ok, err, type Result } from "neverthrow";
+import {
+  toActionResult,
+  type ActionResultDto,
+} from "@/lib/actions/action-result";
+
+export async function myAction(): Promise<ActionResultDto<Data, ActionError>> {
+  const result: Result<Data, ActionError> = /* … */;
+  return toActionResult(result);
+}
+```
+
+Wire shape:
+
+```typescript
+type ActionResultDto<T, E> =
+  | { ok: true; value: T }
+  | { ok: false; error: E };
+```
+
+**Clients:** `if (!result.ok) { /* result.error */ }` and `result.value` on success. Never `result.data` (that was `@/lib/ts-res`).
+
+This plain DTO is the **only** allowed non-neverthrow Result shape — a serialization boundary, not a second Result algebra. Do not add parallel Ok/Err helpers.
+
 ## References
 
 - [neverthrow Documentation](https://github.com/supermacro/neverthrow)
+- Web helper: `apps/web/src/lib/actions/action-result.ts`
+- Epic: SOK-754 (ban ts-res; migrate batches SOK-763…768)

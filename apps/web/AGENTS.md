@@ -45,6 +45,32 @@ Next.js serializes concurrent **server actions** per session. A long action star
 - Share server-side load logic in `src/lib/` so the Route Handler (and any future callers) stay in sync (see `src/lib/hermes/skills-marketplace-data.ts` + `GET /api/personal-assistant/skills-marketplace` as the reference pattern).
 - Do **not** fire long server actions on mount of a hidden multi-step UI while later steps still call actions.
 
+### Server action Results (neverthrow + wire DTO)
+
+**In-process** error handling always uses `neverthrow` (`ok` / `err` / `Result`). See root [neverthrow rule](../../.cursor/rules/neverthrow.mdc).
+
+**Do not use `@/lib/ts-res`** in new or changed code. That helper (`Ok` / `Err` / `result.data`) is legacy; remaining call sites migrate under SOK-754. Do not add new imports.
+
+**Server action returns** must be the plain serializable DTO — neverthrow class methods do not survive Flight:
+
+```typescript
+import { ok, err, type Result } from "neverthrow";
+import {
+  toActionResult,
+  type ActionResultDto,
+} from "@/lib/actions/action-result";
+
+// wire: { ok: true; value: T } | { ok: false; error: E }
+export async function exampleAction(): Promise<
+  ActionResultDto<{ id: string }, ActionError>
+> {
+  const result: Result<{ id: string }, ActionError> = ok({ id: "…" });
+  return toActionResult(result);
+}
+```
+
+**Clients:** branch on `result.ok`; read success as `result.value` (not `result.data`). Prefer `toActionResult` over inventing another Ok/Err helper.
+
 ### Route Organization
 
 - Group related routes using parentheses: `(app)`, `(auth)`
