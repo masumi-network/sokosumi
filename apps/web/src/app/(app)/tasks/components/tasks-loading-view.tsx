@@ -1,4 +1,5 @@
 import { Loader2, Plus, SlidersHorizontal } from "lucide-react";
+import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
   COLUMN_STATUS_COLORS,
   KANBAN_COLUMNS,
@@ -63,7 +64,12 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
   const resolvedViewMode = viewMode ?? "board";
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-5">
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-1 flex-col gap-5",
+        LIST_MOBILE_CREATE_FAB_CLEARANCE,
+      )}
+    >
       <div className="flex flex-row items-center justify-between gap-3">
         <div>
           <div className="bg-muted/50 flex items-center gap-1 self-start rounded-lg p-1">
@@ -81,7 +87,12 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
             <SlidersHorizontal className="size-4" aria-hidden />
             <span className="hidden sm:inline">{labels.display.button}</span>
           </Button>
-          <Button size="sm" className="gap-1.5" disabled>
+          <Button
+            size="sm"
+            className="hidden gap-1.5 md:inline-flex"
+            disabled
+            data-tasks-add-task-header-anchor
+          >
             <Plus className="size-4" aria-hidden />
             <span className="hidden sm:inline">{labels.add}</span>
           </Button>
@@ -133,7 +144,13 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
               />
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2">
+            <div
+              className={cn(
+                "flex min-h-0 flex-1 flex-col overflow-y-auto px-2",
+                LIST_MOBILE_CREATE_FAB_CLEARANCE,
+                "md:pb-2",
+              )}
+            >
               {isFirstColumn ? (
                 <div className="flex flex-1 items-center justify-center py-6">
                   <Loader2

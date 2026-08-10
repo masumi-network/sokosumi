@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomMessage,
+} from "@/lib/clients/generated/core";
 
 import { ChatMessageRow } from "../room-message-row";
 
@@ -32,6 +35,9 @@ vi.mock("next-intl", () => ({
       }
       if (key === "imageAlt" && values) {
         return `Preview image for ${values.title}`;
+      }
+      if (key === "reasoning.thoughtForDuration" && values?.duration != null) {
+        return `Thought for ${String(values.duration)}`;
       }
       return key;
     };
@@ -137,6 +143,7 @@ function renderRow({
   onCancelEdit,
   onSaveEdit,
   isSavingEdit = false,
+  coworkersById = new Map(),
 }: {
   message?: ChatRoomMessage;
   isContinuation?: boolean;
@@ -151,11 +158,12 @@ function renderRow({
   onCancelEdit?: () => void;
   onSaveEdit?: (content?: string) => void;
   isSavingEdit?: boolean;
+  coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
 } = {}) {
   render(
     <ChatMessageRow
       message={message}
-      coworkersById={new Map()}
+      coworkersById={coworkersById}
       coworkersBySlug={new Map()}
       currentUserId={currentUserId}
       onToggleReaction={vi.fn()}
@@ -179,6 +187,44 @@ function renderContinuation(message: ChatRoomMessage = userMessage()) {
 }
 
 describe("ChatMessageRow", () => {
+  it("shows coworker bot badge on avatar, not beside name", () => {
+    renderRow({ message: coworkerMessage() });
+
+    // File mock returns i18n keys (not English copy); label is coworkerBadge
+    const badge = screen.getByRole("img", { name: "coworkerBadge" });
+    expect(badge).toHaveAttribute("data-testid", "coworker-avatar-badge");
+    // Single labeled chip — catches a residual name-row Bot with the same label
+    expect(screen.getAllByRole("img", { name: "coworkerBadge" })).toHaveLength(
+      1,
+    );
+
+    const name = screen.getByText("Jamal");
+    expect(name).toHaveTextContent("Jamal");
+    // Badge is under the avatar trigger, not under the name hover trigger
+    expect(name.parentElement).not.toContainElement(badge);
+
+    // HoverCard merges self-start/shrink-0 onto this trigger; size-8 keeps absolute badge on avatar
+    const avatarWrap = screen.getByTestId("message-sender-avatar");
+    expect(avatarWrap).toHaveClass(
+      "relative",
+      "size-8",
+      "shrink-0",
+      "self-start",
+    );
+    expect(avatarWrap).toContainElement(badge);
+  });
+
+  it("does not show coworker bot badge for human senders", () => {
+    renderRow({ message: userMessage() });
+
+    expect(
+      screen.queryByTestId("coworker-avatar-badge"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: "coworkerBadge" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps sender attribution on continuation rows", () => {
     renderRow({ isContinuation: true });
 
@@ -1544,5 +1590,218 @@ describe("ChatMessageRow", () => {
     expect(screen.getByTestId("room-message-unfurl")).toHaveTextContent(
       "Example",
     );
+  });
+});
+
+describe("ChatMessageRow coworker Thought", () => {
+  it("shows Beautiful UI loading on mention status while coworker is thinking", () => {
+    renderRow({
+      message: userMessage({
+        content: "@Noodles which org has the most members?",
+        createdAt: new Date("2026-08-10T12:00:00.000Z"),
+        mentions: [
+          {
+            id: "mention-1",
+            coworkerId: "cow-1",
+            status: "sent",
+            responseMessageId: null,
+          },
+        ],
+      }),
+      coworkersById: new Map([
+        [
+          "cow-1",
+          {
+            id: "cow-1",
+            name: "Noodles",
+            slug: "noodles",
+            caption: null,
+            image: null,
+            presence: "online",
+          },
+        ],
+      ]),
+    });
+
+    const loading = screen.getByTestId("coworker-loading-state");
+    expect(loading).toHaveTextContent("MentionStatus.sent");
+    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+  });
+
+  it("hides mention status when coworker replied; shows failed terminal only", () => {
+    const coworkersById = new Map([
+      [
+        "cow-1",
+        {
+          id: "cow-1",
+          name: "Noodles",
+          slug: "noodles",
+          caption: null,
+          image: null,
+          presence: "online" as const,
+        },
+      ],
+    ]);
+    const { rerender } = render(
+      <ChatMessageRow
+        message={userMessage({
+          mentions: [
+            {
+              id: "m1",
+              coworkerId: "cow-1",
+              status: "responded",
+              responseMessageId: "r1",
+            },
+          ],
+        })}
+        coworkersById={coworkersById}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByTestId("coworker-mention-terminal"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-loading-state"),
+    ).not.toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={userMessage({
+          mentions: [
+            {
+              id: "m1",
+              coworkerId: "cow-1",
+              status: "failed",
+              responseMessageId: null,
+            },
+          ],
+        })}
+        coworkersById={coworkersById}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("coworker-mention-terminal")).toHaveAttribute(
+      "data-variant",
+      "failed",
+    );
+  });
+
+  it("shows Beautiful UI loading state on empty stream overlay", () => {
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:asst-1",
+        content: "",
+        metadata: { streaming: true },
+      }),
+    });
+
+    expect(screen.getByTestId("coworker-loading-state")).toHaveTextContent(
+      "reasoning.thinking",
+    );
+    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+  });
+
+  it("shows working Thought trace with live beat on stream overlay", () => {
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:asst-2",
+        content: "",
+        metadata: {
+          streaming: true,
+          reasoning: [
+            {
+              type: "reasoning",
+              text: "Counting registrations in last 30 days",
+            },
+          ],
+        },
+      }),
+    });
+
+    const trace = screen.getByTestId("coworker-thought-trace");
+    expect(trace).toHaveAttribute("data-working", "true");
+    expect(trace).toHaveTextContent("reasoning.thinking");
+    const body = screen.getByTestId("coworker-thought-body");
+    expect(body).toHaveTextContent("Counting registrations in last 30 days");
+    expect(body.className).toMatch(/line-clamp-3/);
+    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+  });
+
+  it("shows tenths elapsed on the live Loading row", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-10T12:00:10.000Z"));
+    try {
+      renderRow({
+        message: coworkerMessage({
+          id: "stream:asst-elapsed",
+          content: "",
+          createdAt: new Date("2026-08-10T12:00:00.000Z"),
+          metadata: { streaming: true },
+        }),
+      });
+      expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
+        "10.0s",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows collapsed Thought disclosure with duration when metadata has Thought", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      message: coworkerMessage({
+        content: "There were 142 new registrations.",
+        metadata: {
+          reasoning: [{ type: "reasoning", text: "Queried user table." }],
+          thought_timing_ms: { start: 1_000, end: 64_000 },
+        },
+      }),
+    });
+
+    expect(
+      screen.getByText("There were 142 new registrations."),
+    ).toBeInTheDocument();
+
+    const toggle = screen.getByRole("button", {
+      name: "Thought for 1m 3s",
+    });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("coworker-thought-body")).not.toBeVisible();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("coworker-thought-body")).toBeVisible();
+    expect(screen.getByTestId("coworker-thought-body")).toHaveTextContent(
+      "Queried user table.",
+    );
+  });
+
+  it("uses expand label when Thought exists without valid timing", () => {
+    renderRow({
+      message: coworkerMessage({
+        content: "Answer body",
+        metadata: {
+          reasoning: [{ type: "reasoning", text: "Some thought" }],
+        },
+      }),
+    });
+
+    expect(
+      screen.getByRole("button", { name: /reasoning.expandSteps/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("omits Thought disclosure when there is no reasoning metadata", () => {
+    renderRow({
+      message: coworkerMessage({ content: "Plain answer" }),
+    });
+
+    expect(
+      screen.queryByTestId("coworker-thought-trace"),
+    ).not.toBeInTheDocument();
   });
 });
