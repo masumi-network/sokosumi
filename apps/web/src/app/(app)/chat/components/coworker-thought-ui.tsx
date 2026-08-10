@@ -23,14 +23,67 @@ export function formatBeautifulElapsed(elapsedMs: number): string {
 
 /**
  * Beautiful UI Drive (chevron wavefront left → right).
- * Delay step 140ms (demo uses 90ms) with a 1000ms cycle so the wave is
- * slower and easier to read in chat.
+ * Demo uses 90ms step / 650ms cycle; we use slower timings for chat.
  */
+const DRIVE_CYCLE_MS = 1000;
+const DRIVE_DELAY_STEP_MS = 140;
 const DRIVE_PIXEL_DELAYS_MS = Array.from({ length: 9 }, (_, i) => {
   const row = Math.floor(i / 3);
   const col = i % 3;
-  return (col + Math.abs(row - 1)) * 140;
+  return (col + Math.abs(row - 1)) * DRIVE_DELAY_STEP_MS;
 });
+
+/**
+ * Sample Beautiful UI `pixel-on` opacity curve at phase [0, 1).
+ * 0–18% rise, 18–42% hold bright, 42–62% fall, 62–100% dim.
+ */
+export function drivePixelOpacityAtPhase(phase01: number): number {
+  const p = ((phase01 % 1) + 1) % 1;
+  const dim = 0.15;
+  const bright = 1;
+  if (p < 0.18) {
+    return dim + (bright - dim) * (p / 0.18);
+  }
+  if (p < 0.42) {
+    return bright;
+  }
+  if (p < 0.62) {
+    return bright + (dim - bright) * ((p - 0.42) / 0.2);
+  }
+  return dim;
+}
+
+/** Opacity for one Drive cell given elapsed animation time and cell delay. */
+export function drivePixelOpacity(
+  elapsedMs: number,
+  delayMs: number,
+  cycleMs = DRIVE_CYCLE_MS,
+): number {
+  const t = (((elapsedMs - delayMs) % cycleMs) + cycleMs) % cycleMs;
+  return drivePixelOpacityAtPhase(t / cycleMs);
+}
+
+function useAnimationClockMs(): number {
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useEffect(() => {
+    // Respect reduced motion: freeze grid at dim (no wave).
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      return;
+    }
+    const start = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      setElapsedMs(now - start);
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  return elapsedMs;
+}
 
 function useLiveElapsedMs(startedAtMs: number): number {
   const [now, setNow] = useState(() => Date.now());
@@ -41,9 +94,26 @@ function useLiveElapsedMs(startedAtMs: number): number {
   return Math.max(0, now - startedAtMs);
 }
 
+/** 3×3 Drive wave — JS-driven so it does not depend on CSS keyframes. */
+function DrivePixelGrid() {
+  const elapsedMs = useAnimationClockMs();
+  return (
+    <span aria-hidden className="bui-pixel-grid" data-testid="bui-drive-grid">
+      {DRIVE_PIXEL_DELAYS_MS.map((delayMs, i) => (
+        <span
+          key={i}
+          className="bui-pixel-cell"
+          style={{ opacity: drivePixelOpacity(elapsedMs, delayMs) }}
+          data-testid="bui-drive-pixel"
+        />
+      ))}
+    </span>
+  );
+}
+
 /**
  * Pixel-grid loader + shimmer label + live elapsed (Beautiful UI Loading State).
- * Used while the coworker stream has no answer yet.
+ * Used for mention thinking + stream overlay waiting states.
  */
 export function CoworkerLoadingState({
   label,
@@ -62,15 +132,7 @@ export function CoworkerLoadingState({
       aria-live="polite"
       data-testid="coworker-loading-state"
     >
-      <span aria-hidden className="bui-pixel-grid">
-        {DRIVE_PIXEL_DELAYS_MS.map((delayMs, i) => (
-          <span
-            key={i}
-            className="bui-pixel-cell"
-            style={{ animationDelay: `${delayMs}ms` }}
-          />
-        ))}
-      </span>
+      <DrivePixelGrid />
       <span
         className="bui-shimmer-text truncate text-sm font-medium"
         data-testid="coworker-loading-label"

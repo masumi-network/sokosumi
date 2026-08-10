@@ -132,6 +132,17 @@
   --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
 
   --animate-reasoning-text-shine: reasoning-text-shine 2.5s ease-in-out infinite;
+  /* Beautiful UI shimmer — register like reasoning-text-shine so Tailwind emits it. */
+  --animate-bui-shimmer-text: bui-shimmer-text 1.8s linear infinite;
+
+  @keyframes bui-shimmer-text {
+    0% {
+      background-position: 150% 0;
+    }
+    100% {
+      background-position: -50% 0;
+    }
+  }
 
   @keyframes accordion-down {
     from {
@@ -705,34 +716,10 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
 }
 
 /*
- * Beautiful UI Loading Drive wave
- * (https://beautiful-ui-five.vercel.app/#loading-state)
- * Keyframes must be top-level so inline animation-name can resolve them.
- * Cycle is slightly slower than the demo (650ms → 1000ms) for chat density.
+ * Beautiful UI Loading grid layout.
+ * Drive wave opacity is JS-driven (see coworker-thought-ui DrivePixelGrid) —
+ * CSS keyframes were not reliably applied in the chat surface.
  */
-@keyframes bui-pixel-on {
-  0%,
-  100% {
-    opacity: 0.15;
-  }
-  18%,
-  42% {
-    opacity: 1;
-  }
-  62% {
-    opacity: 0.15;
-  }
-}
-
-@keyframes bui-shimmer-text {
-  0% {
-    background-position: 150% 0;
-  }
-  100% {
-    background-position: -50% 0;
-  }
-}
-
 .bui-pixel-grid {
   display: grid;
   grid-template-columns: repeat(3, 4px);
@@ -746,10 +733,7 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   border-radius: 1px;
   background-color: var(--foreground);
   opacity: 0.15;
-  animation-name: bui-pixel-on;
-  animation-duration: 1000ms;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
+  will-change: opacity;
 }
 
 /* Shimmer label from Beautiful UI Loading / Thinking */
@@ -764,7 +748,7 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: bui-shimmer-text 1.8s linear infinite;
+  animation: var(--animate-bui-shimmer-text);
 }
 
 @utility reasoning-step-in {
@@ -905,10 +889,5 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
     -webkit-background-clip: border-box;
     background-clip: border-box;
     color: var(--foreground);
-  }
-
-  .bui-pixel-cell {
-    animation: none !important;
-    opacity: 0.35;
   }
 }
