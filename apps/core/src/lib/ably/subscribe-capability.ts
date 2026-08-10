@@ -25,7 +25,7 @@ export interface BuildAblyClientCapabilityInput {
  * - Chat rooms: per-membership room id subscribe (SOK-741)
  * - Chat control: always subscribe (SOK-742 membership revoke)
  * - Org presence: `presence` (enter/update/leave) + `subscribe` (get + presence
- *   events) on presence:org_* (ADR-0002; Ably requires both for roster maps)
+ *   events) on presence:org_* (ADR-0003; Ably requires both for roster maps)
  */
 export function buildAblySubscribeCapability(
   userId: string,

@@ -98,7 +98,7 @@ type ChatRoomMessageWithSender = Prisma.ChatRoomMessageGetPayload<{
 }>;
 
 /**
- * REST placeholder for human presence (ADR-0002).
+ * REST placeholder for human presence (ADR-0003).
  * Live Online/AFK comes from Ably Presence on the client. Self stays online on
  * personalized REST so the viewer never flashes offline before Ably hydrates.
  */

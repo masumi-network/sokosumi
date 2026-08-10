@@ -4,6 +4,7 @@ import { streamText } from "ai";
 
 import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
+import { thoughtMetadataFields } from "@/helpers/persist-assistant-to-chat-room";
 import prisma from "@/lib/db/prisma";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
 import { resolveWorkspaceIdForChatRoom } from "@/routes/v1/chats/rooms/helpers";
@@ -370,6 +371,9 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   });
 
   // Idle chunk timeouts abort stalls; totalMs is the hard ceiling.
+  // Wall-clock generation time (not reasoning-token phase only) — product
+  // "Thought for …" matches the live "is thinking" timer the user saw.
+  const generationStartedAtMs = Date.now();
   const result = streamText({
     model: getSokosumiProvider()(null),
     messages: [{ role: "user", content: prompt }],
@@ -380,6 +384,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
   });
   const responseText = (await result.text).trim();
+  const generationEndedAtMs = Date.now();
   if (!responseText || coworkerTextLooksLikeAgentError(responseText)) {
     await markMentionFailed(
       mentionId,
@@ -387,6 +392,17 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     );
     return;
   }
+
+  const reasoningParts = await result.reasoning;
+  const hasReasoning =
+    Array.isArray(reasoningParts) && reasoningParts.length > 0;
+  const thoughtTiming = hasReasoning
+    ? {
+        startedAtMs: generationStartedAtMs,
+        endedAtMs: generationEndedAtMs,
+      }
+    : undefined;
+  const thoughtMeta = thoughtMetadataFields(reasoningParts, thoughtTiming);
 
   const publishedMessageIds = await prisma.$transaction(async (tx) => {
     // Re-check membership after the provider call: eviction during streamText
@@ -446,6 +462,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         metadata: {
           in_reply_to_message_id: mention.message.id,
           mention_id: mention.id,
+          ...thoughtMeta,
         },
       },
     });

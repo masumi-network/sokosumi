@@ -30,7 +30,7 @@ function buildPresenceData(
 }
 
 /**
- * Enter Ably Presence on every org channel granted on the token (ADR-0002).
+ * Enter Ably Presence on every org channel granted on the token (ADR-0003).
  * Updates lastActiveAt / visible from browser activity and visibility.
  * Owns channel attach/detach for presence channels (map only subscribes).
  */

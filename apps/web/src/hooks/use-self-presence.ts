@@ -7,7 +7,7 @@ import type { ChatRoomPresence } from "@/lib/clients/generated/core";
 
 /**
  * Local self-approx for account chrome (navigator.onLine / document.hidden /
- * activity). Teammate dots use Ably org Presence (ADR-0002); shares the same
+ * activity). Teammate dots use Ably org Presence (ADR-0003); shares the same
  * online idle window constant for Online vs AFK.
  */
 const TICK_INTERVAL_MS = 30 * 1000;

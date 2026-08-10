@@ -21,14 +21,14 @@ function presenceLabel(
 
 interface LiveMemberPresenceDotProps {
   userId: string;
-  /** Coworkers stay always-online (ADR-0002 v1). */
+  /** Coworkers stay always-online (ADR-0003 v1). */
   isCoworker?: boolean;
   fallback?: ChatRoomPresence;
   className?: string;
 }
 
 /**
- * Roster presence dot overlaid with live org Ably Presence (ADR-0002).
+ * Roster presence dot overlaid with live org Ably Presence (ADR-0003).
  */
 export function LiveMemberPresenceDot({
   userId,

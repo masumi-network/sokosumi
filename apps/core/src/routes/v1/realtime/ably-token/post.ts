@@ -18,7 +18,7 @@ const route = withOrchestratorContextHeaderParameters(
     method: "post",
     path: "/ably-token",
     description:
-      "Mint an Ably TokenRequest for Realtime. Grants per-membership chat room subscribe, always-on chat control, user task/notification/job wildcards, and org presence (ADR-0002). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
+      "Mint an Ably TokenRequest for Realtime. Grants per-membership chat room subscribe, always-on chat control, user task/notification/job wildcards, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
     tags: ["Realtime"],
     request: {
       query: z.object({

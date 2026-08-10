@@ -10,7 +10,7 @@ const CORE_ABLY_TOKEN_REQUEST_TIMEOUT_MS = 5000;
 
 /**
  * Fetch an Ably TokenRequest from Core (membership-gated room caps, SOK-741;
- * org presence caps, ADR-0002).
+ * org presence caps, ADR-0003).
  * Web keeps same-origin /api/ably/auth for the browser Realtime client.
  *
  * `getCoreApiBaseUrl()` already ends with `/v1` — do not prefix the path with `/v1`

@@ -11,7 +11,7 @@ function createInstanceId(): string {
 
 /**
  * Stable per-tab Ably client instance id (sessionStorage). Used as token
- * clientId suffix for multi-device presence aggregation (ADR-0002).
+ * clientId suffix for multi-device presence aggregation (ADR-0003).
  */
 export function getOrCreateAblyClientInstanceId(): string {
   if (typeof window === "undefined") {

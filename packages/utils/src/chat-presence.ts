@@ -8,7 +8,7 @@ export const ABLY_CLIENT_INSTANCE_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 export type ChatPresenceState = "online" | "afk" | "offline";
 
-/** Wire data on Ably Presence members (ADR-0002). */
+/** Wire data on Ably Presence members (ADR-0003). */
 export interface ChatPresenceMemberData {
   /** Epoch ms of last user activity on this connection. */
   lastActiveAt: number;

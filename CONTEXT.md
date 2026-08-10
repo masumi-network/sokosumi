@@ -59,3 +59,17 @@ _Avoid_: AFK, logged out (logout implies offline but offline does not require lo
 **Last seen**:
 A coarse timestamp of recent session activity (e.g. org members table). Not the same concept as Presence; must not drive green-dot Online/AFK/Offline.
 _Avoid_: Presence, online status
+
+### Chat coworker thought
+
+**Mention status**:
+The lifecycle of a coworker @mention on a user message (calling → thinking → replied or failed). It is not the coworker’s reply body and not Thought.
+_Avoid_: Reply status, thinking badge (as the name of the concept)
+
+**Thought**:
+The coworker’s reasoning text for a turn (provider reasoning / summary parts), distinct from the answer body. Shown live as the current beat while the turn is open, and after the answer as a Thought disclosure.
+_Avoid_: Chain-of-thought (unless product means hidden provider CoT never sent to the client), internal monologue
+
+**Thought disclosure**:
+The collapsed control on a coworker assistant message that reveals Thought (and duration when known) after the answer is available or when reloading a message that already stored Thought.
+_Avoid_: Reasoning accordion, steps panel (Hermes-specific layout names)

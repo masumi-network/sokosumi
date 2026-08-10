@@ -411,11 +411,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         current: null,
       };
 
-      const thoughtPhaseMs = {
-        start: null as number | null,
-        end: null as number | null,
-        sawReasoningChunk: false,
-      };
+      // Full generation wall-clock for product "Thought for …" (not reasoning-token span only).
+      const generationStartedAtMs = Date.now();
 
       const onInvalidProviderConversationId = async () => {
         if (parentMessageId) {
@@ -477,26 +474,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         providerOptions: {
           sokosumi: sokosumiProviderOptions,
         } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
-        onChunk: ({ chunk }) => {
-          const chunkType = chunk.type as string;
-          if (
-            chunkType === "reasoning-start" ||
-            chunkType === "reasoning-delta"
-          ) {
-            thoughtPhaseMs.sawReasoningChunk = true;
-            thoughtPhaseMs.start = thoughtPhaseMs.start ?? Date.now();
-          }
-          if (chunkType === "reasoning-end") {
-            thoughtPhaseMs.end = Date.now();
-          }
-          if (
-            chunk.type === "text-delta" &&
-            thoughtPhaseMs.sawReasoningChunk &&
-            thoughtPhaseMs.end == null
-          ) {
-            thoughtPhaseMs.end = Date.now();
-          }
-        },
         onFinish: async (finishEvent) => {
           const text = finishEvent.text?.trim() ?? "";
           if (!text) {
@@ -505,20 +482,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           const hasReasoning =
             Array.isArray(finishEvent.reasoning) &&
             finishEvent.reasoning.length > 0;
-          if (
-            hasReasoning &&
-            thoughtPhaseMs.start != null &&
-            thoughtPhaseMs.end == null
-          ) {
-            thoughtPhaseMs.end = Date.now();
-          }
-          const thoughtTiming =
-            hasReasoning && thoughtPhaseMs.start != null
-              ? {
-                  startedAtMs: thoughtPhaseMs.start,
-                  endedAtMs: thoughtPhaseMs.end ?? Date.now(),
-                }
-              : undefined;
+          const thoughtTiming = hasReasoning
+            ? {
+                startedAtMs: generationStartedAtMs,
+                endedAtMs: Date.now(),
+              }
+            : undefined;
           const persistArgs = {
             roomId: room.id,
             senderCoworkerId: coworker.id,

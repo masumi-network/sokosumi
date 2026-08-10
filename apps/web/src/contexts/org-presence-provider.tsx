@@ -51,7 +51,7 @@ interface OrgPresenceProviderProps {
 }
 
 /**
- * App-shell Ably presence (ADR-0002).
+ * App-shell Ably presence (ADR-0003).
  * Children always mount with context (REST fallback until Ably hydrates).
  * Publisher + map live in a LazyAbly **sibling island** so Instant chrome is
  * never blocked on the Ably chunk (same pattern as NotificationProvider).

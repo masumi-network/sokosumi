@@ -1,14 +1,7 @@
 "use client";
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import {
-  CheckCircle2,
-  Loader2,
-  MessageCircle,
-  Pencil,
-  Quote,
-  Trash2,
-} from "lucide-react";
+import { MessageCircle, Pencil, Quote, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
@@ -18,10 +11,21 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
+import {
+  CoworkerLiveThought,
+  CoworkerLoadingState,
+  CoworkerMentionTerminalStatus,
+  CoworkerThoughtTrace,
+} from "@/app/chat/components/coworker-thought-ui";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
+import {
+  formatThoughtDurationLabel,
+  resolveCoworkerThoughtViewModel,
+} from "@/app/chat/utils/coworker-thought";
 import {
   getJumboEmojiCount,
   jumboEmojiClassName,
@@ -43,7 +47,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
 import { FileTypeIcon } from "@/components/ui/file-icon";
@@ -74,7 +77,7 @@ import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { participantDirectKey } from "./open-direct-with-participant";
-import { AiCoworkerIcon } from "./room-draft-shared";
+import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
   formatMessageTime,
@@ -1207,6 +1210,12 @@ function MessageMetaFooter({
   isDeleted: boolean;
 }) {
   const t = useTranslations("App.Channels");
+  /**
+   * First time this client mounts a pending/sent mention chip — wall clock for
+   * the loading elapsed timer. Avoids using user-message createdAt (reload of a
+   * stuck mention would show multi-minute age).
+   */
+  const mentionThinkStartMsByIdRef = useRef(new Map<string, number>());
 
   return (
     <>
@@ -1255,26 +1264,44 @@ function MessageMetaFooter({
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
       ) : null}
-      {!isDeleted && message.mentions.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5 pt-1.5">
+      {!isDeleted && message.mentions.some((m) => m.status !== "responded") ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1.5">
           {message.mentions.map((mention) => {
+            // Success = coworker reply in the transcript; no "replied" chrome.
+            if (mention.status === "responded") {
+              return null;
+            }
             const name =
               coworkersById.get(mention.coworkerId)?.name ??
               t("MentionStatus.nameFallback");
+            const label = t(`MentionStatus.${mention.status}`, { name });
+            // Channel @mentions have no client stream overlay — show Beautiful UI
+            // loading here (pending/sent) so "Noodles is thinking" is not a dead badge.
+            if (mention.status === "pending" || mention.status === "sent") {
+              let thinkStartMs = mentionThinkStartMsByIdRef.current.get(
+                mention.id,
+              );
+              if (thinkStartMs == null) {
+                thinkStartMs = Date.now();
+                mentionThinkStartMsByIdRef.current.set(
+                  mention.id,
+                  thinkStartMs,
+                );
+              }
+              return (
+                <CoworkerLoadingState
+                  key={mention.id}
+                  label={label}
+                  startedAtMs={thinkStartMs}
+                />
+              );
+            }
             return (
-              <Badge
+              <CoworkerMentionTerminalStatus
                 key={mention.id}
-                variant={
-                  mention.status === "failed" ? "destructive" : "outline"
-                }
-              >
-                {mention.status === "responded" ? (
-                  <CheckCircle2 className="size-3" />
-                ) : mention.status === "failed" ? null : (
-                  <Loader2 className="size-3 animate-spin" />
-                )}
-                {t(`MentionStatus.${mention.status}`, { name })}
-              </Badge>
+                label={label}
+                variant="failed"
+              />
             );
           })}
         </div>
@@ -1347,10 +1374,27 @@ export function ChatMessageRow({
   const isDirectActionBusy = openingDirectParticipantKey != null;
   const isStreamOverlay = message.id.startsWith("stream:");
   const isDeleted = message.deletedAt != null;
+  const thoughtView = useMemo(() => {
+    if (message.sender.type !== "coworker" || isDeleted) {
+      return null;
+    }
+    return resolveCoworkerThoughtViewModel({
+      content: message.content,
+      isStreamOverlay,
+      metadata: message.metadata,
+    });
+  }, [
+    isDeleted,
+    isStreamOverlay,
+    message.content,
+    message.metadata,
+    message.sender.type,
+  ]);
   const isThinking =
-    isStreamOverlay &&
-    message.sender.type === "coworker" &&
-    message.content.trim().length === 0;
+    thoughtView?.showThinkingFallback === true ||
+    (thoughtView != null &&
+      thoughtView.liveBeat != null &&
+      message.content.trim().length === 0);
   const canQuote =
     showQuoteButton && Boolean(onQuote) && !isStreamOverlay && !isDeleted;
   const canEdit =
@@ -1414,19 +1458,26 @@ export function ChatMessageRow({
           profile={hoverProfile}
           side="top"
           align="start"
-          className="mt-0.5 shrink-0"
+          // self-start: article is flex; stretch made this full row height so absolute badge sat at bottom
+          className="mt-0.5 shrink-0 self-start"
           currentUserId={currentUserId}
           canOpenHumanDirect={canOpenHumanDirect}
           onOpenDirect={onOpenDirectMessage}
           isOpeningDirect={isOpeningDirect}
           isDirectActionBusy={isDirectActionBusy}
         >
-          <Avatar className="size-8">
-            <AvatarImage src={sender.image ?? undefined} alt="" />
-            <AvatarFallback className="text-xs">
-              {getInitials(sender.name)}
-            </AvatarFallback>
-          </Avatar>
+          <span
+            data-testid="message-sender-avatar"
+            className="relative inline-flex size-8 shrink-0"
+          >
+            <Avatar className="size-8">
+              <AvatarImage src={sender.image ?? undefined} alt="" />
+              <AvatarFallback className="text-xs">
+                {getInitials(sender.name)}
+              </AvatarFallback>
+            </Avatar>
+            {sender.kind === "coworker" ? <AiCoworkerAvatarBadge /> : null}
+          </span>
         </ChatParticipantHoverCard>
       )}
       <div
@@ -1436,7 +1487,7 @@ export function ChatMessageRow({
         )}
       >
         {isContinuation ? null : (
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
             <ChatParticipantHoverCard
               profile={hoverProfile}
               side="top"
@@ -1452,7 +1503,6 @@ export function ChatMessageRow({
                 {sender.name}
               </span>
             </ChatParticipantHoverCard>
-            {sender.kind === "coworker" ? <AiCoworkerIcon /> : null}
             <MessageWallClockTime
               value={message.createdAt}
               className="text-muted-foreground text-xs"
@@ -1489,16 +1539,33 @@ export function ChatMessageRow({
                   onCancel={onCancelEdit}
                   isSaving={isSavingEdit}
                 />
-              ) : isThinking ? (
-                <span
-                  className="reasoning-text-shine text-base leading-5 md:text-sm"
-                  role="status"
-                  aria-live="polite"
-                >
-                  {tChat("reasoning.thinking")}
-                </span>
+              ) : thoughtView?.showThinkingFallback ||
+                thoughtView?.liveBeat != null ? (
+                <CoworkerLiveThought
+                  label={tChat("reasoning.thinking")}
+                  liveBeat={thoughtView.liveBeat}
+                  startedAtMs={new Date(message.createdAt).getTime()}
+                />
               ) : (
                 <>
+                  {thoughtView?.disclosure ? (
+                    <div className="mb-1.5">
+                      <CoworkerThoughtTrace
+                        working={false}
+                        headerLabel={
+                          thoughtView.disclosure.durationSeconds != null
+                            ? tChat("reasoning.thoughtForDuration", {
+                                duration: formatThoughtDurationLabel(
+                                  thoughtView.disclosure.durationSeconds,
+                                ),
+                              })
+                            : tChat("reasoning.expandSteps")
+                        }
+                        bodyText={thoughtView.disclosure.text}
+                        defaultExpanded={false}
+                      />
+                    </div>
+                  ) : null}
                   <ChannelMessageBody
                     messageId={message.id}
                     content={message.content}

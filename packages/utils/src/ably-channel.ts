@@ -48,7 +48,7 @@ export function parseChatRoomIdFromChannelName(
   return roomId.length > 0 ? roomId : null;
 }
 
-/** Org-scoped Ably Presence channel (ADR-0002). */
+/** Org-scoped Ably Presence channel (ADR-0003). */
 const ORG_PRESENCE_CHANNEL_PREFIX = "presence:org_";
 
 export function makeOrgPresenceChannelName(organizationId: string): string {
