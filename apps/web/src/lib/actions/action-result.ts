@@ -7,6 +7,9 @@ import type { Result } from "neverthrow";
  * neverthrow in-process, then map at the action boundary with
  * {@link toActionResult}. Clients check `result.ok` and read `result.value`
  * (not `result.data` — that was the retired `@/lib/ts-res` shape).
+ *
+ * `T` and `E` must themselves be plain JSON/Flight-safe values (no class
+ * instances, `Map`, functions, or other non-serializable payloads).
  */
 export type ActionResultDto<T, E> =
   | { ok: true; value: T }
@@ -14,6 +17,8 @@ export type ActionResultDto<T, E> =
 
 /**
  * Project a neverthrow {@link Result} onto the server-action wire DTO.
+ *
+ * Only maps the envelope; `T` and `E` must already be Flight-serializable.
  */
 export function toActionResult<T, E>(
   result: Result<T, E>,

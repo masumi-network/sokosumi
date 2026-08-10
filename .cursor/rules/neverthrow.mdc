@@ -13,9 +13,12 @@ import { ok, err, type Result } from "neverthrow";
 
 ### Don't
 
-- Create custom in-process `Result<T, E>` types or `{ ok, data }` / `{ ok, error }` libraries
+- Create custom in-process `Result<T, E>` types or parallel Ok/Err libraries (including `{ ok, data }` shapes)
 - Import `@/lib/ts-res` in **new or changed** code (remaining call sites migrate under SOK-754 children; do not add new ones)
 - Import Result types from other packages (unless they re-export neverthrow)
+- Return raw neverthrow `Result` instances from Next.js server actions (methods do not survive Flight)
+
+Exception: the documented **`ActionResultDto` wire shape** below is the only allowed plain Result DTO — a serialization boundary, not a second Result algebra.
 
 ### Do
 
@@ -50,9 +53,22 @@ type ActionResultDto<T, E> =
   | { ok: false; error: E };
 ```
 
-**Clients:** `if (!result.ok) { /* result.error */ }` and `result.value` on success. Never `result.data` (that was `@/lib/ts-res`).
+`T` and `E` must be plain JSON/Flight-safe values (no class instances, `Map`, functions, etc.). The mapper only projects the envelope.
 
-This plain DTO is the **only** allowed non-neverthrow Result shape — a serialization boundary, not a second Result algebra. Do not add parallel Ok/Err helpers.
+**Clients:**
+
+```typescript
+const result = await myAction();
+if (!result.ok) {
+  // result.error
+  return;
+}
+// result.value
+```
+
+Never `result.data` (that was `@/lib/ts-res`).
+
+This plain DTO is the **only** allowed non-neverthrow Result shape. Do not add parallel Ok/Err helpers.
 
 ## References
 

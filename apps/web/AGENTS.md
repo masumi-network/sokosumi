@@ -51,7 +51,7 @@ Next.js serializes concurrent **server actions** per session. A long action star
 
 **Do not use `@/lib/ts-res`** in new or changed code. That helper (`Ok` / `Err` / `result.data`) is legacy; remaining call sites migrate under SOK-754. Do not add new imports.
 
-**Server action returns** must be the plain serializable DTO — neverthrow class methods do not survive Flight:
+**Server action returns** must be the plain serializable DTO — neverthrow class methods do not survive Flight. Success and error payloads (`T` / `E`) must themselves be plain JSON/Flight-safe values.
 
 ```typescript
 import { ok, err, type Result } from "neverthrow";
@@ -69,7 +69,18 @@ export async function exampleAction(): Promise<
 }
 ```
 
-**Clients:** branch on `result.ok`; read success as `result.value` (not `result.data`). Prefer `toActionResult` over inventing another Ok/Err helper.
+**Clients** (after the action returns — not neverthrow methods):
+
+```typescript
+const result = await exampleAction();
+if (!result.ok) {
+  // result.error
+  return;
+}
+// result.value — never result.data (that was @/lib/ts-res)
+```
+
+Prefer `toActionResult` over inventing another Ok/Err helper.
 
 ### Route Organization
 
