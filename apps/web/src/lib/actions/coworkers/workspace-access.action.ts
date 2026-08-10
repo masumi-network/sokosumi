@@ -1,12 +1,16 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -43,7 +47,7 @@ function toAccessTargetBody(parsed: {
  */
 export const grantDeveloperCoworkerEarlyAccessAction = withSession<
   GrantDeveloperCoworkerEarlyAccessParameters,
-  Result<{ accessId: string; status: string }, ActionError>
+  ActionResultDto<{ accessId: string; status: string }, ActionError>
 >(async ({ coworkerId, targetType, targetValue }) => {
   const parsed = grantCoworkerEarlyAccessSchema.safeParse({
     coworkerId,
@@ -51,7 +55,7 @@ export const grantDeveloperCoworkerEarlyAccessAction = withSession<
     targetValue,
   });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   if (parsed.data.targetType === "user") {
@@ -60,10 +64,12 @@ export const grantDeveloperCoworkerEarlyAccessAction = withSession<
       .email()
       .safeParse(parsed.data.targetValue.trim());
     if (!emailCheck.success) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Enter a valid email address",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Enter a valid email address",
+        }),
+      );
     }
   }
 
@@ -75,10 +81,10 @@ export const grantDeveloperCoworkerEarlyAccessAction = withSession<
 
     revalidatePath(`/developer/coworkers/${parsed.data.coworkerId}`);
     revalidatePath("/developer/coworkers");
-    return Ok({ accessId: access.id, status: access.status });
+    return toActionResult(ok({ accessId: access.id, status: access.status }));
   } catch (error) {
     console.error("Failed to grant developer coworker early access", error);
-    return Err(toCoreApiActionError(error));
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
 
@@ -96,14 +102,14 @@ interface RevokeDeveloperCoworkerEarlyAccessParameters
 /** Revoke GRANTED access for a list row (vendor admin of the coworker). */
 export const revokeDeveloperCoworkerEarlyAccessAction = withSession<
   RevokeDeveloperCoworkerEarlyAccessParameters,
-  Result<{ accessId: string; status: string }, ActionError>
+  ActionResultDto<{ accessId: string; status: string }, ActionError>
 >(async ({ coworkerId, workspaceId }) => {
   const parsed = revokeCoworkerEarlyAccessByWorkspaceSchema.safeParse({
     coworkerId,
     workspaceId,
   });
   if (!parsed.success) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
@@ -114,9 +120,9 @@ export const revokeDeveloperCoworkerEarlyAccessAction = withSession<
 
     revalidatePath(`/developer/coworkers/${parsed.data.coworkerId}`);
     revalidatePath("/developer/coworkers");
-    return Ok({ accessId: access.id, status: access.status });
+    return toActionResult(ok({ accessId: access.id, status: access.status }));
   } catch (error) {
     console.error("Failed to revoke developer coworker early access", error);
-    return Err(toCoreApiActionError(error));
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });

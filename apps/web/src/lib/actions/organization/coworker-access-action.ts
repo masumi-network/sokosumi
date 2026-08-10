@@ -1,11 +1,15 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import * as z from "zod";
 
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -26,14 +30,14 @@ type OrganizationAccessMutation = "approve" | "deny" | "revoke";
 function organizationCoworkerAccessAction(method: OrganizationAccessMutation) {
   return withSession<
     CoworkerAccessMutationParameters,
-    Result<{ accessId: string }, ActionError>
+    ActionResultDto<{ accessId: string }, ActionError>
   >(async ({ organizationId, accessId }) => {
     const parsed = coworkerAccessActionSchema.safeParse({
       organizationId,
       accessId,
     });
     if (!parsed.success) {
-      return Err({ code: CommonErrorCode.BAD_INPUT });
+      return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
     }
 
     try {
@@ -41,10 +45,10 @@ function organizationCoworkerAccessAction(method: OrganizationAccessMutation) {
         type: "organization",
         organizationId: parsed.data.organizationId,
       });
-      return Ok({ accessId: access.id });
+      return toActionResult(ok({ accessId: access.id }));
     } catch (error) {
       console.error(`Failed to ${method} organization coworker access`, error);
-      return Err(toCoreApiActionError(error));
+      return toActionResult(err(toCoreApiActionError(error)));
     }
   });
 }
