@@ -4,7 +4,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import type { useFormatter, useTranslations } from "next-intl";
 import { useEffect } from "react";
-import { DataTableColumnHeader } from "@/components/data-table";
+import {
+  DataTableColumnHeader,
+  type DataTableFeatures,
+} from "@/components/data-table";
 import { JobStatusBadge } from "@/components/jobs";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { HighlightedText } from "@/components/ui/highlighted-text";
@@ -13,7 +16,7 @@ import type { JobSummary } from "@/lib/clients/generated/core";
 import { getJobStatusData } from "@/lib/helpers/job";
 import { getJobQueryKey } from "@/queries";
 
-const columnHelper = createColumnHelper<JobSummary>();
+const columnHelper = createColumnHelper<DataTableFeatures, JobSummary>();
 
 export function getJobColumns(
   userId: string,
@@ -40,9 +43,9 @@ export function getJobColumns(
           })}
         </div>
       ),
-      sortingFn: "datetime",
+      sortFn: "datetime",
       enableHiding: false,
-    }) as ColumnDef<JobSummary>,
+    }) as ColumnDef<DataTableFeatures, JobSummary>,
 
     statusColumn: columnHelper.accessor("status", {
       id: "status",
@@ -63,7 +66,7 @@ export function getJobColumns(
       },
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<JobSummary>,
+    }) as ColumnDef<DataTableFeatures, JobSummary>,
 
     nameColumn: columnHelper.accessor("name", {
       id: "name",
@@ -80,7 +83,7 @@ export function getJobColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<JobSummary>,
+    }) as ColumnDef<DataTableFeatures, JobSummary>,
   };
 }
 

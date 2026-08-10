@@ -1,7 +1,7 @@
 "use client";
 "use no memo";
 
-import type { Table } from "@tanstack/react-table";
+import type { ReactTable, RowData } from "@tanstack/react-table";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,18 +19,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface DataTablePaginationProps<TData> {
-  table: Table<TData>;
+import type { DataTableFeatures } from "./data-table-features";
+
+interface DataTablePaginationProps<TData extends RowData> {
+  table: ReactTable<DataTableFeatures, TData>;
   enableRowSelection?: boolean;
   showRowsPerPage?: boolean;
 }
 
-export default function DataTablePagination<TData>({
+export default function DataTablePagination<TData extends RowData>({
   table,
   enableRowSelection = true,
   showRowsPerPage = true,
 }: DataTablePaginationProps<TData>) {
   const t = useTranslations("Components.DataTable.Pagination");
+  const { pageIndex, pageSize } = table.state.pagination;
 
   return (
     <div className="flex items-center justify-between px-2">
@@ -46,20 +49,18 @@ export default function DataTablePagination<TData>({
           <div className="flex items-center space-x-2">
             <p className="text-sm">{t("rowsPerPage")}</p>
             <Select
-              value={`${table.getState().pagination.pageSize}`}
+              value={`${pageSize}`}
               onValueChange={(value) => {
                 table.setPageSize(Number(value));
               }}
             >
               <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue
-                  placeholder={table.getState().pagination.pageSize}
-                />
+                <SelectValue placeholder={pageSize} />
               </SelectTrigger>
               <SelectContent side="top">
-                {[5, 10, 20, 30, 40, 50].map((pageSize) => (
-                  <SelectItem key={pageSize} value={`${pageSize}`}>
-                    {pageSize}
+                {[5, 10, 20, 30, 40, 50].map((size) => (
+                  <SelectItem key={size} value={`${size}`}>
+                    {size}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -68,7 +69,7 @@ export default function DataTablePagination<TData>({
         )}
         <div className="flex w-[100px] items-center justify-center text-sm font-medium">
           {t("page", {
-            page: table.getState().pagination.pageIndex + 1,
+            page: pageIndex + 1,
             totalPages: table.getPageCount(),
           })}
         </div>
