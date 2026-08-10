@@ -4,17 +4,12 @@
 import {
   type ColumnDef,
   type ColumnFiltersState,
+  type ColumnVisibilityState,
   flexRender,
-  getCoreRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
   type OnChangeFn,
+  type ReactTable,
+  type RowData,
   type SortingState,
-  useReactTable,
-  type VisibilityState,
 } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import * as React from "react";
@@ -28,10 +23,12 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
+import { useAppTable } from "./create-data-table-hook";
+import type { DataTableFeatures } from "./data-table-features";
 import DataTablePagination from "./data-table-pagination";
 
-function getMinTableWidth<TData>(
-  table: ReturnType<typeof useReactTable<TData>>,
+function getMinTableWidth<TData extends RowData>(
+  table: ReactTable<DataTableFeatures, TData>,
 ) {
   return table.getVisibleLeafColumns().reduce((total, column) => {
     const minSize = column.columnDef.minSize ?? 0;
@@ -39,8 +36,8 @@ function getMinTableWidth<TData>(
   }, 0);
 }
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
+interface DataTableProps<TData extends RowData> {
+  columns: ColumnDef<DataTableFeatures, TData, unknown>[];
   data: TData[];
   containerClassName?: string | undefined;
   tableClassName?: string | undefined;
@@ -62,7 +59,7 @@ interface DataTableProps<TData, TValue> {
   renderGroupHeader?: (groupKey: string) => React.ReactNode;
 }
 
-export default function DataTable<TData, TValue>({
+export default function DataTable<TData extends RowData>({
   columns,
   data,
   containerClassName,
@@ -82,12 +79,12 @@ export default function DataTable<TData, TValue>({
   rowClassName,
   getGroupKey,
   renderGroupHeader,
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps<TData>) {
   const t = useTranslations("Components.DataTable.Data");
 
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
+    React.useState<ColumnVisibilityState>({});
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
@@ -97,10 +94,10 @@ export default function DataTable<TData, TValue>({
   const sorting = controlledSorting ?? internalSorting;
   const setSorting = onSortingChange ?? setInternalSorting;
 
-  // TanStack Table's useReactTable returns functions that can't be memoized.
+  // TanStack Table's useAppTable returns functions that can't be memoized.
   // The "use no memo" directive above tells React Compiler to skip this component.
   // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
+  const table = useAppTable({
     data,
     columns,
     state: {
@@ -111,21 +108,20 @@ export default function DataTable<TData, TValue>({
     },
     initialState: {
       pagination: {
+        pageIndex: 0,
         pageSize: initialPageSize ?? 10,
       },
     },
     enableRowSelection,
+    // Disable Shift range selection on row toggles.
+    enableRowRangeSelection: false,
     onRowSelectionChange: setRowSelection,
+    // When pagination UI is off, skip client page slicing (show all rows).
+    manualPagination: !showPagination,
     manualSorting,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: manualSorting ? undefined : getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
-    getPaginationRowModel: showPagination ? getPaginationRowModel() : undefined,
   });
 
   const rowModel = table.getRowModel();

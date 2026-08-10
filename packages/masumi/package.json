@@ -60,8 +60,10 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "test": "vitest run",
-    "test:ci": "vitest run",
+    "test:specs": "node --test scripts/fetch-specs.test.mjs",
+    "test:ci": "vitest run && pnpm run test:specs",
     "test:watch": "vitest",
+    "fetch:specs": "node scripts/fetch-specs.mjs",
     "generate:payment": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.registry.config.ts",
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
