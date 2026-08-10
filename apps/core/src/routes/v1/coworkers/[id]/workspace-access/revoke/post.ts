@@ -5,9 +5,10 @@ import {
   resolveCoworkerAccessTargetWorkspaceId,
   toCoworkerWorkspaceAccessApiShape,
 } from "@/helpers/coworker-workspace-access";
-import { forbidden } from "@/helpers/error";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireVendorAdminMembership } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
@@ -23,7 +24,7 @@ const route = createRoute({
   path: "/{id}/workspace-access/revoke",
   operationId: "revokeCoworkerWorkspaceAccessAsPlatformAdmin",
   description:
-    "Force-revoke GRANTED coworker workspace access (platform admin only). Undoes a pilot grant without requiring the workspace owner. Body: exactly one of workspaceId, userId, organizationId, email, or organizationSlug. Does not create missing workspaces.",
+    "Revoke GRANTED coworker workspace access. Platform admin, or vendor admin for this coworker. Does not require the workspace owner. Body: exactly one of workspaceId, userId, organizationId, email, or organizationSlug. Does not create missing workspaces.",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,
@@ -50,12 +51,20 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userAuth = requireUserAuthContext(c.var.authContext);
-    if (!hasAdminRole(userAuth.role)) {
-      throw forbidden("Platform admin access required");
-    }
-
     const { id: coworkerId } = c.req.valid("param");
     const target = c.req.valid("json");
+
+    const coworker = await prisma.coworker.findFirst({
+      where: { id: coworkerId },
+      select: { id: true, vendorId: true },
+    });
+    if (!coworker) {
+      throw notFound("Coworker not found");
+    }
+
+    if (!hasAdminRole(userAuth.role)) {
+      await requireVendorAdminMembership(userAuth.userId, coworker.vendorId);
+    }
 
     // Resolve + lock + status flip share one transaction so FOR UPDATE holds.
     // Find-only resolve: never create workspaces on ops undo.

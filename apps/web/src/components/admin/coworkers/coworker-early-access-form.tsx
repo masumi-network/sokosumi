@@ -58,13 +58,13 @@ export function CoworkerEarlyAccessForm({
     null,
   );
   const [isGranting, setIsGranting] = useState(false);
-  const [isRevoking, setIsRevoking] = useState(false);
 
   const orgLabels = buildComboboxLabels(tOrg);
   const userLabels = buildComboboxLabels(tUser);
 
-  async function runAction(mode: "grant" | "revoke") {
-    if (disabled || isGranting || isRevoking) {
+  async function handleGrant(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (disabled || isGranting) {
       return;
     }
 
@@ -74,42 +74,40 @@ export function CoworkerEarlyAccessForm({
       return;
     }
 
-    if (mode === "grant") {
-      setIsGranting(true);
-    } else {
-      setIsRevoking(true);
-    }
-
+    setIsGranting(true);
     try {
-      const payload = {
+      const result = await grantAdminCoworkerEarlyAccessAction({
         coworkerId,
         targetType,
         targetId,
-      };
-      const result =
-        mode === "grant"
-          ? await grantAdminCoworkerEarlyAccessAction(payload)
-          : await revokeAdminCoworkerEarlyAccessAction(payload);
+      });
 
       if (!result.ok) {
-        toast.error(
-          result.error.message ??
-            (mode === "grant" ? t("error") : t("revokeError")),
-        );
+        toast.error(result.error.message ?? t("error"));
         return;
       }
 
       setSelectedOrg(null);
       setSelectedUser(null);
-      toast.success(mode === "grant" ? t("success") : t("revokeSuccess"));
+      toast.success(t("success"));
       router.refresh();
     } finally {
       setIsGranting(false);
-      setIsRevoking(false);
     }
   }
 
-  const busy = isGranting || isRevoking;
+  async function handleRevokeRow(row: CoworkerWorkspaceAccess) {
+    const result = await revokeAdminCoworkerEarlyAccessAction({
+      coworkerId,
+      workspaceId: row.workspaceId,
+    });
+    if (!result.ok) {
+      toast.error(result.error.message ?? t("revokeError"));
+      throw new Error(result.error.message ?? "revoke failed");
+    }
+    toast.success(t("revokeSuccess"));
+    router.refresh();
+  }
 
   return (
     <Card id="coworker-early-access">
@@ -129,19 +127,14 @@ export function CoworkerEarlyAccessForm({
                   key={row.id}
                   row={row}
                   statusNamespace="App.Admin.Coworkers.Form.EarlyAccess"
+                  onRevoke={disabled ? undefined : handleRevokeRow}
                 />
               ))}
             </ul>
           )}
         </section>
 
-        <form
-          className="space-y-4"
-          onSubmit={(event: FormEvent<HTMLFormElement>) => {
-            event.preventDefault();
-            void runAction("grant");
-          }}
-        >
+        <form className="space-y-4" onSubmit={handleGrant}>
           <div className="space-y-2">
             <Label htmlFor="early-access-target">{t("targetLabel")}</Label>
             <Tabs
@@ -153,10 +146,13 @@ export function CoworkerEarlyAccessForm({
               }}
             >
               <TabsList>
-                <TabsTrigger value="organization" disabled={disabled || busy}>
+                <TabsTrigger
+                  value="organization"
+                  disabled={disabled || isGranting}
+                >
                   {t("tabs.organization")}
                 </TabsTrigger>
-                <TabsTrigger value="user" disabled={disabled || busy}>
+                <TabsTrigger value="user" disabled={disabled || isGranting}>
                   {t("tabs.user")}
                 </TabsTrigger>
               </TabsList>
@@ -178,7 +174,7 @@ export function CoworkerEarlyAccessForm({
                   </span>
                 )}
                 labels={orgLabels}
-                disabled={disabled || busy}
+                disabled={disabled || isGranting}
               />
             ) : (
               <AsyncSearchCombobox<AdminUserOption>
@@ -197,40 +193,21 @@ export function CoworkerEarlyAccessForm({
                   </span>
                 )}
                 labels={userLabels}
-                disabled={disabled || busy}
+                disabled={disabled || isGranting}
               />
             )}
             <p className="text-muted-foreground text-xs">{t("targetHint")}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" disabled={disabled || busy}>
-              {isGranting ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  {t("submit")}
-                </>
-              ) : (
-                t("submit")
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={disabled || busy}
-              onClick={() => {
-                void runAction("revoke");
-              }}
-            >
-              {isRevoking ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  {t("revoke")}
-                </>
-              ) : (
-                t("revoke")
-              )}
-            </Button>
-          </div>
+          <Button type="submit" disabled={disabled || isGranting}>
+            {isGranting ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                {t("submit")}
+              </>
+            ) : (
+              t("submit")
+            )}
+          </Button>
         </form>
       </CardContent>
     </Card>

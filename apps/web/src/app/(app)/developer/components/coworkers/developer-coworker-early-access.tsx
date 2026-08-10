@@ -18,7 +18,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { grantDeveloperCoworkerEarlyAccessAction } from "@/lib/actions/coworkers/workspace-access.action";
+import {
+  grantDeveloperCoworkerEarlyAccessAction,
+  revokeDeveloperCoworkerEarlyAccessAction,
+} from "@/lib/actions/coworkers/workspace-access.action";
 import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 
 interface DeveloperCoworkerEarlyAccessProps {
@@ -77,6 +80,19 @@ export function DeveloperCoworkerEarlyAccess({
     }
   }
 
+  async function handleRevokeRow(row: CoworkerWorkspaceAccess) {
+    const result = await revokeDeveloperCoworkerEarlyAccessAction({
+      coworkerId,
+      workspaceId: row.workspaceId,
+    });
+    if (!result.ok) {
+      toast.error(result.error.message ?? t("revokeError"));
+      throw new Error(result.error.message ?? "revoke failed");
+    }
+    toast.success(t("revokeSuccess"));
+    router.refresh();
+  }
+
   return (
     <Card id="coworker-early-access">
       <CardHeader>
@@ -95,6 +111,7 @@ export function DeveloperCoworkerEarlyAccess({
                   key={row.id}
                   row={row}
                   statusNamespace="App.Developer.Coworkers.EarlyAccess"
+                  onRevoke={handleRevokeRow}
                 />
               ))}
             </ul>

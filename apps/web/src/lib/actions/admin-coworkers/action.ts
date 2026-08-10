@@ -248,10 +248,21 @@ const grantCoworkerEarlyAccessSchema = z.object({
   targetId: z.string().min(1),
 });
 
+const revokeCoworkerEarlyAccessByWorkspaceSchema = z.object({
+  coworkerId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+});
+
 interface GrantAdminCoworkerEarlyAccessParameters extends AuthenticatedRequest {
   coworkerId: string;
   targetType: "user" | "organization";
   targetId: string;
+}
+
+interface RevokeAdminCoworkerEarlyAccessParameters
+  extends AuthenticatedRequest {
+  coworkerId: string;
+  workspaceId: string;
 }
 
 function toAccessTargetBody(parsed: {
@@ -292,17 +303,17 @@ export const grantAdminCoworkerEarlyAccessAction = withSession<
   }
 });
 
+/** Revoke GRANTED access for a list row (by workspace id). */
 export const revokeAdminCoworkerEarlyAccessAction = withSession<
-  GrantAdminCoworkerEarlyAccessParameters,
+  RevokeAdminCoworkerEarlyAccessParameters,
   Result<{ accessId: string; status: string }, ActionError>
->(async ({ session, coworkerId, targetType, targetId }) => {
+>(async ({ session, coworkerId, workspaceId }) => {
   try {
     assertAdminSession(session);
 
-    const parsed = grantCoworkerEarlyAccessSchema.safeParse({
+    const parsed = revokeCoworkerEarlyAccessByWorkspaceSchema.safeParse({
       coworkerId,
-      targetType,
-      targetId,
+      workspaceId,
     });
     if (!parsed.success) {
       return Err({ code: CommonErrorCode.BAD_INPUT });
@@ -310,7 +321,7 @@ export const revokeAdminCoworkerEarlyAccessAction = withSession<
 
     const access = await coworkerAccessService.forceRevokeForCoworker(
       parsed.data.coworkerId,
-      toAccessTargetBody(parsed.data),
+      { workspaceId: parsed.data.workspaceId },
     );
 
     revalidateAdminCoworkerRoutes(parsed.data.coworkerId);

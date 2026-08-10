@@ -81,3 +81,42 @@ export const grantDeveloperCoworkerEarlyAccessAction = withSession<
     return Err(toCoreApiActionError(error));
   }
 });
+
+const revokeCoworkerEarlyAccessByWorkspaceSchema = z.object({
+  coworkerId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+});
+
+interface RevokeDeveloperCoworkerEarlyAccessParameters
+  extends AuthenticatedRequest {
+  coworkerId: string;
+  workspaceId: string;
+}
+
+/** Revoke GRANTED access for a list row (vendor admin of the coworker). */
+export const revokeDeveloperCoworkerEarlyAccessAction = withSession<
+  RevokeDeveloperCoworkerEarlyAccessParameters,
+  Result<{ accessId: string; status: string }, ActionError>
+>(async ({ coworkerId, workspaceId }) => {
+  const parsed = revokeCoworkerEarlyAccessByWorkspaceSchema.safeParse({
+    coworkerId,
+    workspaceId,
+  });
+  if (!parsed.success) {
+    return Err({ code: CommonErrorCode.BAD_INPUT });
+  }
+
+  try {
+    const access = await coworkerAccessService.forceRevokeForCoworker(
+      parsed.data.coworkerId,
+      { workspaceId: parsed.data.workspaceId },
+    );
+
+    revalidatePath(`/developer/coworkers/${parsed.data.coworkerId}`);
+    revalidatePath("/developer/coworkers");
+    return Ok({ accessId: access.id, status: access.status });
+  } catch (error) {
+    console.error("Failed to revoke developer coworker early access", error);
+    return Err(toCoreApiActionError(error));
+  }
+});
