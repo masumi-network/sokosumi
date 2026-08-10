@@ -722,15 +722,15 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
  */
 .bui-pixel-grid {
   display: grid;
-  /* Meta-scale loader: sit with chat chrome (text-xs), not body type. */
-  grid-template-columns: repeat(3, 0.1875rem);
+  /* Meta-scale Drive: rem so it tracks root/Dynamic Type; 0.25rem keeps wave legible. */
+  grid-template-columns: repeat(3, 0.25rem);
   gap: 0.0625rem;
   flex-shrink: 0;
 }
 
 .bui-pixel-cell {
-  width: 0.1875rem;
-  height: 0.1875rem;
+  width: 0.25rem;
+  height: 0.25rem;
   border-radius: 0.0625rem;
   background-color: var(--foreground);
   opacity: 0.15;

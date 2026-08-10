@@ -272,7 +272,8 @@ export function CoworkerThoughtTrace({
           }
         }}
         className={cn(
-          "-mx-1 flex w-fit max-w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left",
+          // min-h-6 keeps ~24px touch target at default root while type stays text-xs.
+          "-mx-1 flex min-h-6 w-fit max-w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-left",
           "transition-colors duration-100",
           hasBody &&
             "hover:bg-muted/60 focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
@@ -280,8 +281,6 @@ export function CoworkerThoughtTrace({
         )}
       >
         <svg
-          width="12"
-          height="12"
           viewBox="0 0 24 24"
           aria-hidden
           className="size-3 shrink-0"
@@ -304,8 +303,6 @@ export function CoworkerThoughtTrace({
         )}
         {hasBody ? (
           <svg
-            width="12"
-            height="12"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -337,10 +334,10 @@ export function CoworkerThoughtTrace({
             <div className="relative mt-0.5 ml-1 pl-3">
               <span
                 aria-hidden
-                className="bg-border absolute left-px w-px"
+                className="bg-border absolute -top-1.5 left-px w-px"
                 style={{
-                  top: -6,
-                  height: lineHeight ? lineHeight - 2 : 0,
+                  // Dynamic body height from layout; 2px short so rail ends in the text block.
+                  height: lineHeight ? Math.max(0, lineHeight - 2) : 0,
                   transition: "height 500ms cubic-bezier(0.23,1,0.32,1)",
                 }}
               />
