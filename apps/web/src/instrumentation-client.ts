@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/nextjs";
+import { ablyChannelLifecycleIgnoreErrors } from "@/lib/sentry/ably-channel-lifecycle-errors";
 import { expectedClientNoiseIgnoreErrors } from "@/lib/sentry/expected-request-errors";
 import {
   browserHistoryRateLimitIgnoreErrors,
@@ -34,6 +35,7 @@ Sentry.init({
     ...browserHistoryRateLimitIgnoreErrors,
     ...transientStreamIgnoreErrors,
     ...bareNetworkErrorIgnoreErrors,
+    ...ablyChannelLifecycleIgnoreErrors,
     ...expectedClientNoiseIgnoreErrors,
   ],
   beforeSend: beforeSendClientEvent,

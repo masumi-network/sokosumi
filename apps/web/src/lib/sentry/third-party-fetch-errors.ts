@@ -1,5 +1,6 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
 
+import { isAblyChannelLifecycleErrorMessage } from "@/lib/sentry/ably-channel-lifecycle-errors";
 import { isExpectedChatStreamSurfaceError } from "@/lib/sentry/chat-stream-surface-errors";
 import { getSentryErrorEventMessage } from "@/lib/sentry/error-event-message";
 import { isExpectedClientNoiseErrorMessage } from "@/lib/sentry/expected-request-errors";
@@ -152,6 +153,7 @@ export function beforeSendClientEvent(
     isBareTransientNetworkFailure(message) ||
     isBareNetworkError(message) ||
     isExpectedClientNoiseErrorMessage(message) ||
+    isAblyChannelLifecycleErrorMessage(message) ||
     isThirdPartyDomMutationError(message) ||
     isInAppBrowserEnvironmentError(message) ||
     isBrowserHistoryRateLimitError(message) ||
