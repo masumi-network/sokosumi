@@ -790,11 +790,14 @@ async function detachCoworkerChatMembershipsForWorkspace(
     },
   });
 
-  // Channel-only status rows (same as room leave / roster PATCH). Publish after
-  // commit so open clients drop the coworker from the live roster timeline.
+  // Channel-only status rows (same as room leave / roster PATCH). Skip directs
+  // before calling the recorder (it no-ops non-channels). Publish after commit
+  // so open clients drop the coworker from the live roster timeline.
   const coworkerDisplayName = params.coworkerName.trim() || params.coworkerId;
   const statusMessages: MembershipStatusMessage[] = [];
-  for (const membership of memberships) {
+  for (const membership of memberships.filter(
+    (entry) => entry.room.kind === "channel",
+  )) {
     const created = await recordChannelMembershipStatus(tx, {
       roomId: membership.roomId,
       roomKind: membership.room.kind,
@@ -859,8 +862,9 @@ export async function listCoworkerAccessForWorkspace(
 }
 
 /**
- * Platform admin only: force-revoke GRANTED access by (coworker, workspace).
- * Ops can undo a bad pilot grant without requiring the workspace owner.
+ * Force-revoke GRANTED access by (coworker, workspace). Route restricts to
+ * platform admin or vendor admin for the coworker. Ops can undo a bad pilot
+ * grant without requiring the workspace owner.
  */
 export async function forceRevokeCoworkerWorkspaceAccessByPair(
   params: {

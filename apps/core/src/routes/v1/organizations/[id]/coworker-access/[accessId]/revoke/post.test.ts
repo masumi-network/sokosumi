@@ -88,6 +88,7 @@ describe("POST /organizations/{id}/coworker-access/{accessId}/revoke", () => {
   });
 
   it("revokes GRANTED access → 200 REVOKED", async () => {
+    const statusMessages = [{ id: "status-1", roomId: "room-1" }];
     revokeMock.mockResolvedValue({
       access: {
         id: accessId,
@@ -108,7 +109,7 @@ describe("POST /organizations/{id}/coworker-access/{accessId}/revoke", () => {
         createdAt: now,
         updatedAt: now,
       },
-      membershipStatusMessages: [],
+      membershipStatusMessages: statusMessages,
     });
 
     const response = await createApp().request(
@@ -136,7 +137,7 @@ describe("POST /organizations/{id}/coworker-access/{accessId}/revoke", () => {
       {},
     );
     expect(publishMembershipStatusMock).toHaveBeenCalledWith(
-      [],
+      statusMessages,
       "chat membership status after coworker access revoke",
     );
   });

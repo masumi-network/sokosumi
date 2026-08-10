@@ -167,7 +167,7 @@ Unique on `(coworkerId, workspaceId)`.
 | --- | --- | --- | --- |
 | `POST` | `/v1/coworkers/{id}/workspace-access` | User session; platform admin **or** vendor admin for coworker’s vendor | Body: **exactly one** of `workspaceId`, `userId`, `organizationId`, `email`, `organizationSlug`. Create may **upsert** missing personal/org workspaces. Status from write rules. `201` + access DTO. |
 | `GET` | `/v1/coworkers/{id}/workspace-access` | Platform admin **or** vendor admin for coworker’s vendor | List access rows for that coworker (newest first), with workspace display fields. |
-| `POST` | `/v1/coworkers/{id}/workspace-access/revoke` | Platform admin only | Same target body as create. **Find-only** (no workspace create). Force `GRANTED` → `REVOKED`. |
+| `POST` | `/v1/coworkers/{id}/workspace-access/revoke` | Platform admin **or** vendor admin for coworker’s vendor | Same target body as create. **Find-only** (no workspace create). Force `GRANTED` → `REVOKED`. |
 
 **Target body examples:**
 

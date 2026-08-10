@@ -1189,24 +1189,8 @@ describe("coworker-workspace-access helpers", () => {
           error: "Coworker is no longer a member of this room",
         },
       });
-      // Directs: recordChannelMembershipStatus no-ops on non-channel kinds.
-      expect(recordChannelMembershipStatusMock).toHaveBeenCalledWith(
-        expect.anything(),
-        {
-          roomId: "room-dm-1",
-          roomKind: "direct",
-          changes: [
-            {
-              action: "left",
-              subject: {
-                type: "coworker",
-                id: "coworker-1",
-                name: "Ops Pilot",
-              },
-            },
-          ],
-        },
-      );
+      // Directs: skip status recorder entirely (no timeline for non-channels).
+      expect(recordChannelMembershipStatusMock).not.toHaveBeenCalled();
     });
 
     it("skips chat detach when coworker remains usable after revoke", async () => {
