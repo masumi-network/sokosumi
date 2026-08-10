@@ -156,4 +156,20 @@ describe("withConversationCommitPolicy", () => {
     expect(openStream).toHaveBeenCalledTimes(1);
     expect(text).toContain(COWORKER_AGENT_ERROR_SNIPPET);
   });
+
+  it("treats negative maxRetries as 0 (single open, no gate retry)", async () => {
+    const openStream = vi.fn(async () =>
+      streamResult(
+        textParts(`${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`),
+      ),
+    );
+
+    const result = await withConversationCommitPolicy(openStream, {
+      maxRetries: -1,
+    });
+    const text = await collectText(result.stream);
+
+    expect(openStream).toHaveBeenCalledTimes(1);
+    expect(text).toContain(COWORKER_AGENT_ERROR_SNIPPET);
+  });
 });

@@ -11,6 +11,7 @@ export interface ConversationCommitPolicyOptions {
    * How many times to re-open the protocol stream after a failed commit-gate
    * (agent-error or short-tail). Default: {@link COWORKER_CONVERSATION_MAX_RETRIES}.
    * Pass `0` to skip the gate (single protocol open, no retries).
+   * Negative values are treated as `0`.
    */
   maxRetries?: number;
   minGoodChars?: number;
@@ -26,13 +27,24 @@ export interface ConversationCommitPolicyOptions {
 export async function withConversationCommitPolicy(
   openStream: () => Promise<LanguageModelV4StreamResult>,
   options: ConversationCommitPolicyOptions = {},
-  attempt = 0,
 ): Promise<LanguageModelV4StreamResult> {
-  const maxRetries = options.maxRetries ?? COWORKER_CONVERSATION_MAX_RETRIES;
+  return withConversationCommitPolicyAttempt(openStream, options, 0);
+}
+
+async function withConversationCommitPolicyAttempt(
+  openStream: () => Promise<LanguageModelV4StreamResult>,
+  options: ConversationCommitPolicyOptions,
+  attempt: number,
+): Promise<LanguageModelV4StreamResult> {
+  const maxRetries = Math.max(
+    0,
+    options.maxRetries ?? COWORKER_CONVERSATION_MAX_RETRIES,
+  );
   const minGoodChars =
     options.minGoodChars ?? MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS;
   const result = await openStream();
 
+  // Final attempt is ungated (no further onRetryNeeded).
   if (attempt >= maxRetries) {
     return result;
   }
@@ -42,14 +54,10 @@ export async function withConversationCommitPolicy(
     stream: createCommitGateStream(result.stream, {
       minGoodChars,
       onRetryNeeded: async () => {
-        const nextAttempt = attempt + 1;
-        if (nextAttempt > maxRetries) {
-          return null;
-        }
-        const retryResult = await withConversationCommitPolicy(
+        const retryResult = await withConversationCommitPolicyAttempt(
           openStream,
           options,
-          nextAttempt,
+          attempt + 1,
         );
         return retryResult.stream;
       },
