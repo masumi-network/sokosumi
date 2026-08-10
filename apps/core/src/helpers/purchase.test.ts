@@ -30,4 +30,113 @@ describe("transformPurchaseToJobUpdate", () => {
 
     expect(transformedPurchase.onChainTransactionStatus).toBe("FAILED");
   });
+
+  it("maps the V2 authorized on-chain states", () => {
+    expect(
+      transformPurchaseToJobUpdate(
+        buildPurchase({ onChainState: "WithdrawAuthorized" }),
+      ).onChainStatus,
+    ).toBe("WITHDRAW_AUTHORIZED");
+    expect(
+      transformPurchaseToJobUpdate(
+        buildPurchase({ onChainState: "RefundAuthorized" }),
+      ).onChainStatus,
+    ).toBe("REFUND_AUTHORIZED");
+  });
+
+  it("maps the V2 authorize-withdrawal next actions", () => {
+    expect(
+      transformPurchaseToJobUpdate(
+        buildPurchase({
+          NextAction: {
+            requestedAction: "AuthorizeWithdrawalRequested",
+            errorType: null,
+            errorNote: null,
+          },
+        }),
+      ).nextAction,
+    ).toBe("AUTHORIZE_WITHDRAWAL_REQUESTED");
+    expect(
+      transformPurchaseToJobUpdate(
+        buildPurchase({
+          NextAction: {
+            requestedAction: "AuthorizeWithdrawalInitiated",
+            errorType: null,
+            errorNote: null,
+          },
+        }),
+      ).nextAction,
+    ).toBe("AUTHORIZE_WITHDRAWAL_INITIATED");
+  });
+
+  it("omits unknown on-chain states instead of throwing", () => {
+    const transformedPurchase = transformPurchaseToJobUpdate(
+      buildPurchase({ onChainState: "SomeFutureState" as never }),
+    );
+
+    expect("onChainStatus" in transformedPurchase).toBe(false);
+    expect(transformedPurchase.nextAction).toBe("NONE");
+  });
+
+  it("omits unknown next actions instead of throwing", () => {
+    const transformedPurchase = transformPurchaseToJobUpdate(
+      buildPurchase({
+        NextAction: {
+          requestedAction: "SomeFutureAction" as never,
+          errorType: null,
+          errorNote: null,
+        },
+      }),
+    );
+
+    expect("nextAction" in transformedPurchase).toBe(false);
+    expect(transformedPurchase.onChainStatus).toBe("FUNDS_LOCKED");
+  });
+
+  it("omits unknown next action error types instead of throwing", () => {
+    const transformedPurchase = transformPurchaseToJobUpdate(
+      buildPurchase({
+        NextAction: {
+          requestedAction: "None",
+          errorType: "SomeFutureErrorType" as never,
+          errorNote: null,
+        },
+      }),
+    );
+
+    expect("nextActionErrorType" in transformedPurchase).toBe(false);
+    expect(transformedPurchase.nextAction).toBe("NONE");
+  });
+
+  it("omits transaction fields when the transaction status is unknown", () => {
+    const purchase = buildPurchase();
+    const transformedPurchase = transformPurchaseToJobUpdate({
+      ...purchase,
+      CurrentTransaction: purchase.CurrentTransaction
+        ? {
+            ...purchase.CurrentTransaction,
+            status: "SomeFutureStatus" as never,
+          }
+        : null,
+    });
+
+    expect("onChainTransactionStatus" in transformedPurchase).toBe(false);
+    expect("onChainTransactionHash" in transformedPurchase).toBe(false);
+  });
+
+  it("keeps a previously recorded hash when the current transaction has none", () => {
+    const purchase = buildPurchase();
+    const transformedPurchase = transformPurchaseToJobUpdate({
+      ...purchase,
+      CurrentTransaction: purchase.CurrentTransaction
+        ? { ...purchase.CurrentTransaction, txHash: null }
+        : null,
+    });
+
+    // Omitted, not null: Prisma skips undefined, so the stored hash survives.
+    // The column is exposed on the job DTO and is the only on-chain pointer
+    // support has; a pending successor transaction must not erase it.
+    expect(transformedPurchase.onChainTransactionHash).toBeUndefined();
+    expect(transformedPurchase.onChainTransactionStatus).toBe("FAILED");
+  });
 });

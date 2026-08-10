@@ -12,7 +12,8 @@ const taskEventRequestSchema = createTaskEventRequestSchema();
 const validMasumiPayment = {
   blockchainIdentifier: "0b00e04c0860a60c61066056281180462d0b12",
   identifierFromPurchaser: "aabbccddeeff00112233",
-  agentIdentifier: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
+  agentIdentifier:
+    "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f7773756d6d617279426f74",
   sellerVkey: "0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd",
   submitResultTime: "1775681853000",
   payByTime: "1775737949000",
@@ -27,7 +28,200 @@ const validMasumiPayment = {
   ],
 } as const;
 
+const V2_POLICY_ID = "67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b";
+
 describe("createTaskEventRequestSchema", () => {
+  it("tolerates a payment-source index on a V1 masumiPayment", () => {
+    // Sellers upgrading their SDK emit V2-shaped fields on V1 responses;
+    // rejecting here would break those agents mid-rollout, so the payload is
+    // accepted and the field ignored downstream (mirrors the job flow).
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        paymentSourceType: "Web3CardanoV1",
+        supportedPaymentSourceIndex: 0,
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it.each([
+    ["inputHash", "not-a-sha256-hash"],
+    ["sellerVkey", "not-a-vkey"],
+    ["submitResultTime", "tomorrow"],
+    ["submitResultTime", "0"],
+  ])("rejects node-invalid %s before charging", (field, value) => {
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        [field]: value,
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a bare policy id as agentIdentifier before charging", () => {
+    // The node requires minLength 57 — a full asset identifier, policy id plus
+    // asset name. A bare 56-hex policy id is a guaranteed 400 there, and task
+    // charges commit BEFORE the purchase, so accepting it only buys a debit
+    // and a compensating refund.
+    const barePolicyId =
+      "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77";
+    expect(barePolicyId).toHaveLength(56);
+
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: { ...validMasumiPayment, agentIdentifier: barePolicyId },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("canonicalizes timestamps so reconciliation cannot see a false mismatch", () => {
+    // The node stores these as numbers and echoes the canonical form. Storing
+    // "0177…" and sending it would make purchase reconciliation report a
+    // `mismatch`, which refunds the buyer while the escrow stays live.
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        payByTime: "01775737949000",
+        submitResultTime: "0001775681853000",
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.masumiPayment?.payByTime).toBe("1775737949000");
+    expect(result.data?.masumiPayment?.submitResultTime).toBe("1775681853000");
+  });
+
+  it("takes blockchainIdentifier exactly as the node defines it", () => {
+    // POST /purchase declares this `type: string, maxLength: 8000` with no
+    // pattern. It is the seller's own value, so validating a format the node
+    // never promised would reject legal payloads, and rewriting its casing
+    // would forward the node something the seller did not send.
+    const sellerValue = "NotHex-With_Mixed-Case";
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        blockchainIdentifier: sellerValue,
+      },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data?.masumiPayment?.blockchainIdentifier).toBe(sellerValue);
+  });
+
+  it("accepts the payment node's empty unit spelling for lovelace", () => {
+    const result = createTaskEventRequestSchema().safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        Amounts: [{ amount: "1000000", unit: "" }],
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a malformed identifier under the V2 registry policy", () => {
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        agentIdentifier: `${V2_POLICY_ID}abcd`,
+        PaymentSource: {
+          network: "Preprod",
+          smartContractAddress:
+            "addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm",
+          policyId: V2_POLICY_ID,
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a PaymentSource whose policyId mismatches the agent identifier", () => {
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        // PaymentSource rules are asserted for V2 payloads only.
+        paymentSourceType: "Web3CardanoV2",
+        PaymentSource: {
+          network: "Preprod",
+          smartContractAddress:
+            "addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm",
+          policyId: "ff".repeat(28),
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a smart contract address with the wrong network prefix", () => {
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        paymentSourceType: "Web3CardanoV2",
+        PaymentSource: {
+          network: "Preprod",
+          smartContractAddress:
+            "addr1wxs4e6wc95hkwezlccjw9mdvq0r0rsgx6zk34avptga3ftgge2j6d",
+          policyId: validMasumiPayment.agentIdentifier.slice(0, 56),
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("leaves a V1 payload's PaymentSource unvalidated", () => {
+    // PaymentSource predates the V2 rules on this public API; V1 callers may
+    // populate it with their own tuple and must not be rejected for it.
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        PaymentSource: {
+          network: "Preprod",
+          smartContractAddress: "addr_test1_v1_escrow_contract",
+          policyId: "ff".repeat(28),
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a V1 rail declared on a V2 registry identifier", () => {
+    // The node infers V2 from the identifier and 400s the mismatch. Task
+    // charges commit before the purchase, so this must fail pre-charge.
+    const schema = createTaskEventRequestSchema({ serverNetwork: "Preprod" });
+    const result = schema.safeParse({
+      status: "COMPLETED",
+      masumiPayment: {
+        ...validMasumiPayment,
+        agentIdentifier: `67ab0c92c4ac1610895a1c965ee50aba41a8f1513b15240723b3bd0b${"ab".repeat(29)}000001`,
+        paymentSourceType: "Web3CardanoV1",
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("accepts a valid channel", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.RUNNING,
@@ -194,7 +388,7 @@ describe("createTaskEventRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects non-https auth url", () => {
+  it("rejects authentication required with non-https auth url", () => {
     const result = taskEventRequestSchema.safeParse({
       status: TaskStatus.AUTHENTICATION_REQUIRED,
       authenticationUrl: "http://example.com/oauth/authorize",
@@ -382,6 +576,43 @@ describe("createTaskEventRequestSchema", () => {
             "addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm",
           policyId: "7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77",
         },
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a V2 masumiPayment with its source index", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        paymentSourceType: "Web3CardanoV2",
+        supportedPaymentSourceIndex: 2,
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("keeps legacy V2 masumiPayment payloads without a source index compatible", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        paymentSourceType: "Web3CardanoV2",
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a bare source index on a V1-policy payload", () => {
+    const result = taskEventRequestSchema.safeParse({
+      status: TaskStatus.COMPLETED,
+      masumiPayment: {
+        ...validMasumiPayment,
+        supportedPaymentSourceIndex: 2,
       },
     });
 

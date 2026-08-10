@@ -31,4 +31,13 @@ describe("calculateCentsFromMasumiAmountStrings", () => {
       ),
     ).toThrow();
   });
+
+  it("treats the registry's empty ADA asset as lovelace", () => {
+    expect(
+      calculateCentsFromMasumiAmountStrings(
+        [{ amount: "2000000", unit: "" }],
+        sampleCreditCosts,
+      ),
+    ).toBe(2000000n);
+  });
 });

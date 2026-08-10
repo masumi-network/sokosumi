@@ -2,6 +2,7 @@ import {
   agentMetadataOverrideScalarsInclude,
   agentPricingInclude,
   type CreditCost,
+  PricingType,
   type Prisma,
 } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
@@ -46,12 +47,28 @@ export async function buildAgentSummaries(
 ) {
   const agentsWithCredits = agents
     .map((agent) => {
+      // A registry replay rewrites pricing per agent (delete + recreate of the
+      // amount rows), so a concurrent read can momentarily see FIXED pricing
+      // with no amounts. That is one transient row, not a broken page: drop it
+      // from this listing instead of failing the whole request.
+      if (
+        agent.pricing.pricingType === PricingType.FIXED &&
+        (!agent.pricing.fixedPricing ||
+          agent.pricing.fixedPricing.amounts.length === 0)
+      ) {
+        console.warn(
+          `[agents] Skipping agent ${agent.id} during transient pricing rewrite`,
+        );
+        return null;
+      }
+
       const cost = getAgentCost(agent, creditCosts);
       return {
         ...agent,
         credits: convertCentsToCredits(cost.cents),
       };
     })
+    .filter((agent) => agent !== null)
     .map((agent) => ({
       ...agent,
       name: getAgentName(agent),
