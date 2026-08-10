@@ -495,6 +495,11 @@ async function upsertRegistryAgent(
       // writer increments on job creation. Moving Job rows without moving the
       // counter would leave the canonical agent undercounting every hire it
       // just inherited, and ranking below agents it has actually outsold.
+      //
+      // All jobs leave the duplicate, so its counter is zero — set absolute 0
+      // rather than decrementing. A floored decrement still risks undershoot
+      // if the denormalized value was already below the real job count; zero
+      // matches the post-move truth and cannot go negative.
       if (movedJobs.count > 0) {
         await tx.agent.update({
           where: { id: existing.id },
@@ -502,7 +507,7 @@ async function upsertRegistryAgent(
         });
         await tx.agent.update({
           where: { id: conflictingByIdentifier.id },
-          data: { jobCount: { decrement: movedJobs.count } },
+          data: { jobCount: 0 },
         });
       }
 

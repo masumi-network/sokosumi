@@ -454,9 +454,11 @@ describe("agentSyncService.syncRegistryAgents", () => {
       where: { id: "agent-canonical" },
       data: { jobCount: { increment: 3 } },
     });
+    // All jobs left the duplicate — absolute 0, never a decrement that can
+    // go negative when the denormalized counter was already drifted low.
     expect(agentUpdateMock).toHaveBeenCalledWith({
       where: { id: "agent-rollback-dup" },
-      data: { jobCount: { decrement: 3 } },
+      data: { jobCount: 0 },
     });
   });
 
