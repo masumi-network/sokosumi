@@ -53,6 +53,7 @@ import {
   type JobsListFilters,
   mergeTopPageJobsWithListFilters,
 } from "@/app/tasks/utils/jobs-filters";
+import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-server-refresh";
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
@@ -557,26 +558,20 @@ export function TasksView({
   ]);
 
   useEffect(() => {
-    const prev = itemsRef.current;
-    const prevById = new Map(prev.map((task) => [task.id, task]));
-    const next = tasks.map((task) => {
-      if (pendingMoveVersionByTaskIdRef.current.has(task.id)) {
-        const localTask = prevById.get(task.id);
-        if (localTask) return localTask;
-      }
-      return task;
-    });
-
-    const nextIds = new Set(tasks.map((task) => task.id));
-    prev.forEach((task) => {
-      if (!nextIds.has(task.id)) {
-        next.push(task);
-      }
+    const isListView = defaultViewMode === "list";
+    const next = mergeTasksOnServerRefresh({
+      prev: itemsRef.current,
+      serverTasks: tasks,
+      pendingMoveTaskIds: new Set(pendingMoveVersionByTaskIdRef.current.keys()),
+      // List is a single updatedAt stream: keep load-more rows across
+      // router.refresh() and listCursor goes stale vs the new first page.
+      keepLocalOnlyTasks: !isListView,
     });
 
     setItems(next);
 
-    if (next.length <= tasks.length) {
+    // List always resyncs. Board only when no client-only load-more rows remain.
+    if (isListView || next.length <= tasks.length) {
       setColumnCursorById(
         buildInitialColumnCursorById(columns, initialColumnNextCursorById),
       );
@@ -586,7 +581,13 @@ export function TasksView({
       setIsLoadingListMore(false);
       isLoadingListMoreRef.current = false;
     }
-  }, [columns, initialColumnNextCursorById, initialListNextCursor, tasks]);
+  }, [
+    columns,
+    defaultViewMode,
+    initialColumnNextCursorById,
+    initialListNextCursor,
+    tasks,
+  ]);
 
   const mergeJobsWithExisting = useCallback(
     (fetchedJobs: TasksViewJob[], prevJobs: TasksViewJob[]) => {
