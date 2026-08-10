@@ -54,6 +54,34 @@ function canCommitStream(text: string, minGoodChars: number): boolean {
   return text.length >= minGoodChars;
 }
 
+/**
+ * Progress parts that must leave the gate before answer text commits.
+ *
+ * Room coworker `streamText` uses AI SDK `firstChunkMs` / `chunkMs`. Those
+ * timers only reset on output chunks (non-empty reasoning-delta, tool-call,
+ * tool-input-delta, text-delta). Coworkers may run tools for minutes while
+ * only emitting reasoning heartbeats — if the gate buffers those, Sokosumi
+ * aborts as stalled even though the upstream stream is alive.
+ *
+ * Answer `text-*` (and finish/lifecycle) stay buffered so agent-error and
+ * short-tail retries still hide bad first attempts.
+ */
+function isProgressPassThroughPart(part: LanguageModelV4StreamPart): boolean {
+  switch (part.type) {
+    case "reasoning-start":
+    case "reasoning-delta":
+    case "reasoning-end":
+    case "reasoning-file":
+    case "tool-call":
+    case "tool-input-start":
+    case "tool-input-delta":
+    case "tool-input-end":
+      return true;
+    default:
+      return false;
+  }
+}
+
 export function createCommitGateStream(
   sourceStream: ReadableStream<LanguageModelV4StreamPart>,
   options: CommitGateOptions,
@@ -91,6 +119,8 @@ export function createCommitGateStream(
 
           if (committed) {
             controller.enqueue(value);
+          } else if (isProgressPassThroughPart(value)) {
+            controller.enqueue(value);
           } else {
             buffer.push(value);
           }
@@ -109,6 +139,8 @@ export function createCommitGateStream(
           if (retryReason) {
             const retryStream = await options.onRetryNeeded(retryReason);
             if (retryStream) {
+              // Progress may already have been forwarded; retry only replaces
+              // the buffered answer path (text/finish), not leaked reasoning.
               await pipeStreamToController(retryStream, controller);
               controller.close();
               return;
