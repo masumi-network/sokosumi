@@ -182,17 +182,28 @@ describe("ChatMessageRow", () => {
   it("shows coworker bot badge on avatar, not beside name", () => {
     renderRow({ message: coworkerMessage() });
 
-    expect(screen.getByTestId("coworker-avatar-badge")).toBeInTheDocument();
-    expect(screen.getByLabelText("coworkerBadge")).toBeInTheDocument();
-    expect(screen.getByText("Jamal").closest("span")?.textContent).toBe(
-      "Jamal",
+    // File mock returns i18n keys (not English copy); label is coworkerBadge
+    const badge = screen.getByRole("img", { name: "coworkerBadge" });
+    expect(badge).toHaveAttribute("data-testid", "coworker-avatar-badge");
+    // Single labeled chip — catches a residual name-row Bot with the same label
+    expect(screen.getAllByRole("img", { name: "coworkerBadge" })).toHaveLength(
+      1,
     );
-    // Containing box must stay avatar-sized (not stretched full row height)
+
+    const name = screen.getByText("Jamal");
+    expect(name).toHaveTextContent("Jamal");
+    // Badge is under the avatar trigger, not under the name hover trigger
+    expect(name.parentElement).not.toContainElement(badge);
+
+    // HoverCard merges self-start/shrink-0 onto this trigger; size-8 keeps absolute badge on avatar
     const avatarWrap = screen.getByTestId("message-sender-avatar");
-    expect(avatarWrap).toHaveClass("relative", "size-8", "self-start");
-    expect(avatarWrap).toContainElement(
-      screen.getByTestId("coworker-avatar-badge"),
+    expect(avatarWrap).toHaveClass(
+      "relative",
+      "size-8",
+      "shrink-0",
+      "self-start",
     );
+    expect(avatarWrap).toContainElement(badge);
   });
 
   it("does not show coworker bot badge for human senders", () => {
@@ -200,6 +211,9 @@ describe("ChatMessageRow", () => {
 
     expect(
       screen.queryByTestId("coworker-avatar-badge"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: "coworkerBadge" }),
     ).not.toBeInTheDocument();
   });
 

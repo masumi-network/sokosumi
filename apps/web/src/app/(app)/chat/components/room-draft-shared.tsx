@@ -29,8 +29,14 @@ export function AiCoworkerIcon({ className }: { className?: string }) {
   );
 }
 
+interface AiCoworkerAvatarBadgeProps {
+  className?: string;
+}
+
 /** Discord-style bot chip for avatar corner (sibling of Avatar, not inside it). */
-export function AiCoworkerAvatarBadge({ className }: { className?: string }) {
+export function AiCoworkerAvatarBadge({
+  className,
+}: AiCoworkerAvatarBadgeProps) {
   const t = useTranslations("App.Channels");
 
   return (
