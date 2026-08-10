@@ -14,6 +14,7 @@ import {
   buildJobsNeedingAgentStatusSyncWhere,
   buildJobsNeedingPurchaseSyncWhere,
   buildJobsPendingLocalRefundWhere,
+  FREE_JOB_OFFLINE_SYNC_WINDOW_MS,
 } from "./job-sync.js";
 
 function expectPaymentDeadlineBeforeCutoffOr(
@@ -167,7 +168,12 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
     assert.equal(notClauses.length, 1);
     assert.deepEqual(disputeWindowClause.purchase, {
       onChainStatus: {
-        notIn: [OnChainJobStatus.DISPUTED, OnChainJobStatus.REFUND_REQUESTED],
+        notIn: [
+          OnChainJobStatus.DISPUTED,
+          OnChainJobStatus.REFUND_REQUESTED,
+          OnChainJobStatus.REFUND_AUTHORIZED,
+          OnChainJobStatus.WITHDRAW_AUTHORIZED,
+        ],
         not: null,
       },
     });
@@ -188,11 +194,30 @@ describe("buildJobsNeedingPurchaseSyncWhere", () => {
 
 describe("buildJobsNeedingAgentStatusSyncWhere", () => {
   it("keeps free and paid jobs with unfinished agent work in the agent sync set", () => {
-    const where = buildJobsNeedingAgentStatusSyncWhere();
+    const now = new Date("2026-07-28T12:00:00.000Z");
+    const where = buildJobsNeedingAgentStatusSyncWhere(now);
 
-    assert.deepEqual(where.agent, {
-      status: AgentStatus.ONLINE,
-    });
+    const freeJobCutoff = new Date(
+      now.getTime() - FREE_JOB_OFFLINE_SYNC_WINDOW_MS,
+    );
+    // Snapshot-backed jobs keep polling when the stable Agent row advances to
+    // an offline revision. Both bypasses are time-bounded.
+    assert.deepEqual(where.OR, [
+      { agent: { status: AgentStatus.ONLINE } },
+      {
+        OR: [
+          {
+            jobType: JobType.PAID,
+            externalDisputeUnlockTime: { gt: now },
+          },
+          {
+            jobType: JobType.FREE,
+            agentApiBaseUrl: { not: null },
+            createdAt: { gt: freeJobCutoff },
+          },
+        ],
+      },
+    ]);
     assert.deepEqual(where.jobType, {
       in: [JobType.FREE, JobType.PAID],
     });
@@ -217,6 +242,7 @@ describe("buildJobsNeedingAgentStatusSyncWhere", () => {
           in: [
             OnChainJobStatus.DISPUTED,
             OnChainJobStatus.REFUND_REQUESTED,
+            OnChainJobStatus.REFUND_AUTHORIZED,
             OnChainJobStatus.REFUND_WITHDRAWN,
             OnChainJobStatus.DISPUTED_WITHDRAWN,
             OnChainJobStatus.FUNDS_OR_DATUM_INVALID,

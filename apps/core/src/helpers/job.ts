@@ -3,7 +3,9 @@ import {
   AgentJobStatus,
   agentMetadataOverrideScalarsInclude,
   agentPricingInclude,
+  type CreditCost,
   JobType,
+  PaymentType,
   PricingType,
   Prisma,
 } from "@sokosumi/database";
@@ -15,21 +17,35 @@ import {
   type JobWithListSummaryRelations,
   jobListSummaryInclude,
 } from "@sokosumi/database/types/job";
-import { createAgentClient } from "@sokosumi/masumi";
+import {
+  type AgentJobStartFailure,
+  createAgentClient,
+  isV2RegistryIdentifier,
+  normalizeMasumiPaymentUnit,
+  normalizeV2RegistryIdentifier,
+  toMasumiPaymentNodeAmounts,
+} from "@sokosumi/masumi";
 import type {
   InputSchemaSchemaType,
   InputSchemaType,
   StartFreeJobResponseSchemaType,
+  StartPaidJobResponseSchemaType,
 } from "@sokosumi/masumi/schemas";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { v4 as uuidv4 } from "uuid";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { openrouterClient } from "@/clients/openrouter.client";
+import { getEnv } from "@/config/env";
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import {
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   buildAvailableAgentWhereClause,
+  type CardanoV2ReadySource,
+  calculateCentsFromMasumiAmountStrings,
   getAgentCost,
+  getCardanoV2ReadySources,
   getCreditCostsOrThrow,
+  isCardanoV2SourceReady,
   toMasumiAgent,
 } from "@/helpers/agent";
 import { incrementAgentJobCount } from "@/helpers/agent-job-count";
@@ -37,7 +53,6 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
-import { type StartPaidJobResponseSchemaType } from "@/schemas/job.schema";
 import { flattenJob } from "@/types/job";
 
 import type { AgentCost } from "./agent";
@@ -77,6 +92,8 @@ async function validateCreditBalance(
 async function createPaidJob(
   input: {
     agentId: string;
+    agentBlockchainIdentifier: string;
+    agentApiBaseUrl: string;
     ownerId: string;
     organizationId: string | null;
     workspaceId: string;
@@ -89,6 +106,13 @@ async function createPaidJob(
   cost: AgentCost,
   agentJobResponse: StartPaidJobResponseSchemaType,
   identifierFromPurchaser: string,
+  purchaseAmounts: { amount: string; unit: string }[],
+  // Only true when these amounts were also sent to the payment node as the
+  // drift guard. When the guard is omitted (legacy V1 metadata with more
+  // amounts than POST /purchase accepts) the node may lock a drifted price, so
+  // requiring an exact match would make the job-sync backfill refuse the
+  // purchase forever instead of reconciling it.
+  purchaseAmountMatchRequired: boolean,
   tx: Prisma.TransactionClient,
 ): Promise<JobWithListSummaryRelations> {
   const inputSchemaSnapshot = JSON.stringify(input.inputSchema);
@@ -153,6 +177,12 @@ async function createPaidJob(
       submitResultTime: new Date(agentJobResponse.submitResultTime),
       unlockTime: new Date(agentJobResponse.unlockTime),
       blockchainIdentifier: agentJobResponse.blockchainIdentifier,
+      agentBlockchainIdentifier: input.agentBlockchainIdentifier,
+      agentApiBaseUrl: input.agentApiBaseUrl,
+      paymentSourceType: agentJobResponse.paymentSourceType,
+      supportedPaymentSourceIndex: agentJobResponse.supportedPaymentSourceIndex,
+      purchaseAmounts,
+      purchaseAmountMatchRequired,
       sellerVkey: agentJobResponse.sellerVKey,
       identifierFromPurchaser,
     },
@@ -171,6 +201,8 @@ async function createPaidJob(
 async function createFreeJob(
   input: {
     agentId: string;
+    agentBlockchainIdentifier: string;
+    agentApiBaseUrl: string;
     ownerId: string;
     organizationId: string | null;
     workspaceId: string;
@@ -219,6 +251,8 @@ async function createFreeJob(
       submitResultTime: null,
       unlockTime: null,
       blockchainIdentifier: null,
+      agentBlockchainIdentifier: input.agentBlockchainIdentifier,
+      agentApiBaseUrl: input.agentApiBaseUrl,
       sellerVkey: null,
       identifierFromPurchaser: null,
     },
@@ -252,6 +286,144 @@ export interface JobOwnerContext {
   workspaceId: string;
 }
 
+const MAX_PAYMENT_NODE_PURCHASE_AMOUNTS = 7;
+
+/**
+ * Records that a hire failed AFTER `start_job` was accepted, so the seller is
+ * doing work for a job Sokosumi will never track. MIP-003 has no cancel, so
+ * there is nothing to compensate with — the only remedy is visibility.
+ *
+ * `page: false` for outcomes that are legitimate rather than defects (a buyer
+ * cap refusing the seller's chosen source); everything else is a registry-data
+ * or protocol defect that recurs on every hire of the agent.
+ */
+function reportOrphanedSellerJob(
+  reason: string,
+  context: Record<string, unknown>,
+  options: { page?: boolean } = {},
+): void {
+  const message = `Seller-side job orphaned after start_job: ${reason}`;
+  console.error(`[createAgentJobForUser] ${message}`, context);
+  if (options.page !== false) {
+    Sentry.captureException(new Error(message), { extra: context });
+  }
+}
+
+/**
+ * A `start_job` call that never produced a usable response.
+ *
+ * Only `invalid-response` pages. There the seller answered 2xx — it accepted
+ * the job and started work — and the body still did not parse, so seller-side
+ * work definitely exists that we cannot record, and MIP-003 has no cancel.
+ *
+ * `ambiguous` (timeout, 5xx, 3xx after dispatch) is logged, not paged. It is
+ * indistinguishable from ordinary seller flakiness, it is the single most
+ * common way a hire fails, and no money has moved: credits are charged after
+ * start_job returns, so the user is simply told the hire failed. `main` paged
+ * on none of this, and routing every flaky seller into on-call would bury the
+ * definite case above in noise.
+ */
+function reportStrandedStartJobFailure(
+  failure: AgentJobStartFailure,
+  context: Record<string, unknown>,
+): void {
+  if (failure.kind !== "invalid-response") {
+    console.warn("[createAgentJobForUser] start_job failed", {
+      ...context,
+      kind: failure.kind,
+      failure: failure.message,
+    });
+    return;
+  }
+  reportOrphanedSellerJob(
+    "seller accepted start_job but returned a response that does not match the MIP-003 contract",
+    { ...context, failure: failure.message },
+  );
+}
+
+interface PreparedV2Source {
+  amounts: { unit: string; amount: string }[];
+  cents: bigint;
+}
+
+function prepareEligibleV2Sources(
+  agentIdentifier: string,
+  sources: readonly {
+    sourceIndex: number;
+    pricingType: PricingType;
+    address: string;
+    amounts: { unit: string; amount: bigint }[];
+  }[],
+  creditCosts: CreditCost[],
+  readySources: readonly CardanoV2ReadySource[],
+  acceptedCeilingCents: bigint,
+  hasExplicitCeiling: boolean,
+): Map<number, PreparedV2Source> {
+  const prepared = new Map<number, PreparedV2Source>();
+  for (const source of sources) {
+    if (
+      !isCardanoV2SourceReady(agentIdentifier, source.address, readySources)
+    ) {
+      continue;
+    }
+    if (
+      source.pricingType !== PricingType.FIXED ||
+      source.amounts.length === 0
+    ) {
+      throw unprocessableEntity(
+        "Paid V2 agent has a purchase-ready source without fixed pricing",
+        { reportToSentry: true },
+      );
+    }
+    const amounts = aggregateAmountsByUnit(source.amounts);
+    if (amounts.length > MAX_PAYMENT_NODE_PURCHASE_AMOUNTS) {
+      throw unprocessableEntity(
+        "Paid V2 agent has a purchase-ready source with too many assets",
+        { reportToSentry: true },
+      );
+    }
+    let cents: bigint;
+    try {
+      cents = calculateCentsFromMasumiAmountStrings(amounts, creditCosts);
+    } catch {
+      throw unprocessableEntity(
+        "Paid V2 agent has a purchase-ready source with unbillable units",
+        { reportToSentry: true },
+      );
+    }
+    if (cents > acceptedCeilingCents) {
+      if (hasExplicitCeiling) {
+        throw badRequest("Credit cost exceeds maximum accepted credits");
+      }
+      throw unprocessableEntity(
+        "The agent's purchase-ready payment sources exceed its listed price",
+        { reportToSentry: true },
+      );
+    }
+    prepared.set(source.sourceIndex, { amounts, cents });
+  }
+  return prepared;
+}
+
+/**
+ * Sums pricing rows per unit. The payment node compares Amounts as per-unit
+ * sums and caps the array at 7 entries, so duplicate-unit registrations must
+ * be aggregated before sending.
+ */
+function aggregateAmountsByUnit(
+  rows: readonly { unit: string; amount: bigint }[],
+): { unit: string; amount: string }[] {
+  const sums = new Map<string, bigint>();
+  for (const row of rows) {
+    const unit = normalizeMasumiPaymentUnit(row.unit);
+    sums.set(unit, (sums.get(unit) ?? 0n) + row.amount);
+  }
+  return Array.from(sums, ([unit, amount]) => ({
+    unit,
+    amount: amount.toString(),
+  }));
+}
+
 export async function createAgentJobForUser(
   input: CreateAgentJobInput,
 ): Promise<JobWithListSummaryRelations> {
@@ -263,29 +435,70 @@ export async function createAgentJobForUser(
       : null);
 
   const creditCosts = await getCreditCostsOrThrow();
+  const cardanoV2ReadySources = await getCardanoV2ReadySources();
 
-  const agentRecord = await prisma.agent.findFirst({
-    where: {
-      id: agentInput.agentId,
-      ...buildAvailableAgentWhereClause(creditCosts),
-    },
-    include: {
-      ...agentPricingInclude,
-      ...agentMetadataOverrideScalarsInclude,
-    },
-  });
+  // Price and payment sources must come from ONE snapshot: they are separate
+  // statements, and a registry replay landing between them would price this
+  // hire from an amount set that no longer exists. See
+  // AGENT_PRICING_READ_TRANSACTION_OPTIONS.
+  const [agent] = await prisma.$transaction(
+    [
+      prisma.agent.findFirst({
+        where: {
+          id: agentInput.agentId,
+          ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
+        },
+        include: {
+          ...agentPricingInclude,
+          ...agentMetadataOverrideScalarsInclude,
+          paymentSources: {
+            where: {
+              chain: "Cardano",
+              network: getEnv().NETWORK,
+              paymentSourceType: "Web3CardanoV2",
+            },
+            include: {
+              amounts: true,
+            },
+            orderBy: { sourceIndex: "asc" },
+          },
+        },
+      }),
+    ],
+    AGENT_PRICING_READ_TRANSACTION_OPTIONS,
+  );
 
-  if (!agentRecord) {
+  if (!agent) {
     throw notFound("Agent not found");
   }
 
-  const cost = getAgentCost(agentRecord, creditCosts);
+  let cost = getAgentCost(agent, creditCosts);
+  const isV2Agent =
+    agent.paymentType === PaymentType.WEB3_CARDANO_V2 ||
+    isV2RegistryIdentifier(agent.blockchainIdentifier);
 
-  if (maxCents !== null && cost.cents > maxCents) {
+  if (!isV2Agent && maxCents !== null && cost.cents > maxCents) {
     throw badRequest("Credit cost exceeds maximum accepted credits");
   }
-
-  const agent = { ...agentRecord, cost };
+  let preparedV2Sources = new Map<number, PreparedV2Source>();
+  if (isV2Agent && agent.pricing.pricingType === PricingType.FIXED) {
+    preparedV2Sources = prepareEligibleV2Sources(
+      agent.blockchainIdentifier,
+      agent.paymentSources,
+      creditCosts,
+      cardanoV2ReadySources,
+      maxCents ?? cost.cents,
+      maxCents !== null,
+    );
+    // No billable ready source can satisfy this hire — fail before start_job
+    // so the seller never accepts work we will refuse to track.
+    if (preparedV2Sources.size === 0) {
+      throw unprocessableEntity(
+        "No purchase-ready payment sources available for this agent",
+        { reportToSentry: true },
+      );
+    }
+  }
 
   if (agentInput.projectId !== null && agentInput.projectId !== undefined) {
     const project = await prisma.project.findFirst({
@@ -318,8 +531,11 @@ export async function createAgentJobForUser(
     return jobName;
   };
 
+  const masumiAgent = toMasumiAgent(agent);
   const jobInput = {
     agentId: agentInput.agentId,
+    agentBlockchainIdentifier: masumiAgent.blockchainIdentifier,
+    agentApiBaseUrl: masumiAgent.apiBaseUrl,
     ownerId: owner.ownerId,
     organizationId: owner.organizationId,
     workspaceId: owner.workspaceId,
@@ -332,8 +548,8 @@ export async function createAgentJobForUser(
   let paidJobResult: StartPaidJobResponseSchemaType | null = null;
   let freeJobResult: StartFreeJobResponseSchemaType | null = null;
   let identifierFromPurchaser: string | null = null;
-
-  const masumiAgent = toMasumiAgent(agent);
+  let expectedPurchaseAmounts: { unit: string; amount: string }[] | null = null;
+  let purchaseRequestAmounts: { unit: string; amount: string }[] | null = null;
 
   switch (agent.pricing.pricingType) {
     case PricingType.FREE: {
@@ -343,8 +559,12 @@ export async function createAgentJobForUser(
       );
 
       if (startFreeJobResult.isErr()) {
+        reportStrandedStartJobFailure(startFreeJobResult.error, {
+          agentId: agent.id,
+          pricingType: PricingType.FREE,
+        });
         throw unprocessableEntity(
-          `Free agent job start failed: ${startFreeJobResult.error}`,
+          `Free agent job start failed: ${startFreeJobResult.error.message}`,
         );
       }
 
@@ -362,13 +582,213 @@ export async function createAgentJobForUser(
       );
 
       if (startPaidJobResult.isErr()) {
+        reportStrandedStartJobFailure(startPaidJobResult.error, {
+          agentId: agent.id,
+          pricingType: PricingType.FIXED,
+        });
         throw unprocessableEntity(
-          `Paid agent job start failed: ${startPaidJobResult.error}`,
+          `Paid agent job start failed: ${startPaidJobResult.error.message}`,
         );
       }
 
+      const response = startPaidJobResult.value;
+      // Stored V2 identifiers are normalized to lowercase at ingestion, so
+      // compare case-insensitively — a seller echoing uppercase hex is the
+      // same agent, and rejecting it here would orphan the job it just
+      // started.
+      if (
+        normalizeV2RegistryIdentifier(response.agentIdentifier) !==
+        agent.blockchainIdentifier
+      ) {
+        reportOrphanedSellerJob(
+          "seller returned a different agent identifier",
+          {
+            agentId: agent.id,
+            agentJobId: response.id,
+            expectedAgentIdentifier: agent.blockchainIdentifier,
+            receivedAgentIdentifier: response.agentIdentifier,
+          },
+        );
+        throw unprocessableEntity(
+          "Paid agent job returned a different agent identifier",
+        );
+      }
+
+      // The purchaser nonce is ours; the node derives the on-chain identifier
+      // from it, so a seller echoing a different one would only fail at
+      // purchase creation — after credits are consumed.
+      if (response.identifierFromPurchaser !== identifierFromPurchaser) {
+        reportOrphanedSellerJob(
+          "seller returned a different purchaser identifier",
+          {
+            agentId: agent.id,
+            agentJobId: response.id,
+            expectedIdentifierFromPurchaser: identifierFromPurchaser,
+            receivedIdentifierFromPurchaser: response.identifierFromPurchaser,
+          },
+        );
+        throw unprocessableEntity(
+          "Paid agent job returned a different purchaser identifier",
+        );
+      }
+
+      // Keyed on identifier as well as payment type: free and EVM-only V2
+      // agents report "None" yet still settle through a V2 contract, and the
+      // availability filter admits them on the same basis.
+      if (isV2Agent) {
+        // A seller that omits the index is only unambiguous when the agent
+        // registered exactly ONE payment source for this rail and network:
+        // there is nothing else it could have meant. With several sources the
+        // seller alone knows which one it will settle through, so the echo
+        // stays mandatory — guessing would bill from the wrong price.
+        const selectedSourceIndex =
+          response.supportedPaymentSourceIndex ??
+          (agent.paymentSources.length === 1
+            ? agent.paymentSources[0]?.sourceIndex
+            : undefined);
+        const selectedSource = agent.paymentSources.find(
+          (source) => selectedSourceIndex === source.sourceIndex,
+        );
+        if (!selectedSource) {
+          reportOrphanedSellerJob(
+            "seller returned an unexpected payment source",
+            {
+              agentId: agent.id,
+              agentJobId: response.id,
+              receivedPaymentSourceIndex: response.supportedPaymentSourceIndex,
+              registeredPaymentSourceIndexes: agent.paymentSources.map(
+                (source) => source.sourceIndex,
+              ),
+            },
+          );
+          throw unprocessableEntity(
+            "Paid V2 agent job returned an unexpected payment source",
+          );
+        }
+        // Same readiness snapshot as preflight: this is not a mid-request
+        // flip. Seller can still echo a stored source that was not ready
+        // (and therefore not prepared) at hire time.
+        const isSelectedSourcePurchaseReady = isCardanoV2SourceReady(
+          agent.blockchainIdentifier,
+          selectedSource.address,
+          cardanoV2ReadySources,
+        );
+        if (!isSelectedSourcePurchaseReady) {
+          reportOrphanedSellerJob(
+            "seller selected a payment source that is not purchase-ready",
+            {
+              agentId: agent.id,
+              agentJobId: response.id,
+              selectedPaymentSourceIndex: selectedSource.sourceIndex,
+              selectedPaymentSourceAddress: selectedSource.address,
+            },
+          );
+          throw unprocessableEntity(
+            "Paid V2 agent job selected a payment source that is not purchase-ready",
+          );
+        }
+        if (
+          response.paymentSourceType !== undefined &&
+          response.paymentSourceType !== "Web3CardanoV2"
+        ) {
+          reportOrphanedSellerJob(
+            "seller returned an invalid payment source type",
+            {
+              agentId: agent.id,
+              agentJobId: response.id,
+              receivedPaymentSourceType: response.paymentSourceType,
+            },
+          );
+          throw unprocessableEntity(
+            "Paid V2 agent job returned an invalid payment source type",
+          );
+        }
+        const preparedSource = preparedV2Sources.get(
+          selectedSource.sourceIndex,
+        );
+        if (!preparedSource) {
+          reportOrphanedSellerJob(
+            "seller selected an ineligible payment source",
+            {
+              agentId: agent.id,
+              agentJobId: response.id,
+              selectedPaymentSourceIndex: selectedSource.sourceIndex,
+              preparedPaymentSourceIndexes: Array.from(
+                preparedV2Sources.keys(),
+              ),
+            },
+          );
+          throw unprocessableEntity(
+            "Paid V2 agent job selected an ineligible payment source",
+          );
+        }
+        // V2 purchases must always carry the exact source amounts: omitting
+        // them lets the node use current on-chain pricing while Sokosumi bills
+        // from its registry snapshot.
+        expectedPurchaseAmounts = preparedSource.amounts;
+        purchaseRequestAmounts = preparedSource.amounts;
+        cost = { cents: preparedSource.cents };
+        paidJobResult = {
+          ...response,
+          paymentSourceType: "Web3CardanoV2",
+          // Forward the RESOLVED index, not the seller's echo. The node feeds
+          // this straight back into the signed blockchainIdentifier payload,
+          // where an omitted index and an explicit one hash differently — so
+          // sending undefined for a source the seller signed with an index
+          // would fail signature verification at POST /purchase.
+          supportedPaymentSourceIndex: selectedSource.sourceIndex,
+        };
+      } else {
+        // A V1 agent whose seller upgraded its SDK may now echo V2-shaped
+        // fields. main ignored them and hired successfully, so rejecting here
+        // would break those agents mid-rollout — and only AFTER start_job has
+        // orphaned a seller-side job. Record the mismatch and continue on the
+        // V1 rail, which is what the stored agent says this purchase is.
+        if (
+          (response.paymentSourceType !== undefined &&
+            response.paymentSourceType !== "Web3CardanoV1") ||
+          response.supportedPaymentSourceIndex !== undefined
+        ) {
+          console.warn(
+            "[createAgentJobForUser] legacy agent returned V2 payment fields; ignoring",
+            {
+              agentId: agent.id,
+              paymentSourceType: response.paymentSourceType,
+              supportedPaymentSourceIndex: response.supportedPaymentSourceIndex,
+            },
+          );
+        }
+        // Price-drift guard: pass the exact amounts the credits charge was
+        // computed from; the node rejects the purchase if the agent's
+        // on-chain pricing has drifted from what we synced.
+        const fixedPricingAmounts = agent.pricing.fixedPricing
+          ? aggregateAmountsByUnit(agent.pricing.fixedPricing.amounts)
+          : [];
+        // Empty amounts are truthy as `[]` and would otherwise record an
+        // exact-match requirement against no units / send `[]` to the node.
+        if (fixedPricingAmounts.length === 0) {
+          throw unprocessableEntity("Paid agent has no fixed pricing amounts");
+        }
+        // Legacy V1 metadata permits more entries than POST /purchase accepts.
+        // Preserve those agents' old behavior by omitting the optional drift
+        // guard until the node's request limit is widened.
+        expectedPurchaseAmounts = fixedPricingAmounts;
+        purchaseRequestAmounts =
+          fixedPricingAmounts.length <= MAX_PAYMENT_NODE_PURCHASE_AMOUNTS
+            ? fixedPricingAmounts
+            : null;
+        // Strip the ignored V2 fields so the job row records the rail it was
+        // actually created on rather than what the seller happened to echo.
+        paidJobResult = {
+          ...response,
+          // Record the rail this job actually settles on. Writing undefined
+          // persisted NULL, which silently disabled the backfill's rail check.
+          paymentSourceType: "Web3CardanoV1" as const,
+          supportedPaymentSourceIndex: undefined,
+        };
+      }
+
       await resolveJobName();
-      paidJobResult = startPaidJobResult.value;
       break;
     }
     case PricingType.UNKNOWN:
@@ -396,15 +816,21 @@ export async function createAgentJobForUser(
       );
     }
 
-    if (!paidJobResult || !identifierFromPurchaser) {
+    if (
+      !paidJobResult ||
+      !identifierFromPurchaser ||
+      !expectedPurchaseAmounts
+    ) {
       throw unprocessableEntity("Paid agent job start failed");
     }
 
     return await createPaidJob(
       { ...jobInput, name: jobName },
-      agent.cost,
+      cost,
       paidJobResult,
       identifierFromPurchaser,
+      expectedPurchaseAmounts,
+      purchaseRequestAmounts !== null,
       tx,
     );
   }, "Job creation conflicted with a concurrent request. Please retry.");
@@ -419,6 +845,13 @@ export async function createAgentJobForUser(
       paidJobResult,
       agentInput.inputData,
       identifierFromPurchaser,
+      // Spell ADA the way the payment node's contract does. Internally the
+      // canonical unit is `lovelace`; POST /purchase documents an empty string
+      // for ADA, so a literal comparison against `lovelace` would reject every
+      // ADA-priced drift guard.
+      purchaseRequestAmounts
+        ? toMasumiPaymentNodeAmounts(purchaseRequestAmounts)
+        : undefined,
     );
 
     if (createPurchaseResult.isOk()) {
@@ -437,12 +870,23 @@ export async function createAgentJobForUser(
           Sentry.captureException(error);
         });
     } else {
+      // A permanent rejection is not transient — with the Amounts guard it
+      // most likely means on-chain pricing drifted from the synced pricing the
+      // credits charge used. Page it; the job follows the payment-failed
+      // credit-refund path.
+      if (createPurchaseResult.error.kind === "permanent") {
+        Sentry.captureException(
+          new Error(
+            `Purchase rejected by payment node (likely price drift) for agent ${agentInput.agentId}: ${createPurchaseResult.error.message}`,
+          ),
+        );
+      }
       // Job already exists; purchase registration is retried by job sync. A
       // transient Masumi payment outage should not page Sentry (SOKOSUMI-CORE-2N).
       console.warn("[createAgentJobForUser] purchase registration failed", {
         jobId: job.id,
         agentId: agentInput.agentId,
-        error: createPurchaseResult.error,
+        error: createPurchaseResult.error.message,
       });
     }
   }

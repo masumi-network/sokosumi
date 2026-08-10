@@ -1,16 +1,23 @@
 import {
   type Agent,
+  AgentEntryType,
   type AgentMetadataOverride,
   AgentStatus,
   type AgentWithPricing,
   type CreditCost,
+  PaymentType,
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
+import {
+  listV2RegistryPolicyIds,
+  normalizeMasumiPaymentUnit,
+} from "@sokosumi/masumi";
 import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
 import { TIME } from "@/config/constants";
+import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import {
   type AgentMyReview,
@@ -74,19 +81,62 @@ export const getAgentAuthorImage = (
   return resolveIpfsOrHttpUrl(image);
 };
 
+export function getAgentApiBaseUrl(
+  agent: Pick<Agent, "apiBaseUrl"> & {
+    metadataOverride?: Pick<AgentMetadataOverrideScalars, "apiBaseUrl"> | null;
+  },
+): string | null {
+  return agent.metadataOverride?.apiBaseUrl ?? agent.apiBaseUrl;
+}
+
 export function toMasumiAgent(
   agent: Pick<Agent, "id" | "name" | "blockchainIdentifier" | "apiBaseUrl"> & {
     metadataOverride?: Pick<AgentMetadataOverrideScalars, "apiBaseUrl"> | null;
   },
 ): MasumiAgent {
+  // OpenApi/X402 pointer entries have no MIP-003 endpoint; they are excluded
+  // from availability, so this only triggers on direct-by-id access.
+  const apiBaseUrl = getAgentApiBaseUrl(agent);
+  if (!apiBaseUrl) {
+    throw unprocessableEntity("Agent has no API endpoint");
+  }
   return {
     id: agent.id,
     name: agent.name,
     blockchainIdentifier: agent.blockchainIdentifier,
-    apiBaseUrl: agent.apiBaseUrl,
+    apiBaseUrl,
     metadataOverride: agent.metadataOverride
       ? { apiBaseUrl: agent.metadataOverride.apiBaseUrl }
       : null,
+  };
+}
+
+/**
+ * Resolves the immutable agent execution context captured when a job started.
+ * Legacy jobs without snapshots fall back to the current Agent row.
+ */
+export function toMasumiAgentForJob(job: {
+  agentBlockchainIdentifier?: string | null;
+  agentApiBaseUrl?: string | null;
+  agent: Pick<Agent, "id" | "name" | "blockchainIdentifier" | "apiBaseUrl"> & {
+    metadataOverride?: Pick<AgentMetadataOverrideScalars, "apiBaseUrl"> | null;
+  };
+}): MasumiAgent {
+  const currentApiBaseUrl = getAgentApiBaseUrl(job.agent);
+  const apiBaseUrl = job.agentApiBaseUrl ?? currentApiBaseUrl;
+  if (!apiBaseUrl) {
+    throw unprocessableEntity("Agent has no API endpoint");
+  }
+
+  return {
+    id: job.agent.id,
+    name: job.agent.name,
+    blockchainIdentifier:
+      job.agentBlockchainIdentifier ?? job.agent.blockchainIdentifier,
+    apiBaseUrl,
+    // The snapshot is already the effective endpoint; a later metadata
+    // override must not redirect an active job.
+    metadataOverride: null,
   };
 }
 
@@ -150,10 +200,134 @@ export const getCreditCostsOrThrow = async (
  * @param creditCosts - Array of credit costs to validate pricing units against
  * @returns Prisma where clause for agent queries
  */
+export const CARDANO_V2_RAIL_READINESS_KEY = "cardano-v2-rail-readiness";
+export const CARDANO_V2_RAIL_READINESS_FAILURE_KEY =
+  "cardano-v2-rail-readiness-failure";
+
+export interface CardanoV2ReadySource {
+  policyId: string;
+  smartContractAddress: string;
+}
+
+export function isCardanoV2SourceReady(
+  agentIdentifier: string,
+  smartContractAddress: string,
+  readySources: readonly CardanoV2ReadySource[],
+): boolean {
+  const normalizedAgentIdentifier = agentIdentifier.toLowerCase();
+  const normalizedSmartContractAddress = smartContractAddress.toLowerCase();
+  return readySources.some(
+    (source) =>
+      normalizedAgentIdentifier.startsWith(source.policyId.toLowerCase()) &&
+      source.smartContractAddress.toLowerCase() ===
+        normalizedSmartContractAddress,
+  );
+}
+
+/**
+ * Isolation for any read that returns agent pricing.
+ *
+ * Prisma loads `include`d relations as SEPARATE statements — Agent, then
+ * AgentPricing, then AgentFixedPricing, then UnitValue — and at PostgreSQL's
+ * default READ COMMITTED every statement takes its own snapshot. A registry
+ * replay rewrites pricing by deleting and recreating the amount rows, so a
+ * replay committing between two of those statements leaves the reader holding
+ * an AgentFixedPricing id whose UnitValue rows are already gone: FIXED pricing
+ * with no amounts.
+ *
+ * That is not a partially visible transaction — READ COMMITTED never shows
+ * one. It is read skew across the reader's own statements, so no change to the
+ * write side can prevent it; only a shared snapshot can. REPEATABLE READ gives
+ * the whole transaction one snapshot, and being read-only it cannot raise a
+ * serialization failure, so it adds no error path.
+ *
+ * `calculateCentsFromPricingAmountRows` totals an empty amount set to zero, so
+ * without this a catalog read can price a paid agent at zero credits.
+ */
+export const AGENT_PRICING_READ_TRANSACTION_OPTIONS = {
+  isolationLevel: "RepeatableRead",
+} as const;
+const CARDANO_POLICY_ID_PATTERN = /^[0-9a-f]{56}$/;
+
+/**
+ * Exact Cardano V2 policy/contract sources the payment node last reported
+ * purchase-ready. Returns an empty list only when readiness has never been
+ * recorded, or the recorded payload is unusable.
+ *
+ * Deliberately NOT expired on age. Readiness is static configuration — the
+ * node derives it from config presence (an active source, a current contract,
+ * an RPC key, admin wallets), never from balance or load — so a value that has
+ * not been refreshed for a while is almost certainly still true. Expiring it
+ * would mean our own cron falling behind takes the entire V2 catalog down,
+ * which says nothing about whether V2 can actually settle. A node that truly
+ * cannot settle rejects the purchase, and the outbox compensates.
+ *
+ * Read straight from the row on every call: it is a primary-key lookup, and a
+ * process-local memo in front of it would only add staleness on top of the
+ * cron's own lag while letting instances disagree with each other.
+ */
+export const getCardanoV2ReadySources = async (
+  tx: Prisma.TransactionClient = prisma,
+): Promise<CardanoV2ReadySource[]> => {
+  const readiness = await tx.syncMetadata.findUnique({
+    where: { key: CARDANO_V2_RAIL_READINESS_KEY },
+  });
+  if (!readiness?.cursorId) {
+    return [];
+  }
+
+  try {
+    const payload: unknown = JSON.parse(readiness.cursorId);
+    if (!Array.isArray(payload)) {
+      return [];
+    }
+    return payload.filter(
+      (source): source is CardanoV2ReadySource =>
+        typeof source === "object" &&
+        source !== null &&
+        "policyId" in source &&
+        typeof source.policyId === "string" &&
+        CARDANO_POLICY_ID_PATTERN.test(source.policyId) &&
+        "smartContractAddress" in source &&
+        typeof source.smartContractAddress === "string" &&
+        source.smartContractAddress.length > 0,
+    );
+  } catch {
+    return [];
+  }
+};
+
 export const buildAvailableAgentWhereClause = (
   creditCosts: CreditCost[],
+  cardanoV2ReadySources: readonly CardanoV2ReadySource[],
 ): Prisma.AgentWhereInput => {
-  const validUnits = creditCosts.map((c) => c.unit);
+  // Both spellings of every unit, because the two sides of this comparison
+  // were written in different eras. Ingestion now stores
+  // normalizeMasumiPaymentUnit(...) — lowercased — but `CreditCost.unit` is
+  // free-form operator input (POST /v1/credit-costs takes z.string().min(1)),
+  // and rows ingested before this branch kept the registry's original casing.
+  // isSameAgentPricing normalizes before comparing, so a pure case change
+  // reads as "unchanged" and those older rows are never rewritten.
+  //
+  // Prisma `in` is a case-sensitive `= ANY(...)`, so matching on one spelling
+  // alone silently drops agents in SQL — no buildAgentSummaries skip, no log
+  // line, the row is simply absent from /v1/agents and /v1/categories and
+  // 404s from /v1/agents/{id}. Carrying both keeps pre- and post-branch rows
+  // matchable without a UnitValue backfill.
+  const validUnits = Array.from(
+    new Set(
+      creditCosts.flatMap((creditCost) =>
+        normalizeMasumiPaymentUnit(creditCost.unit) === "lovelace"
+          ? [creditCost.unit, "lovelace", ""]
+          : [creditCost.unit, normalizeMasumiPaymentUnit(creditCost.unit)],
+      ),
+    ),
+  );
+  // V2 availability is gated on rail readiness alone: the payment node must
+  // have recently reported at least one purchase-ready Cardano V2 source.
+  // That is the gate that actually reflects whether a V2 hire can settle — a
+  // static boolean could only ever agree with it by coincidence.
+  const isCardanoV2Enabled = cardanoV2ReadySources.length > 0;
 
   const pricingFilter = {
     pricingType: { not: PricingType.UNKNOWN },
@@ -166,15 +340,95 @@ export const buildAvailableAgentWhereClause = (
             every: {
               unit: { in: validUnits },
             },
+            // `every` is vacuously true for an empty relation, so without this
+            // a FIXED pricing whose amount rows are momentarily gone (a
+            // registry replay deletes and recreates them) still matches. Such
+            // an agent throws in getAgentCost and is dropped from the page by
+            // buildAgentSummaries — excluding it here keeps the row set and
+            // the total count in agreement.
+            some: {
+              unit: { in: validUnits },
+            },
           },
         },
       },
     ],
   };
 
+  // "Is a V2 agent" — by declared payment type OR by membership of the V2
+  // registry policy. The union matters in both directions: free and EVM-only
+  // V2 entries report paymentType "None", while an entry can declare
+  // Web3CardanoV2 under some other policy id. Either alone is fail-open.
+  const v2AgentFilter = {
+    OR: [
+      { paymentType: PaymentType.WEB3_CARDANO_V2 },
+      ...listV2RegistryPolicyIds().map((policyId) => ({
+        blockchainIdentifier: { startsWith: policyId },
+      })),
+    ],
+  };
+
   return {
     status: AgentStatus.ONLINE,
     isShown: true,
+    // Only Standard entries with a MIP-003 endpoint can be hired; OpenApi and
+    // X402 pointer entries have no job flow yet.
+    type: AgentEntryType.STANDARD,
+    // Allowlist of payment rails the job flow can actually purchase through.
+    // UNKNOWN (unrecognized future rails) is always excluded; V2 requires an
+    // exact policy/contract source that the payment node recently reported
+    // purchase-ready (see getCardanoV2ReadySources). Wallet funding is not
+    // covered and stays a runbook step.
+    paymentType: {
+      in: [
+        PaymentType.WEB3_CARDANO_V1,
+        PaymentType.NONE,
+        ...(isCardanoV2Enabled ? [PaymentType.WEB3_CARDANO_V2] : []),
+      ],
+    },
+    // A metadata override can supply the endpoint when the registry entry
+    // has none.
+    AND: [
+      {
+        OR: [
+          { apiBaseUrl: { not: null } },
+          { metadataOverride: { apiBaseUrl: { not: null } } },
+        ],
+      },
+      // Membership of the V2 registry policy — NOT the payment type — decides
+      // whether the V2 rules apply: free and EVM-only V2 agents report
+      // paymentType "None" and would otherwise skip the purchase-ready
+      // requirement entirely (mirrors isV2RegistryIdentifier).
+      isCardanoV2Enabled
+        ? {
+            OR: [
+              { NOT: v2AgentFilter },
+              ...cardanoV2ReadySources.map((source) => ({
+                blockchainIdentifier: {
+                  startsWith: source.policyId,
+                },
+                paymentSources: {
+                  some: {
+                    chain: "Cardano",
+                    network: getEnv().NETWORK,
+                    paymentSourceType: "Web3CardanoV2",
+                    // Exact match on purpose. Prisma's `mode: "insensitive"`
+                    // compiles to ILIKE with the value as an unescaped
+                    // pattern, so `_` in a bech32 address (every testnet one
+                    // contains "addr_test1") becomes a wildcard — pattern
+                    // matching is the wrong tool for a purchase-readiness
+                    // gate. Cardano bech32 is lowercase by specification and
+                    // ingestion normalizes V2 identifiers, so exact equality
+                    // is correct; isCardanoV2SourceReady stays defensive for
+                    // the runtime path where the value is compared in JS.
+                    address: source.smartContractAddress,
+                  },
+                },
+              })),
+            ],
+          }
+        : { NOT: v2AgentFilter },
+    ],
     pricing: pricingFilter,
   };
 };
@@ -189,10 +443,11 @@ export const requireAvailableAgentOrThrow = async (
   tx: Prisma.TransactionClient,
 ): Promise<void> => {
   const creditCosts = await getCreditCostsOrThrow(tx);
+  const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
   const agent = await tx.agent.findFirst({
     where: {
       id: agentId,
-      ...buildAvailableAgentWhereClause(creditCosts),
+      ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
     },
     select: { id: true },
   });
@@ -229,9 +484,12 @@ function calculateCentsFromPricingAmountRows(
 ): bigint {
   let totalCents = BigInt(0);
   for (const row of rows) {
-    const creditCost = creditCosts.find((c) => c.unit === row.unit);
+    const unit = normalizeMasumiPaymentUnit(row.unit);
+    const creditCost = creditCosts.find(
+      (candidate) => normalizeMasumiPaymentUnit(candidate.unit) === unit,
+    );
     if (!creditCost) {
-      throw unprocessableEntity(`Credit cost not found for unit ${row.unit}`);
+      throw unprocessableEntity(`Credit cost not found for unit ${unit}`);
     }
     totalCents += row.amount * creditCost.centsPerUnit;
   }
@@ -260,10 +518,14 @@ export function calculateCentsFromMasumiAmountStrings(
     if (amount <= 0n) {
       throw unprocessableEntity("Amount must be positive");
     }
-    if (entry.unit.trim().length === 0) {
+    const unit = normalizeMasumiPaymentUnit(entry.unit);
+    // Deliberately AFTER normalization: an empty unit is Masumi's spelling of
+    // ADA and becomes "lovelace", so only a whitespace-only unit — which
+    // normalizes to itself and names no asset — is rejected here.
+    if (unit.trim().length === 0) {
       throw unprocessableEntity("Unit must not be empty");
     }
-    rows.push({ unit: entry.unit, amount });
+    rows.push({ unit, amount });
   }
 
   return calculateCentsFromPricingAmountRows(rows, creditCosts);

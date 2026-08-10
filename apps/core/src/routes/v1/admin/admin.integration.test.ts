@@ -15,12 +15,18 @@ const {
   searchUsersMock,
   searchOrganizationsMock,
   getOrgBySlugMock,
+  refundReviewedClaimMock,
+  resolveReviewedClaimMock,
+  retryReviewedClaimMock,
 } = vi.hoisted(() => ({
   getSessionMock: vi.fn(),
   verifyApiKeyMock: vi.fn(),
   searchUsersMock: vi.fn(),
   searchOrganizationsMock: vi.fn(),
   getOrgBySlugMock: vi.fn(),
+  refundReviewedClaimMock: vi.fn(),
+  resolveReviewedClaimMock: vi.fn(),
+  retryReviewedClaimMock: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -40,6 +46,12 @@ vi.mock("@sokosumi/database/repositories", () => ({
     searchOrganizations: searchOrganizationsMock,
     getOrganizationLimitedInfoBySlug: getOrgBySlugMock,
   },
+}));
+
+vi.mock("@/services/task-payment-claim.service", () => ({
+  refundReviewedTaskPaymentClaim: refundReviewedClaimMock,
+  resolveReviewedTaskPaymentClaim: resolveReviewedClaimMock,
+  retryReviewedTaskPaymentClaim: retryReviewedClaimMock,
 }));
 
 const { default: adminRouter } = await import("./index.js");
@@ -90,6 +102,30 @@ describe("admin router (real mount, real auth + admin guard)", () => {
 
     expect(response.status).toBe(401);
     expect(searchUsersMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-admin retry request before scheduling work", async () => {
+    mockSession("user");
+
+    const response = await adminRouter.request(
+      "http://localhost/task-payment-claims/claim-1/retry",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(retryReviewedClaimMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unauthenticated retry request before scheduling work", async () => {
+    getSessionMock.mockResolvedValue(null);
+
+    const response = await adminRouter.request(
+      "http://localhost/task-payment-claims/claim-1/retry",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(401);
+    expect(retryReviewedClaimMock).not.toHaveBeenCalled();
   });
 
   it("allows an admin and returns mapped users", async () => {

@@ -106,3 +106,16 @@ export function isSlugUniqueConstraintError(error: unknown): boolean {
 export function isDirectKeyUniqueConstraintError(error: unknown): boolean {
   return isPrismaUniqueViolationOnField(error, "directKey");
 }
+
+/**
+ * Returns true if the error is a Prisma unique constraint violation (P2002)
+ * on `blockchainIdentifier` (including the composite `network` +
+ * `blockchainIdentifier` on TaskPaymentClaim). Scoped on purpose: a bare P2002
+ * check would relabel any other unique violation raised in the same
+ * transaction as a duplicate payment identifier.
+ */
+export function isBlockchainIdentifierUniqueConstraintError(
+  error: unknown,
+): boolean {
+  return isPrismaUniqueViolationOnField(error, "blockchainIdentifier");
+}
