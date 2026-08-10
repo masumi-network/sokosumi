@@ -50,7 +50,9 @@ import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
 import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-signal-unread-threads-attention";
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
+import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
+import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { applyRoomReadResultToOverlay } from "@/components/chat/room-read-overlay";
@@ -147,16 +149,42 @@ const ROOM_LIVE_POLL_MS = 3000;
 function RoomMessageRealtimeBridge({
   roomIds,
   currentUserId,
+  selectedRoomId,
   onMessage,
 }: {
   roomIds: readonly string[];
   currentUserId: string;
+  selectedRoomId: string | null;
   onMessage: (event: ChatRoomMessageEventData) => void;
 }) {
+  const router = useRouter();
+  const selectedRoomIdRef = useRef(selectedRoomId);
+  selectedRoomIdRef.current = selectedRoomId;
+
+  const handleMembershipRevoked = useCallback(
+    (event: { roomId: string }) => {
+      applyChatMembershipRevokedUi({
+        roomId: event.roomId,
+        activeRoomId: selectedRoomIdRef.current,
+        replace: (href) => {
+          router.replace(href);
+        },
+        refresh: () => {
+          router.refresh();
+        },
+        notifyRemoved: (roomId) => {
+          notifyOrganizationChatRoomsChanged({ removedRoomId: roomId });
+        },
+      });
+    },
+    [router],
+  );
+
   useChatRoomRealtime({
     roomIds,
     currentUserId,
     onMessage,
+    onMembershipRevoked: handleMembershipRevoked,
     onError: (error) => {
       console.error("Ably chat room message error:", error);
     },
@@ -1679,6 +1707,7 @@ export function RoomsClient({
           <RoomMessageRealtimeBridge
             roomIds={rooms.map((room) => room.id)}
             currentUserId={currentUserId}
+            selectedRoomId={selectedRoomId}
             onMessage={handleChatRoomRealtimeMessage}
           />
         </LazyAblyProvider>

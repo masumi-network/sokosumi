@@ -57,7 +57,9 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
+import { useChatMembershipRevokedControl } from "@/lib/ably/use-chat-membership-revoked-control";
 import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -66,6 +68,7 @@ import { compareChatRoomsByRecentActivity } from "./chat-room-activity-sort";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
 import {
+  notifyOrganizationChatRoomsChanged,
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
   type OrganizationChatRoomsChangedDetail,
 } from "./organization-chat-events";
@@ -261,6 +264,27 @@ function getActiveRoomIdFromPathname(pathname: string | null): string | null {
   return roomId || null;
 }
 
+/**
+ * List-mounted control-channel UI (SOK-746). Soft-removes membership-visible
+ * rooms when kicked even if the open-room Ably island is not mounted.
+ * Navigation/refresh lives only on the open-room bridge so both mounts never
+ * double `replace`/`refresh` for the same event.
+ */
+function ChatMembershipRevokedListBridge({
+  currentUserId,
+}: {
+  currentUserId: string;
+}) {
+  useChatMembershipRevokedControl({
+    currentUserId,
+    onRevoked: (event) => {
+      notifyOrganizationChatRoomsChanged({ removedRoomId: event.roomId });
+    },
+  });
+
+  return null;
+}
+
 export function OrganizationChatList({
   rooms,
   roomsNextCursor,
@@ -308,6 +332,13 @@ export function OrganizationChatList({
     activeRoomId,
   });
   useChatUnreadDocumentTitle(unreadRoomCount);
+
+  const membershipRevokedBridge =
+    currentUserId.length > 0 ? (
+      <LazyAblyProvider>
+        <ChatMembershipRevokedListBridge currentUserId={currentUserId} />
+      </LazyAblyProvider>
+    ) : null;
 
   // Adjust local list when RSC props change (no Effect — keep load-more history).
   if (rooms !== prevRooms || roomsNextCursor !== prevRoomsNextCursor) {
@@ -627,6 +658,7 @@ export function OrganizationChatList({
 
   return (
     <SidebarGroup className="w-full">
+      {membershipRevokedBridge}
       <SidebarGroupContent className="space-y-2">
         <Collapsible
           open={channelSectionOpen}
