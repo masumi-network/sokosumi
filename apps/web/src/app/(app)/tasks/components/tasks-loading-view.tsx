@@ -144,7 +144,13 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
               />
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-2">
+            <div
+              className={cn(
+                "flex min-h-0 flex-1 flex-col overflow-y-auto px-2",
+                LIST_MOBILE_CREATE_FAB_CLEARANCE,
+                "md:pb-2",
+              )}
+            >
               {isFirstColumn ? (
                 <div className="flex flex-1 items-center justify-center py-6">
                   <Loader2

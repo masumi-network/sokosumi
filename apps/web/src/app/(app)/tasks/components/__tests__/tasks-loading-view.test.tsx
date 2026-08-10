@@ -27,6 +27,10 @@ describe("TasksLoadingView", () => {
       "pb-[calc(3.5rem+1rem)]",
     );
     expect(container.firstElementChild?.className).toContain("md:pb-0");
+
+    const boardScrollport = container.querySelector(".overflow-y-auto");
+    expect(boardScrollport?.className).toContain("pb-[calc(3.5rem+1rem)]");
+    expect(boardScrollport?.className).toContain("md:pb-2");
   });
 
   it("renders list shell matching TaskListView edge-to-edge classes", () => {

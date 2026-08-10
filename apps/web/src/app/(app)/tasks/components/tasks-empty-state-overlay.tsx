@@ -39,13 +39,46 @@ const ADD_FALLBACK_BOTTOM_PADDING = 210;
 const ADD_TARGET_OUTSIDE_OFFSET = 14;
 const ADD_LINE_ENDPOINT_OFFSET = 0;
 
-function selectTasksEmptyStateAddTaskTarget(): HTMLElement | null {
-  return (
-    document.querySelector<HTMLElement>(
-      "[data-tasks-add-task-column-anchor]",
-    ) ??
-    document.querySelector<HTMLElement>("[data-tasks-add-task-header-anchor]")
+type TasksEmptyStateTargetSurface = "desktop" | "mobile";
+
+function hasLayoutBox(element: HTMLElement | null): element is HTMLElement {
+  if (!element) return false;
+  const { width, height } = element.getBoundingClientRect();
+  return width > 0 && height > 0;
+}
+
+function selectListMobileCreateFabTarget(): HTMLElement | null {
+  const shell = document.querySelector<HTMLElement>(
+    "[data-list-mobile-create-fab]",
   );
+  if (!shell) return null;
+  return shell.querySelector("button") ?? shell;
+}
+
+/**
+ * Prefer a visible column add control, then (on mobile) the list create FAB,
+ * then the header add button. Skip zero-size nodes (e.g. `hidden md:inline-flex`
+ * header control still in the DOM below `md`).
+ */
+export function selectTasksEmptyStateAddTaskTarget(
+  surface: TasksEmptyStateTargetSurface = "desktop",
+): HTMLElement | null {
+  const column = document.querySelector<HTMLElement>(
+    "[data-tasks-add-task-column-anchor]",
+  );
+  if (hasLayoutBox(column)) return column;
+
+  if (surface === "mobile") {
+    const fab = selectListMobileCreateFabTarget();
+    if (hasLayoutBox(fab)) return fab;
+  }
+
+  const header = document.querySelector<HTMLElement>(
+    "[data-tasks-add-task-header-anchor]",
+  );
+  if (hasLayoutBox(header)) return header;
+
+  return null;
 }
 
 const GUIDE_STEPS = ["addTask", "getStarted"] as const;
@@ -109,7 +142,9 @@ export function TasksEmptyStateOverlay({
 
       const cardRect = cardElement.getBoundingClientRect();
       const addTaskRect =
-        selectTasksEmptyStateAddTaskTarget()?.getBoundingClientRect() ?? null;
+        selectTasksEmptyStateAddTaskTarget(
+          "desktop",
+        )?.getBoundingClientRect() ?? null;
 
       const end: Point = addTaskRect
         ? {
@@ -146,12 +181,22 @@ export function TasksEmptyStateOverlay({
 
       const cardRect = cardElement.getBoundingClientRect();
       const addTaskRect =
-        selectTasksEmptyStateAddTaskTarget()?.getBoundingClientRect() ?? null;
+        selectTasksEmptyStateAddTaskTarget("mobile")?.getBoundingClientRect() ??
+        null;
+
+      const start: Point = {
+        x: cardRect.left + cardRect.width / 2,
+        y: cardRect.top,
+      };
 
       const end: Point = addTaskRect
         ? {
             x: addTaskRect.left + addTaskRect.width / 2,
-            y: addTaskRect.bottom,
+            // Point at the near edge: above-card targets use bottom; FAB below uses top.
+            y:
+              addTaskRect.top + addTaskRect.height / 2 < cardRect.top
+                ? addTaskRect.bottom
+                : addTaskRect.top,
           }
         : {
             x: ADD_FALLBACK_LEFT_PADDING,
@@ -162,14 +207,11 @@ export function TasksEmptyStateOverlay({
           };
 
       setMobileLayout({
-        start: {
-          x: cardRect.left + cardRect.width / 2,
-          y: cardRect.top,
-        },
+        start,
         end,
         label: {
           x: end.x + 20,
-          y: end.y + 60,
+          y: end.y < start.y ? end.y + 60 : end.y - 48,
         },
       });
     }
@@ -495,15 +537,28 @@ function buildConnectorPath(start: Point, end: Point) {
 }
 
 function buildMobileConnectorPath(start: Point, end: Point) {
-  const verticalDistance = Math.max(start.y - end.y, 0);
+  const isTargetAbove = end.y < start.y;
+  const verticalDistance = Math.max(Math.abs(start.y - end.y), 0);
+
+  if (isTargetAbove) {
+    const c1: Point = {
+      x: start.x - Math.max(Math.abs(start.x - end.x) * 0.22, 26),
+      y: start.y - Math.max(verticalDistance * 0.35, 42),
+    };
+    const c2: Point = {
+      x: end.x,
+      y: end.y + Math.max(verticalDistance * 0.3, 32),
+    };
+    return `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}`;
+  }
+
   const c1: Point = {
-    x: start.x - Math.max(Math.abs(start.x - end.x) * 0.22, 26),
-    y: start.y - Math.max(verticalDistance * 0.35, 42),
+    x: start.x + Math.max(Math.abs(start.x - end.x) * 0.22, 26),
+    y: start.y + Math.max(verticalDistance * 0.35, 42),
   };
   const c2: Point = {
     x: end.x,
-    y: end.y + Math.max(verticalDistance * 0.3, 32),
+    y: end.y - Math.max(verticalDistance * 0.3, 32),
   };
-
   return `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}`;
 }
