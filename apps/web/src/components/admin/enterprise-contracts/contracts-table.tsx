@@ -11,7 +11,7 @@ import {
   buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
 import { ContractStatusBadge } from "@/components/admin/enterprise-contracts/contract-status-badge";
-import { DataTable } from "@/components/data-table";
+import { DataTable, type DataTableFeatures } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -46,7 +46,10 @@ const enterpriseContractFilterParsers = {
   status: parseAsStringLiteral(ENTERPRISE_CONTRACT_STATUSES),
 };
 
-const columnHelper = createColumnHelper<EnterpriseContract>();
+const columnHelper = createColumnHelper<
+  DataTableFeatures,
+  EnterpriseContract
+>();
 
 const dateTimeOptions = {
   dateStyle: "medium",
@@ -56,7 +59,7 @@ const dateTimeOptions = {
 function getColumns(
   t: ReturnType<typeof useTranslations<"App.Admin.EnterpriseContracts">>,
   formatter: ReturnType<typeof useFormatter>,
-): ColumnDef<EnterpriseContract>[] {
+): ColumnDef<DataTableFeatures, EnterpriseContract>[] {
   return [
     columnHelper.accessor("organizationSlug", {
       id: "organizationSlug",
@@ -75,7 +78,7 @@ function getColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<EnterpriseContract>,
+    }) as ColumnDef<DataTableFeatures, EnterpriseContract>,
 
     columnHelper.accessor("status", {
       id: "status",
@@ -87,7 +90,7 @@ function getColumns(
       cell: ({ row }) => <ContractStatusBadge status={row.original.status} />,
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<EnterpriseContract>,
+    }) as ColumnDef<DataTableFeatures, EnterpriseContract>,
 
     columnHelper.accessor("seats", {
       id: "seats",
@@ -101,7 +104,7 @@ function getColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<EnterpriseContract>,
+    }) as ColumnDef<DataTableFeatures, EnterpriseContract>,
 
     columnHelper.accessor("creditsPerMonth", {
       id: "creditsPerMonth",
@@ -121,7 +124,7 @@ function getColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<EnterpriseContract>,
+    }) as ColumnDef<DataTableFeatures, EnterpriseContract>,
 
     columnHelper.accessor("periods", {
       id: "periods",
@@ -135,7 +138,7 @@ function getColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<EnterpriseContract>,
+    }) as ColumnDef<DataTableFeatures, EnterpriseContract>,
 
     columnHelper.accessor("endsAt", {
       id: "endsAt",
@@ -150,7 +153,7 @@ function getColumns(
           : "—",
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<EnterpriseContract>,
+    }) as ColumnDef<DataTableFeatures, EnterpriseContract>,
 
     columnHelper.display({
       id: "actions",
@@ -165,7 +168,7 @@ function getColumns(
           </Link>
         </Button>
       ),
-    }) as ColumnDef<EnterpriseContract>,
+    }) as ColumnDef<DataTableFeatures, EnterpriseContract>,
   ];
 }
 

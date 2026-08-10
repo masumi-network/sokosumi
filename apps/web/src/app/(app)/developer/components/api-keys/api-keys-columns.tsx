@@ -4,12 +4,15 @@ import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { Eye, EyeOff, Trash2 } from "lucide-react";
 import type { useTranslations } from "next-intl";
 
-import { DataTableColumnHeader } from "@/components/data-table";
+import {
+  DataTableColumnHeader,
+  type DataTableFeatures,
+} from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 
 import type { ApiKeyRecord } from "./types";
 
-const columnHelper = createColumnHelper<ApiKeyRecord>();
+const columnHelper = createColumnHelper<DataTableFeatures, ApiKeyRecord>();
 
 export function getApiKeyColumns(
   t: ReturnType<typeof useTranslations>,
@@ -27,7 +30,7 @@ export function getApiKeyColumns(
       cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<ApiKeyRecord>,
+    }) as ColumnDef<DataTableFeatures, ApiKeyRecord>,
 
     columnHelper.accessor("start", {
       id: "key",
@@ -43,7 +46,7 @@ export function getApiKeyColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<ApiKeyRecord>,
+    }) as ColumnDef<DataTableFeatures, ApiKeyRecord>,
 
     columnHelper.accessor("enabled", {
       id: "status",
@@ -65,7 +68,7 @@ export function getApiKeyColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<ApiKeyRecord>,
+    }) as ColumnDef<DataTableFeatures, ApiKeyRecord>,
 
     columnHelper.accessor("createdAt", {
       id: "createdAt",
@@ -81,7 +84,7 @@ export function getApiKeyColumns(
       ),
       enableSorting: true,
       enableHiding: true,
-    }) as ColumnDef<ApiKeyRecord>,
+    }) as ColumnDef<DataTableFeatures, ApiKeyRecord>,
 
     columnHelper.display({
       id: "actions",
@@ -127,6 +130,6 @@ export function getApiKeyColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<ApiKeyRecord>,
+    }) as ColumnDef<DataTableFeatures, ApiKeyRecord>,
   ];
 }

@@ -50,7 +50,7 @@
     "@sokosumi/utils": "workspace:*",
     "@sparticuz/chromium-min": "149.0.0",
     "@tanstack/react-query": "5.101.4",
-    "@tanstack/react-table": "8.21.3",
+    "@tanstack/react-table": "9.1.2",
     "@vercel/analytics": "2.0.1",
     "@vercel/blob": "2.7.0",
     "@vercel/related-projects": "1.1.1",
