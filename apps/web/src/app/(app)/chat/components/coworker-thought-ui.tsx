@@ -21,10 +21,15 @@ export function formatBeautifulElapsed(elapsedMs: number): string {
   return `${minutes}m ${rem.toFixed(1)}s`;
 }
 
-const CHEVRON_DELAYS = Array.from({ length: 9 }, (_, i) => {
-  const r = Math.floor(i / 3);
-  const c = i % 3;
-  return (c + Math.abs(r - 1)) * 90;
+/**
+ * Beautiful UI Drive (chevron wavefront left → right).
+ * Delay step 140ms (demo uses 90ms) with a 1000ms cycle so the wave is
+ * slower and easier to read in chat.
+ */
+const DRIVE_PIXEL_DELAYS_MS = Array.from({ length: 9 }, (_, i) => {
+  const row = Math.floor(i / 3);
+  const col = i % 3;
+  return (col + Math.abs(row - 1)) * 140;
 });
 
 function useLiveElapsedMs(startedAtMs: number): number {
@@ -57,18 +62,12 @@ export function CoworkerLoadingState({
       aria-live="polite"
       data-testid="coworker-loading-state"
     >
-      <span
-        aria-hidden
-        className="grid shrink-0 grid-cols-[repeat(3,4px)] gap-[1.5px]"
-      >
-        {CHEVRON_DELAYS.map((delay, i) => (
+      <span aria-hidden className="bui-pixel-grid">
+        {DRIVE_PIXEL_DELAYS_MS.map((delayMs, i) => (
           <span
             key={i}
-            className="bg-foreground size-1 rounded-[1px] motion-reduce:animate-none"
-            style={{
-              opacity: 0.15,
-              animation: `bui-pixel-on 650ms ease-in-out ${delay}ms infinite`,
-            }}
+            className="bui-pixel-cell"
+            style={{ animationDelay: `${delayMs}ms` }}
           />
         ))}
       </span>

@@ -197,30 +197,6 @@
     }
   }
 
-  /* Beautiful UI loading / thinking (https://beautiful-ui-five.vercel.app/) */
-  @keyframes bui-pixel-on {
-    0%,
-    100% {
-      opacity: 0.15;
-    }
-    18%,
-    42% {
-      opacity: 1;
-    }
-    62% {
-      opacity: 0.15;
-    }
-  }
-
-  @keyframes bui-shimmer-text {
-    0% {
-      background-position: 150% 0;
-    }
-    100% {
-      background-position: -50% 0;
-    }
-  }
-
   @keyframes reasoning-step-in {
     from {
       opacity: 0;
@@ -728,6 +704,54 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   animation: var(--animate-reasoning-text-shine);
 }
 
+/*
+ * Beautiful UI Loading Drive wave
+ * (https://beautiful-ui-five.vercel.app/#loading-state)
+ * Keyframes must be top-level so inline animation-name can resolve them.
+ * Cycle is slightly slower than the demo (650ms → 1000ms) for chat density.
+ */
+@keyframes bui-pixel-on {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  18%,
+  42% {
+    opacity: 1;
+  }
+  62% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes bui-shimmer-text {
+  0% {
+    background-position: 150% 0;
+  }
+  100% {
+    background-position: -50% 0;
+  }
+}
+
+.bui-pixel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 4px);
+  gap: 1.5px;
+  flex-shrink: 0;
+}
+
+.bui-pixel-cell {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background-color: var(--foreground);
+  opacity: 0.15;
+  animation-name: bui-pixel-on;
+  animation-duration: 1000ms;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
 /* Shimmer label from Beautiful UI Loading / Thinking */
 @utility bui-shimmer-text {
   background-image: linear-gradient(
@@ -740,7 +764,7 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  animation: bui-shimmer-text 1.4s linear infinite;
+  animation: bui-shimmer-text 1.8s linear infinite;
 }
 
 @utility reasoning-step-in {
@@ -883,7 +907,8 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
     color: var(--foreground);
   }
 
-  [data-testid="coworker-loading-state"] span[aria-hidden] span {
+  .bui-pixel-cell {
     animation: none !important;
+    opacity: 0.35;
   }
 }
