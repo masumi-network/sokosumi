@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   buildAvailableAgentWhereClause,
   calculateAgentRating,
   calculateAverageExecutionTime,
@@ -10,6 +11,7 @@ import {
   getAgentIcon,
   getAgentImage,
   getAgentName,
+  getCardanoV2ReadySources,
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import { notFound } from "@/helpers/error";
@@ -60,11 +62,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const agent = await prisma.$transaction(async (tx) => {
       const creditCosts = await getCreditCostsOrThrow(tx);
+      const cardanoV2ReadySources = await getCardanoV2ReadySources(tx);
 
       const agent = await tx.agent.findFirst({
         where: {
           id,
-          ...buildAvailableAgentWhereClause(creditCosts),
+          ...buildAvailableAgentWhereClause(creditCosts, cardanoV2ReadySources),
         },
         include: agentDetailInclude,
       });
@@ -105,7 +108,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ratings: ratingMetrics,
         },
       };
-    });
+    }, AGENT_PRICING_READ_TRANSACTION_OPTIONS);
     return ok(c, agentDetailSchema.parse(agent));
   });
 }

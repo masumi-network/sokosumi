@@ -1,8 +1,8 @@
 import { defaultPlugins } from "@hey-api/openapi-ts";
 
 const config = {
-  input:
-    "https://masumi-registry-sokosumi-dev-9f342.ondigitalocean.app/api-docs",
+  // Pinned spec snapshot — refresh via `pnpm fetch:specs` (see spec/SPEC_SOURCES.md).
+  input: "./spec/registry.openapi.json",
   output: {
     path: "./src/clients/openapi/generated/registry",
     tsConfigPath: "./tsconfig.json",

@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
+import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { badRequest, notFound } from "@/helpers/error";
 import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/helpers/notification-feed";
 import {
@@ -16,10 +17,21 @@ import {
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { requireVendorAdminMembership } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
+import { recordChannelMembershipStatus } from "@/routes/v1/chats/rooms/membership-status";
 import type {
   CoworkerWorkspaceAccessDto,
   CoworkerWorkspaceAccessTargetBody,
 } from "@/schemas/coworker-workspace-access.schema";
+
+type MembershipStatusMessage = Awaited<
+  ReturnType<typeof recordChannelMembershipStatus>
+>[number];
+
+export interface RevokeCoworkerWorkspaceAccessResult {
+  access: CoworkerWorkspaceAccessWithCoworker;
+  /** Channel timeline rows; publish after the creating transaction commits. */
+  membershipStatusMessages: MembershipStatusMessage[];
+}
 
 export interface UpsertCoworkerWorkspaceAccessParams {
   coworkerId: string;
@@ -691,6 +703,120 @@ export async function denyCoworkerWorkspaceAccess(
   );
 }
 
+/**
+ * Rooms that belong to a workspace for chat roster cleanup.
+ * Org workspace → org rooms. Personal → personal rooms where the workspace
+ * owner is a user member (personal rooms are not multi-tenant).
+ */
+function chatRoomWhereForWorkspace(workspace: {
+  userId: string | null;
+  organizationId: string | null;
+}): Prisma.ChatRoomWhereInput | null {
+  if (workspace.organizationId) {
+    return { organizationId: workspace.organizationId };
+  }
+  if (workspace.userId) {
+    return {
+      organizationId: null,
+      userMembers: { some: { userId: workspace.userId } },
+    };
+  }
+  return null;
+}
+
+/**
+ * After revoke: drop coworker chat memberships in rooms scoped to the
+ * workspace, fail open mentions, and record channel "left" timeline rows.
+ * Skip when the coworker remains usable (e.g. still globally whitelisted).
+ * Same transaction as the status flip (callers pass `tx`). Callers must
+ * publish returned status messages after commit.
+ */
+async function detachCoworkerChatMembershipsForWorkspace(
+  params: {
+    coworkerId: string;
+    coworkerName: string;
+    workspaceId: string;
+    workspace: {
+      userId: string | null;
+      organizationId: string | null;
+    };
+  },
+  tx: Prisma.TransactionClient,
+): Promise<MembershipStatusMessage[]> {
+  const stillUsable = await tx.coworker.findFirst({
+    where: {
+      id: params.coworkerId,
+      ...buildCoworkerUsableInWorkspaceWhere(params.workspaceId),
+    },
+    select: { id: true },
+  });
+  if (stillUsable) {
+    return [];
+  }
+
+  const roomWhere = chatRoomWhereForWorkspace(params.workspace);
+  if (!roomWhere) {
+    return [];
+  }
+
+  const memberships = await tx.chatRoomCoworkerMember.findMany({
+    where: {
+      coworkerId: params.coworkerId,
+      room: roomWhere,
+    },
+    select: {
+      roomId: true,
+      room: { select: { kind: true } },
+    },
+  });
+
+  // Match room roster PATCH: fail pending/sent mentions before membership gone.
+  await tx.chatRoomMention.updateMany({
+    where: {
+      coworkerId: params.coworkerId,
+      status: { in: ["pending", "sent"] },
+      message: { room: roomWhere },
+    },
+    data: {
+      status: "failed",
+      error: "Coworker is no longer a member of this room",
+    },
+  });
+
+  await tx.chatRoomCoworkerMember.deleteMany({
+    where: {
+      coworkerId: params.coworkerId,
+      room: roomWhere,
+    },
+  });
+
+  // Channel-only status rows (same as room leave / roster PATCH). Skip directs
+  // before calling the recorder (it no-ops non-channels). Publish after commit
+  // so open clients drop the coworker from the live roster timeline.
+  const coworkerDisplayName = params.coworkerName.trim() || params.coworkerId;
+  const statusMessages: MembershipStatusMessage[] = [];
+  for (const membership of memberships.filter(
+    (entry) => entry.room.kind === "channel",
+  )) {
+    const created = await recordChannelMembershipStatus(tx, {
+      roomId: membership.roomId,
+      roomKind: membership.room.kind,
+      changes: [
+        {
+          action: "left",
+          subject: {
+            type: "coworker",
+            id: params.coworkerId,
+            name: coworkerDisplayName,
+          },
+        },
+      ],
+    });
+    statusMessages.push(...created);
+  }
+  return statusMessages;
+}
+
 export async function revokeCoworkerWorkspaceAccess(
   params: {
     accessId: string;
@@ -698,8 +824,8 @@ export async function revokeCoworkerWorkspaceAccess(
     resolvedById: string;
   },
   tx: Prisma.TransactionClient = prisma,
-): Promise<CoworkerWorkspaceAccessWithCoworker> {
-  return transitionCoworkerWorkspaceAccess(
+): Promise<RevokeCoworkerWorkspaceAccessResult> {
+  const updated = await transitionCoworkerWorkspaceAccess(
     {
       ...params,
       from: CoworkerWorkspaceAccessStatus.GRANTED,
@@ -709,6 +835,19 @@ export async function revokeCoworkerWorkspaceAccess(
     },
     tx,
   );
+
+  const membershipStatusMessages =
+    await detachCoworkerChatMembershipsForWorkspace(
+      {
+        coworkerId: updated.coworkerId,
+        coworkerName: updated.coworker.name,
+        workspaceId: updated.workspaceId,
+        workspace: updated.workspace,
+      },
+      tx,
+    );
+
+  return { access: updated, membershipStatusMessages };
 }
 
 export async function listCoworkerAccessForWorkspace(
@@ -723,8 +862,9 @@ export async function listCoworkerAccessForWorkspace(
 }
 
 /**
- * Platform admin only: force-revoke GRANTED access by (coworker, workspace).
- * Ops can undo a bad pilot grant without requiring the workspace owner.
+ * Force-revoke GRANTED access by (coworker, workspace). Route restricts to
+ * platform admin or vendor admin for the coworker. Ops can undo a bad pilot
+ * grant without requiring the workspace owner.
  */
 export async function forceRevokeCoworkerWorkspaceAccessByPair(
   params: {
@@ -733,7 +873,7 @@ export async function forceRevokeCoworkerWorkspaceAccessByPair(
     resolvedById: string;
   },
   tx: Prisma.TransactionClient = prisma,
-): Promise<CoworkerWorkspaceAccessWithCoworker> {
+): Promise<RevokeCoworkerWorkspaceAccessResult> {
   const existing = await findAccessByPair(
     params.coworkerId,
     params.workspaceId,
@@ -759,7 +899,7 @@ export async function forceRevokeCoworkerWorkspaceAccessByPair(
     throw badRequest("Only GRANTED coworker workspace access can be revoked");
   }
 
-  return tx.coworkerWorkspaceAccess.update({
+  const updated = await tx.coworkerWorkspaceAccess.update({
     where: { id: locked.id },
     data: {
       status: CoworkerWorkspaceAccessStatus.REVOKED,
@@ -768,4 +908,17 @@ export async function forceRevokeCoworkerWorkspaceAccessByPair(
     },
     include: coworkerWorkspaceAccessInclude,
   });
+
+  const membershipStatusMessages =
+    await detachCoworkerChatMembershipsForWorkspace(
+      {
+        coworkerId: updated.coworkerId,
+        coworkerName: updated.coworker.name,
+        workspaceId: updated.workspaceId,
+        workspace: updated.workspace,
+      },
+      tx,
+    );
+
+  return { access: updated, membershipStatusMessages };
 }

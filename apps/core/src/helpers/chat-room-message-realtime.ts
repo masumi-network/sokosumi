@@ -108,3 +108,27 @@ export async function publishChatRoomMessageRealtimeById(
     });
   }
 }
+
+/**
+ * After commit: fan out membership status timeline messages (e.g. "X left").
+ * Each publish already fail-logs; this isolates per-message failures.
+ * Call only after the creating transaction has committed.
+ */
+export async function publishChatRoomMembershipStatusMessagesBestEffort(
+  messages: readonly ChatRoomMessageWithInclude[],
+  logContext = "chat membership status",
+): Promise<void> {
+  if (messages.length === 0) {
+    return;
+  }
+  const results = await Promise.allSettled(
+    messages.map((message) =>
+      publishChatRoomMessageRealtime(message, "create"),
+    ),
+  );
+  for (const result of results) {
+    if (result.status === "rejected") {
+      console.error(`Failed to publish ${logContext}`, result.reason);
+    }
+  }
+}

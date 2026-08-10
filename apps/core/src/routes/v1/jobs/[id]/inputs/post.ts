@@ -3,6 +3,7 @@ import { AgentJobStatus } from "@sokosumi/database";
 import { createAgentClient } from "@sokosumi/masumi";
 
 import { requireJobCollaboration } from "@/helpers/access-control.js";
+import { toMasumiAgentForJob } from "@/helpers/agent";
 import {
   badRequest,
   conflict,
@@ -145,8 +146,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity("Agent did not provide an input schema");
     }
 
+    // No agent-status gate here on purpose. main has none, and adding one
+    // regressed FREE jobs: one whose agent went offline mid-run could no
+    // longer receive the input it had just been asked for, and free jobs have
+    // no refund path, so it was stuck permanently. Jobs
+    // are pinned to their own endpoint snapshot (toMasumiAgentForJob), so a
+    // newer, offline agent revision cannot redirect an in-flight job.
+
     const provideInputResult = await createAgentClient().provideJobInput(
-      jobEvent.job.agent,
+      toMasumiAgentForJob(jobEvent.job),
       jobEvent.job.agentJobId,
       jobEvent.inputSchema,
       inputData,

@@ -5,6 +5,7 @@ const listCoworkersMock = vi.fn();
 const getAvailableAgentsWithCreditsPriceMock = vi.fn();
 const resolveEffectiveDesignMdMock = vi.fn();
 const getTasksColumnPageMock = vi.fn();
+const getTasksListPageMock = vi.fn();
 const listJobsMock = vi.fn();
 const mapJobsToTasksViewDataMock = vi.fn();
 const getSessionMock = vi.fn();
@@ -44,6 +45,10 @@ vi.mock("../utils/tasks-column-page", () => ({
   getTasksColumnPage: (...args: unknown[]) => getTasksColumnPageMock(...args),
 }));
 
+vi.mock("../utils/tasks-list-page", () => ({
+  getTasksListPage: (...args: unknown[]) => getTasksListPageMock(...args),
+}));
+
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
@@ -53,6 +58,7 @@ import {
   loadJobsTabData,
   loadMoreJobs,
   loadMoreTasksColumn,
+  loadMoreTasksList,
 } from "../actions";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
@@ -217,6 +223,142 @@ describe("loadMoreTasksColumn", () => {
     });
 
     expect(getTasksColumnPageMock.mock.calls[0][0]).toMatchObject({
+      status: TaskStatus.READY,
+    });
+  });
+});
+
+describe("loadMoreTasksList", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org-1" },
+    });
+  });
+
+  it("loads one list page without fetching the full agents catalog", async () => {
+    const coworker = { id: "coworker-1", name: "Coworker" };
+    const tasks = [
+      {
+        id: "task-1",
+        name: "Task 1",
+      },
+    ];
+
+    listCoworkersMock.mockResolvedValue([coworker]);
+    getTasksListPageMock.mockResolvedValue({
+      tasks,
+      nextCursor: "next-list-cursor",
+    });
+
+    const result = await loadMoreTasksList({
+      cursor: "current-list-cursor",
+      scope: "workspace",
+      assigneeId: "coworker-1",
+      status: null,
+      projectId: PROJECT_ID,
+    });
+
+    expect(getAvailableAgentsWithCreditsPriceMock).not.toHaveBeenCalled();
+    expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
+    const callArg = getTasksListPageMock.mock.calls[0][0];
+    expect(callArg).toMatchObject({
+      cursor: "current-list-cursor",
+      limit: 20,
+      scope: "workspace",
+      assigneeId: "coworker-1",
+      status: null,
+      projectId: PROJECT_ID,
+    });
+    expect(callArg.coworkersById).toBeInstanceOf(Map);
+    expect(callArg.coworkersById.get(coworker.id)).toEqual(coworker);
+    expect(result).toEqual({
+      tasks,
+      nextCursor: "next-list-cursor",
+    });
+  });
+
+  it("ignores assigneeId that is not in the current tasks coworker list", async () => {
+    const coworker = { id: "coworker-1", name: "Coworker" };
+    listCoworkersMock.mockResolvedValue([coworker]);
+    getTasksListPageMock.mockResolvedValue({
+      tasks: [],
+      nextCursor: null,
+    });
+
+    await loadMoreTasksList({
+      cursor: null,
+      scope: "owned",
+      assigneeId: "removed-coworker",
+      status: null,
+      projectId: null,
+    });
+
+    expect(getTasksListPageMock).toHaveBeenCalledTimes(1);
+    expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
+      assigneeId: null,
+    });
+  });
+
+  it("falls back to default scope when scope is not a valid TasksScope value", async () => {
+    listCoworkersMock.mockResolvedValue([]);
+    getTasksListPageMock.mockResolvedValue({
+      tasks: [],
+      nextCursor: null,
+    });
+
+    await loadMoreTasksList({
+      cursor: null,
+      scope: "malicious" as never,
+      assigneeId: null,
+      status: null,
+      projectId: null,
+    });
+
+    expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
+      scope: "workspace",
+    });
+  });
+
+  it("rejects workspace scope when there is no active organization", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: null },
+    });
+    listCoworkersMock.mockResolvedValue([]);
+    getTasksListPageMock.mockResolvedValue({
+      tasks: [],
+      nextCursor: null,
+    });
+
+    await loadMoreTasksList({
+      cursor: null,
+      scope: "workspace",
+      assigneeId: null,
+      status: null,
+      projectId: null,
+    });
+
+    expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
+      scope: "owned",
+    });
+  });
+
+  it("passes through a valid TaskStatus string", async () => {
+    listCoworkersMock.mockResolvedValue([]);
+    getTasksListPageMock.mockResolvedValue({
+      tasks: [],
+      nextCursor: null,
+    });
+
+    await loadMoreTasksList({
+      cursor: null,
+      scope: "owned",
+      assigneeId: null,
+      status: TaskStatus.READY,
+      projectId: null,
+    });
+
+    expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
       status: TaskStatus.READY,
     });
   });

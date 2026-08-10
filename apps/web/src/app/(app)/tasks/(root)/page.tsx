@@ -24,6 +24,7 @@ import {
   type ProjectFilterOption,
   parseTasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
+import { getTasksListPage } from "@/app/tasks/utils/tasks-list-page";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
 import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
@@ -60,6 +61,12 @@ export const metadata = {
 };
 
 const PROJECT_FILTER_OPTIONS_LIMIT = 100;
+
+function emptyColumnNextCursorById(): Record<KanbanColumnId, string | null> {
+  return Object.fromEntries(
+    KANBAN_COLUMNS.map((column) => [column.id, null]),
+  ) as Record<KanbanColumnId, string | null>;
+}
 
 async function loadTasksPageData() {
   return await Promise.all([
@@ -172,23 +179,35 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
     activeFilters.status == null ||
     activeFilters.status === TaskStatus.GRANT_PENDING;
 
-  const [columnPages, parkedTasksPage] = await Promise.all([
-    Promise.all(
-      KANBAN_COLUMNS.map(async (column) => {
-        const page = await getTasksColumnPage({
-          columnId: column.id,
-          cursor: null,
-          limit: TASKS_COLUMN_PAGE_LIMIT,
-          scope: activeFilters.scope,
-          assigneeId: activeFilters.assigneeId,
-          status: activeFilters.status,
-          projectId: activeFilters.projectId,
-          coworkersById,
-        });
+  const listPageParams = {
+    cursor: null as string | null,
+    limit: TASKS_COLUMN_PAGE_LIMIT,
+    scope: activeFilters.scope,
+    assigneeId: activeFilters.assigneeId,
+    status: activeFilters.status,
+    projectId: activeFilters.projectId,
+    coworkersById,
+  };
 
-        return [column.id, page] as const;
-      }),
-    ),
+  const [tasksPageResult, parkedTasksPage] = await Promise.all([
+    defaultViewMode === "list"
+      ? getTasksListPage(listPageParams).then((page) => ({
+          mode: "list" as const,
+          page,
+        }))
+      : Promise.all(
+          KANBAN_COLUMNS.map(async (column) => {
+            const page = await getTasksColumnPage({
+              columnId: column.id,
+              ...listPageParams,
+            });
+
+            return [column.id, page] as const;
+          }),
+        ).then((columnPages) => ({
+          mode: "board" as const,
+          columnPages,
+        })),
     shouldCountGrantPendingTasks
       ? taskService.listTasks({
           status: TaskStatus.GRANT_PENDING,
@@ -199,10 +218,22 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         })
       : Promise.resolve({ tasks: [], pagination: null }),
   ]);
-  const tasks = columnPages.flatMap(([_columnId, page]) => page.tasks);
-  const columnNextCursorById = Object.fromEntries(
-    columnPages.map(([columnId, page]) => [columnId, page.nextCursor]),
-  ) as Record<KanbanColumnId, string | null>;
+
+  const tasks =
+    tasksPageResult.mode === "list"
+      ? tasksPageResult.page.tasks
+      : tasksPageResult.columnPages.flatMap(([_columnId, page]) => page.tasks);
+  const listNextCursor =
+    tasksPageResult.mode === "list" ? tasksPageResult.page.nextCursor : null;
+  const columnNextCursorById =
+    tasksPageResult.mode === "list"
+      ? emptyColumnNextCursorById()
+      : (Object.fromEntries(
+          tasksPageResult.columnPages.map(([columnId, page]) => [
+            columnId,
+            page.nextCursor,
+          ]),
+        ) as Record<KanbanColumnId, string | null>);
 
   const coworkerOptions: CoworkerOption[] = getCoworkerOptions(taskCoworkers);
   const initialCreateTaskOpen = create === "true";
@@ -234,6 +265,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
       </Suspense>
       <TasksView
         tasks={tasks}
+        listNextCursor={listNextCursor}
         columnNextCursorById={columnNextCursorById}
         columns={KANBAN_COLUMNS}
         coworkerOptions={coworkerOptions}

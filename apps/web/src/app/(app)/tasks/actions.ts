@@ -23,9 +23,18 @@ import { designMdService } from "@/lib/services/design-md.service";
 import { taskService } from "@/lib/services/task.service";
 
 import { getTasksColumnPage } from "./utils/tasks-column-page";
+import { getTasksListPage } from "./utils/tasks-list-page";
 
 interface LoadMoreTasksColumnParams {
   columnId: KanbanColumnId;
+  cursor: string | null;
+  scope: TasksScope | null;
+  assigneeId: string | null;
+  status: Task["status"] | null;
+  projectId: string | null;
+}
+
+interface LoadMoreTasksListParams {
   cursor: string | null;
   scope: TasksScope | null;
   assigneeId: string | null;
@@ -58,6 +67,44 @@ export async function loadMoreTasksColumn({
   const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
   const page = await getTasksColumnPage({
     columnId,
+    cursor,
+    limit: TASKS_COLUMN_PAGE_LIMIT,
+    scope: sanitizedScope,
+    assigneeId: sanitizedAssigneeId,
+    status: sanitizedStatus,
+    projectId: sanitizedProjectId,
+    coworkersById,
+  });
+
+  return {
+    tasks: page.tasks,
+    nextCursor: page.nextCursor,
+  };
+}
+
+export async function loadMoreTasksList({
+  cursor,
+  scope,
+  assigneeId,
+  status,
+  projectId,
+}: LoadMoreTasksListParams) {
+  const [session, coworkers] = await Promise.all([
+    getSession(),
+    coworkerService.listCoworkers("tasks").catch(() => []),
+  ]);
+
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const sanitizedScope = sanitizeTasksScopeInput(scope, activeOrganizationId);
+
+  const coworkersById = new Map(
+    coworkers.map((coworker) => [coworker.id, coworker]),
+  );
+  const sanitizedAssigneeId =
+    assigneeId && coworkersById.has(assigneeId) ? assigneeId : null;
+  const sanitizedStatus = sanitizeTasksStatusInput(status);
+  const sanitizedProjectId = sanitizeProjectIdFilterInput(projectId);
+  const page = await getTasksListPage({
     cursor,
     limit: TASKS_COLUMN_PAGE_LIMIT,
     scope: sanitizedScope,
