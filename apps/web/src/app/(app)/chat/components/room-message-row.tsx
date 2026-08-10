@@ -26,6 +26,7 @@ import {
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
   type CoworkerThoughtDisclosure,
+  formatLiveElapsedLabel,
   resolveCoworkerThoughtViewModel,
 } from "@/app/chat/utils/coworker-thought";
 import {
@@ -1289,6 +1290,24 @@ function MessageMetaFooter({
   );
 }
 
+/** Live wait counter on the stream overlay (Thinking… / Thought beat). */
+function LiveStreamElapsed({ startedAtMs }: { startedAtMs: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const elapsedSeconds = Math.max(0, Math.floor((now - startedAtMs) / 1000));
+  return (
+    <span
+      className="text-muted-foreground/70 shrink-0 text-xs tabular-nums"
+      data-testid="live-stream-elapsed"
+    >
+      {formatLiveElapsedLabel(elapsedSeconds)}
+    </span>
+  );
+}
+
 /** Collapsed-by-default Thought disclosure on coworker assistant messages. */
 function CoworkerThoughtDisclosureControl({
   disclosure,
@@ -1556,21 +1575,31 @@ export function ChatMessageRow({
                   isSaving={isSavingEdit}
                 />
               ) : thoughtView?.showThinkingFallback ? (
-                <span
-                  className="reasoning-text-shine text-base leading-5 md:text-sm"
+                <div
+                  className="flex min-w-0 items-baseline gap-2"
                   role="status"
                   aria-live="polite"
                 >
-                  {tChat("reasoning.thinking")}
-                </span>
+                  <span className="reasoning-text-shine text-base leading-5 md:text-sm">
+                    {tChat("reasoning.thinking")}
+                  </span>
+                  <LiveStreamElapsed
+                    startedAtMs={new Date(message.createdAt).getTime()}
+                  />
+                </div>
               ) : thoughtView?.liveBeat ? (
-                <p
-                  className="reasoning-text-shine text-muted-foreground line-clamp-3 text-base leading-5 italic md:text-sm"
+                <div
+                  className="flex min-w-0 items-baseline gap-2"
                   role="status"
                   aria-live="polite"
                 >
-                  {thoughtView.liveBeat}
-                </p>
+                  <p className="reasoning-text-shine text-muted-foreground line-clamp-3 min-w-0 flex-1 text-base leading-5 italic md:text-sm">
+                    {thoughtView.liveBeat}
+                  </p>
+                  <LiveStreamElapsed
+                    startedAtMs={new Date(message.createdAt).getTime()}
+                  />
+                </div>
               ) : (
                 <>
                   {thoughtView?.disclosure ? (

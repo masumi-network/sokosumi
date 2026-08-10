@@ -4,8 +4,23 @@ import {
   extractThoughtDurationSeconds,
   extractThoughtTextFromMessageParts,
   extractThoughtTextFromMetadata,
+  formatLiveElapsedLabel,
   resolveCoworkerThoughtViewModel,
 } from "../coworker-thought";
+
+describe("formatLiveElapsedLabel", () => {
+  it("formats under a minute as seconds", () => {
+    expect(formatLiveElapsedLabel(0)).toBe("0s");
+    expect(formatLiveElapsedLabel(12.9)).toBe("12s");
+    expect(formatLiveElapsedLabel(59)).toBe("59s");
+  });
+
+  it("formats a minute and above as m:ss", () => {
+    expect(formatLiveElapsedLabel(60)).toBe("1:00");
+    expect(formatLiveElapsedLabel(75)).toBe("1:15");
+    expect(formatLiveElapsedLabel(125)).toBe("2:05");
+  });
+});
 
 describe("extractThoughtTextFromMessageParts", () => {
   it("joins non-empty reasoning parts in order", () => {

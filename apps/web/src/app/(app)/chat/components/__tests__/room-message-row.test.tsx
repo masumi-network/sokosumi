@@ -1558,6 +1558,7 @@ describe("ChatMessageRow coworker Thought", () => {
     });
 
     expect(screen.getByRole("status")).toHaveTextContent("reasoning.thinking");
+    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
   });
 
   it("shows live Thought beat on stream overlay instead of Thinking", () => {
@@ -1580,6 +1581,27 @@ describe("ChatMessageRow coworker Thought", () => {
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent("Counting registrations in last 30 days");
     expect(status).not.toHaveTextContent("reasoning.thinking");
+    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+  });
+
+  it("shows elapsed seconds on the live Thinking row", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-10T12:00:10.000Z"));
+    try {
+      renderRow({
+        message: coworkerMessage({
+          id: "stream:asst-elapsed",
+          content: "",
+          createdAt: new Date("2026-08-10T12:00:00.000Z"),
+          metadata: { streaming: true },
+        }),
+      });
+      expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
+        "10s",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows collapsed Thought disclosure with duration when metadata has Thought", async () => {

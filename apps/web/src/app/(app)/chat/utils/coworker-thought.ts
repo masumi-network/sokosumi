@@ -157,6 +157,20 @@ export function resolveCoworkerThoughtViewModel(input: {
   };
 }
 
+/**
+ * Live wait label for the stream overlay (`0s` … `59s`, then `m:ss`).
+ * Pure so tests do not need a ticking clock.
+ */
+export function formatLiveElapsedLabel(elapsedSeconds: number): string {
+  const secs = Math.max(0, Math.floor(elapsedSeconds));
+  if (secs < 60) {
+    return `${secs}s`;
+  }
+  const minutes = Math.floor(secs / 60);
+  const rem = secs % 60;
+  return `${minutes}:${String(rem).padStart(2, "0")}`;
+}
+
 /** Shape stored under room message metadata for reasoning steps. */
 export function reasoningStepsForMetadata(
   parts: unknown,
