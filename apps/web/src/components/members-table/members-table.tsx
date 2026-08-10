@@ -11,7 +11,7 @@ import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
 import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
-import { getMembersTableColumns } from "./members-table-columns";
+import { getMembersTableColumnList } from "./members-table-columns";
 import { SeatManagementContextProvider } from "./seat-management-context";
 import type { MemberRowData, OrganizationMember } from "./types";
 
@@ -31,6 +31,8 @@ export default function MembersTable({
   unusedSeats = 0,
 }: MembersTableProps) {
   const t = useTranslations("Components.MembersTable");
+  const isOwnerOrAdmin =
+    me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
 
   return (
     <SeatManagementContextProvider
@@ -40,7 +42,10 @@ export default function MembersTable({
       <MemberActionsModalContextProvider>
         <InvitationActionsModalContextProvider>
           <DataTable
-            columns={getColumns(t, me, showSeatManagement)}
+            columns={getMembersTableColumnList(t, me, {
+              showSeatManagement,
+              includeActions: isOwnerOrAdmin,
+            })}
             data={combineMembersAndPendingInvitations(
               members,
               pendingInvitations,
@@ -60,27 +65,6 @@ export default function MembersTable({
       </MemberActionsModalContextProvider>
     </SeatManagementContextProvider>
   );
-}
-
-function getColumns(
-  t: ReturnType<typeof useTranslations>,
-  me: OrganizationMembershipSelf,
-  showSeatManagement: boolean,
-) {
-  const {
-    nameColumn,
-    emailColumn,
-    roleColumn,
-    lastSeenColumn,
-    seatColumn,
-    actionColumn,
-  } = getMembersTableColumns(t, me);
-  const isOwnerOrAdmin =
-    me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
-
-  return [nameColumn, emailColumn, roleColumn, lastSeenColumn]
-    .concat(showSeatManagement ? [seatColumn] : [])
-    .concat(isOwnerOrAdmin ? [actionColumn] : []);
 }
 
 function combineMembersAndPendingInvitations(

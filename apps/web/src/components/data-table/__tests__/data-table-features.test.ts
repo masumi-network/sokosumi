@@ -1,11 +1,7 @@
-import { createColumnHelper, useTable } from "@tanstack/react-table";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import {
-  type DataTableFeatures,
-  dataTableFeatures,
-} from "../data-table-features";
+import { createAppColumnHelper, useAppTable } from "../create-data-table-hook";
 
 interface SortRow {
   id: string;
@@ -15,7 +11,7 @@ interface SortRow {
   startedAt: Date;
 }
 
-const columnHelper = createColumnHelper<DataTableFeatures, SortRow>();
+const columnHelper = createAppColumnHelper<SortRow>();
 
 const columns = columnHelper.columns([
   columnHelper.accessor("name", { id: "name" }),
@@ -53,8 +49,7 @@ const unsorted: SortRow[] = [
 ];
 
 function useSortTable() {
-  return useTable({
-    features: dataTableFeatures,
+  return useAppTable({
     columns,
     data: unsorted,
     // Full page so row model is not truncated while testing sort order.
