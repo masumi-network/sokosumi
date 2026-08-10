@@ -3,9 +3,11 @@
 import { ArrowUp, Loader2 } from "lucide-react";
 import { type FormEvent, type ReactNode, type Ref } from "react";
 
+import { chatMobileComposerSafeAreaPbClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
+import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 
@@ -46,6 +48,13 @@ interface RoomMessageComposerProps {
    * set false only when a parent already applies the same inset.
    */
   withOuterPadding?: boolean;
+  /**
+   * Mobile/desktop safe-area `pb-*`. Defaults with `withOuterPadding`.
+   * Set true when the parent supplies horizontal/top padding only (room).
+   * Dropped only while the soft keyboard is open (editable focus + viewport
+   * shrink) — not on iOS autofocus alone, which does not open the OSK.
+   */
+  withSafeAreaPadding?: boolean;
   formRef?: Ref<HTMLFormElement | null>;
   className?: string;
   /** Extra row between editor and toolbar (chips, image-gen, etc.). */
@@ -70,18 +79,21 @@ export function RoomMessageComposer({
   sendAriaLabel,
   submitControl,
   withOuterPadding = true,
+  withSafeAreaPadding = withOuterPadding,
   formRef,
   className,
   belowEditor,
   sendButtonTestId,
 }: RoomMessageComposerProps) {
+  const keyboardOpen = useKeyboardOpen();
+
   return (
     <form
       ref={formRef}
       className={cn(
         "shrink-0",
-        withOuterPadding &&
-          "px-5 pt-2 md:pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+        withOuterPadding && "px-5 pt-2 md:pt-3",
+        withSafeAreaPadding && chatMobileComposerSafeAreaPbClass(keyboardOpen),
         className,
       )}
       onSubmit={onSubmit}

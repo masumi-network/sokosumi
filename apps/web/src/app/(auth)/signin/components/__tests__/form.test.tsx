@@ -206,4 +206,26 @@ describe("SignInForm", () => {
 
     await expect(waitForAuthSessionOptions.getSession()).resolves.toBeNull();
   });
+
+  it("defaults rememberMe so Better Auth issues a persistent session cookie", async () => {
+    // SOK-752: rememberMe:false → session cookie (no Max-Age). iOS kills the
+    // PWA process after a few minutes in background and drops that cookie;
+    // Android/desktop keep the browser process alive longer.
+    mockSignInEmail.mockResolvedValue({
+      data: {},
+      error: null,
+    });
+
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    await waitFor(() => {
+      expect(mockSignInEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rememberMe: true,
+        }),
+      );
+    });
+  });
 });

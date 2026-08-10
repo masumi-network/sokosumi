@@ -1,6 +1,6 @@
 "use client";
 
-import { Hash, ListTodo, MessagesSquare, Plus } from "lucide-react";
+import { Hash, MessagesSquare, Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -21,7 +21,6 @@ import {
   chatMobileCreateFabBottom,
   chatMobileCreateFabScrimBottom,
   type MobileCreateFabActionId,
-  type MobileCreateFabSurface,
   mobileCreateFabActions,
 } from "./chat-mobile-create-fab-actions";
 
@@ -29,7 +28,6 @@ const ACTION_ICONS: Record<
   MobileCreateFabActionId,
   ComponentType<SVGProps<SVGSVGElement>>
 > = {
-  newTask: ListTodo,
   createChannel: Hash,
   newDm: MessagesSquare,
 };
@@ -42,38 +40,23 @@ const SHELL_SPRING = {
 };
 
 /**
- * Mobile create FAB for Home and Chats (md:hidden).
+ * Mobile create FAB for Chats list (md:hidden).
  * One shell morphs from the circular dial into the overlay list panel.
  *
- * Menu state lives in a child that only mounts on FAB surfaces so hub tab
+ * Menu state lives in a child that only mounts on the FAB surface so tab
  * switches clear an open overlay instead of restoring it later.
  */
 export function ChatMobileCreateFab(): React.ReactElement | null {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const surface: MobileCreateFabSurface | null = shouldShowMobileCreateFab(
-    pathname,
-    searchParams,
-  )
-    ? pathname === "/chat/chats"
-      ? "chats"
-      : "home"
-    : null;
-
-  if (!surface) {
+  if (!shouldShowMobileCreateFab(pathname, searchParams)) {
     return null;
   }
 
-  return <ChatMobileCreateFabMenu key={surface} surface={surface} />;
+  return <ChatMobileCreateFabMenu key="chats" />;
 }
 
-interface ChatMobileCreateFabMenuProps {
-  surface: MobileCreateFabSurface;
-}
-
-function ChatMobileCreateFabMenu({
-  surface,
-}: ChatMobileCreateFabMenuProps): React.ReactElement {
+function ChatMobileCreateFabMenu(): React.ReactElement {
   const t = useTranslations("App.Channels.MobileCreateFab");
   const isApple = useIsApplePlatform();
   const reduceMotion = useReducedMotion();
@@ -82,7 +65,7 @@ function ChatMobileCreateFabMenu({
   const [panelChrome, setPanelChrome] = useState(false);
   const openRef = useRef(false);
 
-  const actions = mobileCreateFabActions(surface);
+  const actions = mobileCreateFabActions("chats");
 
   function setMenuOpen(next: boolean) {
     openRef.current = next;

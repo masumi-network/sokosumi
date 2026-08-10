@@ -38,24 +38,10 @@ interface MenuItemConfig {
   separatorAfter?: boolean;
 }
 
-interface MenuItemsProps {
-  /** Mobile Home hub: History lives on the Search tab, so omit the leaf item. */
-  hideHistory?: boolean;
-  /** Mobile Home hub: New Task lives on the create FAB, so omit the leaf item. */
-  hideNewTask?: boolean;
-  /** Mobile Home hub: Search lives on the bottom tab, so omit the leaf item. */
-  hideSearch?: boolean;
-}
-
-export default function MenuItems({
-  hideHistory = false,
-  hideNewTask = false,
-  hideSearch = false,
-}: MenuItemsProps) {
+export default function MenuItems() {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
-  // Soft read: `/chat` MobileHomeHub can SSR under AppShellLoadingFrame before
-  // HistorySearchDialogProvider mounts (Instant Navigations shell).
+  // Soft read: Instant Nav shell may mount before HistorySearchDialogProvider.
   const historySearch = useOptionalHistorySearch();
   const { isMobile, setOpenMobile } = useSidebar();
 
@@ -75,29 +61,21 @@ export default function MenuItems({
   };
 
   const items: MenuItemConfig[] = [
-    ...(hideNewTask
-      ? []
-      : [
-          {
-            key: "new-task",
-            href: "/tasks?create=true",
-            label: t("newTask"),
-            Icon: Plus,
-            separatorAfter: true,
-          } satisfies MenuItemConfig,
-        ]),
-    ...(hideSearch
-      ? []
-      : [
-          {
-            key: "search",
-            label: t("search"),
-            Icon: Search,
-            onClick: handleSearchClick,
-            shortcutLabel: historySearch?.searchShortcutLabel,
-            ariaKeyshortcuts: historySearch ? "Meta+K Control+K" : undefined,
-          } satisfies MenuItemConfig,
-        ]),
+    {
+      key: "new-task",
+      href: "/tasks?create=true",
+      label: t("newTask"),
+      Icon: Plus,
+      separatorAfter: true,
+    },
+    {
+      key: "search",
+      label: t("search"),
+      Icon: Search,
+      onClick: handleSearchClick,
+      shortcutLabel: historySearch?.searchShortcutLabel,
+      ariaKeyshortcuts: historySearch ? "Meta+K Control+K" : undefined,
+    },
     {
       key: "task-manager",
       href: "/tasks",
@@ -116,16 +94,12 @@ export default function MenuItems({
       label: t("exploreAgents"),
       Icon: Bot,
     },
-    ...(hideHistory
-      ? []
-      : [
-          {
-            key: "history",
-            href: "/history",
-            label: t("history"),
-            Icon: History,
-          } satisfies MenuItemConfig,
-        ]),
+    {
+      key: "history",
+      href: "/history",
+      label: t("history"),
+      Icon: History,
+    },
   ];
 
   return (

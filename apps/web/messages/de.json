@@ -4813,22 +4813,19 @@
     },
     "Channels": {
       "MobileNav": {
-        "home": "Start",
+        "tasks": "Aufgaben",
+        "agents": "Agenten",
         "chats": "Chats",
+        "projects": "Projekte",
         "chatsUnread": "Ungelesene Chats",
         "search": "Suche",
         "ariaLabel": "Hauptnavigation",
         "backToChats": "Zurück zu Chats",
-        "backToHome": "Zurück zur Startseite",
         "back": "Zurück"
       },
       "MobileCreateFab": {
         "openMenu": "Erstellen",
         "closeMenu": "Erstellen-Menü schließen",
-        "newTask": {
-          "title": "Neue Aufgabe",
-          "subtitle": "Neue langfristige Aufgabe erstellen"
-        },
         "createChannel": {
           "title": "Kanal erstellen",
           "subtitle": "Neuen Stream-Kanal starten"
