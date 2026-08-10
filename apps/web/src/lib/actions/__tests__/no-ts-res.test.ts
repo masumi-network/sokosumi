@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const webSrcRoot = path.resolve(
+/** Resolves to `apps/web/src/lib` (former home of `@/lib/ts-res`). */
+const webLibRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
 );
@@ -13,8 +14,8 @@ const webSrcRoot = path.resolve(
  */
 describe("ts-res ban", () => {
   it("does not restore the ts-res module under apps/web/src/lib", () => {
-    expect(existsSync(path.join(webSrcRoot, "ts-res"))).toBe(false);
-    expect(existsSync(path.join(webSrcRoot, "ts-res/index.ts"))).toBe(false);
-    expect(existsSync(path.join(webSrcRoot, "ts-res/result.ts"))).toBe(false);
+    expect(existsSync(path.join(webLibRoot, "ts-res"))).toBe(false);
+    expect(existsSync(path.join(webLibRoot, "ts-res/index.ts"))).toBe(false);
+    expect(existsSync(path.join(webLibRoot, "ts-res/result.ts"))).toBe(false);
   });
 });
