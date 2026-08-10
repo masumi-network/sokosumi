@@ -61,11 +61,11 @@ export function OrganizationList({ initialPage }: OrganizationListProps) {
       }
       setOrganizations((current) =>
         cursor
-          ? [...current, ...result.data.organizations]
-          : result.data.organizations,
+          ? [...current, ...result.value.organizations]
+          : result.value.organizations,
       );
-      setTotal(result.data.total);
-      setNextCursor(result.data.nextCursor);
+      setTotal(result.value.total);
+      setNextCursor(result.value.nextCursor);
     });
   }
 

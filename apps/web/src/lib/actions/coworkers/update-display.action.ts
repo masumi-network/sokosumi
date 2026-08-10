@@ -1,7 +1,11 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
-
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { validateCoworkerDisplayActionInput } from "@/lib/actions/coworkers/apply-display-action-input";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
@@ -10,7 +14,6 @@ import {
   type UpdateCoworkerDisplayResult,
 } from "@/lib/services/coworker-display.service";
 import { developerCoworkerService } from "@/lib/services/developer-coworker.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -33,7 +36,7 @@ interface UpdateDeveloperCoworkerDisplayParameters
 
 export const updateDeveloperCoworkerDisplayAction = withSession<
   UpdateDeveloperCoworkerDisplayParameters,
-  Result<UpdateCoworkerDisplayResult, ActionError>
+  ActionResultDto<UpdateCoworkerDisplayResult, ActionError>
 >(async ({ session: _session, id, patchBody, imageIntent, imageFile }) => {
   try {
     const validatedInput = validateCoworkerDisplayActionInput({
@@ -43,17 +46,19 @@ export const updateDeveloperCoworkerDisplayAction = withSession<
       imageFile,
     });
     if (validatedInput.isErr()) {
-      return Err(validatedInput.error);
+      return toActionResult(err(validatedInput.error));
     }
 
     const ownedCoworker = await developerCoworkerService.getOwnedCoworkerById(
       validatedInput.value.id,
     );
     if (!ownedCoworker) {
-      return Err({
-        code: CommonErrorCode.NOT_FOUND,
-        message: "Coworker not found",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.NOT_FOUND,
+          message: "Coworker not found",
+        }),
+      );
     }
 
     const result = await coworkerDisplayService.updateDisplay(
@@ -61,8 +66,8 @@ export const updateDeveloperCoworkerDisplayAction = withSession<
     );
 
     revalidateDeveloperCoworkerRoutes(validatedInput.value.id);
-    return Ok(result);
+    return toActionResult(ok(result));
   } catch (error) {
-    return Err(toCoreApiActionError(error));
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });
