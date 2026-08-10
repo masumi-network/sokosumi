@@ -10,7 +10,7 @@ import { EDITABLE_TEXT_SIZE_CLASSNAME } from "@/lib/utils/editable-text-size";
 /**
  * iOS Safari auto-zooms focused controls when computed font-size < 16px unless
  * page scale is locked. Product choice: viewport maximumScale 1 (no pinch),
- * pure rem editables (no 16px font floor).
+ * pure rem editables `text-base md:text-sm` (no 16px font floor).
  */
 
 const SRC_ROOT = path.resolve(
@@ -33,9 +33,10 @@ describe("iOS focus-zoom guard", () => {
     },
   );
 
-  it("editables stay pure rem text-base (no px floor)", () => {
-    expect(EDITABLE_TEXT_SIZE_CLASSNAME).toBe("text-base");
+  it("editables use text-base md:text-sm (no px floor)", () => {
+    expect(EDITABLE_TEXT_SIZE_CLASSNAME).toBe("text-base md:text-sm");
     expect(EDITABLE_TEXT_SIZE_CLASSNAME).not.toMatch(/16px/);
     expect(ROOM_COMPOSER_TEXTAREA_CLASSNAME).toContain("text-base");
+    expect(ROOM_COMPOSER_TEXTAREA_CLASSNAME).toContain("md:text-sm");
   });
 });

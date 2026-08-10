@@ -23,31 +23,32 @@ const PRIMITIVE_SOURCES = [
   "components/chat/room-message-composer.tsx",
 ] as const;
 
-const MD_SHRINK = /md:text-(?:sm|xs)\b/;
+/** Callers must not set size — only the shared seam may. */
+const CALLER_MD_SHRINK = /md:text-(?:sm|xs)\b/;
 const PX_FLOOR = /max\(1rem,\s*16px\)/;
 
 describe("editable text size primitives", () => {
-  it("exports pure rem text-base without md shrink or px floor", () => {
-    expect(EDITABLE_TEXT_SIZE_CLASSNAME).toBe("text-base");
-    expect(EDITABLE_TEXT_SIZE_CLASSNAME).not.toContain("md:text-sm");
+  it("exports text-base with desktop md:text-sm and no px floor", () => {
+    expect(EDITABLE_TEXT_SIZE_CLASSNAME).toBe("text-base md:text-sm");
     expect(EDITABLE_TEXT_SIZE_CLASSNAME).not.toMatch(PX_FLOOR);
   });
 
-  it("keeps text-base last when callers pass text-sm or other sizes", () => {
+  it("keeps seam size last when callers pass text-sm or other sizes", () => {
     const merged = withEditableTextSize("p-4 text-sm", "text-xs");
     expect(merged).toContain("text-base");
+    expect(merged).toContain("md:text-sm");
     expect(merged).toContain("p-4");
-    expect(merged).not.toMatch(/\btext-sm\b/);
-    expect(merged).not.toMatch(/\btext-xs\b/);
+    expect(merged.split(/\s+/)).not.toContain("text-sm");
+    expect(merged.split(/\s+/)).not.toContain("text-xs");
   });
 
   it.each(PRIMITIVE_SOURCES)(
-    "%s uses withEditableTextSize and has no md shrink or px floor",
+    "%s uses withEditableTextSize and has no local md shrink or px floor",
     (rel) => {
       const content = readFileSync(path.join(SRC_ROOT, rel), "utf8");
-      expect(content).not.toMatch(MD_SHRINK);
+      // Size comes from withEditableTextSize only — no local md:text-sm/xs.
+      expect(content).not.toMatch(CALLER_MD_SHRINK);
       expect(content).not.toMatch(PX_FLOOR);
-      // Call site required — import/comment alone must not pass.
       expect(content).toMatch(/\bwithEditableTextSize\s*\(/);
     },
   );
