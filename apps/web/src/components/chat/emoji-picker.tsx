@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/popover";
 import { useEmojiPickerMaxHeight } from "@/hooks/use-emoji-picker-max-height";
 import { cn } from "@/lib/utils";
-import { EMOJI_PICKER_CHROME_ESTIMATE_PX } from "@/lib/utils/emoji-picker-max-height";
 import {
   type EmojiCatalogEntry,
   type EmojiCategoryId,
@@ -128,7 +127,7 @@ export function EmojiPicker({
     useState<NavTargetId>("smileys-emotion");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
-  const maxHeightPx = useEmojiPickerMaxHeight(EMOJI_PICKER_CHROME_ESTIMATE_PX);
+  const maxHeightPx = useEmojiPickerMaxHeight();
 
   const categories = listEmojiCategories();
   const categoryLabelById = new Map(
