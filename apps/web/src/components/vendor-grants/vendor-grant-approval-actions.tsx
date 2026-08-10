@@ -8,8 +8,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors";
-import type { Result } from "@/lib/ts-res";
 
 interface VendorGrantApprovalActionsLabels {
   approve: string;
@@ -26,8 +26,8 @@ interface VendorGrantApprovalActionsProps {
   reviewHref?: string | null;
   refreshAfterApproveAttempt?: boolean;
   labels: VendorGrantApprovalActionsLabels;
-  onApprove: () => Promise<Result<unknown, ActionError>>;
-  onDeny?: () => Promise<Result<unknown, ActionError>>;
+  onApprove: () => Promise<ActionResultDto<unknown, ActionError>>;
+  onDeny?: () => Promise<ActionResultDto<unknown, ActionError>>;
 }
 
 export function VendorGrantApprovalActions({
@@ -46,7 +46,7 @@ export function VendorGrantApprovalActions({
 
   async function runAction(
     action: "approve" | "deny",
-    mutation: () => Promise<Result<unknown, ActionError>>,
+    mutation: () => Promise<ActionResultDto<unknown, ActionError>>,
   ) {
     setLoadingAction(action);
     let shouldRefresh = false;

@@ -14,8 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors";
-import type { Result } from "@/lib/ts-res";
 
 type VendorGrantFormNamespace =
   | "App.Account.VendorGrants"
@@ -27,7 +27,7 @@ interface VendorGrantCreateFormProps {
   namespace: VendorGrantFormNamespace;
   onCreate: (params: {
     vendorId: string;
-  }) => Promise<Result<{ grantId: string }, ActionError>>;
+  }) => Promise<ActionResultDto<{ grantId: string }, ActionError>>;
 }
 
 function firstEnabledVendorId(
