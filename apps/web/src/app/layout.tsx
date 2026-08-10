@@ -29,10 +29,16 @@ const inter = Inter({
  * notched devices). App, auth, and share chrome must pad those insets —
  * see `app-shell-safe-area.ts`. Required on root (not chat-only) so hub
  * routes like `/tasks` and `/history` keep the same bottom-nav inset.
+ *
+ * `maximumScale: 1` locks page scale so iOS Safari does not auto-zoom on
+ * composer/input focus when Dynamic Type root is under 16px. Tradeoff:
+ * pinch-to-zoom is disabled (product decision). Chat layout re-exports
+ * the same maximumScale when it overrides this object.
  */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: "cover",
 };
 

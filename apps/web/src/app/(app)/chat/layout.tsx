@@ -16,10 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * Chat replaces the root viewport export. Keep `viewport-fit=cover` (also on
  * root for hub routes) so iOS `env(safe-area-inset-*)` stays non-zero.
  * `resizes-content` lifts the room composer above the soft keyboard.
+ * `maximumScale: 1` matches root — stops iOS focus auto-zoom on the composer.
  */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
 };
