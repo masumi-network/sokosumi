@@ -3,11 +3,9 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import {
-  chatMobileCreateFabBottom,
-  chatMobileCreateFabScrimBottom,
-} from "@/app/chat/components/chat-mobile-create-fab-actions";
+import { chatMobileCreateFabScrimBottom } from "@/app/chat/components/chat-mobile-create-fab-actions";
 import { shouldShowMobileCreateFab } from "@/app/components/mobile-app-chrome";
+import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
 import { MorphingActionFab } from "@/components/mobile/morphing-action-fab";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 
@@ -26,7 +24,7 @@ export function ChatOnboardingFab(): React.ReactElement | null {
     <MorphingActionFab
       href="/chat?welcome=1"
       label={t("openFab")}
-      bottomClassName={chatMobileCreateFabBottom(isApple)}
+      bottomClassName={mobileCreateFabBottom(isApple)}
       scrimBottomClassName={chatMobileCreateFabScrimBottom(isApple)}
     />
   );

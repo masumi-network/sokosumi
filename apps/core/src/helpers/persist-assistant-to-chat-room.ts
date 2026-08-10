@@ -3,7 +3,7 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import type { PersistedChatUiPart } from "./message-content";
 
-function reasoningPartsToMetadata(
+export function reasoningPartsToMetadata(
   reasoning: unknown,
 ): Array<{ type: string; text: string }> | undefined {
   if (!Array.isArray(reasoning) || reasoning.length === 0) {
@@ -24,13 +24,13 @@ function reasoningPartsToMetadata(
   return out.length > 0 ? out : undefined;
 }
 
-function buildAssistantMessageMetadata(
-  reasoningSteps: Array<{ type: string; text: string }> | undefined,
-  thoughtTiming: { startedAtMs: number; endedAtMs: number } | undefined,
-  uiParts: PersistedChatUiPart[] | undefined,
-  responsesApiResponseId: string | null | undefined,
-): Record<string, unknown> | undefined {
+/** Thought fields only (`reasoning` + `thought_timing_ms`) for room message metadata. */
+export function thoughtMetadataFields(
+  reasoning: unknown,
+  thoughtTiming?: { startedAtMs: number; endedAtMs: number },
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  const reasoningSteps = reasoningPartsToMetadata(reasoning);
   if (reasoningSteps && reasoningSteps.length > 0) {
     out.reasoning = reasoningSteps;
   }
@@ -44,6 +44,18 @@ function buildAssistantMessageMetadata(
       end: thoughtTiming.endedAtMs,
     };
   }
+  return out;
+}
+
+function buildAssistantMessageMetadata(
+  reasoningSteps: Array<{ type: string; text: string }> | undefined,
+  thoughtTiming: { startedAtMs: number; endedAtMs: number } | undefined,
+  uiParts: PersistedChatUiPart[] | undefined,
+  responsesApiResponseId: string | null | undefined,
+): Record<string, unknown> | undefined {
+  const out: Record<string, unknown> = {
+    ...thoughtMetadataFields(reasoningSteps, thoughtTiming),
+  };
   if (uiParts && uiParts.length > 0) {
     out.ui_message_v1 = {
       parts: uiParts,

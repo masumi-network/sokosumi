@@ -132,6 +132,17 @@
   --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
 
   --animate-reasoning-text-shine: reasoning-text-shine 2.5s ease-in-out infinite;
+  /* Beautiful UI shimmer — register like reasoning-text-shine so Tailwind emits it. */
+  --animate-bui-shimmer-text: bui-shimmer-text 1.8s linear infinite;
+
+  @keyframes bui-shimmer-text {
+    0% {
+      background-position: 150% 0;
+    }
+    100% {
+      background-position: -50% 0;
+    }
+  }
 
   @keyframes accordion-down {
     from {
@@ -704,6 +715,43 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   animation: var(--animate-reasoning-text-shine);
 }
 
+/*
+ * Beautiful UI Loading grid layout.
+ * Drive wave opacity is JS-driven (see coworker-thought-ui DrivePixelGrid) —
+ * CSS keyframes were not reliably applied in the chat surface.
+ */
+.bui-pixel-grid {
+  display: grid;
+  /* Meta-scale Drive: rem so it tracks root/Dynamic Type; 0.25rem keeps wave legible. */
+  grid-template-columns: repeat(3, 0.25rem);
+  gap: 0.0625rem;
+  flex-shrink: 0;
+}
+
+.bui-pixel-cell {
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 0.0625rem;
+  background-color: var(--foreground);
+  opacity: 0.15;
+  will-change: opacity;
+}
+
+/* Shimmer label from Beautiful UI Loading / Thinking */
+@utility bui-shimmer-text {
+  background-image: linear-gradient(
+    90deg,
+    var(--muted-foreground) 35%,
+    var(--foreground) 50%,
+    var(--muted-foreground) 65%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: var(--animate-bui-shimmer-text);
+}
+
 @utility reasoning-step-in {
   animation: var(--animate-reasoning-step-in);
 }
@@ -829,6 +877,14 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
  * above so source order wins. */
 @media (prefers-reduced-motion: reduce) {
   .reasoning-text-shine {
+    animation: none;
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: var(--foreground);
+  }
+
+  .bui-shimmer-text {
     animation: none;
     background: none;
     -webkit-background-clip: border-box;

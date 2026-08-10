@@ -1531,9 +1531,8 @@
           "thinking": "Pensando...",
           "searchingFiles": "Buscando archivos...",
           "callingTools": "Usando herramientas...",
-          "thoughtForSeconds": "Pensado durante {seconds}s",
-          "expandSteps": "Mostrar pasos de razonamiento",
-          "collapseSteps": "Ocultar pasos de razonamiento"
+          "thoughtForDuration": "Pensado durante {duration}",
+          "expandSteps": "Mostrar pensamiento"
         },
         "chatErrorTitle": "Error en el chat",
         "errorFallbackDescription": "Hubo un problema con la interfaz del chat. Por favor, recarga la página o contacta con soporte si el problema persiste.",
@@ -1627,6 +1626,7 @@
         "loadMore": "Cargar más",
         "showGuide": "Show guide"
       },
+      "createTaskFab": "Crear tarea",
       "Errors": {
         "updateStatus": "No se pudo actualizar el estado del Task",
         "loadMore": "No se pudieron cargar más tareas",
@@ -2055,6 +2055,7 @@
     },
     "Projects": {
       "title": "Proyectos",
+      "createProjectFab": "Crear proyecto",
       "empty": {
         "title": "Aún no hay proyectos",
         "description": "Crea un proyecto para agrupar tareas y jobs relacionados.",
@@ -4963,8 +4964,7 @@
       "MentionStatus": {
         "pending": "Llamando a {name}",
         "sent": "{name} está pensando",
-        "responded": "{name} respondió",
-        "failed": "{name} falló",
+        "failed": "{name} no pudo responder",
         "nameFallback": "Coworker"
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
