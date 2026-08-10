@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type MouseEvent, useState } from "react";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
@@ -46,19 +45,6 @@ function getChannelHref(channel: CoworkerChannel): string | null {
   return null;
 }
 
-function handleChannelExternalLinkClick(
-  event: MouseEvent<HTMLButtonElement>,
-  href: string,
-) {
-  event.preventDefault();
-  event.stopPropagation();
-  if (href.startsWith("mailto:")) {
-    window.location.assign(href);
-    return;
-  }
-  window.open(href, "_blank", "noopener,noreferrer");
-}
-
 function CoworkerGalleryCard({
   slug,
   name,
@@ -88,12 +74,8 @@ function CoworkerGalleryCard({
     "/images/logos/sokosumi-logo-white.svg";
   const canUseNextImage = canUseNextImageSrc(imageSrc);
   const displayDescription = description || galleryCardT("defaultDescription");
-  const assigneeNewTaskHref = `/tasks?create=true&assignee=${encodeURIComponent(slug)}`;
-  /** Nested <a> inside Next.js <Link> is invalid HTML; use buttons when the card is link-wrapped. */
-  const useAnchorForExternalChannels = Boolean(action);
   const cardClassName = cn(
     "group block w-full rounded-lg focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950 focus-visible:outline-none md:w-80",
-    !action && "cursor-pointer",
     className,
   );
 
@@ -116,7 +98,7 @@ function CoworkerGalleryCard({
               isExpanded && "border-white/30 bg-white/15 text-white",
             );
 
-            if (href && useAnchorForExternalChannels) {
+            if (href) {
               return (
                 <a
                   key={`${channel}-${value.slice(0, 12)}`}
@@ -128,22 +110,6 @@ function CoworkerGalleryCard({
                 >
                   <ChannelIcon className="size-4 shrink-0" aria-hidden />
                 </a>
-              );
-            }
-
-            if (href) {
-              return (
-                <button
-                  key={`${channel}-${value.slice(0, 12)}`}
-                  type="button"
-                  onClick={(event) =>
-                    handleChannelExternalLinkClick(event, href)
-                  }
-                  className={sharedClasses}
-                  aria-label={label}
-                >
-                  <ChannelIcon className="size-4 shrink-0" aria-hidden />
-                </button>
               );
             }
 
@@ -172,55 +138,49 @@ function CoworkerGalleryCard({
   const imageClassName =
     "object-cover object-top transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.03]";
 
-  const cardContent = (
-    <div className="relative aspect-3/4 w-full overflow-hidden rounded-lg">
-      {canUseNextImage ? (
-        <Image
-          src={imageSrc}
-          alt={name}
-          fill
-          className={imageClassName}
-          sizes="(max-width: 768px) 100vw, 320px"
-        />
-      ) : (
-        // eslint-disable-next-line @next/next/no-img-element -- next/image rejects unconfigured remote hosts
-        <img
-          src={imageSrc}
-          alt={name}
-          className={cn("absolute inset-0 size-full", imageClassName)}
-          loading="lazy"
-          referrerPolicy="no-referrer"
-        />
-      )}
+  return (
+    <div className={cardClassName}>
+      <div className="relative aspect-3/4 w-full overflow-hidden rounded-lg">
+        {canUseNextImage ? (
+          <Image
+            src={imageSrc}
+            alt={name}
+            fill
+            className={imageClassName}
+            sizes="(max-width: 768px) 100vw, 320px"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element -- next/image rejects unconfigured remote hosts
+          <img
+            src={imageSrc}
+            alt={name}
+            className={cn("absolute inset-0 size-full", imageClassName)}
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        )}
 
-      {/* Verified badge */}
-      <div className="absolute top-3 right-3">
-        <AgentVerifiedBadge className="bg-black/70 [&>svg]:text-white/90" />
-      </div>
+        {/* Verified badge */}
+        <div className="absolute top-3 right-3">
+          <AgentVerifiedBadge className="bg-black/70 [&>svg]:text-white/90" />
+        </div>
 
-      {/* Text overlay with scrim */}
-      <div className="absolute inset-x-0 bottom-0 bg-black/70 p-3">
-        <p className="text-xs font-medium text-white/70">
-          {caption ?? galleryCardT("defaultSubtitle")}
-        </p>
-        <h3 className="truncate text-base font-medium text-balance text-white">
-          {name}
-        </h3>
-        <p className="mt-1 line-clamp-2 max-h-10 min-h-10 overflow-hidden text-sm leading-5 text-pretty text-white/70 transition-[max-height] duration-300 ease-out group-focus-within:line-clamp-5 group-focus-within:max-h-25 group-hover:line-clamp-5 group-hover:max-h-25">
-          {displayDescription}
-        </p>
-        {channelBlock}
-        {action && <div className="mt-2">{action}</div>}
+        {/* Text overlay with scrim */}
+        <div className="absolute inset-x-0 bottom-0 bg-black/70 p-3">
+          <p className="text-xs font-medium text-white/70">
+            {caption ?? galleryCardT("defaultSubtitle")}
+          </p>
+          <h3 className="truncate text-base font-medium text-balance text-white">
+            {name}
+          </h3>
+          <p className="mt-1 line-clamp-2 max-h-10 min-h-10 overflow-hidden text-sm leading-5 text-pretty text-white/70 transition-[max-height] duration-300 ease-out group-focus-within:line-clamp-5 group-focus-within:max-h-25 group-hover:line-clamp-5 group-hover:max-h-25">
+            {displayDescription}
+          </p>
+          {channelBlock}
+          {action && <div className="mt-2">{action}</div>}
+        </div>
       </div>
     </div>
-  );
-
-  if (action) return <div className={cardClassName}>{cardContent}</div>;
-
-  return (
-    <Link href={assigneeNewTaskHref} className={cardClassName}>
-      {cardContent}
-    </Link>
   );
 }
 
