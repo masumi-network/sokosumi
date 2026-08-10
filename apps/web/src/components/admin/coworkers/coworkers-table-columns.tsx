@@ -1,12 +1,11 @@
 "use client";
 
-import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import Link from "next/link";
 import type { useFormatter, useTranslations } from "next-intl";
 
 import {
+  createAppColumnHelper,
   DataTableColumnHeader,
-  type DataTableFeatures,
 } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,7 @@ const dateTimeOptions = {
   timeStyle: "short",
 } as const;
 
-const columnHelper = createColumnHelper<DataTableFeatures, Coworker>();
+const columnHelper = createAppColumnHelper<Coworker>();
 
 function isArchived(coworker: Coworker): boolean {
   return coworker.archivedAt != null;
@@ -26,8 +25,8 @@ function isArchived(coworker: Coworker): boolean {
 export function getCoworkersTableColumns(
   t: ReturnType<typeof useTranslations<"App.Admin.Coworkers.Table">>,
   formatter: ReturnType<typeof useFormatter>,
-): ColumnDef<DataTableFeatures, Coworker>[] {
-  return [
+) {
+  return columnHelper.columns([
     columnHelper.accessor("name", {
       id: "name",
       minSize: 120,
@@ -38,7 +37,7 @@ export function getCoworkersTableColumns(
       cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, Coworker>,
+    }),
 
     columnHelper.accessor("slug", {
       id: "slug",
@@ -52,7 +51,7 @@ export function getCoworkersTableColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, Coworker>,
+    }),
 
     columnHelper.accessor((row) => isArchived(row), {
       id: "status",
@@ -69,7 +68,7 @@ export function getCoworkersTableColumns(
         ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, Coworker>,
+    }),
 
     columnHelper.accessor("isWhitelisted", {
       id: "isWhitelisted",
@@ -85,7 +84,7 @@ export function getCoworkersTableColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, Coworker>,
+    }),
 
     columnHelper.accessor("priority", {
       id: "priority",
@@ -103,7 +102,7 @@ export function getCoworkersTableColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, Coworker>,
+    }),
 
     columnHelper.accessor("createdAt", {
       id: "createdAt",
@@ -119,7 +118,7 @@ export function getCoworkersTableColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, Coworker>,
+    }),
 
     columnHelper.display({
       id: "actions",
@@ -140,6 +139,6 @@ export function getCoworkersTableColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, Coworker>,
-  ];
+    }),
+  ]);
 }

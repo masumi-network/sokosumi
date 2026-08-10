@@ -1,10 +1,9 @@
 "use client";
 
-import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import {
+  createAppColumnHelper,
   DataTableColumnHeader,
-  type DataTableFeatures,
 } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { TimeAgo } from "@/components/time-ago";
@@ -14,7 +13,7 @@ import MemberActionsDropdown from "./member-actions-dropdown";
 import { useSeatManagementContext } from "./seat-management-context";
 import type { MemberRowData } from "./types";
 
-const columnHelper = createColumnHelper<DataTableFeatures, MemberRowData>();
+const columnHelper = createAppColumnHelper<MemberRowData>();
 
 export function getMembersTableColumns(
   t: ReturnType<typeof useTranslations>,
@@ -30,7 +29,7 @@ export function getMembersTableColumns(
       cell: ({ row }) => <div className="p-2">{row.original.name}</div>,
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, MemberRowData>,
+    }),
 
     emailColumn: columnHelper.accessor("email", {
       id: "email",
@@ -41,7 +40,7 @@ export function getMembersTableColumns(
       cell: ({ row }) => <div className="p-2">{row.original.email}</div>,
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, MemberRowData>,
+    }),
 
     roleColumn: columnHelper.accessor("role", {
       id: "role",
@@ -56,7 +55,7 @@ export function getMembersTableColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<DataTableFeatures, MemberRowData>,
+    }),
 
     lastSeenColumn: columnHelper.accessor("lastSeenAt", {
       id: "lastSeen",
@@ -84,14 +83,14 @@ export function getMembersTableColumns(
         );
       },
       enableSorting: true,
-    }) as ColumnDef<DataTableFeatures, MemberRowData>,
+    }),
 
     seatColumn: columnHelper.display({
       id: "seat",
       minSize: 120,
       header: () => <div>{t("Header.seat")}</div>,
       cell: ({ row }) => <SeatStatusCell member={row.original.member} />,
-    }) as ColumnDef<DataTableFeatures, MemberRowData>,
+    }),
 
     actionColumn: columnHelper.display({
       id: "actions",
@@ -109,8 +108,24 @@ export function getMembersTableColumns(
         }
         return null;
       },
-    }) as ColumnDef<DataTableFeatures, MemberRowData>,
+    }),
   };
+}
+
+export function getMembersTableColumnList(
+  t: ReturnType<typeof useTranslations>,
+  me: OrganizationMembershipSelf,
+  options: { showSeatManagement: boolean; includeActions: boolean },
+) {
+  const cols = getMembersTableColumns(t, me);
+  return columnHelper.columns([
+    cols.nameColumn,
+    cols.emailColumn,
+    cols.roleColumn,
+    cols.lastSeenColumn,
+    ...(options.showSeatManagement ? [cols.seatColumn] : []),
+    ...(options.includeActions ? [cols.actionColumn] : []),
+  ]);
 }
 
 function SeatStatusCell({ member }: { member: MemberRowData["member"] }) {

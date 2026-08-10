@@ -20,7 +20,8 @@ import {
 
 /**
  * Shared TanStack Table v9 features for app DataTables.
- * Column helpers must use `createColumnHelper<DataTableFeatures, TData>()`.
+ * Bound via `createTableHook` in `create-data-table-hook.ts` —
+ * use `createAppColumnHelper<TData>()` / `useAppTable` (not bare helpers).
  *
  * `sortFns` must include every built-in name that `sortFn: "auto"` can pick
  * (datetime / alphanumeric / text) plus basic. Case-sensitive variants are
