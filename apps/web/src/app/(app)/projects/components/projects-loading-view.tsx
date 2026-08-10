@@ -1,7 +1,9 @@
 import { Plus } from "lucide-react";
 
+import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface ProjectsLoadingViewLabels {
   newProject: string;
@@ -13,8 +15,10 @@ interface ProjectsLoadingViewProps {
 
 export function ProjectsLoadingView({ labels }: ProjectsLoadingViewProps) {
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex justify-end">
+    <div
+      className={cn("flex flex-col gap-5", LIST_MOBILE_CREATE_FAB_CLEARANCE)}
+    >
+      <div className="hidden justify-end md:flex">
         <Button size="sm" className="self-start gap-1.5" disabled>
           <Plus className="size-4" aria-hidden />
           {labels.newProject}
