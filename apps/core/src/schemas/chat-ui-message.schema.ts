@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
+import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import { CHAT_UI_NON_REASONING_PART_TYPES } from "@/helpers/chat-ui-non-reasoning-part-types";
 import { isSafeRemoteUrl } from "@/helpers/safe-url";
 
 /**
@@ -31,16 +31,10 @@ export const chatUiReasoningPartSchema = z
     type: z.string(),
     text: z.string(),
   })
-  .refine(
-    (part) => {
-      const t = part.type.trim();
-      return t.length > 0 && !CHAT_UI_NON_REASONING_PART_TYPES.has(t);
-    },
-    {
-      message:
-        "Reasoning parts require a non-empty type (e.g. reasoning) that is not text, file, input_text, or output_text.",
-    },
-  );
+  .refine((part) => isChatUiProviderReasoningPartType(part.type), {
+    message:
+      "Reasoning parts require an allowlisted type (reasoning or redacted_reasoning).",
+  });
 
 export const chatUiTextPartSchema = z.object({
   type: z.literal("text"),

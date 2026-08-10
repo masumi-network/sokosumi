@@ -75,6 +75,19 @@ describe("extractReasoningPartsFromMessage", () => {
       }),
     ).toEqual([{ type: "reasoning", text: "Step one" }]);
   });
+
+  it("does not collect tool/step parts as reasoning even when they have text", () => {
+    expect(
+      extractReasoningPartsFromMessage({
+        content: [
+          { type: "tool-call", text: "Calling search" },
+          { type: "step-start", text: "Step 1" },
+          { type: "reasoning", text: "Only this" },
+          { type: "text", text: "Answer" },
+        ],
+      }),
+    ).toEqual([{ type: "reasoning", text: "Only this" }]);
+  });
 });
 
 describe("buildConversationContentParts", () => {

@@ -85,6 +85,21 @@ describe("chatUiReasoningPartSchema", () => {
       chatUiReasoningPartSchema.parse({ type: "text", text: "x" }),
     ).toThrow();
   });
+
+  it("rejects tool/step and other non-allowlisted types", () => {
+    expect(() =>
+      chatUiReasoningPartSchema.parse({ type: "tool-call", text: "x" }),
+    ).toThrow();
+    expect(() =>
+      chatUiReasoningPartSchema.parse({ type: "step-start", text: "x" }),
+    ).toThrow();
+    expect(() =>
+      chatUiReasoningPartSchema.parse({
+        type: "unknown_provider_part",
+        text: "x",
+      }),
+    ).toThrow();
+  });
 });
 
 describe("chatRequestMessagePartSchema (union)", () => {
