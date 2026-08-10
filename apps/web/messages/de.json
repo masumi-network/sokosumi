@@ -1591,6 +1591,7 @@
         "loadMore": "Mehr laden",
         "showGuide": "Show guide"
       },
+      "createTaskFab": "Aufgabe erstellen",
       "Errors": {
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
@@ -2019,6 +2020,7 @@
     },
     "Projects": {
       "title": "Projekte",
+      "createProjectFab": "Projekt erstellen",
       "empty": {
         "title": "Noch keine Projekte",
         "description": "Erstelle ein Projekt, um zusammengehörige Tasks und Jobs zu bündeln.",

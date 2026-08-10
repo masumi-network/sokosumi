@@ -1591,6 +1591,7 @@
         "loadMore": "Load More",
         "showGuide": "Show guide"
       },
+      "createTaskFab": "Create task",
       "Errors": {
         "updateStatus": "Failed to update task status",
         "loadMore": "Failed to load more tasks",
@@ -2019,6 +2020,7 @@
     },
     "Projects": {
       "title": "Projects",
+      "createProjectFab": "Create project",
       "empty": {
         "title": "No projects yet",
         "description": "Create a project to group related tasks and jobs.",

@@ -19,23 +19,6 @@ export function mobileCreateFabActions(
   return CHATS_ACTIONS;
 }
 
-/**
- * FAB sits above the docked tab bar with a small gap.
- * Full static Tailwind strings (dynamic class assembly would break purge).
- */
-export const CHAT_MOBILE_CREATE_FAB_BOTTOM =
-  "bottom-[calc(4rem+env(safe-area-inset-bottom)+0.75rem)]" as const;
-
-/** FAB above the floating Apple tab bar. */
-export const CHAT_MOBILE_CREATE_FAB_BOTTOM_APPLE =
-  "bottom-[calc(4rem+max(0.75rem,env(safe-area-inset-bottom))+0.75rem)]" as const;
-
-export function chatMobileCreateFabBottom(isApple: boolean): string {
-  return isApple
-    ? CHAT_MOBILE_CREATE_FAB_BOTTOM_APPLE
-    : CHAT_MOBILE_CREATE_FAB_BOTTOM;
-}
-
 /** Scrim ends above the docked tab bar so tab hit targets stay free. */
 export const CHAT_MOBILE_CREATE_FAB_SCRIM_BOTTOM =
   "bottom-[calc(4rem+env(safe-area-inset-bottom))]" as const;
@@ -48,11 +31,3 @@ export function chatMobileCreateFabScrimBottom(isApple: boolean): string {
     ? CHAT_MOBILE_CREATE_FAB_SCRIM_BOTTOM_APPLE
     : CHAT_MOBILE_CREATE_FAB_SCRIM_BOTTOM;
 }
-
-/**
- * Scroll padding on `/chat/chats` so the last row clears the floating create
- * FAB (`size-14` + 1rem gap). Tab-bar clearance is separate
- * (`CHAT_MOBILE_TAB_BAR_CLEARANCE`).
- */
-export const CHAT_MOBILE_CREATE_FAB_CLEARANCE =
-  "pb-[calc(3.5rem+1rem)]" as const;
