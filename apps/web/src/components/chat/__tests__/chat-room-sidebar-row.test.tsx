@@ -311,7 +311,10 @@ async function openRoomMenu(label = "general") {
 describe("ChatRoomSidebarRow leave menu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    leaveRoomActionMock.mockResolvedValue({ ok: true, data: { id: "room-1" } });
+    leaveRoomActionMock.mockResolvedValue({
+      ok: true,
+      value: { id: "room-1" },
+    });
   });
 
   afterEach(() => {

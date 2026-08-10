@@ -64,7 +64,7 @@ export function GuestInviteSection({
       setInvitations([]);
       return;
     }
-    setInvitations(result.data.filter((inv) => inv.status === "pending"));
+    setInvitations(result.value.filter((inv) => inv.status === "pending"));
   }, [roomId]);
 
   useEffect(() => {
@@ -89,16 +89,16 @@ export function GuestInviteSection({
     startTransition(async () => {
       const result = await createRoomInvitationAction(roomId, trimmed);
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
-      toast.success(t("inviteSuccess", { email: result.data.email }));
+      toast.success(t("inviteSuccess", { email: result.value.email }));
       setEmail("");
       setInvitations((prev) => {
-        if (prev.some((inv) => inv.id === result.data.id)) {
+        if (prev.some((inv) => inv.id === result.value.id)) {
           return prev;
         }
-        return [result.data, ...prev];
+        return [result.value, ...prev];
       });
     });
   }
@@ -109,7 +109,7 @@ export function GuestInviteSection({
     const result = await revokeRoomInvitationAction(roomId, invitationId);
     setRevokingId(null);
     if (!result.ok) {
-      toast.error(result.message);
+      toast.error(result.error.message);
       return;
     }
     toast.success(t("revokeSuccess"));
@@ -122,7 +122,7 @@ export function GuestInviteSection({
     const result = await removeRoomGuestAction(roomId, userId);
     setRemovingUserId(null);
     if (!result.ok) {
-      toast.error(result.message);
+      toast.error(result.error.message);
       return;
     }
     toast.success(t("removeGuestSuccess", { name: label }));

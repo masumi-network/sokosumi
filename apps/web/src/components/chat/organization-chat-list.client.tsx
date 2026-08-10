@@ -428,7 +428,7 @@ export function OrganizationChatList({
         );
       }
       if (pendingResult.ok) {
-        setPendingRows(pendingResult.data);
+        setPendingRows(pendingResult.value);
       }
     };
 
@@ -556,7 +556,7 @@ export function OrganizationChatList({
           );
         }
         if (pendingResult.ok) {
-          setPendingRows(pendingResult.data);
+          setPendingRows(pendingResult.value);
         }
       });
     };
@@ -583,16 +583,16 @@ export function OrganizationChatList({
       const result = await restoreRoomAction(room.id);
       setRestoringRoomId(null);
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
       toast.success(tActions("restoreSuccess", { name: room.name }));
       setArchivedRows((current) => current.filter((row) => row.id !== room.id));
       setRoomRows((current) => {
-        const without = current.filter((row) => row.id !== result.data.id);
-        return applyRoomReadOverlays([result.data, ...without]);
+        const without = current.filter((row) => row.id !== result.value.id);
+        return applyRoomReadOverlays([result.value, ...without]);
       });
-      router.push(`/chat/rooms/${result.data.id}`);
+      router.push(`/chat/rooms/${result.value.id}`);
       router.refresh();
     });
   }
@@ -608,7 +608,7 @@ export function OrganizationChatList({
       setDeletingRoomId(null);
       setPendingDeleteRoom(null);
       if (!result.ok) {
-        toast.error(result.message || tActions("deleteError"));
+        toast.error(result.error.message || tActions("deleteError"));
         return;
       }
       toast.success(tActions("deleteSuccess", { name: room.name }));
@@ -671,7 +671,7 @@ export function OrganizationChatList({
       const result = await acceptChatRoomInvitationAction(invitation.id);
       setRespondingInvitationId(null);
       if (!result.ok) {
-        toast.error(result.message || tExternal("acceptError"));
+        toast.error(result.error.message || tExternal("acceptError"));
         return;
       }
       toast.success(tExternal("acceptSuccess", { name: invitation.roomName }));
@@ -701,7 +701,7 @@ export function OrganizationChatList({
       const result = await declineChatRoomInvitationAction(invitation.id);
       setRespondingInvitationId(null);
       if (!result.ok) {
-        toast.error(result.message || tExternal("declineError"));
+        toast.error(result.error.message || tExternal("declineError"));
         return;
       }
       toast.success(tExternal("declineSuccess"));

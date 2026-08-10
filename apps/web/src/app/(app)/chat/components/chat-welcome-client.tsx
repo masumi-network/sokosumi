@@ -89,20 +89,20 @@ export function ChatWelcomeClient({
       try {
         const roomResult = await ensureCoworkerDirectRoomAction(selected.id);
         if (!roomResult.ok) {
-          toast.error(roomResult.message);
+          toast.error(roomResult.error.message ?? t("welcomeSendFailed"));
           setIsSubmitting(false);
           return false;
         }
-        if (!roomResult.data) {
+        if (!roomResult.value) {
           toast.error(t("welcomeSendFailed"));
           setIsSubmitting(false);
           return false;
         }
 
-        stashPendingRoomMessage(roomResult.data.id, content);
+        stashPendingRoomMessage(roomResult.value.id, content);
         setInput("");
-        notifyOrganizationChatRoomsChanged(roomResult.data);
-        router.replace(`/chat/rooms/${roomResult.data.id}`);
+        notifyOrganizationChatRoomsChanged(roomResult.value);
+        router.replace(`/chat/rooms/${roomResult.value.id}`);
         // Stay blocked until this welcome unmounts — clearing here flashes
         // an interactive welcome under a slow room RSC paint.
         return true;

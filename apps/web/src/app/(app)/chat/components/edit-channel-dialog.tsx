@@ -150,7 +150,7 @@ export function EditChannelDialog({
             },
       );
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
       setOpen(false);
@@ -168,7 +168,7 @@ export function EditChannelDialog({
     setIsExiting(false);
 
     if (!result.ok) {
-      toast.error(result.message);
+      toast.error(result.error.message);
       setPendingKind(null);
       return;
     }

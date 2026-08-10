@@ -572,27 +572,27 @@ export function RoomsClient({
           : Promise.resolve(null),
       ]);
       if (!roomResult.ok) {
-        toast.error(roomResult.message);
+        toast.error(roomResult.error.message);
         return false;
       }
       if (!isStillSelectedRoom(roomId)) {
         return false;
       }
       setMessagesState((current) =>
-        mergeRoomMessages(current, roomResult.data.messages),
+        mergeRoomMessages(current, roomResult.value.messages),
       );
       if (threadResult?.ok && threadParentId) {
         setThreadMessages((current) =>
-          mergeRoomMessages(current, threadResult.data.messages),
+          mergeRoomMessages(current, threadResult.value.messages),
         );
         setThreadParentMessage((current) => {
           const fromRoom =
-            roomResult.data.messages.find(
+            roomResult.value.messages.find(
               (message) => message.id === threadParentId,
             ) ?? null;
           if (current) {
             return (
-              roomResult.data.messages.find(
+              roomResult.value.messages.find(
                 (message) => message.id === current.id,
               ) ?? current
             );
@@ -1084,11 +1084,11 @@ export function RoomsClient({
       }
       if (result.ok) {
         setMessagesState((current) =>
-          mergeRoomMessages(current, result.data.messages),
+          mergeRoomMessages(current, result.value.messages),
         );
         setThreadParentMessage((current) =>
           current
-            ? (result.data.messages.find(
+            ? (result.value.messages.find(
                 (message) => message.id === current.id,
               ) ?? current)
             : current,
@@ -1145,18 +1145,18 @@ export function RoomsClient({
         return;
       }
       setMessagesState((current) =>
-        mergeRoomMessages(current, result.data.messages),
+        mergeRoomMessages(current, result.value.messages),
       );
       setThreadParentMessage((current) =>
         current
-          ? (result.data.messages.find(
+          ? (result.value.messages.find(
               (message) => message.id === current.id,
             ) ?? current)
           : current,
       );
       if (threadResult?.ok) {
         setThreadMessages((current) =>
-          mergeRoomMessages(current, threadResult.data.messages),
+          mergeRoomMessages(current, threadResult.value.messages),
         );
       }
       setAttentionRefreshToken((token) => token + 1);
@@ -1217,16 +1217,16 @@ export function RoomsClient({
       }
       if (threadResult.ok) {
         setThreadMessages((current) =>
-          mergeRoomMessages(current, threadResult.data.messages),
+          mergeRoomMessages(current, threadResult.value.messages),
         );
       }
       if (roomResult.ok) {
         setMessagesState((current) =>
-          mergeRoomMessages(current, roomResult.data.messages),
+          mergeRoomMessages(current, roomResult.value.messages),
         );
         setThreadParentMessage((current) =>
           current
-            ? (roomResult.data.messages.find(
+            ? (roomResult.value.messages.find(
                 (message) => message.id === current.id,
               ) ?? current)
             : current,
@@ -1350,14 +1350,14 @@ export function RoomsClient({
     startThreadLoadingTransition(async () => {
       const result = await listThreadMessagesAction(roomId, parentMessage.id);
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
-      setThreadMessages(result.data.messages);
-      setThreadOlderNextCursor(result.data.nextCursor);
+      setThreadMessages(result.value.messages);
+      setThreadOlderNextCursor(result.value.nextCursor);
     });
     return markResult.ok;
   }
@@ -1372,16 +1372,16 @@ export function RoomsClient({
     startLoadingOlderTransition(async () => {
       const result = await listRoomMessagesAction(roomId, { cursor });
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
       setMessagesState((current) =>
-        mergeRoomMessages(current, result.data.messages),
+        mergeRoomMessages(current, result.value.messages),
       );
-      setOlderNextCursor(result.data.nextCursor);
+      setOlderNextCursor(result.value.nextCursor);
     });
   }
 
@@ -1403,16 +1403,16 @@ export function RoomsClient({
         cursor,
       });
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
       setThreadMessages((current) =>
-        mergeRoomMessages(current, result.data.messages),
+        mergeRoomMessages(current, result.value.messages),
       );
-      setThreadOlderNextCursor(result.data.nextCursor);
+      setThreadOlderNextCursor(result.value.nextCursor);
     });
   }
 
@@ -1433,13 +1433,13 @@ export function RoomsClient({
       );
       pendingReactionsRef.current.delete(pendingKey);
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
-      mergeUpdatedMessage(result.data);
+      mergeUpdatedMessage(result.value);
     });
   }
 
@@ -1478,13 +1478,13 @@ export function RoomsClient({
     startSavingEditTransition(async () => {
       const result = await editRoomMessageAction(roomId, messageId, content);
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
-      mergeUpdatedMessage(result.data);
+      mergeUpdatedMessage(result.value);
       setEditSession((current) =>
         current?.messageId === messageId ? null : current,
       );
@@ -1508,19 +1508,19 @@ export function RoomsClient({
     startDeleteTransition(async () => {
       const result = await deleteRoomMessageAction(roomId, message.id);
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
       if (!isStillSelectedRoom(roomId)) {
         return;
       }
-      mergeUpdatedMessage(result.data);
+      mergeUpdatedMessage(result.value);
 
       if (
         wasLiveReply &&
         parentMessageId != null &&
         parentCountBefore != null &&
-        result.data.deletedAt != null
+        result.value.deletedAt != null
       ) {
         const applyParent = (row: ChatRoomMessage) =>
           applyReplySoftDeleteToParentIfUnchanged(
@@ -1588,18 +1588,21 @@ export function RoomsClient({
               },
             );
             if (!result.ok) {
-              toast.error(result.message);
+              toast.error(result.error.message);
               // Room switch unmounts the session composer; skip restore.
               resolve(
                 isStillSelectedRoom(roomId)
-                  ? { ok: false, message: result.message }
+                  ? {
+                      ok: false,
+                      message: result.error.message ?? undefined,
+                    }
                   : { ok: true },
               );
               return;
             }
             if (isStillSelectedRoom(roomId)) {
               setMessagesState((current) =>
-                appendMessage(current, result.data),
+                appendMessage(current, result.value),
               );
             }
             resolve({ ok: true });
@@ -1658,19 +1661,22 @@ export function RoomsClient({
               },
             );
             if (!result.ok) {
-              toast.error(result.message);
+              toast.error(result.error.message);
               resolve(
                 isStillSelectedRoom(roomId)
-                  ? { ok: false, message: result.message }
+                  ? {
+                      ok: false,
+                      message: result.error.message ?? undefined,
+                    }
                   : { ok: true },
               );
               return;
             }
             if (isStillSelectedRoom(roomId)) {
               setThreadMessages((current) =>
-                appendMessage(current, result.data),
+                appendMessage(current, result.value),
               );
-              updateParentThreadPreview(parentMessageId, result.data);
+              updateParentThreadPreview(parentMessageId, result.value);
             }
             resolve({ ok: true });
           } finally {

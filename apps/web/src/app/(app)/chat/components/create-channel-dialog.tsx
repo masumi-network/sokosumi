@@ -107,12 +107,12 @@ export function CreateChannelDialog({
     startTransition(async () => {
       const result = await createChannelAction({ name, discoverability });
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
-      notifyOrganizationChatRoomsChanged(result.data);
+      notifyOrganizationChatRoomsChanged(result.value);
       setWizard(
-        toAddPeople(wizard, { id: result.data.id, name: result.data.name }),
+        toAddPeople(wizard, { id: result.value.id, name: result.value.name }),
       );
     });
   }
@@ -136,10 +136,10 @@ export function CreateChannelDialog({
         coworkerIds: options.coworkerIds,
       });
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
-      notifyOrganizationChatRoomsChanged(result.data);
+      notifyOrganizationChatRoomsChanged(result.value);
       navigateToRoom(roomId);
     });
   }

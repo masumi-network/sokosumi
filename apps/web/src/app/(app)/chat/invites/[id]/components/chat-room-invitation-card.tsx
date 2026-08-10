@@ -41,14 +41,14 @@ export default function ChatRoomInvitationCard({
     setAction("accept");
     const result = await acceptChatRoomInvitationAction(invitation.id);
     if (!result.ok) {
-      toast.error(result.message || t("Actions.Error.accept"));
+      toast.error(result.error.message || t("Actions.Error.accept"));
       setLoading(false);
       setAction(null);
       return;
     }
     toast.success(t("Actions.Success.accept"));
     notifyOrganizationChatRoomsChanged();
-    router.push(`/chat/rooms/${encodeURIComponent(result.data.roomId)}`);
+    router.push(`/chat/rooms/${encodeURIComponent(result.value.roomId)}`);
     router.refresh();
   };
 
@@ -58,7 +58,7 @@ export default function ChatRoomInvitationCard({
     setAction("decline");
     const result = await declineChatRoomInvitationAction(invitation.id);
     if (!result.ok) {
-      toast.error(result.message || t("Actions.Error.decline"));
+      toast.error(result.error.message || t("Actions.Error.decline"));
       setLoading(false);
       setAction(null);
       return;
