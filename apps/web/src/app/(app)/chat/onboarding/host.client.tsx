@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 import { stashRoomComposerPrefill } from "./composer-prefill";
 import { ConfirmStep } from "./confirm-step";
+import { ONBOARDING_FEATURE_MAX_WIDTH_CLASS } from "./feature-width";
 import { createInitialOnboardingState, reduceOnboarding } from "./machine";
 import { ONBOARDING_QUESTION_TREE, stepIndex } from "./questions";
 import { chatCapableCoworkers } from "./recommend";
@@ -144,7 +145,7 @@ export function ChatOnboardingHost({
           "mx-auto flex min-h-0 w-full flex-1 flex-col px-4 py-6 md:py-10",
           state.phase.kind === "confirm" || state.phase.kind === "opening"
             ? "max-w-4xl"
-            : "max-w-lg",
+            : ONBOARDING_FEATURE_MAX_WIDTH_CLASS,
         )}
       >
         {state.phase.kind === "questionnaire" ? (
