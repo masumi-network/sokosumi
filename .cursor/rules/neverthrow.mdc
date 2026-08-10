@@ -5,7 +5,7 @@ alwaysApply: true
 
 ## Result Type Convention
 
-When you need a Result type for error handling, **always use `neverthrow`**. Do not invent custom Result types. Do **not** use or extend `@/lib/ts-res` (legacy; migration under SOK-754).
+When you need a Result type for error handling, **always use `neverthrow`**. Do not invent custom Result types. Do **not** reintroduce `@/lib/ts-res` (deleted under SOK-768).
 
 ```typescript
 import { ok, err, type Result } from "neverthrow";
@@ -14,7 +14,7 @@ import { ok, err, type Result } from "neverthrow";
 ### Don't
 
 - Create custom in-process `Result<T, E>` types or parallel Ok/Err libraries (including `{ ok, data }` shapes)
-- Import `@/lib/ts-res` in **new or changed** code (remaining call sites migrate under SOK-754 children; do not add new ones)
+- Import `@/lib/ts-res` (module deleted; do not recreate)
 - Import Result types from other packages (unless they re-export neverthrow)
 - Return raw neverthrow `Result` instances from Next.js server actions (methods do not survive Flight)
 
@@ -74,4 +74,4 @@ This plain DTO is the **only** allowed non-neverthrow Result shape. Do not add p
 
 - [neverthrow Documentation](https://github.com/supermacro/neverthrow)
 - Web helper: `apps/web/src/lib/actions/action-result.ts`
-- Epic: SOK-754 (ban ts-res; migrate batches SOK-763…768)
+- Epic: SOK-754 (ban ts-res; migrate batches SOK-763…768 complete once SOK-768 lands)
