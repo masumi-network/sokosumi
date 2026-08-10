@@ -53,22 +53,28 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userAuth = requireUserAuthContext(c.var.authContext);
     const { id: coworkerId } = c.req.valid("param");
     const target = c.req.valid("json");
+    const isPlatformAdmin = hasAdminRole(userAuth.role);
 
-    const coworker = await prisma.coworker.findFirst({
-      where: { id: coworkerId },
-      select: { id: true, vendorId: true },
-    });
-    if (!coworker) {
-      throw notFound("Coworker not found");
-    }
-
-    if (!hasAdminRole(userAuth.role)) {
-      await requireVendorAdminMembership(userAuth.userId, coworker.vendorId);
-    }
-
-    // Resolve + lock + status flip share one transaction so FOR UPDATE holds.
+    // Authz + resolve + lock + status flip share one transaction so membership
+    // and FOR UPDATE cannot race against demotion / concurrent revokes.
     // Find-only resolve: never create workspaces on ops undo.
     const access = await prisma.$transaction(async (tx) => {
+      const coworker = await tx.coworker.findFirst({
+        where: { id: coworkerId },
+        select: { id: true, vendorId: true },
+      });
+      if (!coworker) {
+        throw notFound("Coworker not found");
+      }
+
+      if (!isPlatformAdmin) {
+        await requireVendorAdminMembership(
+          userAuth.userId,
+          coworker.vendorId,
+          tx,
+        );
+      }
+
       const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(
         target,
         { createIfMissing: false },

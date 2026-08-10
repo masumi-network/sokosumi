@@ -117,7 +117,12 @@ describe("POST /coworkers/{id}/workspace-access/revoke", () => {
     coworkerFindFirstMock.mockResolvedValue({ id: coworkerId, vendorId });
     requireVendorAdminMembershipMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
-      async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+      async (fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          coworker: {
+            findFirst: coworkerFindFirstMock,
+          },
+        }),
     );
   });
 
@@ -157,6 +162,7 @@ describe("POST /coworkers/{id}/workspace-access/revoke", () => {
     expect(requireVendorAdminMembershipMock).toHaveBeenCalledWith(
       "vendor_admin",
       vendorId,
+      expect.anything(),
     );
     expect(forceRevokeMock).toHaveBeenCalled();
     expect(body.data.status).toBe(CoworkerWorkspaceAccessStatus.REVOKED);

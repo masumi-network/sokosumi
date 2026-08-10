@@ -3,7 +3,6 @@
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +17,8 @@ interface WorkspaceAccessRowProps {
     | "App.Admin.Coworkers.Form.EarlyAccess";
   /**
    * When set, GRANTED rows show a Revoke control. Caller handles Core revoke
-   * (platform or vendor admin) and refresh.
+   * (platform or vendor admin), toasts, and refresh. Reject on failure after
+   * reporting the error so this row only clears loading state.
    */
   onRevoke?: (row: CoworkerWorkspaceAccess) => Promise<void>;
 }
@@ -44,7 +44,8 @@ export function WorkspaceAccessRow({
     try {
       await onRevoke(row);
     } catch {
-      toast.error(t("revokeError"));
+      // Caller already toasted the detailed error.
+      return;
     } finally {
       setIsRevoking(false);
     }
