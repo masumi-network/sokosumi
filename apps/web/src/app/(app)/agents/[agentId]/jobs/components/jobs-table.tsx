@@ -9,7 +9,7 @@ import type { JobSummary } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
-import { getJobColumns } from "./job-columns";
+import { getJobTableColumns } from "./job-columns";
 import { JobsSearch } from "./jobs-search";
 
 interface JobsTableProps {
@@ -58,7 +58,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
       />
       <DataTable
         tableClassName="[&>table]:flex! [&>table]:md:table!"
-        columns={getColumns(userId, t, dateFormatter, queryParam)}
+        columns={getJobTableColumns(userId, t, dateFormatter, queryParam)}
         onRowClick={(row) => getOnRowClick(row)}
         data={filteredJobs}
         rowClassName={(row) => getRowClassName(row)}
@@ -78,19 +78,4 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
       />
     </div>
   );
-}
-
-function getColumns(
-  userId: string,
-  t: ReturnType<typeof useTranslations>,
-  dateFormatter: ReturnType<typeof useFormatter>,
-  highlightQuery?: string,
-) {
-  const { createdAtColumn, statusColumn, nameColumn } = getJobColumns(
-    userId,
-    t,
-    dateFormatter,
-    highlightQuery,
-  );
-  return [createdAtColumn, statusColumn, nameColumn];
 }

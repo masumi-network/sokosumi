@@ -10,7 +10,6 @@ import {
   type ReactTable,
   type RowData,
   type SortingState,
-  useTable,
 } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import * as React from "react";
@@ -24,10 +23,8 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import {
-  type DataTableFeatures,
-  dataTableFeatures,
-} from "./data-table-features";
+import { useAppTable } from "./create-data-table-hook";
+import type { DataTableFeatures } from "./data-table-features";
 import DataTablePagination from "./data-table-pagination";
 
 function getMinTableWidth<TData extends RowData>(
@@ -40,8 +37,7 @@ function getMinTableWidth<TData extends RowData>(
 }
 
 interface DataTableProps<TData extends RowData> {
-  // Column cell values vary per column; use `any` so mixed column defs typecheck.
-  columns: ColumnDef<DataTableFeatures, TData, any>[];
+  columns: ColumnDef<DataTableFeatures, TData, unknown>[];
   data: TData[];
   containerClassName?: string | undefined;
   tableClassName?: string | undefined;
@@ -98,11 +94,10 @@ export default function DataTable<TData extends RowData>({
   const sorting = controlledSorting ?? internalSorting;
   const setSorting = onSortingChange ?? setInternalSorting;
 
-  // TanStack Table's useTable returns functions that can't be memoized.
+  // TanStack Table's useAppTable returns functions that can't be memoized.
   // The "use no memo" directive above tells React Compiler to skip this component.
   // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useTable({
-    features: dataTableFeatures,
+  const table = useAppTable({
     data,
     columns,
     state: {
