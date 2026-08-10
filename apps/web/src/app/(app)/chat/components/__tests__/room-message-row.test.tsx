@@ -1683,10 +1683,12 @@ describe("ChatMessageRow coworker Thought", () => {
         onToggleReaction={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("coworker-mention-terminal")).toHaveAttribute(
-      "data-variant",
-      "failed",
-    );
+    const terminal = screen.getByTestId("coworker-mention-terminal");
+    expect(terminal).toHaveAttribute("data-variant", "failed");
+    expect(terminal).toHaveAttribute("role", "status");
+    expect(terminal).toHaveTextContent("MentionStatus.failed");
+    // Soft chip, not a frozen pixel-grid loader.
+    expect(screen.queryByTestId("bui-static-grid")).not.toBeInTheDocument();
   });
 
   it("shows Beautiful UI loading state on empty stream overlay", () => {

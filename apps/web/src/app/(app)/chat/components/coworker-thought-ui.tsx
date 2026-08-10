@@ -6,6 +6,7 @@
  * Tokens remapped to Sokosumi semantic colors.
  */
 
+import { CircleAlert } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -193,25 +194,10 @@ export function CoworkerLoadingState({
   );
 }
 
-/** Static dim Drive grid — same footprint as loading, no motion. */
-function StaticPixelGrid() {
-  return (
-    <span aria-hidden className="bui-pixel-grid" data-testid="bui-static-grid">
-      {DRIVE_PIXEL_DELAYS_MS.map((_, i) => (
-        <span
-          key={i}
-          className="bui-pixel-cell"
-          style={{ opacity: 0.15 }}
-          data-testid="bui-static-pixel"
-        />
-      ))}
-    </span>
-  );
-}
-
 /**
- * Terminal mention status in the same layout as loading (static grid + label).
- * `responded` / `failed` after the live thinking row.
+ * Terminal mention status after the live thinking row.
+ * Failed: soft alert chip (icon + label) — not a frozen loading grid.
+ * Responded: muted label only (usually hidden; success is the reply itself).
  */
 export function CoworkerMentionTerminalStatus({
   label,
@@ -222,21 +208,34 @@ export function CoworkerMentionTerminalStatus({
   variant: "responded" | "failed";
   className?: string;
 }) {
+  if (variant === "failed") {
+    return (
+      <div
+        className={cn(
+          "border-destructive/20 bg-destructive/10 text-destructive",
+          "inline-flex w-fit max-w-full items-center gap-1.5 rounded-md border px-2 py-1",
+          className,
+        )}
+        role="status"
+        data-testid="coworker-mention-terminal"
+        data-variant="failed"
+      >
+        <CircleAlert className="size-3.5 shrink-0" aria-hidden />
+        <span className="truncate text-xs font-medium">{label}</span>
+      </div>
+    );
+  }
+
   return (
     <div
-      className={cn("flex w-fit max-w-full items-center gap-2.5", className)}
+      className={cn(
+        "text-muted-foreground flex w-fit max-w-full items-center gap-1.5",
+        className,
+      )}
       data-testid="coworker-mention-terminal"
-      data-variant={variant}
+      data-variant="responded"
     >
-      <StaticPixelGrid />
-      <span
-        className={cn(
-          "truncate text-sm font-medium",
-          variant === "failed" ? "text-destructive" : "text-muted-foreground",
-        )}
-      >
-        {label}
-      </span>
+      <span className="truncate text-sm font-medium">{label}</span>
     </div>
   );
 }
