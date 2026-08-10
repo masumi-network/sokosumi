@@ -17,7 +17,8 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   prismaTransactionMock,
-  requireCoworkerChatCapabilityMock,
+  requireCoworkerChatCapabilityInWorkspaceMock,
+  workspaceFindUniqueMock,
   createCoworkerConversationMock,
   streamTextMock,
   toUIMessageStreamResponseMock,
@@ -52,7 +53,8 @@ const {
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  requireCoworkerChatCapabilityMock: vi.fn(),
+  requireCoworkerChatCapabilityInWorkspaceMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
   createCoworkerConversationMock: vi.fn(),
   streamTextMock: vi.fn(),
   toUIMessageStreamResponseMock: vi.fn(),
@@ -95,7 +97,8 @@ vi.mock("@/lib/sokosumi-ai-provider", () => ({
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireCoworkerChatCapability: requireCoworkerChatCapabilityMock,
+  requireCoworkerChatCapabilityInWorkspace:
+    requireCoworkerChatCapabilityInWorkspaceMock,
 }));
 
 vi.mock("@/helpers/active-ui-stream-room-metadata", () => ({
@@ -178,6 +181,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     member: {
       findUnique: memberFindUniqueMock,
+    },
+    workspace: {
+      findUnique: workspaceFindUniqueMock,
     },
   },
 }));
@@ -316,7 +322,8 @@ beforeEach(() => {
     async ({ messages }: { messages: unknown[] }) => messages,
   );
   getSokosumiProviderMock.mockReturnValue(() => ({}));
-  requireCoworkerChatCapabilityMock.mockResolvedValue({
+  workspaceFindUniqueMock.mockResolvedValue({ id: "ws_org_1" });
+  requireCoworkerChatCapabilityInWorkspaceMock.mockResolvedValue({
     id: COWORKER_ID,
     slug: "hannah",
     baseURL: "https://responses.example.com/v1",

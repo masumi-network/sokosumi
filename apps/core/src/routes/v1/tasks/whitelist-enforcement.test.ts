@@ -200,7 +200,9 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     requireTaskAssignableCoworkerMock.mockRejectedValue(
-      new HTTPException(404, { message: "Coworker not found" }),
+      new HTTPException(404, {
+        message: "Coworker is not usable in this workspace",
+      }),
     );
 
     const app = createApp();
@@ -217,7 +219,10 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith("cow_123");
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
+      "cow_123",
+      "99999999-9999-7999-8999-999999999999",
+    );
     expect(tx.task.create).not.toHaveBeenCalled();
   });
 
@@ -239,7 +244,9 @@ describe("task coworker whitelist enforcement", () => {
       workspaceId: "22222222-2222-7222-8222-222222222222",
     });
     requireTaskAssignableCoworkerMock.mockRejectedValue(
-      new HTTPException(404, { message: "Coworker not found" }),
+      new HTTPException(404, {
+        message: "Coworker is not usable in this workspace",
+      }),
     );
 
     const app = createApp();
@@ -354,7 +361,9 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     requireTaskAssignableCoworkerMock.mockRejectedValue(
-      new HTTPException(404, { message: "Coworker not found" }),
+      new HTTPException(404, {
+        message: "Coworker is not usable in this workspace",
+      }),
     );
 
     const app = createApp();
@@ -371,7 +380,10 @@ describe("task coworker whitelist enforcement", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith("cow_123");
+    expect(requireTaskAssignableCoworkerMock).toHaveBeenCalledWith(
+      "cow_123",
+      "99999999-9999-7999-8999-999999999999",
+    );
     expect(tx.task.create).not.toHaveBeenCalled();
   });
 });

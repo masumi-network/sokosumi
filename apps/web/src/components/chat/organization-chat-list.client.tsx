@@ -114,7 +114,7 @@ function appendUniqueRooms(
 
 /** Same absolute slot as live room rows so archived height matches Channels/DMs. */
 const ARCHIVED_TRAILING_CONTROL_CLASS =
-  "absolute top-1/2 right-1 z-10 flex size-7 -translate-y-1/2 items-center justify-center";
+  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center md:size-7";
 
 interface OrganizationChatListProps {
   rooms: ChatRoom[];
@@ -232,8 +232,8 @@ function SectionHeader({
       <CollapsibleTrigger
         className={cn(
           "text-muted-foreground hover:text-foreground flex min-w-0 flex-1 items-center gap-1 rounded-md text-left text-base font-medium transition-colors md:text-xs",
-          mobileTrailingCount === 1 && "pr-8",
-          mobileTrailingCount >= 2 && "pr-14",
+          mobileTrailingCount === 1 && "pr-9",
+          mobileTrailingCount >= 2 && "pr-16",
           desktopTrailingCount === 0 && "md:pr-0",
           desktopTrailingCount === 1 && "md:pr-8",
           desktopTrailingCount >= 2 && "md:pr-14",
@@ -773,7 +773,10 @@ export function OrganizationChatList({
                         <span className="min-w-0 flex-1 truncate">
                           {room.name}
                         </span>
-                        <span className="size-7 shrink-0" aria-hidden />
+                        <span
+                          className="size-8 shrink-0 md:size-7"
+                          aria-hidden
+                        />
                       </div>
                       {showOverflowMenu ? (
                         <DropdownMenu>
@@ -796,7 +799,7 @@ export function OrganizationChatList({
                             >
                               <Ellipsis
                                 className={cn(
-                                  "size-4",
+                                  "size-5 md:size-4",
                                   (isRestoring || isDeleting) &&
                                     "animate-pulse",
                                 )}

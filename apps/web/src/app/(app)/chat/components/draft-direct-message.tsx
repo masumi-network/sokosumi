@@ -397,7 +397,7 @@ export function DraftDirectMessage({
                       : t("Draft.searchPlaceholderReplace")
                 }
                 className={withEditableTextSize(
-                  "placeholder:text-muted-foreground h-9 w-full bg-transparent pr-2 pl-6 outline-none",
+                  "placeholder:text-muted-foreground h-10 w-full bg-transparent pr-2 pl-6 outline-none",
                 )}
               />
             </div>

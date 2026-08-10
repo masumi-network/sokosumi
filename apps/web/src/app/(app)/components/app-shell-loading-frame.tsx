@@ -1,9 +1,15 @@
 import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { NotificationFallbackProvider } from "@/contexts/notification-provider";
+import { cn } from "@/lib/utils";
 
 import { AppHeaderFallback } from "./app-header-fallback";
 import { AppMobileChrome } from "./app-mobile-chrome.client";
+import {
+  APP_MAIN_MOBILE_PT_CLASS,
+  APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
+  APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
+} from "./app-shell-safe-area";
 import { AppSidebarFallback } from "./app-sidebar-fallback";
 
 /** Stub session id for Instant Nav Suspense fallback (not a real session). */
@@ -22,9 +28,14 @@ export function AppShellLoadingFrame({ children }: AppShellLoadingFrameProps) {
           className="flex min-w-0 flex-1 flex-col overflow-clip"
           data-app-content-inner
         >
-          <AppHeaderFallback className="h-16 px-4 py-3 md:p-4" />
+          <AppHeaderFallback className="px-4 py-3 md:px-4 md:py-0" />
           <main
-            className="relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 pt-20 md:max-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-4rem)] md:pt-4"
+            className={cn(
+              "relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",
+              APP_MAIN_MOBILE_PT_CLASS,
+              APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
+              APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
+            )}
             data-app-main
           >
             <div

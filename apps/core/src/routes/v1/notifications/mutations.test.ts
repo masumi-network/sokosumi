@@ -11,23 +11,36 @@ import mountGetUnreadCount from "./unread-count/get";
 
 const {
   notificationCountMock,
+  notificationFindManyMock,
   notificationFindUniqueMock,
   notificationUpdateManyMock,
   notificationUpdateMock,
+  vendorGrantFindManyMock,
+  coworkerWorkspaceAccessFindManyMock,
 } = vi.hoisted(() => ({
   notificationCountMock: vi.fn(),
+  notificationFindManyMock: vi.fn(),
   notificationFindUniqueMock: vi.fn(),
   notificationUpdateManyMock: vi.fn(),
   notificationUpdateMock: vi.fn(),
+  vendorGrantFindManyMock: vi.fn(),
+  coworkerWorkspaceAccessFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     notification: {
       count: notificationCountMock,
+      findMany: notificationFindManyMock,
       findUnique: notificationFindUniqueMock,
       update: notificationUpdateMock,
       updateMany: notificationUpdateManyMock,
+    },
+    vendorGrant: {
+      findMany: vendorGrantFindManyMock,
+    },
+    coworkerWorkspaceAccess: {
+      findMany: coworkerWorkspaceAccessFindManyMock,
     },
   },
 }));
@@ -235,6 +248,9 @@ describe("GET /notifications/unread-count", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     notificationCountMock.mockResolvedValue(5);
+    notificationFindManyMock.mockResolvedValue([]);
+    vendorGrantFindManyMock.mockResolvedValue([]);
+    coworkerWorkspaceAccessFindManyMock.mockResolvedValue([]);
   });
 
   it("returns the unread count for the authenticated user", async () => {
@@ -268,6 +284,61 @@ describe("GET /notifications/unread-count", () => {
         userId: "user_123",
         isRead: false,
         kind: { notIn: [NotificationKind.CHAT] },
+      },
+    });
+  });
+
+  it("excludes resolved vendor-grant notifications from unread count", async () => {
+    // Promise.all: vendor stale lookup first, coworker stale second.
+    notificationFindManyMock
+      .mockResolvedValueOnce([{ referenceId: "grant_resolved" }])
+      .mockResolvedValueOnce([]);
+    vendorGrantFindManyMock.mockResolvedValue([
+      { id: "grant_resolved", status: "GRANTED" },
+    ]);
+
+    const app = createApp(mountGetUnreadCount);
+    const response = await app.request("http://localhost/unread-count");
+
+    expect(response.status).toBe(200);
+    expect(notificationCountMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_123",
+        isRead: false,
+        kind: { notIn: [NotificationKind.CHAT] },
+        NOT: {
+          AND: [
+            { messageKey: "notifications.vendorGrant.pending" },
+            { referenceId: { in: ["grant_resolved"] } },
+          ],
+        },
+      },
+    });
+  });
+
+  it("excludes resolved coworker-access notifications from unread count", async () => {
+    notificationFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ referenceId: "access_resolved" }]);
+    coworkerWorkspaceAccessFindManyMock.mockResolvedValue([
+      { id: "access_resolved", status: "GRANTED" },
+    ]);
+
+    const app = createApp(mountGetUnreadCount);
+    const response = await app.request("http://localhost/unread-count");
+
+    expect(response.status).toBe(200);
+    expect(notificationCountMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_123",
+        isRead: false,
+        kind: { notIn: [NotificationKind.CHAT] },
+        NOT: {
+          AND: [
+            { messageKey: "notifications.coworkerAccess.pending" },
+            { referenceId: { in: ["access_resolved"] } },
+          ],
+        },
       },
     });
   });

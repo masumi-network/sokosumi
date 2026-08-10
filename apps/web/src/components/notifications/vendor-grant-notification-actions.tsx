@@ -22,19 +22,18 @@ interface VendorGrantNotificationActionsProps {
     "id" | "messageKey" | "referenceId" | "metadata" | "isRead"
   >;
   layout: "toast" | "inline";
-  onDismissed?: () => void;
+  /** Called after accept succeeds so parent lists can drop the row. */
+  onAccepted?: () => void;
 }
 
 export function VendorGrantNotificationActions({
   notification,
   layout,
-  onDismissed,
+  onAccepted,
 }: VendorGrantNotificationActionsProps) {
   const t = useTranslations("Components.NotificationCenter");
-  const { markRead } = useNotifications();
-  const [loadingAction, setLoadingAction] = useState<
-    "accept" | "dismiss" | null
-  >(null);
+  const { removeNotification } = useNotifications();
+  const [loadingAction, setLoadingAction] = useState<"accept" | null>(null);
   const [accepted, setAccepted] = useState(false);
 
   const target = resolveVendorGrantNotificationTarget(notification);
@@ -43,11 +42,6 @@ export function VendorGrantNotificationActions({
   }
 
   const { grantId, organizationId } = target;
-
-  function finishSurface() {
-    toast.dismiss(notification.id);
-    onDismissed?.();
-  }
 
   async function handleAccept(
     event: MouseEvent<HTMLButtonElement>,
@@ -73,34 +67,11 @@ export function VendorGrantNotificationActions({
       }
 
       setAccepted(true);
-      void markRead(notification.id).catch(() => {
-        // Grant is approved; surface cleanup still proceeds.
-      });
-      finishSurface();
+      removeNotification(notification.id);
+      onAccepted?.();
       toast.success(t("vendorGrantAcceptSuccess"));
     } catch {
       toast.error(t("vendorGrantAcceptError"));
-    } finally {
-      setLoadingAction(null);
-    }
-  }
-
-  async function handleDismiss(
-    event: MouseEvent<HTMLButtonElement>,
-  ): Promise<void> {
-    event.stopPropagation();
-    if (loadingAction !== null) {
-      return;
-    }
-
-    setLoadingAction("dismiss");
-    try {
-      if (!notification.isRead) {
-        await markRead(notification.id).catch(() => {
-          // Still dismiss the toast when mark-read fails.
-        });
-      }
-      finishSurface();
     } finally {
       setLoadingAction(null);
     }
@@ -129,25 +100,6 @@ export function VendorGrantNotificationActions({
           <Loader2 className="size-3.5 animate-spin" />
         ) : null}
         {t("accept")}
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        disabled={loadingAction !== null}
-        onPointerDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-        onPointerUp={(event) => {
-          event.stopPropagation();
-        }}
-        onClick={(event) => void handleDismiss(event)}
-      >
-        {loadingAction === "dismiss" ? (
-          <Loader2 className="size-3.5 animate-spin" />
-        ) : null}
-        {t("dismiss")}
       </Button>
     </div>
   );

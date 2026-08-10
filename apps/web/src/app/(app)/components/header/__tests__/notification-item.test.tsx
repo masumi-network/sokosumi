@@ -13,7 +13,7 @@ import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/vendor-grant-notif
 
 const approveMyVendorGrantMock = vi.fn();
 const approveOrganizationVendorGrantMock = vi.fn();
-const markReadMock = vi.fn();
+const removeNotificationMock = vi.fn();
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -29,7 +29,7 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/contexts/notification-provider", () => ({
   useNotifications: () => ({
-    markRead: markReadMock,
+    removeNotification: removeNotificationMock,
   }),
 }));
 
@@ -86,9 +86,8 @@ describe("NotificationItem vendor-grant Accept", () => {
   beforeEach(() => {
     approveMyVendorGrantMock.mockReset();
     approveOrganizationVendorGrantMock.mockReset();
-    markReadMock.mockReset();
+    removeNotificationMock.mockReset();
     approveMyVendorGrantMock.mockResolvedValue({ ok: true, data: {} });
-    markReadMock.mockResolvedValue(undefined);
   });
 
   it("does not fire row navigation onClick when Accept is clicked", async () => {
@@ -107,6 +106,18 @@ describe("NotificationItem vendor-grant Accept", () => {
       });
     });
     expect(onClick).not.toHaveBeenCalled();
+    expect(removeNotificationMock).toHaveBeenCalledWith("notification-grant-1");
+  });
+
+  it("does not render a dismiss button", async () => {
+    const notification = createPendingVendorGrantNotification();
+
+    renderInOpenDropdown(notification, vi.fn());
+
+    expect(
+      await screen.findByRole("button", { name: "accept" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "dismiss" })).toBeNull();
   });
 
   it("fires row navigation onClick when the message is clicked", async () => {

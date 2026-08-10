@@ -44,6 +44,7 @@ import {
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
+import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
 import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-signal-unread-threads-attention";
@@ -1465,6 +1466,17 @@ export function RoomsClient({
   function handleDeleteMessage(message: ChatRoomMessage) {
     if (!selectedRoom) return;
     const roomId = selectedRoom.id;
+    // Snapshot parent count before the request so a racing Ably parent
+    // update (server re-publish after reply soft-delete) is not double-applied.
+    const parentMessageId = message.parentMessageId;
+    const wasLiveReply = parentMessageId != null && message.deletedAt == null;
+    const parentCountBefore = wasLiveReply
+      ? threadParentMessage?.id === parentMessageId
+        ? threadParentMessage.threadReplyCount
+        : (messagesState.find((row) => row.id === parentMessageId)
+            ?.threadReplyCount ?? null)
+      : null;
+
     startDeleteTransition(async () => {
       const result = await deleteRoomMessageAction(roomId, message.id);
       if (!result.ok) {
@@ -1475,6 +1487,24 @@ export function RoomsClient({
         return;
       }
       mergeUpdatedMessage(result.data);
+
+      if (
+        wasLiveReply &&
+        parentMessageId != null &&
+        parentCountBefore != null &&
+        result.data.deletedAt != null
+      ) {
+        const applyParent = (row: ChatRoomMessage) =>
+          applyReplySoftDeleteToParentIfUnchanged(
+            row,
+            parentMessageId,
+            parentCountBefore,
+          );
+        setMessagesState((current) => current.map(applyParent));
+        setThreadParentMessage((current) =>
+          current ? applyParent(current) : null,
+        );
+      }
     });
   }
 

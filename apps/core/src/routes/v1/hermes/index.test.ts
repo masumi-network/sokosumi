@@ -1124,6 +1124,23 @@ describe("Hermes route contracts", () => {
                 },
               },
             },
+            {
+              workspaceAccess: {
+                some: {
+                  status: "GRANTED",
+                  workspace: {
+                    OR: [
+                      { userId: "user_123" },
+                      {
+                        organization: {
+                          members: { some: { userId: "user_123" } },
+                        },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
           ],
         },
       }),
@@ -1146,10 +1163,10 @@ describe("Hermes route contracts", () => {
   });
 
   it("does not enrich private coworker ids excluded by the access filter", async () => {
-    // Private / non-whitelisted / unassigned coworker UUID in a crafted
-    // summary must not become a name/image chip. The mock returns [] to
-    // simulate Prisma applying isWhitelisted|membership OR — the gate is
-    // the where clause, not client-side filtering after an open lookup.
+    // Private / non-whitelisted / unassigned / ungranted coworker UUID in a
+    // crafted summary must not become a name/image chip. The mock returns []
+    // to simulate Prisma applying the visibility OR — the gate is the where
+    // clause, not client-side filtering after an open lookup.
     const privateCoworkerId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 
     vi.mocked(getInstance).mockResolvedValue({
@@ -1209,6 +1226,23 @@ describe("Hermes route contracts", () => {
               assignments: {
                 some: {
                   userId: "user_123",
+                },
+              },
+            },
+            {
+              workspaceAccess: {
+                some: {
+                  status: "GRANTED",
+                  workspace: {
+                    OR: [
+                      { userId: "user_123" },
+                      {
+                        organization: {
+                          members: { some: { userId: "user_123" } },
+                        },
+                      },
+                    ],
+                  },
                 },
               },
             },

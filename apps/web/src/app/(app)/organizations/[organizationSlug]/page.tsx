@@ -21,6 +21,7 @@ import {
 
 import { OrganizationBillingAccessRestricted } from "./components/organization-billing-access-restricted";
 import OrganizationBillingDetails from "./components/organization-billing-details";
+import { OrganizationCoworkerAccess } from "./components/organization-coworker-access";
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
 import { OrganizationInviteLinks } from "./components/organization-invite-links";
@@ -194,6 +195,9 @@ export default async function OrganizationPage({
         ) : null}
         {isOwnerOrAdmin ? (
           <OrganizationVendorGrants organizationId={organization.id} />
+        ) : null}
+        {isOwnerOrAdmin ? (
+          <OrganizationCoworkerAccess organizationId={organization.id} />
         ) : null}
         {isOwnerOrAdmin ? (
           <OrganizationInviteLinks

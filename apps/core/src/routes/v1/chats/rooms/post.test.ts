@@ -16,6 +16,7 @@ const {
   memberFindManyMock,
   userFindManyMock,
   coworkerFindManyMock,
+  workspaceFindUniqueMock,
   membershipFindManyMock,
   readStateFindManyMock,
   prismaTransactionMock,
@@ -28,6 +29,7 @@ const {
   memberFindManyMock: vi.fn(),
   userFindManyMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
@@ -55,6 +57,9 @@ const THIRD_USER_ID = "user_789";
 const ORG_ID = "org_1";
 const GROUP_DIRECT_KEY = "direct:v2:user:user_123:user:user_456:user:user_789";
 
+const ORG_WORKSPACE_ID = "ws_org_1";
+const PERSONAL_WORKSPACE_ID = "ws_user_123";
+
 const tx = {
   chatRoom: {
     findFirst: roomFindFirstMock,
@@ -73,6 +78,9 @@ const tx = {
   },
   coworker: {
     findMany: coworkerFindManyMock,
+  },
+  workspace: {
+    findUnique: workspaceFindUniqueMock,
   },
 };
 
@@ -172,6 +180,21 @@ beforeEach(() => {
       where.userId.in.map((userId) => ({ userId })),
   );
   coworkerFindManyMock.mockResolvedValue([]);
+  workspaceFindUniqueMock.mockImplementation(
+    async ({
+      where,
+    }: {
+      where: { organizationId?: string; userId?: string };
+    }) => {
+      if (where.organizationId) {
+        return { id: ORG_WORKSPACE_ID };
+      }
+      if (where.userId) {
+        return { id: PERSONAL_WORKSPACE_ID };
+      }
+      return null;
+    },
+  );
   userFindManyMock.mockResolvedValue([
     { id: OTHER_USER_ID, name: "Bob", email: "bob@example.com" },
   ]);
@@ -424,7 +447,9 @@ describe("POST /chats/rooms", () => {
     });
     roomFindFirstMock.mockResolvedValueOnce(null);
     roomCreateMock.mockResolvedValueOnce(created);
-    coworkerFindManyMock.mockResolvedValue([{ id: coworkerId }]);
+    coworkerFindManyMock.mockResolvedValue([
+      { id: coworkerId, baseURL: "https://chat.example.com" },
+    ]);
 
     const app = createApp({
       ...userAuthContext,
@@ -487,7 +512,9 @@ describe("POST /chats/rooms", () => {
     memberFindUniqueMock.mockResolvedValue({ role: "member" });
     roomFindFirstMock.mockResolvedValueOnce(null);
     roomCreateMock.mockResolvedValueOnce(created);
-    coworkerFindManyMock.mockResolvedValue([{ id: coworkerId }]);
+    coworkerFindManyMock.mockResolvedValue([
+      { id: coworkerId, baseURL: "https://chat.example.com" },
+    ]);
 
     const app = createApp(userAuthContext);
     const response = await app.request("/", {

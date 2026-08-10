@@ -112,12 +112,6 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("hides History when hideHistory is set", () => {
-    render(<MenuItems hideHistory />);
-
-    expect(screen.queryByRole("link", { name: /history/i })).toBeNull();
-  });
-
   it("shows New Task by default", () => {
     render(<MenuItems />);
 
@@ -127,21 +121,9 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("hides New Task when hideNewTask is set", () => {
-    render(<MenuItems hideNewTask />);
-
-    expect(screen.queryByRole("link", { name: /newTask/i })).toBeNull();
-  });
-
   it("shows Search by default", () => {
     render(<MenuItems />);
 
     expect(screen.getByRole("button", { name: /search/i })).toBeInTheDocument();
-  });
-
-  it("hides Search when hideSearch is set", () => {
-    render(<MenuItems hideSearch />);
-
-    expect(screen.queryByRole("button", { name: /search/i })).toBeNull();
   });
 });

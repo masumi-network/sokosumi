@@ -1,6 +1,11 @@
-import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
+import {
+  CoworkerWorkspaceAccessStatus,
+  MemberRole,
+  NotificationKind,
+  type Prisma,
+} from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   assertChatRoomPatchAuth,
@@ -11,6 +16,7 @@ import {
   buildDiscoverabilityFilter,
   canManageChatRoomLifecycle,
   canPermanentlyDeleteChatRoom,
+  chatRoomMessageInclude,
   contentIncludesRoomAllMention,
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
@@ -28,7 +34,25 @@ import {
   requireRoomMemberCanInviteGuests,
   resolveMentionedCoworkerIds,
   resolveMentionedUserIds,
+  resolveWorkspaceIdForChatRoom,
+  validateChatCoworkerIds,
 } from "./helpers";
+
+const { workspaceFindUniqueMock, coworkerFindManyMock } = vi.hoisted(() => ({
+  workspaceFindUniqueMock: vi.fn(),
+  coworkerFindManyMock: vi.fn(),
+}));
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    workspace: {
+      findUnique: workspaceFindUniqueMock,
+    },
+    coworker: {
+      findMany: coworkerFindManyMock,
+    },
+  },
+}));
 
 const roomCoworkers = [
   { id: "coworker_elena", name: "Elena Research", slug: "elena" },
@@ -40,6 +64,112 @@ const roomUsers = [
   { id: "user_bob", name: "Bob Jones" },
   { id: "user_self", name: "Self User" },
 ];
+
+describe("resolveWorkspaceIdForChatRoom", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("resolves organization workspace for org rooms", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({ id: "ws_org" });
+
+    await expect(
+      resolveWorkspaceIdForChatRoom({
+        organizationId: "org_1",
+        personalUserId: "user_1",
+      }),
+    ).resolves.toBe("ws_org");
+
+    expect(workspaceFindUniqueMock).toHaveBeenCalledWith({
+      where: { organizationId: "org_1" },
+      select: { id: true },
+    });
+  });
+
+  it("resolves personal workspace for personal rooms", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({ id: "ws_user" });
+
+    await expect(
+      resolveWorkspaceIdForChatRoom({
+        organizationId: null,
+        personalUserId: "user_1",
+      }),
+    ).resolves.toBe("ws_user");
+
+    expect(workspaceFindUniqueMock).toHaveBeenCalledWith({
+      where: { userId: "user_1" },
+      select: { id: true },
+    });
+  });
+
+  it("fails closed when personal workspace is missing", async () => {
+    workspaceFindUniqueMock.mockResolvedValue(null);
+
+    await expect(
+      resolveWorkspaceIdForChatRoom({
+        organizationId: null,
+        personalUserId: "user_1",
+      }),
+    ).rejects.toThrow("Personal workspace not found");
+  });
+});
+
+describe("validateChatCoworkerIds", () => {
+  const workspaceId = "ws_1";
+  const tx = {
+    coworker: { findMany: coworkerFindManyMock },
+  } as never;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("accepts empty coworker list without querying", async () => {
+    await expect(validateChatCoworkerIds([], workspaceId, tx)).resolves.toEqual(
+      [],
+    );
+    expect(coworkerFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("queries workspace usability (whitelist OR GRANTED access)", async () => {
+    coworkerFindManyMock.mockResolvedValue([
+      { id: "cow_1", baseURL: "https://chat.example.com" },
+    ]);
+
+    await expect(
+      validateChatCoworkerIds(["cow_1"], workspaceId, tx),
+    ).resolves.toEqual(["cow_1"]);
+
+    expect(coworkerFindManyMock).toHaveBeenCalledWith({
+      where: {
+        id: { in: ["cow_1"] },
+        archivedAt: null,
+        OR: [
+          { isWhitelisted: true },
+          {
+            workspaceAccess: {
+              some: {
+                workspaceId,
+                status: CoworkerWorkspaceAccessStatus.GRANTED,
+              },
+            },
+          },
+        ],
+        AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
+        capabilities: { has: "chat" },
+      },
+      select: { id: true, baseURL: true },
+    });
+  });
+
+  it("rejects coworkers not usable in the workspace", async () => {
+    coworkerFindManyMock.mockResolvedValue([]);
+
+    await expect(
+      validateChatCoworkerIds(["cow_missing"], workspaceId, tx),
+    ).rejects.toThrow("Room AI coworkers must be active chat coworkers");
+  });
+});
 
 describe("resolveMentionedCoworkerIds", () => {
   it("resolves selected coworker IDs only when they belong to the room", () => {
@@ -626,6 +756,19 @@ describe("mapChatRoomMessage quote", () => {
     expect(mapped.metadata).toBeNull();
     expect(mapped.reactions).toEqual([]);
     expect(mapped.threadReplyCount).toBe(2);
+  });
+});
+
+describe("chatRoomMessageInclude thread reply aggregates", () => {
+  it("excludes soft-deleted replies from threadReplyCount and last-reply preview", () => {
+    // Soft-deleted replies must not inflate "N replies" on the parent
+    // (matches getChatRoomThreadAggregates reply."deletedAt" IS NULL).
+    expect(chatRoomMessageInclude._count.select.replies).toEqual({
+      where: { deletedAt: null },
+    });
+    expect(chatRoomMessageInclude.replies.where).toEqual({
+      deletedAt: null,
+    });
   });
 });
 

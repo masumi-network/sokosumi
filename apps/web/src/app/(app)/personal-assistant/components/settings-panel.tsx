@@ -388,7 +388,7 @@ export default function SettingsPanel({
                   maxLength={60}
                   disabled={nameSaving}
                   className={withEditableTextSize(
-                    "border-border/60 bg-card/40 text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-ring h-9 w-full rounded-lg border px-3 outline-none focus-visible:ring-2",
+                    "border-border/60 bg-card/40 text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-ring h-10 w-full rounded-lg border px-3 outline-none focus-visible:ring-2",
                   )}
                 />
                 <Button

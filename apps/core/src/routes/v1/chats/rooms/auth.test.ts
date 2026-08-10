@@ -93,6 +93,7 @@ vi.mock("@/lib/sokosumi-ai-provider", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerChatCapability: vi.fn(),
+  requireCoworkerChatCapabilityInWorkspace: vi.fn(),
 }));
 
 vi.mock("@/helpers/active-ui-stream-room-metadata", () => ({

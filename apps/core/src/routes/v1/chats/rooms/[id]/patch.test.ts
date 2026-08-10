@@ -17,6 +17,7 @@ const {
   memberFindUniqueMock,
   memberFindManyMock,
   coworkerFindManyMock,
+  workspaceFindUniqueMock,
   userFindManyMock,
   userMemberDeleteManyMock,
   userMemberUpdateManyMock,
@@ -42,6 +43,7 @@ const {
   memberFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   coworkerFindManyMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
   userFindManyMock: vi.fn(),
   userMemberDeleteManyMock: vi.fn(),
   userMemberUpdateManyMock: vi.fn(),
@@ -85,6 +87,7 @@ const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER_ID = "user_123";
 const OTHER_USER_ID = "user_456";
 const ORG_ID = "org_1";
+const ORG_WORKSPACE_ID = "ws_org_1";
 
 const tx = {
   chatRoom: {
@@ -101,6 +104,9 @@ const tx = {
   },
   coworker: {
     findMany: coworkerFindManyMock,
+  },
+  workspace: {
+    findUnique: workspaceFindUniqueMock,
   },
   user: {
     findMany: userFindManyMock,
@@ -209,6 +215,7 @@ beforeEach(() => {
       where.userId.in.map((userId) => ({ userId })),
   );
   coworkerFindManyMock.mockResolvedValue([]);
+  workspaceFindUniqueMock.mockResolvedValue({ id: ORG_WORKSPACE_ID });
   userFindManyMock.mockImplementation(
     async ({ where }: { where: { id: { in: string[] } } }) =>
       where.id.in.map((id) => ({
@@ -438,7 +445,11 @@ describe("PATCH /chats/rooms/{id}", () => {
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     coworkerFindManyMock.mockResolvedValue([
-      { id: addedCoworkerId, name: "NewBot" },
+      {
+        id: addedCoworkerId,
+        name: "NewBot",
+        baseURL: "https://chat.example.com",
+      },
     ]);
     roomUpdateMock.mockResolvedValueOnce(updated);
     userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
@@ -543,7 +554,9 @@ describe("PATCH /chats/rooms/{id}", () => {
       ],
     });
     roomFindFirstMock.mockResolvedValueOnce(existing);
-    coworkerFindManyMock.mockResolvedValue([{ id: keptCoworkerId }]);
+    coworkerFindManyMock.mockResolvedValue([
+      { id: keptCoworkerId, baseURL: "https://chat.example.com" },
+    ]);
     roomUpdateMock.mockResolvedValueOnce(updated);
     mentionUpdateManyMock.mockResolvedValue({ count: 1 });
     coworkerMemberDeleteManyMock.mockResolvedValue({ count: 1 });

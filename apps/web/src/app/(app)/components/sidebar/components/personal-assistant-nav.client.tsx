@@ -125,11 +125,17 @@ export default function PersonalAssistantNav({
     <SidebarGroup className="w-full">
       <SidebarGroupContent>
         <SidebarMenu className="gap-0">
-          <SidebarMenuItem className="relative">
+          {/*
+            Badge on the li (not the Link): SidebarMenuButton sets
+            overflow-hidden and would clip -top offsets. right-0 keeps the
+            pill's right edge on the card corner, flush with the sidebar
+            header controls above (not -right-1 which poked past the grid).
+          */}
+          <SidebarMenuItem className="relative overflow-visible">
             {showNewBadge ? (
               <span
                 aria-hidden
-                className="bg-primary text-primary-foreground pointer-events-none absolute -top-1.5 -right-1 z-10 rounded-full px-1.5 py-px text-[0.5625rem] font-bold tracking-widest uppercase group-data-[collapsible=icon]:hidden"
+                className="bg-primary text-primary-foreground pointer-events-none absolute -top-1.5 right-0 z-10 rounded-full px-1.5 py-px text-[0.5625rem] font-bold tracking-widest uppercase group-data-[collapsible=icon]:hidden"
               >
                 {t("hermesNew")}
               </span>
