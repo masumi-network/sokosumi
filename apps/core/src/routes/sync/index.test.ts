@@ -88,6 +88,12 @@ vi.mock("@/services/stripe-customer-sync.service", () => ({
   },
 }));
 
+vi.mock("@/services/chat-room-guest-invitation-sync.service", () => ({
+  chatRoomGuestInvitationSyncService: {
+    expireStaleGuestInvitations: vi.fn().mockResolvedValue({ expired: 0 }),
+  },
+}));
+
 vi.mock("@vercel/functions", () => ({
   waitUntil: (promise: Promise<unknown>) => {
     void promise;
