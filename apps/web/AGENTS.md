@@ -49,7 +49,7 @@ Next.js serializes concurrent **server actions** per session. A long action star
 
 **In-process** error handling always uses `neverthrow` (`ok` / `err` / `Result`). See root [neverthrow rule](../../.cursor/rules/neverthrow.mdc).
 
-**Do not use `@/lib/ts-res`** in new or changed code. That helper (`Ok` / `Err` / `result.data`) is legacy; remaining call sites migrate under SOK-754. Do not add new imports.
+**Do not use `@/lib/ts-res`.** That helper (`Ok` / `Err` / `result.data`) was removed (SOK-768). Never reintroduce it.
 
 **Server action returns** must be the plain serializable DTO — neverthrow class methods do not survive Flight. Success and error payloads (`T` / `E`) must themselves be plain JSON/Flight-safe values.
 
