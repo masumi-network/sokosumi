@@ -52,4 +52,24 @@ describe("create-data-table-hook", () => {
       "actions",
     ]);
   });
+
+  it("accepts mixed-value columns array from columns() into useAppTable", () => {
+    const helper = createAppColumnHelper<{
+      id: string;
+      n: number;
+      s: string;
+    }>();
+    const columns = helper.columns([
+      helper.accessor("s", { id: "s" }),
+      helper.accessor("n", { id: "n" }),
+    ]);
+    const { result } = renderHook(() =>
+      useAppTable({
+        columns,
+        data: [{ id: "1", n: 2, s: "a" }],
+        initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
+      }),
+    );
+    expect(result.current.getRowModel().rows).toHaveLength(1);
+  });
 });
