@@ -4928,8 +4928,7 @@
       "MentionStatus": {
         "pending": "Rufe {name}",
         "sent": "{name} denkt nach",
-        "responded": "{name} hat geantwortet",
-        "failed": "{name} fehlgeschlagen",
+        "failed": "{name} konnte nicht antworten",
         "nameFallback": "Coworker"
       },
       "composerPlaceholderWithChannel": "Message #{channel}",

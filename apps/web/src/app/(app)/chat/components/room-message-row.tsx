@@ -1297,11 +1297,7 @@ function MessageMetaFooter({
               );
             }
             return (
-              <CoworkerMentionTerminalStatus
-                key={mention.id}
-                label={label}
-                variant="failed"
-              />
+              <CoworkerMentionTerminalStatus key={mention.id} label={label} />
             );
           })}
         </div>
