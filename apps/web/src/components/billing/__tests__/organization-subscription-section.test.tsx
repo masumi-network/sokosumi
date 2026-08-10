@@ -92,11 +92,11 @@ describe("OrganizationSubscriptionSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     updateOrganizationSubscriptionSeatsMock.mockResolvedValue({
-      data: { seats: 3 },
+      value: { seats: 3 },
       ok: true,
     });
     upgradeOrganizationSubscriptionMock.mockResolvedValue({
-      data: { mode: "redirect", url: "https://checkout.stripe.com/test" },
+      value: { mode: "redirect", url: "https://checkout.stripe.com/test" },
       ok: true,
     });
   });
@@ -278,7 +278,7 @@ describe("OrganizationSubscriptionSection", () => {
 
   it("shows success toast and refreshes when upgrade completes without checkout redirect", async () => {
     upgradeOrganizationSubscriptionMock.mockResolvedValue({
-      data: { mode: "complete" },
+      value: { mode: "complete" },
       ok: true,
     });
 
