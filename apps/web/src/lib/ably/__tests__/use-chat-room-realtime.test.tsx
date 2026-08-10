@@ -482,4 +482,41 @@ describe("useChatRoomRealtime", () => {
     ).toHaveBeenCalled();
     expect(channelFor("chat_control:user_user_1").detach).toHaveBeenCalled();
   });
+
+  it("does not surface attach/detach race rejections on unmount", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const { unmount } = renderHook(() =>
+      useChatRoomRealtime({
+        roomIds: ["room-a"],
+        currentUserId: "user_1",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(channelFor("chat_rooms:room_room-a").subscribe).toHaveBeenCalled();
+    });
+
+    channelFor("chat_rooms:room_room-a").detach.mockRejectedValue(
+      new Error("Attach request superseded by a subsequent detach request"),
+    );
+    channelFor("chat_control:user_user_1").detach.mockRejectedValue(
+      new Error("Detach request superseded by a subsequent attach request"),
+    );
+
+    act(() => {
+      unmount();
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(consoleError).not.toHaveBeenCalledWith(
+      "Ably channel detach failed",
+      expect.anything(),
+    );
+    consoleError.mockRestore();
+  });
 });
