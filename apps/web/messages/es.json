@@ -1591,6 +1591,7 @@
         "loadMore": "Cargar más",
         "showGuide": "Show guide"
       },
+      "createTaskFab": "Crear tarea",
       "Errors": {
         "updateStatus": "No se pudo actualizar el estado del Task",
         "loadMore": "No se pudieron cargar más tareas",
@@ -2019,6 +2020,7 @@
     },
     "Projects": {
       "title": "Proyectos",
+      "createProjectFab": "Crear proyecto",
       "empty": {
         "title": "Aún no hay proyectos",
         "description": "Crea un proyecto para agrupar tareas y jobs relacionados.",
