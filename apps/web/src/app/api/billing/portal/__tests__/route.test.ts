@@ -74,7 +74,7 @@ describe("GET /api/billing/portal", () => {
     getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
     openPersonalBillingPortalServerMock.mockResolvedValue({
       ok: true,
-      data: { url: "https://billing.stripe.com/session/test" },
+      value: { url: "https://billing.stripe.com/session/test" },
     });
 
     const { GET } = await import("../route");
@@ -97,7 +97,7 @@ describe("GET /api/billing/portal", () => {
     getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
     openOrganizationBillingPortalServerMock.mockResolvedValue({
       ok: true,
-      data: { url: "https://billing.stripe.com/session/org" },
+      value: { url: "https://billing.stripe.com/session/org" },
     });
 
     const { GET } = await import("../route");
@@ -207,7 +207,7 @@ describe("GET /api/billing/portal", () => {
     getSessionMock.mockResolvedValue({ user: { id: "user-1" } });
     openPersonalBillingPortalServerMock.mockResolvedValue({
       ok: true,
-      data: { url: "https://evil.com/phish" },
+      value: { url: "https://evil.com/phish" },
     });
 
     const { GET } = await import("../route");

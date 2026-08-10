@@ -1,10 +1,14 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import * as z from "zod";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -48,16 +52,18 @@ interface OrganizationSeatActionParameters extends AuthenticatedRequest {
 
 export const assignOrganizationSeat = withSession<
   OrganizationSeatActionParameters,
-  Result<{ memberId: string; seatAssignedAt: Date }, ActionError>
+  ActionResultDto<{ memberId: string; seatAssignedAt: Date }, ActionError>
 >(async ({ session, memberId, organizationId }) => {
   const parsed = organizationSeatActionSchema.safeParse({
     memberId,
     organizationId,
   });
   if (!parsed.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+      }),
+    );
   }
 
   try {
@@ -67,25 +73,27 @@ export const assignOrganizationSeat = withSession<
       parsed.data.memberId,
     );
 
-    return Ok(result);
+    return toActionResult(ok(result));
   } catch (error) {
     console.error("Failed to assign organization seat", error);
-    return Err(parseSeatActionError(error));
+    return toActionResult(err(parseSeatActionError(error)));
   }
 });
 
 export const unassignOrganizationSeat = withSession<
   OrganizationSeatActionParameters,
-  Result<{ memberId: string }, ActionError>
+  ActionResultDto<{ memberId: string }, ActionError>
 >(async ({ session, memberId, organizationId }) => {
   const parsed = organizationSeatActionSchema.safeParse({
     memberId,
     organizationId,
   });
   if (!parsed.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+      }),
+    );
   }
 
   try {
@@ -95,9 +103,9 @@ export const unassignOrganizationSeat = withSession<
       parsed.data.memberId,
     );
 
-    return Ok(result);
+    return toActionResult(ok(result));
   } catch (error) {
     console.error("Failed to unassign organization seat", error);
-    return Err(parseSeatActionError(error));
+    return toActionResult(err(parseSeatActionError(error)));
   }
 });

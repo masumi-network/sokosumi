@@ -1,8 +1,13 @@
 "use server";
 
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
+import { err, ok } from "neverthrow";
 import * as z from "zod";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { toSubscriptionSeatsActionError } from "@/lib/actions/subscription/map-core-subscription-seats-error";
 import type { SubscriptionChangeResult } from "@/lib/auth/subscription.server";
@@ -11,7 +16,6 @@ import {
   upgradePersonalSubscriptionServer,
 } from "@/lib/auth/subscription.server";
 import { coreClient } from "@/lib/clients/core.client";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -25,7 +29,7 @@ export async function upgradePersonalSubscription({
 }: {
   plan: PaidSubscriptionPlanName;
   returnPath?: string;
-}): Promise<Result<SubscriptionChangeResult, ActionError>> {
+}): Promise<ActionResultDto<SubscriptionChangeResult, ActionError>> {
   return upgradePersonalSubscriptionServer({ plan, returnPath });
 }
 
@@ -39,7 +43,7 @@ export async function upgradeOrganizationSubscription({
   plan: PaidSubscriptionPlanName;
   returnPath: string;
   seats: number;
-}): Promise<Result<SubscriptionChangeResult, ActionError>> {
+}): Promise<ActionResultDto<SubscriptionChangeResult, ActionError>> {
   return upgradeOrganizationSubscriptionServer({
     organizationId,
     plan,
@@ -61,16 +65,18 @@ interface UpdateOrganizationSubscriptionSeatsParameters
 
 export const updateOrganizationSubscriptionSeats = withSession<
   UpdateOrganizationSubscriptionSeatsParameters,
-  Result<{ seats: number }, ActionError>
+  ActionResultDto<{ seats: number }, ActionError>
 >(async ({ organizationId, seats, session }) => {
   const parsed = updateOrganizationSubscriptionSeatsSchema.safeParse({
     organizationId,
     seats,
   });
   if (!parsed.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+      }),
+    );
   }
 
   try {
@@ -84,8 +90,8 @@ export const updateOrganizationSubscriptionSeats = withSession<
       organizationId: parsed.data.organizationId,
     });
 
-    return Ok({ seats: data.seats });
+    return toActionResult(ok({ seats: data.seats }));
   } catch (error) {
-    return Err(toSubscriptionSeatsActionError(error));
+    return toActionResult(err(toSubscriptionSeatsActionError(error)));
   }
 });
