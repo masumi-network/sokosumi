@@ -117,10 +117,10 @@ export function AgentList({ initialPage }: AgentListProps) {
       }
 
       setAgents((current) =>
-        cursor ? [...current, ...result.data.agents] : result.data.agents,
+        cursor ? [...current, ...result.value.agents] : result.value.agents,
       );
-      setTotal(result.data.total);
-      setNextCursor(result.data.nextCursor);
+      setTotal(result.value.total);
+      setNextCursor(result.value.nextCursor);
     });
   }
 

@@ -87,7 +87,7 @@ describe("markAdminInvoicePaidAction", () => {
     if (!result.ok) {
       throw new Error("Expected success result");
     }
-    expect(result.data).toEqual(SUMMARY);
+    expect(result.value).toEqual(SUMMARY);
     expect(markInvoicePaidMock).toHaveBeenCalledWith("in_1");
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/invoices");
   });

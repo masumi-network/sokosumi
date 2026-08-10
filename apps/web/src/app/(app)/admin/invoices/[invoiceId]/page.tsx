@@ -58,7 +58,7 @@ export default async function InvoiceDetailPage({
 
         <Card>
           <CardContent>
-            <InvoiceDetail invoice={result.data} />
+            <InvoiceDetail invoice={result.value} />
           </CardContent>
         </Card>
       </div>

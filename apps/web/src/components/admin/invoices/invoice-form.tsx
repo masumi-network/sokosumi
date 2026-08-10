@@ -138,7 +138,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
         setBillingLoadError(result.error.message ?? t("Form.billingLoadError"));
         return;
       }
-      setBillingDetails(result.data);
+      setBillingDetails(result.value);
     } finally {
       if (loadId === billingLoadIdRef.current) {
         setIsBillingLoading(false);
@@ -231,7 +231,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
         return;
       }
       toast.success(t("Form.createSuccess"));
-      router.push(`/admin/invoices/${result.data.invoiceId}`);
+      router.push(`/admin/invoices/${result.value.invoiceId}`);
     } finally {
       setIsSubmitting(false);
     }
