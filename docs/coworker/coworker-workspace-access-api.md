@@ -114,9 +114,10 @@ workspace do not leak into user B’s personal chat.
 **Revoke roster cleanup:** successful owner/admin revoke and platform force-revoke
 also detach `ChatRoomCoworkerMember` rows for that coworker in rooms scoped to
 the workspace (org rooms by `organizationId`; personal rooms where the workspace
-owner is a user member), and fail open `pending`/`sent` mentions in those rooms.
-Dispatch / stream remain fail-closed if a membership is somehow still present.
-Same database transaction as the status flip.
+owner is a user member), and fail open `pending`/`sent` mentions in those rooms —
+**unless** the coworker remains usable in that workspace (e.g. still globally
+whitelisted). Dispatch / stream remain fail-closed if a membership is somehow
+still present. Same database transaction as the status flip.
 
 **Belonging to a workspace** (vendor direct grant eligibility):
 

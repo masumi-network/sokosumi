@@ -147,6 +147,8 @@ describe("coworker-workspace-access helpers", () => {
     deletePendingCoworkerAccessNotificationsMock.mockResolvedValue(0);
     chatRoomCoworkerMemberDeleteMany.mockResolvedValue({ count: 0 });
     chatRoomMentionUpdateMany.mockResolvedValue({ count: 0 });
+    // Default: pilot-only coworker is no longer usable after revoke.
+    coworkerFindFirst.mockResolvedValue(null);
   });
 
   describe("isCoworkerAccessTerminal", () => {
@@ -1130,6 +1132,47 @@ describe("coworker-workspace-access helpers", () => {
           },
         },
       });
+    });
+
+    it("skips chat detach when coworker remains usable after revoke", async () => {
+      accessFindFirst.mockResolvedValue(
+        baseAccess({ status: CoworkerWorkspaceAccessStatus.GRANTED }),
+      );
+      accessUpdate.mockResolvedValue(
+        baseAccess({
+          status: CoworkerWorkspaceAccessStatus.REVOKED,
+          resolvedById: "owner-1",
+        }),
+      );
+      // e.g. globally whitelisted marketplace coworker
+      coworkerFindFirst.mockResolvedValue({ id: "coworker-1" });
+
+      await revokeCoworkerWorkspaceAccess({
+        accessId: "access-1",
+        workspaceId: "workspace-1",
+        resolvedById: "owner-1",
+      });
+
+      expect(coworkerFindFirst).toHaveBeenCalledWith({
+        where: {
+          id: "coworker-1",
+          archivedAt: null,
+          OR: [
+            { isWhitelisted: true },
+            {
+              workspaceAccess: {
+                some: {
+                  workspaceId: "workspace-1",
+                  status: CoworkerWorkspaceAccessStatus.GRANTED,
+                },
+              },
+            },
+          ],
+        },
+        select: { id: true },
+      });
+      expect(chatRoomCoworkerMemberDeleteMany).not.toHaveBeenCalled();
+      expect(chatRoomMentionUpdateMany).not.toHaveBeenCalled();
     });
 
     it("rejects revoke when not GRANTED", async () => {

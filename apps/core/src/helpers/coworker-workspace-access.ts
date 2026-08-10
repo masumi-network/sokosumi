@@ -7,6 +7,7 @@ import {
 } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
+import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
 import { badRequest, notFound } from "@/helpers/error";
 import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/helpers/notification-feed";
 import {
@@ -715,11 +716,13 @@ function chatRoomWhereForWorkspace(workspace: {
 /**
  * After revoke: drop coworker chat memberships in rooms scoped to the
  * workspace, and fail open mentions so queued dispatch cannot post.
+ * Skip when the coworker remains usable (e.g. still globally whitelisted).
  * Same transaction as the status flip (callers pass `tx`).
  */
 async function detachCoworkerChatMembershipsForWorkspace(
   params: {
     coworkerId: string;
+    workspaceId: string;
     workspace: {
       userId: string | null;
       organizationId: string | null;
@@ -727,6 +730,17 @@ async function detachCoworkerChatMembershipsForWorkspace(
   },
   tx: Prisma.TransactionClient,
 ): Promise<void> {
+  const stillUsable = await tx.coworker.findFirst({
+    where: {
+      id: params.coworkerId,
+      ...buildCoworkerUsableInWorkspaceWhere(params.workspaceId),
+    },
+    select: { id: true },
+  });
+  if (stillUsable) {
+    return;
+  }
+
   const roomWhere = chatRoomWhereForWorkspace(params.workspace);
   if (!roomWhere) {
     return;
@@ -775,6 +789,7 @@ export async function revokeCoworkerWorkspaceAccess(
   await detachCoworkerChatMembershipsForWorkspace(
     {
       coworkerId: updated.coworkerId,
+      workspaceId: updated.workspaceId,
       workspace: updated.workspace,
     },
     tx,
@@ -844,6 +859,7 @@ export async function forceRevokeCoworkerWorkspaceAccessByPair(
   await detachCoworkerChatMembershipsForWorkspace(
     {
       coworkerId: updated.coworkerId,
+      workspaceId: updated.workspaceId,
       workspace: updated.workspace,
     },
     tx,
