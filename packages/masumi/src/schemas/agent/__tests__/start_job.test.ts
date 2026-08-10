@@ -64,6 +64,22 @@ describe("startPaidJobResponseSchema", () => {
     }
   });
 
+  it("treats out-of-range and non-integer indexes as absent, not a parse failure", () => {
+    // After start_job the seller has already accepted; failing the whole
+    // response would strand the job. Drop the selection instead.
+    for (const invalid of [26, -1, 3.7, Number.NaN]) {
+      const result = startPaidJobResponseSchema.safeParse({
+        ...paidJobResponse,
+        supportedPaymentSourceIndex: invalid,
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.supportedPaymentSourceIndex).toBeUndefined();
+      }
+    }
+  });
+
   it("accepts every payment-source type the protocol defines", () => {
     // A start_job response that fails to parse is reported as
     // `invalid-response`, and by then the seller has already accepted the job

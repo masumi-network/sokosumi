@@ -26,39 +26,52 @@ export async function prepareTasksForUserDeletion(
   prisma: PrismaClient,
 ): Promise<void> {
   const ownedTaskFiles = await prisma.$transaction(async (tx) => {
+    // Prefer review-required claims over ordinary PENDING ones. A single
+    // findFirst without that filter is nondeterministic when both exist, and
+    // would return TASK_PAYMENT_CLAIM_PENDING without paging Sentry for the
+    // operator-blocked row.
+    const reviewRequiredClaim = await tx.taskPaymentClaim.findFirst({
+      where: {
+        status: TaskPaymentClaimStatus.PENDING,
+        reviewRequiredAt: { not: null },
+        transaction: { userId },
+      },
+      select: { id: true, reviewRequiredAt: true },
+    });
+    if (reviewRequiredClaim?.reviewRequiredAt) {
+      // A plain PENDING claim clears itself within a cron cycle, but one
+      // parked for review clears only when an operator resolves it — so
+      // this branch is an account deletion blocked for an unbounded time by
+      // an internal queue. Page it: the user cannot unblock themselves, and
+      // the admin resolve/refund endpoints are the only way out.
+      Sentry.captureMessage(
+        "Account deletion blocked by a task payment claim awaiting review",
+        {
+          level: "error",
+          tags: { error_type: "user_deletion_blocked_by_claim_review" },
+          extra: {
+            userId,
+            taskPaymentClaimId: reviewRequiredClaim.id,
+            reviewRequiredAt:
+              reviewRequiredClaim.reviewRequiredAt.toISOString(),
+          },
+        },
+      );
+      throw new APIError("BAD_REQUEST", {
+        code: "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
+        message:
+          "A task payment needs administrator review before your account can be deleted. Please contact support.",
+      });
+    }
+
     const pendingPaymentClaim = await tx.taskPaymentClaim.findFirst({
       where: {
         status: TaskPaymentClaimStatus.PENDING,
         transaction: { userId },
       },
-      select: { id: true, reviewRequiredAt: true },
+      select: { id: true },
     });
     if (pendingPaymentClaim) {
-      if (pendingPaymentClaim.reviewRequiredAt) {
-        // A plain PENDING claim clears itself within a cron cycle, but one
-        // parked for review clears only when an operator resolves it — so
-        // this branch is an account deletion blocked for an unbounded time by
-        // an internal queue. Page it: the user cannot unblock themselves, and
-        // the admin resolve/refund endpoints are the only way out.
-        Sentry.captureMessage(
-          "Account deletion blocked by a task payment claim awaiting review",
-          {
-            level: "error",
-            tags: { error_type: "user_deletion_blocked_by_claim_review" },
-            extra: {
-              userId,
-              taskPaymentClaimId: pendingPaymentClaim.id,
-              reviewRequiredAt:
-                pendingPaymentClaim.reviewRequiredAt.toISOString(),
-            },
-          },
-        );
-        throw new APIError("BAD_REQUEST", {
-          code: "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
-          message:
-            "A task payment needs administrator review before your account can be deleted. Please contact support.",
-        });
-      }
       throw new APIError("BAD_REQUEST", {
         code: "TASK_PAYMENT_CLAIM_PENDING",
         message:

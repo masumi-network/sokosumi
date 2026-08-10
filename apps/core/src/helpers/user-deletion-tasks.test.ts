@@ -100,10 +100,29 @@ describe("prepareTasksForUserDeletion", () => {
     });
   });
 
+  function mockPendingClaimLookups(options: {
+    reviewRequired?: { id: string; reviewRequiredAt: Date } | null;
+    pending?: { id: string } | null;
+  }) {
+    taskPaymentClaimFindFirstMock.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) => {
+        if (
+          where.reviewRequiredAt &&
+          typeof where.reviewRequiredAt === "object" &&
+          where.reviewRequiredAt !== null &&
+          "not" in where.reviewRequiredAt
+        ) {
+          return options.reviewRequired ?? null;
+        }
+        return options.pending ?? null;
+      },
+    );
+  }
+
   it("blocks deletion while a task payment claim is pending", async () => {
-    taskPaymentClaimFindFirstMock.mockResolvedValue({
-      id: "claim_pending",
-      reviewRequiredAt: null,
+    mockPendingClaimLookups({
+      reviewRequired: null,
+      pending: { id: "claim_pending" },
     });
 
     const promise = prepareTasksForUserDeletion("user_delete", {
@@ -119,9 +138,11 @@ describe("prepareTasksForUserDeletion", () => {
   });
 
   it("directs reviewed claims to administrator recovery before deletion", async () => {
-    taskPaymentClaimFindFirstMock.mockResolvedValue({
-      id: "claim_review",
-      reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
+    mockPendingClaimLookups({
+      reviewRequired: {
+        id: "claim_review",
+        reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
+      },
     });
 
     const promise = prepareTasksForUserDeletion("user_delete", {
@@ -151,10 +172,42 @@ describe("prepareTasksForUserDeletion", () => {
     );
   });
 
+  it("prefers a review-required claim when the user also has plain pending ones", async () => {
+    mockPendingClaimLookups({
+      reviewRequired: {
+        id: "claim_review",
+        reviewRequiredAt: new Date("2026-08-04T10:00:00.000Z"),
+      },
+      // Would be the wrong branch if findFirst were unordered over both types.
+      pending: { id: "claim_pending" },
+    });
+
+    const promise = prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    await expect(promise).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({
+        code: "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
+      }),
+    });
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Account deletion blocked by a task payment claim awaiting review",
+      expect.objectContaining({
+        extra: expect.objectContaining({
+          taskPaymentClaimId: "claim_review",
+        }),
+      }),
+    );
+    // Review path must short-circuit before the plain-PENDING lookup.
+    expect(taskPaymentClaimFindFirstMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not page for a pending claim that will settle on its own", async () => {
-    taskPaymentClaimFindFirstMock.mockResolvedValue({
-      id: "claim_pending",
-      reviewRequiredAt: null,
+    mockPendingClaimLookups({
+      reviewRequired: null,
+      pending: { id: "claim_pending" },
     });
 
     await expect(

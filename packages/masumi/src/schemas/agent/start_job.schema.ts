@@ -81,15 +81,31 @@ export const startPaidJobResponseSchema = z.preprocess(
     // inconsistently — but only genuine numbers and numeric strings count
     // as a selection. Absent-intent junk (null, "", false, []) must never
     // coerce into index 0 via Number() semantics.
+    //
+    // Out-of-range / non-integer / NaN also normalize to absent rather than
+    // failing the whole start_job parse. By parse time the seller has already
+    // accepted the job (same stranding risk as paymentSourceType above); a
+    // missing source index degrades to default selection, while a parse
+    // failure is reported as invalid-response with no MIP-003 cancel.
     supportedPaymentSourceIndex: z.preprocess((value) => {
+      let candidate: number | undefined;
       if (typeof value === "number") {
-        return value;
+        candidate = value;
+      } else if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+        candidate = Number(value.trim());
+      } else {
+        return undefined;
       }
-      if (typeof value === "string" && /^\d+$/.test(value.trim())) {
-        return value.trim();
+      if (
+        !Number.isInteger(candidate) ||
+        Number.isNaN(candidate) ||
+        candidate < 0 ||
+        candidate > 24
+      ) {
+        return undefined;
       }
-      return undefined;
-    }, z.coerce.number().int().min(0).max(24).optional()),
+      return candidate;
+    }, z.number().int().min(0).max(24).optional()),
   }),
 );
 
