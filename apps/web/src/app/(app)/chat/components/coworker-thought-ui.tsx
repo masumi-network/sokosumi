@@ -194,48 +194,35 @@ export function CoworkerLoadingState({
   );
 }
 
+interface CoworkerMentionFailedStatusProps {
+  label: string;
+  className?: string;
+}
+
 /**
- * Terminal mention status after the live thinking row.
- * Failed: soft alert chip (icon + label) — not a frozen loading grid.
- * Responded: muted label only (usually hidden; success is the reply itself).
+ * Failed mention terminal status after the live thinking row.
+ * Soft alert chip (icon + label) — success is the coworker reply itself (no chrome).
  */
 export function CoworkerMentionTerminalStatus({
   label,
-  variant,
   className,
-}: {
-  label: string;
-  variant: "responded" | "failed";
-  className?: string;
-}) {
-  if (variant === "failed") {
-    return (
-      <div
-        className={cn(
-          "border-destructive/20 bg-destructive/10 text-destructive",
-          "inline-flex w-fit max-w-full items-center gap-1.5 rounded-md border px-2 py-1",
-          className,
-        )}
-        role="status"
-        data-testid="coworker-mention-terminal"
-        data-variant="failed"
-      >
-        <CircleAlert className="size-3.5 shrink-0" aria-hidden />
-        <span className="truncate text-xs font-medium">{label}</span>
-      </div>
-    );
-  }
-
+}: CoworkerMentionFailedStatusProps) {
   return (
     <div
       className={cn(
-        "text-muted-foreground flex w-fit max-w-full items-center gap-1.5",
+        "border-destructive/20 bg-destructive/10 text-destructive",
+        "inline-flex w-fit max-w-full items-center gap-1.5 rounded-md border px-2 py-1",
         className,
       )}
+      role="status"
       data-testid="coworker-mention-terminal"
-      data-variant="responded"
     >
-      <span className="truncate text-sm font-medium">{label}</span>
+      <CircleAlert
+        className="size-3.5 shrink-0"
+        aria-hidden
+        data-testid="coworker-mention-failed-icon"
+      />
+      <span className="truncate text-xs font-medium">{label}</span>
     </div>
   );
 }

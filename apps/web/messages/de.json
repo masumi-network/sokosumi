@@ -4928,7 +4928,6 @@
       "MentionStatus": {
         "pending": "Rufe {name}",
         "sent": "{name} denkt nach",
-        "responded": "{name} hat geantwortet",
         "failed": "{name} konnte nicht antworten",
         "nameFallback": "Coworker"
       },

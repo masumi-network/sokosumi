@@ -4928,7 +4928,6 @@
       "MentionStatus": {
         "pending": "Llamando a {name}",
         "sent": "{name} está pensando",
-        "responded": "{name} respondió",
         "failed": "{name} no pudo responder",
         "nameFallback": "Coworker"
       },

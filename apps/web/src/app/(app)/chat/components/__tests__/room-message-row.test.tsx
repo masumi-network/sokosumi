@@ -1684,10 +1684,13 @@ describe("ChatMessageRow coworker Thought", () => {
       />,
     );
     const terminal = screen.getByTestId("coworker-mention-terminal");
-    expect(terminal).toHaveAttribute("data-variant", "failed");
     expect(terminal).toHaveAttribute("role", "status");
     expect(terminal).toHaveTextContent("MentionStatus.failed");
-    // Soft chip, not a frozen pixel-grid loader.
+    expect(terminal).toHaveClass("bg-destructive/10", "border-destructive/20");
+    expect(
+      screen.getByTestId("coworker-mention-failed-icon"),
+    ).toBeInTheDocument();
+    // Soft chip replaces the frozen pixel-grid loader.
     expect(screen.queryByTestId("bui-static-grid")).not.toBeInTheDocument();
   });
 
