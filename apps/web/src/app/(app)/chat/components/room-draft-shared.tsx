@@ -34,11 +34,12 @@ export function AiCoworkerAvatarBadge({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "bg-background absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full ring-2 ring-background",
+        // bg-muted + foreground icon so chip reads on dark chat (bg-background was invisible)
+        "bg-muted text-foreground absolute -right-0.5 -bottom-0.5 z-10 flex size-3.5 items-center justify-center rounded-full ring-2 ring-background",
         className,
       )}
     >
-      <AiCoworkerIcon className="size-2.5" />
+      <AiCoworkerIcon className="size-2.5 text-foreground" />
     </span>
   );
 }
