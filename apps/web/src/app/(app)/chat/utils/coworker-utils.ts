@@ -27,8 +27,14 @@ function hasRunnableChatEndpoint(coworker: CoworkerAvailability): boolean {
   return typeof coworker.baseURL === "string" && coworker.baseURL.trim() !== "";
 }
 
-function isActiveWhitelistedCoworker(coworker: CoworkerAvailability): boolean {
-  return coworker.archivedAt == null && coworker.isWhitelisted !== false;
+/**
+ * Active (not archived) only. Workspace usability (global whitelist ∪
+ * GRANTED early access) is owned by Core `scope=available` /
+ * `validateChatCoworkerIds` — do not re-gate on isWhitelisted here or
+ * pilot coworkers vanish from channel/task pickers.
+ */
+function isActiveCoworker(coworker: CoworkerAvailability): boolean {
+  return coworker.archivedAt == null;
 }
 
 export function coworkerCanChat(coworker: CoworkerAvailability): boolean {
@@ -37,7 +43,7 @@ export function coworkerCanChat(coworker: CoworkerAvailability): boolean {
   }
 
   return (
-    isActiveWhitelistedCoworker(coworker) &&
+    isActiveCoworker(coworker) &&
     coworkerHasCapability(coworker, "chat") &&
     hasRunnableChatEndpoint(coworker)
   );
@@ -46,10 +52,7 @@ export function coworkerCanChat(coworker: CoworkerAvailability): boolean {
 export function coworkerCanHandleTasks(
   coworker: CoworkerAvailability,
 ): boolean {
-  return (
-    isActiveWhitelistedCoworker(coworker) &&
-    coworkerHasCapability(coworker, "tasks")
-  );
+  return isActiveCoworker(coworker) && coworkerHasCapability(coworker, "tasks");
 }
 
 export function filterCoworkersForComposeKind(
