@@ -100,6 +100,8 @@ function checkNextAction(
       return SokosumiJobStatus.REFUND_PENDING;
     case NextJobAction.WITHDRAW_REFUND_REQUESTED:
     case NextJobAction.WITHDRAW_REFUND_INITIATED:
+    case NextJobAction.AUTHORIZE_WITHDRAWAL_REQUESTED:
+    case NextJobAction.AUTHORIZE_WITHDRAWAL_INITIATED:
     case NextJobAction.WAITING_FOR_MANUAL_ACTION:
     case NextJobAction.WAITING_FOR_EXTERNAL_ACTION:
     case NextJobAction.NONE:
@@ -183,10 +185,12 @@ function getFundsLockedJobStatus(
  * 4. Otherwise, resolve based on the on-chain status and agent status:
  *    - null: return PAYMENT_PENDING while the purchase remains unresolved on-chain.
  *    - FUNDS_LOCKED: Use `getFundsLockedJobStatus` for further resolution.
- *    - RESULT_SUBMITTED: If agent completed, return COMPLETED; else RESULT_PENDING.
+ *    - RESULT_SUBMITTED / WITHDRAW_AUTHORIZED (withdrawal authorized but not
+ *      yet executed): If agent completed, return COMPLETED; else RESULT_PENDING.
  *    - FUNDS_WITHDRAWN: If agent completed, return COMPLETED; else FAILED.
  *    - FUNDS_OR_DATUM_INVALID: return PAYMENT_FAILED.
- *    - REFUND_REQUESTED: return REFUND_PENDING.
+ *    - REFUND_REQUESTED / REFUND_AUTHORIZED (refund authorized but not yet
+ *      withdrawn): return REFUND_PENDING.
  *    - REFUND_WITHDRAWN: return REFUND_RESOLVED.
  *    - DISPUTED: return DISPUTE_PENDING.
  *    - DISPUTED_WITHDRAWN: return DISPUTE_RESOLVED.
@@ -266,6 +270,7 @@ function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
     case OnChainJobStatus.FUNDS_LOCKED:
       return getFundsLockedJobStatus(job, latestJobEvent, now);
     case OnChainJobStatus.RESULT_SUBMITTED:
+    case OnChainJobStatus.WITHDRAW_AUTHORIZED:
       switch (latestJobEvent.status) {
         case AgentJobStatus.COMPLETED:
           return SokosumiJobStatus.COMPLETED;
@@ -282,6 +287,7 @@ function computePaidJobStatus(job: JobForStatusCompute): SokosumiJobStatus {
     case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
       return SokosumiJobStatus.PAYMENT_FAILED;
     case OnChainJobStatus.REFUND_REQUESTED:
+    case OnChainJobStatus.REFUND_AUTHORIZED:
       return SokosumiJobStatus.REFUND_PENDING;
     case OnChainJobStatus.REFUND_WITHDRAWN:
       return SokosumiJobStatus.REFUND_RESOLVED;

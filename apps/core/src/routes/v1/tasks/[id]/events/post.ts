@@ -10,7 +10,6 @@ import {
 
 import { waitUntil } from "@vercel/functions";
 
-import { paymentClient } from "@/clients/masumi-payment.client";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
@@ -20,7 +19,9 @@ import {
 } from "@/helpers/access-control";
 import {
   calculateCentsFromMasumiAmountStrings,
+  getCardanoV2ReadySources,
   getCreditCostsOrThrow,
+  isCardanoV2SourceReady,
 } from "@/helpers/agent";
 import {
   badRequest,
@@ -28,9 +29,11 @@ import {
   errorResponseWithExtensionsSchema,
   unprocessableEntity,
 } from "@/helpers/error";
+import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { createNotification } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireOrchestratorIdForAttribution } from "@/helpers/orchestrator-instance";
+import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
   type CascadedCancelChild,
@@ -57,6 +60,10 @@ import {
   isUserAuthContext,
 } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
+import {
+  createTaskPaymentClaim,
+  processTaskPaymentClaim,
+} from "@/services/task-payment-claim.service";
 
 import { createTaskEventRequestSchema } from "./schema";
 
@@ -227,6 +234,38 @@ async function settleTaskEventCharge({
     console.info("[tasks] masumi task payment: using masumiPayment", {
       masumiPayment,
     });
+    // V2 payments are gated exactly like the job flow: a payment node that
+    // recently reported the payload's EXACT policy/contract source as
+    // purchase-ready. Rejecting before the charge avoids a pointless
+    // debit/refund cycle; unexpected node rejection is compensated below.
+    const isV2TaskPayment = isV2MasumiTaskPayment(masumiPayment);
+    if (isV2TaskPayment) {
+      const readySources = await getCardanoV2ReadySources(tx);
+      if (readySources.length === 0) {
+        throw unprocessableEntity(
+          "Cardano V2 payments are not enabled on this deployment",
+        );
+      }
+      const paymentSource = masumiPayment.PaymentSource;
+      if (!paymentSource) {
+        throw unprocessableEntity(
+          "V2 masumi payments must include PaymentSource with the seller's policyId and smartContractAddress",
+        );
+      }
+      // Same matcher as the job flow. isCardanoV2SourceReady lowercases both
+      // sides, so a mixed-case address or identifier from the node still
+      // matches a purchase-ready source.
+      const isSourceReady = isCardanoV2SourceReady(
+        masumiPayment.agentIdentifier,
+        paymentSource.smartContractAddress,
+        readySources,
+      );
+      if (!isSourceReady) {
+        throw unprocessableEntity(
+          "The selected Cardano V2 payment source is not purchase-ready on this deployment",
+        );
+      }
+    }
     const creditCosts = await getCreditCostsOrThrow(tx);
     const cents = calculateCentsFromMasumiAmountStrings(
       masumiPayment.Amounts,
@@ -454,13 +493,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: taskId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const {
-      event,
-      userId,
-      masumiPayment,
-      pausedForInsufficientBalance,
-      cascadedChildTaskIds,
-    } = await serializableTransaction(async (tx) => {
+    const transactionResult = await serializableTransaction(async (tx) => {
       const { status, credits, authenticationUrl, channel, masumiPayment } =
         body;
       let comment = body.comment;
@@ -576,6 +609,50 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
+      let taskPaymentClaimId: string | null = null;
+      if (chargedMasumiPayment && masumiPayment !== undefined) {
+        if (!transactionId) {
+          throw new Error("Charged Masumi task payment has no transaction");
+        }
+        taskPaymentClaimId = await createTaskPaymentClaim({
+          network: getEnv().NETWORK,
+          // Dedupe key only. Lowercased so the (network, blockchainIdentifier)
+          // unique index catches a resubmission that differs solely in casing
+          // — without it that payment would claim a second row, and the outbox
+          // would place a second purchase for work already paid for. The
+          // payload below deliberately keeps the seller's original casing,
+          // which is what the node is sent.
+          blockchainIdentifier:
+            masumiPayment.blockchainIdentifier.toLowerCase(),
+          purchasePayload: {
+            blockchainIdentifier: masumiPayment.blockchainIdentifier,
+            agentIdentifier: masumiPayment.agentIdentifier,
+            sellerVkey: masumiPayment.sellerVkey,
+            submitResultTime: masumiPayment.submitResultTime,
+            payByTime: masumiPayment.payByTime,
+            unlockTime: masumiPayment.unlockTime,
+            externalDisputeUnlockTime: masumiPayment.externalDisputeUnlockTime,
+            inputHash: masumiPayment.inputHash,
+            Amounts: masumiPayment.Amounts,
+            identifierFromPurchaser: masumiPayment.identifierFromPurchaser,
+            paymentSourceType: masumiPayment.paymentSourceType,
+            smartContractAddress: isV2MasumiTaskPayment(masumiPayment)
+              ? masumiPayment.PaymentSource?.smartContractAddress
+              : undefined,
+            supportedPaymentSourceIndex: isV2MasumiTaskPayment(masumiPayment)
+              ? masumiPayment.supportedPaymentSourceIndex
+              : undefined,
+            metadata: JSON.stringify({
+              taskId,
+              taskEventId: createdEvent.id,
+            }),
+          },
+          taskEventId: createdEvent.id,
+          transactionId,
+          tx,
+        });
+      }
+
       // Update task when the caller requested a status change, or when a
       // failed charge replaced the outcome with OUT_OF_CREDITS (incl.
       // credit-only bodies that had no status).
@@ -606,10 +683,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         event: await mapCreatedTaskEventForResponse(tx, createdEvent.id),
         userId: task.ownerId,
         masumiPayment: payment,
+        taskPaymentClaimId,
         pausedForInsufficientBalance,
         cascadedChildTaskIds: cascadedChildren,
       };
-    }, "Task changed by a concurrent request. Please retry.");
+    }, "Task changed by a concurrent request. Please retry.").catch((error) => {
+      if (
+        body.masumiPayment &&
+        isBlockchainIdentifierUniqueConstraintError(error)
+      ) {
+        throw conflict(
+          "A task payment with this blockchainIdentifier already exists",
+        );
+      }
+      throw error;
+    });
+    const {
+      event,
+      userId,
+      masumiPayment,
+      taskPaymentClaimId,
+      pausedForInsufficientBalance,
+      cascadedChildTaskIds,
+    } = transactionResult;
 
     if (event.status) {
       const taskEventId = event.id;
@@ -664,7 +760,27 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    if (masumiPayment != null) {
+    // Unreachable by construction (a charged payment always writes its claim
+    // in the same transaction). Never throw on it: the event and its debit are
+    // already committed, so throwing would answer 500 for work that succeeded.
+    if (masumiPayment != null && !taskPaymentClaimId) {
+      console.error("[tasks] masumi task payment: no durable claim", {
+        taskId,
+        taskEventId: event.id,
+        blockchainIdentifier: masumiPayment.blockchainIdentifier,
+      });
+      Sentry.captureMessage("Masumi task payment has no durable claim", {
+        level: "error",
+        tags: { error_type: "task_payment_claim_missing" },
+        extra: {
+          taskId,
+          taskEventId: event.id,
+          blockchainIdentifier: masumiPayment.blockchainIdentifier,
+        },
+      });
+    }
+
+    if (masumiPayment != null && taskPaymentClaimId) {
       const taskEventId = event.id;
 
       Sentry.addBreadcrumb({
@@ -685,86 +801,67 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         agentIdentifier: masumiPayment.agentIdentifier,
       });
 
-      const masumiPurchasePromise = paymentClient()
-        .createPurchaseFromMasumiTaskPayment({
-          blockchainIdentifier: masumiPayment.blockchainIdentifier,
-          agentIdentifier: masumiPayment.agentIdentifier,
-          sellerVkey: masumiPayment.sellerVkey,
-          submitResultTime: masumiPayment.submitResultTime,
-          payByTime: masumiPayment.payByTime,
-          unlockTime: masumiPayment.unlockTime,
-          externalDisputeUnlockTime: masumiPayment.externalDisputeUnlockTime,
-          inputHash: masumiPayment.inputHash,
-          Amounts: masumiPayment.Amounts,
-          identifierFromPurchaser: masumiPayment.identifierFromPurchaser,
-          metadata: JSON.stringify({
-            taskId,
-            taskEventId,
-          }),
-        })
-        .then((createPurchaseResult) => {
-          if (createPurchaseResult.isErr()) {
-            console.error(
-              "[tasks] masumi task payment: purchase creation failed",
-              {
-                taskId,
-                taskEventId,
-                blockchainIdentifier: masumiPayment.blockchainIdentifier,
-                error: createPurchaseResult.error,
-              },
-            );
+      const masumiPurchasePromise = (async () => {
+        try {
+          const result = await processTaskPaymentClaim(taskPaymentClaimId);
+          if (result.status === "purchased") {
+            console.info("[tasks] masumi task payment: purchase created", {
+              taskId,
+              taskEventId,
+              purchaseId: result.purchaseId,
+              blockchainIdentifier: masumiPayment.blockchainIdentifier,
+            });
+            Sentry.addBreadcrumb({
+              category: "task_masumi_purchase",
+              message: "Task purchase created",
+              level: "info",
+              data: { taskId, purchaseId: result.purchaseId },
+            });
+            return;
+          }
+          if (result.status === "refunded") {
             Sentry.captureMessage(
-              `Task purchase creation failed: ${createPurchaseResult.error}`,
+              `Task purchase permanently rejected: ${result.reason}`,
               {
                 level: "error",
                 tags: {
-                  error_type: "task_purchase_creation_failed",
+                  error_type: "task_purchase_permanent_failure",
+                  compensated: String(result.compensated),
                 },
-                contexts: {
-                  task_purchase_creation: {
-                    taskId,
-                    taskEventId,
-                    blockchainIdentifier: masumiPayment.blockchainIdentifier,
-                    error: createPurchaseResult.error,
-                  },
+                extra: {
+                  taskId,
+                  taskEventId,
+                  claimId: taskPaymentClaimId,
+                  blockchainIdentifier: masumiPayment.blockchainIdentifier,
                 },
               },
             );
             return;
           }
-
-          console.info("[tasks] masumi task payment: purchase created", {
-            taskId,
-            taskEventId,
-            purchaseId: createPurchaseResult.value.id,
-            blockchainIdentifier:
-              createPurchaseResult.value.blockchainIdentifier,
-          });
-
-          Sentry.addBreadcrumb({
-            category: "task_masumi_purchase",
-            message: "Task purchase created",
-            level: "info",
-            data: {
+          if (result.status === "retry_scheduled") {
+            console.warn("[tasks] masumi task payment: retry scheduled", {
               taskId,
-              purchaseId: createPurchaseResult.value.id,
-            },
-          });
-        })
-        .catch((error: unknown) => {
-          console.error("[tasks] masumi task payment: unexpected error", {
+              taskEventId,
+              claimId: taskPaymentClaimId,
+              reason: result.reason,
+            });
+          }
+        } catch (error) {
+          // Durable PENDING claim remains recoverable by cron. Never refund an
+          // ambiguous branch: remote purchase may already exist.
+          console.error("[tasks] masumi task payment: processor failed", {
             taskId,
             taskEventId,
+            claimId: taskPaymentClaimId,
             blockchainIdentifier: masumiPayment.blockchainIdentifier,
             error,
           });
           Sentry.captureException(error, {
-            tags: {
-              error_type: "task_masumi_purchase_unexpected",
-            },
-            extra: { taskId, taskEventId },
+            tags: { error_type: "task_purchase_processor_failed" },
+            extra: { taskId, taskEventId, claimId: taskPaymentClaimId },
           });
-        });
+        }
+      })();
 
       waitUntil(masumiPurchasePromise);
     }

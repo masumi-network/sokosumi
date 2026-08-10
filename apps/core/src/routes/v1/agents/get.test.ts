@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { PricingType } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
@@ -36,6 +37,8 @@ const {
 }));
 
 vi.mock("@/helpers/agent", () => ({
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
+  getCardanoV2ReadySources: () => Promise.resolve([]),
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   calculateAgentRatings: calculateAgentRatingsMock,
   calculateAverageExecutionTimes: calculateAverageExecutionTimesMock,
@@ -80,6 +83,12 @@ describe("GET /agents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // Batch form: Prisma resolves the array of operations together. The route
+    // relies on that for a shared snapshot, so the mock must mirror it rather
+    // than handing back a callback result.
+    prismaTransactionMock.mockImplementation(async (operations: unknown) =>
+      Array.isArray(operations) ? await Promise.all(operations) : operations,
+    );
     buildAvailableAgentWhereClauseMock.mockReturnValue({
       isAvailable: true,
     });
@@ -107,6 +116,12 @@ describe("GET /agents", () => {
         icon: null,
         summary: "A short summary",
         riskClassification: "MINIMAL",
+        pricing: {
+          pricingType: PricingType.FREE,
+          fixedPricing: null,
+        },
+        // main denormalised the popularity sort onto Agent.jobCount (#3642),
+        // replacing the _count relation aggregate.
         jobCount: 2,
         categories: [
           {
@@ -149,12 +164,18 @@ describe("GET /agents", () => {
     agentCountMock.mockResolvedValue(1);
   });
 
-  it("lists agents without opening an interactive transaction", async () => {
+  it("reads the page in one snapshot without an interactive transaction", async () => {
+    // Prisma loads included relations as separate statements, so at READ
+    // COMMITTED a registry replay can land mid-read and return FIXED pricing
+    // whose amount rows are gone — which prices as zero. The BATCH form gets
+    // one snapshot without holding a pool connection across application code.
     const app = createApp();
     const response = await app.request("http://localhost/");
 
     expect(response.status).toBe(200);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Array), {
+      isolationLevel: "RepeatableRead",
+    });
     expect(agentFindManyMock).toHaveBeenCalled();
     expect(agentCountMock).toHaveBeenCalled();
   });
@@ -378,5 +399,49 @@ describe("GET /agents", () => {
     expect(response.status).toBe(422);
     expect(agentFindManyMock).not.toHaveBeenCalled();
     expect(agentCountMock).not.toHaveBeenCalled();
+  });
+
+  it("advances pagination from the consumed raw row when its summary is skipped", async () => {
+    agentFindManyMock.mockResolvedValue([
+      {
+        id: "agent_unreadable",
+        pricing: {
+          pricingType: PricingType.FIXED,
+          fixedPricing: { amounts: [] },
+        },
+      },
+      { id: "agent_next_page" },
+    ]);
+    agentCountMock.mockResolvedValue(2);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/?limit=1");
+    const body = (await response.json()) as {
+      data: unknown[];
+      meta: { pagination: { nextCursor: string | null } };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.data).toEqual([]);
+    expect(body.meta.pagination.nextCursor).toBe("agent_unreadable");
+    expect(getAgentCostMock).not.toHaveBeenCalled();
+  });
+
+  it("propagates unexpected pricing failures", async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    getAgentCostMock.mockImplementation(() => {
+      throw new Error("unexpected pricing failure");
+    });
+
+    try {
+      const app = createApp();
+      const response = await app.request("http://localhost/");
+
+      expect(response.status).toBe(500);
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });

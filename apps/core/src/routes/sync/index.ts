@@ -8,6 +8,7 @@ import mountGetHermesPollInboxesSync from "./hermes-poll-inboxes/get.js";
 import mountGetJobsSync from "./jobs/get.js";
 import mountGetSourceImportSync from "./source-import/get.js";
 import mountGetStripeCustomersSync from "./stripe-customers/get.js";
+import mountGetTaskPaymentClaimsSync from "./task-payment-claims/get.js";
 import mountGetTaskSchedulesSync from "./task-schedules/get.js";
 
 const app = new Hono();
@@ -20,6 +21,7 @@ mountGetHermesPollInboxesSync(app);
 mountGetJobsSync(app);
 mountGetSourceImportSync(app);
 mountGetStripeCustomersSync(app);
+mountGetTaskPaymentClaimsSync(app);
 mountGetTaskSchedulesSync(app);
 
 export default app;

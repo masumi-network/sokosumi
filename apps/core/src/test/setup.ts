@@ -43,5 +43,14 @@ const envDefaults: Record<string, string> = {
 };
 
 for (const [key, value] of Object.entries(envDefaults)) {
+  // Opt-in DB integration suites supply a real Postgres URL. Do not clobber it
+  // with the unit-test placeholder or those tests can never connect.
+  if (
+    key === "DATABASE_URL" &&
+    process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
+    process.env.DATABASE_URL?.startsWith("postgres")
+  ) {
+    continue;
+  }
   process.env[key] = value;
 }

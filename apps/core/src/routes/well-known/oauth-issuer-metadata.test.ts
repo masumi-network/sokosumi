@@ -30,5 +30,9 @@ describe("well-known oauth issuer metadata integration", () => {
       `${metadata.issuer}/oauth2/authorize`,
     );
     expect(metadata.token_endpoint).toBe(`${metadata.issuer}/oauth2/token`);
-  });
+    // Bumped from vitest's 5s default: this boots the whole Better Auth
+    // handler, and that cold start exceeds 5s under full-suite parallel load
+    // even though the test takes ~1.5s in isolation. Observed failing at
+    // exactly 5007ms while this branch's added tests were in the run.
+  }, 10_000);
 });

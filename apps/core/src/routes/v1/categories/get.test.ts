@@ -50,6 +50,7 @@ describe("GET /categories", () => {
     prismaTransactionMock.mockImplementation(async (callback) => {
       const tx = {
         creditCost: { findMany: creditCostFindManyMock },
+        syncMetadata: { findUnique: vi.fn().mockResolvedValue(null) },
         category: { findMany: categoryFindManyMock },
       };
       return await callback(tx);
