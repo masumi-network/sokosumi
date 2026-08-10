@@ -157,6 +157,7 @@ beforeEach(() => {
   findManyMock.mockResolvedValue([]);
   streamTextMock.mockReturnValue({
     text: Promise.resolve("Hello back"),
+    reasoning: Promise.resolve([]),
   });
   createMock.mockResolvedValue({ id: "reply_1" });
   deleteMock.mockResolvedValue({ id: "reply_1" });
@@ -306,6 +307,33 @@ describe("dispatchChatRoomMention claim", () => {
       }),
     });
     expect(deleteMock).not.toHaveBeenCalled();
+  });
+
+  it("persists Thought metadata on the reply when provider returns reasoning", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    streamTextMock.mockReturnValue({
+      text: Promise.resolve("Hello back"),
+      reasoning: Promise.resolve([
+        { type: "reasoning", text: "Looked up the room context." },
+      ]),
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          content: "Hello back",
+          metadata: expect.objectContaining({
+            mention_id: MENTION_ID,
+            reasoning: [
+              { type: "reasoning", text: "Looked up the room context." },
+            ],
+          }),
+        }),
+      }),
+    );
   });
 
   it("discards the reply when finalize loses the claim race", async () => {

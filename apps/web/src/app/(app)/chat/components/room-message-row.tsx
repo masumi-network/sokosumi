@@ -3,6 +3,7 @@
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
   CheckCircle2,
+  ChevronRight,
   Loader2,
   MessageCircle,
   Pencil,
@@ -18,10 +19,15 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
+import {
+  type CoworkerThoughtDisclosure,
+  resolveCoworkerThoughtViewModel,
+} from "@/app/chat/utils/coworker-thought";
 import {
   getJumboEmojiCount,
   jumboEmojiClassName,
@@ -1283,6 +1289,49 @@ function MessageMetaFooter({
   );
 }
 
+/** Collapsed-by-default Thought disclosure on coworker assistant messages. */
+function CoworkerThoughtDisclosureControl({
+  disclosure,
+  thoughtForSecondsLabel,
+  expandLabel,
+  collapseLabel,
+}: {
+  disclosure: CoworkerThoughtDisclosure;
+  thoughtForSecondsLabel: (seconds: number) => string;
+  expandLabel: string;
+  collapseLabel: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const summary =
+    disclosure.durationSeconds != null
+      ? thoughtForSecondsLabel(disclosure.durationSeconds)
+      : expandLabel;
+  return (
+    <div className="mb-1.5">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="text-muted-foreground hover:text-foreground focus-visible:ring-primary/40 inline-flex max-w-full items-center gap-1 rounded text-xs font-medium transition-colors outline-none focus-visible:ring-2"
+      >
+        <ChevronRight
+          aria-hidden
+          className={cn(
+            "size-3 shrink-0 transition-transform",
+            open && "rotate-90",
+          )}
+        />
+        <span className="truncate">{open ? collapseLabel : summary}</span>
+      </button>
+      {open ? (
+        <p className="text-muted-foreground border-border/60 mt-1.5 border-l pl-3 text-xs leading-5 whitespace-pre-wrap italic">
+          {disclosure.text}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function ChatMessageRow({
   message,
   coworkersById,
@@ -1347,10 +1396,27 @@ export function ChatMessageRow({
   const isDirectActionBusy = openingDirectParticipantKey != null;
   const isStreamOverlay = message.id.startsWith("stream:");
   const isDeleted = message.deletedAt != null;
+  const thoughtView = useMemo(() => {
+    if (message.sender.type !== "coworker" || isDeleted) {
+      return null;
+    }
+    return resolveCoworkerThoughtViewModel({
+      content: message.content,
+      isStreamOverlay,
+      metadata: message.metadata,
+    });
+  }, [
+    isDeleted,
+    isStreamOverlay,
+    message.content,
+    message.metadata,
+    message.sender.type,
+  ]);
   const isThinking =
-    isStreamOverlay &&
-    message.sender.type === "coworker" &&
-    message.content.trim().length === 0;
+    thoughtView?.showThinkingFallback === true ||
+    (thoughtView != null &&
+      thoughtView.liveBeat != null &&
+      message.content.trim().length === 0);
   const canQuote =
     showQuoteButton && Boolean(onQuote) && !isStreamOverlay && !isDeleted;
   const canEdit =
@@ -1489,7 +1555,7 @@ export function ChatMessageRow({
                   onCancel={onCancelEdit}
                   isSaving={isSavingEdit}
                 />
-              ) : isThinking ? (
+              ) : thoughtView?.showThinkingFallback ? (
                 <span
                   className="reasoning-text-shine text-base leading-5 md:text-sm"
                   role="status"
@@ -1497,8 +1563,26 @@ export function ChatMessageRow({
                 >
                   {tChat("reasoning.thinking")}
                 </span>
+              ) : thoughtView?.liveBeat ? (
+                <p
+                  className="reasoning-text-shine text-muted-foreground line-clamp-3 text-base leading-5 italic md:text-sm"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {thoughtView.liveBeat}
+                </p>
               ) : (
                 <>
+                  {thoughtView?.disclosure ? (
+                    <CoworkerThoughtDisclosureControl
+                      disclosure={thoughtView.disclosure}
+                      thoughtForSecondsLabel={(seconds) =>
+                        tChat("reasoning.thoughtForSeconds", { seconds })
+                      }
+                      expandLabel={tChat("reasoning.expandSteps")}
+                      collapseLabel={tChat("reasoning.collapseSteps")}
+                    />
+                  ) : null}
                   <ChannelMessageBody
                     messageId={message.id}
                     content={message.content}

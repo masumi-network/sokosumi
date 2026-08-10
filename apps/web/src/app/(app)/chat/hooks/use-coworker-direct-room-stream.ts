@@ -5,6 +5,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CHAT_API_PATH } from "@/app/chat/utils/chat-route-base";
+import { reasoningStepsForMetadata } from "@/app/chat/utils/coworker-thought";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import { clearPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import type {
@@ -121,6 +122,14 @@ function uiMessageToTransientRoomMessage({
   parentMessageId: string | null;
 }): ChatRoomMessage {
   const content = extractMessageContent(message);
+  const reasoningSteps =
+    message.role === "assistant"
+      ? reasoningStepsForMetadata(message.parts)
+      : undefined;
+  const assistantMetadata: Record<string, unknown> = {
+    streaming: true,
+    ...(reasoningSteps ? { reasoning: reasoningSteps } : {}),
+  };
 
   if (message.role === "user") {
     return {
@@ -157,7 +166,7 @@ function uiMessageToTransientRoomMessage({
     reactions: [],
     threadReplyCount: 0,
     threadLastReplyAt: null,
-    metadata: { streaming: true },
+    metadata: assistantMetadata,
     quote: null,
     membership: null,
     unfurls: null,

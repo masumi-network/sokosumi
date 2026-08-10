@@ -1546,3 +1546,94 @@ describe("ChatMessageRow", () => {
     );
   });
 });
+
+describe("ChatMessageRow coworker Thought", () => {
+  it("shows Thinking fallback on empty stream overlay without Thought", () => {
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:asst-1",
+        content: "",
+        metadata: { streaming: true },
+      }),
+    });
+
+    expect(screen.getByRole("status")).toHaveTextContent("reasoning.thinking");
+  });
+
+  it("shows live Thought beat on stream overlay instead of Thinking", () => {
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:asst-2",
+        content: "",
+        metadata: {
+          streaming: true,
+          reasoning: [
+            {
+              type: "reasoning",
+              text: "Counting registrations in last 30 days",
+            },
+          ],
+        },
+      }),
+    });
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Counting registrations in last 30 days");
+    expect(status).not.toHaveTextContent("reasoning.thinking");
+  });
+
+  it("shows collapsed Thought disclosure with duration when metadata has Thought", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      message: coworkerMessage({
+        content: "There were 142 new registrations.",
+        metadata: {
+          reasoning: [{ type: "reasoning", text: "Queried user table." }],
+          thought_timing_ms: { start: 1_000, end: 13_000 },
+        },
+      }),
+    });
+
+    expect(
+      screen.getByText("There were 142 new registrations."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Queried user table.")).not.toBeInTheDocument();
+
+    const toggle = screen.getByRole("button", {
+      name: "reasoning.thoughtForSeconds",
+    });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Queried user table.")).toBeInTheDocument();
+  });
+
+  it("uses expand label when Thought exists without valid timing", () => {
+    renderRow({
+      message: coworkerMessage({
+        content: "Answer body",
+        metadata: {
+          reasoning: [{ type: "reasoning", text: "Some thought" }],
+        },
+      }),
+    });
+
+    expect(
+      screen.getByRole("button", { name: "reasoning.expandSteps" }),
+    ).toBeInTheDocument();
+  });
+
+  it("omits Thought disclosure when there is no reasoning metadata", () => {
+    renderRow({
+      message: coworkerMessage({ content: "Plain answer" }),
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "reasoning.expandSteps" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "reasoning.thoughtForSeconds" }),
+    ).not.toBeInTheDocument();
+  });
+});
