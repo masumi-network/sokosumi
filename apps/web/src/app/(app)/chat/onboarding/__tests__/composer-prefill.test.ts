@@ -15,8 +15,11 @@ describe("room composer prefill", () => {
     stashRoomComposerPrefill("room-1", "  hello draft  ");
     expect(peekRoomComposerPrefill("room-1")).toBe("hello draft");
     expect(takeRoomComposerPrefill("room-1")).toBe("hello draft");
-    expect(takeRoomComposerPrefill("room-1")).toBeNull();
-    expect(peekRoomComposerPrefill("room-1")).toBeNull();
+    // Immediate re-take still returns during Strict Mode window, then null.
+    expect(takeRoomComposerPrefill("room-1")).toBe("hello draft");
+    expect(
+      sessionStorage.getItem("pending-room-composer-draft:room-1"),
+    ).toBeNull();
   });
 
   it("uses a key prefix distinct from auto-send pending", () => {

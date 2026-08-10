@@ -7,6 +7,10 @@ import { toast } from "sonner";
 
 import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
+import {
+  composeDraftKey,
+  setComposeDraft,
+} from "@/app/chat/utils/compose-draft-storage";
 import type { Coworker } from "@/app/chat/utils/types";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Label } from "@/components/ui/label";
@@ -100,6 +104,16 @@ export function ChatOnboardingHost({
       }
 
       stashRoomComposerPrefill(roomResult.data.id, draftText);
+      // Also seed compose-draft so Strict Mode remount still hydrates text
+      // after takeRoomComposerPrefill clears sessionStorage.
+      try {
+        setComposeDraft(composeDraftKey.room(roomResult.data.id), {
+          text: draftText,
+          attachments: [],
+        });
+      } catch {
+        // best-effort — empty composer OK per Spec
+      }
       notifyOrganizationChatRoomsChanged(roomResult.data);
       router.replace(`/chat/rooms/${roomResult.data.id}`);
       dispatch({ type: "confirm_succeeded" });
