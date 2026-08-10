@@ -1,2 +1,2 @@
-/** Tailwind max-width for onboarding feature content (card, draft, questionnaire). */
-export const ONBOARDING_FEATURE_MAX_WIDTH_CLASS = "max-w-sm";
+/** Tailwind max-width for onboarding questionnaire steps. */
+export const ONBOARDING_STEPS_MAX_WIDTH_CLASS = "max-w-2xl";

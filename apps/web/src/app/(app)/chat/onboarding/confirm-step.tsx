@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getCoworkerMetadataChannels } from "@/lib/utils/coworker-channels";
 
-import { ONBOARDING_FEATURE_MAX_WIDTH_CLASS } from "./feature-width";
 import { chatCapableCoworkers } from "./recommend";
 import type { OnboardingRecommendation } from "./types";
 
@@ -169,47 +168,40 @@ export function ConfirmStep({
 
           <div
             className={cn(
-              "flex min-w-0 flex-1 justify-center",
+              "min-w-0 flex-1 space-y-6",
               showSwitcher && "md:border-border md:border-l md:pl-8",
             )}
           >
-            <div
-              className={cn(
-                "w-full space-y-6",
-                ONBOARDING_FEATURE_MAX_WIDTH_CLASS,
-              )}
-            >
-              {selected ? (
-                <CoworkerGalleryCard
-                  className="w-full"
-                  slug={selected.slug ?? ""}
-                  name={selected.name}
-                  image={selected.avatar}
-                  caption={selected.caption}
-                  description={selected.description}
-                  channels={getCoworkerMetadataChannels({
-                    metadata: selected.metadata ?? null,
-                  })}
-                />
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  {t("noChatCoworker")}
-                </p>
-              )}
+            {selected ? (
+              <CoworkerGalleryCard
+                className="w-full md:w-full"
+                slug={selected.slug ?? ""}
+                name={selected.name}
+                image={selected.avatar}
+                caption={selected.caption}
+                description={selected.description}
+                channels={getCoworkerMetadataChannels({
+                  metadata: selected.metadata ?? null,
+                })}
+              />
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                {t("noChatCoworker")}
+              </p>
+            )}
 
-              <div className="bg-muted/50 space-y-1 rounded-lg border p-3">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-                  {t("draftPreviewLabel")}
-                </p>
-                <p className="text-sm whitespace-pre-wrap">{draftPreview}</p>
-              </div>
-
-              {errorMessage ? (
-                <p className="text-destructive text-sm" role="alert">
-                  {errorMessage}
-                </p>
-              ) : null}
+            <div className="bg-muted/50 space-y-1 rounded-lg border p-3">
+              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+                {t("draftPreviewLabel")}
+              </p>
+              <p className="text-sm whitespace-pre-wrap">{draftPreview}</p>
             </div>
+
+            {errorMessage ? (
+              <p className="text-destructive text-sm" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
