@@ -23,12 +23,20 @@ import { safeDetachChannel } from "./safe-detach-channel";
 
 const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
 
+export interface ChatMembershipRevokedRealtimeEvent {
+  roomId: string;
+  reason: "removed" | "left";
+  at: string;
+}
+
 interface UseChatRoomRealtimeOptions {
   /** Membership room ids to attach (all rooms for sidebar/live parity). */
   roomIds: readonly string[];
   currentUserId: string;
   onMessage?: (event: ChatRoomMessageEventData) => void;
   onError?: (error: Error) => void;
+  /** After local detach + re-auth queue (SOK-746 membership-visible UI). */
+  onMembershipRevoked?: (event: ChatMembershipRevokedRealtimeEvent) => void;
 }
 
 /**
@@ -48,12 +56,15 @@ export function useChatRoomRealtime({
   currentUserId,
   onMessage,
   onError,
+  onMembershipRevoked,
 }: UseChatRoomRealtimeOptions) {
   const ably = useAbly();
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+  const onMembershipRevokedRef = useRef(onMembershipRevoked);
+  onMembershipRevokedRef.current = onMembershipRevoked;
   const currentUserIdRef = useRef(currentUserId);
   currentUserIdRef.current = currentUserId;
 
@@ -203,6 +214,7 @@ export function useChatRoomRealtime({
       syncGenerationRef.current += 1;
       detachRoomLocally(parsed.data.roomId);
       void syncMembershipChannels();
+      onMembershipRevokedRef.current?.(parsed.data);
     }
 
     void syncMembershipChannels();

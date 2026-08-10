@@ -187,11 +187,13 @@ describe("useChatRoomRealtime", () => {
 
   it("on control revoke, detaches the room immediately and re-authorizes", async () => {
     authorizeMock.mockResolvedValue(tokenWithRooms("room-a", "room-b"));
+    const onMembershipRevoked = vi.fn();
 
     renderHook(() =>
       useChatRoomRealtime({
         roomIds: ["room-a", "room-b"],
         currentUserId: "user_1",
+        onMembershipRevoked,
       }),
     );
 
@@ -215,6 +217,11 @@ describe("useChatRoomRealtime", () => {
 
     expect(channelFor("chat_rooms:room_room-b").unsubscribe).toHaveBeenCalled();
     expect(channelFor("chat_rooms:room_room-b").detach).toHaveBeenCalled();
+    expect(onMembershipRevoked).toHaveBeenCalledWith({
+      roomId: "room-b",
+      reason: "removed",
+      at: "2026-08-06T12:00:00.000Z",
+    });
 
     await waitFor(() => {
       expect(authorizeMock).toHaveBeenCalledTimes(1);

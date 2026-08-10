@@ -23,3 +23,17 @@ _Avoid_: Notification (for this cue), banner (unless referring to a specific lay
 **Workspace switcher**:
 The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point.
 _Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar
+
+### Chat membership
+
+**Membership-visible rooms**:
+The set of chat rooms the current user is a member of and may see in the chat room list (sidebar / chats list). Losing membership removes a room from this set.
+_Avoid_: Roster (for this set), channel list (unless referring to a specific UI label)
+
+**Room roster**:
+The set of human and coworker members of one open room. Distinct from membership-visible rooms.
+_Avoid_: Sidebar rooms, room list (when meaning who is in the room)
+
+**Membership revoke**:
+The event that the current user is no longer a member of a room — by remote removal (kick / roster remove) or by voluntary leave. After revoke they must not remain in membership-visible rooms for that room.
+_Avoid_: Access revoke (when meaning coworker workspace pilot access, not room membership)
