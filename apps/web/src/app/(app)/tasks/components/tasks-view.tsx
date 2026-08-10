@@ -34,6 +34,7 @@ import {
   loadJobsTabData,
   loadMoreJobs,
   loadMoreTasksColumn,
+  loadMoreTasksList,
 } from "@/app/tasks/actions";
 import {
   JOBS_TAB_LOAD_RETRY_DELAY_MS,
@@ -229,6 +230,7 @@ function AgentJobsRealtimeListener({
 
 interface TasksViewProps {
   tasks: TaskWithCoworker[];
+  listNextCursor: string | null;
   columnNextCursorById: Record<KanbanColumnId, string | null>;
   columns?: KanbanColumnDefinition[];
   coworkerOptions: CoworkerOption[];
@@ -312,6 +314,7 @@ type TasksTabValue = "tasks" | "jobs";
 
 export function TasksView({
   tasks,
+  listNextCursor: initialListNextCursor,
   columnNextCursorById: initialColumnNextCursorById,
   columns = KANBAN_COLUMNS,
   coworkerOptions,
@@ -371,6 +374,10 @@ export function TasksView({
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
   >(() => buildInitialColumnCursorById(columns, initialColumnNextCursorById));
+  const [listCursor, setListCursor] = useState<string | null>(
+    initialListNextCursor,
+  );
+  const [isLoadingListMore, setIsLoadingListMore] = useState(false);
   const [loadingColumnIds, setLoadingColumnIds] = useState<Set<KanbanColumnId>>(
     () => new Set(),
   );
@@ -403,6 +410,8 @@ export function TasksView({
   const columnCursorByIdRef = useRef<Record<KanbanColumnId, string | null>>(
     buildInitialColumnCursorById(columns, initialColumnNextCursorById),
   );
+  const listCursorRef = useRef<string | null>(initialListNextCursor);
+  const isLoadingListMoreRef = useRef(false);
   const loadingColumnIdsRef = useRef<Set<KanbanColumnId>>(new Set());
   const refreshRoute = useDebouncedCallback(
     () => router.refresh(),
@@ -455,6 +464,7 @@ export function TasksView({
   const previousJobsListFiltersResetKeyRef = useRef(
     serverJobsListFiltersResetKey,
   );
+  const previousDefaultViewModeRef = useRef(defaultViewMode);
   const handleEventUpdate = (_data: TaskEventData) => {
     refreshRoute();
   };
@@ -470,6 +480,14 @@ export function TasksView({
   useEffect(() => {
     columnCursorByIdRef.current = columnCursorById;
   }, [columnCursorById]);
+
+  useEffect(() => {
+    listCursorRef.current = listCursor;
+  }, [listCursor]);
+
+  useEffect(() => {
+    isLoadingListMoreRef.current = isLoadingListMore;
+  }, [isLoadingListMore]);
 
   useEffect(() => {
     loadingColumnIdsRef.current = loadingColumnIds;
@@ -497,8 +515,46 @@ export function TasksView({
     setColumnCursorById(
       buildInitialColumnCursorById(columns, initialColumnNextCursorById),
     );
+    setListCursor(initialListNextCursor);
+    listCursorRef.current = initialListNextCursor;
     setLoadingColumnIds(new Set());
-  }, [columns, initialColumnNextCursorById, serverTasksFiltersResetKey, tasks]);
+    setIsLoadingListMore(false);
+    isLoadingListMoreRef.current = false;
+  }, [
+    columns,
+    initialColumnNextCursorById,
+    initialListNextCursor,
+    serverTasksFiltersResetKey,
+    tasks,
+  ]);
+
+  useLayoutEffect(() => {
+    if (previousDefaultViewModeRef.current === defaultViewMode) {
+      return;
+    }
+
+    previousDefaultViewModeRef.current = defaultViewMode;
+    moveVersionRef.current = 0;
+    pendingMoveVersionByTaskIdRef.current.clear();
+    setViewMode(defaultViewMode ?? "board");
+
+    itemsRef.current = tasks;
+    setItems(tasks);
+    setColumnCursorById(
+      buildInitialColumnCursorById(columns, initialColumnNextCursorById),
+    );
+    setListCursor(initialListNextCursor);
+    listCursorRef.current = initialListNextCursor;
+    setLoadingColumnIds(new Set());
+    setIsLoadingListMore(false);
+    isLoadingListMoreRef.current = false;
+  }, [
+    columns,
+    defaultViewMode,
+    initialColumnNextCursorById,
+    initialListNextCursor,
+    tasks,
+  ]);
 
   useEffect(() => {
     const prev = itemsRef.current;
@@ -524,9 +580,13 @@ export function TasksView({
       setColumnCursorById(
         buildInitialColumnCursorById(columns, initialColumnNextCursorById),
       );
+      setListCursor(initialListNextCursor);
+      listCursorRef.current = initialListNextCursor;
       setLoadingColumnIds(new Set());
+      setIsLoadingListMore(false);
+      isLoadingListMoreRef.current = false;
     }
-  }, [columns, initialColumnNextCursorById, tasks]);
+  }, [columns, initialColumnNextCursorById, initialListNextCursor, tasks]);
 
   const mergeJobsWithExisting = useCallback(
     (fetchedJobs: TasksViewJob[], prevJobs: TasksViewJob[]) => {
@@ -871,9 +931,48 @@ export function TasksView({
     ],
   );
 
+  const handleLoadMoreList = useCallback(async () => {
+    if (!isTaskPaginationInSync) return;
+
+    const cursor = listCursorRef.current;
+    if (cursor === null || isLoadingListMoreRef.current) return;
+
+    isLoadingListMoreRef.current = true;
+    setIsLoadingListMore(true);
+
+    try {
+      const result = await loadMoreTasksList({
+        cursor,
+        scope: routeFilters.scope,
+        assigneeId: routeFilters.assigneeId,
+        status: routeFilters.status,
+        projectId: routeFilters.projectId,
+      });
+      setItems((prev) => appendUniqueTasks(prev, result.tasks));
+      const nextCursor = result.nextCursor;
+      setListCursor(nextCursor);
+      listCursorRef.current = nextCursor;
+    } catch {
+      setListCursor(null);
+      listCursorRef.current = null;
+      toast.error(labels.loadMoreError);
+    } finally {
+      isLoadingListMoreRef.current = false;
+      setIsLoadingListMore(false);
+    }
+  }, [
+    isTaskPaginationInSync,
+    labels.loadMoreError,
+    routeFilters.assigneeId,
+    routeFilters.projectId,
+    routeFilters.scope,
+    routeFilters.status,
+  ]);
+
   const handleViewModeChange = (next: TasksViewMode) => {
     setViewMode(next);
     document.cookie = serializeTasksViewModeCookie(next);
+    router.refresh();
   };
 
   const handleDensityChange = (next: TasksDensity) => {
@@ -1052,6 +1151,30 @@ export function TasksView({
     loadingColumnIds,
   ]);
 
+  const listFooter = useMemo(() => {
+    if (listCursor === null) return null;
+
+    return (
+      <div className="flex justify-center pb-2">
+        <Button
+          className="text-muted-foreground hover:text-foreground w-full text-xs"
+          variant="outline"
+          onClick={() => void handleLoadMoreList()}
+          disabled={isLoadingListMore || !isTaskPaginationInSync}
+        >
+          {isLoadingListMore ? labels.loading : labels.loadMore}
+        </Button>
+      </div>
+    );
+  }, [
+    handleLoadMoreList,
+    isLoadingListMore,
+    isTaskPaginationInSync,
+    labels.loadMore,
+    labels.loading,
+    listCursor,
+  ]);
+
   const handleGuideComplete = useCallback(() => {
     setGuideCompleted(true);
     setForceShowGuide(false);
@@ -1200,24 +1323,11 @@ export function TasksView({
                 ) : (
                   <TaskListView
                     tasks={items}
-                    columns={columns}
-                    sectionFooterById={columnFooterById}
+                    footer={listFooter}
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
-                    canDragTask={(task) =>
-                      isTaskDnDDraggable(task) &&
-                      isTaskDraggableForViewFilters(
-                        task,
-                        userId,
-                        routeFilters,
-                        initialFilters,
-                        activeOrganizationId,
-                      )
-                    }
                     labels={{
-                      columns: labels.columns,
                       emptyList: labels.listPlaceholder,
-                      emptySection: labels.listPlaceholder,
                     }}
                   />
                 )}
@@ -1265,16 +1375,12 @@ export function TasksView({
             ) : (
               <TaskListView
                 tasks={items}
-                columns={columns}
-                sectionFooterById={columnFooterById}
+                footer={listFooter}
                 compact={density === "compact"}
                 statusLabels={labels.filters.statusOptions}
                 labels={{
-                  columns: labels.columns,
                   emptyList: labels.listPlaceholder,
-                  emptySection: labels.listPlaceholder,
                 }}
-                isDragEnabled={false}
               />
             )}
           </div>
