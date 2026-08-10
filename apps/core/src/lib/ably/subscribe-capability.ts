@@ -24,7 +24,7 @@ export interface BuildAblyClientCapabilityInput {
  * Ably capabilities for a user session.
  * - Chat rooms: per-membership room id subscribe (SOK-741)
  * - Chat control: always subscribe (SOK-742 membership revoke)
- * - Org presence: presence enter/update/leave + subscribe (ADR-0002)
+ * - Org presence: Ably `presence` op only (enter/update/leave + presence events; ADR-0002)
  */
 export function buildAblySubscribeCapability(
   userId: string,

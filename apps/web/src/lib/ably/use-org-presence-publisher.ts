@@ -45,6 +45,9 @@ export function useOrgPresencePublisher(): void {
     const channels = channelsRef.current;
 
     async function publishPresence(force: boolean): Promise<void> {
+      if (cancelled) {
+        return;
+      }
       const visible = !document.hidden;
       const now = Date.now();
       const lastActiveAt = lastActiveAtRef.current;
@@ -64,13 +67,21 @@ export function useOrgPresencePublisher(): void {
 
       await Promise.all(
         [...channels.values()].map(async (channel) => {
+          if (cancelled) {
+            return;
+          }
           try {
             await channel.presence.update(data);
           } catch {
+            if (cancelled) {
+              return;
+            }
             try {
               await channel.presence.enter(data);
             } catch (error) {
-              console.error("Ably presence enter/update failed:", error);
+              if (!cancelled) {
+                console.error("Ably presence enter/update failed:", error);
+              }
             }
           }
         }),
@@ -78,11 +89,16 @@ export function useOrgPresencePublisher(): void {
     }
 
     async function syncChannels(): Promise<void> {
+      if (cancelled) {
+        return;
+      }
       let tokenDetails: Ably.TokenDetails | null = null;
       try {
         tokenDetails = await ably.auth.authorize();
       } catch (error) {
-        console.error("Ably authorize for presence failed:", error);
+        if (!cancelled) {
+          console.error("Ably authorize for presence failed:", error);
+        }
         return;
       }
       if (cancelled) {
@@ -96,6 +112,9 @@ export function useOrgPresencePublisher(): void {
       );
 
       for (const [name, channel] of channels) {
+        if (cancelled) {
+          return;
+        }
         if (!nextNames.has(name)) {
           try {
             await channel.presence.leave();
@@ -107,9 +126,16 @@ export function useOrgPresencePublisher(): void {
         }
       }
 
+      if (cancelled) {
+        return;
+      }
+
       const data = buildPresenceData(lastActiveAtRef.current, !document.hidden);
 
       for (const name of nextNames) {
+        if (cancelled) {
+          return;
+        }
         if (channels.has(name)) {
           continue;
         }
@@ -118,10 +144,15 @@ export function useOrgPresencePublisher(): void {
         try {
           await channel.presence.enter(data);
         } catch (error) {
-          console.error("Ably presence enter failed:", error);
+          if (!cancelled) {
+            console.error("Ably presence enter failed:", error);
+          }
         }
       }
 
+      if (cancelled) {
+        return;
+      }
       lastPublishedAtRef.current = Date.now();
       lastPublishedVisibleRef.current = !document.hidden;
     }
