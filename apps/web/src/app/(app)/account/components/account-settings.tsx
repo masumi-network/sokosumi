@@ -4,8 +4,10 @@ import type { DesignMdProfileValue } from "@/components/design-md";
 import { AccountProvider } from "@/lib/auth/types";
 import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 import { AccountBillingDetails } from "./account-billing-details";
+import { AccountCoworkerAccess } from "./account-coworker-access";
 import { AccountVendorGrants } from "./account-vendor-grants";
 import { BrandProfileSection } from "./brand-profile-section";
+
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
 import { EmailPreferences } from "./email-preferences";
@@ -77,6 +79,10 @@ export function AccountSettings({
 
       <div className="border-t pt-8">
         <AccountVendorGrants />
+      </div>
+
+      <div className="border-t pt-8">
+        <AccountCoworkerAccess />
       </div>
 
       <div className="border-t pt-8">

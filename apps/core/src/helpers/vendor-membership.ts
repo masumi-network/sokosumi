@@ -49,8 +49,9 @@ export function buildAccessibleCoworkersWhere(
 export async function requireVendorAdminMembership(
   userId: string,
   vendorId: string,
+  tx: Prisma.TransactionClient | typeof prisma = prisma,
 ): Promise<void> {
-  const vendor = await prisma.vendor.findUnique({
+  const vendor = await tx.vendor.findUnique({
     where: { id: vendorId },
     select: { id: true },
   });
@@ -59,7 +60,7 @@ export async function requireVendorAdminMembership(
     throw notFound("Vendor not found");
   }
 
-  const membership = await prisma.vendorMember.findFirst({
+  const membership = await tx.vendorMember.findFirst({
     where: {
       vendorId,
       userId,

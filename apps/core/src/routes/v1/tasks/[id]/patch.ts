@@ -130,7 +130,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
       if (assigneeIdWasProvided && assigneeId !== null) {
-        await requireTaskAssignableCoworker(assigneeId, tx);
+        await requireTaskAssignableCoworker(assigneeId, task.workspaceId, tx);
       }
 
       const projectIdWasProvided = projectId !== undefined;

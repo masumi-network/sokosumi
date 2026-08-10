@@ -15,6 +15,8 @@ const {
   getSokosumiProviderMock,
   transactionUpdateManyMock,
   coworkerMemberFindUniqueMock,
+  workspaceFindUniqueMock,
+  coworkerFindFirstMock,
 } = vi.hoisted(() => ({
   findUniqueMock: vi.fn(),
   findManyMentionMock: vi.fn(),
@@ -30,6 +32,8 @@ const {
   getSokosumiProviderMock: vi.fn(),
   transactionUpdateManyMock: vi.fn(),
   coworkerMemberFindUniqueMock: vi.fn(),
+  workspaceFindUniqueMock: vi.fn(),
+  coworkerFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -52,6 +56,12 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     chatRoom: {
       update: vi.fn(),
+    },
+    workspace: {
+      findUnique: workspaceFindUniqueMock,
+    },
+    coworker: {
+      findFirst: coworkerFindFirstMock,
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
@@ -96,8 +106,19 @@ import {
 } from "./chat-room-coworker-dispatch.service";
 
 const MENTION_ID = "mention_1";
+const ORG_WORKSPACE_ID = "ws_org_1";
 
-function pendingMention() {
+function pendingMention(
+  overrides: {
+    organizationId?: string | null;
+    coworker?: Partial<{
+      id: string;
+      slug: string;
+      name: string;
+      baseURL: string | null;
+    }>;
+  } = {},
+) {
   return {
     id: MENTION_ID,
     status: "pending",
@@ -108,9 +129,7 @@ function pendingMention() {
       slug: "hannah",
       name: "Hannah",
       baseURL: "https://coworker.example",
-      archivedAt: null,
-      isWhitelisted: true,
-      capabilities: ["chat"],
+      ...overrides.coworker,
     },
     message: {
       id: "msg_1",
@@ -124,7 +143,8 @@ function pendingMention() {
       room: {
         id: "room_1",
         name: "general",
-        organizationId: "org_1",
+        organizationId:
+          "organizationId" in overrides ? overrides.organizationId : "org_1",
       },
     },
   };
@@ -145,6 +165,12 @@ beforeEach(() => {
   updateManyMock.mockResolvedValue({ count: 1 });
   transactionUpdateManyMock.mockResolvedValue({ count: 1 });
   coworkerMemberFindUniqueMock.mockResolvedValue({ id: "membership_1" });
+  workspaceFindUniqueMock.mockResolvedValue({ id: ORG_WORKSPACE_ID });
+  coworkerFindFirstMock.mockResolvedValue({
+    id: "cow_1",
+    slug: "hannah",
+    baseURL: "https://coworker.example",
+  });
 });
 
 describe("room coworker stream timeout budgets", () => {
@@ -424,6 +450,93 @@ describe("dispatchChatRoomMention claim", () => {
         error: "Source message was deleted",
       },
     });
+  });
+
+  it("dispatches when coworker is usable via workspace GRANTED access", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    coworkerFindFirstMock.mockResolvedValue({
+      id: "cow_1",
+      slug: "hannah",
+      baseURL: "https://coworker.example",
+    });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(workspaceFindUniqueMock).toHaveBeenCalledWith({
+      where: { organizationId: "org_1" },
+      select: { id: true },
+    });
+    expect(coworkerFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "cow_1",
+          archivedAt: null,
+          OR: [
+            { isWhitelisted: true },
+            {
+              workspaceAccess: {
+                some: {
+                  workspaceId: ORG_WORKSPACE_ID,
+                  status: "GRANTED",
+                },
+              },
+            },
+          ],
+          capabilities: { has: "chat" },
+          AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
+        }),
+      }),
+    );
+    expect(streamTextMock).toHaveBeenCalled();
+  });
+
+  it("fails closed when coworker is not usable in room workspace", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    coworkerFindFirstMock.mockResolvedValue(null);
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(updateManyMock).toHaveBeenCalledWith({
+      where: { id: MENTION_ID, status: { not: "responded" } },
+      data: {
+        status: "failed",
+        error: "Coworker chat is not available",
+      },
+    });
+    expect(streamTextMock).not.toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves personal workspace for personal rooms via message sender", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention({ organizationId: null }));
+    workspaceFindUniqueMock.mockResolvedValue({ id: "ws_personal_1" });
+    updateManyMock.mockResolvedValue({ count: 1 });
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    expect(workspaceFindUniqueMock).toHaveBeenCalledWith({
+      where: { userId: "user_1" },
+      select: { id: true },
+    });
+    expect(coworkerFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { isWhitelisted: true },
+            {
+              workspaceAccess: {
+                some: {
+                  workspaceId: "ws_personal_1",
+                  status: "GRANTED",
+                },
+              },
+            },
+          ],
+        }),
+      }),
+    );
+    expect(streamTextMock).toHaveBeenCalled();
   });
 });
 

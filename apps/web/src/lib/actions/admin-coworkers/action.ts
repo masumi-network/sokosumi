@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import * as z from "zod";
+
 import { validateCoworkerDisplayActionInput } from "@/lib/actions/coworkers/apply-display-action-input";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
@@ -14,6 +16,7 @@ import {
   type AdminCoworkerControlsPatchBody,
   adminCoworkerService,
 } from "@/lib/services/admin-coworker.service";
+import { coworkerAccessService } from "@/lib/services/coworker-access.service";
 import { type UpdateCoworkerDisplayResult } from "@/lib/services/coworker-display.service";
 import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
@@ -234,6 +237,95 @@ export const unarchiveAdminCoworkerAction = withSession<
 
     revalidateAdminCoworkerRoutes(id);
     return Ok({ coworker });
+  } catch (error) {
+    return Err(mapCoreError(error));
+  }
+});
+
+const grantCoworkerEarlyAccessSchema = z.object({
+  coworkerId: z.string().uuid(),
+  targetType: z.enum(["user", "organization"]),
+  targetId: z.string().min(1),
+});
+
+const revokeCoworkerEarlyAccessByWorkspaceSchema = z.object({
+  coworkerId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+});
+
+interface GrantAdminCoworkerEarlyAccessParameters extends AuthenticatedRequest {
+  coworkerId: string;
+  targetType: "user" | "organization";
+  targetId: string;
+}
+
+interface RevokeAdminCoworkerEarlyAccessParameters
+  extends AuthenticatedRequest {
+  coworkerId: string;
+  workspaceId: string;
+}
+
+function toAccessTargetBody(parsed: {
+  targetType: "user" | "organization";
+  targetId: string;
+}): { userId: string } | { organizationId: string } {
+  if (parsed.targetType === "user") {
+    return { userId: parsed.targetId };
+  }
+  return { organizationId: parsed.targetId };
+}
+
+export const grantAdminCoworkerEarlyAccessAction = withSession<
+  GrantAdminCoworkerEarlyAccessParameters,
+  Result<{ accessId: string; status: string }, ActionError>
+>(async ({ session, coworkerId, targetType, targetId }) => {
+  try {
+    assertAdminSession(session);
+
+    const parsed = grantCoworkerEarlyAccessSchema.safeParse({
+      coworkerId,
+      targetType,
+      targetId,
+    });
+    if (!parsed.success) {
+      return Err({ code: CommonErrorCode.BAD_INPUT });
+    }
+
+    const access = await coworkerAccessService.createForCoworker(
+      parsed.data.coworkerId,
+      toAccessTargetBody(parsed.data),
+    );
+
+    revalidateAdminCoworkerRoutes(parsed.data.coworkerId);
+    return Ok({ accessId: access.id, status: access.status });
+  } catch (error) {
+    return Err(mapCoreError(error));
+  }
+});
+
+/** Revoke GRANTED access for a list row (by workspace id). */
+export const revokeAdminCoworkerEarlyAccessAction = withSession<
+  RevokeAdminCoworkerEarlyAccessParameters,
+  Result<{ accessId: string; status: string }, ActionError>
+>(async ({ session, coworkerId, workspaceId }) => {
+  try {
+    assertAdminSession(session);
+
+    const parsed = revokeCoworkerEarlyAccessByWorkspaceSchema.safeParse({
+      coworkerId,
+      workspaceId,
+    });
+    if (!parsed.success) {
+      return Err({ code: CommonErrorCode.BAD_INPUT });
+    }
+
+    const access = await coworkerAccessService.forceRevokeForCoworker(
+      parsed.data.coworkerId,
+      { workspaceId: parsed.data.workspaceId },
+    );
+
+    revalidateAdminCoworkerRoutes(parsed.data.coworkerId);
+    return Ok({ accessId: access.id, status: access.status });
   } catch (error) {
     return Err(mapCoreError(error));
   }

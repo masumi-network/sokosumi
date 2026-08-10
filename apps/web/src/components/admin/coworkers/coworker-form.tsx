@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
 
+import { CoworkerEarlyAccessForm } from "@/components/admin/coworkers/coworker-early-access-form";
 import { CoworkerDisplayForm } from "@/components/coworkers/coworker-display-form";
 import {
   AlertDialog,
@@ -39,7 +40,10 @@ import {
   updateAdminCoworkerWhitelistAction,
 } from "@/lib/actions/admin-coworkers/action";
 import { CommonErrorCode } from "@/lib/actions/errors";
-import type { Coworker } from "@/lib/clients/generated/core/types.gen";
+import type {
+  Coworker,
+  CoworkerWorkspaceAccess,
+} from "@/lib/clients/generated/core/types.gen";
 import {
   ADMIN_COWORKER_CAPABILITIES,
   type AdminCoworkerCapability,
@@ -48,6 +52,7 @@ import type { AdminCoworkerControlsPatchBody } from "@/lib/services/admin-cowork
 
 interface CoworkerFormProps {
   coworker: Coworker;
+  accessRows?: CoworkerWorkspaceAccess[];
 }
 
 function isArchived(coworker: Coworker): boolean {
@@ -86,7 +91,7 @@ function buildControlsPatchBody(
   return Object.keys(patchBody).length > 0 ? patchBody : undefined;
 }
 
-export function CoworkerForm({ coworker }: CoworkerFormProps) {
+export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
   const t = useTranslations("App.Admin.Coworkers.Form");
   const tContext = useTranslations("App.Admin.Coworkers.Context");
   const router = useRouter();
@@ -440,6 +445,12 @@ export function CoworkerForm({ coworker }: CoworkerFormProps) {
           </form>
         </CardContent>
       </Card>
+
+      <CoworkerEarlyAccessForm
+        coworkerId={baseline.id}
+        accessRows={accessRows}
+        disabled={isBusy}
+      />
 
       <CoworkerDisplayForm
         coworker={baseline}

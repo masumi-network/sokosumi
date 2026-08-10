@@ -1,7 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
-import { requireMutableTaskOwnership } from "@/helpers/access-control";
+import {
+  requireMutableTaskOwnership,
+  requireTaskAssignableCoworker,
+} from "@/helpers/access-control";
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -105,6 +108,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (existingLink) {
         throw conflict(
           "Cannot move a task with related tasks. Remove its links first.",
+        );
+      }
+
+      // Pilot isolation: assignee must be usable in the target workspace
+      // (global whitelist OR GRANTED early access). Blocks smuggling a
+      // workspace-scoped coworker into another workspace via move.
+      if (ownedTask.assigneeId) {
+        await requireTaskAssignableCoworker(
+          ownedTask.assigneeId,
+          targetWorkspace.id,
+          tx,
         );
       }
 

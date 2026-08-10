@@ -9,6 +9,7 @@ import { AccountNoticeRow } from "@/app/components/account-notice-row";
 import { NotificationBrowserPermissionPrimer } from "@/app/components/notification-browser-permission-primer";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { NotificationsListSkeleton } from "@/app/notifications/components/notifications-loading-view";
+import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
@@ -17,6 +18,7 @@ import { useSession } from "@/lib/auth/auth.client";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { useNotificationTimeFormatter } from "@/lib/utils/notification-time";
@@ -283,7 +285,7 @@ export function NotificationsPageContent({
                   )}
                   timeLabel={formatTime(notification.createdAt)}
                   onClick={handleNotificationClick}
-                  onVendorGrantAccepted={(notificationId) => {
+                  onAccessRequestAccepted={(notificationId) => {
                     setNotifications((prev) =>
                       prev.filter((item) => item.id !== notificationId),
                     );
@@ -315,7 +317,7 @@ interface NotificationRowProps {
   message: string;
   timeLabel: string;
   onClick: (notification: NotificationItem) => void;
-  onVendorGrantAccepted: (notificationId: string) => void;
+  onAccessRequestAccepted: (notificationId: string) => void;
 }
 
 function NotificationRow({
@@ -324,14 +326,18 @@ function NotificationRow({
   message,
   timeLabel,
   onClick,
-  onVendorGrantAccepted,
+  onAccessRequestAccepted,
 }: NotificationRowProps) {
   const showVendorGrantActions = isPendingVendorGrantNotification(notification);
+  const showCoworkerAccessActions =
+    isPendingCoworkerAccessNotification(notification);
+  const showPendingAccessActions =
+    showVendorGrantActions || showCoworkerAccessActions;
   const rowClassName = cn(
     "hover:bg-accent flex w-full p-4 text-left transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     !notification.isRead && "bg-accent/50",
     isPending && "bg-accent opacity-80",
-    showVendorGrantActions ? "cursor-default" : "cursor-pointer",
+    showPendingAccessActions ? "cursor-default" : "cursor-pointer",
   );
 
   const body = (
@@ -343,7 +349,7 @@ function NotificationRow({
         )}
       />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        {showVendorGrantActions ? (
+        {showPendingAccessActions ? (
           <button
             type="button"
             className="hover:bg-accent/50 -mx-1 cursor-pointer rounded-md px-1 text-left"
@@ -367,7 +373,16 @@ function NotificationRow({
             notification={notification}
             layout="inline"
             onAccepted={() => {
-              onVendorGrantAccepted(notification.id);
+              onAccessRequestAccepted(notification.id);
+            }}
+          />
+        ) : null}
+        {showCoworkerAccessActions ? (
+          <CoworkerAccessNotificationActions
+            notification={notification}
+            layout="inline"
+            onAccepted={() => {
+              onAccessRequestAccepted(notification.id);
             }}
           />
         ) : null}
@@ -375,7 +390,7 @@ function NotificationRow({
     </div>
   );
 
-  if (showVendorGrantActions) {
+  if (showPendingAccessActions) {
     return <div className={rowClassName}>{body}</div>;
   }
 

@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 export {};
 
 const updateDisplayMock = vi.fn();
+const createForCoworkerMock = vi.fn();
 const toCoreApiActionErrorMock = vi.fn();
 
 vi.mock("next/cache", () => ({
@@ -26,6 +27,12 @@ vi.mock("@/lib/clients/core.client", () => ({
 vi.mock("@/lib/services/admin-coworker.service", () => ({
   adminCoworkerService: {
     updateDisplay: (...args: unknown[]) => updateDisplayMock(...args),
+  },
+}));
+
+vi.mock("@/lib/services/coworker-access.service", () => ({
+  coworkerAccessService: {
+    createForCoworker: (...args: unknown[]) => createForCoworkerMock(...args),
   },
 }));
 
@@ -181,5 +188,97 @@ describe("admin coworker actions", () => {
     expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
     expect(result.error.message).toMatch(/caption/i);
     expect(updateDisplayMock).not.toHaveBeenCalled();
+  });
+
+  it("returns UNAUTHORIZED when non-admin grants early access", async () => {
+    const { grantAdminCoworkerEarlyAccessAction } = await import("../action");
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+
+    const result = await grantAdminCoworkerEarlyAccessAction({
+      session: memberSession,
+      coworkerId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      targetType: "organization",
+      targetId: "org_123",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("Expected error result");
+    }
+
+    expect(result.error.code).toBe(CommonErrorCode.UNAUTHORIZED);
+    expect(createForCoworkerMock).not.toHaveBeenCalled();
+  });
+
+  it("grants early access for admin sessions by organization", async () => {
+    const { grantAdminCoworkerEarlyAccessAction } = await import("../action");
+
+    createForCoworkerMock.mockResolvedValue({
+      id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      status: "GRANTED",
+    });
+
+    const result = await grantAdminCoworkerEarlyAccessAction({
+      session: adminSession,
+      coworkerId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      targetType: "organization",
+      targetId: "org_123",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error("Expected success result");
+    }
+
+    expect(createForCoworkerMock).toHaveBeenCalledWith(
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      { organizationId: "org_123" },
+    );
+    expect(result.data).toEqual({
+      accessId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      status: "GRANTED",
+    });
+  });
+
+  it("grants early access for admin sessions by user", async () => {
+    const { grantAdminCoworkerEarlyAccessAction } = await import("../action");
+
+    createForCoworkerMock.mockResolvedValue({
+      id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      status: "GRANTED",
+    });
+
+    const result = await grantAdminCoworkerEarlyAccessAction({
+      session: adminSession,
+      coworkerId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      targetType: "user",
+      targetId: "user_123",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(createForCoworkerMock).toHaveBeenCalledWith(
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      { userId: "user_123" },
+    );
+  });
+
+  it("rejects missing target id for early access grant", async () => {
+    const { grantAdminCoworkerEarlyAccessAction } = await import("../action");
+    const { CommonErrorCode } = await import("@/lib/actions/errors");
+
+    const result = await grantAdminCoworkerEarlyAccessAction({
+      session: adminSession,
+      coworkerId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      targetType: "user",
+      targetId: "",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("Expected error result");
+    }
+
+    expect(result.error.code).toBe(CommonErrorCode.BAD_INPUT);
+    expect(createForCoworkerMock).not.toHaveBeenCalled();
   });
 });

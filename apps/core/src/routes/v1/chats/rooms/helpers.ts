@@ -5,8 +5,14 @@ import {
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "@sokosumi/utils";
 
+import {
+  buildCoworkerNonEmptyBaseUrlWhere,
+  buildCoworkerUsableInWorkspaceWhere,
+  hasNonEmptyBaseUrl,
+} from "@/helpers/access-control";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
+import prisma from "@/lib/db/prisma";
 import {
   type ChatRoomMessageQuote,
   type ChatRoomMessageUnfurl,
@@ -1455,8 +1461,41 @@ export async function validateOrganizationUserIds(
   return uniqueUserIds;
 }
 
+/**
+ * Org room → org Workspace. Personal room → personal workspace of the acting
+ * human (membership) / message sender (dispatch). Fail closed if missing.
+ */
+export async function resolveWorkspaceIdForChatRoom(params: {
+  organizationId: string | null;
+  /** personal rooms: human actor / message sender */
+  personalUserId: string;
+  tx?: Prisma.TransactionClient;
+}): Promise<string> {
+  const client = params.tx ?? prisma;
+  if (params.organizationId) {
+    const workspace = await client.workspace.findUnique({
+      where: { organizationId: params.organizationId },
+      select: { id: true },
+    });
+    if (!workspace) {
+      throw badRequest("Organization workspace not found");
+    }
+    return workspace.id;
+  }
+
+  const workspace = await client.workspace.findUnique({
+    where: { userId: params.personalUserId },
+    select: { id: true },
+  });
+  if (!workspace) {
+    throw badRequest("Personal workspace not found");
+  }
+  return workspace.id;
+}
+
 export async function validateChatCoworkerIds(
   coworkerIds: readonly string[],
+  workspaceId: string,
   tx: Prisma.TransactionClient,
 ): Promise<string[]> {
   const uniqueCoworkerIds = normalizeUniqueStrings(coworkerIds);
@@ -1467,14 +1506,17 @@ export async function validateChatCoworkerIds(
   const coworkers = await tx.coworker.findMany({
     where: {
       id: { in: uniqueCoworkerIds },
-      archivedAt: null,
-      isWhitelisted: true,
-      baseURL: { not: null },
+      ...buildCoworkerUsableInWorkspaceWhere(workspaceId),
+      ...buildCoworkerNonEmptyBaseUrlWhere(),
       capabilities: { has: "chat" },
     },
-    select: { id: true },
+    select: { id: true, baseURL: true },
   });
-  const found = new Set(coworkers.map((coworker) => coworker.id));
+  const found = new Set(
+    coworkers
+      .filter((coworker) => hasNonEmptyBaseUrl(coworker.baseURL))
+      .map((coworker) => coworker.id),
+  );
   const missing = uniqueCoworkerIds.filter(
     (coworkerId) => !found.has(coworkerId),
   );

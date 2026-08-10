@@ -7,7 +7,9 @@ import { CoworkerForm } from "@/components/admin/coworkers/coworker-form";
 import { CoworkerLoadError } from "@/components/admin/coworkers/coworker-load-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { adminCoworkerService } from "@/lib/services/admin-coworker.service";
+import { coworkerAccessService } from "@/lib/services/coworker-access.service";
 
 export const metadata: Metadata = {
   title: "Edit coworker",
@@ -46,6 +48,13 @@ export default async function AdminCoworkerDetailPage({
     notFound();
   }
 
+  let accessRows: CoworkerWorkspaceAccess[] = [];
+  try {
+    accessRows = await coworkerAccessService.listForCoworker(coworker.id);
+  } catch (error) {
+    console.error("Failed to load coworker workspace access rows", error);
+  }
+
   const isArchived = coworker.archivedAt != null;
 
   return (
@@ -72,7 +81,7 @@ export default async function AdminCoworkerDetailPage({
           </Button>
         </div>
 
-        <CoworkerForm coworker={coworker} />
+        <CoworkerForm coworker={coworker} accessRows={accessRows} />
       </div>
     </div>
   );

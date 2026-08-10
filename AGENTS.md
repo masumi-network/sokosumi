@@ -334,7 +334,7 @@ Single-context: `CONTEXT.md` + `docs/adr/` at the repo root (created lazily). Se
 
 **Cloud agent database:** [`docs/agents/cloud-agent-database.md`](./docs/agents/cloud-agent-database.md) — ephemeral Neon branch per agent run via `DATABASE_URL`, provision/teardown, 72h idle TTL.
 
-**Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds.
+**Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](./docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds. [`docs/coworker/coworker-workspace-access-api.md`](./docs/coworker/coworker-workspace-access-api.md) — coworker early access (per-workspace pilot, not VendorGrant).
 
 **Orchestrator (Hermes):** [`docs/orchestrator/hermes-orchestrator-actor.md`](./docs/orchestrator/hermes-orchestrator-actor.md) — first-party orchestrator actor (`ORCHESTRATOR_SERVICE_TOKEN`), DRAFT access, DRAFT↔READY status, usage/purge.
 
