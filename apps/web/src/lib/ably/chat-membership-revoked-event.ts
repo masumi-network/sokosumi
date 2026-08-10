@@ -11,3 +11,8 @@ export const chatMembershipRevokedEventSchema = z.object({
   reason: z.enum(CHAT_MEMBERSHIP_REVOKE_REASONS),
   at: z.iso.datetime(),
 });
+
+/** Canonical control-channel payload for membership revoke (SOK-742 / SOK-746). */
+export type ChatMembershipRevokedEvent = z.infer<
+  typeof chatMembershipRevokedEventSchema
+>;
