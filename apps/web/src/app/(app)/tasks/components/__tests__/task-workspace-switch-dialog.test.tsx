@@ -135,7 +135,7 @@ describe("TaskWorkspaceSwitchDialog", () => {
     });
     vi.mocked(updatePreferredOrganization).mockResolvedValue({
       ok: true,
-      data: {
+      value: {
         organizationId: "org_123",
       },
     });

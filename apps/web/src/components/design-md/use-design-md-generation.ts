@@ -110,16 +110,16 @@ export function useDesignMdGeneration({
             return;
           }
 
-          if (pollResult.data.status === "failed") {
+          if (pollResult.value.status === "failed") {
             failGeneration(
-              pollResult.data.error ??
-                pollResult.data.message ??
+              pollResult.value.error ??
+                pollResult.value.message ??
                 messages.generationFailed,
             );
             return;
           }
 
-          if (isDesignMdJobInProgress(pollResult.data)) {
+          if (isDesignMdJobInProgress(pollResult.value)) {
             pollUntilDone(jobId, jobToken);
             return;
           }
@@ -136,7 +136,7 @@ export function useDesignMdGeneration({
             return;
           }
 
-          completeGeneration(finalizeResult.data);
+          completeGeneration(finalizeResult.value);
         } catch (error) {
           failGeneration(
             getUnknownErrorMessage(error, messages.generationFailed),
@@ -175,13 +175,13 @@ export function useDesignMdGeneration({
           return;
         }
 
-        if (startResult.data.kind === "completed") {
-          completeGeneration(startResult.data.data);
+        if (startResult.value.kind === "completed") {
+          completeGeneration(startResult.value.data);
           return;
         }
 
         safeSetState({ errorMessage: null, status: "polling" });
-        pollUntilDone(startResult.data.jobId, startResult.data.jobToken);
+        pollUntilDone(startResult.value.jobId, startResult.value.jobToken);
       } catch (error) {
         failGeneration(
           getUnknownErrorMessage(error, messages.generationFailed),

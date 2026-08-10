@@ -1,8 +1,12 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-
+import { err, ok } from "neverthrow";
 import type { ActionError } from "@/lib/actions";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { CommonErrorCode } from "@/lib/actions/errors";
 import { getSession } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
@@ -34,7 +38,6 @@ import type {
   HermesScheduleKind,
   HermesScheduleSource,
 } from "@/lib/hermes/types";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -163,7 +166,7 @@ async function listAllHermesMessages(): Promise<HermesPersistedMessage[]> {
  */
 export const getHermesInstanceAction = withSession<
   Record<string, never>,
-  Result<HermesInstancePublic | null, ActionError>
+  ActionResultDto<HermesInstancePublic | null, ActionError>
 >(async () => {
   try {
     const response = await coreClient.getHermesInstance();
@@ -171,10 +174,10 @@ export const getHermesInstanceAction = withSession<
     // envelope, collapsing HermesGetInstanceEnvelope to `never`. Member types
     // are correct — narrow via the union instead of the envelope.
     const body = response.data as HermesGetInstanceNone | HermesGetInstanceSome;
-    if (!body.hasInstance) return Ok(null);
-    return Ok(mapHermesInstance(body.instance));
+    if (!body.hasInstance) return toActionResult(ok(null));
+    return toActionResult(ok(mapHermesInstance(body.instance)));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -190,19 +193,19 @@ export const getHermesInstanceAction = withSession<
  */
 export const provisionHermesAction = withSession<
   Record<string, never>,
-  Result<HermesInstancePublic, ActionError>
+  ActionResultDto<HermesInstancePublic, ActionError>
 >(async ({ session }) => {
   try {
     // UX-level gate only — Core re-enforces on provision (incl. enterprise).
     // Fail closed when coverage lookups fail.
     const hasCoverage = await hasPaidPlanCoverage();
     if (!hasCoverage && !hasAdminRole(session.user.role)) {
-      return Err({ code: "SUBSCRIPTION_REQUIRED" });
+      return toActionResult(err({ code: "SUBSCRIPTION_REQUIRED" }));
     }
     const response = await coreClient.provisionHermesInstance();
-    return Ok(mapHermesInstance(response.data)!);
+    return toActionResult(ok(mapHermesInstance(response.data)!));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -211,13 +214,13 @@ export const provisionHermesAction = withSession<
  */
 export const destroyHermesAction = withSession<
   Record<string, never>,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async () => {
   try {
     await coreClient.destroyHermesInstance();
-    return Ok();
+    return toActionResult(ok());
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -226,12 +229,12 @@ export const destroyHermesAction = withSession<
  */
 export const listHermesMessagesAction = withSession<
   Record<string, never>,
-  Result<HermesPersistedMessage[], ActionError>
+  ActionResultDto<HermesPersistedMessage[], ActionError>
 >(async () => {
   try {
-    return Ok(await listAllHermesMessages());
+    return toActionResult(ok(await listAllHermesMessages()));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -242,7 +245,7 @@ export const listHermesMessagesAction = withSession<
 export async function getHermesUnreadCountAction(
   _args: Record<string, never> = {},
 ): Promise<
-  Result<
+  ActionResultDto<
     {
       count: number;
       avatarSeed: string | null;
@@ -254,19 +257,21 @@ export async function getHermesUnreadCountAction(
 > {
   const session = await getSession();
   if (!session) {
-    return Err({ code: CommonErrorCode.UNAUTHENTICATED });
+    return toActionResult(err({ code: CommonErrorCode.UNAUTHENTICATED }));
   }
 
   try {
     const response = await coreClient.getHermesUnreadCount();
-    return Ok({
-      count: response.data.count,
-      avatarSeed: response.data.avatarSeed ?? null,
-      assistantName: response.data.assistantName ?? null,
-      hasInstance: response.data.hasInstance ?? false,
-    });
+    return toActionResult(
+      ok({
+        count: response.data.count,
+        avatarSeed: response.data.avatarSeed ?? null,
+        assistantName: response.data.assistantName ?? null,
+        hasInstance: response.data.hasInstance ?? false,
+      }),
+    );
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 }
 
@@ -280,15 +285,15 @@ interface MarkHermesInboxSeenArgs extends AuthenticatedRequest {
  */
 export const markHermesInboxSeenAction = withSession<
   MarkHermesInboxSeenArgs,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async ({ asOfIso }) => {
   try {
     await coreClient.markHermesInboxSeen(
       asOfIso ? { asOfIso: new Date(asOfIso) } : undefined,
     );
-    return Ok();
+    return toActionResult(ok());
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -303,13 +308,13 @@ interface SetHermesSecretArgs extends AuthenticatedRequest {
  */
 export const setHermesSecretAction = withSession<
   SetHermesSecretArgs,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async ({ key, value }) => {
   try {
     await coreClient.setHermesSecret({ key, value });
-    return Ok();
+    return toActionResult(ok());
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -361,7 +366,7 @@ interface StartOnboardingArgs extends AuthenticatedRequest {
  */
 export const startHermesOnboardingAction = withSession<
   StartOnboardingArgs,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(
   async ({
     skipResearch,
@@ -388,9 +393,9 @@ export const startHermesOnboardingAction = withSession<
         autonomyLevel: autonomyLevel ?? undefined,
         personality: personality ?? undefined,
       });
-      return Ok();
+      return toActionResult(ok());
     } catch (error) {
-      return Err(toActionError(error));
+      return toActionResult(err(toActionError(error)));
     }
   },
 );
@@ -415,7 +420,7 @@ interface UpdateHermesInstanceArgs extends AuthenticatedRequest {
  */
 export const updateHermesInstanceAction = withSession<
   UpdateHermesInstanceArgs,
-  Result<HermesInstancePublic, ActionError>
+  ActionResultDto<HermesInstancePublic, ActionError>
 >(
   async ({
     autonomyLevel,
@@ -435,9 +440,9 @@ export const updateHermesInstanceAction = withSession<
         email: email ?? undefined,
         timezone: timezone ?? undefined,
       });
-      return Ok(mapHermesInstance(response.data)!);
+      return toActionResult(ok(mapHermesInstance(response.data)!));
     } catch (error) {
-      return Err(toActionError(error));
+      return toActionResult(err(toActionError(error)));
     }
   },
 );
@@ -459,23 +464,25 @@ export interface HermesOnboardingProgressPayload {
  */
 export const getHermesOnboardingProgressAction = withSession<
   Record<string, never>,
-  Result<HermesOnboardingProgressPayload, ActionError>
+  ActionResultDto<HermesOnboardingProgressPayload, ActionError>
 >(async () => {
   try {
     const response = await coreClient.getHermesOnboardingProgress();
     const data = response.data;
-    return Ok({
-      status: data.status,
-      steps: data.steps.map((step) => ({
-        id: step.id,
-        label: step.label,
-        status: step.status,
-        errorMessage: step.errorMessage ?? null,
-      })),
-      etaSeconds: data.etaSeconds,
-    });
+    return toActionResult(
+      ok({
+        status: data.status,
+        steps: data.steps.map((step) => ({
+          id: step.id,
+          label: step.label,
+          status: step.status,
+          errorMessage: step.errorMessage ?? null,
+        })),
+        etaSeconds: data.etaSeconds,
+      }),
+    );
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -485,13 +492,13 @@ interface DisconnectIntegrationArgs extends AuthenticatedRequest {
 
 export const disconnectHermesIntegrationAction = withSession<
   DisconnectIntegrationArgs,
-  Result<void, ActionError>
+  ActionResultDto<void, ActionError>
 >(async ({ provider }) => {
   try {
     await coreClient.disconnectHermesIntegration({ provider });
-    return Ok();
+    return toActionResult(ok());
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -518,20 +525,22 @@ export interface HermesIntegrationOAuthHandoffPayload {
  */
 export const initiateHermesIntegrationAction = withSession<
   InitiateIntegrationArgs,
-  Result<HermesIntegrationOAuthHandoffPayload, ActionError>
+  ActionResultDto<HermesIntegrationOAuthHandoffPayload, ActionError>
 >(async ({ provider, mode }) => {
   try {
     const response = await coreClient.initiateHermesIntegration({
       provider,
       mode: mode ?? "read",
     });
-    return Ok({
-      provider: response.data.provider as HermesIntegrationProvider,
-      redirectUrl: response.data.redirectUrl,
-      connectionId: response.data.connectionId,
-    });
+    return toActionResult(
+      ok({
+        provider: response.data.provider as HermesIntegrationProvider,
+        redirectUrl: response.data.redirectUrl,
+        connectionId: response.data.connectionId,
+      }),
+    );
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -550,7 +559,7 @@ interface FinalizeIntegrationArgs extends AuthenticatedRequest {
  */
 export const finalizeHermesIntegrationAction = withSession<
   FinalizeIntegrationArgs,
-  Result<HermesIntegration, ActionError>
+  ActionResultDto<HermesIntegration, ActionError>
 >(async ({ provider, connectionId, mode }) => {
   try {
     const response = await coreClient.finalizeHermesIntegration({
@@ -558,9 +567,9 @@ export const finalizeHermesIntegrationAction = withSession<
       connectionId,
       mode: mode ?? "read",
     });
-    return Ok(mapHermesIntegration(response.data));
+    return toActionResult(ok(mapHermesIntegration(response.data)));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -610,13 +619,13 @@ function normalizeScheduleKind(kind: string): HermesScheduleKind {
 
 export const listHermesSchedulesAction = withSession<
   Record<string, never>,
-  Result<HermesSchedule[], ActionError>
+  ActionResultDto<HermesSchedule[], ActionError>
 >(async () => {
   try {
     const response = await coreClient.listHermesSchedules();
-    return Ok(response.data.schedules.map(mapHermesSchedule));
+    return toActionResult(ok(response.data.schedules.map(mapHermesSchedule)));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -631,15 +640,15 @@ interface ToggleHermesScheduleArgs extends AuthenticatedRequest {
  */
 export const toggleHermesScheduleAction = withSession<
   ToggleHermesScheduleArgs,
-  Result<HermesSchedule, ActionError>
+  ActionResultDto<HermesSchedule, ActionError>
 >(async ({ scheduleId, enabled }) => {
   try {
     const response = await coreClient.patchHermesSchedule(scheduleId, {
       enabled,
     });
-    return Ok(mapHermesSchedule(response.data));
+    return toActionResult(ok(mapHermesSchedule(response.data)));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -704,7 +713,7 @@ interface ApproveConfirmationArgs extends ResolveConfirmationArgs {
 
 export const approveHermesConfirmationAction = withSession<
   ApproveConfirmationArgs,
-  Result<HermesConfirmationResolveResult, ActionError>
+  ActionResultDto<HermesConfirmationResolveResult, ActionError>
 >(async (args) => {
   try {
     const body: HermesApproveConfirmationRequest = {};
@@ -720,9 +729,9 @@ export const approveHermesConfirmationAction = withSession<
       args.confirmationId,
       Object.keys(body).length > 0 ? body : undefined,
     );
-    return Ok(mapConfirmationResolveResult(response.data));
+    return toActionResult(ok(mapConfirmationResolveResult(response.data)));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -732,7 +741,7 @@ interface RejectConfirmationArgs extends ResolveConfirmationArgs {
 
 export const rejectHermesConfirmationAction = withSession<
   RejectConfirmationArgs,
-  Result<HermesConfirmationResolveResult, ActionError>
+  ActionResultDto<HermesConfirmationResolveResult, ActionError>
 >(async ({ confirmationId, reason, confirmation }) => {
   try {
     const body: HermesRejectConfirmationRequest = {
@@ -745,8 +754,8 @@ export const rejectHermesConfirmationAction = withSession<
       confirmationId,
       body,
     );
-    return Ok(mapConfirmationResolveResult(response.data));
+    return toActionResult(ok(mapConfirmationResolveResult(response.data)));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });

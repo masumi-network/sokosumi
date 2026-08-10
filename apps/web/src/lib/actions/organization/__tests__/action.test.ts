@@ -99,7 +99,7 @@ describe("organization actions", () => {
 
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         results: [
           { email: "first@example.com", status: "sent" },
           { email: "second@example.com", status: "sent" },
@@ -134,7 +134,7 @@ describe("organization actions", () => {
 
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         results: [
           { email: "ok@example.com", status: "sent" },
           { email: "fail@example.com", status: "failed" },
@@ -281,7 +281,7 @@ describe("updatePreferredOrganization", () => {
 
     expect(result).toEqual({
       ok: true,
-      data: { organizationId: "org-1" },
+      value: { organizationId: "org-1" },
     });
     expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith("org-1");
     expect(invalidatePrivateSidebarChromeMock).toHaveBeenCalledWith({
@@ -304,7 +304,7 @@ describe("updatePreferredOrganization", () => {
 
     expect(result).toEqual({
       ok: true,
-      data: { organizationId: null },
+      value: { organizationId: null },
     });
     expect(setMyPreferredOrganizationMock).toHaveBeenCalledWith(null);
   });

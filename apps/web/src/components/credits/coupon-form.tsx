@@ -99,7 +99,7 @@ export default function CouponForm({
 
             if (result.ok) {
               fireGTMEvent.beginCheckout();
-              window.location.assign(result.data.url);
+              window.location.assign(result.value.url);
               return;
             }
 

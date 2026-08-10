@@ -76,7 +76,7 @@ export default function OrganizationBulkInviteModal({
         return;
       }
 
-      const nextResults = result.data.results;
+      const nextResults = result.value.results;
       const sentCount = nextResults.filter(
         (row) => row.status === "sent",
       ).length;

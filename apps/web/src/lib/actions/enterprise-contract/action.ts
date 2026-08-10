@@ -1,6 +1,11 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
@@ -19,7 +24,6 @@ import {
   enterpriseContractAdminService,
   parseEnterpriseContractActivationBlockedError,
 } from "@/lib/services/enterprise-contract-admin.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -55,7 +59,7 @@ interface ListEnterpriseContractsParameters extends AuthenticatedRequest {
 
 export const listEnterpriseContractsAction = withSession<
   ListEnterpriseContractsParameters,
-  Result<EnterpriseContract[], ActionError>
+  ActionResultDto<EnterpriseContract[], ActionError>
 >(async ({ session, organizationSlug, status }) => {
   try {
     assertAdminSession(session);
@@ -63,9 +67,9 @@ export const listEnterpriseContractsAction = withSession<
       organizationSlug: organizationSlug?.trim() || undefined,
       status,
     });
-    return Ok(contracts);
+    return toActionResult(ok(contracts));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -75,15 +79,15 @@ interface CreateEnterpriseContractParameters extends AuthenticatedRequest {
 
 export const createEnterpriseContractAction = withSession<
   CreateEnterpriseContractParameters,
-  Result<EnterpriseContract, ActionError>
+  ActionResultDto<EnterpriseContract, ActionError>
 >(async ({ session, body }) => {
   try {
     assertAdminSession(session);
     const contract = await enterpriseContractAdminService.createContract(body);
     revalidateEnterpriseContractRoutes(contract.id);
-    return Ok(contract);
+    return toActionResult(ok(contract));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -93,14 +97,14 @@ interface GetEnterpriseContractParameters extends AuthenticatedRequest {
 
 export const getEnterpriseContractAction = withSession<
   GetEnterpriseContractParameters,
-  Result<EnterpriseContract, ActionError>
+  ActionResultDto<EnterpriseContract, ActionError>
 >(async ({ session, id }) => {
   try {
     assertAdminSession(session);
     const contract = await enterpriseContractAdminService.getContract(id);
-    return Ok(contract);
+    return toActionResult(ok(contract));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -111,7 +115,7 @@ interface UpdateEnterpriseContractParameters extends AuthenticatedRequest {
 
 export const updateEnterpriseContractAction = withSession<
   UpdateEnterpriseContractParameters,
-  Result<EnterpriseContract, ActionError>
+  ActionResultDto<EnterpriseContract, ActionError>
 >(async ({ session, id, body }) => {
   try {
     assertAdminSession(session);
@@ -120,9 +124,9 @@ export const updateEnterpriseContractAction = withSession<
       body,
     );
     revalidateEnterpriseContractRoutes(id);
-    return Ok(contract);
+    return toActionResult(ok(contract));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -134,26 +138,28 @@ interface PreviewEnterpriseContractPeriodsParameters
 
 export const previewEnterpriseContractPeriodsAction = withSession<
   PreviewEnterpriseContractPeriodsParameters,
-  Result<EnterpriseContractPreview, ActionError>
+  ActionResultDto<EnterpriseContractPreview, ActionError>
 >(async ({ session, id, activatedAt }) => {
   try {
     assertAdminSession(session);
 
     const parsedActivatedAt = new Date(activatedAt);
     if (Number.isNaN(parsedActivatedAt.getTime())) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "activatedAt must be a valid ISO datetime",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "activatedAt must be a valid ISO datetime",
+        }),
+      );
     }
 
     const preview = await enterpriseContractAdminService.previewPeriods(
       id,
       parsedActivatedAt,
     );
-    return Ok(preview);
+    return toActionResult(ok(preview));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -164,7 +170,10 @@ interface ActivateEnterpriseContractParameters extends AuthenticatedRequest {
 
 export const activateEnterpriseContractAction = withSession<
   ActivateEnterpriseContractParameters,
-  Result<ActivateEnterpriseContractResponse, EnterpriseContractActionError>
+  ActionResultDto<
+    ActivateEnterpriseContractResponse,
+    EnterpriseContractActionError
+  >
 >(async ({ session, id, paymentReference }) => {
   try {
     assertAdminSession(session);
@@ -175,13 +184,13 @@ export const activateEnterpriseContractAction = withSession<
         : undefined,
     );
     revalidateEnterpriseContractRoutes(id);
-    return Ok(result);
+    return toActionResult(ok(result));
   } catch (error) {
     const blocked = parseEnterpriseContractActivationBlockedError(error);
     if (blocked) {
-      return Err(blocked);
+      return toActionResult(err(blocked));
     }
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -191,14 +200,14 @@ interface CancelEnterpriseContractParameters extends AuthenticatedRequest {
 
 export const cancelEnterpriseContractAction = withSession<
   CancelEnterpriseContractParameters,
-  Result<EnterpriseContract, ActionError>
+  ActionResultDto<EnterpriseContract, ActionError>
 >(async ({ session, id }) => {
   try {
     assertAdminSession(session);
     const contract = await enterpriseContractAdminService.cancelContract(id);
     revalidateEnterpriseContractRoutes(id);
-    return Ok(contract);
+    return toActionResult(ok(contract));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });

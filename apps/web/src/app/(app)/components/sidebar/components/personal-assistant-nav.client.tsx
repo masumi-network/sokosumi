@@ -60,7 +60,7 @@ function useAssistantNavState(enabled: boolean): AssistantNavState {
       }
       const result = await getHermesUnreadCountAction({});
       if (cancelled || !result.ok) return;
-      setState(result.data);
+      setState(result.value);
     };
 
     void tick();

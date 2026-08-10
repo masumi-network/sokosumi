@@ -45,7 +45,7 @@ describe("AutoContextSwitch", () => {
     });
     vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
-      data: {
+      value: {
         organizationId: "org-1",
       },
     });
@@ -111,7 +111,7 @@ describe("AutoContextSwitch", () => {
     });
     vi.mocked(updatePreferredOrganization).mockResolvedValueOnce({
       ok: true,
-      data: {
+      value: {
         organizationId: "org-1",
       },
     });
