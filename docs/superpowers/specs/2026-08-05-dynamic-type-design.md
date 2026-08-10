@@ -4,6 +4,8 @@
 **Status:** Approved  
 **Scope:** `apps/web` only (root typography, font-size purge, agent rules). No Core API or schema changes.
 
+> **Superseded (viewport, 2026-08-10 / PR #3746):** Product sets viewport `maximumScale: 1` app-wide (`APP_VIEWPORT_BASE`) so iOS does not focus-zoom on inputs; pinch-to-zoom is off. Normative agent rule: `.cursor/rules/dynamic-type.mdc`. Historical “do not set maximum-scale” lines below are **not** current policy.
+
 ## Problem
 
 Sokosumi web uses Inter via `next/font` and Tailwind rem-based utilities, but does **not** opt into Apple Dynamic Type. On iOS and macOS Safari (and home-screen PWA), the user’s Accessibility **text size** preference often does not scale product UI the way native apps do.
@@ -76,7 +78,7 @@ Non-supporting browsers: no change; UA default root size remains.
 ### Inter / layout
 
 - Keep `Inter` from `next/font/google` on `<html className={inter.className}>` in `apps/web/src/app/layout.tsx`.
-- Do not add viewport locks (`maximum-scale`, `user-scalable=no`). Existing chat `interactiveWidget: "resizes-content"` stays.
+- ~~Do not add viewport locks (`maximum-scale`, `user-scalable=no`).~~ **Superseded:** `maximumScale: 1` via `APP_VIEWPORT_BASE` (PR #3746). Chat still adds `interactiveWidget: "resizes-content"`.
 
 ### Fixed font purge
 
@@ -106,7 +108,7 @@ Normative rule for agents:
 1. Root size may come from Apple Dynamic Type (`-apple-system-body`); brand face stays Inter.
 2. Cap is **1.25×** default (max root **20px** when default is 16px) — do not raise without product decision.
 3. **No fixed `px` font sizes** in product UI — use Tailwind `text-*` or `rem`/`em`.
-4. Do not set `maximum-scale=1` / `user-scalable=no` on the viewport.
+4. ~~Do not set `maximum-scale=1` / `user-scalable=no` on the viewport.~~ **Superseded (PR #3746):** `maximumScale: 1` is required; see live `.cursor/rules/dynamic-type.mdc`.
 5. Do not override `html`/`body` `font-size` with a fixed `px` that kills Dynamic Type, except the documented 1.25× cap path.
 
 ### `AGENTS.md` (and `apps/web/AGENTS.md` if typography is local)
