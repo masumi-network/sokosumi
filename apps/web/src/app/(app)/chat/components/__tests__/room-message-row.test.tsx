@@ -179,6 +179,21 @@ function renderContinuation(message: ChatRoomMessage = userMessage()) {
 }
 
 describe("ChatMessageRow", () => {
+  it("shows coworker bot badge on avatar, not beside name", () => {
+    renderRow({ message: coworkerMessage() });
+
+    expect(screen.getByLabelText("coworkerBadge")).toBeInTheDocument();
+    expect(screen.getByText("Jamal").closest("span")?.textContent).toBe(
+      "Jamal",
+    );
+  });
+
+  it("does not show coworker bot badge for human senders", () => {
+    renderRow({ message: userMessage() });
+
+    expect(screen.queryByLabelText("coworkerBadge")).not.toBeInTheDocument();
+  });
+
   it("keeps sender attribution on continuation rows", () => {
     renderRow({ isContinuation: true });
 

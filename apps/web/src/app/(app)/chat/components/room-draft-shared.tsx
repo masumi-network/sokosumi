@@ -29,6 +29,20 @@ export function AiCoworkerIcon({ className }: { className?: string }) {
   );
 }
 
+/** Discord-style bot chip for avatar corner (sibling of Avatar, not inside it). */
+export function AiCoworkerAvatarBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "bg-background absolute -right-0.5 -bottom-0.5 flex size-3.5 items-center justify-center rounded-full ring-2 ring-background",
+        className,
+      )}
+    >
+      <AiCoworkerIcon className="size-2.5" />
+    </span>
+  );
+}
+
 /** Parity with rooms-client messageLoadFailed empty-state; reload re-fetches RSC props. */
 export function MembersRosterLoadFailed({ className }: { className?: string }) {
   const t = useTranslations("App.Channels");
