@@ -31,15 +31,21 @@ export function AiCoworkerIcon({ className }: { className?: string }) {
 
 /** Discord-style bot chip for avatar corner (sibling of Avatar, not inside it). */
 export function AiCoworkerAvatarBadge({ className }: { className?: string }) {
+  const t = useTranslations("App.Channels");
+
   return (
     <span
+      role="img"
+      aria-label={t("coworkerBadge")}
+      data-testid="coworker-avatar-badge"
       className={cn(
         // bg-muted + foreground icon so chip reads on dark chat (bg-background was invisible)
         "bg-muted text-foreground absolute -right-0.5 -bottom-0.5 z-10 flex size-3.5 items-center justify-center rounded-full ring-2 ring-background",
         className,
       )}
     >
-      <AiCoworkerIcon className="size-2.5 text-foreground" />
+      {/* Decorative — label lives on the chip so we avoid nested named graphics */}
+      <Bot className="size-2.5 shrink-0" aria-hidden />
     </span>
   );
 }

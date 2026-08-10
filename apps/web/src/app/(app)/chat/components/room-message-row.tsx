@@ -1414,6 +1414,7 @@ export function ChatMessageRow({
           profile={hoverProfile}
           side="top"
           align="start"
+          // self-start: article is flex; stretch made this full row height so absolute badge sat at bottom
           className="mt-0.5 shrink-0 self-start"
           currentUserId={currentUserId}
           canOpenHumanDirect={canOpenHumanDirect}
@@ -1421,8 +1422,10 @@ export function ChatMessageRow({
           isOpeningDirect={isOpeningDirect}
           isDirectActionBusy={isDirectActionBusy}
         >
-          {/* self-start: article is flex; stretch made this full row height so absolute badge sat at bottom */}
-          <span className="relative inline-flex size-8 shrink-0 self-start">
+          <span
+            data-testid="message-sender-avatar"
+            className="relative inline-flex size-8 shrink-0"
+          >
             <Avatar className="size-8">
               <AvatarImage src={sender.image ?? undefined} alt="" />
               <AvatarFallback className="text-xs">
