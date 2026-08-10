@@ -1532,6 +1532,7 @@
           "searchingFiles": "Buscando archivos...",
           "callingTools": "Usando herramientas...",
           "thoughtForSeconds": "Pensado durante {seconds}s",
+          "thoughtForDuration": "Pensado durante {duration}",
           "expandSteps": "Mostrar pasos de razonamiento",
           "collapseSteps": "Ocultar pasos de razonamiento"
         },

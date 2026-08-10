@@ -371,11 +371,9 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   });
 
   // Idle chunk timeouts abort stalls; totalMs is the hard ceiling.
-  const thoughtPhaseMs: {
-    start: number | null;
-    end: number | null;
-    sawReasoningChunk: boolean;
-  } = { start: null, end: null, sawReasoningChunk: false };
+  // Wall-clock generation time (not reasoning-token phase only) — product
+  // "Thought for …" matches the live "is thinking" timer the user saw.
+  const generationStartedAtMs = Date.now();
   const result = streamText({
     model: getSokosumiProvider()(null),
     messages: [{ role: "user", content: prompt }],
@@ -384,25 +382,9 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     providerOptions: {
       sokosumi: providerOptions,
     } as unknown as Parameters<typeof streamText>[0]["providerOptions"],
-    onChunk: ({ chunk }) => {
-      const chunkType = chunk.type as string;
-      if (chunkType === "reasoning-start" || chunkType === "reasoning-delta") {
-        thoughtPhaseMs.sawReasoningChunk = true;
-        thoughtPhaseMs.start = thoughtPhaseMs.start ?? Date.now();
-      }
-      if (chunkType === "reasoning-end") {
-        thoughtPhaseMs.end = Date.now();
-      }
-      if (
-        chunk.type === "text-delta" &&
-        thoughtPhaseMs.sawReasoningChunk &&
-        thoughtPhaseMs.end == null
-      ) {
-        thoughtPhaseMs.end = Date.now();
-      }
-    },
   });
   const responseText = (await result.text).trim();
+  const generationEndedAtMs = Date.now();
   if (!responseText || coworkerTextLooksLikeAgentError(responseText)) {
     await markMentionFailed(
       mentionId,
@@ -414,20 +396,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
   const reasoningParts = await result.reasoning;
   const hasReasoning =
     Array.isArray(reasoningParts) && reasoningParts.length > 0;
-  if (
-    hasReasoning &&
-    thoughtPhaseMs.start != null &&
-    thoughtPhaseMs.end == null
-  ) {
-    thoughtPhaseMs.end = Date.now();
-  }
-  const thoughtTiming =
-    hasReasoning && thoughtPhaseMs.start != null
-      ? {
-          startedAtMs: thoughtPhaseMs.start,
-          endedAtMs: thoughtPhaseMs.end ?? Date.now(),
-        }
-      : undefined;
+  const thoughtTiming = hasReasoning
+    ? {
+        startedAtMs: generationStartedAtMs,
+        endedAtMs: generationEndedAtMs,
+      }
+    : undefined;
   const thoughtMeta = thoughtMetadataFields(reasoningParts, thoughtTiming);
 
   const publishedMessageIds = await prisma.$transaction(async (tx) => {

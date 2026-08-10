@@ -1541,6 +1541,7 @@
           "searchingFiles": "Searching files...",
           "callingTools": "Calling tools...",
           "thoughtForSeconds": "Thought for {seconds}s",
+          "thoughtForDuration": "Thought for {duration}",
           "expandSteps": "Show reasoning steps",
           "collapseSteps": "Hide reasoning steps"
         },

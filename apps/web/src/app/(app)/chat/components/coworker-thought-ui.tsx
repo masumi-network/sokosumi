@@ -149,6 +149,54 @@ export function CoworkerLoadingState({
   );
 }
 
+/** Static dim Drive grid — same footprint as loading, no motion. */
+function StaticPixelGrid() {
+  return (
+    <span aria-hidden className="bui-pixel-grid" data-testid="bui-static-grid">
+      {DRIVE_PIXEL_DELAYS_MS.map((_, i) => (
+        <span
+          key={i}
+          className="bui-pixel-cell"
+          style={{ opacity: 0.15 }}
+          data-testid="bui-static-pixel"
+        />
+      ))}
+    </span>
+  );
+}
+
+/**
+ * Terminal mention status in the same layout as loading (static grid + label).
+ * `responded` / `failed` after the live thinking row.
+ */
+export function CoworkerMentionTerminalStatus({
+  label,
+  variant,
+  className,
+}: {
+  label: string;
+  variant: "responded" | "failed";
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn("flex w-fit max-w-full items-center gap-2.5", className)}
+      data-testid="coworker-mention-terminal"
+      data-variant={variant}
+    >
+      <StaticPixelGrid />
+      <span
+        className={cn(
+          "truncate text-sm font-medium",
+          variant === "failed" ? "text-destructive" : "text-muted-foreground",
+        )}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
 /**
  * Expandable Thought header + optional prose body (Beautiful UI Thinking · Reasoning).
  * - Live: working shimmer "Thinking" + optional live beat in expanded body

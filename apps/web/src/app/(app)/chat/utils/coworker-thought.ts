@@ -108,6 +108,17 @@ export function extractThoughtDurationSeconds(
   return Math.max(0, Math.round((end - start) / 1000));
 }
 
+/** Product label fragment: `3s`, `1m 3s`, `2m` (no "Thought for" prefix). */
+export function formatThoughtDurationLabel(totalSeconds: number): string {
+  const secs = Math.max(0, Math.round(totalSeconds));
+  if (secs < 60) {
+    return `${secs}s`;
+  }
+  const minutes = Math.floor(secs / 60);
+  const rem = secs % 60;
+  return rem === 0 ? `${minutes}m` : `${minutes}m ${rem}s`;
+}
+
 export function resolveCoworkerThoughtViewModel(input: {
   content: string;
   isStreamOverlay: boolean;

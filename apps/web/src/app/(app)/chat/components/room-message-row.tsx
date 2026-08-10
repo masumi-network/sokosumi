@@ -1,13 +1,7 @@
 "use client";
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import {
-  CheckCircle2,
-  MessageCircle,
-  Pencil,
-  Quote,
-  Trash2,
-} from "lucide-react";
+import { MessageCircle, Pencil, Quote, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
@@ -24,10 +18,14 @@ import {
 import {
   CoworkerLiveThought,
   CoworkerLoadingState,
+  CoworkerMentionTerminalStatus,
   CoworkerThoughtTrace,
 } from "@/app/chat/components/coworker-thought-ui";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
-import { resolveCoworkerThoughtViewModel } from "@/app/chat/utils/coworker-thought";
+import {
+  formatThoughtDurationLabel,
+  resolveCoworkerThoughtViewModel,
+} from "@/app/chat/utils/coworker-thought";
 import {
   getJumboEmojiCount,
   jumboEmojiClassName,
@@ -49,7 +47,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FileChipMiniPreviewFrame } from "@/components/ui/file-chip-mini-preview";
 import { FileTypeIcon } from "@/components/ui/file-icon";
@@ -1280,17 +1277,11 @@ function MessageMetaFooter({
               );
             }
             return (
-              <Badge
+              <CoworkerMentionTerminalStatus
                 key={mention.id}
-                variant={
-                  mention.status === "failed" ? "destructive" : "outline"
-                }
-              >
-                {mention.status === "responded" ? (
-                  <CheckCircle2 className="size-3" />
-                ) : null}
-                {label}
-              </Badge>
+                label={label}
+                variant={mention.status === "failed" ? "failed" : "responded"}
+              />
             );
           })}
         </div>
@@ -1537,8 +1528,10 @@ export function ChatMessageRow({
                         working={false}
                         headerLabel={
                           thoughtView.disclosure.durationSeconds != null
-                            ? tChat("reasoning.thoughtForSeconds", {
-                                seconds: thoughtView.disclosure.durationSeconds,
+                            ? tChat("reasoning.thoughtForDuration", {
+                                duration: formatThoughtDurationLabel(
+                                  thoughtView.disclosure.durationSeconds,
+                                ),
                               })
                             : tChat("reasoning.expandSteps")
                         }

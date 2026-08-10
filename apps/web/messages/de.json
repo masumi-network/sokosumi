@@ -1532,6 +1532,7 @@
           "searchingFiles": "Dateien werden durchsucht...",
           "callingTools": "Tools werden aufgerufen...",
           "thoughtForSeconds": "Gedacht für {seconds}s",
+          "thoughtForDuration": "Gedacht für {duration}",
           "expandSteps": "Überlegungsschritte anzeigen",
           "collapseSteps": "Überlegungsschritte ausblenden"
         },

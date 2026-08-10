@@ -6,8 +6,22 @@ import {
   extractThoughtTextFromMessageParts,
   extractThoughtTextFromMetadata,
   formatLiveElapsedLabel,
+  formatThoughtDurationLabel,
   resolveCoworkerThoughtViewModel,
 } from "../coworker-thought";
+
+describe("formatThoughtDurationLabel", () => {
+  it("formats under a minute as seconds", () => {
+    expect(formatThoughtDurationLabel(3)).toBe("3s");
+    expect(formatThoughtDurationLabel(59)).toBe("59s");
+  });
+
+  it("formats a minute and above as m and optional s", () => {
+    expect(formatThoughtDurationLabel(60)).toBe("1m");
+    expect(formatThoughtDurationLabel(63)).toBe("1m 3s");
+    expect(formatThoughtDurationLabel(125)).toBe("2m 5s");
+  });
+});
 
 describe("formatLiveElapsedLabel", () => {
   it("formats under a minute as seconds", () => {

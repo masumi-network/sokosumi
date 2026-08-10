@@ -1587,6 +1587,66 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
   });
 
+  it("shows static terminal status for replied and failed mentions", () => {
+    const coworkersById = new Map([
+      [
+        "cow-1",
+        {
+          id: "cow-1",
+          name: "Noodles",
+          slug: "noodles",
+          caption: null,
+          image: null,
+          presence: "online" as const,
+        },
+      ],
+    ]);
+    const { rerender } = render(
+      <ChatMessageRow
+        message={userMessage({
+          mentions: [
+            {
+              id: "m1",
+              coworkerId: "cow-1",
+              status: "responded",
+              responseMessageId: "r1",
+            },
+          ],
+        })}
+        coworkersById={coworkersById}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("coworker-mention-terminal")).toHaveAttribute(
+      "data-variant",
+      "responded",
+    );
+    expect(screen.getByTestId("bui-static-grid")).toBeInTheDocument();
+
+    rerender(
+      <ChatMessageRow
+        message={userMessage({
+          mentions: [
+            {
+              id: "m1",
+              coworkerId: "cow-1",
+              status: "failed",
+              responseMessageId: null,
+            },
+          ],
+        })}
+        coworkersById={coworkersById}
+        coworkersBySlug={new Map()}
+        onToggleReaction={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("coworker-mention-terminal")).toHaveAttribute(
+      "data-variant",
+      "failed",
+    );
+  });
+
   it("shows Beautiful UI loading state on empty stream overlay", () => {
     renderRow({
       message: coworkerMessage({
@@ -1655,7 +1715,7 @@ describe("ChatMessageRow coworker Thought", () => {
         content: "There were 142 new registrations.",
         metadata: {
           reasoning: [{ type: "reasoning", text: "Queried user table." }],
-          thought_timing_ms: { start: 1_000, end: 13_000 },
+          thought_timing_ms: { start: 1_000, end: 64_000 },
         },
       }),
     });
@@ -1664,8 +1724,9 @@ describe("ChatMessageRow coworker Thought", () => {
       screen.getByText("There were 142 new registrations."),
     ).toBeInTheDocument();
 
+    // Mock next-intl returns key; duration is formatted as 1m 3s in the values.
     const toggle = screen.getByRole("button", {
-      name: /reasoning.thoughtForSeconds/i,
+      name: /reasoning.thoughtForDuration/i,
     });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByTestId("coworker-thought-body")).not.toBeVisible();
