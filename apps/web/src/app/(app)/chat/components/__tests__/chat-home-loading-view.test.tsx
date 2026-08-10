@@ -24,7 +24,10 @@ describe("ChatHomePageSkeleton", () => {
 
     const desktop = screen.getByTestId("chat-home-loading-desktop");
     expect(desktop.className).toMatch(/md:flex/);
-    expect(desktop.className).toContain(ONBOARDING_STEPS_MAX_WIDTH_CLASS);
+    expect(desktop.className).toContain("-m-4");
+    expect(
+      desktop.querySelector(`.${ONBOARDING_STEPS_MAX_WIDTH_CLASS}`),
+    ).toBeTruthy();
     const mobile = screen.getByTestId("chat-chats-loading");
     expect(mobile.className).toMatch(/md:hidden/);
   });
@@ -33,7 +36,9 @@ describe("ChatHomePageSkeleton", () => {
     mockSearch = "welcome=1";
     render(<ChatHomePageSkeleton />);
 
-    expect(screen.getByTestId("chat-home-loading-onboarding")).toBeTruthy();
+    const onboarding = screen.getByTestId("chat-home-loading-onboarding");
+    expect(onboarding.className).toContain("-m-4");
+    expect(onboarding.className).toMatch(/100svh/);
     expect(screen.queryByTestId("chat-chats-loading")).toBeNull();
     expect(screen.queryByTestId("chat-home-loading-desktop")).toBeNull();
   });

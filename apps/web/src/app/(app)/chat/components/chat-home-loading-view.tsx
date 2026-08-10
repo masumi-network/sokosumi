@@ -15,6 +15,7 @@ export function ChatHomeBarePageSkeleton(): React.ReactElement {
       <ChatOnboardingPageSkeleton
         data-testid="chat-home-loading-desktop"
         className="hidden md:flex"
+        surface="home"
       />
     </>
   );

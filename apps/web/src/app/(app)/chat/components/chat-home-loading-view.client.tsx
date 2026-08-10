@@ -15,7 +15,10 @@ export function ChatHomeLoadingBySearch(): React.ReactElement {
 
   if (isOnboardingHost) {
     return (
-      <ChatOnboardingPageSkeleton data-testid="chat-home-loading-onboarding" />
+      <ChatOnboardingPageSkeleton
+        data-testid="chat-home-loading-onboarding"
+        surface="draft"
+      />
     );
   }
 
@@ -25,6 +28,7 @@ export function ChatHomeLoadingBySearch(): React.ReactElement {
       <ChatOnboardingPageSkeleton
         data-testid="chat-home-loading-desktop"
         className="hidden md:flex"
+        surface="home"
       />
     </>
   );
