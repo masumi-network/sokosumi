@@ -28,6 +28,8 @@ describe("HeaderChrome", () => {
     // fixed/sticky own the containing block; relative would fight fixed in CSS.
     expect(tokens).toContain("fixed");
     expect(tokens).not.toContain("relative");
+    // Desktop hairline is on the h-16 row (matches SidebarHeader), not outer.
+    expect(tokens).not.toContain("md:border-b");
 
     // Glass stays on the full outer chrome (Apple mock).
     expect(header.className).toMatch(/backdrop-blur-2xl/);
@@ -39,10 +41,12 @@ describe("HeaderChrome", () => {
     expect(underlay?.className).toContain("bg-background");
     expect(underlay?.className).toContain("h-[env(safe-area-inset-top)]");
 
-    // Control row still h-16 (query by class — underlay may be first child).
+    // Control row still h-16; desktop border-b lives here (sidebar seam).
     const row = header.querySelector(".h-16");
     expect(row).toBeTruthy();
     expect(row?.className).toContain("px-4");
+    expect(row?.className).toContain("md:border-b");
+    expect(row?.className).toContain("md:border-sidebar-border");
     expect(screen.getByText("controls")).toBeTruthy();
   });
 });
