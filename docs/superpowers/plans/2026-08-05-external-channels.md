@@ -53,7 +53,7 @@
 
 **Files:**
 - Modify: `packages/database/prisma/schema.prisma`
-- Create: `packages/database/prisma/migrations/20260805120000_external_channels/migration.sql` (timestamp may adjust to next free)
+- Create: `packages/database/prisma/migrations/20260810171000_external_channels/migration.sql` (timestamp after main tip)
 - Test: `pnpm prisma:generate` + migrate on dev DB
 
 **Interfaces:**
