@@ -17,7 +17,8 @@ Migrate web Results off `@/lib/ts-res` onto neverthrow + `ActionResultDto` wire 
 ### PR 1: SOK-763 coworker early-access
 
 - **Description:** Migrate coworker early-access actions + UI off ts-res.
-- **Files/components affected:** `workspace-access.action.ts`, `account/coworker-access-action.ts`, `organization/coworker-access-action.ts`, `coworker-access-list.tsx`, `developer-coworker-early-access.tsx`, `coworker-access-notification-actions.tsx`, related tests
+- **Files/components affected:** `workspace-access.action.ts`, `account/coworker-access-action.ts`, `organization/coworker-access-action.ts`, `coworker-access-list.tsx`, `developer-coworker-early-access.tsx`, related tests
+- **Call-site rule:** only edit callers that read `result.data` (or type as `ts-res` `Result`). Pure `result.ok` / `result.error` UIs (e.g. `coworker-access-notification-actions.tsx`) need **verify only** — no code change if they never touch the success payload.
 - **Dependencies:** None (SOK-762 merged on main)
 - **Branch:** `sok-763-neverthrow-coworker-early-access`
 
