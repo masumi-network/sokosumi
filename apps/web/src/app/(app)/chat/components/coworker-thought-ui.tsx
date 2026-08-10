@@ -63,28 +63,6 @@ export function drivePixelOpacity(
   return drivePixelOpacityAtPhase(t / cycleMs);
 }
 
-function useAnimationClockMs(): number {
-  const [elapsedMs, setElapsedMs] = useState(0);
-  useEffect(() => {
-    // Respect reduced motion: freeze grid at dim (no wave).
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce) {
-      return;
-    }
-    const start = performance.now();
-    let frame = 0;
-    const tick = (now: number) => {
-      setElapsedMs(now - start);
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, []);
-  return elapsedMs;
-}
-
 function useLiveElapsedMs(startedAtMs: number): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -94,16 +72,47 @@ function useLiveElapsedMs(startedAtMs: number): number {
   return Math.max(0, now - startedAtMs);
 }
 
-/** 3×3 Drive wave — JS-driven so it does not depend on CSS keyframes. */
+/**
+ * 3×3 Drive wave — rAF updates pixel opacity via refs (no React setState per frame).
+ */
 function DrivePixelGrid() {
-  const elapsedMs = useAnimationClockMs();
+  const cellRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  useEffect(() => {
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      return;
+    }
+    const start = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const elapsedMs = now - start;
+      const cells = cellRefs.current;
+      for (let i = 0; i < DRIVE_PIXEL_DELAYS_MS.length; i += 1) {
+        const el = cells[i];
+        if (el) {
+          el.style.opacity = String(
+            drivePixelOpacity(elapsedMs, DRIVE_PIXEL_DELAYS_MS[i]!),
+          );
+        }
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   return (
     <span aria-hidden className="bui-pixel-grid" data-testid="bui-drive-grid">
       {DRIVE_PIXEL_DELAYS_MS.map((delayMs, i) => (
         <span
           key={i}
+          ref={(el) => {
+            cellRefs.current[i] = el;
+          }}
           className="bui-pixel-cell"
-          style={{ opacity: drivePixelOpacity(elapsedMs, delayMs) }}
+          style={{ opacity: drivePixelOpacity(0, delayMs) }}
           data-testid="bui-drive-pixel"
         />
       ))}

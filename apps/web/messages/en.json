@@ -1542,8 +1542,8 @@
           "callingTools": "Calling tools...",
           "thoughtForSeconds": "Thought for {seconds}s",
           "thoughtForDuration": "Thought for {duration}",
-          "expandSteps": "Show reasoning steps",
-          "collapseSteps": "Hide reasoning steps"
+          "expandSteps": "Show thought",
+          "collapseSteps": "Hide thought"
         },
         "chatErrorTitle": "Chat Error",
         "errorFallbackDescription": "Something went wrong with the chat interface. Please try refreshing or contact support if the issue persists.",

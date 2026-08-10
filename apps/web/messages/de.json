@@ -1533,8 +1533,8 @@
           "callingTools": "Tools werden aufgerufen...",
           "thoughtForSeconds": "Gedacht für {seconds}s",
           "thoughtForDuration": "Gedacht für {duration}",
-          "expandSteps": "Überlegungsschritte anzeigen",
-          "collapseSteps": "Überlegungsschritte ausblenden"
+          "expandSteps": "Überlegung anzeigen",
+          "collapseSteps": "Überlegung ausblenden"
         },
         "chatErrorTitle": "Chat-Fehler",
         "errorFallbackDescription": "Bei der Chat-Oberfläche ist ein Problem aufgetreten. Bitte lade die Seite neu oder kontaktiere den Support, falls das Problem weiterhin besteht.",

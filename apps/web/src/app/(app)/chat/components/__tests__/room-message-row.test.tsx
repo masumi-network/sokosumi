@@ -36,6 +36,9 @@ vi.mock("next-intl", () => ({
       if (key === "imageAlt" && values) {
         return `Preview image for ${values.title}`;
       }
+      if (key === "reasoning.thoughtForDuration" && values?.duration != null) {
+        return `Thought for ${String(values.duration)}`;
+      }
       return key;
     };
   },
@@ -1725,9 +1728,8 @@ describe("ChatMessageRow coworker Thought", () => {
       screen.getByText("There were 142 new registrations."),
     ).toBeInTheDocument();
 
-    // Mock next-intl returns key; duration is formatted as 1m 3s in the values.
     const toggle = screen.getByRole("button", {
-      name: /reasoning.thoughtForDuration/i,
+      name: "Thought for 1m 3s",
     });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByTestId("coworker-thought-body")).not.toBeVisible();

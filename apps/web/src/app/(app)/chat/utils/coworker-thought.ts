@@ -97,15 +97,27 @@ export function extractThoughtDurationSeconds(
     return null;
   }
   const rec = timing as Record<string, unknown>;
-  const start = typeof rec.start === "number" ? rec.start : Number.NaN;
-  const end = typeof rec.end === "number" ? rec.end : Number.NaN;
-  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+  const start = parseThoughtTimingNumber(rec.start);
+  const end = parseThoughtTimingNumber(rec.end);
+  if (start == null || end == null) {
     return null;
   }
   if (start <= 0 || end < start) {
     return null;
   }
   return Math.max(0, Math.round((end - start) / 1000));
+}
+
+/** Accept number or numeric string (align with Core metadata parsers). */
+function parseThoughtTimingNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
 }
 
 /** Product label fragment: `3s`, `1m 3s`, `2m` (no "Thought for" prefix). */
@@ -166,20 +178,6 @@ export function resolveCoworkerThoughtViewModel(input: {
     },
     showThinkingFallback: false,
   };
-}
-
-/**
- * Live wait label for the stream overlay (`0s` … `59s`, then `m:ss`).
- * Pure so tests do not need a ticking clock.
- */
-export function formatLiveElapsedLabel(elapsedSeconds: number): string {
-  const secs = Math.max(0, Math.floor(elapsedSeconds));
-  if (secs < 60) {
-    return `${secs}s`;
-  }
-  const minutes = Math.floor(secs / 60);
-  const rem = secs % 60;
-  return `${minutes}:${String(rem).padStart(2, "0")}`;
 }
 
 /** Shape stored under room message metadata for reasoning steps. */

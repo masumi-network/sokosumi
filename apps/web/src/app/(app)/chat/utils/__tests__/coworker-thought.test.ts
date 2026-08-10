@@ -5,7 +5,6 @@ import {
   extractThoughtDurationSeconds,
   extractThoughtTextFromMessageParts,
   extractThoughtTextFromMetadata,
-  formatLiveElapsedLabel,
   formatThoughtDurationLabel,
   resolveCoworkerThoughtViewModel,
 } from "../coworker-thought";
@@ -20,20 +19,6 @@ describe("formatThoughtDurationLabel", () => {
     expect(formatThoughtDurationLabel(60)).toBe("1m");
     expect(formatThoughtDurationLabel(63)).toBe("1m 3s");
     expect(formatThoughtDurationLabel(125)).toBe("2m 5s");
-  });
-});
-
-describe("formatLiveElapsedLabel", () => {
-  it("formats under a minute as seconds", () => {
-    expect(formatLiveElapsedLabel(0)).toBe("0s");
-    expect(formatLiveElapsedLabel(12.9)).toBe("12s");
-    expect(formatLiveElapsedLabel(59)).toBe("59s");
-  });
-
-  it("formats a minute and above as m:ss", () => {
-    expect(formatLiveElapsedLabel(60)).toBe("1:00");
-    expect(formatLiveElapsedLabel(75)).toBe("1:15");
-    expect(formatLiveElapsedLabel(125)).toBe("2:05");
   });
 });
 
@@ -106,6 +91,14 @@ describe("extractThoughtDurationSeconds", () => {
         thought_timing_ms: { start: 1000, end: 4500 },
       }),
     ).toBe(4);
+  });
+
+  it("accepts numeric strings for start/end", () => {
+    expect(
+      extractThoughtDurationSeconds({
+        thought_timing_ms: { start: "1000", end: "64000" },
+      }),
+    ).toBe(63);
   });
 
   it("returns null when timing missing or invalid", () => {
