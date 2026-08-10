@@ -46,6 +46,59 @@ interface AgentClientRequestOptions {
 }
 
 /**
+ * Why a `start_job` call failed, and — crucially — whether the seller is now
+ * working on a job the caller will never record.
+ *
+ * `unreachable`: request validation failed before dispatch, or seller returned
+ * an explicit non-timeout 4xx rejection. No seller-side job was accepted.
+ *
+ * `ambiguous`: transport failed after dispatch, or seller returned a timeout
+ * or 5xx. Seller may have accepted the request, so callers must surface
+ * possible stranded work.
+ *
+ * `invalid-response`: the seller answered 2xx with a body that does not match
+ * the MIP-003 contract. It has accepted the job and started work, but the
+ * caller cannot record it — MIP-003 has no cancel, so this strands the job and
+ * must be surfaced rather than treated as a plain start failure.
+ */
+export interface AgentJobStartFailure {
+  kind: "unreachable" | "ambiguous" | "invalid-response";
+  message: string;
+}
+
+function unreachable(message: string): AgentJobStartFailure {
+  return { kind: "unreachable", message };
+}
+
+function ambiguous(message: string): AgentJobStartFailure {
+  return { kind: "ambiguous", message };
+}
+
+function invalidResponse(message: string): AgentJobStartFailure {
+  return { kind: "invalid-response", message };
+}
+
+function classifyStartJobHttpFailure(
+  response: Response,
+  message: string,
+): AgentJobStartFailure {
+  const detailedMessage = `${message} (status ${response.status})`;
+  // Timeouts and 5xx: seller may have accepted before failing.
+  if (response.status === 408 || response.status >= 500) {
+    return ambiguous(detailedMessage);
+  }
+  // ssrfSafeFetch does not follow POST redirects; acceptance is unknown.
+  if (response.status >= 300 && response.status < 400) {
+    return ambiguous(detailedMessage);
+  }
+  // Explicit non-timeout 4xx: no seller-side job was accepted.
+  if (response.status >= 400 && response.status < 500) {
+    return unreachable(detailedMessage);
+  }
+  return ambiguous(detailedMessage);
+}
+
+/**
  * Creates an agent client with the provided configuration.
  */
 export function createAgentClient(config?: AgentClientConfig) {
@@ -125,10 +178,17 @@ export function createAgentClient(config?: AgentClientConfig) {
       agent: Agent,
       identifierFromPurchaser: string,
       inputData: InputSchemaType,
-    ): Promise<Result<StartPaidJobResponseSchemaType, string>> {
+    ): Promise<Result<StartPaidJobResponseSchemaType, AgentJobStartFailure>> {
+      let startJobUrl: URL;
       try {
-        const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
-        const startJobResponse = await ssrfSafeFetch(startJobUrl, {
+        startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
+      } catch (error) {
+        return err(unreachable(String(error)));
+      }
+
+      let startJobResponse: Response;
+      try {
+        startJobResponse = await ssrfSafeFetch(startJobUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -138,34 +198,57 @@ export function createAgentClient(config?: AgentClientConfig) {
             input_data: inputData,
           }),
         });
+      } catch (error) {
+        return err(ambiguous(String(error)));
+      }
 
-        if (!startJobResponse.ok) {
-          return err("Failed to start agent job");
-        }
-        const responseJson = await startJobResponse.json();
+      if (!startJobResponse.ok) {
+        return err(
+          classifyStartJobHttpFailure(
+            startJobResponse,
+            "Failed to start agent job",
+          ),
+        );
+      }
+      // A 2xx means the seller accepted the job; every failure from here on
+      // leaves it running on the seller's side.
+      let responseJson: unknown;
+      try {
+        responseJson = await startJobResponse.json();
+      } catch (error) {
+        return err(
+          invalidResponse(`start_job response was not valid JSON: ${error}`),
+        );
+      }
 
-        const parsedResult = startPaidJobResponseSchema.safeParse(responseJson);
-        if (!parsedResult.success) {
-          return err(
+      const parsedResult = startPaidJobResponseSchema.safeParse(responseJson);
+      if (!parsedResult.success) {
+        return err(
+          invalidResponse(
             `Failed to parse start job response: ${JSON.stringify(
               parsedResult.error,
             )}`,
-          );
-        }
-
-        return ok(parsedResult.data);
-      } catch (error) {
-        return err(String(error));
+          ),
+        );
       }
+
+      return ok(parsedResult.data);
     },
 
     async startFreeAgentJob(
       agent: Agent,
       inputData: InputSchemaType,
-    ): Promise<Result<StartFreeJobResponseSchemaType, string>> {
+    ): Promise<Result<StartFreeJobResponseSchemaType, AgentJobStartFailure>> {
+      let startJobUrl: URL;
       try {
-        const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
-        const startJobResponse = await ssrfSafeFetch(startJobUrl, {
+        startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
+      } catch (error) {
+        return err(unreachable(String(error)));
+      }
+
+      let startJobResponse: Response;
+      try {
+        startJobResponse = await ssrfSafeFetch(startJobUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -174,24 +257,41 @@ export function createAgentClient(config?: AgentClientConfig) {
             input_data: inputData,
           }),
         });
-        if (!startJobResponse.ok) {
-          return err("Failed to start free agent job");
-        }
-        const responseJson = await startJobResponse.json();
+      } catch (error) {
+        return err(ambiguous(String(error)));
+      }
 
-        const parsedResult = startFreeJobResponseSchema.safeParse(responseJson);
-        if (!parsedResult.success) {
-          return err(
+      if (!startJobResponse.ok) {
+        return err(
+          classifyStartJobHttpFailure(
+            startJobResponse,
+            "Failed to start free agent job",
+          ),
+        );
+      }
+      // A 2xx means the seller accepted the job; every failure from here on
+      // leaves it running on the seller's side.
+      let responseJson: unknown;
+      try {
+        responseJson = await startJobResponse.json();
+      } catch (error) {
+        return err(
+          invalidResponse(`start_job response was not valid JSON: ${error}`),
+        );
+      }
+
+      const parsedResult = startFreeJobResponseSchema.safeParse(responseJson);
+      if (!parsedResult.success) {
+        return err(
+          invalidResponse(
             `Failed to parse start free job response: ${JSON.stringify(
               parsedResult.error,
             )}`,
-          );
-        }
-
-        return ok(parsedResult.data);
-      } catch (error) {
-        return err(String(error));
+          ),
+        );
       }
+
+      return ok(parsedResult.data);
     },
 
     async fetchAgentJobStatus(

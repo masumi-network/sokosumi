@@ -1,10 +1,12 @@
 "use client";
 
-import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import Link from "next/link";
 import type { useFormatter, useTranslations } from "next-intl";
 
-import { DataTableColumnHeader } from "@/components/data-table";
+import {
+  createAppColumnHelper,
+  DataTableColumnHeader,
+} from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import type { Vendor } from "@/lib/clients/generated/core";
 
@@ -13,13 +15,13 @@ const dateTimeOptions = {
   timeStyle: "short",
 } as const;
 
-const columnHelper = createColumnHelper<Vendor>();
+const columnHelper = createAppColumnHelper<Vendor>();
 
 export function getVendorsTableColumns(
   t: ReturnType<typeof useTranslations<"App.Admin.Vendors.Table">>,
   formatter: ReturnType<typeof useFormatter>,
-): ColumnDef<Vendor>[] {
-  return [
+) {
+  return columnHelper.columns([
     columnHelper.accessor("name", {
       id: "name",
       minSize: 140,
@@ -30,7 +32,7 @@ export function getVendorsTableColumns(
       cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<Vendor>,
+    }),
 
     columnHelper.accessor("slug", {
       id: "slug",
@@ -44,7 +46,7 @@ export function getVendorsTableColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<Vendor>,
+    }),
 
     columnHelper.accessor("createdAt", {
       id: "createdAt",
@@ -60,7 +62,7 @@ export function getVendorsTableColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<Vendor>,
+    }),
 
     columnHelper.accessor("updatedAt", {
       id: "updatedAt",
@@ -76,7 +78,7 @@ export function getVendorsTableColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<Vendor>,
+    }),
 
     columnHelper.display({
       id: "actions",
@@ -95,6 +97,6 @@ export function getVendorsTableColumns(
       ),
       enableSorting: false,
       enableHiding: false,
-    }) as ColumnDef<Vendor>,
-  ];
+    }),
+  ]);
 }

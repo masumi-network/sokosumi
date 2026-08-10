@@ -45,6 +45,43 @@ Next.js serializes concurrent **server actions** per session. A long action star
 - Share server-side load logic in `src/lib/` so the Route Handler (and any future callers) stay in sync (see `src/lib/hermes/skills-marketplace-data.ts` + `GET /api/personal-assistant/skills-marketplace` as the reference pattern).
 - Do **not** fire long server actions on mount of a hidden multi-step UI while later steps still call actions.
 
+### Server action Results (neverthrow + wire DTO)
+
+**In-process** error handling always uses `neverthrow` (`ok` / `err` / `Result`). See root [neverthrow rule](../../.cursor/rules/neverthrow.mdc).
+
+**Do not use `@/lib/ts-res`** in new or changed code. That helper (`Ok` / `Err` / `result.data`) is legacy; remaining call sites migrate under SOK-754. Do not add new imports.
+
+**Server action returns** must be the plain serializable DTO — neverthrow class methods do not survive Flight. Success and error payloads (`T` / `E`) must themselves be plain JSON/Flight-safe values.
+
+```typescript
+import { ok, err, type Result } from "neverthrow";
+import {
+  toActionResult,
+  type ActionResultDto,
+} from "@/lib/actions/action-result";
+
+// wire: { ok: true; value: T } | { ok: false; error: E }
+export async function exampleAction(): Promise<
+  ActionResultDto<{ id: string }, ActionError>
+> {
+  const result: Result<{ id: string }, ActionError> = ok({ id: "…" });
+  return toActionResult(result);
+}
+```
+
+**Clients** (after the action returns — not neverthrow methods):
+
+```typescript
+const result = await exampleAction();
+if (!result.ok) {
+  // result.error
+  return;
+}
+// result.value — never result.data (that was @/lib/ts-res)
+```
+
+Prefer `toActionResult` over inventing another Ok/Err helper.
+
 ### Route Organization
 
 - Group related routes using parentheses: `(app)`, `(auth)`
@@ -211,7 +248,7 @@ Generated Core `/v1` types are the source of truth for **entity** data web shows
 
 | Category | Examples | Canonical home | Rule |
 | -------- | -------- | -------------- | ---- |
-| Masumi / payment protocol | `NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus` | `@sokosumi/utils` (`masumi-protocol.ts`; used when bridging Masumi purchaser / payment responses, e.g. `job-transformers.ts`) | Payment-protocol state machine values, not `/v1` display DTOs. When the UI needs on-chain outcome, use Core job fields (`OnChainJobStatus`, `jobStatusSettled`, …). Do not invent Core REST DTOs that mirror Masumi purchaser `NextAction` shapes. |
+| Masumi / payment protocol | `NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus` | `@sokosumi/utils` (`masumi-protocol.ts`; used when bridging Masumi purchaser / payment responses; the state mapping itself lives in Core `helpers/purchase.ts`) | Payment-protocol state machine values, not `/v1` display DTOs. When the UI needs on-chain outcome, use Core job fields (`OnChainJobStatus`, `jobStatusSettled`, …). Do not invent Core REST DTOs that mirror Masumi purchaser `NextAction` shapes. |
 | Stable API error kinds | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind` | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`) | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map. |
 | UI-only display values | `expired` invitation status | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Use `InvitationDisplayStatus` for app UI. |
 | Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils` | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5). |

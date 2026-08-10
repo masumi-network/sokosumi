@@ -1,1 +1,5 @@
-export { loadMoreJobs, loadMoreTasksColumn } from "../(app)/tasks/actions";
+export {
+  loadMoreJobs,
+  loadMoreTasksColumn,
+  loadMoreTasksList,
+} from "../(app)/tasks/actions";

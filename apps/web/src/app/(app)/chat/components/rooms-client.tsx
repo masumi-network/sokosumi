@@ -22,6 +22,7 @@ import {
   sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
+import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
@@ -56,7 +57,6 @@ import { applyRoomReadResultToOverlay } from "@/components/chat/room-read-overla
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
@@ -1731,10 +1731,9 @@ export function RoomsClient({
                 </header>
               ) : null}
 
-              <ScrollArea
+              <div
                 ref={scrollerRef}
-                shrinkContent
-                className="min-h-0 min-w-0 flex-1"
+                className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}
               >
                 <div
                   ref={contentRef}
@@ -1857,7 +1856,7 @@ export function RoomsClient({
                     );
                   })}
                 </div>
-              </ScrollArea>
+              </div>
 
               <RoomSessionComposer
                 key={selectedRoom.id}

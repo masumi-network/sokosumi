@@ -140,7 +140,10 @@ export const AdminAgentDetailSchema = {
                     ]
                 },
                 apiBaseUrl: {
-                    type: 'string'
+                    type: [
+                        'string',
+                        'null'
+                    ]
                 },
                 authorName: {
                     type: [
@@ -254,7 +257,37 @@ export const AdminAgentRegistrySchema = {
             ]
         },
         apiBaseUrl: {
-            type: 'string'
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        type: {
+            $ref: '#/components/schemas/AgentEntryType'
+        },
+        openApiSpecUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        x402ResourcesUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        paymentType: {
+            $ref: '#/components/schemas/PaymentType'
+        },
+        metadataVersion: {
+            type: 'integer'
+        },
+        supersededByAgentIdentifier: {
+            type: [
+                'string',
+                'null'
+            ]
         },
         capabilityName: {
             type: [
@@ -357,6 +390,12 @@ export const AdminAgentRegistrySchema = {
         'name',
         'description',
         'apiBaseUrl',
+        'type',
+        'openApiSpecUrl',
+        'x402ResourcesUrl',
+        'paymentType',
+        'metadataVersion',
+        'supersededByAgentIdentifier',
         'capabilityName',
         'capabilityVersion',
         'authorName',
@@ -374,6 +413,26 @@ export const AdminAgentRegistrySchema = {
         'isShown',
         'createdAt',
         'updatedAt'
+    ]
+} as const;
+
+export const AgentEntryTypeSchema = {
+    type: 'string',
+    enum: [
+        'STANDARD',
+        'OPEN_API',
+        'X402',
+        'UNKNOWN'
+    ]
+} as const;
+
+export const PaymentTypeSchema = {
+    type: 'string',
+    enum: [
+        'WEB3_CARDANO_V1',
+        'WEB3_CARDANO_V2',
+        'NONE',
+        'UNKNOWN'
     ]
 } as const;
 
@@ -2835,7 +2894,9 @@ export const OnChainJobStatusSchema = {
         'FUNDS_OR_DATUM_INVALID',
         'FUNDS_WITHDRAWN',
         'RESULT_SUBMITTED',
+        'WITHDRAW_AUTHORIZED',
         'REFUND_REQUESTED',
+        'REFUND_AUTHORIZED',
         'REFUND_WITHDRAWN',
         'DISPUTED',
         'DISPUTED_WITHDRAWN'
@@ -3117,6 +3178,215 @@ export const TaskFileUploaderCoworkerSchema = {
         'type',
         'id',
         'coworker'
+    ]
+} as const;
+
+export const AdminTaskPaymentClaimSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'Preprod',
+                'Mainnet'
+            ]
+        },
+        blockchainIdentifier: {
+            type: 'string'
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        attemptCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        lastAttemptAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        nextAttemptAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        reviewRequiredAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        taskEventId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        transactionId: {
+            type: 'string'
+        },
+        user: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                },
+                email: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'email'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'network',
+        'blockchainIdentifier',
+        'failureReason',
+        'attemptCount',
+        'lastAttemptAt',
+        'nextAttemptAt',
+        'reviewRequiredAt',
+        'taskEventId',
+        'transactionId',
+        'user'
+    ]
+} as const;
+
+export const AdminTaskPaymentClaimActionResultSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                status: {
+                    type: 'string',
+                    enum: [
+                        'purchased'
+                    ]
+                },
+                purchaseId: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'status',
+                'purchaseId'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                status: {
+                    type: 'string',
+                    enum: [
+                        'refunded'
+                    ]
+                },
+                reason: {
+                    type: 'string'
+                },
+                compensated: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'status',
+                'reason',
+                'compensated'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                status: {
+                    type: 'string',
+                    enum: [
+                        'retry_scheduled'
+                    ]
+                },
+                reason: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'status',
+                'reason'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                status: {
+                    type: 'string',
+                    enum: [
+                        'review_required'
+                    ]
+                },
+                reason: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'status',
+                'reason'
+            ]
+        }
+    ]
+} as const;
+
+export const RefundAdminTaskPaymentClaimBodySchema = {
+    type: 'object',
+    properties: {
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        }
+    },
+    required: [
+        'reason'
+    ]
+} as const;
+
+export const ReviewedTaskPaymentClaimActionBodySchema = {
+    type: 'object',
+    properties: {
+        reason: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 500
+        }
+    },
+    required: [
+        'reason'
     ]
 } as const;
 
@@ -12515,47 +12785,68 @@ export const MasumiPaymentSchema = {
         blockchainIdentifier: {
             type: 'string',
             minLength: 1,
+            maxLength: 8000,
             example: '0b00e04c0860a60c61066056281180462d0b12'
         },
         identifierFromPurchaser: {
             type: 'string',
-            minLength: 1,
-            example: '1234567890'
+            minLength: 14,
+            maxLength: 26,
+            pattern: '^[0-9a-fA-F]+$',
+            example: 'aabbccddeeff00112233'
         },
         agentIdentifier: {
             type: 'string',
-            minLength: 1,
-            example: '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77'
+            minLength: 57,
+            maxLength: 250,
+            pattern: '^[0-9a-fA-F]+$',
+            example: '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f7773756d6d617279426f74'
         },
         sellerVkey: {
             type: 'string',
-            minLength: 1,
+            minLength: 56,
+            maxLength: 56,
+            pattern: '^[0-9a-fA-F]+$',
             example: '0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd'
         },
         submitResultTime: {
             type: 'string',
-            minLength: 1,
+            pattern: '^\\d{1,19}$',
             example: '1775681853000'
         },
         payByTime: {
             type: 'string',
-            minLength: 1,
+            pattern: '^\\d{1,19}$',
             example: '1775737949000'
         },
         unlockTime: {
             type: 'string',
-            minLength: 1,
+            pattern: '^\\d{1,19}$',
             example: '1775763149000'
         },
         externalDisputeUnlockTime: {
             type: 'string',
-            minLength: 1,
+            pattern: '^\\d{1,19}$',
             example: '1775784749000'
         },
         inputHash: {
             type: 'string',
-            minLength: 1,
+            minLength: 64,
+            maxLength: 64,
+            pattern: '^[0-9a-fA-F]+$',
             example: '3b2d456a720bf5b3e2cc2cebaea9f9a937cd8b4d64267da3271bca937cb56af1'
+        },
+        paymentSourceType: {
+            type: 'string',
+            enum: [
+                'Web3CardanoV1',
+                'Web3CardanoV2'
+            ]
+        },
+        supportedPaymentSourceIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 24
         },
         Amounts: {
             type: 'array',
@@ -12565,11 +12856,13 @@ export const MasumiPaymentSchema = {
                     amount: {
                         type: 'string',
                         minLength: 1,
+                        maxLength: 25,
+                        pattern: '^\\d+$',
                         example: '470000000000'
                     },
                     unit: {
                         type: 'string',
-                        minLength: 1,
+                        maxLength: 150,
                         example: '16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde'
                     }
                 },
@@ -12579,7 +12872,13 @@ export const MasumiPaymentSchema = {
                 ]
             },
             minItems: 1,
-            example: []
+            maxItems: 7,
+            example: [
+                {
+                    amount: '470000000000',
+                    unit: ''
+                }
+            ]
         },
         PaymentSource: {
             $ref: '#/components/schemas/MasumiTaskPaymentSource'
@@ -12614,11 +12913,14 @@ export const MasumiTaskPaymentSourceSchema = {
         smartContractAddress: {
             type: 'string',
             minLength: 1,
+            maxLength: 250,
             example: 'addr_test1wz7j4kmg2cs7yf92uat3ed4a3u97kr7axxr4avaz0lhwdsqukgwfm'
         },
         policyId: {
             type: 'string',
-            minLength: 1,
+            minLength: 56,
+            maxLength: 56,
+            pattern: '^[0-9a-fA-F]+$',
             example: '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f77'
         }
     },

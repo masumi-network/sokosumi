@@ -1,8 +1,8 @@
 import { defaultPlugins } from "@hey-api/openapi-ts";
 
 const config = {
-  input:
-    "https://masumi-payment-sokosumi-dev-5xwcb.ondigitalocean.app/api-docs",
+  // Pinned spec snapshot — refresh via `pnpm fetch:specs` (see spec/SPEC_SOURCES.md).
+  input: "./spec/payment.openapi.json",
   output: {
     path: "./src/clients/openapi/generated/payment",
     tsConfigPath: "./tsconfig.json",
