@@ -54,6 +54,7 @@ const {
   webhookCallUserUpdatedMock,
   ensureCanAcceptOrganizationInvitationMock,
   syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
+  upgradeGuestChatRoomMembershipsToMemberMock,
   prepareStripeEmailSyncForUserUpdateMock,
   handleUserUpdateStripeEmailSyncMock,
   syncUserEmailWithStripeMock,
@@ -116,6 +117,7 @@ const {
     webhookCallUserUpdatedMock: vi.fn(),
     ensureCanAcceptOrganizationInvitationMock: vi.fn(),
     syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
+    upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
     prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
     handleUserUpdateStripeEmailSyncMock: vi.fn(),
     syncUserEmailWithStripeMock: vi.fn(),
@@ -308,6 +310,11 @@ vi.mock("@/services/organization-subscription-auth.service", () => ({
     ensureCanAcceptOrganizationInvitationMock(...args),
   syncLocalFreeSeatsAndCreditsForCurrentMembers: (...args: unknown[]) =>
     syncLocalFreeSeatsAndCreditsForCurrentMembersMock(...args),
+}));
+
+vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
+  upgradeGuestChatRoomMembershipsToMember: (...args: unknown[]) =>
+    upgradeGuestChatRoomMembershipsToMemberMock(...args),
 }));
 
 vi.mock("@/services/stripe-user-email.service", () => ({
@@ -2073,6 +2080,7 @@ describe("core auth config", () => {
           organizationHooks: {
             afterAcceptInvitation: (input: {
               organization: { id: string };
+              user: { id: string };
             }) => Promise<void>;
           };
         },
@@ -2081,8 +2089,13 @@ describe("core auth config", () => {
 
     await config.organizationHooks.afterAcceptInvitation({
       organization: { id: "org-1" },
+      user: { id: "user-1" },
     });
 
+    expect(upgradeGuestChatRoomMembershipsToMemberMock).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+    );
     expect(
       syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
     ).toHaveBeenCalledWith("org-1");
@@ -2097,6 +2110,7 @@ describe("core auth config", () => {
           organizationHooks: {
             afterAddMember: (input: {
               organization: { id: string };
+              user: { id: string };
             }) => Promise<void>;
           };
         },
@@ -2105,8 +2119,13 @@ describe("core auth config", () => {
 
     await config.organizationHooks.afterAddMember({
       organization: { id: "org-1" },
+      user: { id: "user-1" },
     });
 
+    expect(upgradeGuestChatRoomMembershipsToMemberMock).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+    );
     expect(
       syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
     ).toHaveBeenCalledWith("org-1");
