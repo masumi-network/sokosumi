@@ -12,13 +12,12 @@ import {
   useRef,
   useState,
 } from "react";
-
 import { shouldShowMobileCreateFab } from "@/app/components/mobile-app-chrome";
+import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
 
 import {
-  chatMobileCreateFabBottom,
   chatMobileCreateFabScrimBottom,
   type MobileCreateFabActionId,
   mobileCreateFabActions,
@@ -107,7 +106,7 @@ function ChatMobileCreateFabMenu(): React.ReactElement {
     <div
       className={cn(
         "pointer-events-none fixed inset-x-4 z-50 md:hidden",
-        chatMobileCreateFabBottom(isApple),
+        mobileCreateFabBottom(isApple),
       )}
       data-mobile-create-fab
     >
