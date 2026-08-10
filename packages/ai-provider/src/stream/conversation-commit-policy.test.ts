@@ -172,4 +172,36 @@ describe("withConversationCommitPolicy", () => {
     expect(openStream).toHaveBeenCalledTimes(1);
     expect(text).toContain(COWORKER_AGENT_ERROR_SNIPPET);
   });
+
+  it.each([Number.POSITIVE_INFINITY, Number.NaN] as const)(
+    "treats non-finite maxRetries %s as 0 (no unbounded reopen)",
+    async (maxRetries) => {
+      const openStream = vi.fn(async () =>
+        streamResult(
+          textParts(`${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`),
+        ),
+      );
+
+      const result = await withConversationCommitPolicy(openStream, {
+        maxRetries,
+      });
+      const text = await collectText(result.stream);
+
+      expect(openStream).toHaveBeenCalledTimes(1);
+      expect(text).toContain(COWORKER_AGENT_ERROR_SNIPPET);
+    },
+  );
+
+  it("truncates fractional maxRetries to an integer budget", async () => {
+    const openStream = vi.fn(async () => streamResult(textParts("Done")));
+
+    const result = await withConversationCommitPolicy(openStream, {
+      maxRetries: 1.9,
+    });
+    const text = await collectText(result.stream);
+
+    // trunc(1.9) → 1: attempt 0 gated + attempt 1 final ungated
+    expect(openStream).toHaveBeenCalledTimes(2);
+    expect(text).toBe("Done");
+  });
 });

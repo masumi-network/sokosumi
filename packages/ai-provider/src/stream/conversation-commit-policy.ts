@@ -11,10 +11,23 @@ export interface ConversationCommitPolicyOptions {
    * How many times to re-open the protocol stream after a failed commit-gate
    * (agent-error or short-tail). Default: {@link COWORKER_CONVERSATION_MAX_RETRIES}.
    * Pass `0` to skip the gate (single protocol open, no retries).
-   * Negative values are treated as `0`.
+   * Non-finite (`NaN` / `±Infinity`), negative, and fractional values are
+   * normalized to a non-negative integer (`0` when invalid).
    */
   maxRetries?: number;
   minGoodChars?: number;
+}
+
+/**
+ * Floor non-negative retry budget. Non-finite / negative → 0 so
+ * `attempt >= maxRetries` still terminates.
+ */
+function normalizeMaxRetries(value: number | undefined): number {
+  const raw = value ?? COWORKER_CONVERSATION_MAX_RETRIES;
+  if (!Number.isFinite(raw)) {
+    return 0;
+  }
+  return Math.max(0, Math.trunc(raw));
 }
 
 /**
@@ -36,10 +49,7 @@ async function withConversationCommitPolicyAttempt(
   options: ConversationCommitPolicyOptions,
   attempt: number,
 ): Promise<LanguageModelV4StreamResult> {
-  const maxRetries = Math.max(
-    0,
-    options.maxRetries ?? COWORKER_CONVERSATION_MAX_RETRIES,
-  );
+  const maxRetries = normalizeMaxRetries(options.maxRetries);
   const minGoodChars =
     options.minGoodChars ?? MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS;
   const result = await openStream();
