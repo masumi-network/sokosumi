@@ -79,7 +79,7 @@ export function ParticipantCheckboxes({
             value={participantQuery}
             onChange={(event) => setParticipantQuery(event.target.value)}
             placeholder={t("Draft.searchPlaceholder")}
-            className="h-9 rounded-full border-0 bg-muted/60 pr-4 pl-9 shadow-none focus-visible:ring-1"
+            className="h-10 rounded-full border-0 bg-muted/60 pr-4 pl-9 shadow-none focus-visible:ring-1"
           />
         </div>
       </div>

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
+import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
@@ -16,6 +17,7 @@ import {
   shouldShowBrowserNotification,
   showBrowserNotification,
 } from "@/lib/utils/browser-notification";
+import { isPendingCoworkerAccessNotification } from "@/lib/utils/coworker-access-notification";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";
 import { isPendingVendorGrantNotification } from "@/lib/utils/vendor-grant-notification";
@@ -47,17 +49,21 @@ function NotificationToastBody({
   );
 }
 
-interface VendorGrantNotificationToastProps {
+interface PendingAccessNotificationToastProps {
   notification: NotificationEventData;
   message: string;
   onOpen: () => void;
 }
 
-function VendorGrantNotificationToast({
+function PendingAccessNotificationToast({
   notification,
   message,
   onOpen,
-}: VendorGrantNotificationToastProps) {
+}: PendingAccessNotificationToastProps) {
+  const showVendorGrantActions = isPendingVendorGrantNotification(notification);
+  const showCoworkerAccessActions =
+    isPendingCoworkerAccessNotification(notification);
+
   return (
     <div className="flex w-full min-w-0 flex-col gap-1">
       <NotificationToastBody
@@ -67,13 +73,24 @@ function VendorGrantNotificationToast({
           onOpen();
         }}
       />
-      <VendorGrantNotificationActions
-        notification={notification}
-        layout="toast"
-        onAccepted={() => {
-          toast.dismiss(notification.id);
-        }}
-      />
+      {showVendorGrantActions ? (
+        <VendorGrantNotificationActions
+          notification={notification}
+          layout="toast"
+          onAccepted={() => {
+            toast.dismiss(notification.id);
+          }}
+        />
+      ) : null}
+      {showCoworkerAccessActions ? (
+        <CoworkerAccessNotificationActions
+          notification={notification}
+          layout="toast"
+          onAccepted={() => {
+            toast.dismiss(notification.id);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -99,12 +116,13 @@ export function NotificationToastListener({
         isDocumentFocused,
         isRead: notification.isRead,
       });
-      const showVendorGrantToast =
+      const showPendingAccessToast =
         isDocumentFocused &&
         !notification.isRead &&
-        isPendingVendorGrantNotification(notification);
+        (isPendingVendorGrantNotification(notification) ||
+          isPendingCoworkerAccessNotification(notification));
 
-      if (!showBrowser && !showVendorGrantToast) {
+      if (!showBrowser && !showPendingAccessToast) {
         return;
       }
 
@@ -157,7 +175,7 @@ export function NotificationToastListener({
 
       toast(
         () => (
-          <VendorGrantNotificationToast
+          <PendingAccessNotificationToast
             notification={notification}
             message={message}
             onOpen={openNotification}

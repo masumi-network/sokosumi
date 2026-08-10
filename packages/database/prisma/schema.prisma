@@ -79,6 +79,9 @@ model User {
   vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
   vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
 
+  coworkerWorkspaceAccessResolved  CoworkerWorkspaceAccess[] @relation("CoworkerWorkspaceAccessResolvedBy")
+  coworkerWorkspaceAccessRequested CoworkerWorkspaceAccess[] @relation("CoworkerWorkspaceAccessRequestedBy")
+
   // Credit Buckets
   creditBuckets CreditBucket[]
 
@@ -246,6 +249,7 @@ model Workspace {
   tasks        Task[]
   projects     Project[]
   vendorGrants VendorGrant[]
+  coworkerWorkspaceAccess CoworkerWorkspaceAccess[]
 
   @@map("workspace")
 }
@@ -330,6 +334,40 @@ model VendorGrant {
   @@unique([vendorId, workspaceId])
   @@index([workspaceId, status])
   @@map("vendor_grant")
+}
+
+enum CoworkerWorkspaceAccessStatus {
+  PENDING
+  GRANTED
+  DENIED
+  REVOKED
+}
+
+/// Human-side early access: coworker usable in this workspace without global whitelist.
+model CoworkerWorkspaceAccess {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coworkerId String
+  coworker   Coworker @relation(fields: [coworkerId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  status CoworkerWorkspaceAccessStatus @default(PENDING)
+
+  requestedByUserId String?
+  requestedBy       User?   @relation("CoworkerWorkspaceAccessRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("CoworkerWorkspaceAccessResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@unique([coworkerId, workspaceId])
+  @@index([workspaceId, status])
+  @@index([coworkerId, status])
+  @@map("coworker_workspace_access")
 }
 
 enum HistoryKind {
@@ -1392,6 +1430,7 @@ model Coworker {
 
   coworkerApiKeys CoworkerApiKey[]
   assignments     CoworkerAssignment[]
+  workspaceAccess CoworkerWorkspaceAccess[]
 
   assignedTasks       Task[]                   @relation("TaskAssignee")
   createdTasks        Task[]                   @relation("TaskCreatorCoworker")

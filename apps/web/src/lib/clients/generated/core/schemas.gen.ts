@@ -9097,6 +9097,105 @@ export const UtmAttributionRequestSchema = {
     ]
 } as const;
 
+export const CoworkerWorkspaceAccessSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        },
+        coworkerId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        coworkerName: {
+            type: 'string',
+            example: 'Ops Pilot'
+        },
+        coworkerSlug: {
+            type: 'string',
+            example: 'ops-pilot'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceKind: {
+            type: 'string',
+            enum: [
+                'user',
+                'organization'
+            ],
+            example: 'organization'
+        },
+        workspaceDisplayName: {
+            type: 'string',
+            example: 'Acme Corp'
+        },
+        workspaceDisplayDetail: {
+            type: 'string',
+            example: 'acme-corp'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'GRANTED',
+                'DENIED',
+                'REVOKED'
+            ],
+            example: 'PENDING'
+        },
+        requestedByUserId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        resolvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        resolvedById: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'coworkerId',
+        'coworkerName',
+        'coworkerSlug',
+        'workspaceId',
+        'workspaceKind',
+        'workspaceDisplayName',
+        'workspaceDisplayDetail',
+        'status',
+        'requestedByUserId',
+        'resolvedAt',
+        'resolvedById',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
 export const VendorGrantSchema = {
     type: 'object',
     properties: {
@@ -12181,6 +12280,39 @@ export const CreateCoworkerApiKeyResponseSchema = {
         'name',
         'expiresAt'
     ]
+} as const;
+
+export const CoworkerWorkspaceAccessTargetSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Existing workspace id (raw target).'
+        },
+        userId: {
+            type: 'string',
+            minLength: 1,
+            description: 'User id — resolves (or creates) that user\'s personal workspace.'
+        },
+        organizationId: {
+            type: 'string',
+            minLength: 1,
+            description: 'Organization id — resolves (or creates) the org workspace.'
+        },
+        email: {
+            type: 'string',
+            format: 'email',
+            description: 'User email — resolves (or creates) that user\'s personal workspace. Prefer for vendor targeting without directory search.',
+            example: 'pilot@example.com'
+        },
+        organizationSlug: {
+            type: 'string',
+            minLength: 1,
+            description: 'Organization slug — resolves (or creates) the org workspace. Prefer for vendor targeting without directory search.',
+            example: 'acme-corp'
+        }
+    }
 } as const;
 
 export const OrchestratorUsageSchema = {

@@ -77,7 +77,9 @@ export default async function AuthenticatedAppFrame({
                     data-app-content-inner
                   >
                     <Header
-                      className="px-4 py-3 md:p-4"
+                      // Horizontal pad only on md: vertical py would fight the
+                      // shared h-16 hairline with SidebarHeader.
+                      className="px-4 py-3 md:px-4 md:py-0"
                       session={session}
                       adminMenuEnabled={adminMenuEnabled}
                     />

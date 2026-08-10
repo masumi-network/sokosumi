@@ -11,13 +11,21 @@ import mountPostCoworkerImage from "./[id]/image/post.js";
 import mountPatchCoworkerById from "./[id]/patch.js";
 import mountPostCoworkerUnarchive from "./[id]/unarchive/post.js";
 import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch.js";
+import mountGetCoworkerWorkspaceAccess from "./[id]/workspace-access/get.js";
+import mountPostCoworkerWorkspaceAccess from "./[id]/workspace-access/post.js";
+import mountPostRevokeCoworkerWorkspaceAccess from "./[id]/workspace-access/revoke/post.js";
 import mountGetCoworkers from "./get.js";
 import mountGetCoworkerMeEvents from "./me/events/get.js";
 import mountGetCoworkerMe from "./me/get.js";
 import mountPostCoworkerMeUsage from "./me/usage/post.js";
 import mountPostCoworker from "./post.js";
 
-const app = new OpenAPIHonoWithAuth();
+// Product catalog scope=available needs workspace resolution (whitelist ∪
+// GRANTED for active workspace). Without this, requireWorkspaceContext always
+// throws "Workspace is missing" and chat/task pickers 403.
+const app = new OpenAPIHonoWithAuth({
+  includeWorkspaceContext: true,
+});
 
 mountGetCoworkers(app);
 mountPostCoworker(app);
@@ -33,6 +41,9 @@ mountPostCoworkerImage(app);
 mountDeleteCoworkerImage(app);
 mountPatchCoworkerById(app);
 mountPatchCoworkerWhitelistById(app);
+mountGetCoworkerWorkspaceAccess(app);
+mountPostCoworkerWorkspaceAccess(app);
+mountPostRevokeCoworkerWorkspaceAccess(app);
 mountPostCoworkerUnarchive(app);
 mountDeleteCoworkerById(app);
 

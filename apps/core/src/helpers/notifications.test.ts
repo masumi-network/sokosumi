@@ -3,10 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 
 import type prisma from "@/lib/db/prisma";
 
-import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "./notification-feed";
+import {
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "./notification-feed";
 import {
   type CreateNotificationInput,
   createNotification,
+  deletePendingCoworkerAccessNotifications,
   deletePendingVendorGrantNotifications,
 } from "./notifications";
 
@@ -252,5 +256,27 @@ describe("deletePendingVendorGrantNotifications", () => {
         prismaMock as unknown as typeof prisma,
       ),
     ).resolves.toBe(0);
+  });
+});
+
+describe("deletePendingCoworkerAccessNotifications", () => {
+  it("deletes SYSTEM pending coworker-access notifications for the access id", async () => {
+    const prismaMock = createPrismaMock();
+    prismaMock.notification.deleteMany.mockResolvedValue({ count: 1 });
+
+    await expect(
+      deletePendingCoworkerAccessNotifications(
+        "access_123",
+        prismaMock as unknown as typeof prisma,
+      ),
+    ).resolves.toBe(1);
+
+    expect(prismaMock.notification.deleteMany).toHaveBeenCalledWith({
+      where: {
+        referenceId: "access_123",
+        messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+        kind: NotificationKind.SYSTEM,
+      },
+    });
   });
 });
