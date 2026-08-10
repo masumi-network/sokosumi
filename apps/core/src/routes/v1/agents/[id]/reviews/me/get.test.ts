@@ -22,6 +22,7 @@ const {
 }));
 
 vi.mock("@/helpers/agent", () => ({
+  getCardanoV2ReadySources: () => Promise.resolve([]),
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
   getUserAgentReview: getUserAgentReviewMock,

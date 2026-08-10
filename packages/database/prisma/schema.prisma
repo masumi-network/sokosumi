@@ -591,6 +591,8 @@ model UnitValue {
   agentFixedPricingId String?
   paymentRequestId    String?
   purchaseRequestId   String?
+
+  @@index([agentFixedPricingId])
 }
 
 model AgentPricing {
@@ -616,6 +618,58 @@ model AgentFixedPricing {
   updatedAt    DateTime      @updatedAt
   agentPricing AgentPricing?
   amounts      UnitValue[]
+}
+
+enum AgentEntryType {
+  STANDARD
+  OPEN_API
+  X402
+  UNKNOWN
+}
+
+model AgentPaymentSource {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  // Position in the registry entry's supported_payment_sources array — the
+  // supportedPaymentSourceIndex a V2 seller references at payment time.
+  sourceIndex Int
+
+  chain             String
+  // Cardano network name or CAIP-2 id (e.g. eip155:8453) as served by the
+  // registry — a plain string on purpose so EVM rails need no schema change.
+  network           String
+  paymentSourceType String?
+  address           String
+  payTo             String?
+  scheme            String?
+  resource          String?
+
+  pricingType PricingType
+  amounts     AgentPaymentSourceAmount[]
+
+  @@unique([agentId, sourceIndex])
+  @@index([agentId])
+}
+
+model AgentPaymentSourceAmount {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  paymentSourceId String
+  paymentSource   AgentPaymentSource @relation(fields: [paymentSourceId], references: [id], onDelete: Cascade)
+
+  // Chain-native asset identifier (Cardano unit or EVM ERC-20 address).
+  unit     String
+  amount   BigInt
+  decimals Int?
+
+  @@index([paymentSourceId])
 }
 
 model ExampleOutput {
@@ -659,12 +713,29 @@ model Agent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  blockchainIdentifier String @unique
+  blockchainIdentifier String  @unique
+  // Stable registry identity. V2 identifiers end in a 3-byte version; this
+  // stores the identifier without that suffix so every revision maps to the
+  // same product-owned Agent row. Nullable for rollback compatibility with
+  // the previous Core release, which does not populate this field on inserts.
+  registryIdentity     String? @unique
+  registryVersion      Int     @default(0)
 
   name        String
   description String?
 
-  apiBaseUrl String
+  // Null for registry entry types without a MIP-003 endpoint (OpenApi/X402
+  // pointer entries); such agents are never available for hire.
+  apiBaseUrl String?
+
+  type             AgentEntryType @default(STANDARD)
+  openApiSpecUrl   String?
+  x402ResourcesUrl String?
+
+  // Registry-provided link from the current revision to its successor. This is
+  // retained for diagnostics; registryIdentity/registryVersion determine which
+  // revision owns the stable Agent row.
+  supersededByAgentIdentifier String?
 
   capabilityName    String?
   capabilityVersion String?
@@ -692,6 +763,9 @@ model Agent {
   paymentType PaymentType  @default(WEB3_CARDANO_V1)
   pricing     AgentPricing @relation(fields: [pricingId], references: [id])
   pricingId   String       @unique
+
+  // Mirror of the registry entry's supported payment sources (V2/x402).
+  paymentSources AgentPaymentSource[]
 
   status AgentStatus @default(ONLINE)
 
@@ -771,6 +845,7 @@ model Category {
 
 enum PaymentType {
   WEB3_CARDANO_V1
+  WEB3_CARDANO_V2
   NONE
   UNKNOWN
 }
@@ -833,11 +908,13 @@ model Transaction {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  job               Job?               @relation("TransactionJob")
-  refundedJob       Job?               @relation("RefundedTransactionJob")
-  taskEvents        TaskEvent[]        @relation("TransactionTaskEvent")
-  coworkerUsage     CoworkerUsage?     @relation("TransactionCoworkerUsage")
-  orchestratorUsage OrchestratorUsage? @relation("TransactionOrchestratorUsage")
+  job                      Job?               @relation("TransactionJob")
+  refundedJob              Job?               @relation("RefundedTransactionJob")
+  taskEvents               TaskEvent[]        @relation("TransactionTaskEvent")
+  taskPaymentClaim         TaskPaymentClaim?  @relation("TransactionTaskPaymentClaim")
+  refundedTaskPaymentClaim TaskPaymentClaim?  @relation("RefundedTransactionTaskPaymentClaim")
+  coworkerUsage            CoworkerUsage?     @relation("TransactionCoworkerUsage")
+  orchestratorUsage        OrchestratorUsage? @relation("TransactionOrchestratorUsage")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
   creditConsumptions CreditConsumption[]
@@ -935,13 +1012,21 @@ model Job {
 
   jobType JobType
 
-  blockchainIdentifier      String?   @unique
-  identifierFromPurchaser   String?
-  payByTime                 DateTime?
-  submitResultTime          DateTime?
-  unlockTime                DateTime?
-  externalDisputeUnlockTime DateTime?
-  sellerVkey                String?
+  blockchainIdentifier        String?   @unique
+  agentBlockchainIdentifier   String?
+  agentApiBaseUrl             String?
+  paymentSourceType           String?
+  supportedPaymentSourceIndex Int?
+  // Exact normalized token amounts expected by purchase reconciliation.
+  purchaseAmounts             Json?
+  // False for jobs created before amount snapshots were enforced.
+  purchaseAmountMatchRequired Boolean   @default(false)
+  identifierFromPurchaser     String?
+  payByTime                   DateTime?
+  submitResultTime            DateTime?
+  unlockTime                  DateTime?
+  externalDisputeUnlockTime   DateTime?
+  sellerVkey                  String?
 
   transaction           Transaction? @relation("TransactionJob", fields: [transactionId], references: [id])
   transactionId         String?      @unique
@@ -1069,6 +1154,8 @@ enum NextJobAction {
   UNSET_REFUND_REQUESTED_INITIATED
   WITHDRAW_REFUND_REQUESTED
   WITHDRAW_REFUND_INITIATED
+  AUTHORIZE_WITHDRAWAL_REQUESTED
+  AUTHORIZE_WITHDRAWAL_INITIATED
 }
 
 enum OnChainJobStatus {
@@ -1077,8 +1164,10 @@ enum OnChainJobStatus {
   FUNDS_WITHDRAWN
 
   RESULT_SUBMITTED
+  WITHDRAW_AUTHORIZED
 
   REFUND_REQUESTED
+  REFUND_AUTHORIZED
   REFUND_WITHDRAWN
 
   DISPUTED
@@ -1605,6 +1694,12 @@ enum Channel {
   UNKNOWN
 }
 
+enum TaskPaymentClaimStatus {
+  PENDING
+  PURCHASED
+  REFUNDED
+}
+
 model TaskEvent {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -1632,10 +1727,74 @@ model TaskEvent {
   transactionId String?
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
 
+  paymentClaim TaskPaymentClaim?
+
   @@index([transactionId])
   @@index([orchestratorId])
   @@index([taskId, createdAt])
   @@map("taskEvent")
+}
+
+model TaskPaymentClaim {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  network              String
+  blockchainIdentifier String
+  purchasePayload      Json
+  status               TaskPaymentClaimStatus @default(PENDING)
+  externalPurchaseId   String?
+  failureReason        String?
+  attemptCount         Int                    @default(0)
+  lastAttemptAt        DateTime?
+  nextAttemptAt        DateTime               @default(now())
+  processingStartedAt  DateTime?
+  processingToken      String?
+  reviewRequiredAt     DateTime?
+
+  taskEventId String?    @unique
+  taskEvent   TaskEvent? @relation(fields: [taskEventId], references: [id], onDelete: SetNull)
+
+  transactionId String      @unique
+  transaction   Transaction @relation("TransactionTaskPaymentClaim", fields: [transactionId], references: [id], onDelete: Restrict)
+
+  refundTransactionId String?      @unique
+  refundTransaction   Transaction? @relation("RefundedTransactionTaskPaymentClaim", fields: [refundTransactionId], references: [id], onDelete: Restrict)
+
+  @@unique([network, blockchainIdentifier])
+  @@index([network, status, nextAttemptAt])
+  @@index([network, reviewRequiredAt, nextAttemptAt])
+  @@map("task_payment_claim")
+}
+
+/// Append-only audit trail for operator decisions on a task payment claim.
+/// These actions move money (refund/resolve) or reset recovery state (retry),
+/// and the claim's own `failureReason` is cleared by a retry — so attribution
+/// must live in rows that are never updated or deleted.
+///
+/// Deliberately FK-free: account deletion hard-deletes terminal claims and can
+/// remove the operator's User row, so a cascade would erase the financial audit
+/// trail while a restrict would block account deletion. Storing plain ids lets
+/// the record outlive both, which is the normal shape for an audit log.
+model TaskPaymentClaimAction {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  /// TaskPaymentClaim.id — intentionally not a relation (see above).
+  claimId String
+
+  /// "refund" | "resolve" | "retry"
+  action String
+
+  /// User.id of the acting administrator — intentionally not a relation.
+  operatorId String
+
+  reason String
+
+  @@index([claimId, createdAt])
+  @@index([operatorId, createdAt])
+  @@map("task_payment_claim_action")
 }
 
 model CoworkerUsage {

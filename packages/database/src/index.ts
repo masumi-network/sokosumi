@@ -32,6 +32,7 @@ import type { PublicShare } from "./generated/prisma/browser.js";
  * ```
  */
 
+export { POSTGRES_BIGINT_MAX } from "./constants.js";
 // Export browser-safe types (includes Prisma namespace, model types, and all enums - no PrismaClient)
 export * from "./generated/prisma/browser.js";
 

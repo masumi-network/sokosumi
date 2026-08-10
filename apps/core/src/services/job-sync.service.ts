@@ -26,7 +26,13 @@ import {
   renderJobFinalStatusEmail,
   renderJobInputRequiredEmail,
 } from "@sokosumi/email";
-import { createAgentClient } from "@sokosumi/masumi";
+import {
+  createAgentClient,
+  doesResolvedPurchaseSellerMatch,
+  doHexValuesMatch,
+  doMasumiPaymentAmountsMatch,
+  normalizeV2RegistryIdentifier,
+} from "@sokosumi/masumi";
 import {
   buildWebhookFailureContext,
   postWebhook,
@@ -37,7 +43,7 @@ import { type SendEmailInput, sendEmails } from "@/clients/email.client";
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
-import { getAgentName } from "@/helpers/agent";
+import { getAgentName, toMasumiAgentForJob } from "@/helpers/agent";
 import { createNotification } from "@/helpers/notifications";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
@@ -88,6 +94,36 @@ export interface JobSyncResult {
   processed: number;
   unfinishedFound: number;
 }
+
+/**
+ * Budget held back from BOTH network-bound phases so the refund phase always
+ * runs. The three phases share one run deadline and execute in order:
+ * purchase, then agent, then refund.
+ *
+ * Purchase polls the payment node once per job (10s timeout, 5 concurrent),
+ * and agent polls sellers — and since this release keeps polling
+ * snapshot-backed jobs whose agent has gone offline (see
+ * `buildInFlightAgentSnapshotWhere`), free jobs for 30 days. Either can
+ * consume the whole run on its own: a slow payment node exhausts the budget in
+ * the purchase phase before the agent phase starts. Refund is database-only,
+ * cheap, and returns money to users, so it must not be the thing that starves
+ * — and a slow node is exactly when refunds are most likely to be needed.
+ *
+ * Reserving budget rather than reordering the phases: refund MUST run after
+ * purchase. It triggers on `purchase: null`, and the purchase phase is what
+ * backfills a JobPurchase row for a purchase that landed on chain since the
+ * last run. Refunding first would return credits for a job whose escrow is
+ * funded — paying the seller and the buyer both.
+ *
+ * (`seenJobIds` is NOT what enforces this. It is only a deduplicated counter
+ * for `unfinishedFound`; no query filters on it. Nothing needs to: the three
+ * selectors are disjoint. A purchase-less job sits in the purchase set while
+ * `payByTime` is in the future and in the refund set once it is past, and
+ * `REFUND_WITHDRAWN` / `FUNDS_OR_DATUM_INVALID` are in
+ * `finalizedOnChainJobStatuses`, which the purchase selector excludes and the
+ * refund selector requires.)
+ */
+const REFUND_PHASE_RESERVED_MS = 20_000;
 
 function hasTimeRemaining(deadlineMs: number): boolean {
   return Date.now() < deadlineMs;
@@ -204,7 +240,8 @@ function buildFailureNotificationData(
   return {
     network: getEnv().NETWORK,
     agentId: job.agentId,
-    agentBlockchainIdentifier: job.agent.blockchainIdentifier,
+    agentBlockchainIdentifier:
+      job.agentBlockchainIdentifier ?? job.agent.blockchainIdentifier,
     agentName: getAgentName(job.agent),
     jobId: job.id,
     jobBlockchainIdentifier: job.blockchainIdentifier,
@@ -506,6 +543,77 @@ async function finalizeJobSyncResult(
   }
 }
 
+/**
+ * Compares a purchase deadline (epoch-millisecond string) with the job's own.
+ * A null/absent deadline on either side is NOT a match: the backfill can only
+ * adopt a purchase whose terms it can actually verify.
+ */
+function matchesDeadline(
+  purchaseValue: string | null | undefined,
+  jobValue: Date | null | undefined,
+): boolean {
+  if (!purchaseValue || !jobValue) {
+    return false;
+  }
+  return purchaseValue === String(jobValue.getTime());
+}
+
+/**
+ * Verifies that the node answered the identifier this job actually asked for.
+ *
+ * The blockchain identifier IS the job's on-chain identity — it is what the
+ * seller signed and what the escrow is keyed on — so it is the only field that
+ * distinguishes one job's purchase from another's. Nothing else here does:
+ * `inputHash` is a hash of the input alone, so two hires of the same agent with
+ * the same input share it; deadlines and amounts collide freely; and the
+ * purchase id may legitimately change if the node replaces the row.
+ *
+ * Since the lookup is keyed on that identifier, this is a narrow echo check —
+ * it catches the node answering with a different row, not a purchase that is
+ * plausibly-but-wrongly matched. That is the whole gap the id-based lookup used
+ * to close for free.
+ *
+ * An absent identifier on the response reads as unverifiable, not foreign: this
+ * runs on every paid job every cron tick, including rows predating the snapshot
+ * columns, and refusing those would stop them syncing forever.
+ */
+function isPolledPurchaseForeign(
+  purchase: { blockchainIdentifier?: string | null },
+  job: { blockchainIdentifier: string | null },
+): boolean {
+  if (
+    typeof purchase.blockchainIdentifier !== "string" ||
+    purchase.blockchainIdentifier.length === 0 ||
+    typeof job.blockchainIdentifier !== "string" ||
+    job.blockchainIdentifier.length === 0
+  ) {
+    return false;
+  }
+  // Casing never carries meaning in these hex-encoded protocol values.
+  return (
+    purchase.blockchainIdentifier.toLowerCase() !==
+    job.blockchainIdentifier.toLowerCase()
+  );
+}
+
+/** Recreates the exact metadata sent by createPurchase for a stored job. */
+function getExpectedPurchaseMetadata(job: {
+  agentJobId: string;
+  input: string | null;
+}): string | null {
+  if (typeof job.input !== "string") {
+    return null;
+  }
+  try {
+    return JSON.stringify({
+      inputData: JSON.parse(job.input),
+      jobId: job.agentJobId,
+    });
+  } catch {
+    return null;
+  }
+}
+
 async function syncPurchaseState(
   initialJob: JobWithSokosumiStatus,
   options: JobSyncRunOptions,
@@ -542,7 +650,79 @@ async function syncPurchaseState(
     }
 
     if (purchaseResult.isOk()) {
-      const purchaseData = transformPurchaseToJobUpdate(purchaseResult.value);
+      const purchase = purchaseResult.value;
+      // Attach ONLY a purchase matching the job's own seller-signed terms.
+      // Without this, a foreign purchase sharing the blockchainIdentifier —
+      // the exact case the 409 duplicate guard refuses at creation — would be
+      // silently adopted here one cron cycle later.
+      // The agent identity is the strongest discriminator: two purchases can
+      // share deadlines by coincidence, but not the agent they were signed
+      // for. A missing input hash is treated as NON-matching (never a
+      // wildcard) so an unidentifiable purchase is refused rather than
+      // adopted.
+      const expectedAgentIdentifier =
+        job.agentBlockchainIdentifier ??
+        job.agent?.blockchainIdentifier ??
+        null;
+      // The job snapshots the rail it was created on, so a purchase settling
+      // through the other contract can never belong to it.
+      const purchasePaymentSourceType =
+        purchase.PaymentSource?.paymentSourceType ?? null;
+      const doesPaymentSourceTypeMatch =
+        job.paymentSourceType === null ||
+        purchasePaymentSourceType === job.paymentSourceType;
+      // New jobs snapshot their price, but jobs created before the snapshot
+      // migration must retain their legacy reconciliation behavior. The
+      // explicit marker distinguishes those rows from malformed new jobs.
+      const doPaidFundsMatch =
+        !job.purchaseAmountMatchRequired ||
+        doMasumiPaymentAmountsMatch(job.purchaseAmounts, purchase.PaidFunds);
+      const expectedPurchaseMetadata = getExpectedPurchaseMetadata(job);
+      const doesPurchaseMatchJob =
+        typeof job.inputHash === "string" &&
+        job.inputHash.length > 0 &&
+        // Case-insensitive, like every sibling term in this conjunction:
+        // agentIdentifier normalizes both sides, sellerVkey lowercases via
+        // doesResolvedPurchaseSellerMatch. The hash crosses the same
+        // uncontrolled boundary as those — we send one spelling, the node
+        // echoes whatever it stores — and a false mismatch here refuses to
+        // attach a real purchase to its job, leaving a funded escrow the
+        // local refund path can then compensate a second time.
+        doHexValuesMatch(purchase.inputHash, job.inputHash) &&
+        typeof job.sellerVkey === "string" &&
+        job.sellerVkey.length > 0 &&
+        doesResolvedPurchaseSellerMatch(purchase, job.sellerVkey) &&
+        expectedPurchaseMetadata !== null &&
+        purchase.metadata === expectedPurchaseMetadata &&
+        expectedAgentIdentifier !== null &&
+        normalizeV2RegistryIdentifier(purchase.agentIdentifier ?? "") ===
+          normalizeV2RegistryIdentifier(expectedAgentIdentifier) &&
+        doesPaymentSourceTypeMatch &&
+        doPaidFundsMatch &&
+        // Deadlines are typed non-null for paid jobs but the column is
+        // nullable and the purchase selector deliberately admits legacy rows
+        // with a null payByTime. A missing deadline means the terms cannot be
+        // verified, so refuse the attach rather than throw on .getTime().
+        matchesDeadline(purchase.payByTime, job.payByTime) &&
+        matchesDeadline(purchase.submitResultTime, job.submitResultTime) &&
+        matchesDeadline(purchase.unlockTime, job.unlockTime) &&
+        matchesDeadline(
+          purchase.externalDisputeUnlockTime,
+          job.externalDisputeUnlockTime,
+        );
+      if (!doesPurchaseMatchJob) {
+        const mismatchError = new Error(
+          `Resolved purchase does not match job terms; refusing purchase backfill for job ${job.id}`,
+        );
+        console.error(mismatchError.message, {
+          jobId: job.id,
+          blockchainIdentifier: job.blockchainIdentifier,
+          purchaseId: purchase.id,
+        });
+        Sentry.captureException(mismatchError);
+        return false;
+      }
+      const purchaseData = transformPurchaseToJobUpdate(purchase);
       try {
         await jobPurchaseRepository.createJobPurchase(
           {
@@ -589,7 +769,11 @@ async function syncPurchaseState(
   }
 
   const purchaseExternalIdToSync = job.purchase?.externalId ?? null;
-  if (!purchaseExternalIdToSync) {
+  // Both guards are required: main batches the completion email through
+  // `enqueueEmail`, and the V2 poll below looks the purchase up by blockchain
+  // identifier, so a job without one can never be polled.
+  const jobBlockchainIdentifier = job.blockchainIdentifier;
+  if (!purchaseExternalIdToSync || !jobBlockchainIdentifier) {
     await finalizeJobSyncResult(
       oldJobStatus,
       {
@@ -610,12 +794,16 @@ async function syncPurchaseState(
     return false;
   }
 
-  const onChainPurchaseResult = await paymentClient().getPurchaseById(
-    purchaseExternalIdToSync,
-    {
-      signal: pollingSignal,
-    },
-  );
+  // Poll by blockchain identifier: GET /purchase defaults to a V1-only
+  // payment-source filter, so a purchase id cursor lookup can miss (or worse,
+  // return a neighboring row for) V2 purchases.
+  const onChainPurchaseResult =
+    await paymentClient().getPurchaseByBlockchainIdentifier(
+      jobBlockchainIdentifier,
+      {
+        signal: pollingSignal,
+      },
+    );
   if (
     pollingSignal.aborted ||
     shouldStopSync(
@@ -633,11 +821,28 @@ async function syncPurchaseState(
   };
 
   if (onChainPurchaseResult.isOk()) {
+    const polledPurchase = onChainPurchaseResult.value;
+    // The lookup key changed from the purchase id — a value read straight off
+    // this job's own row — to the blockchain identifier, because V2 purchases
+    // are invisible to the id cursor. Confirm the node answered with that
+    // identifier: writing a different row's state would stamp another job's
+    // refund or completion onto this one.
+    if (isPolledPurchaseForeign(polledPurchase, job)) {
+      const foreignPurchaseError = new Error(
+        `Resolved purchase is for a different blockchain identifier than job ${job.id}; refusing purchase state update`,
+      );
+      console.error(foreignPurchaseError.message, {
+        jobId: job.id,
+        blockchainIdentifier: job.blockchainIdentifier,
+        resolvedBlockchainIdentifier: polledPurchase.blockchainIdentifier,
+        purchaseId: polledPurchase.id,
+      });
+      Sentry.captureException(foreignPurchaseError);
+      return false;
+    }
     transactionResult = await prisma.$transaction(
       async (tx): Promise<JobSyncTransactionResult> => {
-        const purchaseData = transformPurchaseToJobUpdate(
-          onChainPurchaseResult.value,
-        );
+        const purchaseData = transformPurchaseToJobUpdate(polledPurchase);
         await jobPurchaseRepository.updateJobPurchaseByJobId(
           job.id,
           purchaseData,
@@ -676,6 +881,17 @@ async function syncAgentStatus(
     return true;
   }
 
+  // Agents without a MIP-003 endpoint (pointer entries) have no status
+  // endpoint to poll; such agents cannot be hired, so this only guards
+  // legacy/corner rows.
+  if (
+    !initialJob.agentApiBaseUrl &&
+    !initialJob.agent.apiBaseUrl &&
+    !initialJob.agent.metadataOverride?.apiBaseUrl
+  ) {
+    return true;
+  }
+
   const pollingSignal = createPollingSignal(
     options,
     `Stopping before polling agent status for job ${initialJob.id}`,
@@ -686,7 +902,7 @@ async function syncAgentStatus(
   }
 
   const agentJobStatusResult = await createAgentClient().fetchAgentJobStatus(
-    initialJob.agent,
+    toMasumiAgentForJob(initialJob),
     agentJobIdToSync,
     {
       signal: pollingSignal,
@@ -806,6 +1022,13 @@ async function runSyncPhase(
     options: JobSyncRunOptions,
   ) => Promise<boolean>,
 ): Promise<JobSyncPhaseResult> {
+  // Deliberately unbounded and unordered. A cap combined with a stable order
+  // is worse than no cap here: nothing evicts a job that never reaches a
+  // terminal agent status (free jobs have no other exit at all), so a fixed
+  // prefix of permanently stuck jobs would hide every newer job from the
+  // phase forever. The selectors themselves keep this set small — the agent
+  // phase is gated on ONLINE plus bounded snapshot-backed jobs — and the
+  // per-run deadline bounds the work actually performed.
   const jobs = (
     await prisma.job.findMany({
       where,
@@ -881,18 +1104,31 @@ export const jobSyncService = {
     let agentPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
     let refundPhase: JobSyncPhaseResult = { found: 0, processed: 0 };
 
+    // Both network-bound phases share one reserved deadline, so whichever of
+    // them is slow, the refund phase still gets its budget. Reserving only
+    // against the agent phase left the purchase phase — which is equally
+    // network-bound, and runs FIRST — able to consume the whole run on its
+    // own, collapsing the agent budget to zero and starving refunds anyway.
+    const networkPhaseOptions = {
+      ...runOptions,
+      deadlineMs: Math.max(
+        Date.now(),
+        runOptions.deadlineMs - REFUND_PHASE_RESERVED_MS,
+      ),
+    };
+
     try {
       purchasePhase = await runSyncPhase(
         "purchase",
         buildJobsNeedingPurchaseSyncWhere(),
-        runOptions,
+        networkPhaseOptions,
         seenJobIds,
         syncPurchaseState,
       );
       agentPhase = await runSyncPhase(
         "agent",
         buildJobsNeedingAgentStatusSyncWhere(),
-        runOptions,
+        networkPhaseOptions,
         seenJobIds,
         syncAgentStatus,
       );

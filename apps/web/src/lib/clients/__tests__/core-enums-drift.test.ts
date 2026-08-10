@@ -2,6 +2,7 @@ import { SokosumiJobStatus as UtilsSokosumiJobStatus } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 
 import {
+  AgentEntryType,
   AgentJobStatus,
   BlobStatus,
   Channel,
@@ -10,6 +11,7 @@ import {
   MemberRole,
   NoticeKind,
   OnChainJobStatus,
+  PaymentType,
   type PublicSharedTaskMilestone,
   RiskClassification,
   SokosumiJobStatus,
@@ -66,13 +68,33 @@ describe("generated Core enum drift guard", () => {
     });
   });
 
+  it("AgentEntryType matches the canonical Prisma/OpenAPI set", () => {
+    expect({ ...AgentEntryType }).toEqual({
+      STANDARD: "STANDARD",
+      OPEN_API: "OPEN_API",
+      X402: "X402",
+      UNKNOWN: "UNKNOWN",
+    });
+  });
+
+  it("PaymentType matches the canonical Prisma/OpenAPI set", () => {
+    expect({ ...PaymentType }).toEqual({
+      WEB3_CARDANO_V1: "WEB3_CARDANO_V1",
+      WEB3_CARDANO_V2: "WEB3_CARDANO_V2",
+      NONE: "NONE",
+      UNKNOWN: "UNKNOWN",
+    });
+  });
+
   it("OnChainJobStatus matches the canonical Prisma/OpenAPI set", () => {
     expect({ ...OnChainJobStatus }).toEqual({
       FUNDS_LOCKED: "FUNDS_LOCKED",
       FUNDS_OR_DATUM_INVALID: "FUNDS_OR_DATUM_INVALID",
       FUNDS_WITHDRAWN: "FUNDS_WITHDRAWN",
       RESULT_SUBMITTED: "RESULT_SUBMITTED",
+      WITHDRAW_AUTHORIZED: "WITHDRAW_AUTHORIZED",
       REFUND_REQUESTED: "REFUND_REQUESTED",
+      REFUND_AUTHORIZED: "REFUND_AUTHORIZED",
       REFUND_WITHDRAWN: "REFUND_WITHDRAWN",
       DISPUTED: "DISPUTED",
       DISPUTED_WITHDRAWN: "DISPUTED_WITHDRAWN",

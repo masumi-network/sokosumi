@@ -9,6 +9,7 @@ import {
 } from "@sokosumi/database";
 
 import {
+  getAgentApiBaseUrl,
   getAgentDescription,
   getAgentImage,
   getAgentName,
@@ -66,6 +67,12 @@ export function mapAdminAgentRegistry(agent: Agent): AdminAgentRegistry {
     name: agent.name,
     description: agent.description,
     apiBaseUrl: agent.apiBaseUrl,
+    type: agent.type,
+    openApiSpecUrl: agent.openApiSpecUrl,
+    x402ResourcesUrl: agent.x402ResourcesUrl,
+    paymentType: agent.paymentType,
+    metadataVersion: agent.metadataVersion,
+    supersededByAgentIdentifier: agent.supersededByAgentIdentifier,
     capabilityName: agent.capabilityName,
     capabilityVersion: agent.capabilityVersion,
     authorName: agent.authorName,
@@ -157,7 +164,7 @@ export function mapAdminAgentDetail(
       name: getAgentName(agent),
       description: getAgentDescription(agent),
       image: getAgentImage(agent),
-      apiBaseUrl: agent.metadataOverride?.apiBaseUrl ?? agent.apiBaseUrl,
+      apiBaseUrl: getAgentApiBaseUrl(agent),
       authorName: author.name,
       authorImage: author.image,
       authorContactEmail: author.email,

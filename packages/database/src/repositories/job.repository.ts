@@ -24,6 +24,8 @@ interface CreateJobBase {
   input: string;
   inputHash: string | null;
   name: string | null;
+  /** Snapshot of the agent endpoint at job start; required for FREE offline sync. */
+  agentApiBaseUrl: string | null;
 }
 
 interface CreatePaidJobData extends CreateJobBase {
@@ -38,11 +40,27 @@ interface CreatePaidJobData extends CreateJobBase {
   unlockTime: Date;
   blockchainIdentifier: string;
   sellerVkey: string;
+  purchaseAmounts: { amount: string; unit: string }[];
+  /**
+   * Only true when `purchaseAmounts` were also sent to the payment node as the
+   * drift guard. Legacy V1 metadata can carry more amounts than POST /purchase
+   * accepts; those purchases are created without the guard, so the node may
+   * lock a drifted price and requiring an exact match would make the job-sync
+   * backfill refuse the purchase forever. Caller-supplied rather than assumed:
+   * the two are only equivalent when the guard was actually applied.
+   */
+  purchaseAmountMatchRequired: boolean;
   purchaseId?: string;
 }
 
 interface CreateFreeJobData extends CreateJobBase {
   jobType: typeof JobType.FREE;
+  /**
+   * Narrowed to non-null: a FREE job has no purchase to reconcile against, so
+   * the endpoint snapshot is the only way sync can reach the seller afterwards.
+   * A FREE job created without one can never be polled to completion.
+   */
+  agentApiBaseUrl: string;
 }
 
 type CreateJobData = CreatePaidJobData | CreateFreeJobData;
@@ -113,6 +131,7 @@ export const jobRepository = {
       },
 
       name: data.name,
+      agentApiBaseUrl: data.agentApiBaseUrl,
     };
 
     switch (data.jobType) {
@@ -178,6 +197,8 @@ export const jobRepository = {
             unlockTime: data.unlockTime,
             blockchainIdentifier: data.blockchainIdentifier,
             sellerVkey: data.sellerVkey,
+            purchaseAmounts: data.purchaseAmounts,
+            purchaseAmountMatchRequired: data.purchaseAmountMatchRequired,
             identifierFromPurchaser: data.identifierFromPurchaser,
           },
           include: jobInclude,
@@ -226,8 +247,9 @@ export const jobRepository = {
  *
  * A job is considered "finished" if it meets any of the following criteria:
  * - AgentJobStatus is either Completed or Failed
- * - OnChainStatus is not FUNDS_LOCKED or REFUND_REQUESTED
- *   or is null for FREE jobs
+ * - OnChainStatus is not FUNDS_LOCKED, REFUND_REQUESTED, or
+ *   REFUND_AUTHORIZED (an authorized refund still needs its on-chain
+ *   withdrawal), or is null for FREE jobs
  */
 function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
   return {
@@ -249,6 +271,7 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
                 notIn: [
                   OnChainJobStatus.FUNDS_LOCKED,
                   OnChainJobStatus.REFUND_REQUESTED,
+                  OnChainJobStatus.REFUND_AUTHORIZED,
                 ],
               },
             },

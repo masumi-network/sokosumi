@@ -1,4 +1,11 @@
 {
   "root": false,
-  "extends": "//"
+  "extends": "//",
+  "files": {
+    "includes": [
+      "**",
+      "!spec/*.openapi.json",
+      "!src/clients/openapi/generated/**"
+    ]
+  }
 }
