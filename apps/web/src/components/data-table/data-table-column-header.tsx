@@ -1,6 +1,6 @@
 "use client";
 
-import type { Column } from "@tanstack/react-table";
+import type { Column, RowData } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -14,13 +14,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-interface DataTableColumnHeaderProps<TData, TValue>
+import type { DataTableFeatures } from "./data-table-features";
+
+interface DataTableColumnHeaderProps<TData extends RowData, TValue>
   extends React.HTMLAttributes<HTMLDivElement> {
-  column: Column<TData, TValue>;
+  column: Column<DataTableFeatures, TData, TValue>;
   title: string;
 }
 
-export default function DataTableColumnHeader<TData, TValue>({
+export default function DataTableColumnHeader<TData extends RowData, TValue>({
   column,
   title,
   className,
@@ -51,18 +53,18 @@ export default function DataTableColumnHeader<TData, TValue>({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-          <ArrowUp className="text-muted-foreground/70 h-4 w-4" />
+          <ArrowUp className="text-muted-foreground/70 size-4" />
           {t("ascending")}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-          <ArrowDown className="text-muted-foreground/70 h-4 w-4" />
+          <ArrowDown className="text-muted-foreground/70 size-4" />
           {t("descending")}
         </DropdownMenuItem>
         {column.getCanHide() && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
-              <EyeOff className="text-muted-foreground/70 h-4 w-4" />
+              <EyeOff className="text-muted-foreground/70 size-4" />
               {t("hide")}
             </DropdownMenuItem>
           </>
