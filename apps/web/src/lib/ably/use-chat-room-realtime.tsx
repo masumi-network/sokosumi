@@ -15,6 +15,7 @@ import {
 
 import {
   CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
+  type ChatMembershipRevokedEvent,
   chatMembershipRevokedEventSchema,
 } from "./chat-membership-revoked-event";
 import { chatRoomIdsFromAblyCapability } from "./chat-room-ids-from-ably-capability";
@@ -29,6 +30,8 @@ interface UseChatRoomRealtimeOptions {
   currentUserId: string;
   onMessage?: (event: ChatRoomMessageEventData) => void;
   onError?: (error: Error) => void;
+  /** After local detach + re-auth queue (SOK-746 membership-visible UI). */
+  onMembershipRevoked?: (event: ChatMembershipRevokedEvent) => void;
 }
 
 /**
@@ -48,12 +51,15 @@ export function useChatRoomRealtime({
   currentUserId,
   onMessage,
   onError,
+  onMembershipRevoked,
 }: UseChatRoomRealtimeOptions) {
   const ably = useAbly();
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+  const onMembershipRevokedRef = useRef(onMembershipRevoked);
+  onMembershipRevokedRef.current = onMembershipRevoked;
   const currentUserIdRef = useRef(currentUserId);
   currentUserIdRef.current = currentUserId;
 
@@ -82,6 +88,12 @@ export function useChatRoomRealtime({
   const syncGenerationRef = useRef(0);
   const roomIdsRef = useRef(roomIds);
   roomIdsRef.current = roomIds;
+  /**
+   * Rooms detached via control-channel revoke. Kept out of `nextIds` even when
+   * capability parsing falls back to stale prop roomIds, until props drop the
+   * room (membership-visible list refreshed). Re-add later re-attaches cleanly.
+   */
+  const locallyRevokedRoomIdsRef = useRef(new Set<string>());
 
   const roomIdsKey = useMemo(
     () => [...new Set(roomIds)].sort().join("\0"),
@@ -97,6 +109,7 @@ export function useChatRoomRealtime({
     /** Coalesce focus+visibility+revoke so two applies never interleave. */
     let syncInFlight = false;
     let syncQueued = false;
+    const locallyRevokedRoomIds = locallyRevokedRoomIdsRef.current;
 
     function detachRoomLocally(roomId: string) {
       const attached = channelsRef.current;
@@ -114,6 +127,14 @@ export function useChatRoomRealtime({
       const propIds = new Set(
         [...new Set(roomIdsRef.current)].filter((id) => id.length > 0),
       );
+
+      // Membership dropped from props → clear revoke marker so a later rejoin
+      // can re-attach. Keep markers while props still list the room (stale).
+      for (const roomId of [...locallyRevokedRoomIds]) {
+        if (!propIds.has(roomId)) {
+          locallyRevokedRoomIds.delete(roomId);
+        }
+      }
 
       let tokenDetails: Ably.TokenDetails | null = null;
       try {
@@ -139,12 +160,15 @@ export function useChatRoomRealtime({
         tokenDetails?.capability,
       );
       // Capability ∩ props when parseable; props alone if capability missing
-      // (degraded — same as pre-SOK-742 attach set).
-      const nextIds =
+      // (degraded — same as pre-SOK-742 attach set). Always exclude rooms
+      // revoked on this client until membership props catch up.
+      const candidateIds =
         allowedFromToken == null
           ? propIds
           : new Set([...propIds].filter((id) => allowedFromToken.has(id)));
-
+      const nextIds = new Set(
+        [...candidateIds].filter((id) => !locallyRevokedRoomIds.has(id)),
+      );
       // Re-check before mutating channels: a newer request may have queued
       // while authorize was in flight (single-flight drains it next).
       if (generation !== syncGenerationRef.current) {
@@ -201,8 +225,10 @@ export function useChatRoomRealtime({
       // Invalidate any in-flight authorize that still holds the old room cap
       // so it cannot re-attach after this detach (before the queued re-auth).
       syncGenerationRef.current += 1;
+      locallyRevokedRoomIds.add(parsed.data.roomId);
       detachRoomLocally(parsed.data.roomId);
       void syncMembershipChannels();
+      onMembershipRevokedRef.current?.(parsed.data);
     }
 
     void syncMembershipChannels();

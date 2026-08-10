@@ -51,10 +51,6 @@ vi.mock("../room-message-row", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/scroll-area", () => ({
-  ScrollArea: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
-
 function parentMessage(
   overrides: Partial<ChatRoomMessage> = {},
 ): ChatRoomMessage {
