@@ -51,48 +51,51 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const now = new Date();
 
-    const invitation = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: userContext.userId },
-        select: { email: true },
-      });
-      if (!user) {
-        throw notFound("User not found");
-      }
-      const email = normalizeInvitationEmail(user.email);
+    // No interactive transaction: access + display read do not need a shared
+    // snapshot; expire mark is a single best-effort write (apps/core AGENTS.md).
+    const user = await prisma.user.findUnique({
+      where: { id: userContext.userId },
+      select: { email: true },
+    });
+    if (!user) {
+      throw notFound("User not found");
+    }
+    const email = normalizeInvitationEmail(user.email);
 
-      const row = await tx.chatRoomGuestInvitation.findUnique({
-        where: { id },
-        include: {
-          inviter: { select: { id: true, name: true } },
-          room: {
-            select: {
-              id: true,
-              name: true,
-              organizationId: true,
-              organization: { select: { id: true, name: true } },
-            },
+    const row = await prisma.chatRoomGuestInvitation.findUnique({
+      where: { id },
+      include: {
+        inviter: { select: { id: true, name: true } },
+        room: {
+          select: {
+            id: true,
+            name: true,
+            organizationId: true,
+            organization: { select: { id: true, name: true } },
           },
         },
+      },
+    });
+
+    if (!row || normalizeInvitationEmail(row.email) !== email) {
+      throw notFound("Invitation not found");
+    }
+    if (!row.room.organizationId) {
+      throw notFound("Invitation not found");
+    }
+
+    let status = row.status;
+    if (status === "pending" && row.expiresAt <= now) {
+      await prisma.chatRoomGuestInvitation.update({
+        where: { id: row.id },
+        data: { status: "expired" },
       });
+      status = "expired";
+    }
 
-      if (!row || normalizeInvitationEmail(row.email) !== email) {
-        throw notFound("Invitation not found");
-      }
-      if (!row.room.organizationId) {
-        throw notFound("Invitation not found");
-      }
-
-      let status = row.status;
-      if (status === "pending" && row.expiresAt <= now) {
-        await tx.chatRoomGuestInvitation.update({
-          where: { id: row.id },
-          data: { status: "expired" },
-        });
-        status = "expired";
-      }
-
-      return mapChatRoomInvitation({
+    return ok(
+      c,
+      mapChatRoomInvitation({
         id: row.id,
         roomId: row.room.id,
         roomName: row.room.name ?? "",
@@ -106,9 +109,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         expiresAt: row.expiresAt,
         createdAt: row.createdAt,
-      });
-    });
-
-    return ok(c, invitation);
+      }),
+    );
   });
 }

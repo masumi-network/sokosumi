@@ -15,18 +15,19 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   invitationFindManyMock,
-  prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   invitationFindManyMock: vi.fn(),
-  prismaTransactionMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
+    chatRoom: { findFirst: roomFindFirstMock },
+    organization: { findUnique: organizationFindUniqueMock },
+    member: { findUnique: memberFindUniqueMock },
+    chatRoomGuestInvitation: { findMany: invitationFindManyMock },
   },
 }));
 
@@ -35,13 +36,6 @@ const INVITE_ID = "550e8400-e29b-41d4-a716-446655440010";
 const MEMBER_ID = "user_member";
 const GUEST_ID = "user_guest";
 const ORG_ID = "org_1";
-
-const tx = {
-  chatRoom: { findFirst: roomFindFirstMock },
-  organization: { findUnique: organizationFindUniqueMock },
-  member: { findUnique: memberFindUniqueMock },
-  chatRoomGuestInvitation: { findMany: invitationFindManyMock },
-};
 
 function createApp(
   authContext: AuthVariables["authContext"] = {
@@ -104,7 +98,6 @@ function externalRoom(members: ReturnType<typeof memberUser>[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   roomFindFirstMock.mockResolvedValue(
     externalRoom([memberUser(MEMBER_ID, "member")]),
   );

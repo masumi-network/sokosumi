@@ -52,19 +52,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id: roomId } = c.req.valid("param");
 
-    const invitations = await prisma.$transaction(async (tx) => {
-      const room = await requireRoomMemberCanInviteGuests(
-        roomId,
-        userContext.userId,
-        tx,
-      );
+    // Read-only GET: no interactive transaction (pool / P2028 — apps/core AGENTS.md).
+    const room = await requireRoomMemberCanInviteGuests(
+      roomId,
+      userContext.userId,
+      prisma,
+    );
 
-      const organizationId = room.organizationId;
-      if (!organizationId) {
-        throw badRequest("External channels require a host organization.");
-      }
+    const organizationId = room.organizationId;
+    if (!organizationId) {
+      throw badRequest("External channels require a host organization.");
+    }
 
-      const rows = await tx.chatRoomGuestInvitation.findMany({
+    const [rows, organization] = await Promise.all([
+      prisma.chatRoomGuestInvitation.findMany({
         where: {
           roomId: room.id,
           status: "pending",
@@ -73,33 +74,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           inviter: { select: { id: true, name: true } },
         },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      });
-
-      const organization = await tx.organization.findUnique({
+      }),
+      prisma.organization.findUnique({
         where: { id: organizationId },
         select: { name: true },
-      });
-      const organizationName = organization?.name ?? "";
-      const roomName = room.name ?? "";
+      }),
+    ]);
 
-      return rows.map((row) =>
-        mapChatRoomInvitation({
-          id: row.id,
-          roomId: room.id,
-          roomName,
-          organizationId,
-          organizationName,
-          email: row.email,
-          status: row.status,
-          inviter: {
-            id: row.inviter.id,
-            name: row.inviter.name,
-          },
-          expiresAt: row.expiresAt,
-          createdAt: row.createdAt,
-        }),
-      );
-    });
+    const organizationName = organization?.name ?? "";
+    const roomName = room.name ?? "";
+
+    const invitations = rows.map((row) =>
+      mapChatRoomInvitation({
+        id: row.id,
+        roomId: room.id,
+        roomName,
+        organizationId,
+        organizationName,
+        email: row.email,
+        status: row.status,
+        inviter: {
+          id: row.inviter.id,
+          name: row.inviter.name,
+        },
+        expiresAt: row.expiresAt,
+        createdAt: row.createdAt,
+      }),
+    );
 
     return ok(c, invitations);
   });

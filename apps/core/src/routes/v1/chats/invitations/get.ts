@@ -55,62 +55,61 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { status } = c.req.valid("query");
     const now = new Date();
 
-    const invitations = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: userContext.userId },
-        select: { email: true },
-      });
-      if (!user) {
-        throw notFound("User not found");
+    // Read-only GET: no interactive transaction (pool / P2028 — apps/core AGENTS.md).
+    const user = await prisma.user.findUnique({
+      where: { id: userContext.userId },
+      select: { email: true },
+    });
+    if (!user) {
+      throw notFound("User not found");
+    }
+    const email = normalizeInvitationEmail(user.email);
+
+    const rows = await prisma.chatRoomGuestInvitation.findMany({
+      where: {
+        email,
+        status,
+        ...(status === "pending" ? { expiresAt: { gt: now } } : {}),
+        room: {
+          archivedAt: null,
+        },
+      },
+      include: {
+        inviter: { select: { id: true, name: true } },
+        room: {
+          select: {
+            id: true,
+            name: true,
+            organizationId: true,
+            organization: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+
+    const invitations = rows.flatMap((row) => {
+      const organizationId = row.room.organizationId;
+      if (!organizationId) {
+        return [];
       }
-      const email = normalizeInvitationEmail(user.email);
-
-      const rows = await tx.chatRoomGuestInvitation.findMany({
-        where: {
-          email,
-          status,
-          ...(status === "pending" ? { expiresAt: { gt: now } } : {}),
-          room: {
-            archivedAt: null,
+      return [
+        mapChatRoomInvitation({
+          id: row.id,
+          roomId: row.room.id,
+          roomName: row.room.name ?? "",
+          organizationId,
+          organizationName: row.room.organization?.name ?? "",
+          email: row.email,
+          status: row.status,
+          inviter: {
+            id: row.inviter.id,
+            name: row.inviter.name,
           },
-        },
-        include: {
-          inviter: { select: { id: true, name: true } },
-          room: {
-            select: {
-              id: true,
-              name: true,
-              organizationId: true,
-              organization: { select: { id: true, name: true } },
-            },
-          },
-        },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      });
-
-      return rows.flatMap((row) => {
-        const organizationId = row.room.organizationId;
-        if (!organizationId) {
-          return [];
-        }
-        return [
-          mapChatRoomInvitation({
-            id: row.id,
-            roomId: row.room.id,
-            roomName: row.room.name ?? "",
-            organizationId,
-            organizationName: row.room.organization?.name ?? "",
-            email: row.email,
-            status: row.status,
-            inviter: {
-              id: row.inviter.id,
-              name: row.inviter.name,
-            },
-            expiresAt: row.expiresAt,
-            createdAt: row.createdAt,
-          }),
-        ];
-      });
+          expiresAt: row.expiresAt,
+          createdAt: row.createdAt,
+        }),
+      ];
     });
 
     return ok(c, invitations);

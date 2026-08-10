@@ -9,16 +9,15 @@ import type { AuthVariables } from "@/middleware/auth";
 
 import mountListInviteeInvitations from "./get";
 
-const { userFindUniqueMock, invitationFindManyMock, prismaTransactionMock } =
-  vi.hoisted(() => ({
-    userFindUniqueMock: vi.fn(),
-    invitationFindManyMock: vi.fn(),
-    prismaTransactionMock: vi.fn(),
-  }));
+const { userFindUniqueMock, invitationFindManyMock } = vi.hoisted(() => ({
+  userFindUniqueMock: vi.fn(),
+  invitationFindManyMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: prismaTransactionMock,
+    user: { findUnique: userFindUniqueMock },
+    chatRoomGuestInvitation: { findMany: invitationFindManyMock },
   },
 }));
 
@@ -27,11 +26,6 @@ const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const GUEST_ID = "user_guest";
 const INVITER_ID = "user_inviter";
 const ORG_ID = "org_1";
-
-const tx = {
-  user: { findUnique: userFindUniqueMock },
-  chatRoomGuestInvitation: { findMany: invitationFindManyMock },
-};
 
 function createApp(
   authContext: AuthVariables["authContext"] = {
@@ -61,7 +55,6 @@ function createApp(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   userFindUniqueMock.mockResolvedValue({ email: "  Guest@Example.com " });
   invitationFindManyMock.mockResolvedValue([
     {
