@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import {
+  expireStalePendingInvitations,
+  livePendingInvitationWhere,
+} from "@/helpers/chat-room-invitation";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -122,26 +126,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           });
           assertChatRoomPatchAuth({ role, body });
 
-          // external → public/private only when no guests remain and no pending
-          // room invitations (convert would orphan invite lifecycle).
+          // external → public/private only when no guests remain and no live
+          // pending invitations (convert would orphan invite lifecycle).
           if (
             body.discoverability !== undefined &&
             existing.discoverability === "external" &&
             body.discoverability !== "external"
           ) {
-            const hasGuestMember = existing.userMembers.some(
-              (member) => member.access === "guest",
-            );
-            if (hasGuestMember) {
+            // Serialize against concurrent accept so we cannot flip off external
+            // while a guest membership lands under the same window.
+            await tx.$queryRaw`
+              SELECT "id" FROM "chat_room"
+              WHERE "id" = ${existing.id}::uuid
+              FOR UPDATE
+            `;
+            const now = new Date();
+            await expireStalePendingInvitations(tx, {
+              roomId: existing.id,
+              now,
+            });
+            const guestCount = await tx.chatRoomUserMember.count({
+              where: {
+                roomId: existing.id,
+                access: "guest",
+              },
+            });
+            if (guestCount > 0) {
               throw badRequest(
                 "Cannot change discoverability while guest members or pending invitations exist.",
               );
             }
             const pendingInviteCount = await tx.chatRoomGuestInvitation.count({
-              where: {
-                roomId: existing.id,
-                status: "pending",
-              },
+              where: livePendingInvitationWhere(existing.id, now),
             });
             if (pendingInviteCount > 0) {
               throw badRequest(

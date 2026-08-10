@@ -12,6 +12,7 @@ const {
   userMemberCountMock,
   userMemberDeleteManyMock,
   guestInvitationCountMock,
+  guestInvitationUpdateManyMock,
   readStateDeleteManyMock,
   queryRawMock,
   organizationFindUniqueMock,
@@ -26,6 +27,7 @@ const {
   userMemberCountMock: vi.fn(),
   userMemberDeleteManyMock: vi.fn(),
   guestInvitationCountMock: vi.fn(),
+  guestInvitationUpdateManyMock: vi.fn(),
   readStateDeleteManyMock: vi.fn(),
   queryRawMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
@@ -87,6 +89,7 @@ const tx = {
   },
   chatRoomGuestInvitation: {
     count: guestInvitationCountMock,
+    updateMany: guestInvitationUpdateManyMock,
   },
   chatRoomReadState: { deleteMany: readStateDeleteManyMock },
   chatRoomMessage: { create: messageCreateMock },
@@ -178,6 +181,7 @@ beforeEach(() => {
   );
   userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
   guestInvitationCountMock.mockResolvedValue(0);
+  guestInvitationUpdateManyMock.mockResolvedValue({ count: 0 });
   readStateDeleteManyMock.mockResolvedValue({ count: 1 });
   userFindUniqueMock.mockResolvedValue({ name: SELF_ID });
   messageCreateMock.mockResolvedValue(MEMBERSHIP_MESSAGE);

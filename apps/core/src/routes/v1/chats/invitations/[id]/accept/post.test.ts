@@ -18,6 +18,8 @@ const {
   readStateCreateManyMock,
   memberFindUniqueMock,
   messageCreateMock,
+  roomFindUniqueMock,
+  queryRawMock,
   prismaTransactionMock,
   publishChatRoomMessageRealtimeMock,
 } = vi.hoisted(() => ({
@@ -29,6 +31,8 @@ const {
   readStateCreateManyMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   messageCreateMock: vi.fn(),
+  roomFindUniqueMock: vi.fn(),
+  queryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
 }));
@@ -52,6 +56,7 @@ const ORG_ID = "org_1";
 
 const tx = {
   user: { findUnique: userFindUniqueMock },
+  chatRoom: { findUnique: roomFindUniqueMock },
   chatRoomGuestInvitation: {
     findUnique: invitationFindUniqueMock,
     update: invitationUpdateMock,
@@ -63,6 +68,7 @@ const tx = {
   chatRoomReadState: { createMany: readStateCreateManyMock },
   member: { findUnique: memberFindUniqueMock },
   chatRoomMessage: { create: messageCreateMock },
+  $queryRaw: queryRawMock,
 };
 
 function createApp(
@@ -127,6 +133,12 @@ beforeEach(() => {
   invitationFindUniqueMock.mockResolvedValue(pendingInvitation());
   userMemberFindUniqueMock.mockResolvedValue(null);
   memberFindUniqueMock.mockResolvedValue(null);
+  queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+  roomFindUniqueMock.mockResolvedValue({
+    archivedAt: null,
+    kind: "channel",
+    discoverability: "external",
+  });
   userMemberUpsertMock.mockResolvedValue({
     id: "mem_row",
     roomId: ROOM_ID,

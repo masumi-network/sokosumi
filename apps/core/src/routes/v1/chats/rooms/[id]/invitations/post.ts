@@ -8,7 +8,9 @@ import {
   assertChatRoomInvitationRateLimits,
   assertInviteeNotHostOrgMember,
   assertInviteeNotRoomMember,
+  expireStalePendingInvitations,
   invitationExpiresAt,
+  livePendingInvitationWhere,
   mapChatRoomInvitationFromRecord,
   normalizeInvitationEmail,
 } from "@/helpers/chat-room-invitation";
@@ -92,15 +94,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("External channels require a host organization.");
       }
 
+      // Serialize invite create + rate-limit counts against concurrent creates.
+      await tx.$queryRaw`
+        SELECT "id" FROM "chat_room"
+        WHERE "id" = ${room.id}::uuid
+        FOR UPDATE
+      `;
+
+      const now = new Date();
+      await expireStalePendingInvitations(tx, { roomId: room.id, now });
+
       await assertInviteeNotHostOrgMember(room.organizationId, email, tx);
       await assertInviteeNotRoomMember(room.id, email, tx);
-      await assertChatRoomInvitationRateLimits(room.id, userContext.userId, tx);
+      await assertChatRoomInvitationRateLimits(
+        room.id,
+        userContext.userId,
+        tx,
+        now,
+      );
 
       const existingPending = await tx.chatRoomGuestInvitation.findFirst({
         where: {
-          roomId: room.id,
+          ...livePendingInvitationWhere(room.id, now),
           email,
-          status: CHAT_ROOM_INVITATION_STATUS.PENDING,
         },
         select: { id: true },
       });

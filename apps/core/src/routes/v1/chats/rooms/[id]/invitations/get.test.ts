@@ -15,11 +15,13 @@ const {
   organizationFindUniqueMock,
   memberFindUniqueMock,
   invitationFindManyMock,
+  invitationUpdateManyMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   invitationFindManyMock: vi.fn(),
+  invitationUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -27,7 +29,10 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoom: { findFirst: roomFindFirstMock },
     organization: { findUnique: organizationFindUniqueMock },
     member: { findUnique: memberFindUniqueMock },
-    chatRoomGuestInvitation: { findMany: invitationFindManyMock },
+    chatRoomGuestInvitation: {
+      findMany: invitationFindManyMock,
+      updateMany: invitationUpdateManyMock,
+    },
   },
 }));
 
@@ -111,6 +116,7 @@ beforeEach(() => {
     userId: MEMBER_ID,
     organizationId: ORG_ID,
   });
+  invitationUpdateManyMock.mockResolvedValue({ count: 0 });
   invitationFindManyMock.mockResolvedValue([
     {
       id: INVITE_ID,
@@ -147,9 +153,14 @@ describe("GET /chats/rooms/{id}/invitations", () => {
         inviter: { id: MEMBER_ID, name: "Ada Lovelace" },
       }),
     ]);
+    expect(invitationUpdateManyMock).toHaveBeenCalled();
     expect(invitationFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { roomId: ROOM_ID, status: "pending" },
+        where: expect.objectContaining({
+          roomId: ROOM_ID,
+          status: "pending",
+          expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
+        }),
       }),
     );
   });

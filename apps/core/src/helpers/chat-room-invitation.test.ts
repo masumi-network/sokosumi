@@ -4,8 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   assertChatRoomInvitationRateLimits,
   assertInviteeNotHostOrgMember,
+  expireStalePendingInvitations,
   INVITE_TTL_MS,
   invitationExpiresAt,
+  livePendingInvitationWhere,
   mapChatRoomInvitation,
   mapChatRoomInvitationFromRecord,
   normalizeInvitationEmail,
@@ -116,6 +118,41 @@ describe("assertInviteeNotHostOrgMember", () => {
   });
 });
 
+describe("livePendingInvitationWhere", () => {
+  it("requires pending status and expiresAt after now", () => {
+    const now = new Date("2026-08-10T12:00:00.000Z");
+    expect(livePendingInvitationWhere("room_1", now)).toEqual({
+      roomId: "room_1",
+      status: "pending",
+      expiresAt: { gt: now },
+    });
+  });
+});
+
+describe("expireStalePendingInvitations", () => {
+  it("marks past-due pending invites expired", async () => {
+    const updateMany = vi.fn().mockResolvedValue({ count: 2 });
+    const tx = { chatRoomGuestInvitation: { updateMany } };
+    const now = new Date("2026-08-10T12:00:00.000Z");
+
+    await expect(
+      expireStalePendingInvitations(tx as never, {
+        roomId: "room_1",
+        now,
+      }),
+    ).resolves.toBe(2);
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        status: "pending",
+        expiresAt: { lte: now },
+        roomId: "room_1",
+      },
+      data: { status: "expired" },
+    });
+  });
+});
+
 describe("assertChatRoomInvitationRateLimits", () => {
   it("allows under both caps", async () => {
     const tx = {
@@ -161,5 +198,26 @@ describe("assertChatRoomInvitationRateLimits", () => {
         error.status === 429 &&
         error.message.includes("per hour"),
     );
+  });
+
+  it("counts only live pending (expiresAt filter)", async () => {
+    const count = vi.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+    const tx = { chatRoomGuestInvitation: { count } };
+    const now = new Date("2026-08-10T12:00:00.000Z");
+
+    await assertChatRoomInvitationRateLimits(
+      "room_1",
+      "user_1",
+      tx as never,
+      now,
+    );
+
+    expect(count.mock.calls[0]?.[0]).toEqual({
+      where: {
+        roomId: "room_1",
+        status: "pending",
+        expiresAt: { gt: now },
+      },
+    });
   });
 });

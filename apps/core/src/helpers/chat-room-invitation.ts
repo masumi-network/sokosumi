@@ -153,7 +153,44 @@ export async function assertInviteeNotRoomMember(
 }
 
 /**
- * Abuse caps for guest invites: pending per room + creates per inviter/hour.
+ * Prisma `where` for pending invitations that have not yet expired.
+ * Prefer this over bare `status: pending` so TTL-dead rows do not block
+ * convert, rate limits, last-host leave, or host lists.
+ */
+export function livePendingInvitationWhere(
+  roomId: string,
+  now: Date = new Date(),
+): Prisma.ChatRoomGuestInvitationWhereInput {
+  return {
+    roomId,
+    status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+    expiresAt: { gt: now },
+  };
+}
+
+/**
+ * Mark past-due pending invites as expired (room-scoped or global).
+ * Safe to call inside a transaction before count/create/list.
+ */
+export async function expireStalePendingInvitations(
+  tx: Prisma.TransactionClient,
+  options?: { roomId?: string; now?: Date },
+): Promise<number> {
+  const now = options?.now ?? new Date();
+  const result = await tx.chatRoomGuestInvitation.updateMany({
+    where: {
+      status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+      expiresAt: { lte: now },
+      ...(options?.roomId ? { roomId: options.roomId } : {}),
+    },
+    data: { status: CHAT_ROOM_INVITATION_STATUS.EXPIRED },
+  });
+  return result.count;
+}
+
+/**
+ * Abuse caps for guest invites: live pending per room + creates per inviter/hour.
+ * Call after {@link expireStalePendingInvitations} for the room (or under room lock).
  * Uses existing unique-pending uniqueness for exact email duplicates.
  */
 export async function assertChatRoomInvitationRateLimits(
@@ -163,10 +200,7 @@ export async function assertChatRoomInvitationRateLimits(
   now: Date = new Date(),
 ): Promise<void> {
   const pendingCount = await tx.chatRoomGuestInvitation.count({
-    where: {
-      roomId,
-      status: CHAT_ROOM_INVITATION_STATUS.PENDING,
-    },
+    where: livePendingInvitationWhere(roomId, now),
   });
   if (pendingCount >= LIMITS.CHAT_ROOM_GUEST_INVITATION_PENDING_LIMIT) {
     throw tooManyRequests(

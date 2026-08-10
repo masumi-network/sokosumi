@@ -1,6 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { mapChatRoomInvitationFromRecord } from "@/helpers/chat-room-invitation";
+import {
+  expireStalePendingInvitations,
+  livePendingInvitationWhere,
+  mapChatRoomInvitationFromRecord,
+} from "@/helpers/chat-room-invitation";
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -64,12 +68,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("External channels require a host organization.");
     }
 
+    // Lazy-expire past-due pending so host list matches invitee + rate-limit caps.
+    await expireStalePendingInvitations(prisma, { roomId: room.id });
+
     const [rows, organization] = await Promise.all([
       prisma.chatRoomGuestInvitation.findMany({
-        where: {
-          roomId: room.id,
-          status: "pending",
-        },
+        where: livePendingInvitationWhere(room.id),
         include: {
           inviter: { select: { id: true, name: true } },
         },

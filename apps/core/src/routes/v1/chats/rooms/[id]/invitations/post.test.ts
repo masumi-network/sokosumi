@@ -18,7 +18,9 @@ const {
   roomUserMemberFindFirstMock,
   invitationFindFirstMock,
   invitationCountMock,
+  invitationUpdateManyMock,
   invitationCreateMock,
+  queryRawMock,
   prismaTransactionMock,
   renderChatRoomInvitationEmailMock,
   sendEmailMock,
@@ -32,7 +34,9 @@ const {
   roomUserMemberFindFirstMock: vi.fn(),
   invitationFindFirstMock: vi.fn(),
   invitationCountMock: vi.fn(),
+  invitationUpdateManyMock: vi.fn(),
   invitationCreateMock: vi.fn(),
+  queryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   renderChatRoomInvitationEmailMock: vi.fn(),
   sendEmailMock: vi.fn(),
@@ -89,8 +93,10 @@ const tx = {
   chatRoomGuestInvitation: {
     findFirst: invitationFindFirstMock,
     count: invitationCountMock,
+    updateMany: invitationUpdateManyMock,
     create: invitationCreateMock,
   },
+  $queryRaw: queryRawMock,
 };
 
 function createApp(
@@ -177,6 +183,8 @@ beforeEach(() => {
   invitationFindFirstMock.mockResolvedValue(null);
   invitationCountMock.mockReset();
   invitationCountMock.mockResolvedValue(0);
+  invitationUpdateManyMock.mockResolvedValue({ count: 0 });
+  queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
   invitationCreateMock.mockResolvedValue({
     id: INVITE_ID,
     roomId: ROOM_ID,

@@ -32,6 +32,9 @@ const {
   membershipFindManyMock,
   readStateFindManyMock,
   guestInvitationCountMock,
+  guestInvitationUpdateManyMock,
+  queryRawMock,
+  userMemberCountMock,
   prismaTransactionMock,
   publishChatRoomMessageRealtimeMock,
   publishChatMembershipRevokedToUsersMock,
@@ -49,6 +52,7 @@ const {
   userMemberUpdateManyMock: vi.fn(),
   userMemberFindManyMock: vi.fn(),
   userMemberCreateManyMock: vi.fn(),
+  userMemberCountMock: vi.fn(),
   readStateDeleteManyMock: vi.fn(),
   readStateCreateManyMock: vi.fn(),
   coworkerMemberDeleteManyMock: vi.fn(),
@@ -58,6 +62,8 @@ const {
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
   guestInvitationCountMock: vi.fn(),
+  guestInvitationUpdateManyMock: vi.fn(),
+  queryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
   publishChatMembershipRevokedToUsersMock: vi.fn(),
@@ -116,6 +122,7 @@ const tx = {
     updateMany: userMemberUpdateManyMock,
     findMany: userMemberFindManyMock,
     createMany: userMemberCreateManyMock,
+    count: userMemberCountMock,
   },
   chatRoomReadState: {
     deleteMany: readStateDeleteManyMock,
@@ -133,7 +140,9 @@ const tx = {
   },
   chatRoomGuestInvitation: {
     count: guestInvitationCountMock,
+    updateMany: guestInvitationUpdateManyMock,
   },
+  $queryRaw: queryRawMock,
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
@@ -248,6 +257,9 @@ beforeEach(() => {
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
   guestInvitationCountMock.mockResolvedValue(0);
+  guestInvitationUpdateManyMock.mockResolvedValue({ count: 0 });
+  queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+  userMemberCountMock.mockResolvedValue(0);
   userMemberUpdateManyMock.mockResolvedValue({ count: 0 });
   userMemberFindManyMock.mockResolvedValue([]);
 });
@@ -689,6 +701,7 @@ describe("PATCH /chats/rooms/{id}", () => {
       }),
     );
     memberFindUniqueMock.mockResolvedValue({ role: "admin" });
+    userMemberCountMock.mockResolvedValue(1);
 
     const app = createApp(userAuthContext);
     const response = await app.request(`/${ROOM_ID}`, {
@@ -724,7 +737,11 @@ describe("PATCH /chats/rooms/{id}", () => {
       /guest members or pending invitations/i,
     );
     expect(guestInvitationCountMock).toHaveBeenCalledWith({
-      where: { roomId: ROOM_ID, status: "pending" },
+      where: expect.objectContaining({
+        roomId: ROOM_ID,
+        status: "pending",
+        expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
+      }),
     });
     expect(roomUpdateMock).not.toHaveBeenCalled();
   });
@@ -746,7 +763,11 @@ describe("PATCH /chats/rooms/{id}", () => {
 
     expect(response.status).toBe(200);
     expect(guestInvitationCountMock).toHaveBeenCalledWith({
-      where: { roomId: ROOM_ID, status: "pending" },
+      where: expect.objectContaining({
+        roomId: ROOM_ID,
+        status: "pending",
+        expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
+      }),
     });
     expect(roomUpdateMock).toHaveBeenCalledWith(
       expect.objectContaining({

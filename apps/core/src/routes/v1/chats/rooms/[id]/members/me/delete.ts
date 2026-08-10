@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import {
+  expireStalePendingInvitations,
+  livePendingInvitationWhere,
+} from "@/helpers/chat-room-invitation";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -130,14 +134,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               access: "guest",
             },
           });
+          const now = new Date();
+          if (remainingGuests === 0) {
+            await expireStalePendingInvitations(tx, {
+              roomId: existing.id,
+              now,
+            });
+          }
           const pendingInviteCount =
             remainingGuests > 0
               ? 0
               : await tx.chatRoomGuestInvitation.count({
-                  where: {
-                    roomId: existing.id,
-                    status: "pending",
-                  },
+                  where: livePendingInvitationWhere(existing.id, now),
                 });
           if (remainingGuests > 0 || pendingInviteCount > 0) {
             throw badRequest(

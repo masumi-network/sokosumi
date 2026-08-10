@@ -155,10 +155,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw badRequest("Invitation has expired.");
         }
 
+        // Lock room before guest membership so convert-off-external cannot race
+        // past the discoverability check and leave guests on non-external rooms.
+        await tx.$queryRaw`
+          SELECT "id" FROM "chat_room"
+          WHERE "id" = ${room.id}::uuid
+          FOR UPDATE
+        `;
+        const lockedRoom = await tx.chatRoom.findUnique({
+          where: { id: room.id },
+          select: {
+            archivedAt: true,
+            kind: true,
+            discoverability: true,
+          },
+        });
         if (
-          room.archivedAt !== null ||
-          room.kind !== "channel" ||
-          room.discoverability !== "external"
+          !lockedRoom ||
+          lockedRoom.archivedAt !== null ||
+          lockedRoom.kind !== "channel" ||
+          lockedRoom.discoverability !== "external"
         ) {
           throw badRequest(
             "Room is no longer available for guest invitations.",
