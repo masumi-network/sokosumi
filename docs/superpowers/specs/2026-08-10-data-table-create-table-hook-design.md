@@ -34,7 +34,7 @@ Make shared table types agent-clear and cast-free:
 
 ### Module layout
 
-```
+```text
 apps/web/src/components/data-table/
   data-table-features.ts      # existing tableFeatures + sort/filter registries
   create-data-table-hook.ts   # NEW: createTableHook({ features: dataTableFeatures, … })
