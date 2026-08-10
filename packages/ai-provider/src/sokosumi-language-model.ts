@@ -10,14 +10,13 @@ import {
   type SharedV4Warning,
 } from "@ai-sdk/provider";
 import { getModelIdentifier } from "@sokosumi/chat";
-import { MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS } from "./coworker-agent-error.js";
 import { parseSokosumiProviderOptions } from "./parse-provider-options.js";
 import {
   buildResponsesApiWarnings,
   lastTurnToResponsesInput,
   promptToResponsesInput,
 } from "./prompt/to-responses-input.js";
-import { createCommitGateStream } from "./stream/commit-gate-stream.js";
+import { withConversationCommitPolicy } from "./stream/conversation-commit-policy.js";
 import {
   createResponsesSseToV4Stream,
   emptyUsage,
@@ -26,7 +25,6 @@ import {
 import type { CreateSokosumiOptions } from "./types.js";
 
 const OPENROUTER_RESPONSES_URL = "https://openrouter.ai/api/v1/responses";
-const COWORKER_CONVERSATION_MAX_RETRIES = 2;
 const SOKOSUMI_SUPPORTED_URL_PATTERNS: Record<string, RegExp[]> = {
   // The Responses API mapping forwards these as image_url/file_url or inline data.
   "*": [/^https?:\/\//i, /^data:/i],
@@ -280,37 +278,18 @@ async function streamCoworkerWithRetry(
   promptWarnings: SharedV4Warning[],
   sokosumiOpts: ReturnType<typeof parseSokosumiProviderOptions>,
   options: LanguageModelV4CallOptions,
-  attempt = 0,
 ): Promise<LanguageModelV4StreamResult> {
   const inConversationMode = Boolean(
     sokosumiOpts.providerConversationId?.trim(),
   );
-  const maxRetries = inConversationMode ? COWORKER_CONVERSATION_MAX_RETRIES : 0;
-  const result = await streamCoworker(promptWarnings, sokosumiOpts, options);
+  const openStream = () =>
+    streamCoworker(promptWarnings, sokosumiOpts, options);
 
-  if (!inConversationMode || attempt >= maxRetries) {
-    return result;
+  if (!inConversationMode) {
+    return openStream();
   }
 
-  return {
-    ...result,
-    stream: createCommitGateStream(result.stream, {
-      minGoodChars: MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS,
-      onRetryNeeded: async () => {
-        const nextAttempt = attempt + 1;
-        if (nextAttempt > maxRetries) {
-          return null;
-        }
-        const retryResult = await streamCoworkerWithRetry(
-          promptWarnings,
-          sokosumiOpts,
-          options,
-          nextAttempt,
-        );
-        return retryResult.stream;
-      },
-    }),
-  };
+  return withConversationCommitPolicy(openStream);
 }
 
 async function streamCoworker(
