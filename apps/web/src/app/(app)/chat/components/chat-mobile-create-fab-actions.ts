@@ -1,24 +1,3 @@
-export type MobileCreateFabSurface = "chats";
-
-export type MobileCreateFabActionId = "createChannel" | "newDm";
-
-export interface MobileCreateFabAction {
-  id: MobileCreateFabActionId;
-  href: string;
-}
-
-const CHATS_ACTIONS: readonly MobileCreateFabAction[] = [
-  { id: "createChannel", href: "/chat?create=channel" },
-  { id: "newDm", href: "/chat?dm=new" },
-] as const;
-
-/** Create actions for the mobile FAB overlay menu (existing routes only). */
-export function mobileCreateFabActions(
-  _surface: MobileCreateFabSurface = "chats",
-): readonly MobileCreateFabAction[] {
-  return CHATS_ACTIONS;
-}
-
 /**
  * FAB sits above the docked tab bar with a small gap.
  * Full static Tailwind strings (dynamic class assembly would break purge).

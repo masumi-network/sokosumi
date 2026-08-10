@@ -6,17 +6,7 @@ import {
   CHAT_MOBILE_CREATE_FAB_CLEARANCE,
   chatMobileCreateFabBottom,
   chatMobileCreateFabScrimBottom,
-  mobileCreateFabActions,
 } from "../chat-mobile-create-fab-actions";
-
-describe("mobileCreateFabActions", () => {
-  it("returns chats actions with channel and dm only", () => {
-    expect(mobileCreateFabActions("chats")).toEqual([
-      { id: "createChannel", href: "/chat?create=channel" },
-      { id: "newDm", href: "/chat?dm=new" },
-    ]);
-  });
-});
 
 describe("chatMobileCreateFabBottom", () => {
   it("uses docked and Apple bottom offsets above the tab bar", () => {

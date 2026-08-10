@@ -1553,6 +1553,42 @@
         "noResponseConnectionLost": "Se perdió la conexión. Por favor, actualiza el navegador e inténtalo de nuevo.",
         "authorize": "Autorizar",
         "sidebarNew": "Nuevo"
+      },
+      "Onboarding": {
+        "openFab": "Iniciar chat con coworker",
+        "greeting": "¡Bienvenido!",
+        "greetingWithName": "¡Bienvenido {name}!",
+        "intentTitle": "¿En qué necesitas ayuda?",
+        "intentDescription": "Te emparejamos con un coworker adecuado.",
+        "intentChoices": {
+          "chat": "Conversación",
+          "tasks": "Tareas y proyectos",
+          "either": "Aún no estoy seguro"
+        },
+        "intentChoiceHints": {
+          "chat": "Idear, investigar o obtener respuestas en el chat.",
+          "tasks": "Planificar trabajo, seguir progreso o asignar tareas.",
+          "either": "Muéstrame un coworker predeterminado."
+        },
+        "goalTitle": "¿Tienes algo concreto en mente?",
+        "goalDescription": "Opcional — rellenaremos tu primer mensaje.",
+        "goalLabel": "Tu objetivo",
+        "goalPlaceholder": "p. ej. Ayúdame a redactar un resumen semanal",
+        "goalFallback": "ayuda general",
+        "draftWithGoal": "{goal}",
+        "draftWithIntent": "Me gustaría ayuda con {intent}.",
+        "next": "Siguiente",
+        "back": "Atrás",
+        "skip": "Omitir",
+        "finish": "Continuar",
+        "confirmTitle": "Conoce a tu coworker",
+        "confirmDescription": "Confirma para abrir el chat. Tu primer mensaje permanece en el compositor hasta que lo envíes.",
+        "switchCoworker": "Elegir otro coworker",
+        "draftPreviewLabel": "Primer mensaje",
+        "confirmCta": "Abrir chat",
+        "opening": "Abriendo…",
+        "ensureFailed": "No se pudo abrir ese chat. Inténtalo de nuevo.",
+        "noChatCoworker": "No hay coworkers con chat disponibles ahora."
       }
     },
     "Tasks": {

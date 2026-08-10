@@ -1553,6 +1553,42 @@
         "noResponseConnectionLost": "Die Verbindung wurde unterbrochen. Bitte lade die Seite neu und versuche es erneut.",
         "authorize": "Autorisieren",
         "sidebarNew": "Neu"
+      },
+      "Onboarding": {
+        "openFab": "Coworker-Chat starten",
+        "greeting": "Willkommen!",
+        "greetingWithName": "Willkommen {name}!",
+        "intentTitle": "Wobei brauchst du Hilfe?",
+        "intentDescription": "Wir finden einen passenden Coworker für dich.",
+        "intentChoices": {
+          "chat": "Gespräch",
+          "tasks": "Aufgaben & Projekte",
+          "either": "Noch unsicher"
+        },
+        "intentChoiceHints": {
+          "chat": "Brainstormen, recherchieren oder Antworten im Chat.",
+          "tasks": "Arbeit planen, Fortschritt verfolgen oder Aufgaben zuweisen.",
+          "either": "Zeig mir einen guten Standard-Coworker."
+        },
+        "goalTitle": "Hast du etwas Bestimmtes im Sinn?",
+        "goalDescription": "Optional — wir füllen deine erste Nachricht vor.",
+        "goalLabel": "Dein Ziel",
+        "goalPlaceholder": "z. B. Hilf mir, ein Wochenupdate zu schreiben",
+        "goalFallback": "allgemeine Hilfe",
+        "draftWithGoal": "{goal}",
+        "draftWithIntent": "Ich brauche Hilfe bei {intent}.",
+        "next": "Weiter",
+        "back": "Zurück",
+        "skip": "Überspringen",
+        "finish": "Weiter",
+        "confirmTitle": "Dein Coworker",
+        "confirmDescription": "Bestätige, um den Chat zu öffnen. Deine erste Nachricht bleibt im Composer, bis du sie sendest.",
+        "switchCoworker": "Anderen Coworker wählen",
+        "draftPreviewLabel": "Erste Nachricht",
+        "confirmCta": "Chat öffnen",
+        "opening": "Wird geöffnet…",
+        "ensureFailed": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut.",
+        "noChatCoworker": "Gerade sind keine chatfähigen Coworker verfügbar."
       }
     },
     "Tasks": {

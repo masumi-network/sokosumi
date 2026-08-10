@@ -1553,6 +1553,42 @@
         "tryAgain": "Try Again",
         "networkErrorAfterRetry": "We couldn't reach the server after a few attempts. Please check your connection and try again.",
         "sidebarNew": "New"
+      },
+      "Onboarding": {
+        "openFab": "Start coworker chat",
+        "greeting": "Welcome!",
+        "greetingWithName": "Welcome {name}!",
+        "intentTitle": "What do you need help with?",
+        "intentDescription": "We'll match you with a coworker who fits.",
+        "intentChoices": {
+          "chat": "Conversation",
+          "tasks": "Tasks & projects",
+          "either": "Not sure yet"
+        },
+        "intentChoiceHints": {
+          "chat": "Brainstorm, research, or get answers in chat.",
+          "tasks": "Plan work, track progress, or assign tasks.",
+          "either": "Show me a good default coworker."
+        },
+        "goalTitle": "Anything specific in mind?",
+        "goalDescription": "Optional — we'll pre-fill your first message.",
+        "goalLabel": "Your goal",
+        "goalPlaceholder": "e.g. Help me draft a weekly update",
+        "goalFallback": "general help",
+        "draftWithGoal": "{goal}",
+        "draftWithIntent": "I'd like help with {intent}.",
+        "next": "Next",
+        "back": "Back",
+        "skip": "Skip",
+        "finish": "Continue",
+        "confirmTitle": "Meet your coworker",
+        "confirmDescription": "Confirm to open a chat. Your first message stays in the composer until you send it.",
+        "switchCoworker": "Choose a different coworker",
+        "draftPreviewLabel": "First message",
+        "confirmCta": "Open chat",
+        "opening": "Opening…",
+        "ensureFailed": "Could not open that chat. Please try again.",
+        "noChatCoworker": "No chat-capable coworkers available right now."
       }
     },
     "Tasks": {
