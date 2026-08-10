@@ -157,7 +157,7 @@ describe("startJob", () => {
     );
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         jobId: "job-1",
       },
     });
@@ -194,7 +194,7 @@ describe("startJob", () => {
     expect(createAgentJobMock.mock.calls[0][1]).not.toHaveProperty("name");
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         jobId: "job-project",
       },
     });
@@ -425,7 +425,7 @@ describe("startJob", () => {
     expect(createAgentJobMock).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         jobId: "job-addon-credits",
       },
     });
@@ -471,7 +471,7 @@ describe("startJob", () => {
     expect(createAgentJobMock).toHaveBeenCalledTimes(1);
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         jobId: "job-summed-credits",
       },
     });
@@ -710,7 +710,7 @@ describe("requestRefundJob", () => {
     expect(requestJobRefundMock).toHaveBeenCalledWith("job-1");
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         job: {
           id: "job-1",
           jobType: "PAID",
@@ -816,7 +816,7 @@ describe("provideJobInput", () => {
 
   it("submits input through the core client and returns the job id", async () => {
     provideJobInputCoreMock.mockResolvedValue({
-      data: { id: "input-1", input: "{}", inputHash: "h", signature: "s" },
+      value: { id: "input-1", input: "{}", inputHash: "h", signature: "s" },
     });
 
     const { provideJobInput } = await import("../action");

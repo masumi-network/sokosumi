@@ -71,7 +71,7 @@ describe("useJobSubmission", () => {
     vi.clearAllMocks();
     startJobMock.mockResolvedValue({
       ok: true,
-      data: {
+      value: {
         jobId: "job_123",
       },
     });

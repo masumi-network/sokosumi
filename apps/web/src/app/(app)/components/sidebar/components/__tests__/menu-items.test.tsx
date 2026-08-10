@@ -25,7 +25,7 @@ vi.mock("@/app/components/history-search-dialog-provider", () => ({
 }));
 
 vi.mock("@/lib/actions/hermes", () => ({
-  getHermesUnreadCountAction: vi.fn().mockResolvedValue({ ok: true, data: 0 }),
+  getHermesUnreadCountAction: vi.fn().mockResolvedValue({ ok: true, value: 0 }),
 }));
 
 vi.mock("@/components/ui/sheet", () => ({
