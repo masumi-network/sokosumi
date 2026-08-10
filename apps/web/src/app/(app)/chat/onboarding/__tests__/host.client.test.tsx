@@ -129,4 +129,24 @@ describe("ChatOnboardingHost confirm", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Alex/i })[0]!);
     expect(screen.getByTestId("gallery-card").textContent).toBe("Alex");
   });
+
+  it("questionnaire shell uses the shared feature max-width", () => {
+    const { container } = render(
+      <ChatOnboardingHost coworkers={[coworker]} userName="Francis" />,
+    );
+    const shell = container.querySelector("[data-chat-onboarding-host] > div");
+    expect(shell?.className).toContain("max-w-sm");
+  });
+
+  it("confirm stacks gallery card and draft under the shared feature max-width", async () => {
+    await reachConfirm();
+
+    const card = screen.getByTestId("gallery-card");
+    const draftLabel = screen.getByText("draftPreviewLabel");
+    const cardColumn = card.parentElement;
+    const draftColumn = draftLabel.closest("div.space-y-6");
+
+    expect(cardColumn).toBe(draftColumn);
+    expect(cardColumn?.className).toContain("max-w-sm");
+  });
 });
