@@ -143,9 +143,7 @@ export function ChatOnboardingHost({
       <div
         className={cn(
           "mx-auto flex min-h-0 w-full flex-1 flex-col px-4 py-6 md:py-10",
-          state.phase.kind === "confirm" || state.phase.kind === "opening"
-            ? "max-w-4xl"
-            : ONBOARDING_STEPS_MAX_WIDTH_CLASS,
+          ONBOARDING_STEPS_MAX_WIDTH_CLASS,
         )}
       >
         {state.phase.kind === "questionnaire" ? (
