@@ -197,6 +197,30 @@
     }
   }
 
+  /* Beautiful UI loading / thinking (https://beautiful-ui-five.vercel.app/) */
+  @keyframes bui-pixel-on {
+    0%,
+    100% {
+      opacity: 0.15;
+    }
+    18%,
+    42% {
+      opacity: 1;
+    }
+    62% {
+      opacity: 0.15;
+    }
+  }
+
+  @keyframes bui-shimmer-text {
+    0% {
+      background-position: 150% 0;
+    }
+    100% {
+      background-position: -50% 0;
+    }
+  }
+
   @keyframes reasoning-step-in {
     from {
       opacity: 0;
@@ -704,6 +728,21 @@ main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   animation: var(--animate-reasoning-text-shine);
 }
 
+/* Shimmer label from Beautiful UI Loading / Thinking */
+@utility bui-shimmer-text {
+  background-image: linear-gradient(
+    90deg,
+    var(--muted-foreground) 35%,
+    var(--foreground) 50%,
+    var(--muted-foreground) 65%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: bui-shimmer-text 1.4s linear infinite;
+}
+
 @utility reasoning-step-in {
   animation: var(--animate-reasoning-step-in);
 }
@@ -834,5 +873,17 @@ body[data-hermes-fullscreen="true"] [data-app-main] {
     -webkit-background-clip: border-box;
     background-clip: border-box;
     color: var(--foreground);
+  }
+
+  .bui-shimmer-text {
+    animation: none;
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: var(--foreground);
+  }
+
+  [data-testid="coworker-loading-state"] span[aria-hidden] span {
+    animation: none !important;
   }
 }

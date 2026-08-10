@@ -1548,7 +1548,7 @@ describe("ChatMessageRow", () => {
 });
 
 describe("ChatMessageRow coworker Thought", () => {
-  it("shows Thinking fallback on empty stream overlay without Thought", () => {
+  it("shows Beautiful UI loading state on empty stream overlay", () => {
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-1",
@@ -1557,11 +1557,13 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    expect(screen.getByRole("status")).toHaveTextContent("reasoning.thinking");
+    expect(screen.getByTestId("coworker-loading-state")).toHaveTextContent(
+      "reasoning.thinking",
+    );
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
   });
 
-  it("shows live Thought beat on stream overlay instead of Thinking", () => {
+  it("shows working Thought trace with live beat on stream overlay", () => {
     renderRow({
       message: coworkerMessage({
         id: "stream:asst-2",
@@ -1578,13 +1580,16 @@ describe("ChatMessageRow coworker Thought", () => {
       }),
     });
 
-    const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("Counting registrations in last 30 days");
-    expect(status).not.toHaveTextContent("reasoning.thinking");
+    const trace = screen.getByTestId("coworker-thought-trace");
+    expect(trace).toHaveAttribute("data-working", "true");
+    expect(trace).toHaveTextContent("reasoning.thinking");
+    expect(screen.getByTestId("coworker-thought-body")).toHaveTextContent(
+      "Counting registrations in last 30 days",
+    );
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
   });
 
-  it("shows elapsed seconds on the live Thinking row", () => {
+  it("shows tenths elapsed on the live Loading row", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-10T12:00:10.000Z"));
     try {
@@ -1597,7 +1602,7 @@ describe("ChatMessageRow coworker Thought", () => {
         }),
       });
       expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
-        "10s",
+        "10.0s",
       );
     } finally {
       vi.useRealTimers();
@@ -1619,16 +1624,19 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(
       screen.getByText("There were 142 new registrations."),
     ).toBeInTheDocument();
-    expect(screen.queryByText("Queried user table.")).not.toBeInTheDocument();
 
     const toggle = screen.getByRole("button", {
-      name: "reasoning.thoughtForSeconds",
+      name: /reasoning.thoughtForSeconds/i,
     });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("coworker-thought-body")).not.toBeVisible();
 
     await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Queried user table.")).toBeInTheDocument();
+    expect(screen.getByTestId("coworker-thought-body")).toBeVisible();
+    expect(screen.getByTestId("coworker-thought-body")).toHaveTextContent(
+      "Queried user table.",
+    );
   });
 
   it("uses expand label when Thought exists without valid timing", () => {
@@ -1642,7 +1650,7 @@ describe("ChatMessageRow coworker Thought", () => {
     });
 
     expect(
-      screen.getByRole("button", { name: "reasoning.expandSteps" }),
+      screen.getByRole("button", { name: /reasoning.expandSteps/i }),
     ).toBeInTheDocument();
   });
 
@@ -1652,10 +1660,7 @@ describe("ChatMessageRow coworker Thought", () => {
     });
 
     expect(
-      screen.queryByRole("button", { name: "reasoning.expandSteps" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "reasoning.thoughtForSeconds" }),
+      screen.queryByTestId("coworker-thought-trace"),
     ).not.toBeInTheDocument();
   });
 });

@@ -3,7 +3,6 @@
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
   CheckCircle2,
-  ChevronRight,
   Loader2,
   MessageCircle,
   Pencil,
@@ -23,12 +22,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
-  type CoworkerThoughtDisclosure,
-  formatLiveElapsedLabel,
-  resolveCoworkerThoughtViewModel,
-} from "@/app/chat/utils/coworker-thought";
+  CoworkerLiveThought,
+  CoworkerThoughtTrace,
+} from "@/app/chat/components/coworker-thought-ui";
+import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
+import { resolveCoworkerThoughtViewModel } from "@/app/chat/utils/coworker-thought";
 import {
   getJumboEmojiCount,
   jumboEmojiClassName,
@@ -1290,67 +1289,6 @@ function MessageMetaFooter({
   );
 }
 
-/** Live wait counter on the stream overlay (Thinking… / Thought beat). */
-function LiveStreamElapsed({ startedAtMs }: { startedAtMs: number }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const elapsedSeconds = Math.max(0, Math.floor((now - startedAtMs) / 1000));
-  return (
-    <span
-      className="text-muted-foreground/70 shrink-0 text-xs tabular-nums"
-      data-testid="live-stream-elapsed"
-    >
-      {formatLiveElapsedLabel(elapsedSeconds)}
-    </span>
-  );
-}
-
-/** Collapsed-by-default Thought disclosure on coworker assistant messages. */
-function CoworkerThoughtDisclosureControl({
-  disclosure,
-  thoughtForSecondsLabel,
-  expandLabel,
-  collapseLabel,
-}: {
-  disclosure: CoworkerThoughtDisclosure;
-  thoughtForSecondsLabel: (seconds: number) => string;
-  expandLabel: string;
-  collapseLabel: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const summary =
-    disclosure.durationSeconds != null
-      ? thoughtForSecondsLabel(disclosure.durationSeconds)
-      : expandLabel;
-  return (
-    <div className="mb-1.5">
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        className="text-muted-foreground hover:text-foreground focus-visible:ring-primary/40 inline-flex max-w-full items-center gap-1 rounded text-xs font-medium transition-colors outline-none focus-visible:ring-2"
-      >
-        <ChevronRight
-          aria-hidden
-          className={cn(
-            "size-3 shrink-0 transition-transform",
-            open && "rotate-90",
-          )}
-        />
-        <span className="truncate">{open ? collapseLabel : summary}</span>
-      </button>
-      {open ? (
-        <p className="text-muted-foreground border-border/60 mt-1.5 border-l pl-3 text-xs leading-5 whitespace-pre-wrap italic">
-          {disclosure.text}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 export function ChatMessageRow({
   message,
   coworkersById,
@@ -1574,43 +1512,30 @@ export function ChatMessageRow({
                   onCancel={onCancelEdit}
                   isSaving={isSavingEdit}
                 />
-              ) : thoughtView?.showThinkingFallback ? (
-                <div
-                  className="flex min-w-0 items-baseline gap-2"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <span className="reasoning-text-shine text-base leading-5 md:text-sm">
-                    {tChat("reasoning.thinking")}
-                  </span>
-                  <LiveStreamElapsed
-                    startedAtMs={new Date(message.createdAt).getTime()}
-                  />
-                </div>
-              ) : thoughtView?.liveBeat ? (
-                <div
-                  className="flex min-w-0 items-baseline gap-2"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <p className="reasoning-text-shine text-muted-foreground line-clamp-3 min-w-0 flex-1 text-base leading-5 italic md:text-sm">
-                    {thoughtView.liveBeat}
-                  </p>
-                  <LiveStreamElapsed
-                    startedAtMs={new Date(message.createdAt).getTime()}
-                  />
-                </div>
+              ) : thoughtView?.showThinkingFallback ||
+                thoughtView?.liveBeat != null ? (
+                <CoworkerLiveThought
+                  label={tChat("reasoning.thinking")}
+                  liveBeat={thoughtView.liveBeat}
+                  startedAtMs={new Date(message.createdAt).getTime()}
+                />
               ) : (
                 <>
                   {thoughtView?.disclosure ? (
-                    <CoworkerThoughtDisclosureControl
-                      disclosure={thoughtView.disclosure}
-                      thoughtForSecondsLabel={(seconds) =>
-                        tChat("reasoning.thoughtForSeconds", { seconds })
-                      }
-                      expandLabel={tChat("reasoning.expandSteps")}
-                      collapseLabel={tChat("reasoning.collapseSteps")}
-                    />
+                    <div className="mb-1.5">
+                      <CoworkerThoughtTrace
+                        working={false}
+                        headerLabel={
+                          thoughtView.disclosure.durationSeconds != null
+                            ? tChat("reasoning.thoughtForSeconds", {
+                                seconds: thoughtView.disclosure.durationSeconds,
+                              })
+                            : tChat("reasoning.expandSteps")
+                        }
+                        bodyText={thoughtView.disclosure.text}
+                        defaultExpanded={false}
+                      />
+                    </div>
                   ) : null}
                   <ChannelMessageBody
                     messageId={message.id}
