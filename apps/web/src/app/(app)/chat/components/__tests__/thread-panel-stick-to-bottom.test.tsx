@@ -118,21 +118,13 @@ vi.mock("../room-message-row", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/scroll-area", () => ({
-  ScrollArea: ({
-    children,
-    ref,
-    className,
-  }: {
-    children: ReactNode;
-    ref?: Ref<HTMLDivElement>;
-    className?: string;
-  }) => (
-    <div ref={ref} data-testid="thread-scroller" className={className}>
-      {children}
-    </div>
-  ),
-}));
+function getThreadScroller(container: HTMLElement): HTMLElement {
+  const scroller = container.querySelector(".overflow-y-auto");
+  if (!(scroller instanceof HTMLElement)) {
+    throw new Error("Expected thread message-list overflow scroller");
+  }
+  return scroller;
+}
 
 function parentMessage(
   overrides: Partial<ChatRoomMessage> = {},
@@ -177,7 +169,7 @@ function replyMessage(id: string): ChatRoomMessage {
 }
 
 function renderThreadPanel(replies: ChatRoomMessage[] = [replyMessage("r1")]) {
-  return render(
+  const view = render(
     <ThreadPanel
       parentMessage={parentMessage()}
       replies={replies}
@@ -196,6 +188,7 @@ function renderThreadPanel(replies: ChatRoomMessage[] = [replyMessage("r1")]) {
       roomId="room-1"
     />,
   );
+  return { ...view, scroller: getThreadScroller(view.container) };
 }
 
 describe("ThreadPanel stick-to-bottom", () => {
@@ -210,8 +203,7 @@ describe("ThreadPanel stick-to-bottom", () => {
   });
 
   it("pins the thread viewport when content grows while sticky", () => {
-    renderThreadPanel();
-    const scroller = screen.getByTestId("thread-scroller");
+    const { scroller } = renderThreadPanel();
     setScrollerMetrics(scroller, {
       scrollHeight: 1000,
       clientHeight: 400,
@@ -226,8 +218,7 @@ describe("ThreadPanel stick-to-bottom", () => {
   });
 
   it("does not pin after the user scrolls away from the bottom", () => {
-    renderThreadPanel();
-    const scroller = screen.getByTestId("thread-scroller");
+    const { scroller } = renderThreadPanel();
     setScrollerMetrics(scroller, {
       scrollHeight: 1000,
       clientHeight: 400,
@@ -260,8 +251,7 @@ describe("ThreadPanel stick-to-bottom", () => {
   });
 
   it("scrollToBottomIfPinned no-ops on chrome resize when unpinned", () => {
-    renderThreadPanel();
-    const scroller = screen.getByTestId("thread-scroller");
+    const { scroller } = renderThreadPanel();
     setScrollerMetrics(scroller, {
       scrollHeight: 1000,
       clientHeight: 400,
@@ -279,8 +269,7 @@ describe("ThreadPanel stick-to-bottom", () => {
   });
 
   it("re-pins to bottom after a successful send even when previously unpinned", async () => {
-    renderThreadPanel();
-    const scroller = screen.getByTestId("thread-scroller");
+    const { scroller } = renderThreadPanel();
     setScrollerMetrics(scroller, {
       scrollHeight: 1000,
       clientHeight: 400,
