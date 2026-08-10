@@ -244,7 +244,7 @@ export function ContractForm({
           return;
         }
         toast.success(t("createSuccess"));
-        router.push(`/admin/enterprise-contracts/${result.data.id}`);
+        router.push(`/admin/enterprise-contracts/${result.value.id}`);
         router.refresh();
         return;
       }

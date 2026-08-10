@@ -1,8 +1,12 @@
 "use server";
 
 import { isPositiveIntegerCredits } from "@sokosumi/utils";
-
+import { err, ok } from "neverthrow";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import {
   type ActionError,
   CommonErrorCode,
@@ -11,7 +15,6 @@ import {
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import { userService } from "@/lib/services";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -25,22 +28,26 @@ interface PurchaseCreditsParameters extends AuthenticatedRequest {
 
 export const purchaseCredits = withSession<
   PurchaseCreditsParameters,
-  Result<{ url: string }, ActionError>
+  ActionResultDto<{ url: string }, ActionError>
 >(async ({ organizationId, credits, returnPath, session }) => {
   if (!isPositiveIntegerCredits(credits)) {
-    return Err({
-      message: "Invalid credits",
-      code: CreditsErrorCode.INVALID_CREDITS,
-    });
+    return toActionResult(
+      err({
+        message: "Invalid credits",
+        code: CreditsErrorCode.INVALID_CREDITS,
+      }),
+    );
   }
 
   if (organizationId) {
     const member = await userService.getMyMemberInOrganization(organizationId);
     if (!member) {
-      return Err({
-        message: "Unauthorized",
-        code: CommonErrorCode.UNAUTHORIZED,
-      });
+      return toActionResult(
+        err({
+          message: "Unauthorized",
+          code: CommonErrorCode.UNAUTHORIZED,
+        }),
+      );
     }
   }
 
@@ -58,12 +65,14 @@ export const purchaseCredits = withSession<
         organizationId ?? session.session.activeOrganizationId ?? null,
     });
 
-    return Ok({ url: data.url });
+    return toActionResult(ok({ url: data.url }));
   } catch (error) {
     console.error("Failed to purchase credits", error);
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      }),
+    );
   }
 });
 
@@ -75,15 +84,17 @@ interface ClaimFreeCreditsWithCouponParameters extends AuthenticatedRequest {
 
 export const claimFreeCreditsWithCoupon = withSession<
   ClaimFreeCreditsWithCouponParameters,
-  Result<{ url: string }, ActionError>
+  ActionResultDto<{ url: string }, ActionError>
 >(async ({ organizationId, couponId, returnPath, session }) => {
   if (organizationId) {
     const member = await userService.getMyMemberInOrganization(organizationId);
     if (!member) {
-      return Err({
-        message: "Unauthorized",
-        code: CommonErrorCode.UNAUTHORIZED,
-      });
+      return toActionResult(
+        err({
+          message: "Unauthorized",
+          code: CommonErrorCode.UNAUTHORIZED,
+        }),
+      );
     }
   }
 
@@ -91,10 +102,12 @@ export const claimFreeCreditsWithCoupon = withSession<
     const { data: coupon } = await coreClient.getCouponDetails(couponId);
     const promo = await coreClient.claimCoupon(couponId, { organizationId });
     if (!promo.data.active) {
-      return Err({
-        message: "Invalid coupon",
-        code: CreditsErrorCode.INVALID_COUPON,
-      });
+      return toActionResult(
+        err({
+          message: "Invalid coupon",
+          code: CreditsErrorCode.INVALID_COUPON,
+        }),
+      );
     }
 
     const { data } = await coreClient.createCreditCheckoutSession({
@@ -110,13 +123,15 @@ export const claimFreeCreditsWithCoupon = withSession<
         organizationId ?? session.session.activeOrganizationId ?? null,
     });
 
-    return Ok({ url: data.url });
+    return toActionResult(ok({ url: data.url }));
   } catch (error) {
     console.error("Failed to get free credits with coupon", error);
     if (error instanceof CouponError) {
-      return Err({
-        code: error.code,
-      });
+      return toActionResult(
+        err({
+          code: error.code,
+        }),
+      );
     }
     // Core returns 404 (unknown coupon) or 400 (not a valid credit coupon) when
     // the coupon cannot be validated/claimed; surface the specific
@@ -125,13 +140,17 @@ export const claimFreeCreditsWithCoupon = withSession<
       error instanceof CoreApiRequestError &&
       (error.status === 400 || error.status === 404)
     ) {
-      return Err({
-        message: "Invalid coupon",
-        code: CreditsErrorCode.INVALID_COUPON,
-      });
+      return toActionResult(
+        err({
+          message: "Invalid coupon",
+          code: CreditsErrorCode.INVALID_COUPON,
+        }),
+      );
     }
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      }),
+    );
   }
 });

@@ -42,13 +42,13 @@ export default async function EditEnterpriseContractPage({
     );
   }
 
-  if (result.data.status !== "draft") {
+  if (result.value.status !== "draft") {
     redirect(`/admin/enterprise-contracts/${id}`);
   }
 
   const initialOrganization =
     await adminOrganizationService.getOrganizationOptionBySlug(
-      result.data.organizationSlug,
+      result.value.organizationSlug,
     );
 
   return (
@@ -72,12 +72,12 @@ export default async function EditEnterpriseContractPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>{result.data.organizationSlug}</CardTitle>
+            <CardTitle>{result.value.organizationSlug}</CardTitle>
           </CardHeader>
           <CardContent>
             <ContractForm
               mode="edit"
-              contract={result.data}
+              contract={result.value}
               initialOrganization={initialOrganization}
             />
           </CardContent>

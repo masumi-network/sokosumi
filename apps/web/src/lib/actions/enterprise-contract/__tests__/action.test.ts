@@ -93,7 +93,7 @@ describe("enterprise contract actions", () => {
       throw new Error("Expected success result");
     }
 
-    expect(result.data).toEqual([{ id: "contract-1" }]);
+    expect(result.value).toEqual([{ id: "contract-1" }]);
     expect(listContractsMock).toHaveBeenCalledOnce();
   });
 });

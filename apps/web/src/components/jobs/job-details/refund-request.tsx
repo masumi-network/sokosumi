@@ -292,7 +292,7 @@ export default function RequestRefundButton({
         (currentJob) =>
           ({
             ...currentJob,
-            ...result.data.job,
+            ...result.value.job,
           }) as PaidJob,
       );
     } else {

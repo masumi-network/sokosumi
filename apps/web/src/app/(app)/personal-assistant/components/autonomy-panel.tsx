@@ -103,7 +103,7 @@ export default function AutonomyPanel({
         return;
       }
       toast.success(t("autonomySavedToast"));
-      onAutonomyChanged?.(result.data.autonomyLevel);
+      onAutonomyChanged?.(result.value.autonomyLevel);
       // Sync parent state so the next time the sheet opens it doesn't
       // resync the selector from the stale `autonomyLevel` prop.
       void onRefreshInstance?.();
@@ -131,7 +131,7 @@ export default function AutonomyPanel({
     void listHermesSchedulesAction({}).then((result) => {
       if (cancelled) return;
       setSchedulesLoading(false);
-      if (result.ok) setSchedules(result.data);
+      if (result.ok) setSchedules(result.value);
     });
     return () => {
       cancelled = true;
@@ -283,7 +283,7 @@ function ScheduleRow({
       toast.error(result.error.message ?? t("schedulesToggleFailed"));
       return;
     }
-    onChange(result.data);
+    onChange(result.value);
   };
 
   // Kind label sits inline as muted text. No colored chip — the panel

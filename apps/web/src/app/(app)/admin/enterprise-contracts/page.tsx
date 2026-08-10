@@ -62,7 +62,7 @@ async function EnterpriseContractsContent({
 
   return (
     <ContractsTable
-      contracts={result.data}
+      contracts={result.value}
       initialFilterOrganization={initialFilterOrganization}
     />
   );

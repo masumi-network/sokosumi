@@ -1,10 +1,14 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import * as z from "zod";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -30,14 +34,16 @@ interface ResolveOrganizationSiteIconParameters extends AuthenticatedRequest {
  */
 export const resolveOrganizationSiteIcon = withSession<
   ResolveOrganizationSiteIconParameters,
-  Result<{ url: string | null }, ActionError>
+  ActionResultDto<{ url: string | null }, ActionError>
 >(async ({ url, organizationId }) => {
   const parsed = resolveSiteIconSchema.safeParse({ url, organizationId });
   if (!parsed.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsed.error.issues[0]?.message,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsed.error.issues[0]?.message,
+      }),
+    );
   }
 
   try {
@@ -45,12 +51,14 @@ export const resolveOrganizationSiteIcon = withSession<
       parsed.data.url,
       parsed.data.organizationId,
     );
-    return Ok({ url: data.url });
+    return toActionResult(ok({ url: data.url }));
   } catch (error) {
     if (error instanceof CoreApiRequestError && error.status === 400) {
-      return Err({ code: CommonErrorCode.BAD_INPUT, message: error.message });
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: error.message }),
+      );
     }
     console.error("Failed to resolve organization site icon", error);
-    return Err({ code: CommonErrorCode.INTERNAL_SERVER_ERROR });
+    return toActionResult(err({ code: CommonErrorCode.INTERNAL_SERVER_ERROR }));
   }
 });

@@ -38,7 +38,7 @@ export function JoinActions({
         return;
       }
       try {
-        await activateOrganizationWorkspace(result.data.organizationId);
+        await activateOrganizationWorkspace(result.value.organizationId);
       } catch (error) {
         console.error("Failed to switch organization workspace:", error);
       }

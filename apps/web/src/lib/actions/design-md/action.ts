@@ -1,7 +1,12 @@
 "use server";
 
 import type { DesignMdJobPayload } from "@sokosumi/masumi/tools";
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { coreClient } from "@/lib/clients/core.client";
@@ -24,7 +29,6 @@ import {
   type PersistedDesignMd,
   type StartDesignMdGenerationResult,
 } from "@/lib/services/design-md.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -96,14 +100,16 @@ async function revalidateOwner(owner: DesignMdOwnerSchemaType): Promise<void> {
 
 export const startDesignMdGeneration = withSession<
   StartDesignMdGenerationParameters,
-  Result<StartDesignMdGenerationResult, ActionError>
+  ActionResultDto<StartDesignMdGenerationResult, ActionError>
 >(async (parameters) => {
   const parsedResult = startDesignMdGenerationSchema.safeParse(parameters);
   if (!parsedResult.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsedResult.error.issues[0]?.message,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsedResult.error.issues[0]?.message,
+      }),
+    );
   }
 
   try {
@@ -118,50 +124,56 @@ export const startDesignMdGeneration = withSession<
       await revalidateOwner(parsedResult.data.owner);
     }
 
-    return Ok(result);
+    return toActionResult(ok(result));
   } catch (error) {
     console.error("Failed to start DESIGN.md generation", error);
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
 export const pollDesignMdGeneration = withSession<
   PollDesignMdGenerationParameters,
-  Result<DesignMdJobPayload, ActionError>
+  ActionResultDto<DesignMdJobPayload, ActionError>
 >(async (parameters) => {
   const parsedResult = pollDesignMdGenerationSchema.safeParse(parameters);
   if (!parsedResult.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsedResult.error.issues[0]?.message,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsedResult.error.issues[0]?.message,
+      }),
+    );
   }
 
   try {
-    return Ok(
-      await designMdService.pollDesignMdJob(
-        parameters.session,
-        parsedResult.data.owner,
-        parsedResult.data.jobId,
-        parsedResult.data.jobToken,
+    return toActionResult(
+      ok(
+        await designMdService.pollDesignMdJob(
+          parameters.session,
+          parsedResult.data.owner,
+          parsedResult.data.jobId,
+          parsedResult.data.jobToken,
+        ),
       ),
     );
   } catch (error) {
     console.error("Failed to poll DESIGN.md generation", error);
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
 export const finalizeDesignMdGeneration = withSession<
   FinalizeDesignMdGenerationParameters,
-  Result<PersistedDesignMd, ActionError>
+  ActionResultDto<PersistedDesignMd, ActionError>
 >(async (parameters) => {
   const parsedResult = finalizeDesignMdGenerationSchema.safeParse(parameters);
   if (!parsedResult.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsedResult.error.issues[0]?.message,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsedResult.error.issues[0]?.message,
+      }),
+    );
   }
 
   try {
@@ -173,23 +185,25 @@ export const finalizeDesignMdGeneration = withSession<
     );
 
     await revalidateOwner(parsedResult.data.owner);
-    return Ok(persisted);
+    return toActionResult(ok(persisted));
   } catch (error) {
     console.error("Failed to finalize DESIGN.md generation", error);
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
 export const saveDesignMdUpload = withSession<
   SaveDesignMdUploadParameters,
-  Result<PersistedDesignMd, ActionError>
+  ActionResultDto<PersistedDesignMd, ActionError>
 >(async (parameters) => {
   const parsedResult = saveDesignMdUploadSchema.safeParse(parameters);
   if (!parsedResult.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsedResult.error.issues[0]?.message,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsedResult.error.issues[0]?.message,
+      }),
+    );
   }
 
   try {
@@ -199,31 +213,33 @@ export const saveDesignMdUpload = withSession<
     );
 
     await revalidateOwner(parsedResult.data.owner);
-    return Ok(persisted);
+    return toActionResult(ok(persisted));
   } catch (error) {
     console.error("Failed to save DESIGN.md upload", error);
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
 export const removeDesignMd = withSession<
   RemoveDesignMdParameters,
-  Result<{ removed: true }, ActionError>
+  ActionResultDto<{ removed: true }, ActionError>
 >(async (parameters) => {
   const parsedResult = removeDesignMdSchema.safeParse(parameters);
   if (!parsedResult.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsedResult.error.issues[0]?.message,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsedResult.error.issues[0]?.message,
+      }),
+    );
   }
 
   try {
     await designMdService.removeDesignMd(parsedResult.data.owner);
     await revalidateOwner(parsedResult.data.owner);
-    return Ok({ removed: true });
+    return toActionResult(ok({ removed: true }));
   } catch (error) {
     console.error("Failed to remove DESIGN.md", error);
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });

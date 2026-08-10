@@ -583,7 +583,7 @@ describe("updateJobName", () => {
     expect(patchJobMock).toHaveBeenCalledWith("job-1", {
       name: "Renamed Job",
     });
-    expect(result).toEqual({ ok: true, data: undefined });
+    expect(result).toEqual({ ok: true, value: undefined });
   });
 
   it("normalizes an empty name to null before calling core", async () => {
@@ -832,7 +832,7 @@ describe("provideJobInput", () => {
       eventId: "event-1",
       inputData: { answer: "8" },
     });
-    expect(result).toEqual({ ok: true, data: { jobId: "job-1" } });
+    expect(result).toEqual({ ok: true, value: { jobId: "job-1" } });
   });
 
   it("returns BAD_INPUT and skips core for input it cannot narrow", async () => {

@@ -50,7 +50,7 @@ export function PreviewSchedulePanel({
         return;
       }
 
-      setPreview(result.data);
+      setPreview(result.value);
     } finally {
       setIsLoading(false);
     }

@@ -1,8 +1,12 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-
+import { err, ok } from "neverthrow";
 import type { ActionError } from "@/lib/actions";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import {
   CoreApiRequestError,
   coreClientNoRedirect,
@@ -15,7 +19,6 @@ import type {
   SkillCatalogDetail,
   SkillCatalogItem,
 } from "@/lib/clients/generated/core";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -42,7 +45,7 @@ interface BrowseSkillsArgs extends AuthenticatedRequest {
 
 export const getSkillsCatalogAction = withSession<
   BrowseSkillsArgs,
-  Result<SkillCatalogItem[], ActionError>
+  ActionResultDto<SkillCatalogItem[], ActionError>
 >(async ({ view, page, perPage }) => {
   try {
     const response = await coreClientNoRedirect.getSkillsCatalog({
@@ -50,9 +53,9 @@ export const getSkillsCatalogAction = withSession<
       page,
       perPage,
     });
-    return Ok(response.data.skills);
+    return toActionResult(ok(response.data.skills));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -63,28 +66,28 @@ interface SearchSkillsArgs extends AuthenticatedRequest {
 
 export const searchSkillsAction = withSession<
   SearchSkillsArgs,
-  Result<SkillCatalogItem[], ActionError>
+  ActionResultDto<SkillCatalogItem[], ActionError>
 >(async ({ q, limit }) => {
   try {
     const response = await coreClientNoRedirect.searchSkillsCatalog({
       q,
       limit,
     });
-    return Ok(response.data.skills);
+    return toActionResult(ok(response.data.skills));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
 export const getCuratedSkillsAction = withSession<
   AuthenticatedRequest,
-  Result<SkillCatalogItem[], ActionError>
+  ActionResultDto<SkillCatalogItem[], ActionError>
 >(async () => {
   try {
     const response = await coreClientNoRedirect.getCuratedSkills();
-    return Ok(response.data.skills);
+    return toActionResult(ok(response.data.skills));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -95,40 +98,40 @@ interface SkillDetailArgs extends AuthenticatedRequest {
 
 export const getSkillDetailAction = withSession<
   SkillDetailArgs,
-  Result<SkillCatalogDetail, ActionError>
+  ActionResultDto<SkillCatalogDetail, ActionError>
 >(async ({ source, slug }) => {
   try {
     const response = await coreClientNoRedirect.getSkillDetail({
       source,
       slug,
     });
-    return Ok(response.data);
+    return toActionResult(ok(response.data));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
 export const getInstalledSkillsAction = withSession<
   AuthenticatedRequest,
-  Result<InstalledSkill[], ActionError>
+  ActionResultDto<InstalledSkill[], ActionError>
 >(async () => {
   try {
     const response = await coreClientNoRedirect.getInstalledSkills();
-    return Ok(response.data.skills);
+    return toActionResult(ok(response.data.skills));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
 export const getPreinstalledSkillsAction = withSession<
   AuthenticatedRequest,
-  Result<PreinstalledSkill[], ActionError>
+  ActionResultDto<PreinstalledSkill[], ActionError>
 >(async () => {
   try {
     const response = await coreClientNoRedirect.getPreinstalledSkills();
-    return Ok(response.data.skills);
+    return toActionResult(ok(response.data.skills));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -139,13 +142,13 @@ interface InstallSkillArgs extends AuthenticatedRequest {
 
 export const installSkillAction = withSession<
   InstallSkillArgs,
-  Result<InstallSkillResponse, ActionError>
+  ActionResultDto<InstallSkillResponse, ActionError>
 >(async ({ source, slug }) => {
   try {
     const response = await coreClientNoRedirect.installSkill({ source, slug });
-    return Ok(response.data);
+    return toActionResult(ok(response.data));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -155,12 +158,12 @@ interface RemoveSkillArgs extends AuthenticatedRequest {
 
 export const removeSkillAction = withSession<
   RemoveSkillArgs,
-  Result<true, ActionError>
+  ActionResultDto<true, ActionError>
 >(async ({ slug }) => {
   try {
     await coreClientNoRedirect.removeSkill(slug);
-    return Ok(true);
+    return toActionResult(ok(true));
   } catch (error) {
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
