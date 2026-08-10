@@ -5,7 +5,10 @@ import {
   type Prisma,
 } from "@sokosumi/database";
 
-import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/helpers/notification-feed";
+import {
+  COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+  VENDOR_GRANT_PENDING_MESSAGE_KEY,
+} from "@/helpers/notification-feed";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { publishNotificationEvent } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
@@ -132,6 +135,25 @@ export async function deletePendingVendorGrantNotifications(
     where: {
       referenceId: grantId,
       messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+      kind: NotificationKind.SYSTEM,
+    },
+  });
+
+  return result.count;
+}
+
+/**
+ * Remove pending coworker-access request notifications for an access row after
+ * it is resolved (approved, denied, or granted directly). Idempotent.
+ */
+export async function deletePendingCoworkerAccessNotifications(
+  accessId: string,
+  prismaClient: Prisma.TransactionClient | typeof prisma = prisma,
+): Promise<number> {
+  const result = await prismaClient.notification.deleteMany({
+    where: {
+      referenceId: accessId,
+      messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
       kind: NotificationKind.SYSTEM,
     },
   });

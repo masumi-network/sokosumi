@@ -111,6 +111,36 @@ describe("requireVendorAdminMembership", () => {
       message: "Vendor admin access required",
     });
   });
+
+  it("uses the provided transaction client for membership queries", async () => {
+    const txVendorFindUnique = vi
+      .fn()
+      .mockResolvedValue({ id: TEST_VENDOR_ID });
+    const txVendorMemberFindFirst = vi.fn().mockResolvedValue({ id: "vm_tx" });
+    const tx = {
+      vendor: { findUnique: txVendorFindUnique },
+      vendorMember: { findFirst: txVendorMemberFindFirst },
+    };
+
+    await expect(
+      requireVendorAdminMembership("user_123", TEST_VENDOR_ID, tx as never),
+    ).resolves.toBeUndefined();
+
+    expect(txVendorFindUnique).toHaveBeenCalledWith({
+      where: { id: TEST_VENDOR_ID },
+      select: { id: true },
+    });
+    expect(txVendorMemberFindFirst).toHaveBeenCalledWith({
+      where: {
+        vendorId: TEST_VENDOR_ID,
+        userId: "user_123",
+        role: "admin",
+      },
+      select: { id: true },
+    });
+    expect(vendorFindUniqueMock).not.toHaveBeenCalled();
+    expect(vendorMemberFindFirstMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("requireVendorAdminOrPlatformAdmin", () => {

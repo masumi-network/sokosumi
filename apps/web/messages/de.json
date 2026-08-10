@@ -781,7 +781,9 @@
       "browserPermissionDeniedTitle": "Browser-Benachrichtigungen sind blockiert",
       "browserPermissionDeniedDescription": "Benachrichtigungen für diese Website sind in deinem Browser blockiert. Öffne die Browser-Benachrichtigungseinstellungen für Sokosumi, um sie zuzulassen.",
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
-      "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden"
+      "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
+      "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
+      "coworkerAccessAcceptError": "Coworker-Early-Access konnte nicht genehmigt werden"
     },
     "HashValue": {
       "copy": "Kopieren",
@@ -3386,6 +3388,31 @@
               "description": "Whitelistete Coworker sind im Standard-Marktplatz sichtbar."
             }
           },
+          "EarlyAccess": {
+            "title": "Coworker Early Access",
+            "description": "Gewähre diesem Coworker Early Access für einen persönlichen oder Organisations-Workspace vor der globalen Whitelist. Plattform-Grants sind sofort wirksam. Widerruf bei Status „Freigegeben“ in der Liste.",
+            "targetLabel": "Empfänger",
+            "targetHint": "Organisation → Suche nach Name oder Slug. Benutzer → Suche nach Name oder E-Mail. Workspace wird automatisch aufgelöst.",
+            "targetRequired": "Organisation oder Benutzer auswählen",
+            "tabs": {
+              "organization": "Organisation",
+              "user": "Benutzer"
+            },
+            "submit": "Early Access gewähren",
+            "revoke": "Widerrufen",
+            "success": "Coworker Early Access gewährt",
+            "revokeSuccess": "Coworker Early Access widerrufen",
+            "error": "Early Access konnte nicht gewährt werden",
+            "revokeError": "Early Access konnte nicht widerrufen werden",
+            "listTitle": "Workspace-Zugriff",
+            "listEmpty": "Noch keine Workspace-Zugriffszeilen.",
+            "workspaceKindOrganization": "Organisation",
+            "workspaceKindUser": "Benutzer",
+            "statusPending": "Ausstehend",
+            "statusGranted": "Freigegeben",
+            "statusDenied": "Abgelehnt",
+            "statusRevoked": "Widerrufen"
+          },
           "cancel": "Cancel",
           "validation": {
             "priorityInteger": "Priorität muss eine ganze Zahl sein.",
@@ -4173,6 +4200,30 @@
           "grantSuccess": "Vendor-Zugriff gewährt",
           "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
         }
+      },
+      "CoworkerAccess": {
+        "title": "Coworker-Early-Access",
+        "description": "Genehmige Coworker-Early-Access für deinen persönlichen Workspace (Chat und Aufgaben vor der globalen Whitelist).",
+        "coworkersTitle": "Coworker",
+        "coworkersEmpty": "Noch kein Coworker-Early-Access.",
+        "loadErrorTitle": "Coworker-Early-Access konnte nicht geladen werden",
+        "loadError": "Beim Laden des Coworker-Early-Access ist etwas schiefgelaufen. Bitte erneut versuchen.",
+        "retry": "Erneut versuchen",
+        "statusPending": "Ausstehend",
+        "statusGranted": "Gewährt",
+        "statusDenied": "Abgelehnt",
+        "statusRevoked": "Widerrufen",
+        "Actions": {
+          "approve": "Genehmigen",
+          "deny": "Ablehnen",
+          "revoke": "Widerrufen",
+          "approveSuccess": "Coworker-Early-Access genehmigt",
+          "denySuccess": "Coworker-Early-Access abgelehnt",
+          "revokeSuccess": "Coworker-Early-Access widerrufen",
+          "approveError": "Coworker-Early-Access konnte nicht genehmigt werden",
+          "denyError": "Coworker-Early-Access konnte nicht abgelehnt werden",
+          "revokeError": "Coworker-Early-Access konnte nicht widerrufen werden"
+        }
       }
     },
     "Organizations": {
@@ -4276,6 +4327,30 @@
             "grant": "Gewähren",
             "grantSuccess": "Vendor-Zugriff gewährt",
             "grantError": "Vendor-Zugriff konnte nicht gewährt werden"
+          }
+        },
+        "CoworkerAccess": {
+          "title": "Coworker-Early-Access",
+          "description": "Genehmige Coworker-Early-Access für diese Organisation (Chat und Aufgaben vor der globalen Whitelist).",
+          "coworkersTitle": "Coworker",
+          "coworkersEmpty": "Noch kein Coworker-Early-Access.",
+          "loadErrorTitle": "Coworker-Early-Access konnte nicht geladen werden",
+          "loadError": "Beim Laden des Coworker-Early-Access ist etwas schiefgelaufen. Bitte erneut versuchen.",
+          "retry": "Erneut versuchen",
+          "statusPending": "Ausstehend",
+          "statusGranted": "Gewährt",
+          "statusDenied": "Abgelehnt",
+          "statusRevoked": "Widerrufen",
+          "Actions": {
+            "approve": "Genehmigen",
+            "deny": "Ablehnen",
+            "revoke": "Widerrufen",
+            "approveSuccess": "Coworker-Early-Access genehmigt",
+            "denySuccess": "Coworker-Early-Access abgelehnt",
+            "revokeSuccess": "Coworker-Early-Access widerrufen",
+            "approveError": "Coworker-Early-Access konnte nicht genehmigt werden",
+            "denyError": "Coworker-Early-Access konnte nicht abgelehnt werden",
+            "revokeError": "Coworker-Early-Access konnte nicht widerrufen werden"
           }
         },
         "InviteLinks": {
@@ -4606,6 +4681,34 @@
         "Metadata": {
           "title": "Coworker bearbeiten",
           "description": "Anzeigefelder zugänglicher Coworkers bearbeiten"
+        },
+        "EarlyAccess": {
+          "title": "Coworker Early Access",
+          "description": "Gewähre Early Access für einen persönlichen Workspace (Benutzer-E-Mail) oder eine Organisation (Slug). Workspaces, denen du angehörst, werden sofort freigegeben; fremde bleiben ausstehend bis Owner/Admin akzeptiert. Freigegebenen Zugriff in der Liste widerrufen.",
+          "listTitle": "Workspace-Zugriff",
+          "listEmpty": "Noch keine Workspace-Zugriffszeilen.",
+          "targetLabel": "Empfänger",
+          "targetRequired": "Organisations-Slug oder Benutzer-E-Mail eingeben",
+          "tabs": {
+            "organization": "Organisation",
+            "user": "Benutzer"
+          },
+          "organizationSlugPlaceholder": "Organisations-Slug (z. B. acme-corp)",
+          "emailPlaceholder": "Benutzer-E-Mail (z. B. pilot@example.com)",
+          "hint": "Mitglieds-Workspace → sofort freigegeben. Fremd → ausstehend bis Owner/Admin akzeptiert. Organisation: exakter Slug. Benutzer: exakte E-Mail.",
+          "submit": "Early Access gewähren",
+          "revoke": "Widerrufen",
+          "success": "Coworker Early Access gewährt",
+          "pendingSuccess": "Coworker Early Access vorgeschlagen (Freigabe ausstehend)",
+          "revokeSuccess": "Coworker Early Access widerrufen",
+          "error": "Coworker Early Access konnte nicht aktiviert werden",
+          "revokeError": "Early Access konnte nicht widerrufen werden",
+          "statusPending": "Ausstehend",
+          "statusGranted": "Freigegeben",
+          "statusDenied": "Abgelehnt",
+          "statusRevoked": "Widerrufen",
+          "workspaceKindOrganization": "Organisation",
+          "workspaceKindUser": "Benutzer"
         }
       },
       "Tasks": {
@@ -5235,6 +5338,9 @@
   "notifications": {
     "vendorGrant": {
       "pending": "{vendorName} hat Vendor-Zugriff auf den Organisations-Workspace angefordert"
+    },
+    "coworkerAccess": {
+      "pending": "{coworkerName} hat Coworker-Early-Access für deinen Workspace angefordert"
     }
   }
 }

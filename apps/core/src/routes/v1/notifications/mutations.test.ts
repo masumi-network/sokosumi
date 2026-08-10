@@ -16,6 +16,7 @@ const {
   notificationUpdateManyMock,
   notificationUpdateMock,
   vendorGrantFindManyMock,
+  coworkerWorkspaceAccessFindManyMock,
 } = vi.hoisted(() => ({
   notificationCountMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
@@ -23,6 +24,7 @@ const {
   notificationUpdateManyMock: vi.fn(),
   notificationUpdateMock: vi.fn(),
   vendorGrantFindManyMock: vi.fn(),
+  coworkerWorkspaceAccessFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -36,6 +38,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     vendorGrant: {
       findMany: vendorGrantFindManyMock,
+    },
+    coworkerWorkspaceAccess: {
+      findMany: coworkerWorkspaceAccessFindManyMock,
     },
   },
 }));
@@ -245,6 +250,7 @@ describe("GET /notifications/unread-count", () => {
     notificationCountMock.mockResolvedValue(5);
     notificationFindManyMock.mockResolvedValue([]);
     vendorGrantFindManyMock.mockResolvedValue([]);
+    coworkerWorkspaceAccessFindManyMock.mockResolvedValue([]);
   });
 
   it("returns the unread count for the authenticated user", async () => {
@@ -283,9 +289,10 @@ describe("GET /notifications/unread-count", () => {
   });
 
   it("excludes resolved vendor-grant notifications from unread count", async () => {
-    notificationFindManyMock.mockResolvedValue([
-      { referenceId: "grant_resolved" },
-    ]);
+    // Promise.all: vendor stale lookup first, coworker stale second.
+    notificationFindManyMock
+      .mockResolvedValueOnce([{ referenceId: "grant_resolved" }])
+      .mockResolvedValueOnce([]);
     vendorGrantFindManyMock.mockResolvedValue([
       { id: "grant_resolved", status: "GRANTED" },
     ]);
@@ -303,6 +310,33 @@ describe("GET /notifications/unread-count", () => {
           AND: [
             { messageKey: "notifications.vendorGrant.pending" },
             { referenceId: { in: ["grant_resolved"] } },
+          ],
+        },
+      },
+    });
+  });
+
+  it("excludes resolved coworker-access notifications from unread count", async () => {
+    notificationFindManyMock
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ referenceId: "access_resolved" }]);
+    coworkerWorkspaceAccessFindManyMock.mockResolvedValue([
+      { id: "access_resolved", status: "GRANTED" },
+    ]);
+
+    const app = createApp(mountGetUnreadCount);
+    const response = await app.request("http://localhost/unread-count");
+
+    expect(response.status).toBe(200);
+    expect(notificationCountMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_123",
+        isRead: false,
+        kind: { notIn: [NotificationKind.CHAT] },
+        NOT: {
+          AND: [
+            { messageKey: "notifications.coworkerAccess.pending" },
+            { referenceId: { in: ["access_resolved"] } },
           ],
         },
       },

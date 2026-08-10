@@ -3,8 +3,11 @@ import { type NotificationKind, type Prisma } from "@sokosumi/database";
 
 import { badRequest } from "@/helpers/error";
 import {
+  excludeResolvedCoworkerAccessNotificationsWhere,
   excludeResolvedVendorGrantNotificationsWhere,
+  findStaleCoworkerAccessNotificationReferenceIds,
   findStaleVendorGrantNotificationReferenceIds,
+  mergeAccessNotificationExclusions,
   notificationFeedKindWhere,
 } from "@/helpers/notification-feed";
 import {
@@ -156,14 +159,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const queryParams = c.req.valid("query");
     const { cursor, take, skip } = parseCursorPagination(queryParams);
 
-    const staleVendorGrantReferenceIds =
-      await findStaleVendorGrantNotificationReferenceIds(userContext.userId);
+    const [staleVendorGrantReferenceIds, staleCoworkerAccessReferenceIds] =
+      await Promise.all([
+        findStaleVendorGrantNotificationReferenceIds(userContext.userId),
+        findStaleCoworkerAccessNotificationReferenceIds(userContext.userId),
+      ]);
 
     const where: Prisma.NotificationWhereInput = {
       userId: userContext.userId,
       kind: notificationFeedKindWhere(queryParams.kind),
-      ...excludeResolvedVendorGrantNotificationsWhere(
-        staleVendorGrantReferenceIds,
+      ...mergeAccessNotificationExclusions(
+        excludeResolvedVendorGrantNotificationsWhere(
+          staleVendorGrantReferenceIds,
+        ),
+        excludeResolvedCoworkerAccessNotificationsWhere(
+          staleCoworkerAccessReferenceIds,
+        ),
       ),
     };
 

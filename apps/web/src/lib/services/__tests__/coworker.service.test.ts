@@ -33,7 +33,7 @@ describe("coworker.service", () => {
 
     expect(coreClientMock.getCoworkers).toHaveBeenCalledTimes(1);
     expect(coreClientMock.getCoworkers).toHaveBeenCalledWith({
-      scope: "whitelisted",
+      scope: "available",
     });
     expect(result).toEqual([
       {
@@ -95,7 +95,7 @@ describe("coworker.service", () => {
     await coworkerService.listCoworkers("tasks");
 
     expect(coreClientMock.getCoworkers).toHaveBeenCalledWith({
-      scope: "whitelisted",
+      scope: "available",
       capability: ["tasks"],
     });
   });
@@ -148,7 +148,7 @@ describe("coworker.service", () => {
     const result = await coworkerService.listCoworkers("chat");
 
     expect(coreClientMock.getCoworkers).toHaveBeenCalledWith({
-      scope: "whitelisted",
+      scope: "available",
       capability: ["chat"],
     });
     expect(result).toEqual([runnableChatCoworker]);

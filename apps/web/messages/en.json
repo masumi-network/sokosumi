@@ -797,7 +797,9 @@
       "browserPermissionDeniedTitle": "Browser notifications are blocked",
       "browserPermissionDeniedDescription": "Notifications for this site are blocked in your browser. Open your browser’s notification settings for Sokosumi to allow them.",
       "vendorGrantAcceptSuccess": "Vendor access approved",
-      "vendorGrantAcceptError": "Failed to approve vendor access"
+      "vendorGrantAcceptError": "Failed to approve vendor access",
+      "coworkerAccessAcceptSuccess": "Coworker early access approved",
+      "coworkerAccessAcceptError": "Failed to approve coworker early access"
     },
     "HashValue": {
       "copy": "Copy",
@@ -3446,6 +3448,31 @@
               "description": "Whitelisted coworkers are visible in the default marketplace scope."
             }
           },
+          "EarlyAccess": {
+            "title": "Coworker early access",
+            "description": "Grant this coworker early access to a personal or organization workspace before global whitelist. Platform grants are immediate. Revoke from the list when status is Granted.",
+            "targetLabel": "Recipient",
+            "targetHint": "Organization → search by name or slug. User → search by name or email. Resolves to that workspace automatically.",
+            "targetRequired": "Select an organization or user",
+            "tabs": {
+              "organization": "Organization",
+              "user": "User"
+            },
+            "submit": "Grant early access",
+            "revoke": "Revoke",
+            "success": "Coworker early access granted",
+            "revokeSuccess": "Coworker early access revoked",
+            "error": "Failed to grant coworker early access",
+            "revokeError": "Failed to revoke coworker early access",
+            "listTitle": "Workspace access",
+            "listEmpty": "No workspace access rows yet.",
+            "workspaceKindOrganization": "Organization",
+            "workspaceKindUser": "User",
+            "statusPending": "Pending",
+            "statusGranted": "Granted",
+            "statusDenied": "Denied",
+            "statusRevoked": "Revoked"
+          },
           "cancel": "Cancel",
           "validation": {
             "priorityInteger": "Priority must be a whole number.",
@@ -4204,6 +4231,30 @@
           "grantSuccess": "Vendor access granted",
           "grantError": "Failed to grant vendor access"
         }
+      },
+      "CoworkerAccess": {
+        "title": "Coworker early access",
+        "description": "Approve coworker early access for your personal workspace (chat and tasks before global whitelist).",
+        "coworkersTitle": "Coworkers",
+        "coworkersEmpty": "No coworker early access yet.",
+        "loadErrorTitle": "Couldn't load coworker early access",
+        "loadError": "Something went wrong loading coworker early access. Retry to try again.",
+        "retry": "Retry",
+        "statusPending": "Pending",
+        "statusGranted": "Granted",
+        "statusDenied": "Denied",
+        "statusRevoked": "Revoked",
+        "Actions": {
+          "approve": "Approve",
+          "deny": "Deny",
+          "revoke": "Revoke",
+          "approveSuccess": "Coworker early access approved",
+          "denySuccess": "Coworker early access denied",
+          "revokeSuccess": "Coworker early access revoked",
+          "approveError": "Failed to approve coworker early access",
+          "denyError": "Failed to deny coworker early access",
+          "revokeError": "Failed to revoke coworker early access"
+        }
       }
     },
     "Organizations": {
@@ -4307,6 +4358,30 @@
             "grant": "Grant",
             "grantSuccess": "Vendor access granted",
             "grantError": "Failed to grant vendor access"
+          }
+        },
+        "CoworkerAccess": {
+          "title": "Coworker early access",
+          "description": "Approve coworker early access for this organization (chat and tasks before global whitelist).",
+          "coworkersTitle": "Coworkers",
+          "coworkersEmpty": "No coworker early access yet.",
+          "loadErrorTitle": "Couldn't load coworker early access",
+          "loadError": "Something went wrong loading coworker early access. Retry to try again.",
+          "retry": "Retry",
+          "statusPending": "Pending",
+          "statusGranted": "Granted",
+          "statusDenied": "Denied",
+          "statusRevoked": "Revoked",
+          "Actions": {
+            "approve": "Approve",
+            "deny": "Deny",
+            "revoke": "Revoke",
+            "approveSuccess": "Coworker early access approved",
+            "denySuccess": "Coworker early access denied",
+            "revokeSuccess": "Coworker early access revoked",
+            "approveError": "Failed to approve coworker early access",
+            "denyError": "Failed to deny coworker early access",
+            "revokeError": "Failed to revoke coworker early access"
           }
         },
         "InviteLinks": {
@@ -4634,6 +4709,34 @@
         "Metadata": {
           "title": "Edit coworker",
           "description": "Edit accessible coworker display fields"
+        },
+        "EarlyAccess": {
+          "title": "Coworker early access",
+          "description": "Grant early access for a personal workspace (user email) or organization (slug). Workspaces you belong to grant immediately; foreign workspaces stay pending until the owner or admin accepts. Revoke granted access from the list.",
+          "listTitle": "Workspace access",
+          "listEmpty": "No workspace access rows yet.",
+          "targetLabel": "Recipient",
+          "targetRequired": "Enter an organization slug or user email",
+          "tabs": {
+            "organization": "Organization",
+            "user": "User"
+          },
+          "organizationSlugPlaceholder": "Organization slug (e.g. acme-corp)",
+          "emailPlaceholder": "User email (e.g. pilot@example.com)",
+          "hint": "Member workspace → granted immediately. Foreign → pending until owner/admin accepts. Organization: exact slug. User: exact email.",
+          "submit": "Grant early access",
+          "revoke": "Revoke",
+          "success": "Coworker early access granted",
+          "pendingSuccess": "Coworker early access proposed (pending approval)",
+          "revokeSuccess": "Coworker early access revoked",
+          "error": "Failed to enable coworker early access",
+          "revokeError": "Failed to revoke coworker early access",
+          "statusPending": "Pending",
+          "statusGranted": "Granted",
+          "statusDenied": "Denied",
+          "statusRevoked": "Revoked",
+          "workspaceKindOrganization": "Organization",
+          "workspaceKindUser": "User"
         }
       },
       "Tasks": {
@@ -5235,6 +5338,9 @@
   "notifications": {
     "vendorGrant": {
       "pending": "{vendorName} requested vendor access to your workspace"
+    },
+    "coworkerAccess": {
+      "pending": "{coworkerName} requested coworker early access to your workspace"
     }
   }
 }

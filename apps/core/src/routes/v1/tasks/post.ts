@@ -295,7 +295,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     });
 
     if (body.assigneeId !== null && body.assigneeId !== undefined) {
-      await requireTaskAssignableCoworker(body.assigneeId);
+      await requireTaskAssignableCoworker(
+        body.assigneeId,
+        workspaceContext.workspaceId,
+      );
     }
 
     const shouldEnforceCreateGrant =

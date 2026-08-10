@@ -28,6 +28,7 @@ import {
   mapChatRoomWithSidebarFlags,
   normalizeUniqueStrings,
   requireActiveOrganizationId,
+  resolveWorkspaceIdForChatRoom,
   validateChatCoworkerIds,
   validateOrganizationUserIds,
 } from "./helpers";
@@ -107,8 +108,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           [userContext.userId, ...(body.memberUserIds ?? [])],
           tx,
         );
+        const workspaceId = await resolveWorkspaceIdForChatRoom({
+          organizationId,
+          personalUserId: userContext.userId,
+          tx,
+        });
         const coworkerIds = await validateChatCoworkerIds(
           body.coworkerIds ?? [],
+          workspaceId,
           tx,
         );
         const slug = await buildUniqueRoomSlug(
@@ -269,8 +276,14 @@ async function createOrGetDirectRoom(params: {
               tx,
             )
           : [];
+        const workspaceId = await resolveWorkspaceIdForChatRoom({
+          organizationId: roomOrganizationId,
+          personalUserId: currentUserId,
+          tx,
+        });
         const coworkerIds = await validateChatCoworkerIds(
           requestedCoworkerIds,
+          workspaceId,
           tx,
         );
         const directKey = buildDirectParticipantRoomKey({

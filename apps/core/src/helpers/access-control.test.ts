@@ -1,4 +1,5 @@
 import {
+  CoworkerWorkspaceAccessStatus,
   MemberRole,
   type Prisma,
   TaskStatus,
@@ -15,9 +16,12 @@ import type {
 } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import {
+  buildCoworkerUsableInWorkspaceWhere,
+  buildCoworkerVisibleToUserOr,
   requireConversationCoworkerAccess,
   requireCoworkerCapability,
   requireCoworkerChatCapability,
+  requireCoworkerChatCapabilityInWorkspace,
   requireCoworkerTaskCollaboration,
   requireJobCollaboration,
   requireJobOwnership,
@@ -690,7 +694,6 @@ describe("requireTaskReadForRouteVars", () => {
       where: {
         id: "cow_123",
         archivedAt: null,
-        isWhitelisted: true,
         capabilities: {
           has: "tasks",
         },
@@ -1447,8 +1450,87 @@ describe("requireCoworkerTaskCollaboration", () => {
   });
 });
 
+describe("buildCoworkerUsableInWorkspaceWhere", () => {
+  it("allows global whitelist or GRANTED workspace access", () => {
+    expect(buildCoworkerUsableInWorkspaceWhere(workspaceId)).toEqual({
+      archivedAt: null,
+      OR: [
+        { isWhitelisted: true },
+        {
+          workspaceAccess: {
+            some: {
+              workspaceId,
+              status: CoworkerWorkspaceAccessStatus.GRANTED,
+            },
+          },
+        },
+      ],
+    });
+  });
+});
+
+describe("buildCoworkerVisibleToUserOr", () => {
+  it("includes whitelist, vendor membership, and GRANTED on user workspaces", () => {
+    expect(buildCoworkerVisibleToUserOr("user_123")).toEqual([
+      { isWhitelisted: true },
+      {
+        vendor: {
+          vendorMembers: {
+            some: {
+              userId: "user_123",
+              role: "admin",
+            },
+          },
+        },
+      },
+      {
+        assignments: {
+          some: {
+            userId: "user_123",
+          },
+        },
+      },
+      {
+        workspaceAccess: {
+          some: {
+            status: CoworkerWorkspaceAccessStatus.GRANTED,
+            workspace: {
+              OR: [
+                { userId: "user_123" },
+                {
+                  organization: {
+                    members: { some: { userId: "user_123" } },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    ]);
+  });
+});
+
+const usableInWorkspaceWhere = {
+  archivedAt: null,
+  OR: [
+    { isWhitelisted: true },
+    {
+      workspaceAccess: {
+        some: {
+          workspaceId,
+          status: CoworkerWorkspaceAccessStatus.GRANTED,
+        },
+      },
+    },
+  ],
+  capabilities: {
+    has: "tasks" as const,
+  },
+};
+
 describe("requireTaskAssignableCoworker", () => {
-  it("only accepts active whitelisted coworkers with tasks capability", async () => {
+  it("accepts whitelisted active coworkers with tasks capability", async () => {
     const tx = {
       coworker: {
         findFirst: vi.fn().mockResolvedValue({
@@ -1459,16 +1541,12 @@ describe("requireTaskAssignableCoworker", () => {
       },
     } as unknown as Prisma.TransactionClient;
 
-    await requireTaskAssignableCoworker("cow_123", tx);
+    await requireTaskAssignableCoworker("cow_123", workspaceId, tx);
 
     expect(tx.coworker.findFirst).toHaveBeenCalledWith({
       where: {
         id: "cow_123",
-        archivedAt: null,
-        isWhitelisted: true,
-        capabilities: {
-          has: "tasks",
-        },
+        ...usableInWorkspaceWhere,
       },
       select: {
         id: true,
@@ -1478,16 +1556,42 @@ describe("requireTaskAssignableCoworker", () => {
     });
   });
 
-  it("rejects non-assignable coworkers", async () => {
+  it("accepts non-whitelisted coworkers with GRANTED workspace access", async () => {
+    const tx = {
+      coworker: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "cow_123",
+          slug: "pilot-agent",
+          baseURL: null,
+        }),
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    await requireTaskAssignableCoworker("cow_123", workspaceId, tx);
+
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+        ...usableInWorkspaceWhere,
+      },
+      select: {
+        id: true,
+        slug: true,
+        baseURL: true,
+      },
+    });
+  });
+
+  it("rejects when no usable coworker matches (PENDING/DENIED/REVOKED/wrong workspace/archived/no tasks)", async () => {
     const tx = {
       coworker: {
         findFirst: vi.fn().mockResolvedValue(null),
       },
     } as unknown as Prisma.TransactionClient;
 
-    await expect(requireTaskAssignableCoworker("cow_123", tx)).rejects.toThrow(
-      "Coworker not found",
-    );
+    await expect(
+      requireTaskAssignableCoworker("cow_123", workspaceId, tx),
+    ).rejects.toThrow("Coworker is not usable in this workspace");
   });
 });
 
@@ -1500,10 +1604,36 @@ describe("requireCoworkerCapability", () => {
       requireCoworkerCapability("cow_123", "tasks", tx),
     ).rejects.toThrow("Coworker is not allowed to use tasks");
   });
+
+  it("passes for non-whitelisted active coworker with capability (actor path)", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "pilot-agent",
+      baseURL: null,
+    } as never);
+
+    await requireCoworkerCapability("cow_123", "tasks", tx);
+
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+        archivedAt: null,
+        capabilities: {
+          has: "tasks",
+        },
+      },
+      select: {
+        id: true,
+        slug: true,
+        baseURL: true,
+      },
+    });
+  });
 });
 
 describe("requireCoworkerChatCapability", () => {
-  it("requires whitelist, chat capability, and baseURL", async () => {
+  it("requires active chat capability and baseURL without whitelist (actor path)", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
       id: "cow_123",
@@ -1517,13 +1647,10 @@ describe("requireCoworkerChatCapability", () => {
       where: {
         id: "cow_123",
         archivedAt: null,
-        isWhitelisted: true,
         capabilities: {
           has: "chat",
         },
-        baseURL: {
-          not: null,
-        },
+        AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
       },
       select: {
         id: true,
@@ -1531,6 +1658,55 @@ describe("requireCoworkerChatCapability", () => {
         baseURL: true,
       },
     });
+  });
+});
+
+describe("requireCoworkerChatCapabilityInWorkspace", () => {
+  it("requires workspace usability, chat capability, and baseURL", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
+      id: "cow_123",
+      slug: "ops-agent",
+      baseURL: "https://responses.example.com/v1",
+    } as never);
+
+    await requireCoworkerChatCapabilityInWorkspace("cow_123", workspaceId, tx);
+
+    expect(tx.coworker.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: "cow_123",
+        archivedAt: null,
+        OR: [
+          { isWhitelisted: true },
+          {
+            workspaceAccess: {
+              some: {
+                workspaceId,
+                status: CoworkerWorkspaceAccessStatus.GRANTED,
+              },
+            },
+          },
+        ],
+        capabilities: {
+          has: "chat",
+        },
+        AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
+      },
+      select: {
+        id: true,
+        slug: true,
+        baseURL: true,
+      },
+    });
+  });
+
+  it("rejects when coworker is not usable in the workspace", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireCoworkerChatCapabilityInWorkspace("cow_123", workspaceId, tx),
+    ).rejects.toThrow("Coworker chat is not available");
   });
 });
 

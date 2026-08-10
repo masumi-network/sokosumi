@@ -2,9 +2,11 @@ import type { SokosumiProviderCallOptions } from "@sokosumi/ai-provider";
 import { coworkerTextLooksLikeAgentError } from "@sokosumi/ai-provider";
 import { streamText } from "ai";
 
+import { findUsableCoworkerByCapabilityInWorkspace } from "@/helpers/access-control";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import prisma from "@/lib/db/prisma";
 import { getSokosumiProvider } from "@/lib/sokosumi-ai-provider";
+import { resolveWorkspaceIdForChatRoom } from "@/routes/v1/chats/rooms/helpers";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
 
 /** Hard ceiling for streamText only (not conversation create ≤25s). */
@@ -175,9 +177,6 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
           slug: true,
           name: true,
           baseURL: true,
-          archivedAt: true,
-          isWhitelisted: true,
-          capabilities: true,
         },
       },
       message: {
@@ -212,17 +211,6 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     return;
   }
 
-  const coworker = mention.coworker;
-  if (
-    coworker.archivedAt ||
-    !coworker.isWhitelisted ||
-    !coworker.capabilities.includes("chat") ||
-    !coworker.baseURL?.trim()
-  ) {
-    await markMentionFailed(mentionId, "Coworker chat is not available");
-    return;
-  }
-
   // Fail closed when the human sender row was deleted (SetNull): billing /
   // provider auth as the room creator would attribute cost to the wrong user.
   const userId = mention.message.senderUserId;
@@ -230,6 +218,35 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     await markMentionFailed(mentionId, "Mention sender is no longer available");
     return;
   }
+
+  // Org room → org workspace; personal room → message sender personal workspace.
+  let workspaceId: string;
+  try {
+    workspaceId = await resolveWorkspaceIdForChatRoom({
+      organizationId: mention.message.room.organizationId,
+      personalUserId: userId,
+    });
+  } catch {
+    await markMentionFailed(mentionId, "Coworker chat is not available");
+    return;
+  }
+
+  const usableCoworker = await findUsableCoworkerByCapabilityInWorkspace(
+    mention.coworker.id,
+    workspaceId,
+    "chat",
+    prisma,
+    { requireBaseUrl: true },
+  );
+  if (!usableCoworker?.baseURL?.trim()) {
+    await markMentionFailed(mentionId, "Coworker chat is not available");
+    return;
+  }
+
+  const coworker = {
+    ...mention.coworker,
+    baseURL: usableCoworker.baseURL,
+  };
 
   // Roster is source of truth: a PATCH that drops this coworker must stop an
   // in-flight mention from posting after eviction.

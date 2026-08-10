@@ -1,4 +1,5 @@
 import {
+  CoworkerWorkspaceAccessStatus,
   type Job,
   MemberRole,
   type Prisma,
@@ -27,13 +28,13 @@ import {
 import type { CoworkerCapability } from "./coworker-capability";
 import { forbidden, notFound } from "./error";
 import { resolveMemberOrganizationById } from "./organization";
-
 import {
   getWorkspaceGrant,
   requestWorkspaceGrantCommitted,
   requireTaskNotParked,
   throwGrantAccessError,
 } from "./vendor-grants";
+import { buildAccessibleCoworkerMembershipOr } from "./vendor-membership";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
 
 // -----------------------------------------------------------------------------
@@ -181,7 +182,82 @@ export async function requireTaskArchiveAccess(
 // Coworker capability (usable coworker + capability / assignment readiness)
 // -----------------------------------------------------------------------------
 
-async function findUsableCoworkerByCapability(
+/**
+ * Human-side usability in a workspace: not archived AND (global whitelist OR
+ * GRANTED CoworkerWorkspaceAccess for this workspace).
+ */
+export function buildCoworkerUsableInWorkspaceWhere(
+  workspaceId: string,
+): Prisma.CoworkerWhereInput {
+  return {
+    archivedAt: null,
+    OR: [
+      { isWhitelisted: true },
+      {
+        workspaceAccess: {
+          some: {
+            workspaceId,
+            status: CoworkerWorkspaceAccessStatus.GRANTED,
+          },
+        },
+      },
+    ],
+  };
+}
+
+/**
+ * Prisma OR branches for coworkers a user may resolve by id (name chips,
+ * enrichment) without enumerating private rows: marketplace whitelist, vendor
+ * admin / assignment membership, or GRANTED workspace access on a personal or
+ * org workspace the user belongs to.
+ *
+ * User-scoped (not single-workspace) — used by Hermes confirmation enrich
+ * where instance context has no active workspace.
+ */
+export function buildCoworkerVisibleToUserOr(
+  userId: string,
+): Prisma.CoworkerWhereInput[] {
+  return [
+    { isWhitelisted: true },
+    ...buildAccessibleCoworkerMembershipOr(userId),
+    {
+      workspaceAccess: {
+        some: {
+          status: CoworkerWorkspaceAccessStatus.GRANTED,
+          workspace: {
+            OR: [
+              { userId },
+              { organization: { members: { some: { userId } } } },
+            ],
+          },
+        },
+      },
+    },
+  ];
+}
+
+/**
+ * Chat baseURL must be present and non-empty (spec: usability rule).
+ * Does not reject whitespace-only strings at SQL layer — callers that need
+ * that also run {@link hasNonEmptyBaseUrl}.
+ */
+export function buildCoworkerNonEmptyBaseUrlWhere(): Prisma.CoworkerWhereInput {
+  return {
+    AND: [{ baseURL: { not: null } }, { baseURL: { not: "" } }],
+  };
+}
+
+export function hasNonEmptyBaseUrl(
+  baseURL: string | null | undefined,
+): baseURL is string {
+  return typeof baseURL === "string" && baseURL.trim().length > 0;
+}
+
+/**
+ * Actor API-key paths: active (non-archived) + capability only.
+ * No global whitelist and no workspace-access row required.
+ */
+async function findActiveCoworkerByCapability(
   coworkerId: string,
   capability: CoworkerCapability,
   tx: Prisma.TransactionClient = prisma,
@@ -193,11 +269,10 @@ async function findUsableCoworkerByCapability(
     where: {
       id: coworkerId,
       archivedAt: null,
-      isWhitelisted: true,
       capabilities: {
         has: capability,
       },
-      ...(options?.requireBaseUrl ? { baseURL: { not: null } } : {}),
+      ...(options?.requireBaseUrl ? buildCoworkerNonEmptyBaseUrlWhere() : {}),
     },
     select: {
       id: true,
@@ -207,12 +282,44 @@ async function findUsableCoworkerByCapability(
   });
 }
 
+/**
+ * Human pick/use in a workspace: whitelist OR GRANTED access, plus capability.
+ */
+export async function findUsableCoworkerByCapabilityInWorkspace(
+  coworkerId: string,
+  workspaceId: string,
+  capability: CoworkerCapability,
+  tx: Prisma.TransactionClient = prisma,
+  options?: {
+    requireBaseUrl?: boolean;
+  },
+): Promise<{ id: string; slug: string; baseURL: string | null } | null> {
+  return await tx.coworker.findFirst({
+    where: {
+      id: coworkerId,
+      ...buildCoworkerUsableInWorkspaceWhere(workspaceId),
+      capabilities: {
+        has: capability,
+      },
+      ...(options?.requireBaseUrl ? buildCoworkerNonEmptyBaseUrlWhere() : {}),
+    },
+    select: {
+      id: true,
+      slug: true,
+      baseURL: true,
+    },
+  });
+}
+
+/**
+ * Actor routes: active + capability. No whitelist / workspace access gate.
+ */
 export async function requireCoworkerCapability(
   coworkerId: string,
   capability: CoworkerCapability,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const coworker = await findUsableCoworkerByCapability(
+  const coworker = await findActiveCoworkerByCapability(
     coworkerId,
     capability,
     tx,
@@ -223,6 +330,10 @@ export async function requireCoworkerCapability(
   }
 }
 
+/**
+ * Actor chat helper: active + chat capability + baseURL. No whitelist.
+ * Human chat-in-workspace uses {@link requireCoworkerChatCapabilityInWorkspace}.
+ */
 export async function requireCoworkerChatCapability(
   coworkerId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -231,7 +342,7 @@ export async function requireCoworkerChatCapability(
   slug: string;
   baseURL: string | null;
 }> {
-  const coworker = await findUsableCoworkerByCapability(
+  const coworker = await findActiveCoworkerByCapability(
     coworkerId,
     "chat",
     tx,
@@ -240,25 +351,62 @@ export async function requireCoworkerChatCapability(
     },
   );
 
-  if (!coworker) {
+  if (!coworker || !hasNonEmptyBaseUrl(coworker.baseURL)) {
     throw forbidden("Coworker chat is not available");
   }
 
   return coworker;
 }
 
+/**
+ * Human chat-in-workspace: whitelist OR GRANTED access, chat capability, baseURL.
+ */
+export async function requireCoworkerChatCapabilityInWorkspace(
+  coworkerId: string,
+  workspaceId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<{
+  id: string;
+  slug: string;
+  baseURL: string | null;
+}> {
+  const coworker = await findUsableCoworkerByCapabilityInWorkspace(
+    coworkerId,
+    workspaceId,
+    "chat",
+    tx,
+    {
+      requireBaseUrl: true,
+    },
+  );
+
+  if (!coworker || !hasNonEmptyBaseUrl(coworker.baseURL)) {
+    throw forbidden("Coworker chat is not available");
+  }
+
+  return coworker;
+}
+
+/**
+ * Human task assign: coworker must be usable in the target workspace and have
+ * the tasks capability.
+ */
 export async function requireTaskAssignableCoworker(
   coworkerId: string,
+  workspaceId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const coworker = await findUsableCoworkerByCapability(
+  const coworker = await findUsableCoworkerByCapabilityInWorkspace(
     coworkerId,
+    workspaceId,
     "tasks",
     tx,
   );
 
   if (!coworker) {
-    throw notFound("Coworker not found");
+    // Covers missing, archived, no tasks capability, and no whitelist/GRANTED
+    // access in this workspace (including task moves into a foreign workspace).
+    throw notFound("Coworker is not usable in this workspace");
   }
 }
 
