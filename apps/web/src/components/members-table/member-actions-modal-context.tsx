@@ -59,7 +59,7 @@ export function MemberActionsModalContextProvider({
           };
         }
         notifySeatUnassigned(member.id);
-        return { data: result.data, error: null };
+        return { data: result.value, error: null };
       }
       case MemberAction.CHANGE_TO_OWNER:
         return await authClient.organization.updateMemberRole({

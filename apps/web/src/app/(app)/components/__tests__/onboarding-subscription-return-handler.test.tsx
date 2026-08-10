@@ -44,7 +44,7 @@ describe("OnboardingSubscriptionReturnHandler", () => {
     );
     completeOnboardingMock.mockResolvedValue({
       ok: true,
-      data: { redirectUrl: "/tasks" },
+      value: { redirectUrl: "/tasks" },
     });
 
     render(<OnboardingSubscriptionReturnHandler />);

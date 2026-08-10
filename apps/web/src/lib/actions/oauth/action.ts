@@ -1,9 +1,13 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { type ActionError, CommonErrorCode } from "@/lib/actions";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 
 /**
  * Revokes OAuth client access by deleting consent, revoking refresh tokens, and deleting access tokens.
@@ -15,45 +19,55 @@ import { Err, Ok, type Result } from "@/lib/ts-res";
 export async function revokeOAuthClientAccess(
   consentId: string,
   clientId: string,
-): Promise<Result<void, ActionError>> {
+): Promise<ActionResultDto<void, ActionError>> {
   try {
     // Verify user is authenticated
     const session = await getSession();
     if (!session?.user?.id) {
-      return Err({
-        code: CommonErrorCode.UNAUTHENTICATED,
-        message: "You must be authenticated to revoke OAuth access",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.UNAUTHENTICATED,
+          message: "You must be authenticated to revoke OAuth access",
+        }),
+      );
     }
 
     await coreClient.revokeMyOauthConsent(consentId, clientId);
 
-    return Ok(undefined);
+    return toActionResult(ok(undefined));
   } catch (error) {
     if (error instanceof CoreApiRequestError) {
       switch (error.status) {
         case 400:
-          return Err({
-            code: CommonErrorCode.BAD_INPUT,
-            message: "Client ID does not match the consent",
-          });
+          return toActionResult(
+            err({
+              code: CommonErrorCode.BAD_INPUT,
+              message: "Client ID does not match the consent",
+            }),
+          );
         case 403:
-          return Err({
-            code: CommonErrorCode.UNAUTHORIZED,
-            message: "You can only revoke your own OAuth consents",
-          });
+          return toActionResult(
+            err({
+              code: CommonErrorCode.UNAUTHORIZED,
+              message: "You can only revoke your own OAuth consents",
+            }),
+          );
         case 404:
-          return Err({
-            code: CommonErrorCode.BAD_INPUT,
-            message: "Consent not found",
-          });
+          return toActionResult(
+            err({
+              code: CommonErrorCode.BAD_INPUT,
+              message: "Consent not found",
+            }),
+          );
       }
     }
 
     console.error("Failed to revoke OAuth client access", error);
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      message: "Failed to revoke OAuth client access",
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        message: "Failed to revoke OAuth client access",
+      }),
+    );
   }
 }

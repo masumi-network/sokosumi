@@ -1,13 +1,17 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import type { Vendor } from "@/lib/clients/generated/core";
 import { vendorService } from "@/lib/services/vendor.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -46,25 +50,29 @@ interface PatchVendorProfileParameters extends AuthenticatedRequest {
 
 export const patchVendorProfileAction = withSession<
   PatchVendorProfileParameters,
-  Result<Vendor, ActionError>
+  ActionResultDto<Vendor, ActionError>
 >(async ({ input }) => {
   try {
     const parsed = patchVendorProfileSchema.safeParse(input);
     if (!parsed.success) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Invalid vendor profile input",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid vendor profile input",
+        }),
+      );
     }
 
     const panelData = await vendorService.getVendorAdminPanelData(
       parsed.data.vendorId,
     );
     if (!panelData) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: "Vendor admin access required",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.UNAUTHORIZED,
+          message: "Vendor admin access required",
+        }),
+      );
     }
 
     const vendor = await vendorService.patchVendorProfile(
@@ -84,8 +92,8 @@ export const patchVendorProfileAction = withSession<
     );
 
     revalidateDeveloperVendorRoutes(parsed.data.vendorId);
-    return Ok(vendor);
+    return toActionResult(ok(vendor));
   } catch (error) {
-    return Err(toCoreApiActionError(error));
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });

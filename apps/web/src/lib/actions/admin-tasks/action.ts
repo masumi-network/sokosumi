@@ -1,5 +1,11 @@
 "use server";
 
+import { err, ok } from "neverthrow";
+
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
@@ -8,7 +14,6 @@ import {
   adminTaskService,
   type ListAdminTasksParams,
 } from "@/lib/services/admin-task.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -34,12 +39,14 @@ interface ListAdminTasksRequest
 
 export const listAdminTasksAction = withSession<
   ListAdminTasksRequest,
-  Result<AdminTaskListPage, ActionError>
+  ActionResultDto<AdminTaskListPage, ActionError>
 >(async ({ session, query, cursor, limit }) => {
   try {
     assertAdminSession(session);
-    return Ok(await adminTaskService.listTasks({ query, cursor, limit }));
+    return toActionResult(
+      ok(await adminTaskService.listTasks({ query, cursor, limit })),
+    );
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });

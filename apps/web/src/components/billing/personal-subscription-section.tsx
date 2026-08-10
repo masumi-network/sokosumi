@@ -104,8 +104,8 @@ export function PersonalSubscriptionSection({
         return;
       }
 
-      if (result.data.mode === "redirect") {
-        window.location.href = result.data.url;
+      if (result.value.mode === "redirect") {
+        window.location.href = result.value.url;
         return;
       }
 

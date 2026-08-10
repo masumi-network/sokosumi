@@ -1,7 +1,12 @@
 import "server-only";
 
 import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
+import { err, ok } from "neverthrow";
 import { headers } from "next/headers";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
 import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
@@ -11,7 +16,6 @@ import {
 } from "@/lib/auth/auth.server.client";
 import { getAbsoluteRedirectUrlForOrigin } from "@/lib/auth/auth.utils";
 import { buildSubscriptionStatusPath } from "@/lib/stripe/subscription-redirect-urls";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 
 export type SubscriptionChangeResult =
   | { mode: "complete" }
@@ -52,16 +56,16 @@ function mapAuthClientError(error: BetterAuthClientError): ActionError {
 
 function resolveUpgradeResult(
   data: { url?: string | null } | null | undefined,
-): Result<SubscriptionChangeResult, ActionError> {
+): ActionResultDto<SubscriptionChangeResult, ActionError> {
   if (!data?.url) {
-    return Ok({ mode: "complete" });
+    return toActionResult(ok({ mode: "complete" }));
   }
 
-  return Ok({ mode: "redirect", url: data.url });
+  return toActionResult(ok({ mode: "redirect", url: data.url }));
 }
 
 async function resolveSubscriptionRedirectUrls(returnPath: string): Promise<
-  Result<
+  ActionResultDto<
     {
       cancelUrl: string;
       returnUrl: string;
@@ -74,28 +78,32 @@ async function resolveSubscriptionRedirectUrls(returnPath: string): Promise<
   const origin = resolveWebRequestOrigin(requestHeaders);
 
   if (!origin) {
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      }),
+    );
   }
 
-  return Ok({
-    cancelUrl: getAbsoluteRedirectUrlForOrigin(
-      origin,
-      buildSubscriptionStatusPath(returnPath, "cancel"),
-      SAFE_REDIRECT_FALLBACK,
-    ),
-    returnUrl: getAbsoluteRedirectUrlForOrigin(
-      origin,
-      returnPath,
-      SAFE_REDIRECT_FALLBACK,
-    ),
-    successUrl: getAbsoluteRedirectUrlForOrigin(
-      origin,
-      buildSubscriptionStatusPath(returnPath, "success"),
-      SAFE_REDIRECT_FALLBACK,
-    ),
-  });
+  return toActionResult(
+    ok({
+      cancelUrl: getAbsoluteRedirectUrlForOrigin(
+        origin,
+        buildSubscriptionStatusPath(returnPath, "cancel"),
+        SAFE_REDIRECT_FALLBACK,
+      ),
+      returnUrl: getAbsoluteRedirectUrlForOrigin(
+        origin,
+        returnPath,
+        SAFE_REDIRECT_FALLBACK,
+      ),
+      successUrl: getAbsoluteRedirectUrlForOrigin(
+        origin,
+        buildSubscriptionStatusPath(returnPath, "success"),
+        SAFE_REDIRECT_FALLBACK,
+      ),
+    }),
+  );
 }
 
 export async function upgradePersonalSubscriptionServer({
@@ -104,16 +112,16 @@ export async function upgradePersonalSubscriptionServer({
 }: {
   plan: PaidSubscriptionPlanName;
   returnPath?: string;
-}): Promise<Result<SubscriptionChangeResult, ActionError>> {
+}): Promise<ActionResultDto<SubscriptionChangeResult, ActionError>> {
   const resolvedReturnPath = returnPath ?? "/billing?tab=subscription";
   const redirectUrlsResult =
     await resolveSubscriptionRedirectUrls(resolvedReturnPath);
 
   if (!redirectUrlsResult.ok) {
-    return Err(redirectUrlsResult.error);
+    return toActionResult(err(redirectUrlsResult.error));
   }
 
-  const redirectUrls = redirectUrlsResult.data;
+  const redirectUrls = redirectUrlsResult.value;
 
   const result = await getAuthServerClient().subscription.upgrade({
     plan,
@@ -125,7 +133,7 @@ export async function upgradePersonalSubscriptionServer({
   });
 
   if (result.error) {
-    return Err(mapAuthClientError(result.error));
+    return toActionResult(err(mapAuthClientError(result.error)));
   }
 
   await clearSubscriptionOnboardingGateSessionCookie();
@@ -137,32 +145,34 @@ export async function openPersonalBillingPortalServer({
   returnPath,
 }: {
   returnPath?: string;
-}): Promise<Result<{ url: string }, ActionError>> {
+}): Promise<ActionResultDto<{ url: string }, ActionError>> {
   const resolvedReturnPath = returnPath ?? "/billing?tab=subscription";
   const redirectUrlsResult =
     await resolveSubscriptionRedirectUrls(resolvedReturnPath);
 
   if (!redirectUrlsResult.ok) {
-    return Err(redirectUrlsResult.error);
+    return toActionResult(err(redirectUrlsResult.error));
   }
 
   const result = await getAuthServerClient().subscription.billingPortal({
     customerType: "user",
-    returnUrl: redirectUrlsResult.data.returnUrl,
+    returnUrl: redirectUrlsResult.value.returnUrl,
     disableRedirect: true,
   });
 
   if (result.error) {
-    return Err(mapAuthClientError(result.error));
+    return toActionResult(err(mapAuthClientError(result.error)));
   }
 
   if (!result.data?.url) {
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      }),
+    );
   }
 
-  return Ok({ url: result.data.url });
+  return toActionResult(ok({ url: result.data.url }));
 }
 
 export async function upgradeOrganizationSubscriptionServer({
@@ -175,14 +185,14 @@ export async function upgradeOrganizationSubscriptionServer({
   plan: PaidSubscriptionPlanName;
   returnPath: string;
   seats: number;
-}): Promise<Result<SubscriptionChangeResult, ActionError>> {
+}): Promise<ActionResultDto<SubscriptionChangeResult, ActionError>> {
   const redirectUrlsResult = await resolveSubscriptionRedirectUrls(returnPath);
 
   if (!redirectUrlsResult.ok) {
-    return Err(redirectUrlsResult.error);
+    return toActionResult(err(redirectUrlsResult.error));
   }
 
-  const redirectUrls = redirectUrlsResult.data;
+  const redirectUrls = redirectUrlsResult.value;
 
   const result = await getAuthServerClient().subscription.upgrade({
     plan,
@@ -196,7 +206,7 @@ export async function upgradeOrganizationSubscriptionServer({
   });
 
   if (result.error) {
-    return Err(mapAuthClientError(result.error));
+    return toActionResult(err(mapAuthClientError(result.error)));
   }
 
   await clearSubscriptionOnboardingGateSessionCookie();
@@ -210,29 +220,31 @@ export async function openOrganizationBillingPortalServer({
 }: {
   organizationId: string;
   returnPath: string;
-}): Promise<Result<{ url: string }, ActionError>> {
+}): Promise<ActionResultDto<{ url: string }, ActionError>> {
   const redirectUrlsResult = await resolveSubscriptionRedirectUrls(returnPath);
 
   if (!redirectUrlsResult.ok) {
-    return Err(redirectUrlsResult.error);
+    return toActionResult(err(redirectUrlsResult.error));
   }
 
   const result = await getAuthServerClient().subscription.billingPortal({
     customerType: "organization",
     referenceId: organizationId,
-    returnUrl: redirectUrlsResult.data.returnUrl,
+    returnUrl: redirectUrlsResult.value.returnUrl,
     disableRedirect: true,
   });
 
   if (result.error) {
-    return Err(mapAuthClientError(result.error));
+    return toActionResult(err(mapAuthClientError(result.error)));
   }
 
   if (!result.data?.url) {
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      }),
+    );
   }
 
-  return Ok({ url: result.data.url });
+  return toActionResult(ok({ url: result.data.url }));
 }

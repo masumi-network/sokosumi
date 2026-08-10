@@ -33,6 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import { listAdminOrganizationMembersAction } from "@/lib/actions/admin-organizations/action";
 import {
   addAdminOrganizationMemberAction,
@@ -50,7 +51,6 @@ import type {
   AdminOrganizationOverviewDetail,
 } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
-import type { Result } from "@/lib/ts-res";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 interface OrganizationDetailPanelProps {
@@ -96,10 +96,10 @@ export function OrganizationDetailPanel({
         return;
       }
       setMembers((current) =>
-        cursor ? [...current, ...result.data.members] : result.data.members,
+        cursor ? [...current, ...result.value.members] : result.value.members,
       );
-      setMemberTotal(result.data.total);
-      setNextCursor(result.data.nextCursor);
+      setMemberTotal(result.value.total);
+      setNextCursor(result.value.nextCursor);
     });
   }
 
@@ -116,7 +116,7 @@ export function OrganizationDetailPanel({
   }
 
   function runMemberAction(
-    action: () => Promise<Result<void, ActionError>>,
+    action: () => Promise<ActionResultDto<void, ActionError>>,
     successMessage: string,
   ) {
     startTransition(async () => {

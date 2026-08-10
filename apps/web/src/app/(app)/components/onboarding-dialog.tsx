@@ -490,7 +490,7 @@ export function OnboardingDialog({
     try {
       const result = await completeOnboarding();
       if (result.ok) {
-        const redirectUrl = result.data.redirectUrl ?? "/agents";
+        const redirectUrl = result.value.redirectUrl ?? "/agents";
         setOpen(false);
         router.push(redirectUrl);
       } else {
@@ -619,8 +619,8 @@ export function OnboardingDialog({
         return;
       }
 
-      if (result.data.mode === "redirect") {
-        window.location.href = result.data.url;
+      if (result.value.mode === "redirect") {
+        window.location.href = result.value.url;
         return;
       }
 

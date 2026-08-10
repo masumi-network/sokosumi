@@ -1,6 +1,11 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
@@ -11,7 +16,6 @@ import {
   FreeCreditValidationError,
   freeCreditAdminService,
 } from "@/lib/services/free-credit-admin.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -49,7 +53,7 @@ interface GrantFreeCreditsParameters extends AuthenticatedRequest {
 
 export const grantFreeCreditsAction = withSession<
   GrantFreeCreditsParameters,
-  Result<FreeCreditGrant, ActionError>
+  ActionResultDto<FreeCreditGrant, ActionError>
 >(
   async ({
     session,
@@ -71,9 +75,9 @@ export const grantFreeCreditsAction = withSession<
       revalidatePath("/admin/users");
       revalidatePath("/admin/organizations", "layout");
       revalidatePath("/admin/tasks");
-      return Ok(grant);
+      return toActionResult(ok(grant));
     } catch (error) {
-      return Err(mapError(error));
+      return toActionResult(err(mapError(error)));
     }
   },
 );

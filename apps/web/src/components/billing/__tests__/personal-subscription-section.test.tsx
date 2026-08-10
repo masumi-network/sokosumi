@@ -80,7 +80,7 @@ describe("PersonalSubscriptionSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     upgradePersonalSubscriptionMock.mockResolvedValue({
-      data: { mode: "redirect", url: "https://checkout.stripe.com/test" },
+      value: { mode: "redirect", url: "https://checkout.stripe.com/test" },
       ok: true,
     });
   });
@@ -163,7 +163,7 @@ describe("PersonalSubscriptionSection", () => {
 
   it("shows success toast and refreshes when upgrade completes without checkout redirect", async () => {
     upgradePersonalSubscriptionMock.mockResolvedValue({
-      data: { mode: "complete" },
+      value: { mode: "complete" },
       ok: true,
     });
 

@@ -51,7 +51,7 @@ describe("admin search actions", () => {
     expect(searchUsersServiceMock).toHaveBeenCalledWith("ada");
     expect(result).toEqual({
       ok: true,
-      data: [{ id: "u1", name: "Ada", email: "ada@example.com" }],
+      value: [{ id: "u1", name: "Ada", email: "ada@example.com" }],
     });
   });
 
@@ -65,7 +65,7 @@ describe("admin search actions", () => {
     expect(searchOrganizationsServiceMock).toHaveBeenCalledWith("acme");
     expect(result).toEqual({
       ok: true,
-      data: [{ id: "o1", name: "Acme", slug: "acme" }],
+      value: [{ id: "o1", name: "Acme", slug: "acme" }],
     });
   });
 

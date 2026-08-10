@@ -128,7 +128,7 @@ export function InvoiceList({ initialInvoices }: InvoiceListProps) {
         toast.error(result.error.message ?? t("loadError"));
         return;
       }
-      setInvoices(result.data);
+      setInvoices(result.value);
     });
   }
 

@@ -1,5 +1,11 @@
 "use server";
 
+import { err, ok } from "neverthrow";
+
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
@@ -11,7 +17,6 @@ import {
   type AdminUserOption,
   adminUserService,
 } from "@/lib/services/admin-user.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -37,24 +42,26 @@ interface SearchParameters extends AuthenticatedRequest {
 
 export const searchUsersAction = withSession<
   SearchParameters,
-  Result<AdminUserOption[], ActionError>
+  ActionResultDto<AdminUserOption[], ActionError>
 >(async ({ session, query }) => {
   try {
     assertAdminSession(session);
-    return Ok(await adminUserService.searchUsers(query));
+    return toActionResult(ok(await adminUserService.searchUsers(query)));
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });
 
 export const searchOrganizationsAction = withSession<
   SearchParameters,
-  Result<AdminOrganizationOption[], ActionError>
+  ActionResultDto<AdminOrganizationOption[], ActionError>
 >(async ({ session, query }) => {
   try {
     assertAdminSession(session);
-    return Ok(await adminOrganizationService.searchOrganizations(query));
+    return toActionResult(
+      ok(await adminOrganizationService.searchOrganizations(query)),
+    );
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });
