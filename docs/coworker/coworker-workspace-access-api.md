@@ -108,7 +108,20 @@ workspace do not leak into user B’s personal chat.
 | Vendor admin (own-vendor coworker) × workspace they **belong to** | Same create path | Immediate `GRANTED` (reopens terminal) |
 | Vendor admin (own-vendor coworker) × **foreign** workspace | Same create path | Upsert `PENDING` if not terminal; `400` if `DENIED` / `REVOKED` |
 | Workspace owner / org owner-admin | Approve / deny / revoke on their workspace | `PENDING` → `GRANTED` or `DENIED`; `GRANTED` → `REVOKED` (no force reopen) |
+| Platform / vendor admin | Force-revoke by `(coworkerId, workspace)` | `GRANTED` → `REVOKED` |
 | Anyone else | — | `403` |
+
+**Revoke roster cleanup:** successful owner/admin revoke and platform force-revoke
+also detach `ChatRoomCoworkerMember` rows for that coworker in rooms scoped to
+the workspace (org rooms by `organizationId`; personal rooms where the workspace
+owner is a user member), fail open `pending`/`sent` mentions in those rooms, and
+record channel membership-status timeline rows (`"{name} left"`) for live roster
+updates — **unless** the coworker remains usable in that workspace (e.g. still
+globally whitelisted). Status messages are published over Ably after the
+transaction commits (best-effort; revoke still succeeds if publish fails).
+Direct rooms do not get status timeline rows (same as room leave / roster PATCH).
+Dispatch / stream remain fail-closed if a membership is somehow still present.
+Same database transaction as the status flip for DB writes.
 
 **Belonging to a workspace** (vendor direct grant eligibility):
 
@@ -154,7 +167,7 @@ Unique on `(coworkerId, workspaceId)`.
 | --- | --- | --- | --- |
 | `POST` | `/v1/coworkers/{id}/workspace-access` | User session; platform admin **or** vendor admin for coworker’s vendor | Body: **exactly one** of `workspaceId`, `userId`, `organizationId`, `email`, `organizationSlug`. Create may **upsert** missing personal/org workspaces. Status from write rules. `201` + access DTO. |
 | `GET` | `/v1/coworkers/{id}/workspace-access` | Platform admin **or** vendor admin for coworker’s vendor | List access rows for that coworker (newest first), with workspace display fields. |
-| `POST` | `/v1/coworkers/{id}/workspace-access/revoke` | Platform admin only | Same target body as create. **Find-only** (no workspace create). Force `GRANTED` → `REVOKED`. |
+| `POST` | `/v1/coworkers/{id}/workspace-access/revoke` | Platform admin **or** vendor admin for coworker’s vendor | Same target body as create. **Find-only** (no workspace create). Force `GRANTED` → `REVOKED`. |
 
 **Target body examples:**
 

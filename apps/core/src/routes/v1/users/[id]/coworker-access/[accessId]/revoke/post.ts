@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import {
   revokeCoworkerWorkspaceAccess,
   toCoworkerWorkspaceAccessApiShape,
@@ -62,15 +63,22 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       throw badRequest("Personal workspace not found");
     }
 
-    const access = await prisma.$transaction(async (tx) =>
-      revokeCoworkerWorkspaceAccess(
-        {
-          accessId,
-          workspaceId: workspace.id,
-          resolvedById: userContext.userId,
-        },
-        tx,
-      ),
+    const { access, membershipStatusMessages } = await prisma.$transaction(
+      async (tx) =>
+        revokeCoworkerWorkspaceAccess(
+          {
+            accessId,
+            workspaceId: workspace.id,
+            resolvedById: userContext.userId,
+          },
+          tx,
+        ),
+    );
+
+    // Membership already committed; status publish must not fail the revoke.
+    await publishChatRoomMembershipStatusMessagesBestEffort(
+      membershipStatusMessages,
+      "chat membership status after coworker access revoke",
     );
 
     return ok(

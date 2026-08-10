@@ -19,6 +19,7 @@ import {
 } from "./chat-membership-revoked-event";
 import { chatRoomIdsFromAblyCapability } from "./chat-room-ids-from-ably-capability";
 import { personalizeChatRoomMessageEvent } from "./personalize-chat-room-message-event";
+import { safeDetachChannel } from "./safe-detach-channel";
 
 const CHAT_ROOM_MESSAGE_EVENT_NAME = "chat_room_message";
 
@@ -104,7 +105,7 @@ export function useChatRoomRealtime({
         return;
       }
       channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
-      void channel.detach();
+      safeDetachChannel(channel);
       attached.delete(roomId);
     }
 
@@ -157,7 +158,7 @@ export function useChatRoomRealtime({
           continue;
         }
         channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
-        void channel.detach();
+        safeDetachChannel(channel);
         attached.delete(roomId);
       }
 
@@ -235,7 +236,7 @@ export function useChatRoomRealtime({
         CHAT_MEMBERSHIP_REVOKED_EVENT_NAME,
         handleMembershipRevoked,
       );
-      void controlChannel.detach();
+      safeDetachChannel(controlChannel);
     };
   }, [ably, currentUserId, roomIdsKey]);
 
@@ -248,7 +249,7 @@ export function useChatRoomRealtime({
       const attached = channelsRef.current;
       for (const channel of attached.values()) {
         channel.unsubscribe(CHAT_ROOM_MESSAGE_EVENT_NAME, handleMessage);
-        void channel.detach();
+        safeDetachChannel(channel);
       }
       attached.clear();
     };
