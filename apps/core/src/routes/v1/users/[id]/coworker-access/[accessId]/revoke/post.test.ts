@@ -15,11 +15,13 @@ const {
   workspaceFindUniqueMock,
   prismaTransactionMock,
   userFindUniqueMock,
+  publishMembershipStatusMock,
 } = vi.hoisted(() => ({
   revokeMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
+  publishMembershipStatusMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -35,6 +37,11 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/helpers/coworker-user-context-binding", () => ({
   assertCoworkerUserContextBinding: vi.fn().mockResolvedValue(undefined),
   requireAuthorizedUserContext: vi.fn(),
+}));
+
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMembershipStatusMessagesBestEffort: (...args: unknown[]) =>
+    publishMembershipStatusMock(...args),
 }));
 
 vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
@@ -89,30 +96,35 @@ describe("POST /users/{id}/coworker-access/{accessId}/revoke", () => {
     vi.clearAllMocks();
     userFindUniqueMock.mockResolvedValue({ id: "user_123" });
     workspaceFindUniqueMock.mockResolvedValue({ id: workspaceId });
+    publishMembershipStatusMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (callback: (tx: unknown) => unknown) => callback({}),
     );
   });
 
   it("revokes GRANTED access → 200 REVOKED", async () => {
+    const statusMessages = [{ id: "status-1", roomId: "room-1" }];
     revokeMock.mockResolvedValue({
-      id: accessId,
-      coworkerId,
-      coworker: { name: "Ops Pilot", slug: "ops-pilot" },
-      workspace: {
-        id: "workspace-1",
-        userId: null,
-        organizationId: "org-1",
-        user: null,
-        organization: { name: "Acme Corp", slug: "acme-corp" },
+      access: {
+        id: accessId,
+        coworkerId,
+        coworker: { name: "Ops Pilot", slug: "ops-pilot" },
+        workspace: {
+          id: "workspace-1",
+          userId: null,
+          organizationId: "org-1",
+          user: null,
+          organization: { name: "Acme Corp", slug: "acme-corp" },
+        },
+        workspaceId,
+        status: CoworkerWorkspaceAccessStatus.REVOKED,
+        requestedByUserId: "requester",
+        resolvedAt: now,
+        resolvedById: "user_123",
+        createdAt: now,
+        updatedAt: now,
       },
-      workspaceId,
-      status: CoworkerWorkspaceAccessStatus.REVOKED,
-      requestedByUserId: "requester",
-      resolvedAt: now,
-      resolvedById: "user_123",
-      createdAt: now,
-      updatedAt: now,
+      membershipStatusMessages: statusMessages,
     });
 
     const response = await createApp().request(
@@ -134,6 +146,10 @@ describe("POST /users/{id}/coworker-access/{accessId}/revoke", () => {
         resolvedById: "user_123",
       },
       {},
+    );
+    expect(publishMembershipStatusMock).toHaveBeenCalledWith(
+      statusMessages,
+      "chat membership status after coworker access revoke",
     );
   });
 

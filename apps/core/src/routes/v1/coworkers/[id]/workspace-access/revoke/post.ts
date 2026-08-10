@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import {
   forceRevokeCoworkerWorkspaceAccessByPair,
   resolveCoworkerAccessTargetWorkspaceId,
@@ -58,37 +59,45 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Authz + resolve + lock + status flip share one transaction so membership
     // and FOR UPDATE cannot race against demotion / concurrent revokes.
     // Find-only resolve: never create workspaces on ops undo.
-    const access = await prisma.$transaction(async (tx) => {
-      const coworker = await tx.coworker.findFirst({
-        where: { id: coworkerId },
-        select: { id: true, vendorId: true },
-      });
-      if (!coworker) {
-        throw notFound("Coworker not found");
-      }
+    const { access, membershipStatusMessages } = await prisma.$transaction(
+      async (tx) => {
+        const coworker = await tx.coworker.findFirst({
+          where: { id: coworkerId },
+          select: { id: true, vendorId: true },
+        });
+        if (!coworker) {
+          throw notFound("Coworker not found");
+        }
 
-      if (!isPlatformAdmin) {
-        await requireVendorAdminMembership(
-          userAuth.userId,
-          coworker.vendorId,
+        if (!isPlatformAdmin) {
+          await requireVendorAdminMembership(
+            userAuth.userId,
+            coworker.vendorId,
+            tx,
+          );
+        }
+
+        const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(
+          target,
+          { createIfMissing: false },
           tx,
         );
-      }
+        return forceRevokeCoworkerWorkspaceAccessByPair(
+          {
+            coworkerId,
+            workspaceId,
+            resolvedById: userAuth.userId,
+          },
+          tx,
+        );
+      },
+    );
 
-      const workspaceId = await resolveCoworkerAccessTargetWorkspaceId(
-        target,
-        { createIfMissing: false },
-        tx,
-      );
-      return forceRevokeCoworkerWorkspaceAccessByPair(
-        {
-          coworkerId,
-          workspaceId,
-          resolvedById: userAuth.userId,
-        },
-        tx,
-      );
-    });
+    // Membership already committed; status publish must not fail the revoke.
+    await publishChatRoomMembershipStatusMessagesBestEffort(
+      membershipStatusMessages,
+      "chat membership status after coworker access force-revoke",
+    );
 
     return ok(
       c,

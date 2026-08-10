@@ -12,12 +12,14 @@ const {
   prismaTransactionMock,
   coworkerFindFirstMock,
   requireVendorAdminMembershipMock,
+  publishMembershipStatusMock,
 } = vi.hoisted(() => ({
   forceRevokeMock: vi.fn(),
   resolveWorkspaceMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
   requireVendorAdminMembershipMock: vi.fn(),
+  publishMembershipStatusMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
@@ -37,6 +39,11 @@ vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
 vi.mock("@/helpers/vendor-membership", () => ({
   requireVendorAdminMembership: (...args: unknown[]) =>
     requireVendorAdminMembershipMock(...args),
+}));
+
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMembershipStatusMessagesBestEffort: (...args: unknown[]) =>
+    publishMembershipStatusMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -116,6 +123,7 @@ describe("POST /coworkers/{id}/workspace-access/revoke", () => {
     resolveWorkspaceMock.mockResolvedValue(workspaceId);
     coworkerFindFirstMock.mockResolvedValue({ id: coworkerId, vendorId });
     requireVendorAdminMembershipMock.mockResolvedValue(undefined);
+    publishMembershipStatusMock.mockResolvedValue(undefined);
     prismaTransactionMock.mockImplementation(
       async (fn: (tx: unknown) => Promise<unknown>) =>
         fn({
@@ -127,7 +135,10 @@ describe("POST /coworkers/{id}/workspace-access/revoke", () => {
   });
 
   it("revokes GRANTED access for platform admin without vendor check", async () => {
-    forceRevokeMock.mockResolvedValue(baseAccess());
+    forceRevokeMock.mockResolvedValue({
+      access: baseAccess(),
+      membershipStatusMessages: [{ id: "status-force", roomId: "room-1" }],
+    });
 
     const response = await postRevoke(createApp("admin"));
     const body = await response.json();
@@ -142,6 +153,10 @@ describe("POST /coworkers/{id}/workspace-access/revoke", () => {
       status: CoworkerWorkspaceAccessStatus.REVOKED,
     });
     expect(requireVendorAdminMembershipMock).not.toHaveBeenCalled();
+    expect(publishMembershipStatusMock).toHaveBeenCalledWith(
+      [{ id: "status-force", roomId: "room-1" }],
+      "chat membership status after coworker access force-revoke",
+    );
     expect(forceRevokeMock).toHaveBeenCalledWith(
       {
         coworkerId,
@@ -153,7 +168,10 @@ describe("POST /coworkers/{id}/workspace-access/revoke", () => {
   });
 
   it("revokes GRANTED access for vendor admin of the coworker", async () => {
-    forceRevokeMock.mockResolvedValue(baseAccess());
+    forceRevokeMock.mockResolvedValue({
+      access: baseAccess(),
+      membershipStatusMessages: [],
+    });
 
     const response = await postRevoke(createApp("user", "vendor_admin"));
     const body = await response.json();
