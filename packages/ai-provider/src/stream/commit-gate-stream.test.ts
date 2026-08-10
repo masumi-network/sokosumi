@@ -2,6 +2,7 @@ import type { LanguageModelV4StreamPart } from "@ai-sdk/provider";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  COWORKER_AGENT_ERROR_MARKER,
   COWORKER_AGENT_ERROR_SNIPPET,
   MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS,
 } from "../coworker-agent-error.js";
@@ -86,6 +87,31 @@ describe("createCommitGateStream", () => {
         {
           type: "text-delta",
           delta: `${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`,
+        },
+        { type: "finish" },
+      ]),
+      { onRetryNeeded },
+    );
+
+    const text = await collectText(stream);
+    expect(onRetryNeeded).toHaveBeenCalledOnce();
+    expect(onRetryNeeded).toHaveBeenCalledWith("agent-error");
+    expect(text).toBe("This is a complete coworker reply.");
+  });
+
+  it("retries on AGENT_ERROR marker the same as full agent-error snippet", async () => {
+    const onRetryNeeded = vi.fn(async () =>
+      partsStream([
+        { type: "text-delta", delta: "This is a complete coworker reply." },
+        { type: "finish" },
+      ]),
+    );
+
+    const stream = createCommitGateStream(
+      partsStream([
+        {
+          type: "text-delta",
+          delta: `Prefix ${COWORKER_AGENT_ERROR_MARKER} suffix`,
         },
         { type: "finish" },
       ]),

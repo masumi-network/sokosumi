@@ -1,7 +1,7 @@
 import type { LanguageModelV4StreamPart } from "@ai-sdk/provider";
 
 import {
-  COWORKER_AGENT_ERROR_SNIPPET,
+  coworkerTextLooksLikeAgentError,
   MIN_GOOD_COWORKER_OUTPUT_TEXT_CHARS,
 } from "../coworker-agent-error.js";
 
@@ -14,15 +14,11 @@ export interface CommitGateOptions {
   minGoodChars?: number;
 }
 
-function coworkerStreamTextLooksLikeAgentError(text: string): boolean {
-  return text.includes(COWORKER_AGENT_ERROR_SNIPPET);
-}
-
 function coworkerStreamTextLooksSuspiciouslyShort(
   text: string,
   minGoodChars: number,
 ): boolean {
-  if (coworkerStreamTextLooksLikeAgentError(text)) {
+  if (coworkerTextLooksLikeAgentError(text)) {
     return false;
   }
   const trimmed = text.trim();
@@ -30,7 +26,7 @@ function coworkerStreamTextLooksSuspiciouslyShort(
 }
 
 function canCommitStream(text: string, minGoodChars: number): boolean {
-  if (coworkerStreamTextLooksLikeAgentError(text)) {
+  if (coworkerTextLooksLikeAgentError(text)) {
     return false;
   }
   return text.length >= minGoodChars;
@@ -168,7 +164,7 @@ export function createCommitGateStream(
 
         if (!committed) {
           let retryReason: CommitGateRetryReason | null = null;
-          if (coworkerStreamTextLooksLikeAgentError(textSoFar)) {
+          if (coworkerTextLooksLikeAgentError(textSoFar)) {
             retryReason = "agent-error";
           } else if (
             coworkerStreamTextLooksSuspiciouslyShort(textSoFar, minGoodChars)
