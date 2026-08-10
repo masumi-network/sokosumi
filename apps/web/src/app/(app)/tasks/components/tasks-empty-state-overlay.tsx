@@ -38,6 +38,8 @@ const ADD_FALLBACK_LEFT_PADDING = 56;
 const ADD_FALLBACK_BOTTOM_PADDING = 210;
 const ADD_TARGET_OUTSIDE_OFFSET = 14;
 const ADD_LINE_ENDPOINT_OFFSET = 0;
+const MOBILE_HINT_ESTIMATED_WIDTH = 140;
+const MOBILE_HINT_VIEWPORT_PADDING = 12;
 
 type TasksEmptyStateTargetSurface = "desktop" | "mobile";
 
@@ -79,6 +81,40 @@ export function selectTasksEmptyStateAddTaskTarget(
   if (hasLayoutBox(header)) return header;
 
   return null;
+}
+
+/**
+ * Keep the mobile “add task” hint on-screen. Right-aligned FAB leaves ~24px
+ * when the label is placed at `end.x + 20`; prefer left-of-target + clamp.
+ */
+export function resolveMobileGuideHintPosition(
+  end: Point,
+  start: Point,
+  viewportWidth: number,
+): Point {
+  const maxX = Math.max(
+    MOBILE_HINT_VIEWPORT_PADDING,
+    viewportWidth - MOBILE_HINT_ESTIMATED_WIDTH - MOBILE_HINT_VIEWPORT_PADDING,
+  );
+  const isTargetAbove = end.y < start.y;
+
+  if (isTargetAbove) {
+    return {
+      x: Math.min(end.x + 20, maxX),
+      y: end.y + 60,
+    };
+  }
+
+  return {
+    x: Math.min(
+      Math.max(
+        MOBILE_HINT_VIEWPORT_PADDING,
+        end.x - MOBILE_HINT_ESTIMATED_WIDTH,
+      ),
+      maxX,
+    ),
+    y: end.y - 48,
+  };
 }
 
 const GUIDE_STEPS = ["addTask", "getStarted"] as const;
@@ -209,10 +245,7 @@ export function TasksEmptyStateOverlay({
       setMobileLayout({
         start,
         end,
-        label: {
-          x: end.x + 20,
-          y: end.y < start.y ? end.y + 60 : end.y - 48,
-        },
+        label: resolveMobileGuideHintPosition(end, start, window.innerWidth),
       });
     }
 

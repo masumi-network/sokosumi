@@ -1208,7 +1208,7 @@ export function TasksView({
       onValueChange={(value: string) => setActiveTab(value as TasksTabValue)}
       className={cn(
         "flex h-full min-h-0 flex-1 flex-col gap-5",
-        LIST_MOBILE_CREATE_FAB_CLEARANCE,
+        activeTab === "tasks" && LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
       <div className="flex flex-row items-center justify-between gap-3">
@@ -1455,7 +1455,7 @@ export function TasksView({
         </LazyAblyProvider>
       ) : null}
       {tabsContent}
-      <TasksMobileCreateFabSlot />
+      {activeTab === "tasks" ? <TasksMobileCreateFabSlot /> : null}
       {shouldShowEmptyStateOverlay ? (
         <TasksEmptyStateOverlay
           labels={labels.emptyState}

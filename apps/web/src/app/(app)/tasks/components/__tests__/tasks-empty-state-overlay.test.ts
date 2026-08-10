@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getTasksEmptyStateGuideContent,
+  resolveMobileGuideHintPosition,
   selectTasksEmptyStateAddTaskTarget,
 } from "@/app/tasks/components/tasks-empty-state-overlay";
 
@@ -106,5 +107,27 @@ describe("selectTasksEmptyStateAddTaskTarget", () => {
     document.body.append(header, fabShell);
 
     expect(selectTasksEmptyStateAddTaskTarget("desktop")).toBe(header);
+  });
+});
+
+describe("resolveMobileGuideHintPosition", () => {
+  it("places the hint left of a right-aligned FAB so it stays in viewport", () => {
+    const start = { x: 195, y: 320 };
+    const end = { x: 346, y: 640 }; // FAB center near right edge of 390px phone
+    const label = resolveMobileGuideHintPosition(end, start, 390);
+
+    expect(label.x).toBeLessThan(end.x);
+    expect(label.x + 140).toBeLessThanOrEqual(390 - 12);
+    expect(label.x).toBeGreaterThanOrEqual(12);
+    expect(label.y).toBe(end.y - 48);
+  });
+
+  it("clamps above-target hints that would overflow the right edge", () => {
+    const start = { x: 195, y: 320 };
+    const end = { x: 360, y: 80 };
+    const label = resolveMobileGuideHintPosition(end, start, 390);
+
+    expect(label.x).toBe(390 - 140 - 12);
+    expect(label.y).toBe(end.y + 60);
   });
 });
