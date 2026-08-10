@@ -16,28 +16,14 @@ import {
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
 } from "../room-helpers";
 
+/** Tokens that encode the room blank-line spacing contract. */
+const DENSITY_CLASS = "prose-p:my-0";
+const INTER_PARAGRAPH_GAP_CLASS = "[&_p+p]:mt-3";
+
 function fromHtml(html: string): string {
   const root = document.createElement("div");
   root.innerHTML = html;
   return htmlToMarkdown(root);
-}
-
-/** True if DOM still shows a blank line between "line one" and "line two". */
-function hasVisibleBlankBetween(container: HTMLElement): boolean {
-  const paragraphs = Array.from(container.querySelectorAll("p"));
-  const brCount = container.querySelectorAll("br").length;
-  const hasEmptyP = paragraphs.some((p) => (p.textContent ?? "").trim() === "");
-  const rootClass =
-    (container.firstElementChild as HTMLElement | null)?.className ?? "";
-  const marginsZeroed = rootClass.includes("prose-p:my-0");
-  // Explicit gap between consecutive paragraphs (room density fix).
-  const hasInterParagraphGap = rootClass.includes("p+p]:mt-");
-
-  if (hasEmptyP) return true;
-  if (brCount >= 2) return true;
-  if (hasInterParagraphGap && paragraphs.length >= 2) return true;
-  if (!marginsZeroed && paragraphs.length >= 2) return true;
-  return false;
 }
 
 function renderRoom(content: string) {
@@ -46,7 +32,34 @@ function renderRoom(content: string) {
   );
 }
 
+function roomRootClass(container: HTMLElement): string {
+  return (container.firstElementChild as HTMLElement | null)?.className ?? "";
+}
+
+/**
+ * Blank-line contract: adjacent content paragraphs under density + gap classes.
+ * Does not accept empty `<p>`, multi-`<br>`, or non-zeroed margins as substitutes.
+ */
+function assertsBlankLineSpacingContract(container: HTMLElement): void {
+  const paragraphs = Array.from(container.querySelectorAll("p"));
+  const rootClass = roomRootClass(container);
+
+  expect(paragraphs.length).toBeGreaterThanOrEqual(2);
+  expect(paragraphs.every((p) => (p.textContent ?? "").trim().length > 0)).toBe(
+    true,
+  );
+  expect(rootClass).toContain(DENSITY_CLASS);
+  expect(rootClass).toContain(INTER_PARAGRAPH_GAP_CLASS);
+}
+
 describe("room message blank lines after send", () => {
+  it("ROOM_MESSAGE_MARKDOWN_CLASSNAME carries density + inter-paragraph gap", () => {
+    expect(ROOM_MESSAGE_MARKDOWN_CLASSNAME).toContain(DENSITY_CLASS);
+    expect(ROOM_MESSAGE_MARKDOWN_CLASSNAME).toContain(
+      INTER_PARAGRAPH_GAP_CLASS,
+    );
+  });
+
   it("send path keeps internal blank line in payload", () => {
     const md = fromHtml("line one<br><br>line two");
     const payload = buildRoomComposerMessageContent(md, [], () => "");
@@ -67,12 +80,21 @@ describe("room message blank lines after send", () => {
     expect(payload).toMatch(/line one\n\n+line two/);
   });
 
-  it("AFTER SEND: blank line still visible in room message body", () => {
+  it("AFTER SEND: blank line uses adjacent paragraphs with density + gap classes", () => {
     const md = fromHtml("line one<br><br>line two");
     const payload = buildRoomComposerMessageContent(md, [], () => "");
     const { container } = renderRoom(payload);
-    expect(hasVisibleBlankBetween(container)).toBe(true);
-    expect(ROOM_MESSAGE_MARKDOWN_CLASSNAME).toContain("p+p]:mt-");
+    assertsBlankLineSpacingContract(container);
+  });
+
+  it("AFTER SEND: single-paragraph message keeps density without multi-p requirement", () => {
+    const { container } = renderRoom("just one paragraph");
+    const paragraphs = container.querySelectorAll("p");
+    const rootClass = roomRootClass(container);
+
+    expect(paragraphs.length).toBe(1);
+    expect(rootClass).toContain(DENSITY_CLASS);
+    expect(rootClass).toContain(INTER_PARAGRAPH_GAP_CLASS);
   });
 
   it("AFTER SEND: soft single newline still visible (line break kept)", () => {
