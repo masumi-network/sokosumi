@@ -45,7 +45,7 @@ describe("grantDeveloperCoworkerEarlyAccessAction", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data).toEqual({
+      expect(result.value).toEqual({
         accessId: "access-1",
         status: "GRANTED",
       });
