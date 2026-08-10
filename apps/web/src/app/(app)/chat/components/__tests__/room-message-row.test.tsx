@@ -1587,7 +1587,7 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
   });
 
-  it("shows static terminal status for replied and failed mentions", () => {
+  it("hides mention status when coworker replied; shows failed terminal only", () => {
     const coworkersById = new Map([
       [
         "cow-1",
@@ -1618,11 +1618,12 @@ describe("ChatMessageRow coworker Thought", () => {
         onToggleReaction={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("coworker-mention-terminal")).toHaveAttribute(
-      "data-variant",
-      "responded",
-    );
-    expect(screen.getByTestId("bui-static-grid")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-mention-terminal"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("coworker-loading-state"),
+    ).not.toBeInTheDocument();
 
     rerender(
       <ChatMessageRow

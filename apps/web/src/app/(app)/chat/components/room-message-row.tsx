@@ -1258,9 +1258,13 @@ function MessageMetaFooter({
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
       ) : null}
-      {!isDeleted && message.mentions.length > 0 ? (
+      {!isDeleted && message.mentions.some((m) => m.status !== "responded") ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1.5">
           {message.mentions.map((mention) => {
+            // Success = coworker reply in the transcript; no "replied" chrome.
+            if (mention.status === "responded") {
+              return null;
+            }
             const name =
               coworkersById.get(mention.coworkerId)?.name ??
               t("MentionStatus.nameFallback");
@@ -1280,7 +1284,7 @@ function MessageMetaFooter({
               <CoworkerMentionTerminalStatus
                 key={mention.id}
                 label={label}
-                variant={mention.status === "failed" ? "failed" : "responded"}
+                variant="failed"
               />
             );
           })}
