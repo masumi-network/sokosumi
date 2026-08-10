@@ -110,6 +110,18 @@ describe("coworker.service", () => {
       baseURL: "https://responses.example.com/v1",
       capabilities: ["chat"],
     };
+    // scope=available already encodes whitelist ∪ GRANTED. Early-access
+    // coworkers (isWhitelisted=false, workspace GRANTED) must stay pickable
+    // for channel roster / DMs — matching Core validateChatCoworkerIds.
+    const earlyAccessChatCoworker = {
+      id: "cow-4",
+      slug: "noodles",
+      name: "Noodles",
+      archivedAt: null,
+      isWhitelisted: false,
+      baseURL: "https://responses.example.com/v1",
+      capabilities: ["chat"],
+    };
 
     coreClientMock.getCoworkers.mockResolvedValue({
       data: [
@@ -132,15 +144,7 @@ describe("coworker.service", () => {
           baseURL: "https://responses.example.com/v1",
           capabilities: ["chat"],
         },
-        {
-          id: "cow-4",
-          slug: "not-whitelisted",
-          name: "Not whitelisted",
-          archivedAt: null,
-          isWhitelisted: false,
-          baseURL: "https://responses.example.com/v1",
-          capabilities: ["chat"],
-        },
+        earlyAccessChatCoworker,
       ],
     });
 
@@ -151,6 +155,6 @@ describe("coworker.service", () => {
       scope: "available",
       capability: ["chat"],
     });
-    expect(result).toEqual([runnableChatCoworker]);
+    expect(result).toEqual([runnableChatCoworker, earlyAccessChatCoworker]);
   });
 });
