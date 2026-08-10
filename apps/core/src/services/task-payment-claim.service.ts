@@ -644,7 +644,7 @@ export async function resolveReviewedTaskPaymentClaim(
   }
 
   // AFTER acquisition: the audit table is deliberately FK-free (see migration
-  // 20260804130000), so nothing stops a row being written for an id that does
+  // 20260805137000), so nothing stops a row being written for an id that does
   // not exist or for a claim another worker holds. Writing only once the lease
   // is ours keeps the log to decisions that actually took effect. Still before
   // the remote call, so a crash mid-resolve leaves the intent recorded.
