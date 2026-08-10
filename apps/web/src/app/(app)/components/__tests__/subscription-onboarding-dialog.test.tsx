@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ImgHTMLAttributes, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,10 +12,6 @@ const upgradePersonalSubscriptionMock = vi.fn();
 
 vi.mock("@vercel/analytics", () => ({
   track: (...args: unknown[]) => trackMock(...args),
-}));
-
-vi.mock("next/image", () => ({
-  default: (props: ImgHTMLAttributes<HTMLImageElement>) => <img {...props} />,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -36,12 +32,6 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/contexts/coworkers-context", () => ({
-  useCoworkersContext: () => ({
-    coworkers: [],
-  }),
-}));
-
 vi.mock("@/lib/actions", () => ({
   CommonErrorCode: {
     BAD_INPUT: "BAD_INPUT",
@@ -55,10 +45,6 @@ vi.mock("@/components/onboarding/onboarding-plan-radio-grid", () => ({
   OnboardingPlanRadioGrid: () => <div data-testid="plan-grid" />,
 }));
 
-vi.mock("@/components/masumi-logos", () => ({
-  SokosumiIcon: () => <div data-testid="sokosumi-icon" />,
-}));
-
 vi.mock("@/components/ui/dialog", () => ({
   Dialog: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   DialogContent: ({ children }: { children: ReactNode }) => (
@@ -68,12 +54,6 @@ vi.mock("@/components/ui/dialog", () => ({
     <div>{children}</div>
   ),
   DialogTitle: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-}));
-
-vi.mock("@/components/ui/tooltip", () => ({
-  Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
-  TooltipContent: ({ children }: { children: ReactNode }) => <>{children}</>,
-  TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 vi.mock("@/lib/actions/onboarding", () => ({
@@ -89,7 +69,7 @@ vi.mock("@/lib/actions/subscription", () => ({
     upgradePersonalSubscriptionMock(...args),
 }));
 
-import { OnboardingDialog } from "../onboarding-dialog";
+import { SubscriptionOnboardingDialog } from "../subscription-onboarding-dialog";
 
 const SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY =
   "sokosumi.onboarding.subscription.lastLoginId";
@@ -113,7 +93,7 @@ function createPaidPlans() {
   ];
 }
 
-describe("OnboardingDialog organization subscription", () => {
+describe("SubscriptionOnboardingDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     markSubscriptionOnboardingGateSessionSeenMock.mockResolvedValue(undefined);
@@ -134,7 +114,7 @@ describe("OnboardingDialog organization subscription", () => {
 
   it("renders organization seat settings above the plan grid", () => {
     render(
-      <OnboardingDialog
+      <SubscriptionOnboardingDialog
         organizationSubscription={{
           assignedSeatCount: 3,
           currentSeats: 5,
@@ -143,7 +123,6 @@ describe("OnboardingDialog organization subscription", () => {
         }}
         paidPlans={createPaidPlans()}
         subscriptionCheckoutMode="organization"
-        subscriptionOnly
       />,
     );
 
@@ -156,7 +135,7 @@ describe("OnboardingDialog organization subscription", () => {
 
   it("submits organization checkout with the selected seat count", async () => {
     render(
-      <OnboardingDialog
+      <SubscriptionOnboardingDialog
         organizationSubscription={{
           assignedSeatCount: 3,
           currentSeats: 5,
@@ -165,7 +144,6 @@ describe("OnboardingDialog organization subscription", () => {
         }}
         paidPlans={createPaidPlans()}
         subscriptionCheckoutMode="organization"
-        subscriptionOnly
       />,
     );
 
@@ -188,7 +166,7 @@ describe("OnboardingDialog organization subscription", () => {
 
   it("blocks seat counts below the minimum assigned seat count", async () => {
     render(
-      <OnboardingDialog
+      <SubscriptionOnboardingDialog
         organizationSubscription={{
           assignedSeatCount: 4,
           currentSeats: 4,
@@ -197,7 +175,6 @@ describe("OnboardingDialog organization subscription", () => {
         }}
         paidPlans={createPaidPlans()}
         subscriptionCheckoutMode="organization"
-        subscriptionOnly
       />,
     );
 
@@ -216,11 +193,10 @@ describe("OnboardingDialog organization subscription", () => {
 
   it("opens once for a new subscription-only login and stores the login id", async () => {
     render(
-      <OnboardingDialog
+      <SubscriptionOnboardingDialog
         loginId="session-1"
         paidPlans={createPaidPlans()}
         subscriptionCheckoutMode="personal"
-        subscriptionOnly
       />,
     );
 
@@ -244,11 +220,10 @@ describe("OnboardingDialog organization subscription", () => {
     );
 
     render(
-      <OnboardingDialog
+      <SubscriptionOnboardingDialog
         loginId="session-1"
         paidPlans={createPaidPlans()}
         subscriptionCheckoutMode="personal"
-        subscriptionOnly
       />,
     );
 
@@ -264,11 +239,10 @@ describe("OnboardingDialog organization subscription", () => {
 
   it("keeps restricted organization gates closed without marking the session seen", async () => {
     render(
-      <OnboardingDialog
+      <SubscriptionOnboardingDialog
         loginId="session-1"
         paidPlans={createPaidPlans()}
         subscriptionCheckoutMode="restricted"
-        subscriptionOnly
       />,
     );
 
@@ -287,11 +261,10 @@ describe("OnboardingDialog organization subscription", () => {
 
   it("soft-dismisses subscription-only Skip without completing onboarding", async () => {
     render(
-      <OnboardingDialog
+      <SubscriptionOnboardingDialog
         loginId="session-1"
         paidPlans={createPaidPlans()}
         subscriptionCheckoutMode="personal"
-        subscriptionOnly
       />,
     );
 
@@ -316,62 +289,6 @@ describe("OnboardingDialog organization subscription", () => {
       window.localStorage.getItem(SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY),
     ).toBe("session-1");
     expect(completeOnboardingMock).not.toHaveBeenCalled();
-    expect(pushMock).not.toHaveBeenCalled();
-  });
-});
-
-describe("OnboardingDialog full intro Skip", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    markSubscriptionOnboardingGateSessionSeenMock.mockResolvedValue(undefined);
-    window.localStorage.clear();
-    completeOnboardingMock.mockResolvedValue({
-      data: { redirectUrl: "/tasks" },
-      ok: true,
-    });
-  });
-
-  it("still completes onboarding when Skip is used on full intro", async () => {
-    render(
-      <OnboardingDialog
-        paidPlans={createPaidPlans()}
-        subscriptionCheckoutMode="personal"
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "navigation.skip" }));
-
-    await waitFor(() => {
-      expect(completeOnboardingMock).toHaveBeenCalled();
-    });
-    expect(trackMock).toHaveBeenCalledWith("Onboarding skipped");
-    expect(pushMock).toHaveBeenCalledWith("/tasks");
-    expect(
-      markSubscriptionOnboardingGateSessionSeenMock,
-    ).not.toHaveBeenCalled();
-  });
-
-  it("keeps the dialog open and toasts when completeOnboarding fails", async () => {
-    completeOnboardingMock.mockResolvedValue({
-      error: { message: "boom" },
-      ok: false,
-    });
-
-    render(
-      <OnboardingDialog
-        paidPlans={createPaidPlans()}
-        subscriptionCheckoutMode="personal"
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "navigation.skip" }));
-
-    await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("boom");
-    });
-    expect(
-      screen.getByRole("button", { name: "navigation.skip" }),
-    ).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });
 });

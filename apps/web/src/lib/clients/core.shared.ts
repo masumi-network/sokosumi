@@ -77,6 +77,7 @@ import type {
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   SetHermesSecretRequest,
+  UserOnboardingRequest,
 } from "@/lib/clients/generated/core";
 import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
@@ -186,6 +187,7 @@ import {
   getUsersByIdCredits as coreGetUsersByIdCredits,
   getUsersByIdMembers as coreGetUsersByIdMembers,
   getUsersByIdNoticesPending as coreGetUsersByIdNoticesPending,
+  getUsersByIdOnboarding as coreGetUsersByIdOnboarding,
   getUsersByIdOrganizations as coreGetUsersByIdOrganizations,
   getUsersByIdOrganizationsByOrganizationIdCredits as coreGetUsersByIdOrganizationsByOrganizationIdCredits,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
@@ -279,6 +281,7 @@ import {
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
   postUsersByIdFiles as corePostUsersByIdFiles,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
+  postUsersByIdOnboarding as corePostUsersByIdOnboarding,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
   postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
@@ -2835,6 +2838,32 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getMyOnboarding() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdOnboarding({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch onboarding status",
+    );
+  }
+
+  async function completeMyOnboarding(body?: UserOnboardingRequest) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdOnboarding({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          ...(body ? { body } : {}),
+        }),
+      "Failed to complete onboarding",
+    );
+  }
+
   /**
    * Returns the current user's membership in `organizationId`, or `null` when
    * the user is not a member (Core responds 404 in that case).
@@ -3957,6 +3986,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyCredits,
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
+    getMyOnboarding,
+    completeMyOnboarding,
     getMyOrganizationCredits,
     getMyOrganizations,
     createMyStripeCustomer,

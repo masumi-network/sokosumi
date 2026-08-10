@@ -7,8 +7,10 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AcceptOrganizationInviteLink,
   OrganizationInviteLink,
+  ResolveOrganizationInviteLink,
 } from "@/lib/clients/generated/core";
 import { Err, Ok, type Result } from "@/lib/ts-res";
+import { parseOrganizationInviteToken } from "@/lib/utils/invite-link-token";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -101,6 +103,40 @@ export const revokeOrganizationInviteLink = withSession<
     return Ok(null);
   } catch (error) {
     console.error("Failed to revoke organization invite link", error);
+    return Err(toActionError(error));
+  }
+});
+
+interface ResolveOrganizationInviteLinkPreviewParameters
+  extends AuthenticatedRequest {
+  /** A pasted `/join/<token>` URL or the bare token. */
+  tokenOrUrl: string;
+}
+
+export interface OrganizationInviteLinkPreview
+  extends ResolveOrganizationInviteLink {
+  /** The token the input resolved to, for the follow-up accept call. */
+  token: string;
+}
+
+/**
+ * Resolves a pasted invite link so the onboarding flow can show which
+ * organization it leads to before the user commits to joining.
+ */
+export const resolveOrganizationInviteLinkPreview = withSession<
+  ResolveOrganizationInviteLinkPreviewParameters,
+  Result<OrganizationInviteLinkPreview, ActionError>
+>(async ({ tokenOrUrl }) => {
+  const token = parseOrganizationInviteToken(tokenOrUrl);
+  if (!token) {
+    return Err({ code: CommonErrorCode.BAD_INPUT });
+  }
+
+  try {
+    const { data } = await coreClient.resolveOrganizationInviteLink(token);
+    return Ok({ ...data, token });
+  } catch (error) {
+    console.error("Failed to resolve organization invite link", error);
     return Err(toActionError(error));
   }
 });

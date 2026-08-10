@@ -260,6 +260,32 @@ async function ensureOrganizationHasNoAdditionalMembers(
   }
 }
 
+/**
+ * Signup onboarding asks people to set up their team before any email round
+ * trip has happened, so a blanket `emailVerified` requirement made that branch
+ * impossible to finish — every new email/password account hit a 403.
+ *
+ * Unverified accounts get exactly one organization. Anything beyond the first
+ * still requires a verified address, so the ceiling for an unverified actor is
+ * a single org rather than an unbounded number.
+ */
+async function canUserCreateOrganization(user: {
+  emailVerified: boolean;
+  id: string;
+}): Promise<boolean> {
+  if (user.emailVerified) {
+    return true;
+  }
+
+  // Joining someone else's team does not consume the allowance; only
+  // organizations this user already owns do.
+  const ownedOrganizations = await prisma.member.count({
+    where: { role: MemberRole.OWNER, userId: user.id },
+  });
+
+  return ownedOrganizations === 0;
+}
+
 type StripeBackedLocalSubscription = NonNullable<
   Parameters<typeof reconcileActiveStripeBackedSubscription>[0]
 >;
@@ -724,9 +750,7 @@ export const auth = betterAuth({
       },
       invitationLimit: LIMITS.ORGANIZATION_INVITATION_LIMIT,
       cancelPendingInvitationsOnReInvite: true,
-      allowUserToCreateOrganization(user) {
-        return user.emailVerified;
-      },
+      allowUserToCreateOrganization: canUserCreateOrganization,
       organizationLimit: LIMITS.ORGANIZATION_LIMIT,
       invitationExpiresIn: TIME.INVITATION_EXPIRES,
     }),

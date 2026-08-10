@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { getUserOnboardingProfile } from "@sokosumi/utils";
 
 import { internalServerError } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -30,6 +31,12 @@ const route = createRoute({
       {
         data: {
           completed: true,
+          profile: {
+            companySize: "11-50",
+            companyType: "agency",
+            role: "founder",
+            workStyle: "team",
+          },
         },
         meta: {
           timestamp: "2025-01-01T00:00:00.000Z",
@@ -53,6 +60,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       const user = await tx.user.findUnique({
         where: { id: resolvedUserId },
         select: {
+          metadata: true,
           onboardingCompleted: true,
         },
       });
@@ -63,6 +71,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
 
       return {
         completed: user.onboardingCompleted,
+        profile: getUserOnboardingProfile(user.metadata),
       };
     });
 

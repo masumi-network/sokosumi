@@ -160,6 +160,7 @@ export {
   OnChainTransactionStatus,
 } from "./masumi-protocol.js";
 export {
+  buildMetadataWithStringFields,
   type MetadataRecord,
   serializeMetadataRecord,
   stringifyMetadataRecord,
@@ -182,6 +183,21 @@ export {
   OAUTH_SCOPE_OPENID,
   type OAuthClientGrantType,
 } from "./oauth-scopes.js";
+export {
+  ONBOARDING_COMPANY_SIZES,
+  ONBOARDING_COMPANY_TYPES,
+  ONBOARDING_ROLES,
+  ONBOARDING_WORK_STYLES,
+  type OnboardingCompanySize,
+  type OnboardingCompanyType,
+  type OnboardingProfile,
+  type OnboardingRole,
+  type OnboardingWorkStyle,
+  parseOnboardingCompanySize,
+  parseOnboardingCompanyType,
+  parseOnboardingRole,
+  parseOnboardingWorkStyle,
+} from "./onboarding-profile.js";
 export {
   DALLE_TEXT_TO_IMAGE_REACT_ACTION,
   extractReactEnvelope,
@@ -266,8 +282,10 @@ export {
 } from "./unfurl-urls.js";
 export {
   buildUserMetadataWithDesignMd,
+  buildUserMetadataWithOnboardingProfile,
   buildUserMetadataWithUrl,
   getUserMetadata,
+  getUserOnboardingProfile,
   parseUserMetadata,
   type UserMetadata,
 } from "./user-metadata.js";

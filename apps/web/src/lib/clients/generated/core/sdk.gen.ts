@@ -1343,12 +1343,16 @@ export const getUsersByIdOnboarding = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Complete onboarding: path `me` for the session user, or a user id when the caller may access that user's data.
+ * Complete onboarding: path `me` for the session user, or a user id when the caller may access that user's data. An optional `profile` stores the answers collected by the flow; omitted answers keep any previously stored value.
  */
 export const postUsersByIdOnboarding = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdOnboardingData, ThrowOnError>): RequestResult<PostUsersByIdOnboardingResponses, PostUsersByIdOnboardingErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdOnboardingResponses, PostUsersByIdOnboardingErrors, ThrowOnError>({
     responseTransformer: postUsersByIdOnboardingResponseTransformer,
     url: '/users/{id}/onboarding',
-    ...options
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**

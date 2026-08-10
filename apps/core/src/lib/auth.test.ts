@@ -57,6 +57,7 @@ const {
   prepareStripeEmailSyncForUserUpdateMock,
   handleUserUpdateStripeEmailSyncMock,
   syncUserEmailWithStripeMock,
+  memberCountMock,
   waitUntilCapturedPromises,
   waitUntilMock,
   workspaceUpsertMock,
@@ -68,13 +69,18 @@ const {
   const prismaTransactionMock = vi.fn(
     async (callback: (tx: unknown) => unknown) => callback({}),
   );
+  const memberCountMock = vi.fn();
   const prismaMock = {
     __prisma: true,
     $transaction: (callback: (tx: unknown) => unknown) =>
       prismaTransactionMock(callback),
+    member: {
+      count: (...args: unknown[]) => memberCountMock(...args),
+    },
   };
 
   return {
+    memberCountMock,
     adminPluginMock: vi.fn(),
     apiKeyPluginMock: vi.fn(),
     betterAuthMock: vi.fn(),
@@ -900,6 +906,55 @@ describe("core auth config", () => {
     );
     expect(jwtPluginMock).toHaveBeenCalledWith({
       disableSettingJwtHeader: true,
+    });
+  });
+
+  describe("allowUserToCreateOrganization", () => {
+    async function resolveRule() {
+      await import("./auth");
+      const [[config]] = organizationPluginMock.mock.calls as Array<
+        [
+          {
+            allowUserToCreateOrganization: (user: {
+              emailVerified: boolean;
+              id: string;
+            }) => Promise<boolean>;
+          },
+        ]
+      >;
+      return config.allowUserToCreateOrganization;
+    }
+
+    it("allows a verified user without touching the database", async () => {
+      const rule = await resolveRule();
+
+      await expect(rule({ emailVerified: true, id: "user_1" })).resolves.toBe(
+        true,
+      );
+      expect(memberCountMock).not.toHaveBeenCalled();
+    });
+
+    it("allows an unverified user their first organization", async () => {
+      // Signup onboarding runs before any email round trip, so the first
+      // organization has to be creatable without a verified address.
+      memberCountMock.mockResolvedValue(0);
+      const rule = await resolveRule();
+
+      await expect(rule({ emailVerified: false, id: "user_1" })).resolves.toBe(
+        true,
+      );
+      expect(memberCountMock).toHaveBeenCalledWith({
+        where: { role: MemberRole.OWNER, userId: "user_1" },
+      });
+    });
+
+    it("blocks a second organization while the email is unverified", async () => {
+      memberCountMock.mockResolvedValue(1);
+      const rule = await resolveRule();
+
+      await expect(rule({ emailVerified: false, id: "user_1" })).resolves.toBe(
+        false,
+      );
     });
   });
 

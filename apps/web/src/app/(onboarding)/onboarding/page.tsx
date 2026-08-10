@@ -1,0 +1,121 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
+
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import { toPaidSubscriptionPlanViews } from "@/components/billing/subscription-catalog-plans";
+import type { PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
+import { getEnvPublicConfig } from "@/config/env.public";
+import { getSessionOrRedirect } from "@/lib/auth/auth.server";
+import { coreClient } from "@/lib/clients/core.client";
+import { userService } from "@/lib/services";
+import { coworkerService } from "@/lib/services/coworker.service";
+import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
+
+import { OnboardingFlow } from "./components/onboarding-flow";
+import type { OnboardingVariant } from "./components/onboarding-steps";
+import type { OnboardingCoworker } from "./components/steps/welcome-step";
+
+/** Faces shown on the welcome screen; more than three crowds the row. */
+const WELCOME_COWORKER_LIMIT = 3;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Onboarding.Metadata");
+
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
+
+interface OnboardingPageProps {
+  searchParams: Promise<{ preview?: string }>;
+}
+
+/**
+ * `searchParams` is read inside the Suspense boundary, not in the route
+ * component: touching URL data above it makes the whole navigation blocking
+ * (Next.js `instant-shell-url-data`).
+ */
+export default function OnboardingPage({ searchParams }: OnboardingPageProps) {
+  return (
+    <Suspense fallback={<OnboardingFlowFallback />}>
+      <OnboardingFlowLoader searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+/** Holds the stage height so the footer does not jump in when data lands. */
+function OnboardingFlowFallback() {
+  return <div className="flex min-h-0 flex-1 flex-col" />;
+}
+
+async function OnboardingFlowLoader({ searchParams }: OnboardingPageProps) {
+  const [session, { preview }] = await Promise.all([
+    getSessionOrRedirect(),
+    searchParams,
+  ]);
+
+  // Preview is a local/staging affordance for walking every branch without
+  // signing up again. It must never bypass the completion gate in production.
+  const isPreview =
+    preview === "1" &&
+    getEnvPublicConfig().NEXT_PUBLIC_VERCEL_ENV !== "production";
+
+  const [onboardingResult, members, catalogResult, coworkersResult] =
+    await Promise.allSettled([
+      coreClient.getMyOnboarding(),
+      userService.getMyMembersWithOrganizations(),
+      coreClient.getSubscriptionCatalog(),
+      coworkerService.listCoworkers("chat"),
+    ]);
+
+  const isCompleted =
+    onboardingResult.status === "fulfilled"
+      ? onboardingResult.value.data.completed
+      : // A failed read must not strand a finished user in onboarding forever,
+        // but it also must not let an unfinished one skip it. The session flag
+        // is the safer of the two signals available here.
+        Boolean(session.user.onboardingCompleted);
+
+  if (isCompleted && !isPreview) {
+    redirect(DEFAULT_AUTHENTICATED_LANDING_PATH);
+  }
+
+  const organizationMemberships =
+    members.status === "fulfilled" ? members.value : [];
+  const variant: OnboardingVariant =
+    organizationMemberships.length > 0 ? "joined" : "full";
+
+  let paidPlans: PaidSubscriptionPlanView[] = [];
+  if (catalogResult.status === "fulfilled") {
+    // A brand-new account is always on the free tier, so nothing is "current".
+    paidPlans = toPaidSubscriptionPlanViews(catalogResult.value.data, "free");
+  } else {
+    console.error(
+      "Failed to load subscription catalog for onboarding",
+      catalogResult.reason,
+    );
+  }
+
+  const coworkers: OnboardingCoworker[] =
+    coworkersResult.status === "fulfilled"
+      ? coworkersResult.value
+          .flatMap((coworker) => {
+            const avatarUrl = getCoworkerImageUrl(coworker.id, coworker.image);
+            return avatarUrl ? [{ avatarUrl, name: coworker.name }] : [];
+          })
+          .slice(0, WELCOME_COWORKER_LIMIT)
+      : [];
+
+  return (
+    <OnboardingFlow
+      coworkers={coworkers}
+      isPreview={isPreview}
+      paidPlans={paidPlans}
+      userName={session.user.name?.split(" ")[0] ?? null}
+      variant={variant}
+    />
+  );
+}

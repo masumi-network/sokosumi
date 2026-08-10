@@ -78,6 +78,35 @@ export function getNormalizedStringField(
   return normalizedValue.length > 0 ? normalizedValue : null;
 }
 
+/**
+ * Merges plain string fields into a metadata record. A key set to an empty
+ * string or `null` is removed; `undefined` leaves the existing value alone, so
+ * callers can patch one field without reading the rest.
+ */
+export function buildMetadataWithStringFields(
+  metadata: MetadataRecord | null | undefined,
+  fields: Record<string, null | string | undefined>,
+): MetadataRecord | null {
+  let nextMetadata = normalizeMetadataRecord(metadata);
+
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined) {
+      continue;
+    }
+
+    const normalizedValue = value?.trim() ?? "";
+    if (normalizedValue.length === 0) {
+      const { [key]: _removed, ...rest } = nextMetadata;
+      nextMetadata = rest;
+      continue;
+    }
+
+    nextMetadata = { ...nextMetadata, [key]: normalizedValue };
+  }
+
+  return stringifyMetadataRecord(nextMetadata);
+}
+
 export interface DesignMdMetadataPatch {
   extractionId?: null | string;
   url?: null | string;

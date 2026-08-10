@@ -1,9 +1,6 @@
-import type {
-  SelfServeSubscriptionPlanName,
-  SubscriptionPlanName,
-} from "@sokosumi/utils";
+import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
 import { Suspense } from "react";
-import { type PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
+import { toPaidSubscriptionPlanViews } from "@/components/billing/subscription-catalog-plans";
 import { coreClient } from "@/lib/clients/core.client";
 import type { Organization } from "@/lib/clients/generated/core";
 import { MemberRole } from "@/lib/clients/generated/core";
@@ -16,23 +13,15 @@ import {
 } from "@/lib/services";
 
 import { MarkSubscriptionOnboardingGateSeen } from "./mark-subscription-onboarding-gate-seen";
-import {
-  OnboardingDialog,
-  type OnboardingSubscriptionCheckoutMode,
-} from "./onboarding-dialog";
 import { OnboardingSubscriptionReturnHandler } from "./onboarding-subscription-return-handler";
+import {
+  type OnboardingSubscriptionCheckoutMode,
+  SubscriptionOnboardingDialog,
+} from "./subscription-onboarding-dialog";
 
-const PLAN_ORDER = [
-  "free",
-  "starter",
-  "standard",
-  "pro",
-] as const satisfies SubscriptionPlanName[];
-
-interface OnboardingDialogLoaderProps {
+interface SubscriptionOnboardingDialogLoaderProps {
   activeOrganization: Organization | null;
   loginId?: null | string;
-  subscriptionOnly?: boolean;
 }
 
 function SubscriptionOnboardingReturnOnly() {
@@ -58,27 +47,24 @@ function SuppressedSubscriptionOnboardingGate({
   );
 }
 
-export async function OnboardingDialogLoader({
+export async function SubscriptionOnboardingDialogLoader({
   activeOrganization,
   loginId,
-  subscriptionOnly = false,
-}: OnboardingDialogLoaderProps) {
-  if (subscriptionOnly) {
-    // Defense-in-depth: layout mounts this loader for free-plan users and lets
-    // us suppress the gate when coverage exists (React cache() dedupes). Keep
-    // the check so direct callers and tests still suppress the hint without
-    // relying on layout wiring.
-    const hasPaidOrEnterpriseCoverage = await userHasPaidOrEnterpriseCoverage();
-    if (hasPaidOrEnterpriseCoverage) {
-      return <SuppressedSubscriptionOnboardingGate loginId={loginId} />;
-    }
+}: SubscriptionOnboardingDialogLoaderProps) {
+  // Defense-in-depth: layout mounts this loader for free-plan users and lets
+  // us suppress the gate when coverage exists (React cache() dedupes). Keep
+  // the check so direct callers and tests still suppress the hint without
+  // relying on layout wiring.
+  const hasPaidOrEnterpriseCoverage = await userHasPaidOrEnterpriseCoverage();
+  if (hasPaidOrEnterpriseCoverage) {
+    return <SuppressedSubscriptionOnboardingGate loginId={loginId} />;
   }
 
   let prefetchedOrganizationMember:
     | Awaited<ReturnType<typeof userService.getMyMemberInOrganization>>
     | undefined;
 
-  if (subscriptionOnly && activeOrganization) {
+  if (activeOrganization) {
     prefetchedOrganizationMember = await userService.getMyMemberInOrganization(
       activeOrganization.id,
     );
@@ -165,30 +151,15 @@ export async function OnboardingDialogLoader({
   // check (e.g. personal subscription read failed). Never show the paid-plan
   // hint when the checkout context is already covered.
   if (
-    subscriptionOnly &&
-    (organizationBillingPlan?.mode === "enterprise_contract" ||
-      currentPlan !== "free")
+    organizationBillingPlan?.mode === "enterprise_contract" ||
+    currentPlan !== "free"
   ) {
     return <SuppressedSubscriptionOnboardingGate loginId={loginId} />;
   }
 
-  const onboardingPlans: PaidSubscriptionPlanView[] = PLAN_ORDER.flatMap(
-    (planName) => {
-      if (planName === "free") {
-        return [];
-      }
-
-      const plan = subscriptionCatalog[planName];
-      return [
-        {
-          credits: plan.credits,
-          currency: plan.currency,
-          isCurrent: currentPlan === planName,
-          monthlyAmount: plan.monthlyAmount,
-          name: planName,
-        },
-      ];
-    },
+  const onboardingPlans = toPaidSubscriptionPlanViews(
+    subscriptionCatalog,
+    currentPlan,
   );
 
   const organizationSubscription =
@@ -204,12 +175,11 @@ export async function OnboardingDialogLoader({
   return (
     <>
       <SubscriptionOnboardingReturnOnly />
-      <OnboardingDialog
+      <SubscriptionOnboardingDialog
         loginId={loginId}
         organizationSubscription={organizationSubscription}
         paidPlans={onboardingPlans}
         subscriptionCheckoutMode={subscriptionCheckoutMode}
-        subscriptionOnly={subscriptionOnly}
       />
     </>
   );

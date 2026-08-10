@@ -2,7 +2,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { track } from "@vercel/analytics";
-import { KeyRound, Loader2, Mail } from "lucide-react";
+import { Check, KeyRound, Loader2, Mail } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -347,6 +347,11 @@ export default function SocialButtons({
             variant="outline"
             disabled={isRequestingMagicLink}
           >
+            {isRequestingMagicLink ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : hasMagicLinkSuccess ? (
+              <Check className="text-semantic-success size-4" />
+            ) : null}
             {isRequestingMagicLink
               ? t("magicLinkSubmitting")
               : hasMagicLinkSuccess

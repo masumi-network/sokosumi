@@ -1276,60 +1276,123 @@
     "Dialog": {
       "navigation": {
         "skip": "Überspringen",
-        "back": "Zurück",
-        "next": "Weiter",
-        "getStarted": "Loslegen",
         "subscribe": "Abonnieren"
       },
-      "coworkerTooltip": "{name} · {role}",
-      "defaultRole": "Coworker",
-      "alt": {
-        "coworkerAvatar": "{name}-Avatar"
-      },
-      "welcome": {
-        "coworkersSummary": "{first}, {second} & mehr"
-      },
       "intro": {
-        "welcome": {
-          "title": "Willkommen bei Sokosumi",
-          "description": "Dein KI-Marketing-Hub. Lerne deine neuen Mitarbeiter kennen – sie sind bereit loszulegen."
-        },
-        "chat": {
-          "title": "Sag ihnen, was du brauchst",
-          "description": "Chatte natürlich mit deinen Coworkern. Beschreibe, was du brauchst, und sie erledigen den Rest."
-        },
-        "taskboard": {
-          "title": "Arbeit wird organisiert",
-          "description": "Dein Coworker erstellt Tasks, verfolgt den Fortschritt im Taskboard und behält alles im Blick."
-        },
-        "orchestration": {
-          "title": "Sie übernehmen den Rest",
-          "description": "Dein Coworker beauftragt spezialisierte Agents zum Recherchieren, Schreiben, Analysieren – je nach Aufgabe."
-        },
         "plans": {
           "title": "Wähle den Plan, mit dem du schneller wachsen kannst",
           "description": "Starte mit einem kostenpflichtigen Plan, um mehr Credits, leistungsstärkere Coworker und Premium-Funktionen ab dem ersten Tag freizuschalten."
         }
+      }
+    },
+    "Flow": {
+      "Nav": {
+        "back": "Zurück",
+        "next": "Weiter",
+        "getStarted": "Loslegen",
+        "finish": "Fertig",
+        "finishSetup": "Einrichtung abschließen",
+        "creating": "Wird erstellt ...",
+        "subscribe": "Abonnieren",
+        "skipPlan": "Später entscheiden"
       },
-      "visuals": {
-        "chat": {
-          "userMessage": "Erstelle eine Marketingkampagne für unseren Produktlaunch",
-          "reply": "Ich kümmere mich darum! Ich recherchiere den Markt und entwerfe eine Kampagnenstrategie."
-        },
-        "taskboard": {
-          "taskTitle": "Marketingkampagne",
-          "todo": "Offen",
-          "inProgress": "In Bearbeitung"
-        },
-        "orchestration": {
-          "hires": "Beauftragt",
-          "workDelivered": "Arbeit geliefert",
-          "agents": {
-            "research": "Recherche",
-            "writing": "Texterstellung",
-            "analytics": "Analytics"
-          }
+      "Welcome": {
+        "title": "Willkommen bei Sokosumi",
+        "titleNamed": "Willkommen, {name}",
+        "subtitle": "Ein paar kurze Fragen, dann können deine Coworker loslegen.",
+        "avatarAlt": "Avatar von {name}",
+        "coworkersSummary": "Lerne {names} kennen"
+      },
+      "CompanyType": {
+        "title": "Was für ein Unternehmen ist es?",
+        "options": {
+          "agency": "Agentur oder Beratung",
+          "ecommerce": "E-Commerce oder Handel",
+          "saas": "SaaS oder Software",
+          "media": "Medien oder Verlag",
+          "finance": "Finanzen oder Versicherung",
+          "healthcare": "Gesundheitswesen",
+          "education": "Bildung",
+          "nonprofit": "Non-Profit",
+          "other": "Etwas anderes"
         }
+      },
+      "CompanySize": {
+        "title": "Wie groß ist das Team?",
+        "options": {
+          "solo": "Nur ich",
+          "2-10": "2-10",
+          "11-50": "11-50",
+          "51-200": "51-200",
+          "201-1000": "201-1000",
+          "1000+": "1000+"
+        }
+      },
+      "Role": {
+        "title": "Was machst du dort?",
+        "options": {
+          "founder": "Gründung oder Geschäftsführung",
+          "marketing": "Marketing",
+          "sales": "Vertrieb",
+          "product": "Produkt",
+          "engineering": "Entwicklung",
+          "operations": "Operations",
+          "agency-lead": "Agenturleitung",
+          "other": "Etwas anderes"
+        }
+      },
+      "WorkStyle": {
+        "title": "Arbeitest du allein oder im Team?",
+        "subtitle": "Sokosumi ist für Teams gebaut: Coworker, Aufgaben und Channels werden geteilt, damit nichts nur in einem Kopf existiert.",
+        "switchLaterHint": "Du kannst später jederzeit in den Workspace-Einstellungen ein Team gründen oder beitreten.",
+        "team": {
+          "title": "Im Team",
+          "description": "Teile Coworker, Aufgaben und Channels mit deinen Kolleginnen und Kollegen.",
+          "badge": "Empfohlen"
+        },
+        "solo": {
+          "title": "Allein",
+          "description": "Ein persönlicher Workspace nur für dich. Andere kannst du jederzeit einladen."
+        }
+      },
+      "TeamChoice": {
+        "title": "Hast du schon einen Einladungslink?",
+        "subtitle": "Jemand aus deinem Team kann dir einen Link schicken, der so aussieht: app.sokosumi.com/join/...",
+        "invite": {
+          "title": "Ich habe einen Link",
+          "description": "Füge ihn ein und tritt dem bestehenden Workspace deines Teams bei."
+        },
+        "create": {
+          "title": "Neues Team erstellen",
+          "description": "Richte einen Workspace ein und lade deine Kolleginnen und Kollegen ein."
+        }
+      },
+      "InviteLink": {
+        "title": "Füge deinen Einladungslink ein",
+        "subtitle": "Wir zeigen dir vor dem Beitritt, zu welchem Team er gehört.",
+        "inputLabel": "Einladungslink",
+        "placeholder": "https://app.sokosumi.com/join/...",
+        "hint": "Füge den ganzen Link ein oder nur den Code am Ende.",
+        "previewSubtitle": "Du bist dabei, diesem Team beizutreten.",
+        "joinedTitle": "Du bist dabei",
+        "joinedSubtitle": "Du bist diesem Team beigetreten.",
+        "join": "{organization} beitreten",
+        "joinPending": "Team beitreten",
+        "joining": "Beitritt läuft ...",
+        "Errors": {
+          "invalid": "Das sieht nicht nach einem Sokosumi-Einladungslink aus.",
+          "expired": "Dieser Einladungslink ist abgelaufen. Bitte dein Team um einen neuen.",
+          "revoked": "Dieser Einladungslink wurde zurückgezogen. Bitte dein Team um einen neuen.",
+          "depleted": "Dieser Einladungslink ist aufgebraucht. Bitte dein Team um einen neuen.",
+          "not_found": "Wir konnten diesen Einladungslink nicht finden. Prüfe den Link und versuche es erneut.",
+          "joinFailed": "Wir konnten dich diesem Team nicht hinzufügen. Bitte versuche es erneut."
+        }
+      },
+      "Plan": {
+        "title": "Plan wählen",
+        "subtitlePersonal": "Du kannst kostenlos starten und jederzeit upgraden.",
+        "subtitleOrganization": "Gilt für {organization}. Ihr könnt kostenlos starten und später upgraden.",
+        "perMonth": "{price}/Mon."
       }
     },
     "Actions": {

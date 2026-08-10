@@ -16,6 +16,8 @@ interface JoinActionsProps {
   organizationName: string;
   organizationSlug: string;
   isAuthenticated: boolean;
+  /** Signed-up-through-the-link users have not answered onboarding yet. */
+  hasCompletedOnboarding: boolean;
 }
 
 export function JoinActions({
@@ -23,6 +25,7 @@ export function JoinActions({
   organizationName,
   organizationSlug,
   isAuthenticated,
+  hasCompletedOnboarding,
 }: JoinActionsProps) {
   const t = useTranslations("Join");
   const router = useRouter();
@@ -42,7 +45,14 @@ export function JoinActions({
       } catch (error) {
         console.error("Failed to switch organization workspace:", error);
       }
-      router.push(`/organizations/${encodeURIComponent(organizationSlug)}`);
+      // Someone who signed up through the link has never seen onboarding.
+      // Send them through its short variant instead of dropping them straight
+      // into an organization page they have no context for.
+      router.push(
+        hasCompletedOnboarding
+          ? `/organizations/${encodeURIComponent(organizationSlug)}`
+          : "/onboarding",
+      );
     } catch (error) {
       console.error("Failed to join organization", error);
       toast.error(t("Error.joinFailed"));

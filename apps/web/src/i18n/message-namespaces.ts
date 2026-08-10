@@ -28,6 +28,20 @@ export const AUTH_MESSAGE_PATHS = [
 ] as const;
 
 /**
+ * Full-page signup onboarding. Pulls in the billing/organization namespaces
+ * because the flow embeds the plan picker and the create-organization steps.
+ */
+export const ONBOARDING_MESSAGE_PATHS = [
+  "Components",
+  "Library",
+  "Onboarding",
+  "Join",
+  "App.Subscriptions",
+  "App.Organizations.OrganizationDetail.Subscription",
+  "App.DesignMd",
+] as const;
+
+/**
  * App shell chrome for nested Hermes/Admin providers.
  * Widened beyond the minimal sketch where sidebar/header overlays need keys.
  */

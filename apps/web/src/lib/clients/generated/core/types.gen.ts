@@ -2545,6 +2545,60 @@ export type PreferredOrganization = {
     organizationId: string | null;
 };
 
+export type UserOnboarding = {
+    /**
+     * Whether the user has completed onboarding
+     */
+    completed: boolean;
+    profile: UserOnboardingProfile;
+};
+
+/**
+ * Answers stored from the signup onboarding flow
+ */
+export type UserOnboardingProfile = {
+    /**
+     * Headcount bucket the user picked for their company
+     */
+    companySize: 'solo' | '2-10' | '11-50' | '51-200' | '201-1000' | '1000+' | null;
+    /**
+     * Kind of company the user picked
+     */
+    companyType: 'agency' | 'ecommerce' | 'saas' | 'media' | 'finance' | 'healthcare' | 'education' | 'nonprofit' | 'other' | null;
+    /**
+     * Role the user picked for themselves
+     */
+    role: 'founder' | 'marketing' | 'sales' | 'product' | 'engineering' | 'operations' | 'agency-lead' | 'other' | null;
+    /**
+     * Whether the user works alone or with a team
+     */
+    workStyle: 'solo' | 'team' | null;
+};
+
+export type UserOnboardingRequest = {
+    /**
+     * Answers collected by the signup onboarding flow
+     */
+    profile?: {
+        /**
+         * Headcount bucket the user picked for their company
+         */
+        companySize?: 'solo' | '2-10' | '11-50' | '51-200' | '201-1000' | '1000+' | null;
+        /**
+         * Kind of company the user picked
+         */
+        companyType?: 'agency' | 'ecommerce' | 'saas' | 'media' | 'finance' | 'healthcare' | 'education' | 'nonprofit' | 'other' | null;
+        /**
+         * Role the user picked for themselves
+         */
+        role?: 'founder' | 'marketing' | 'sales' | 'product' | 'engineering' | 'operations' | 'agency-lead' | 'other' | null;
+        /**
+         * Whether the user works alone or with a team
+         */
+        workStyle?: 'solo' | 'team' | null;
+    };
+};
+
 export type Notice = {
     id: string;
     kind: NoticeKind;
@@ -17763,12 +17817,7 @@ export type GetUsersByIdOnboardingResponses = {
      * Retrieve the user's onboarding status
      */
     200: {
-        data: {
-            /**
-             * Whether the user has completed onboarding
-             */
-            completed: boolean;
-        };
+        data: UserOnboarding;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -17780,7 +17829,7 @@ export type GetUsersByIdOnboardingResponses = {
 export type GetUsersByIdOnboardingResponse = GetUsersByIdOnboardingResponses[keyof GetUsersByIdOnboardingResponses];
 
 export type PostUsersByIdOnboardingData = {
-    body?: never;
+    body?: UserOnboardingRequest;
     path: {
         /**
          * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
@@ -17857,12 +17906,7 @@ export type PostUsersByIdOnboardingResponses = {
      * Complete onboarding for the user
      */
     200: {
-        data: {
-            /**
-             * Whether the user has completed onboarding
-             */
-            completed: boolean;
-        };
+        data: UserOnboarding;
         meta: {
             timestamp: Date;
             requestId: string;

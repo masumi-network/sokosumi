@@ -52,6 +52,7 @@ export function JoinCard({ token, organization, user }: JoinCardProps) {
           organizationName={organization.name}
           organizationSlug={organization.slug}
           isAuthenticated={Boolean(user)}
+          hasCompletedOnboarding={Boolean(user?.onboardingCompleted)}
         />
       </CardContent>
     </Card>

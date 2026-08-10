@@ -1,5 +1,6 @@
 import type { Session } from "@sokosumi/utils";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
@@ -13,12 +14,12 @@ import {
   SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME,
 } from "@/lib/subscription-onboarding-gate-cookie";
 
-import { OnboardingDialogLoader } from "./onboarding-dialog-loader";
 import { getCachedMyCredits } from "./private-sidebar-cache";
 import {
   CoworkersHydrator,
   NoticeDialogHydrator,
 } from "./shell-hydrators.client";
+import { SubscriptionOnboardingDialogLoader } from "./subscription-onboarding-dialog-loader";
 
 interface AppShellOverlaysProps {
   session: Session;
@@ -70,12 +71,17 @@ export default async function AppShellOverlays({
       session.session.id,
     );
 
+  // Signup onboarding is its own full page. Redirecting from here rather than
+  // from the layout keeps the Core read off the app shell's critical path —
+  // this component already had to resolve it.
+  if (shouldShowOnboarding) {
+    redirect("/onboarding");
+  }
+
   let activeOrganization: Organization | null = null;
   let shouldLoadSubscriptionOnboarding = false;
 
-  if (shouldShowOnboarding) {
-    activeOrganization = await userService.getActiveOrganization();
-  } else if (!subscriptionOnboardingGateAlreadyServed) {
+  if (!subscriptionOnboardingGateAlreadyServed) {
     // Shared React.cache with PrivateCachedAppSidebar — one Core hit per request
     // when both cold-fill; skipped entirely when gate already served.
     const creditsResult = await getCachedMyCredits();
@@ -92,20 +98,11 @@ export default async function AppShellOverlays({
   return (
     <>
       <CoworkersHydrator coworkers={coworkers} />
-      {shouldShowOnboarding ? (
+      {shouldLoadSubscriptionOnboarding ? (
         <Suspense fallback={null}>
-          <OnboardingDialogLoader
+          <SubscriptionOnboardingDialogLoader
             activeOrganization={activeOrganization}
             loginId={session.session.id}
-            subscriptionOnly={false}
-          />
-        </Suspense>
-      ) : shouldLoadSubscriptionOnboarding ? (
-        <Suspense fallback={null}>
-          <OnboardingDialogLoader
-            activeOrganization={activeOrganization}
-            loginId={session.session.id}
-            subscriptionOnly
           />
         </Suspense>
       ) : null}

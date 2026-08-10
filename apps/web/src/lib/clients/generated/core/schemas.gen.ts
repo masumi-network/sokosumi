@@ -8786,6 +8786,187 @@ export const PreferredOrganizationSchema = {
     ]
 } as const;
 
+export const UserOnboardingSchema = {
+    type: 'object',
+    properties: {
+        completed: {
+            type: 'boolean',
+            description: 'Whether the user has completed onboarding',
+            example: true
+        },
+        profile: {
+            $ref: '#/components/schemas/UserOnboardingProfile'
+        }
+    },
+    required: [
+        'completed',
+        'profile'
+    ]
+} as const;
+
+export const UserOnboardingProfileSchema = {
+    type: 'object',
+    properties: {
+        companySize: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'solo',
+                '2-10',
+                '11-50',
+                '51-200',
+                '201-1000',
+                '1000+',
+                null
+            ],
+            description: 'Headcount bucket the user picked for their company',
+            example: '11-50'
+        },
+        companyType: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'agency',
+                'ecommerce',
+                'saas',
+                'media',
+                'finance',
+                'healthcare',
+                'education',
+                'nonprofit',
+                'other',
+                null
+            ],
+            description: 'Kind of company the user picked',
+            example: 'agency'
+        },
+        role: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'founder',
+                'marketing',
+                'sales',
+                'product',
+                'engineering',
+                'operations',
+                'agency-lead',
+                'other',
+                null
+            ],
+            description: 'Role the user picked for themselves',
+            example: 'founder'
+        },
+        workStyle: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'solo',
+                'team',
+                null
+            ],
+            description: 'Whether the user works alone or with a team',
+            example: 'team'
+        }
+    },
+    required: [
+        'companySize',
+        'companyType',
+        'role',
+        'workStyle'
+    ],
+    description: 'Answers stored from the signup onboarding flow'
+} as const;
+
+export const UserOnboardingRequestSchema = {
+    type: 'object',
+    properties: {
+        profile: {
+            type: 'object',
+            properties: {
+                companySize: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    enum: [
+                        'solo',
+                        '2-10',
+                        '11-50',
+                        '51-200',
+                        '201-1000',
+                        '1000+',
+                        null
+                    ],
+                    description: 'Headcount bucket the user picked for their company',
+                    example: '11-50'
+                },
+                companyType: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    enum: [
+                        'agency',
+                        'ecommerce',
+                        'saas',
+                        'media',
+                        'finance',
+                        'healthcare',
+                        'education',
+                        'nonprofit',
+                        'other',
+                        null
+                    ],
+                    description: 'Kind of company the user picked',
+                    example: 'agency'
+                },
+                role: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    enum: [
+                        'founder',
+                        'marketing',
+                        'sales',
+                        'product',
+                        'engineering',
+                        'operations',
+                        'agency-lead',
+                        'other',
+                        null
+                    ],
+                    description: 'Role the user picked for themselves',
+                    example: 'founder'
+                },
+                workStyle: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    enum: [
+                        'solo',
+                        'team',
+                        null
+                    ],
+                    description: 'Whether the user works alone or with a team',
+                    example: 'team'
+                }
+            },
+            description: 'Answers collected by the signup onboarding flow'
+        }
+    }
+} as const;
+
 export const NoticeSchema = {
     type: 'object',
     properties: {

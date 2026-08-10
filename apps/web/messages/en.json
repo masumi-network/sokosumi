@@ -1276,60 +1276,123 @@
     "Dialog": {
       "navigation": {
         "skip": "Skip",
-        "back": "Back",
-        "next": "Next",
-        "getStarted": "Get Started",
         "subscribe": "Subscribe"
       },
-      "coworkerTooltip": "{name} · {role}",
-      "defaultRole": "Coworker",
-      "alt": {
-        "coworkerAvatar": "{name} avatar"
-      },
-      "welcome": {
-        "coworkersSummary": "{first}, {second} & more"
-      },
       "intro": {
-        "welcome": {
-          "title": "Welcome to Sokosumi",
-          "description": "Your AI marketing hub. Meet your new coworkers - they are ready to get to work."
-        },
-        "chat": {
-          "title": "Tell Them What You Need",
-          "description": "Chat naturally with your coworkers. Describe what you need and they will take it from there."
-        },
-        "taskboard": {
-          "title": "Work Gets Organized",
-          "description": "Your coworker creates tasks, tracks progress on the Taskboard, and keeps everything on track."
-        },
-        "orchestration": {
-          "title": "They Handle the Rest",
-          "description": "Your coworker hires specialized agents to research, write, analyze - whatever the task requires."
-        },
         "plans": {
           "title": "Pick the plan that helps you grow faster",
           "description": "Start with a paid plan to unlock more credits, more capable coworkers, and premium features from day one."
         }
+      }
+    },
+    "Flow": {
+      "Nav": {
+        "back": "Back",
+        "next": "Next",
+        "getStarted": "Get started",
+        "finish": "Finish",
+        "finishSetup": "Finish setup",
+        "creating": "Creating...",
+        "subscribe": "Subscribe",
+        "skipPlan": "Skip for now"
       },
-      "visuals": {
-        "chat": {
-          "userMessage": "Create a marketing campaign for our product launch",
-          "reply": "On it! I will research the market and draft a campaign strategy."
-        },
-        "taskboard": {
-          "taskTitle": "Marketing campaign",
-          "todo": "Todo",
-          "inProgress": "In Progress"
-        },
-        "orchestration": {
-          "hires": "Hires",
-          "workDelivered": "Work delivered",
-          "agents": {
-            "research": "Research",
-            "writing": "Writing",
-            "analytics": "Analytics"
-          }
+      "Welcome": {
+        "title": "Welcome to Sokosumi",
+        "titleNamed": "Welcome, {name}",
+        "subtitle": "A few quick questions, then your coworkers can get to work.",
+        "avatarAlt": "{name} avatar",
+        "coworkersSummary": "Meet {names}"
+      },
+      "CompanyType": {
+        "title": "What kind of company is it?",
+        "options": {
+          "agency": "Agency or consultancy",
+          "ecommerce": "E-commerce or retail",
+          "saas": "SaaS or software",
+          "media": "Media or publishing",
+          "finance": "Finance or insurance",
+          "healthcare": "Healthcare",
+          "education": "Education",
+          "nonprofit": "Non-profit",
+          "other": "Something else"
         }
+      },
+      "CompanySize": {
+        "title": "How big is the team?",
+        "options": {
+          "solo": "Just me",
+          "2-10": "2-10",
+          "11-50": "11-50",
+          "51-200": "51-200",
+          "201-1000": "201-1000",
+          "1000+": "1000+"
+        }
+      },
+      "Role": {
+        "title": "What do you do there?",
+        "options": {
+          "founder": "Founder or owner",
+          "marketing": "Marketing",
+          "sales": "Sales",
+          "product": "Product",
+          "engineering": "Engineering",
+          "operations": "Operations",
+          "agency-lead": "Agency lead",
+          "other": "Something else"
+        }
+      },
+      "WorkStyle": {
+        "title": "Will you work alone or with a team?",
+        "subtitle": "Sokosumi is built for teams: coworkers, tasks, and channels are shared, so nothing lives in one person's head.",
+        "switchLaterHint": "You can create or join a team later from your workspace settings.",
+        "team": {
+          "title": "With a team",
+          "description": "Share coworkers, tasks, and channels with your colleagues.",
+          "badge": "Recommended"
+        },
+        "solo": {
+          "title": "On my own",
+          "description": "A personal workspace, just for you. Invite people whenever you want."
+        }
+      },
+      "TeamChoice": {
+        "title": "Do you already have an invite link?",
+        "subtitle": "Someone on your team can share a link that looks like app.sokosumi.com/join/...",
+        "invite": {
+          "title": "I have a link",
+          "description": "Paste it and join your team's existing workspace."
+        },
+        "create": {
+          "title": "Create a new team",
+          "description": "Set up a workspace and invite your colleagues to it."
+        }
+      },
+      "InviteLink": {
+        "title": "Paste your invite link",
+        "subtitle": "We will show you which team it leads to before you join.",
+        "inputLabel": "Invite link",
+        "placeholder": "https://app.sokosumi.com/join/...",
+        "hint": "Paste the whole link or just the code at the end of it.",
+        "previewSubtitle": "You are about to join this team.",
+        "joinedTitle": "You are in",
+        "joinedSubtitle": "You joined this team.",
+        "join": "Join {organization}",
+        "joinPending": "Join team",
+        "joining": "Joining...",
+        "Errors": {
+          "invalid": "That does not look like a Sokosumi invite link.",
+          "expired": "This invite link has expired. Ask your team for a new one.",
+          "revoked": "This invite link was revoked. Ask your team for a new one.",
+          "depleted": "This invite link has been used up. Ask your team for a new one.",
+          "not_found": "We could not find that invite link. Check the link and try again.",
+          "joinFailed": "We could not add you to that team. Please try again."
+        }
+      },
+      "Plan": {
+        "title": "Choose a plan",
+        "subtitlePersonal": "You can start free and upgrade whenever you need more.",
+        "subtitleOrganization": "Applies to {organization}. You can start free and upgrade later.",
+        "perMonth": "{price}/mo"
       }
     },
     "Actions": {
