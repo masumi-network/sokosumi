@@ -21,7 +21,9 @@ type TestPart =
       toolName: string;
       input: string;
     }
+  | { type: "tool-input-start"; id: string; toolName: string }
   | { type: "tool-input-delta"; id: string; delta: string }
+  | { type: "tool-input-end"; id: string }
   | { type: "finish" };
 
 function asPart(part: TestPart): LanguageModelV4StreamPart {
@@ -61,16 +63,23 @@ async function collectText(
 async function collectTypes(
   stream: ReadableStream<LanguageModelV4StreamPart>,
 ): Promise<string[]> {
+  const parts = await collectParts(stream);
+  return parts.map((part) => part.type);
+}
+
+async function collectParts(
+  stream: ReadableStream<LanguageModelV4StreamPart>,
+): Promise<LanguageModelV4StreamPart[]> {
   const reader = stream.getReader();
-  const types: string[] = [];
+  const parts: LanguageModelV4StreamPart[] = [];
   while (true) {
     const { done, value } = await reader.read();
     if (done) {
       break;
     }
-    types.push(value.type);
+    parts.push(value);
   }
-  return types;
+  return parts;
 }
 
 describe("createCommitGateStream", () => {
@@ -278,8 +287,16 @@ describe("createCommitGateStream", () => {
       }),
     );
     sourceController.enqueue(
+      asPart({
+        type: "tool-input-start",
+        id: "call_1",
+        toolName: "list_jobs",
+      }),
+    );
+    sourceController.enqueue(
       asPart({ type: "tool-input-delta", id: "call_1", delta: '{"q":' }),
     );
+    sourceController.enqueue(asPart({ type: "tool-input-end", id: "call_1" }));
 
     // Tool parts must leave the gate before any answer text is enqueued.
     await expect(reader.read()).resolves.toMatchObject({
@@ -288,7 +305,15 @@ describe("createCommitGateStream", () => {
     });
     await expect(reader.read()).resolves.toMatchObject({
       done: false,
+      value: { type: "tool-input-start", id: "call_1" },
+    });
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
       value: { type: "tool-input-delta", id: "call_1", delta: '{"q":' },
+    });
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: { type: "tool-input-end", id: "call_1" },
     });
 
     sourceController.enqueue(
@@ -314,7 +339,7 @@ describe("createCommitGateStream", () => {
     expect(onRetryNeeded).not.toHaveBeenCalled();
   });
 
-  it("flushes held stream-start and response-metadata before progress", async () => {
+  it("holds setup until progress, flushing only stream-start with progress", async () => {
     let sourceController!: ReadableStreamDefaultController<LanguageModelV4StreamPart>;
     const source = new ReadableStream<LanguageModelV4StreamPart>({
       start(controller) {
@@ -331,7 +356,16 @@ describe("createCommitGateStream", () => {
     sourceController.enqueue(
       asPart({ type: "response-metadata", id: "resp_1" }),
     );
-    // Setup is held until progress arrives (not enqueued yet).
+
+    // Setup must stay held until progress arrives.
+    let firstResolved = false;
+    const firstRead = reader.read().then((result) => {
+      firstResolved = true;
+      return result;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(firstResolved).toBe(false);
+
     sourceController.enqueue(asPart({ type: "reasoning-start", id: "rs_1" }));
     sourceController.enqueue(
       asPart({
@@ -341,13 +375,9 @@ describe("createCommitGateStream", () => {
       }),
     );
 
-    await expect(reader.read()).resolves.toMatchObject({
+    await expect(firstRead).resolves.toMatchObject({
       done: false,
       value: { type: "stream-start" },
-    });
-    await expect(reader.read()).resolves.toMatchObject({
-      done: false,
-      value: { type: "response-metadata", id: "resp_1" },
     });
     await expect(reader.read()).resolves.toMatchObject({
       done: false,
@@ -358,7 +388,12 @@ describe("createCommitGateStream", () => {
       value: { type: "reasoning-delta", id: "rs_1", delta: "Working…" },
     });
 
+    // response-metadata is held until commit/end (not flushed with progress).
     sourceController.close();
+    await expect(reader.read()).resolves.toMatchObject({
+      done: false,
+      value: { type: "response-metadata", id: "resp_1" },
+    });
   });
 
   it("retries without re-emitting stream-start when first attempt setup was held", async () => {
@@ -387,19 +422,21 @@ describe("createCommitGateStream", () => {
       { onRetryNeeded },
     );
 
-    const types = await collectTypes(stream);
+    const parts = await collectParts(stream);
     expect(onRetryNeeded).toHaveBeenCalledOnce();
     expect(onRetryNeeded).toHaveBeenCalledWith("agent-error");
-    // Failed attempt setup was discarded; only retry stream-start leaves the gate.
-    expect(types).toEqual([
+    // Failed attempt setup was discarded; only retry setup leaves the gate.
+    expect(parts.map((part) => part.type)).toEqual([
       "stream-start",
       "response-metadata",
       "text-delta",
       "finish",
     ]);
+    const metadata = parts.find((part) => part.type === "response-metadata");
+    expect(metadata).toMatchObject({ id: "resp_retry" });
   });
 
-  it("retries after progress without a second stream-start", async () => {
+  it("retries after progress without a second stream-start or failed response id", async () => {
     const onRetryNeeded = vi.fn(async () =>
       partsStream([
         { type: "stream-start", warnings: [] },
@@ -432,13 +469,15 @@ describe("createCommitGateStream", () => {
       { onRetryNeeded },
     );
 
-    const types = await collectTypes(stream);
+    const parts = await collectParts(stream);
     expect(onRetryNeeded).toHaveBeenCalledOnce();
-    // Setup flushed with first progress; retry must not re-emit stream-start.
-    expect(types.filter((t) => t === "stream-start")).toHaveLength(1);
-    expect(types).toEqual([
+    // stream-start flushed with progress; failed response-metadata discarded;
+    // retry must not re-emit stream-start; only retry response id is visible.
+    expect(parts.filter((part) => part.type === "stream-start")).toHaveLength(
+      1,
+    );
+    expect(parts.map((part) => part.type)).toEqual([
       "stream-start",
-      "response-metadata",
       "reasoning-start",
       "reasoning-delta",
       "reasoning-end",
@@ -446,6 +485,8 @@ describe("createCommitGateStream", () => {
       "text-delta",
       "finish",
     ]);
+    const metadata = parts.find((part) => part.type === "response-metadata");
+    expect(metadata).toMatchObject({ id: "resp_retry" });
   });
 
   it("still retries agent-error after reasoning was already forwarded", async () => {

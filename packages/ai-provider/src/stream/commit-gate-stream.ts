@@ -35,6 +35,10 @@ function canCommitStream(text: string, minGoodChars: number): boolean {
 /**
  * Setup lifecycle held until first progress/commit so order is
  * stream-start → progress, without leaking setup on a discarded first attempt.
+ *
+ * `response-metadata` stays held until text **commit** (or end without retry)
+ * so a failed attempt's response id is not flushed with early progress and then
+ * doubled by a successful retry.
  */
 function isHeldSetupLifecyclePart(part: LanguageModelV4StreamPart): boolean {
   return part.type === "stream-start" || part.type === "response-metadata";
@@ -82,7 +86,10 @@ export function createCommitGateStream(
     async start(controller) {
       /** Answer-side parts held until commit (or discarded on successful retry). */
       const answerBuffer: LanguageModelV4StreamPart[] = [];
-      /** `stream-start` / `response-metadata` until first progress or commit. */
+      /**
+       * `stream-start` + `response-metadata` until flushed.
+       * Progress flushes only `stream-start`; commit/end flushes the rest.
+       */
       const setupBuffer: LanguageModelV4StreamPart[] = [];
       let textSoFar = "";
       let committed = false;
@@ -97,6 +104,22 @@ export function createCommitGateStream(
           streamStartEmitted = true;
         }
         controller.enqueue(part);
+      }
+
+      /** AI SDK protocol: stream-start before progress; keep response id until commit. */
+      function flushStreamStartFromSetup(): void {
+        const remaining: LanguageModelV4StreamPart[] = [];
+        for (const part of setupBuffer) {
+          if (part.type === "stream-start") {
+            enqueue(part);
+          } else {
+            remaining.push(part);
+          }
+        }
+        setupBuffer.length = 0;
+        for (const part of remaining) {
+          setupBuffer.push(part);
+        }
       }
 
       function flushSetupBuffer(): void {
@@ -117,15 +140,24 @@ export function createCommitGateStream(
         source: ReadableStream<LanguageModelV4StreamPart>,
       ): Promise<void> {
         const reader = source.getReader();
+        let completed = false;
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) {
+              completed = true;
               break;
             }
             enqueue(value);
           }
         } finally {
+          if (!completed) {
+            try {
+              await reader.cancel();
+            } catch {
+              // best-effort cancel of a failed retry pipe
+            }
+          }
           reader.releaseLock();
         }
       }
@@ -154,8 +186,7 @@ export function createCommitGateStream(
           } else if (isHeldSetupLifecyclePart(value)) {
             setupBuffer.push(value);
           } else if (isProgressPassThroughPart(value)) {
-            // Lifecycle must precede progress for AI SDK protocol order.
-            flushSetupBuffer();
+            flushStreamStartFromSetup();
             enqueue(value);
           } else {
             answerBuffer.push(value);
@@ -177,7 +208,8 @@ export function createCommitGateStream(
             if (retryStream) {
               // Discard held setup + answer from the failed attempt. Progress
               // already enqueued may remain. Retry stream is filtered so a
-              // second stream-start is not emitted.
+              // second stream-start is not emitted; held response-metadata from
+              // the failed attempt never left the gate.
               setupBuffer.length = 0;
               answerBuffer.length = 0;
               await pipeRetryStream(retryStream);
