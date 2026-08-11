@@ -120,19 +120,19 @@ describe("mapChatRequestToUiMessages", () => {
     ]);
   });
 
-  it("normalizes provider-specific assistant reasoning labels to type reasoning for AI SDK validation", async () => {
+  it("keeps type reasoning so AI SDK validateUIMessages accepts the payload", async () => {
     const messages = mapChatRequestToUiMessages([
       {
         id: "m1",
         role: "assistant",
         parts: [
-          { type: "redacted_reasoning", text: "[hidden]" },
+          { type: "reasoning", text: "thinking" },
           { type: "text", text: "Hello" },
         ],
       },
     ]);
     expect(messages[0]?.parts).toEqual([
-      { type: "reasoning", text: "[hidden]" },
+      { type: "reasoning", text: "thinking" },
       { type: "text", text: "Hello" },
     ]);
     await expect(validateUIMessages({ messages })).resolves.toBeDefined();
