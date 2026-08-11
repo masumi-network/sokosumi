@@ -10,6 +10,10 @@ describe("RoomsClient Ably island", () => {
       join(import.meta.dirname, "../rooms-client.tsx"),
       "utf8",
     );
+    const shellSource = readFileSync(
+      join(import.meta.dirname, "../room-shell-layout.tsx"),
+      "utf8",
+    );
 
     expect(source).toContain('from "@/contexts/lazy-ably-provider"');
     expect(source).toMatch(
@@ -17,16 +21,22 @@ describe("RoomsClient Ably island", () => {
     );
     expect(source).not.toContain("ChannelProvider");
     expect(source).toContain("roomIds={rooms.map((room) => room.id)}");
-    expect(source).toContain(
-      '<main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">',
+    // Open room chrome lives in RoomShellLayout (Instant + progressive share it).
+    expect(source).toContain("listScrollerRef={scrollerRef}");
+    expect(source).toContain("<RoomShellLayout");
+    expect(shellSource).toContain(
+      'export const ROOM_SHELL_MAIN_CLASSNAME =\n  "relative flex min-h-0 min-w-0 flex-1 overflow-x-clip"',
     );
     // Message list uses native overflow scroller (not Radix ScrollArea).
     expect(CHAT_MESSAGE_LIST_SCROLLER_CLASS).toContain("overflow-y-auto");
-    expect(source).toContain("CHAT_MESSAGE_LIST_SCROLLER_CLASS");
-    expect(source).toMatch(
-      /<div\s+ref=\{scrollerRef\}\s+className=\{CHAT_MESSAGE_LIST_SCROLLER_CLASS\}/,
+    expect(shellSource).toContain("CHAT_MESSAGE_LIST_SCROLLER_CLASS");
+    expect(shellSource).toMatch(
+      /<div\s+ref=\{listScrollerRef\}\s+className=\{ROOM_SHELL_SCROLLER_CLASSNAME\}/,
     );
     expect(source).not.toMatch(
+      /<ScrollArea[\s\S]*?shrinkContent[\s\S]*?className="min-h-0 min-w-0 flex-1"/,
+    );
+    expect(shellSource).not.toMatch(
       /<ScrollArea[\s\S]*?shrinkContent[\s\S]*?className="min-h-0 min-w-0 flex-1"/,
     );
   });
