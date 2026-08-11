@@ -34,7 +34,7 @@ export default function AuthBackground() {
     <div className="hidden h-full w-1/2 lg:block">
       <div className="relative h-full w-full">
         <Image
-          alt="auth-bg"
+          alt=""
           src={backgroundImage}
           fill
           priority

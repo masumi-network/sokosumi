@@ -21,7 +21,7 @@ function stripComments(source: string): string {
 }
 
 describe("auth background LCP contract (SOK-782)", () => {
-  it("picks a known background image without client mount swap", () => {
+  it("maps RNG bounds to catalog indices", () => {
     expect(AUTH_BACKGROUND_IMAGES.length).toBeGreaterThan(0);
     expect(pickAuthBackgroundImage(() => 0)).toBe(AUTH_BACKGROUND_IMAGES[0]);
     expect(pickAuthBackgroundImage(() => 0.99)).toBe(
