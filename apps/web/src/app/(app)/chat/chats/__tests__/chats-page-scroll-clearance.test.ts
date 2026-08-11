@@ -15,11 +15,13 @@ describe("chat/chats page scroll clearance contract", () => {
   it("does not height-lock the list shell and keeps FAB clearance", () => {
     const source = readFileSync(join(here, "../page.tsx"), "utf8");
 
-    expect(source).toContain("LIST_MOBILE_CREATE_FAB_CLEARANCE");
-
     // Drop block comments so docs mentioning the forbidden classes do not
     // false-positive; still catch real className usage.
     const code = source.replace(/\/\*[\s\S]*?\*\//g, "");
+    // Require clearance on the mobile shell className, not merely imported.
+    expect(code).toMatch(
+      /className=\{cn\([\s\S]*?LIST_MOBILE_CREATE_FAB_CLEARANCE/,
+    );
     expect(code).not.toMatch(/overflow-y-auto/);
     expect(code).not.toMatch(/\bmin-h-0\b/);
   });
