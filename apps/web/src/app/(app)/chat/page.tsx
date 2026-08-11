@@ -1,8 +1,8 @@
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
-import { ChatWelcomeClient } from "@/app/chat/components/chat-welcome-client";
 import { MobileChatHomeRedirect } from "@/app/chat/components/mobile-chat-home-redirect.client";
+import { ChatOnboardingHost } from "@/app/chat/onboarding/host.client";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
@@ -22,9 +22,9 @@ interface ChatPageProps {
 }
 
 /**
- * `/chat` landing: desktop classic coworker welcome; mobile bare home
+ * `/chat` landing: desktop questionnaire onboarding; mobile bare home
  * redirects to `/chat/chats`. Draft modes via query: `?create=channel`,
- * `?dm=new`, `?welcome=1` (mobile coworker compose). Open rooms:
+ * `?dm=new`, `?welcome=1` (mobile onboarding host). Open rooms:
  * `/chat/rooms/[roomId]`.
  *
  * Instant Nav uses `chat/loading.tsx` while this page streams after
@@ -42,7 +42,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
   const isNewDirectMessage = firstSearchValue(query.dm) === "new";
-  const isWelcomeCompose = firstSearchValue(query.welcome) === "1";
+  const isOnboardingHost = firstSearchValue(query.welcome) === "1";
   const notice = firstSearchValue(query.notice);
   const landingNotice = <ChatLandingNotice notice={notice} />;
 
@@ -134,11 +134,11 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     mapDbCoworkerToChatCoworker,
   );
 
-  if (isWelcomeCompose) {
+  if (isOnboardingHost) {
     return (
       <>
         {landingNotice}
-        <ChatWelcomeClient
+        <ChatOnboardingHost
           coworkers={coworkers}
           userName={session?.user.name ?? undefined}
         />
@@ -150,7 +150,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     <>
       {landingNotice}
       <div className="hidden md:contents">
-        <ChatWelcomeClient
+        <ChatOnboardingHost
           coworkers={coworkers}
           userName={session?.user.name ?? undefined}
         />

@@ -96,7 +96,16 @@ describe("CoworkerGalleryCard", () => {
     expect(whatsAppChannel).toHaveAttribute("href", "https://wa.me/4915112345");
   });
 
-  it("uses buttons for email and WhatsApp when the card is link-wrapped (no action)", () => {
+  it("does not wrap the card in a create-task link", () => {
+    render(<CoworkerGalleryCard slug="soko" name="Soko" />);
+
+    expect(
+      screen.queryByRole("link", { name: /soko/i }),
+    ).not.toBeInTheDocument();
+    expect(document.querySelector('a[href*="/tasks?create=true"]')).toBeNull();
+  });
+
+  it("renders direct email and WhatsApp links when the card has no action", () => {
     render(
       <CoworkerGalleryCard
         slug="soko"
@@ -109,18 +118,11 @@ describe("CoworkerGalleryCard", () => {
     );
 
     expect(
-      screen.queryByRole("link", { name: "channelApp.email" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("link", { name: "channelApp.email" }),
+    ).toHaveAttribute("href", "mailto:soko@example.com");
     expect(
-      screen.queryByRole("link", { name: "channelApp.whatsapp" }),
-    ).not.toBeInTheDocument();
-
-    expect(
-      screen.getByRole("button", { name: "channelApp.email" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "channelApp.whatsapp" }),
-    ).toBeInTheDocument();
+      screen.getByRole("link", { name: "channelApp.whatsapp" }),
+    ).toHaveAttribute("href", "https://wa.me/49151");
   });
 
   it("reveals contact value when non-link channel icon is clicked", async () => {

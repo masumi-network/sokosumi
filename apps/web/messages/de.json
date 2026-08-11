@@ -1552,6 +1552,66 @@
         "noResponseConnectionLost": "Die Verbindung wurde unterbrochen. Bitte lade die Seite neu und versuche es erneut.",
         "authorize": "Autorisieren",
         "sidebarNew": "Neu"
+      },
+      "Onboarding": {
+        "openFab": "Coworker-Chat starten",
+        "greeting": "Willkommen!",
+        "greetingWithName": "Willkommen {name}!",
+        "intentTitle": "Wofür bist du hier?",
+        "intentDescription": "Wähle eine Richtung — wir schlagen den passenden Coworker und Starter-Prompts vor.",
+        "intentChoices": {
+          "chat": "Gespräch",
+          "tasks": "Aufgaben & Projekte",
+          "either": "Noch unsicher"
+        },
+        "intentChoiceHints": {
+          "chat": "Brainstormen, recherchieren oder Antworten im Dialog.",
+          "tasks": "Arbeit aufteilen, Fortschritt verfolgen oder ein Projekt voranbringen.",
+          "either": "Wir starten mit Elena und einer Einstiegsidee."
+        },
+        "goalTitle": "Starter ausprobieren — oder selbst schreiben",
+        "goalDescription": "Tippe einen Prompt an, um deine erste Nachricht vorzufüllen, oder schreibe unten etwas Eigenes.",
+        "goalLabel": "Dein Ziel",
+        "goalPlaceholder": "z. B. Hilf mir, ein Wochenupdate zu schreiben",
+        "tryAsking": {
+          "label": "Versuch’s mal mit",
+          "orDivider": "oder",
+          "prompts": {
+            "chat": {
+              "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
+              "alex": "Analysiere die Daten in meinem OneDrive-Ordner.",
+              "elena": "Hilf mir zu klären, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte."
+            },
+            "tasks": {
+              "elena": "Zeig mir den Status aller meiner offenen Tasks und was meine Aufmerksamkeit benötigt.",
+              "alex": "Erstelle mir ein Dashboard für meine Rechercheergebnisse.",
+              "hannah": "Analysiere unsere Zielgruppe: Bedürfnisse, Verhalten, Mediennutzung."
+            },
+            "either": {
+              "elena": "Hilf mir zu klären, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte.",
+              "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
+              "alex": "Erstelle mir eine Datenvisualisierung für mein Excel-Dokument."
+            }
+          }
+        },
+        "draftWithGoal": "{goal}",
+        "draftWhenSkipped": {
+          "chat": "Ich brauche Hilfe im Gespräch — erzähl mir, wie du mir helfen kannst.",
+          "tasks": "Ich brauche Hilfe bei Aufgaben und Projekten.",
+          "either": "Erklär mir, wie ich Sokosumi nutze."
+        },
+        "next": "Weiter",
+        "back": "Zurück",
+        "skip": "Überspringen",
+        "finish": "Weiter",
+        "confirmTitle": "Dein Coworker",
+        "confirmDescription": "Bestätige, um den Chat zu öffnen. Deine erste Nachricht bleibt im Composer, bis du sie sendest.",
+        "coworkerListLabel": "Coworkers",
+        "draftPreviewLabel": "Erste Nachricht",
+        "confirmCta": "Chat öffnen",
+        "opening": "Wird geöffnet…",
+        "ensureFailed": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut.",
+        "noChatCoworker": "Gerade sind keine chatfähigen Coworker verfügbar."
       }
     },
     "Tasks": {
