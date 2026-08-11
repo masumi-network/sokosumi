@@ -28,8 +28,8 @@ export default function AgentBottomNavigation({
       agent={agent}
       action={
         <div className="flex items-center gap-1.5">
-          {url ? <ShareButton url={url} className="size-8 md:size-7" /> : null}
           <AgentHireButton agentId={agent.id} />
+          {url ? <ShareButton url={url} className="size-8 md:size-7" /> : null}
         </div>
       }
     />
