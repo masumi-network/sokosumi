@@ -395,8 +395,7 @@ export function GuestInviteSection({
           <Button
             type="button"
             variant="secondary"
-            size="sm"
-            className="w-full shrink-0 sm:w-auto"
+            className="h-10 w-full shrink-0 sm:w-auto"
             disabled={isCreatingLink}
             onClick={() => void handleCreateLink()}
           >
