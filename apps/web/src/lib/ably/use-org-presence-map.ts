@@ -44,7 +44,8 @@ function membersToInputs(
  *
  * Gates attach on token capability (same as publisher). Attaching
  * `presence:org_*` without a grant yields Ably capability-denied failures
- * (SOKOSUMI-R0) as unhandled rejections.
+ * (SOKOSUMI-R0) as unhandled rejections. Re-syncs on `connected` so a
+ * transient auth/grant miss can recover without remounting.
  */
 export function useOrgPresenceMap(
   organizationId: string | null | undefined,
@@ -62,12 +63,17 @@ export function useOrgPresenceMap(
 
     // Narrow for async start() — TS does not carry control-flow into closures.
     const activeOrganizationId = organizationId;
+    // Drop prior org roster immediately so UI does not flash stale members
+    // while authorize runs for the new workspace.
+    setPresenceByUserId(new Map());
 
     let cancelled = false;
     let channel: Ably.RealtimeChannel | null = null;
     let members = new Map<string, Ably.PresenceMessage>();
     let intervalId: number | undefined;
-    let onConnected: (() => void) | undefined;
+    /** Coalesce mount + connected so authorize never overlaps. */
+    let syncInFlight = false;
+    let syncQueued = false;
 
     function recompute() {
       if (cancelled) {
@@ -98,6 +104,30 @@ export function useOrgPresenceMap(
       recompute();
     }
 
+    function unsubscribePresence() {
+      if (!channel) {
+        return;
+      }
+      channel.presence.unsubscribe("enter", upsertMember);
+      channel.presence.unsubscribe("update", upsertMember);
+      channel.presence.unsubscribe("present", upsertMember);
+      channel.presence.unsubscribe("leave", removeMember);
+      channel.presence.unsubscribe("absent", removeMember);
+    }
+
+    function tearDownSubscription() {
+      unsubscribePresence();
+      channel = null;
+      members = new Map();
+      if (intervalId != null) {
+        window.clearInterval(intervalId);
+        intervalId = undefined;
+      }
+      if (!cancelled) {
+        setPresenceByUserId(new Map());
+      }
+    }
+
     async function hydrate() {
       if (!channel) {
         return;
@@ -118,7 +148,7 @@ export function useOrgPresenceMap(
       }
     }
 
-    async function start() {
+    async function runSyncOnce() {
       let tokenDetails: Ably.TokenDetails | null = null;
       try {
         tokenDetails = await ably.auth.authorize();
@@ -137,50 +167,60 @@ export function useOrgPresenceMap(
       const grantedIds =
         organizationIdsFromAblyCapability(tokenDetails?.capability) ?? [];
       if (!grantedIds.includes(activeOrganizationId)) {
-        if (!cancelled) {
-          setPresenceByUserId(new Map());
-        }
+        tearDownSubscription();
         return;
       }
 
-      const channelName = makeOrgPresenceChannelName(activeOrganizationId);
-      channel = ably.channels.get(channelName);
+      if (!channel) {
+        const channelName = makeOrgPresenceChannelName(activeOrganizationId);
+        channel = ably.channels.get(channelName);
 
-      channel.presence.subscribe("enter", upsertMember);
-      channel.presence.subscribe("update", upsertMember);
-      channel.presence.subscribe("present", upsertMember);
-      channel.presence.subscribe("leave", removeMember);
-      channel.presence.subscribe("absent", removeMember);
+        channel.presence.subscribe("enter", upsertMember);
+        channel.presence.subscribe("update", upsertMember);
+        channel.presence.subscribe("present", upsertMember);
+        channel.presence.subscribe("leave", removeMember);
+        channel.presence.subscribe("absent", removeMember);
 
-      void hydrate();
+        intervalId = window.setInterval(recompute, RECLASSIFY_TICK_MS);
+      }
 
       // Non-resumable reconnects can leave local members stale (ghost Online/AFK).
-      // Replace from presence.get() whenever Ably reconnects.
-      onConnected = () => {
-        void hydrate();
-      };
-      ably.connection.on("connected", onConnected);
-
-      intervalId = window.setInterval(recompute, RECLASSIFY_TICK_MS);
+      // Replace from presence.get() whenever Ably reconnects / re-syncs.
+      await hydrate();
     }
 
-    void start();
+    async function syncChannels() {
+      if (syncInFlight) {
+        syncQueued = true;
+        return;
+      }
+      syncInFlight = true;
+      try {
+        do {
+          syncQueued = false;
+          await runSyncOnce();
+        } while (syncQueued && !cancelled);
+      } finally {
+        syncInFlight = false;
+      }
+    }
+
+    // Always listen — including after deny/auth fail — so a later reconnect
+    // can pick up a grant (publisher re-authorizes on connected the same way).
+    const onConnected = () => {
+      void syncChannels();
+    };
+    ably.connection.on("connected", onConnected);
+    void syncChannels();
 
     return () => {
       cancelled = true;
+      syncQueued = false;
+      ably.connection.off("connected", onConnected);
       if (intervalId != null) {
         window.clearInterval(intervalId);
       }
-      if (onConnected) {
-        ably.connection.off("connected", onConnected);
-      }
-      if (channel) {
-        channel.presence.unsubscribe("enter", upsertMember);
-        channel.presence.unsubscribe("update", upsertMember);
-        channel.presence.unsubscribe("present", upsertMember);
-        channel.presence.unsubscribe("leave", removeMember);
-        channel.presence.unsubscribe("absent", removeMember);
-      }
+      unsubscribePresence();
       // Do not detach: publisher owns channel lifecycle on shared RealtimeChannel
       // instances. Detach here would leave this client from org presence.
     };

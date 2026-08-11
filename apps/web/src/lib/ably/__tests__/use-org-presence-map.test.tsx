@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { authorizeMock, getMock, channelsByName, ablyClient } = vi.hoisted(
@@ -63,6 +63,13 @@ function tokenWithOrgs(...organizationIds: string[]) {
   return { capability: JSON.stringify(capability) };
 }
 
+function connectedHandler(): (() => void) | undefined {
+  const call = ablyClient.connection.on.mock.calls.find(
+    (args) => args[0] === "connected",
+  );
+  return call?.[1] as (() => void) | undefined;
+}
+
 describe("useOrgPresenceMap", () => {
   beforeEach(() => {
     authorizeMock.mockReset();
@@ -83,15 +90,26 @@ describe("useOrgPresenceMap", () => {
 
     renderHook(() => useOrgPresenceMap("active_org"));
 
-    await act(async () => {
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalled();
     });
 
-    // Bug signal (red before fix): map attached active org without a grant.
     expect(getMock).not.toHaveBeenCalledWith("presence:org_active_org");
     expect(
       channelsByName.get("presence:org_active_org")?.presence.subscribe,
     ).toBeUndefined();
+  });
+
+  it("does not attach when token capability is unparseable", async () => {
+    authorizeMock.mockResolvedValue({ capability: "not-json" });
+
+    renderHook(() => useOrgPresenceMap("active_org"));
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalled();
+    });
+
+    expect(getMock).not.toHaveBeenCalled();
   });
 
   it("subscribes after authorize when token grants the active org", async () => {
@@ -116,10 +134,55 @@ describe("useOrgPresenceMap", () => {
 
     renderHook(() => useOrgPresenceMap("active_org"));
 
-    await act(async () => {
-      await Promise.resolve();
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalled();
     });
 
     expect(getMock).not.toHaveBeenCalled();
+  });
+
+  it("re-syncs on connected after a denied grant becomes available", async () => {
+    authorizeMock
+      .mockResolvedValueOnce(tokenWithOrgs("other_org"))
+      .mockResolvedValueOnce(tokenWithOrgs("active_org"));
+
+    renderHook(() => useOrgPresenceMap("active_org"));
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+    });
+    expect(getMock).not.toHaveBeenCalled();
+
+    const onConnected = connectedHandler();
+    expect(onConnected).toBeTypeOf("function");
+    onConnected?.();
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+      expect(getMock).toHaveBeenCalledWith("presence:org_active_org");
+      expect(
+        channelFor("presence:org_active_org").presence.subscribe,
+      ).toHaveBeenCalled();
+    });
+  });
+
+  it("re-syncs on connected after authorize fails then succeeds", async () => {
+    authorizeMock
+      .mockRejectedValueOnce(new Error("token refresh failed"))
+      .mockResolvedValueOnce(tokenWithOrgs("active_org"));
+
+    renderHook(() => useOrgPresenceMap("active_org"));
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(1);
+    });
+    expect(getMock).not.toHaveBeenCalled();
+
+    connectedHandler()?.();
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+      expect(getMock).toHaveBeenCalledWith("presence:org_active_org");
+    });
   });
 });
