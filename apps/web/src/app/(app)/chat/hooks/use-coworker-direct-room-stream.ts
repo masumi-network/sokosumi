@@ -247,11 +247,12 @@ export interface UseCoworkerDirectRoomStreamResult {
   /**
    * Stream a top-level turn, or a thread reply when `parentMessageId` is set.
    * Optional `quote` snapshots another same-room message on the user persist.
+   * Returns true when the turn actually started (enabled + room + non-empty text).
    */
   sendStreamMessage: (
     text: string,
     options?: CoworkerStreamSendOptions,
-  ) => void;
+  ) => boolean;
   /** Consume a one-shot draft pending message for this room (Strict Mode safe). */
   consumePendingStreamMessage: (text: string) => void;
 }
@@ -477,10 +478,10 @@ export function useCoworkerDirectRoomStream({
   ]);
 
   const sendStreamMessage = useCallback(
-    (text: string, options?: CoworkerStreamSendOptions) => {
+    (text: string, options?: CoworkerStreamSendOptions): boolean => {
       const trimmed = text.trim();
       if (!enabled || !roomId || !trimmed) {
-        return;
+        return false;
       }
       const parentMessageId = options?.parentMessageId?.trim() || null;
       // Shared useChat instance — clear leftover turns so a failed settle cannot
@@ -492,6 +493,7 @@ export function useCoworkerDirectRoomStream({
         { text: trimmed },
         buildCoworkerStreamSendMessageOptions(options),
       );
+      return true;
     },
     [enabled, roomId, sendMessage, setMessages],
   );
@@ -508,8 +510,12 @@ export function useCoworkerDirectRoomStream({
       if (!trimmed) {
         return;
       }
+      // Mark before send so Strict Mode double-invoke cannot double-start.
+      // Roll back if the stream hook declined the turn.
       autoStreamStartedRoomIds.add(roomId);
-      sendStreamMessage(trimmed);
+      if (!sendStreamMessage(trimmed)) {
+        autoStreamStartedRoomIds.delete(roomId);
+      }
     },
     [roomId, sendStreamMessage],
   );

@@ -449,10 +449,15 @@ export function RoomsClient({
   }
 
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
-  const { scrollerRef, contentRef, contentMinHeight, scrollToBottomIfPinned } =
-    useStickToBottom({
-      resetKey: selectedRoomId,
-    });
+  const {
+    scrollerRef,
+    contentRef,
+    contentMinHeight,
+    pinToBottomAfterOwnSend,
+    scrollToBottomIfPinned,
+  } = useStickToBottom({
+    resetKey: selectedRoomId,
+  });
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
@@ -1543,8 +1548,13 @@ export function RoomsClient({
       // Coworker stream rooms keep SSE even with a pending quote (Core persists
       // the quote snapshot on the user message). Classic POST stays for non-stream.
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
-        sendStreamMessage(request.content, { quote: request.quote });
-        return { ok: true };
+        const started = sendStreamMessage(request.content, {
+          quote: request.quote,
+        });
+        if (started) {
+          pinToBottomAfterOwnSend();
+        }
+        return { ok: started };
       }
 
       const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
@@ -1578,6 +1588,7 @@ export function RoomsClient({
               setMessagesState((current) =>
                 appendMessage(current, result.data),
               );
+              pinToBottomAfterOwnSend();
             }
             resolve({ ok: true });
           } finally {
@@ -1588,7 +1599,12 @@ export function RoomsClient({
         });
       });
     },
-    [partitionMentionIds, selectedRoom, sendStreamMessage],
+    [
+      partitionMentionIds,
+      pinToBottomAfterOwnSend,
+      selectedRoom,
+      sendStreamMessage,
+    ],
   );
 
   const handleThreadBeforeSend = useCallback(
@@ -1609,11 +1625,11 @@ export function RoomsClient({
       const parentMessageId = threadParentMessage.id;
 
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
-        sendStreamMessage(request.content, {
+        const started = sendStreamMessage(request.content, {
           parentMessageId,
           quote: request.quote,
         });
-        return { ok: true };
+        return { ok: started };
       }
 
       const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
