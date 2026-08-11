@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { TASKS_RETURN_PATH_SESSION_KEY } from "@/app/tasks/components/task-navigation";
 
 let mockPathname = "/chat";
 let mockSearchParams = new URLSearchParams();
@@ -40,6 +42,7 @@ describe("HeaderLeadingControl", () => {
   beforeEach(() => {
     mockPathname = "/chat";
     mockSearchParams = new URLSearchParams();
+    window.sessionStorage.clear();
   });
 
   it("shows brand on home", () => {
@@ -120,5 +123,21 @@ describe("HeaderLeadingControl", () => {
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "back" });
     expect(back).toHaveAttribute("href", "/tasks");
+  });
+
+  it("restores stored tasks view and filters on nested tasks back", async () => {
+    window.sessionStorage.setItem(
+      TASKS_RETURN_PATH_SESSION_KEY,
+      "/tasks?view=list&status=todo",
+    );
+    mockPathname = "/tasks/t1";
+    render(<HeaderLeadingControl />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
+        "href",
+        "/tasks?view=list&status=todo",
+      );
+    });
   });
 });

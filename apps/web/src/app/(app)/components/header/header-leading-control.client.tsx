@@ -10,13 +10,16 @@ import {
   resolveMobileAppBackTarget,
   shouldShowMobileBrandLeading,
 } from "@/app/components/mobile-app-chrome";
+import { useTasksReturnPath } from "@/app/tasks/components/use-tasks-return-path";
 import { SokosumiIcon } from "@/components/masumi-logos";
 
 /**
  * Mobile header leading slot (`md:hidden` size-8):
  * - chats + bottom-nav tab roots → Sokosumi icon (no back / hamburger)
  * - chat room / draft compose → back to `/chat/chats`
- * - non-tab hub roots + nested → back (chats or list root)
+ * - nested tasks → back to stored list URL (view/filters) when present
+ * - other nested list pages → back to list root
+ * - non-tab hub roots → back to chats
  * - otherwise → back to chats
  */
 export function HeaderLeadingControl(): React.ReactElement {
@@ -25,6 +28,7 @@ export function HeaderLeadingControl(): React.ReactElement {
   const t = useTranslations("App.Channels.MobileNav");
   const surface = classifyChatChromeSurface(pathname, searchParams);
   const appBack = resolveMobileAppBackTarget(pathname);
+  const tasksReturnPath = useTasksReturnPath();
 
   if (shouldShowMobileBrandLeading(pathname, searchParams)) {
     return (
@@ -47,9 +51,10 @@ export function HeaderLeadingControl(): React.ReactElement {
   }
 
   if (appBack) {
+    const href = appBack.href === "/tasks" ? tasksReturnPath : appBack.href;
     return (
       <Link
-        href={appBack.href}
+        href={href}
         aria-label={t(appBack.labelKey)}
         className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
       >

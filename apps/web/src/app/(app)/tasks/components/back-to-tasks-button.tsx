@@ -2,9 +2,11 @@
 
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
 import { getStoredTasksReturnPath } from "./task-navigation";
+import { useTasksReturnPath } from "./use-tasks-return-path";
 
 interface BackToTasksButtonProps {
   label: string;
@@ -12,16 +14,14 @@ interface BackToTasksButtonProps {
 
 export function BackToTasksButton({ label }: BackToTasksButtonProps) {
   const router = useRouter();
-  const [returnPath, setReturnPath] = useState("/tasks");
+  const returnPath = useTasksReturnPath();
 
-  useEffect(() => {
-    const nextReturnPath = getStoredTasksReturnPath();
-    setReturnPath(nextReturnPath);
-    router.prefetch(nextReturnPath);
-  }, [router]);
+  useMountEffect(() => {
+    router.prefetch(getStoredTasksReturnPath());
+  });
 
   const handleNavigate = () => {
-    router.push(returnPath);
+    router.push(getStoredTasksReturnPath());
   };
 
   return (
