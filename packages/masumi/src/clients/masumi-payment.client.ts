@@ -496,9 +496,19 @@ export function createPaymentClient(
             `api-key-status ${statusResponse.response?.status ?? "unknown"}: ${extractNodeErrorMessage(statusResponse.error)}`,
           );
         }
+        // Runtime guard, not just the generated type: a version-skewed node
+        // answering 200 with a missing/empty id would make the query
+        // serializer silently DROP the apiKeyId param, turning this into the
+        // unscoped admin read this whole resolution exists to prevent.
+        const apiKeyId: unknown = statusResponse.data.data?.id;
+        if (typeof apiKeyId !== "string" || apiKeyId.length === 0) {
+          return err(
+            "api-key-status returned no key id; refusing unscoped budgets read",
+          );
+        }
         const response = await getX402BudgetsRequest({
           client: client(),
-          query: { apiKeyId: statusResponse.data.data.id },
+          query: { apiKeyId },
           signal: options.signal,
         });
         if (response.error || !response.data) {

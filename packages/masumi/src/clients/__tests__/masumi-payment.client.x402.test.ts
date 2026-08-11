@@ -185,6 +185,28 @@ describe("getX402Budgets", () => {
     expect(getX402BudgetsMock).not.toHaveBeenCalled();
   });
 
+  it("refuses the unscoped read when the key id is missing or empty", async () => {
+    // A version-skewed node can answer 200 with no id. The hey-api query
+    // serializer silently DROPS an undefined apiKeyId param, which would turn
+    // the call into exactly the unscoped admin read the resolution prevents.
+    for (const data of [{}, { id: "" }]) {
+      getX402BudgetsMock.mockClear();
+      getApiKeyStatusMock.mockResolvedValue({
+        data: { status: "success", data },
+        error: undefined,
+        response: { status: 200 },
+      });
+
+      const result = await createClient().getX402Budgets();
+
+      expect(result.isErr()).toBe(true);
+      expect(result.isErr() && result.error).toContain(
+        "refusing unscoped budgets read",
+      );
+      expect(getX402BudgetsMock).not.toHaveBeenCalled();
+    }
+  });
+
   it("forwards the abort signal", async () => {
     getX402BudgetsMock.mockResolvedValue({
       data: { status: "success", data: { Budgets: [] } },

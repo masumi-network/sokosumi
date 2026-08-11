@@ -412,3 +412,12 @@ bypass.
 **Verification:** `pnpm --filter @sokosumi/masumi test` 14 files / 250
 passed; core x402 + agent + deletion suites (12 files) 282 passed;
 `pnpm typecheck` all workspaces; `pnpm format` + `pnpm check` clean.
+
+### Step-3 re-review residuals (for step 4)
+
+- `apps/core/src/helpers/agent.ts` is 762 lines — still over the 750 ceiling.
+  Step 4 touches listing: extract the availability/where-clause helpers (or
+  the metadata-override getters) as part of its change, per the split rule.
+- Nit deferred: normalizer prefers a top-level 402 `resource` over per-entry
+  values instead of erroring on disagreement (pre-existing precedence; extend
+  the fence only if a wild payload actually exhibits it).
