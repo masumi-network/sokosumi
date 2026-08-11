@@ -13,9 +13,27 @@ interface ProjectsLoadingViewProps {
   labels: ProjectsLoadingViewLabels;
 }
 
+/** Sync shell labels for Instant Navigations / `loading.tsx` (no cookies/i18n). */
+export const PROJECTS_LOADING_DEFAULT_LABELS: ProjectsLoadingViewLabels = {
+  newProject: "New project",
+};
+
+/**
+ * Sync Instant Nav shell for `/projects`.
+ * Mirrors `ProjectsView` chrome so the Instant swap stays stable.
+ */
+export function ProjectsPageSkeleton() {
+  return (
+    <div className="w-full px-2">
+      <ProjectsLoadingView labels={PROJECTS_LOADING_DEFAULT_LABELS} />
+    </div>
+  );
+}
+
 export function ProjectsLoadingView({ labels }: ProjectsLoadingViewProps) {
   return (
     <div
+      data-testid="projects-loading"
       className={cn("flex flex-col gap-5", LIST_MOBILE_CREATE_FAB_CLEARANCE)}
     >
       <div className="hidden justify-end md:flex">
@@ -25,8 +43,12 @@ export function ProjectsLoadingView({ labels }: ProjectsLoadingViewProps) {
         </Button>
       </div>
 
-      <div className="bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
-        <div className="divide-border/50 divide-y px-2">
+      {/* min-h matches ProjectsEmptyState so empty swap is smaller than a full list collapse. */}
+      <div className="bg-muted/30 border-border/50 -mx-6 min-h-[320px] overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+        <div
+          data-testid="projects-loading-list"
+          className="divide-border/50 divide-y px-2"
+        >
           {Array.from({ length: 4 }, (_, index) => (
             <ProjectListItemSkeleton key={index} />
           ))}
@@ -36,9 +58,13 @@ export function ProjectsLoadingView({ labels }: ProjectsLoadingViewProps) {
   );
 }
 
+/**
+ * Match `ProjectListItem` row geometry (content-visibility + 72px intrinsic)
+ * so Instant swap does not thrash layout metrics.
+ */
 function ProjectListItemSkeleton() {
   return (
-    <article className="-mx-2 flex items-center gap-1 rounded-lg px-2">
+    <article className="-mx-2 flex items-center gap-1 rounded-lg px-2 [content-visibility:auto] [contain-intrinsic-size:auto_72px]">
       <div className="flex min-w-0 flex-1 flex-col gap-2 px-2 py-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
