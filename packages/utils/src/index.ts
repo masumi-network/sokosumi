@@ -131,6 +131,7 @@ export {
   buildJobBlobPathname,
   buildJobBlobPrefix,
 } from "./job-blob-path.js";
+export { linkifyBareDomainsInMarkdown } from "./linkify-bare-domains.js";
 export {
   type AppLocale,
   DEFAULT_LOCALE,

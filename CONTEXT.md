@@ -38,6 +38,16 @@ _Avoid_: Sidebar rooms, room list (when meaning who is in the room)
 The event that the current user is no longer a member of a room — by remote removal (kick / roster remove) or by voluntary leave. After revoke they must not remain in membership-visible rooms for that room.
 _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room membership)
 
+### Chat message body
+
+**Room message body**:
+The markdown string stored for a chat room message (what was sent). Presentation may turn some plain text into links without changing the stored string.
+_Avoid_: Wire content (implementation jargon), rendered HTML (that is display, not the body)
+
+**Bare domain**:
+In a room message body, a plain hostname with optional path, query, or fragment and no URL scheme (e.g. `google.com`, `naturstein-koester.de/path?q=1`). Shown as a clickable link in the room after send; not converted while typing in the composer; not rewritten in storage.
+_Avoid_: Autolink (ambiguous with GFM scheme/`www` links), live link (composer does not convert bare domains while typing)
+
 ### Chat coworker thought
 
 **Mention status**:
