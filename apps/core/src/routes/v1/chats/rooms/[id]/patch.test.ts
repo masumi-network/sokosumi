@@ -33,6 +33,7 @@ const {
   readStateFindManyMock,
   guestInvitationCountMock,
   guestInvitationUpdateManyMock,
+  guestInviteLinkCountMock,
   queryRawMock,
   userMemberCountMock,
   prismaTransactionMock,
@@ -63,6 +64,7 @@ const {
   readStateFindManyMock: vi.fn(),
   guestInvitationCountMock: vi.fn(),
   guestInvitationUpdateManyMock: vi.fn(),
+  guestInviteLinkCountMock: vi.fn(),
   queryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
@@ -141,6 +143,9 @@ const tx = {
   chatRoomGuestInvitation: {
     count: guestInvitationCountMock,
     updateMany: guestInvitationUpdateManyMock,
+  },
+  chatRoomGuestInviteLink: {
+    count: guestInviteLinkCountMock,
   },
   $queryRaw: queryRawMock,
 };
@@ -258,6 +263,7 @@ beforeEach(() => {
   readStateFindManyMock.mockResolvedValue([]);
   guestInvitationCountMock.mockResolvedValue(0);
   guestInvitationUpdateManyMock.mockResolvedValue({ count: 0 });
+  guestInviteLinkCountMock.mockResolvedValue(0);
   queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
   userMemberCountMock.mockResolvedValue(0);
   userMemberUpdateManyMock.mockResolvedValue({ count: 0 });
@@ -746,12 +752,42 @@ describe("PATCH /chats/rooms/{id}", () => {
     expect(roomUpdateMock).not.toHaveBeenCalled();
   });
 
+  it("blocks convert away from external when live shareable invite links exist", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      channelRoom({ discoverability: "external" }),
+    );
+    memberFindUniqueMock.mockResolvedValue({ role: "owner" });
+    guestInvitationCountMock.mockResolvedValue(0);
+    guestInviteLinkCountMock.mockResolvedValue(1);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ discoverability: "private" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toMatch(
+      /guest members or pending invitations/i,
+    );
+    expect(guestInviteLinkCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        roomId: ROOM_ID,
+        revokedAt: null,
+        expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
+      }),
+    });
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("allows convert away from external when no guests or pending invites", async () => {
     const existing = channelRoom({ discoverability: "external" });
     const updated = channelRoom({ discoverability: "public" });
     roomFindFirstMock.mockResolvedValueOnce(existing);
     memberFindUniqueMock.mockResolvedValue({ role: "admin" });
     guestInvitationCountMock.mockResolvedValue(0);
+    guestInviteLinkCountMock.mockResolvedValue(0);
     roomUpdateMock.mockResolvedValueOnce(updated);
 
     const app = createApp(userAuthContext);
@@ -766,6 +802,13 @@ describe("PATCH /chats/rooms/{id}", () => {
       where: expect.objectContaining({
         roomId: ROOM_ID,
         status: "pending",
+        expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
+      }),
+    });
+    expect(guestInviteLinkCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        roomId: ROOM_ID,
+        revokedAt: null,
         expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
       }),
     });

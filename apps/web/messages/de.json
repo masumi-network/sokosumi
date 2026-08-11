@@ -5202,7 +5202,20 @@
         "retry": "Erneut versuchen",
         "revoke": "Einladung widerrufen",
         "revokeAria": "Einladung für {email} widerrufen",
-        "revokeSuccess": "Einladung widerrufen."
+        "revokeSuccess": "Einladung widerrufen.",
+        "linksTitle": "Shareable links",
+        "linksDescription": "Anyone signed in who is not in your organization can open a live link to join as a guest.",
+        "linksEmpty": "No shareable links yet.",
+        "createLink": "Create link",
+        "copyLink": "Copy link",
+        "copyLinkAria": "Copy invite link",
+        "linkCopySuccess": "Link copied.",
+        "linkCopyError": "Could not copy link.",
+        "linkCreateSuccess": "Invite link created.",
+        "linkCreateCopySuccess": "Invite link created and copied.",
+        "revokeLink": "Revoke link",
+        "revokeLinkAria": "Revoke invite link",
+        "linkRevokeSuccess": "Invite link revoked."
       },
       "ChatInvite": {
         "title": "Kanaleinladung",
@@ -5245,6 +5258,29 @@
             "content": "Der Link ist möglicherweise falsch, oder die Einladung wurde bereits genutzt oder widerrufen.",
             "footer": "Zurück zum Chat"
           }
+        }
+      },
+      "ChatJoin": {
+        "title": "Join channel",
+        "invitedToJoin": "You've been invited to join #{room} ({organization}).",
+        "guestNote": "Joining as a guest does not make you a member of the host organization.",
+        "join": "Join #{room}",
+        "joining": "Joining…",
+        "joined": "You joined #{room}.",
+        "alreadyGuest": "You're already in #{room}.",
+        "signedOutHint": "Sign in or create an account to join this channel as a guest.",
+        "signIn": "Sign in",
+        "register": "Create account",
+        "Error": {
+          "joinFailed": "Could not join this channel."
+        },
+        "Invalid": {
+          "title": "Invite link unavailable",
+          "expired": "This invite link has expired.",
+          "revoked": "This invite link has been revoked.",
+          "depleted": "This invite link has reached its usage limit.",
+          "notFound": "This invite link is not valid.",
+          "back": "Back to chat"
         }
       }
     }

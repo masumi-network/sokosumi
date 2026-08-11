@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Trash2, UserPlus } from "lucide-react";
+import { Copy, Link2, Loader2, Trash2, UserPlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type FormEvent,
@@ -12,15 +12,19 @@ import {
 import { toast } from "sonner";
 
 import {
+  createRoomGuestInviteLinkAction,
   createRoomInvitationAction,
+  listRoomGuestInviteLinksAction,
   listRoomInvitationsAction,
   removeRoomGuestAction,
+  revokeRoomGuestInviteLinkAction,
   revokeRoomInvitationAction,
 } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type {
+  ChatRoomGuestInviteLink,
   ChatRoomInvitation,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
@@ -48,23 +52,34 @@ export function GuestInviteSection({
   const t = useTranslations("App.Channels.GuestInvite");
   const [email, setEmail] = useState("");
   const [invitations, setInvitations] = useState<ChatRoomInvitation[]>([]);
+  const [inviteLinks, setInviteLinks] = useState<ChatRoomGuestInviteLink[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [revokingToken, setRevokingToken] = useState<string | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
   const loadInvitations = useCallback(async () => {
     setIsLoading(true);
     setLoadFailed(false);
-    const result = await listRoomInvitationsAction(roomId);
+    const [invitationsResult, linksResult] = await Promise.all([
+      listRoomInvitationsAction(roomId),
+      listRoomGuestInviteLinksAction(roomId),
+    ]);
     setIsLoading(false);
-    if (!result.ok) {
+    if (!invitationsResult.ok || !linksResult.ok) {
       setLoadFailed(true);
       setInvitations([]);
+      setInviteLinks([]);
       return;
     }
-    setInvitations(result.value.filter((inv) => inv.status === "pending"));
+    setInvitations(
+      invitationsResult.value.filter((inv) => inv.status === "pending"),
+    );
+    // Show non-revoked links (expired/depleted still useful for audit until host revokes).
+    setInviteLinks(linksResult.value.filter((link) => !link.revokedAt));
   }, [roomId]);
 
   // Mount-only fetch; parent remounts on dialog open so reopen is fresh.
@@ -108,6 +123,46 @@ export function GuestInviteSection({
     }
     toast.success(t("revokeSuccess"));
     setInvitations((prev) => prev.filter((inv) => inv.id !== invitationId));
+  }
+
+  async function handleCreateLink() {
+    if (isCreatingLink) return;
+    setIsCreatingLink(true);
+    const result = await createRoomGuestInviteLinkAction(roomId);
+    setIsCreatingLink(false);
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
+    setInviteLinks((prev) => [result.value, ...prev]);
+    try {
+      await navigator.clipboard.writeText(result.value.url);
+      toast.success(t("linkCreateCopySuccess"));
+    } catch {
+      toast.success(t("linkCreateSuccess"));
+    }
+  }
+
+  async function handleCopyLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success(t("linkCopySuccess"));
+    } catch {
+      toast.error(t("linkCopyError"));
+    }
+  }
+
+  async function handleRevokeLink(token: string) {
+    if (revokingToken) return;
+    setRevokingToken(token);
+    const result = await revokeRoomGuestInviteLinkAction(roomId, token);
+    setRevokingToken(null);
+    if (!result.ok) {
+      toast.error(result.error.message);
+      return;
+    }
+    toast.success(t("linkRevokeSuccess"));
+    setInviteLinks((prev) => prev.filter((link) => link.token !== token));
   }
 
   async function handleRemoveGuest(userId: string, label: string) {
@@ -161,6 +216,79 @@ export function GuestInviteSection({
           {t("send")}
         </Button>
       </form>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+            {t("linksTitle")}
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={isCreatingLink}
+            onClick={() => void handleCreateLink()}
+          >
+            {isCreatingLink ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Link2 className="size-4" aria-hidden />
+            )}
+            {t("createLink")}
+          </Button>
+        </div>
+        <p className="text-muted-foreground text-xs">{t("linksDescription")}</p>
+        {isLoading ? (
+          <p className="text-muted-foreground flex items-center gap-2 text-sm">
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            {t("loading")}
+          </p>
+        ) : inviteLinks.length === 0 ? (
+          <p className="text-muted-foreground text-sm">{t("linksEmpty")}</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {inviteLinks.map((link) => (
+              <li
+                key={link.token}
+                className="bg-muted/40 flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm"
+              >
+                <span className="min-w-0 truncate font-mono text-xs">
+                  {link.url}
+                </span>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    aria-label={t("copyLinkAria")}
+                    title={t("copyLink")}
+                    onClick={() => void handleCopyLink(link.url)}
+                  >
+                    <Copy className="size-4" aria-hidden />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    aria-label={t("revokeLinkAria")}
+                    title={t("revokeLink")}
+                    disabled={revokingToken === link.token}
+                    onClick={() => void handleRevokeLink(link.token)}
+                  >
+                    {revokingToken === link.token ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 className="size-4" aria-hidden />
+                    )}
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="space-y-2">
         <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">

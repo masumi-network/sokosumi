@@ -13,7 +13,9 @@ import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { getSession } from "@/lib/auth/auth.server";
 import type {
+  AcceptChatRoomGuestInviteLink,
   ChatRoom,
+  ChatRoomGuestInviteLink,
   ChatRoomInvitation,
   ChatRoomMessage,
   ChatRoomThread,
@@ -477,6 +479,81 @@ export async function revokeRoomInvitationAction(
     return roomOk(null);
   } catch (error) {
     return roomCatch(error, "Could not revoke invitation.");
+  }
+}
+
+/** Host: list shareable guest invite links for an external channel. */
+export async function listRoomGuestInviteLinksAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoomGuestInviteLink[]>> {
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+
+  try {
+    const links = await chatRoomService.listRoomGuestInviteLinks(cleanRoomId);
+    return roomOk(links);
+  } catch (error) {
+    return roomCatch(error, "Could not load invite links.");
+  }
+}
+
+/** Host: create a shareable guest invite link. */
+export async function createRoomGuestInviteLinkAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoomGuestInviteLink>> {
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+
+  try {
+    const link = await chatRoomService.createRoomGuestInviteLink(cleanRoomId);
+    return roomOk(link);
+  } catch (error) {
+    return roomCatch(error, "Could not create invite link.");
+  }
+}
+
+/** Host: revoke a shareable guest invite link. */
+export async function revokeRoomGuestInviteLinkAction(
+  roomId: string,
+  token: string,
+): Promise<RoomActionResult<null>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanToken = cleanString(token);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+  if (!cleanToken) {
+    return roomFail("Invite link is required.");
+  }
+
+  try {
+    await chatRoomService.revokeRoomGuestInviteLink(cleanRoomId, cleanToken);
+    return roomOk(null);
+  } catch (error) {
+    return roomCatch(error, "Could not revoke invite link.");
+  }
+}
+
+/** Accept a shareable guest invite link as the signed-in user. */
+export async function acceptRoomGuestInviteLinkAction(
+  token: string,
+): Promise<RoomActionResult<AcceptChatRoomGuestInviteLink>> {
+  const cleanToken = cleanString(token);
+  if (!cleanToken) {
+    return roomFail("Invite link is required.");
+  }
+
+  try {
+    const result = await chatRoomService.acceptRoomGuestInviteLink(cleanToken);
+    await invalidateSidebarChatList();
+    revalidatePath("/chat");
+    return roomOk(result);
+  } catch (error) {
+    return roomCatch(error, "Could not join channel.");
   }
 }
 

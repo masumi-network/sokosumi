@@ -5184,12 +5184,25 @@
       },
       "GuestInvite": {
         "title": "Invite guests",
-        "description": "Invite people outside the organization by email. Guests join this channel only and do not become organization members.",
+        "description": "Invite people outside the organization by email or shareable link. Guests join this channel only and do not become organization members.",
         "emailLabel": "Email",
         "emailPlaceholder": "guest@example.com",
         "send": "Send invite",
         "invalidEmail": "Enter a valid email address.",
         "inviteSuccess": "Invitation sent to {email}.",
+        "linksTitle": "Shareable links",
+        "linksDescription": "Anyone signed in who is not in your organization can open a live link to join as a guest.",
+        "linksEmpty": "No shareable links yet.",
+        "createLink": "Create link",
+        "copyLink": "Copy link",
+        "copyLinkAria": "Copy invite link",
+        "linkCopySuccess": "Link copied.",
+        "linkCopyError": "Could not copy link.",
+        "linkCreateSuccess": "Invite link created.",
+        "linkCreateCopySuccess": "Invite link created and copied.",
+        "revokeLink": "Revoke link",
+        "revokeLinkAria": "Revoke invite link",
+        "linkRevokeSuccess": "Invite link revoked.",
         "guestsTitle": "Guests",
         "guestsEmpty": "No guests yet.",
         "removeGuest": "Remove guest",
@@ -5203,6 +5216,29 @@
         "revoke": "Revoke invitation",
         "revokeAria": "Revoke invitation for {email}",
         "revokeSuccess": "Invitation revoked."
+      },
+      "ChatJoin": {
+        "title": "Join channel",
+        "invitedToJoin": "You've been invited to join #{room} ({organization}).",
+        "guestNote": "Joining as a guest does not make you a member of the host organization.",
+        "join": "Join #{room}",
+        "joining": "Joining…",
+        "joined": "You joined #{room}.",
+        "alreadyGuest": "You're already in #{room}.",
+        "signedOutHint": "Sign in or create an account to join this channel as a guest.",
+        "signIn": "Sign in",
+        "register": "Create account",
+        "Error": {
+          "joinFailed": "Could not join this channel."
+        },
+        "Invalid": {
+          "title": "Invite link unavailable",
+          "expired": "This invite link has expired.",
+          "revoked": "This invite link has been revoked.",
+          "depleted": "This invite link has reached its usage limit.",
+          "notFound": "This invite link is not valid.",
+          "back": "Back to chat"
+        }
       },
       "ChatInvite": {
         "title": "Channel invitation",

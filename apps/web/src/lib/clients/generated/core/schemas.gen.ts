@@ -5283,6 +5283,92 @@ export const CreateChatRoomInvitationRequestSchema = {
     ]
 } as const;
 
+export const ChatRoomGuestInviteLinkSchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string'
+        },
+        url: {
+            type: 'string',
+            format: 'uri'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        revokedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        maxUses: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        useCount: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'token',
+        'url',
+        'roomId',
+        'createdAt',
+        'expiresAt',
+        'revokedAt',
+        'maxUses',
+        'useCount'
+    ]
+} as const;
+
+export const CreateChatRoomGuestInviteLinkRequestSchema = {
+    type: 'object',
+    properties: {
+        expiresInDays: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 90,
+            default: 7
+        },
+        maxUses: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 1,
+            maximum: 10000
+        }
+    }
+} as const;
+
+export const RevokeChatRoomGuestInviteLinkResultSchema = {
+    type: 'object',
+    properties: {
+        ok: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'ok'
+    ]
+} as const;
+
 export const LeftChatRoomSchema = {
     type: 'object',
     properties: {
@@ -10320,6 +10406,78 @@ export const AcceptOrganizationInviteLinkSchema = {
         'status',
         'organizationSlug',
         'organizationId'
+    ]
+} as const;
+
+export const ResolveChatRoomGuestInviteLinkSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'valid',
+                'expired',
+                'revoked',
+                'depleted',
+                'not_found'
+            ]
+        },
+        room: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                name: {
+                    type: 'string'
+                },
+                organizationId: {
+                    type: 'string'
+                },
+                organizationName: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'organizationId',
+                'organizationName'
+            ]
+        }
+    },
+    required: [
+        'status',
+        'room'
+    ]
+} as const;
+
+export const AcceptChatRoomGuestInviteLinkSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'joined',
+                'already_guest'
+            ]
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomName: {
+            type: 'string'
+        }
+    },
+    required: [
+        'status',
+        'roomId',
+        'roomName'
     ]
 } as const;
 
