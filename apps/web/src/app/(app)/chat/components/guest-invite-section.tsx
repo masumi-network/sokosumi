@@ -179,7 +179,7 @@ export function GuestInviteSection({
   }
 
   return (
-    <div className="space-y-3 border-t pt-4">
+    <div className="space-y-4 border-t pt-4">
       <div className="space-y-1">
         <p className="flex items-center gap-2 text-sm font-medium">
           <UserPlus className="size-4" aria-hidden />
@@ -188,44 +188,115 @@ export function GuestInviteSection({
         <p className="text-muted-foreground text-xs">{t("description")}</p>
       </div>
 
-      <form
-        className="flex flex-col gap-2 sm:flex-row sm:items-end"
-        onSubmit={handleSubmit}
-      >
-        <div className="min-w-0 flex-1 space-y-2">
-          <Label htmlFor="guest-invite-email">{t("emailLabel")}</Label>
-          <Input
-            id="guest-invite-email"
-            type="email"
-            autoComplete="email"
-            placeholder={t("emailPlaceholder")}
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            disabled={isPending}
-          />
-        </div>
-        <Button
-          type="submit"
-          variant="secondary"
-          disabled={isPending || !email.trim()}
-          className="sm:mb-0"
-        >
-          {isPending ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : null}
-          {t("send")}
-        </Button>
-      </form>
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            {t("linksTitle")}
+      {/* Email invite — direct, known recipient */}
+      <div className="bg-muted/20 space-y-3 rounded-lg border p-3">
+        <div className="space-y-1">
+          <p className="text-sm font-medium">{t("emailTitle")}</p>
+          <p className="text-muted-foreground text-xs">
+            {t("emailDescription")}
           </p>
+        </div>
+
+        <form
+          className="flex flex-col gap-2 sm:flex-row sm:items-end"
+          onSubmit={handleSubmit}
+        >
+          <div className="min-w-0 flex-1 space-y-2">
+            <Label htmlFor="guest-invite-email">{t("emailLabel")}</Label>
+            <Input
+              id="guest-invite-email"
+              type="email"
+              autoComplete="email"
+              placeholder={t("emailPlaceholder")}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              disabled={isPending}
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={isPending || !email.trim()}
+            className="sm:mb-0"
+          >
+            {isPending ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : null}
+            {t("send")}
+          </Button>
+        </form>
+
+        <div className="space-y-2">
+          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+            {t("pendingTitle")}
+          </p>
+          {isLoading ? (
+            <p className="text-muted-foreground flex items-center gap-2 text-sm">
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              {t("loading")}
+            </p>
+          ) : loadFailed ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <p className="text-muted-foreground text-sm">{t("loadError")}</p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => void loadInvitations()}
+              >
+                {t("retry")}
+              </Button>
+            </div>
+          ) : invitations.length === 0 ? (
+            <p className="text-muted-foreground text-sm">{t("empty")}</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {invitations.map((invitation) => (
+                <li
+                  key={invitation.id}
+                  className="bg-muted/40 flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm"
+                >
+                  <span className="min-w-0 truncate">{invitation.email}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0"
+                    aria-label={t("revokeAria", { email: invitation.email })}
+                    title={t("revoke")}
+                    disabled={revokingId === invitation.id}
+                    onClick={() => void handleRevoke(invitation.id)}
+                  >
+                    {revokingId === invitation.id ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 className="size-4" aria-hidden />
+                    )}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Shareable link — multi-use, no email required */}
+      <div className="bg-muted/20 space-y-3 rounded-lg border p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <Link2 className="size-4 shrink-0" aria-hidden />
+              {t("linksTitle")}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {t("linksDescription")}
+            </p>
+          </div>
           <Button
             type="button"
             variant="secondary"
             size="sm"
+            className="shrink-0"
             disabled={isCreatingLink}
             onClick={() => void handleCreateLink()}
           >
@@ -237,7 +308,7 @@ export function GuestInviteSection({
             {t("createLink")}
           </Button>
         </div>
-        <p className="text-muted-foreground text-xs">{t("linksDescription")}</p>
+
         {isLoading ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
             <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -333,59 +404,6 @@ export function GuestInviteSection({
                 </li>
               );
             })}
-          </ul>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-          {t("pendingTitle")}
-        </p>
-        {isLoading ? (
-          <p className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-            {t("loading")}
-          </p>
-        ) : loadFailed ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <p className="text-muted-foreground text-sm">{t("loadError")}</p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => void loadInvitations()}
-            >
-              {t("retry")}
-            </Button>
-          </div>
-        ) : invitations.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{t("empty")}</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {invitations.map((invitation) => (
-              <li
-                key={invitation.id}
-                className="bg-muted/40 flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm"
-              >
-                <span className="min-w-0 truncate">{invitation.email}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 shrink-0"
-                  aria-label={t("revokeAria", { email: invitation.email })}
-                  title={t("revoke")}
-                  disabled={revokingId === invitation.id}
-                  onClick={() => void handleRevoke(invitation.id)}
-                >
-                  {revokingId === invitation.id ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Trash2 className="size-4" aria-hidden />
-                  )}
-                </Button>
-              </li>
-            ))}
           </ul>
         )}
       </div>

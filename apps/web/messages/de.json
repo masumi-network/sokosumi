@@ -5184,7 +5184,7 @@
       },
       "GuestInvite": {
         "title": "Gäste einladen",
-        "description": "Lade Personen außerhalb der Organisation per E-Mail ein. Gäste treten nur diesem Kanal bei und werden keine Organisationsmitglieder.",
+        "description": "Gäste treten nur diesem Kanal bei und werden keine Organisationsmitglieder.",
         "emailLabel": "E-Mail",
         "emailPlaceholder": "gast@example.com",
         "send": "Einladung senden",
@@ -5203,8 +5203,8 @@
         "revoke": "Einladung widerrufen",
         "revokeAria": "Einladung für {email} widerrufen",
         "revokeSuccess": "Einladung widerrufen.",
-        "linksTitle": "Shareable links",
-        "linksDescription": "Anyone signed in who is not in your organization can open a live link to join as a guest.",
+        "linksTitle": "Teilbarer Link",
+        "linksDescription": "Erstelle einen Link, den jede angemeldete Person außerhalb deiner Organisation öffnen kann, um als Gast beizutreten. Keine E-Mail im Voraus nötig.",
         "linksEmpty": "No shareable links yet.",
         "createLink": "Create link",
         "copyLink": "Copy link",
@@ -5215,7 +5215,9 @@
         "linkCreateCopySuccess": "Invite link created and copied.",
         "revokeLink": "Revoke link",
         "revokeLinkAria": "Revoke invite link",
-        "linkRevokeSuccess": "Invite link revoked."
+        "linkRevokeSuccess": "Invite link revoked.",
+        "emailTitle": "Per E-Mail einladen",
+        "emailDescription": "Sende eine persönliche Einladung an eine bekannte E-Mail-Adresse. Die Person muss mit diesem Konto annehmen."
       },
       "ChatInvite": {
         "title": "Kanaleinladung",

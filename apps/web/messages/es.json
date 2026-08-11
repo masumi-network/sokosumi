@@ -5184,7 +5184,7 @@
       },
       "GuestInvite": {
         "title": "Invitar invitados",
-        "description": "Invita por correo a personas fuera de la organización. Los invitados solo se unen a este canal y no se convierten en miembros de la organización.",
+        "description": "Los invitados solo se unen a este canal y no se convierten en miembros de la organización.",
         "emailLabel": "Correo",
         "emailPlaceholder": "invitado@example.com",
         "send": "Enviar invitación",
@@ -5203,8 +5203,8 @@
         "revoke": "Revocar invitación",
         "revokeAria": "Revocar invitación de {email}",
         "revokeSuccess": "Invitación revocada.",
-        "linksTitle": "Shareable links",
-        "linksDescription": "Anyone signed in who is not in your organization can open a live link to join as a guest.",
+        "linksTitle": "Enlace compartible",
+        "linksDescription": "Crea un enlace que cualquiera con sesión iniciada fuera de tu organización puede abrir para unirse como invitado. No hace falta el correo de antemano.",
         "linksEmpty": "No shareable links yet.",
         "createLink": "Create link",
         "copyLink": "Copy link",
@@ -5215,7 +5215,9 @@
         "linkCreateCopySuccess": "Invite link created and copied.",
         "revokeLink": "Revoke link",
         "revokeLinkAria": "Revoke invite link",
-        "linkRevokeSuccess": "Invite link revoked."
+        "linkRevokeSuccess": "Invite link revoked.",
+        "emailTitle": "Invitar por correo",
+        "emailDescription": "Envía una invitación personal a un correo conocido. Debe aceptar con esa cuenta."
       },
       "ChatInvite": {
         "title": "Invitación al canal",
