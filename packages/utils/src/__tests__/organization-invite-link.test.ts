@@ -81,6 +81,12 @@ describe("evaluateInviteLinkStatus", () => {
       evaluateInviteLinkStatus(link({ maxUses: null, useCount: 9999 }), NOW),
     ).toBe("valid");
   });
+
+  it("treats null expiresAt as never expired by time", () => {
+    expect(evaluateInviteLinkStatus(link({ expiresAt: null }), NOW)).toBe(
+      "valid",
+    );
+  });
 });
 
 describe("canRevokeInviteLink", () => {

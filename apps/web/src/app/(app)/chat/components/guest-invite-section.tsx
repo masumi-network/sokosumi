@@ -23,12 +23,35 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type {
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { isValidEmail } from "@/lib/utils/email";
+
+/** Select value for "no hard expiry". */
+const EXPIRY_NEVER = "never";
+/** Select value for unlimited max uses. */
+const MAX_USES_UNLIMITED = "unlimited";
+
+const EXPIRY_PRESETS = ["1", "7", "30", "90", EXPIRY_NEVER] as const;
+const MAX_USES_PRESETS = [
+  MAX_USES_UNLIMITED,
+  "1",
+  "5",
+  "10",
+  "25",
+  "50",
+  "100",
+] as const;
 
 interface GuestInviteSectionProps {
   roomId: string;
@@ -57,6 +80,8 @@ export function GuestInviteSection({
   const [isLoading, setIsLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [isCreatingLink, setIsCreatingLink] = useState(false);
+  const [linkExpiry, setLinkExpiry] = useState<string>("7");
+  const [linkMaxUses, setLinkMaxUses] = useState<string>(MAX_USES_UNLIMITED);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokingToken, setRevokingToken] = useState<string | null>(null);
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
@@ -127,8 +152,36 @@ export function GuestInviteSection({
 
   async function handleCreateLink() {
     if (isCreatingLink) return;
+
+    const expiresInDays: number | null =
+      linkExpiry === EXPIRY_NEVER ? null : Number(linkExpiry);
+    if (
+      linkExpiry !== EXPIRY_NEVER &&
+      (!Number.isInteger(expiresInDays) ||
+        (expiresInDays as number) < 1 ||
+        (expiresInDays as number) > 90)
+    ) {
+      toast.error(t("linkExpiryInvalid"));
+      return;
+    }
+
+    const maxUses: number | null =
+      linkMaxUses === MAX_USES_UNLIMITED ? null : Number(linkMaxUses);
+    if (
+      linkMaxUses !== MAX_USES_UNLIMITED &&
+      (!Number.isInteger(maxUses) ||
+        (maxUses as number) < 1 ||
+        (maxUses as number) > 10_000)
+    ) {
+      toast.error(t("linkMaxUsesInvalid"));
+      return;
+    }
+
     setIsCreatingLink(true);
-    const result = await createRoomGuestInviteLinkAction(roomId);
+    const result = await createRoomGuestInviteLinkAction(roomId, {
+      expiresInDays,
+      maxUses,
+    });
     setIsCreatingLink(false);
     if (!result.ok) {
       toast.error(result.error.message);
@@ -282,32 +335,80 @@ export function GuestInviteSection({
 
       {/* Shareable link — multi-use, no email required */}
       <div className="bg-muted/20 min-w-0 space-y-3 overflow-hidden rounded-lg border p-3">
-        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 flex-1 space-y-1">
-            <p className="flex items-center gap-2 text-sm font-medium">
-              <Link2 className="size-4 shrink-0" aria-hidden />
-              {t("linksTitle")}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              {t("linksDescription")}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="w-full shrink-0 sm:w-auto"
-            disabled={isCreatingLink}
-            onClick={() => void handleCreateLink()}
-          >
-            {isCreatingLink ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Link2 className="size-4" aria-hidden />
-            )}
-            {t("createLink")}
-          </Button>
+        <div className="min-w-0 space-y-1">
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <Link2 className="size-4 shrink-0" aria-hidden />
+            {t("linksTitle")}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            {t("linksDescription")}
+          </p>
         </div>
+
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor="guest-invite-link-expiry">
+              {t("linkExpiryLabel")}
+            </Label>
+            <Select
+              value={linkExpiry}
+              onValueChange={setLinkExpiry}
+              disabled={isCreatingLink}
+            >
+              <SelectTrigger id="guest-invite-link-expiry" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EXPIRY_PRESETS.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value === EXPIRY_NEVER
+                      ? t("linkExpiryNever")
+                      : t("linkExpiryDays", { days: Number(value) })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor="guest-invite-link-max-uses">
+              {t("linkMaxUsesLabel")}
+            </Label>
+            <Select
+              value={linkMaxUses}
+              onValueChange={setLinkMaxUses}
+              disabled={isCreatingLink}
+            >
+              <SelectTrigger id="guest-invite-link-max-uses" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MAX_USES_PRESETS.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {value === MAX_USES_UNLIMITED
+                      ? t("linkMaxUsesUnlimited")
+                      : t("linkMaxUsesCount", { count: Number(value) })}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="w-full sm:w-auto"
+          disabled={isCreatingLink}
+          onClick={() => void handleCreateLink()}
+        >
+          {isCreatingLink ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <Link2 className="size-4" aria-hidden />
+          )}
+          {t("createLink")}
+        </Button>
 
         {isLoading ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -321,43 +422,59 @@ export function GuestInviteSection({
             {inviteLinks.map((link) => (
               <li
                 key={link.token}
-                className="bg-muted/40 flex min-w-0 items-center gap-2 overflow-hidden rounded-md px-3 py-2 text-sm"
+                className="bg-muted/40 min-w-0 space-y-1 overflow-hidden rounded-md px-3 py-2 text-sm"
               >
-                <span
-                  className="min-w-0 flex-1 truncate font-mono text-xs"
-                  title={link.url}
-                >
-                  {link.url}
-                </span>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    aria-label={t("copyLinkAria")}
-                    title={t("copyLink")}
-                    onClick={() => void handleCopyLink(link.url)}
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    className="min-w-0 flex-1 truncate font-mono text-xs"
+                    title={link.url}
                   >
-                    <Copy className="size-4" aria-hidden />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    aria-label={t("revokeLinkAria")}
-                    title={t("revokeLink")}
-                    disabled={revokingToken === link.token}
-                    onClick={() => void handleRevokeLink(link.token)}
-                  >
-                    {revokingToken === link.token ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                    ) : (
-                      <Trash2 className="size-4" aria-hidden />
-                    )}
-                  </Button>
+                    {link.url}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      aria-label={t("copyLinkAria")}
+                      title={t("copyLink")}
+                      onClick={() => void handleCopyLink(link.url)}
+                    >
+                      <Copy className="size-4" aria-hidden />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      aria-label={t("revokeLinkAria")}
+                      title={t("revokeLink")}
+                      disabled={revokingToken === link.token}
+                      onClick={() => void handleRevokeLink(link.token)}
+                    >
+                      {revokingToken === link.token ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Trash2 className="size-4" aria-hidden />
+                      )}
+                    </Button>
+                  </div>
                 </div>
+                <p className="text-muted-foreground text-xs">
+                  {link.expiresAt
+                    ? t("linkMetaExpires", {
+                        date: new Date(link.expiresAt).toLocaleDateString(),
+                      })
+                    : t("linkMetaNoExpiry")}
+                  {" · "}
+                  {link.maxUses != null
+                    ? t("linkMetaUses", {
+                        used: link.useCount,
+                        max: link.maxUses,
+                      })
+                    : t("linkMetaUsesUnlimited", { used: link.useCount })}
+                </p>
               </li>
             ))}
           </ul>

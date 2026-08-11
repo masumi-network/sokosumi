@@ -5217,7 +5217,19 @@
         "revokeLinkAria": "Revoke invite link",
         "linkRevokeSuccess": "Invite link revoked.",
         "emailTitle": "Per E-Mail einladen",
-        "emailDescription": "Sende eine persönliche Einladung an eine bekannte E-Mail-Adresse. Die Person muss mit diesem Konto annehmen."
+        "emailDescription": "Sende eine persönliche Einladung an eine bekannte E-Mail-Adresse. Die Person muss mit diesem Konto annehmen.",
+        "linkExpiryLabel": "Gültigkeit",
+        "linkExpiryDays": "{days, plural, one {# Tag} other {# Tage}}",
+        "linkExpiryNever": "Kein Ablauf",
+        "linkExpiryInvalid": "Bitte eine gültige Gültigkeit wählen.",
+        "linkMaxUsesLabel": "Max. Nutzungen",
+        "linkMaxUsesUnlimited": "Unbegrenzt",
+        "linkMaxUsesCount": "{count, plural, one {# Nutzung} other {# Nutzungen}}",
+        "linkMaxUsesInvalid": "Bitte eine gültige Nutzungshöchstzahl wählen.",
+        "linkMetaExpires": "Läuft ab am {date}",
+        "linkMetaNoExpiry": "Kein Ablauf",
+        "linkMetaUses": "{used} / {max} Nutzungen",
+        "linkMetaUsesUnlimited": "{used} Nutzungen · unbegrenzt"
       },
       "ChatInvite": {
         "title": "Kanaleinladung",

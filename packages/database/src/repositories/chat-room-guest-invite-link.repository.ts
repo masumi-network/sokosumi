@@ -14,7 +14,8 @@ export const chatRoomGuestInviteLinkRepository = (() => {
       token: string;
       roomId: string;
       createdByUserId: string;
-      expiresAt: Date;
+      /** Null = no hard expiry. */
+      expiresAt: Date | null;
       maxUses: number | null;
     },
     tx: Prisma.TransactionClient,
@@ -51,7 +52,8 @@ export const chatRoomGuestInviteLinkRepository = (() => {
       where: {
         id: args.id,
         revokedAt: null,
-        expiresAt: { gt: args.now },
+        // Live if never expires or still before hard expiry.
+        OR: [{ expiresAt: null }, { expiresAt: { gt: args.now } }],
         ...(args.maxUses !== null ? { useCount: { lt: args.maxUses } } : {}),
       },
       data: { useCount: { increment: 1 } },
@@ -93,7 +95,7 @@ export const chatRoomGuestInviteLinkRepository = (() => {
       where: {
         roomId,
         revokedAt: null,
-        expiresAt: { gt: now },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
     });
   }

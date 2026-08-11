@@ -65,14 +65,14 @@ describe("chatRoomGuestInviteLinkRepository", () => {
       where: {
         id: "link_1",
         revokedAt: null,
-        expiresAt: { gt: now },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         useCount: { lt: 5 },
       },
       data: { useCount: { increment: 1 } },
     });
   });
 
-  it("countLiveInviteLinksByRoomId excludes revoked and expired", async () => {
+  it("countLiveInviteLinksByRoomId includes never-expiring and non-expired links", async () => {
     let countArgs: unknown;
     const tx = {
       chatRoomGuestInviteLink: {
@@ -96,7 +96,7 @@ describe("chatRoomGuestInviteLinkRepository", () => {
       where: {
         roomId: "room_1",
         revokedAt: null,
-        expiresAt: { gt: now },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
     });
   });

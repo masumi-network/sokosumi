@@ -5217,7 +5217,19 @@
         "revokeLinkAria": "Revoke invite link",
         "linkRevokeSuccess": "Invite link revoked.",
         "emailTitle": "Invitar por correo",
-        "emailDescription": "Envía una invitación personal a un correo conocido. Debe aceptar con esa cuenta."
+        "emailDescription": "Envía una invitación personal a un correo conocido. Debe aceptar con esa cuenta.",
+        "linkExpiryLabel": "Caducidad",
+        "linkExpiryDays": "{days, plural, one {# día} other {# días}}",
+        "linkExpiryNever": "Sin caducidad",
+        "linkExpiryInvalid": "Elige una caducidad válida.",
+        "linkMaxUsesLabel": "Usos máximos",
+        "linkMaxUsesUnlimited": "Ilimitados",
+        "linkMaxUsesCount": "{count, plural, one {# uso} other {# usos}}",
+        "linkMaxUsesInvalid": "Elige un máximo de usos válido.",
+        "linkMetaExpires": "Caduca el {date}",
+        "linkMetaNoExpiry": "Sin caducidad",
+        "linkMetaUses": "{used} / {max} usos",
+        "linkMetaUsesUnlimited": "{used} usos · ilimitados"
       },
       "ChatInvite": {
         "title": "Invitación al canal",

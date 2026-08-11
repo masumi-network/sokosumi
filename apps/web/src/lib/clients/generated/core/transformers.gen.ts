@@ -521,7 +521,9 @@ export const postChatsRoomsByIdInvitationsResponseTransformer = async (data: any
 
 const chatRoomGuestInviteLinkSchemaResponseTransformer = (data: any) => {
     data.createdAt = new Date(data.createdAt);
-    data.expiresAt = new Date(data.expiresAt);
+    if (data.expiresAt) {
+        data.expiresAt = new Date(data.expiresAt);
+    }
     if (data.revokedAt) {
         data.revokedAt = new Date(data.revokedAt);
     }

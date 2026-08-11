@@ -4,9 +4,14 @@ import { dateTimeSchema } from "@/helpers/datetime";
 
 export const createChatRoomGuestInviteLinkRequestSchema = z
   .object({
-    /** Days until the link expires (1–90). Defaults to 7. */
-    expiresInDays: z.number().int().min(1).max(90).default(7).optional(),
-    /** Cap on total guest joins. Null/omitted = unlimited until expiry. */
+    /**
+     * Days until the link expires (1–90). Defaults to 7 when omitted.
+     * Pass `null` for no hard expiry (revocation / maxUses still apply).
+     */
+    expiresInDays: z
+      .union([z.number().int().min(1).max(90), z.null()])
+      .optional(),
+    /** Cap on total guest joins. Null/omitted = unlimited until expiry/revoke. */
     maxUses: z.number().int().min(1).max(10_000).nullable().optional(),
   })
   .openapi("CreateChatRoomGuestInviteLinkRequest");
@@ -18,7 +23,8 @@ export const chatRoomGuestInviteLinkSchema = z
     url: z.string().url(),
     roomId: z.string().uuid(),
     createdAt: dateTimeSchema,
-    expiresAt: dateTimeSchema,
+    /** Null when the link has no hard expiry. */
+    expiresAt: dateTimeSchema.nullable(),
     revokedAt: dateTimeSchema.nullable(),
     maxUses: z.number().int().nullable(),
     useCount: z.number().int(),

@@ -168,7 +168,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               where: {
                 roomId: existing.id,
                 revokedAt: null,
-                expiresAt: { gt: now },
+                OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
               },
             });
             if (liveLinkCount > 0) {

@@ -222,4 +222,27 @@ describe("POST /chats/rooms/{id}/invite-links", () => {
     expect(await response.text()).toMatch(/active invite links/i);
     expect(createInviteLinkMock).not.toHaveBeenCalled();
   });
+
+  it("creates a never-expiring link when expiresInDays is null", async () => {
+    roomFindFirstMock.mockResolvedValue(externalRoom());
+
+    const app = createApp();
+    const response = await app.request(`/${ROOM_ID}/invite-links`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expiresInDays: null, maxUses: 10 }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.data.maxUses).toBe(10);
+    expect(createInviteLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        roomId: ROOM_ID,
+        expiresAt: null,
+        maxUses: 10,
+      }),
+      tx,
+    );
+  });
 });

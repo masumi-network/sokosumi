@@ -5303,7 +5303,10 @@ export const ChatRoomGuestInviteLinkSchema = {
             example: '2021-01-01T00:00:00.000Z'
         },
         expiresAt: {
-            type: 'string',
+            type: [
+                'string',
+                'null'
+            ],
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
         },
@@ -5341,10 +5344,16 @@ export const CreateChatRoomGuestInviteLinkRequestSchema = {
     type: 'object',
     properties: {
         expiresInDays: {
-            type: 'integer',
-            minimum: 1,
-            maximum: 90,
-            default: 7
+            anyOf: [
+                {
+                    type: 'integer',
+                    minimum: 1,
+                    maximum: 90
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         maxUses: {
             type: [

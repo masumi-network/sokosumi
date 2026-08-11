@@ -111,10 +111,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const token = crypto.randomBytes(24).toString("base64url");
-      const expiresInDays = body.expiresInDays ?? 7;
-      const expiresAt = new Date(
-        now.getTime() + expiresInDays * 24 * 60 * 60 * 1000,
-      );
+      // null = no expiry; omitted defaults to 7 days.
+      const expiresAt =
+        body.expiresInDays === null
+          ? null
+          : new Date(
+              now.getTime() + (body.expiresInDays ?? 7) * 24 * 60 * 60 * 1000,
+            );
       const maxUses = body.maxUses ?? null;
 
       return await chatRoomGuestInviteLinkRepository.createInviteLink(

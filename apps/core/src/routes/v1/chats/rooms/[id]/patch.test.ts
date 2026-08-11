@@ -775,7 +775,10 @@ describe("PATCH /chats/rooms/{id}", () => {
       where: expect.objectContaining({
         roomId: ROOM_ID,
         revokedAt: null,
-        expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
+        OR: expect.arrayContaining([
+          { expiresAt: null },
+          { expiresAt: expect.objectContaining({ gt: expect.any(Date) }) },
+        ]),
       }),
     });
     expect(roomUpdateMock).not.toHaveBeenCalled();
@@ -809,7 +812,10 @@ describe("PATCH /chats/rooms/{id}", () => {
       where: expect.objectContaining({
         roomId: ROOM_ID,
         revokedAt: null,
-        expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
+        OR: expect.arrayContaining([
+          { expiresAt: null },
+          { expiresAt: expect.objectContaining({ gt: expect.any(Date) }) },
+        ]),
       }),
     });
     expect(roomUpdateMock).toHaveBeenCalledWith(

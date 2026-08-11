@@ -1963,11 +1963,11 @@ model ChatRoomGuestInviteLink {
   createdBy       User   @relation("ChatRoomGuestInviteLinkCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
 
   createdAt DateTime  @default(now())
-  /// Hard expiry; accept rejects past this instant.
-  expiresAt DateTime
+  /// Hard expiry; accept rejects past this instant. Null = no expiry.
+  expiresAt DateTime?
   /// Set when a host-org room member revokes the link. Non-null = unusable.
   revokedAt DateTime?
-  /// Optional cap on total successful joins. Null = unlimited (until expiry).
+  /// Optional cap on total successful joins. Null = unlimited (until expiry/revoke).
   maxUses   Int?
   /// Successful joins so far; compared against `maxUses` when set.
   useCount  Int       @default(0)

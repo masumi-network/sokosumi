@@ -502,6 +502,12 @@ export async function listRoomGuestInviteLinksAction(
 /** Host: create a shareable guest invite link. */
 export async function createRoomGuestInviteLinkAction(
   roomId: string,
+  options?: {
+    /** Days until expiry; null = no expiry; omit for Core default (7). */
+    expiresInDays?: number | null;
+    /** Cap on joins; null/omit = unlimited. */
+    maxUses?: number | null;
+  },
 ): Promise<RoomActionResult<ChatRoomGuestInviteLink>> {
   const cleanRoomId = cleanString(roomId);
   if (!cleanRoomId) {
@@ -509,7 +515,10 @@ export async function createRoomGuestInviteLinkAction(
   }
 
   try {
-    const link = await chatRoomService.createRoomGuestInviteLink(cleanRoomId);
+    const link = await chatRoomService.createRoomGuestInviteLink(cleanRoomId, {
+      expiresInDays: options?.expiresInDays,
+      maxUses: options?.maxUses,
+    });
     return roomOk(link);
   } catch (error) {
     return roomCatch(error, "Could not create invite link.");

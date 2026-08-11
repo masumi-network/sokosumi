@@ -15,7 +15,7 @@ export function toChatRoomGuestInviteLinkResponse(
     url: `${getWebAppBaseUrl()}/chat/join/${link.token}`,
     roomId: link.roomId,
     createdAt: link.createdAt.toISOString(),
-    expiresAt: link.expiresAt.toISOString(),
+    expiresAt: link.expiresAt?.toISOString() ?? null,
     revokedAt: link.revokedAt?.toISOString() ?? null,
     maxUses: link.maxUses,
     useCount: link.useCount,

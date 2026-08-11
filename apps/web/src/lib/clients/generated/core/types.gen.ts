@@ -1485,14 +1485,14 @@ export type ChatRoomGuestInviteLink = {
     url: string;
     roomId: string;
     createdAt: Date;
-    expiresAt: Date;
+    expiresAt: Date | null;
     revokedAt: Date | null;
     maxUses: number | null;
     useCount: number;
 };
 
 export type CreateChatRoomGuestInviteLinkRequest = {
-    expiresInDays?: number;
+    expiresInDays?: number | null;
     maxUses?: number | null;
 };
 
