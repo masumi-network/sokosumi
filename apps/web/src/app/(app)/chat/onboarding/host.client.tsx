@@ -98,10 +98,10 @@ export function ChatOnboardingHost({
     dispatch({ type: "confirm_start" });
     try {
       const roomResult = await ensureCoworkerDirectRoomAction(coworkerId);
-      if (!roomResult.ok || !roomResult.data) {
+      if (!roomResult.ok || !roomResult.value) {
         const message =
-          !roomResult.ok && roomResult.message
-            ? roomResult.message
+          !roomResult.ok && roomResult.error.message
+            ? roomResult.error.message
             : t("ensureFailed");
         toast.error(message);
         dispatch({
@@ -111,19 +111,19 @@ export function ChatOnboardingHost({
         return;
       }
 
-      stashRoomComposerPrefill(roomResult.data.id, draftText);
+      stashRoomComposerPrefill(roomResult.value.id, draftText);
       // Also seed compose-draft so Strict Mode remount still hydrates text
       // after takeRoomComposerPrefill clears sessionStorage.
       try {
-        setComposeDraft(composeDraftKey.room(roomResult.data.id), {
+        setComposeDraft(composeDraftKey.room(roomResult.value.id), {
           text: draftText,
           attachments: [],
         });
       } catch {
         // best-effort — empty composer OK per Spec
       }
-      notifyOrganizationChatRoomsChanged(roomResult.data);
-      router.replace(`/chat/rooms/${roomResult.data.id}`);
+      notifyOrganizationChatRoomsChanged(roomResult.value);
+      router.replace(`/chat/rooms/${roomResult.value.id}`);
       dispatch({ type: "confirm_succeeded" });
     } catch {
       const message = t("ensureFailed");

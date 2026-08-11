@@ -21,4 +21,13 @@ describe("chats routes OpenAPI contract", () => {
     expect(doc.paths?.["/rooms"]).toBeDefined();
     expect(doc.paths?.["/rooms/{id}/stream"]).toBeDefined();
   });
+
+  it("exposes invitee invitation routes", () => {
+    const doc = chatsRouter.getOpenAPI31Document(openApiInfo);
+
+    expect(doc.paths?.["/invitations"]).toBeDefined();
+    expect(doc.paths?.["/invitations/{id}"]).toBeDefined();
+    expect(doc.paths?.["/invitations/{id}/accept"]).toBeDefined();
+    expect(doc.paths?.["/invitations/{id}/decline"]).toBeDefined();
+  });
 });

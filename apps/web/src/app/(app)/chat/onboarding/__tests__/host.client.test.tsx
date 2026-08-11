@@ -92,7 +92,10 @@ describe("ChatOnboardingHost confirm", () => {
   });
 
   it("on ensure failure toasts, stays on confirm, no stash or nav", async () => {
-    ensureMock.mockResolvedValue({ ok: false, message: "ensure blew up" });
+    ensureMock.mockResolvedValue({
+      ok: false,
+      error: { code: "ENSURE_FAILED", message: "ensure blew up" },
+    });
     await reachConfirm();
 
     fireEvent.click(screen.getByRole("button", { name: "confirmCta" }));
@@ -109,7 +112,7 @@ describe("ChatOnboardingHost confirm", () => {
   it("on ensure success stashes prefill and navigates", async () => {
     ensureMock.mockResolvedValue({
       ok: true,
-      data: { id: "room-99", kind: "direct" },
+      value: { id: "room-99", kind: "direct" },
     });
     await reachConfirm();
 

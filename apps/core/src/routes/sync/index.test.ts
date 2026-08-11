@@ -13,6 +13,7 @@ const {
   syncRegistryAgentsMock,
   syncSourceImportMock,
   syncStripeCustomersMock,
+  expireStaleGuestInvitationsMock,
 } = vi.hoisted(() => ({
   acquireLockMock: vi.fn(),
   syncCardanoV2RailReadinessMock: vi.fn(),
@@ -25,6 +26,7 @@ const {
   syncRegistryAgentsMock: vi.fn(),
   syncSourceImportMock: vi.fn(),
   syncStripeCustomersMock: vi.fn(),
+  expireStaleGuestInvitationsMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -85,6 +87,12 @@ vi.mock("@/services/job-sync.service", () => ({
 vi.mock("@/services/stripe-customer-sync.service", () => ({
   stripeCustomerSyncService: {
     syncAllStripeCustomers: syncStripeCustomersMock,
+  },
+}));
+
+vi.mock("@/services/chat-room-guest-invitation-sync.service", () => ({
+  chatRoomGuestInvitationSyncService: {
+    expireStaleGuestInvitations: expireStaleGuestInvitationsMock,
   },
 }));
 
@@ -159,6 +167,7 @@ describe("sync routes", () => {
       },
     });
     syncStripeCustomersMock.mockResolvedValue(undefined);
+    expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 0 });
   });
 
   it("returns 401 for missing cron auth", async () => {
@@ -616,6 +625,211 @@ describe("sync routes", () => {
 
     await flushMicrotasks();
     expect(syncStripeCustomersMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 401 for missing cron auth on guest invitation expiry sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/chat-room-guest-invitations-expire",
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(expireStaleGuestInvitationsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for invalid cron auth on guest invitation expiry sync", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/chat-room-guest-invitations-expire",
+      {
+        headers: {
+          Authorization: "Bearer invalid",
+        },
+      },
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(expireStaleGuestInvitationsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when guest invitation expiry lock is already held", async () => {
+    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/chat-room-guest-invitations-expire",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(409);
+    expect(expireStaleGuestInvitationsMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and starts guest invitation expiry sync exactly once in background", async () => {
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/chat-room-guest-invitations-expire",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith(
+      "chat-room-guest-invitations-expire-sync",
+    );
+
+    await flushMicrotasks();
+    expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("releases guest invitation expiry lock after completion", async () => {
+    expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 3 });
+    const app = await createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/chat-room-guest-invitations-expire",
+      {
+        headers: {
+          Authorization: "Bearer test-cron-secret",
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
+    expect(expireStaleGuestInvitationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        abortSignal: expect.any(AbortSignal),
+      }),
+    );
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+  });
+
+  it("releases guest invitation expiry lock when sync exceeds timeout budget", async () => {
+    vi.useFakeTimers();
+
+    try {
+      expireStaleGuestInvitationsMock.mockImplementation(
+        (options: { abortSignal: AbortSignal }) =>
+          new Promise<{ expired: number }>((resolve) => {
+            options.abortSignal.addEventListener("abort", () => {
+              resolve({ expired: 0 });
+            });
+          }),
+      );
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      try {
+        const app = await createApp();
+        const response = await app.request(
+          "http://localhost/sync/chat-room-guest-invitations-expire",
+          {
+            headers: {
+              Authorization: "Bearer test-cron-secret",
+            },
+          },
+        );
+
+        expect(response.status).toBe(200);
+        await flushPromises();
+        expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(4000);
+        await flushPromises();
+
+        expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+        expect(releaseLockMock).toHaveBeenCalledTimes(1);
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not release guest invitation expiry lock when sync ignores cancellation", async () => {
+    vi.useFakeTimers();
+
+    try {
+      expireStaleGuestInvitationsMock.mockImplementation(
+        (_options: { abortSignal: AbortSignal }) =>
+          new Promise<{ expired: number }>(() => {
+            // Intentionally never resolves.
+          }),
+      );
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+
+      try {
+        const app = await createApp();
+        const response = await app.request(
+          "http://localhost/sync/chat-room-guest-invitations-expire",
+          {
+            headers: {
+              Authorization: "Bearer test-cron-secret",
+            },
+          },
+        );
+
+        expect(response.status).toBe(200);
+        await flushPromises();
+        expect(expireStaleGuestInvitationsMock).toHaveBeenCalledTimes(1);
+
+        vi.advanceTimersByTime(4000);
+        await flushPromises();
+
+        expect(releaseLockMock).not.toHaveBeenCalled();
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("warns when guest invitation expiry lock ownership changed on release", async () => {
+    expireStaleGuestInvitationsMock.mockResolvedValue({ expired: 1 });
+    releaseLockMock.mockResolvedValue(false);
+    const consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+
+    try {
+      const app = await createApp();
+      const response = await app.request(
+        "http://localhost/sync/chat-room-guest-invitations-expire",
+        {
+          headers: {
+            Authorization: "Bearer test-cron-secret",
+          },
+        },
+      );
+
+      expect(response.status).toBe(200);
+      await flushMicrotasks();
+      expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("ownership changed"),
+      );
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
   });
 
   it("does not release lock when a long-running sync ignores cancellation", async () => {

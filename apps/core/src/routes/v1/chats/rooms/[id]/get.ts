@@ -61,13 +61,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const [unreadCounts, unreadMentionCounts, sidebarFlags] = await Promise.all(
-      [
+    const [unreadCounts, unreadMentionCounts, sidebarFlags, organization] =
+      await Promise.all([
         getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
         getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
         getChatRoomSidebarFlags([room.id], userContext.userId, prisma),
-      ],
-    );
+        room.organizationId
+          ? prisma.organization.findUnique({
+              where: { id: room.organizationId },
+              select: { name: true },
+            })
+          : Promise.resolve(null),
+      ]);
     const flags = sidebarFlags.get(room.id);
 
     return ok(
@@ -79,6 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           pinnedAt: flags?.pinnedAt ?? null,
           mutedAt: flags?.mutedAt ?? null,
           markedUnread: flags?.markedUnread ?? false,
+          organizationName: organization?.name ?? null,
         }),
       ),
     );

@@ -2,7 +2,9 @@ import {
   CoworkerWorkspaceAccessStatus,
   MemberRole,
   NotificationKind,
+  type Prisma,
 } from "@sokosumi/database";
+import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -20,9 +22,16 @@ import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
   isJoinableChannelDiscoverability,
+  mapChatRoom,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
   mergeUnfurlsIntoMessageMetadata,
+  requireArchivedChatRoomUserAccess,
+  requireChatRoomUserAccess,
+  requireChatRoomUserMembership,
+  requireChatRoomUserWriteAccess,
+  requireJoinableOrgChannel,
+  requireRoomMemberCanInviteGuests,
   resolveMentionedCoworkerIds,
   resolveMentionedUserIds,
   resolveWorkspaceIdForChatRoom,
@@ -346,35 +355,6 @@ describe("buildDirectRoomName", () => {
     expect(buildDirectRoomName(["Andreas", "Elena", "Hannah", "Alex"])).toBe(
       "Andreas, Elena, Hannah and 1 more",
     );
-  });
-});
-
-describe("isJoinableChannelDiscoverability", () => {
-  it("allows public for every caller", () => {
-    expect(isJoinableChannelDiscoverability("public", false)).toBe(true);
-    expect(isJoinableChannelDiscoverability("public", true)).toBe(true);
-  });
-
-  it("allows private only when elevated", () => {
-    expect(isJoinableChannelDiscoverability("private", false)).toBe(false);
-    expect(isJoinableChannelDiscoverability("private", true)).toBe(true);
-  });
-
-  it("rejects null or unknown discoverability", () => {
-    expect(isJoinableChannelDiscoverability(null, true)).toBe(false);
-    expect(isJoinableChannelDiscoverability("weird", true)).toBe(false);
-  });
-});
-
-describe("buildDiscoverabilityFilter", () => {
-  it("returns public-only for plain members", () => {
-    expect(buildDiscoverabilityFilter(false)).toBe("public");
-  });
-
-  it("returns public+private for elevated callers", () => {
-    expect(buildDiscoverabilityFilter(true)).toEqual({
-      in: ["public", "private"],
-    });
   });
 });
 
@@ -971,5 +951,422 @@ describe("mapChatRoomMessage unfurls", () => {
     });
 
     expect(mapped.unfurls).toBeNull();
+  });
+});
+
+const ROOM_ID = "550e8400-e29b-41d4-a716-446655440099";
+const ORG_ID = "org_host";
+const GUEST_ID = "user_guest";
+const MEMBER_ID = "user_member";
+
+function createAccessTx() {
+  return {
+    chatRoom: {
+      findFirst: vi.fn(),
+    },
+    chatRoomUserMember: {
+      findUnique: vi.fn(),
+    },
+    organization: {
+      findUnique: vi.fn(),
+    },
+    member: {
+      findUnique: vi.fn(),
+    },
+  } as unknown as Prisma.TransactionClient;
+}
+
+function createRoomMembership(
+  userId: string,
+  access: "member" | "guest",
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    id: `cum_${userId}`,
+    roomId: ROOM_ID,
+    userId,
+    access,
+    pinnedAt: null,
+    mutedAt: null,
+    createdAt: new Date("2025-01-01T00:00:00.000Z"),
+    user: {
+      id: userId,
+      name: userId === GUEST_ID ? "Guest User" : "Org Member",
+      email: `${userId}@example.com`,
+      image: null,
+      sessions: [],
+    },
+    ...overrides,
+  };
+}
+
+function createExternalRoom(
+  memberships: Array<ReturnType<typeof createRoomMembership>>,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    id: ROOM_ID,
+    organizationId: ORG_ID,
+    name: "External Client",
+    slug: "external-client",
+    kind: "channel",
+    directKey: null,
+    topic: null,
+    discoverability: "external",
+    createdByUserId: MEMBER_ID,
+    createdAt: new Date("2025-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+    archivedAt: null,
+    providerConversationId: null,
+    userMembers: memberships,
+    coworkerMembers: [],
+    ...overrides,
+  };
+}
+
+describe("mapChatRoom guest-aware DTO fields", () => {
+  it("maps discoverability external and myAccess guest from membership", () => {
+    const room = createExternalRoom([
+      createRoomMembership(GUEST_ID, "guest"),
+      createRoomMembership(MEMBER_ID, "member"),
+    ]);
+
+    const mapped = mapChatRoom(room as never, GUEST_ID, {
+      organizationName: "Acme Host",
+    });
+
+    expect(mapped.discoverability).toBe("external");
+    expect(mapped.myAccess).toBe("guest");
+    expect(mapped.organizationName).toBe("Acme Host");
+  });
+
+  it("defaults myAccess to member when membership access missing", () => {
+    const room = createExternalRoom([
+      createRoomMembership(MEMBER_ID, "member"),
+    ]);
+    const mapped = mapChatRoom(room as never, MEMBER_ID);
+    expect(mapped.myAccess).toBe("member");
+    expect(mapped.organizationName).toBeNull();
+  });
+
+  it("maps private for non-public non-external channel discoverability", () => {
+    const room = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      { discoverability: "private" },
+    );
+    expect(mapChatRoom(room as never, MEMBER_ID).discoverability).toBe(
+      "private",
+    );
+  });
+
+  it("maps null discoverability for direct rooms", () => {
+    const room = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      { kind: "direct", discoverability: null, organizationId: null },
+    );
+    expect(mapChatRoom(room as never, MEMBER_ID).discoverability).toBeNull();
+  });
+});
+
+describe("requireChatRoomUserAccess guest gate", () => {
+  it("allows guest membership without host org membership", async () => {
+    const tx = createAccessTx();
+    const room = createExternalRoom([createRoomMembership(GUEST_ID, "guest")]);
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(room as never);
+    // Guest is NOT an org member — org lookup would fail if called.
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
+      id: ORG_ID,
+      name: "Host",
+    } as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(null);
+
+    const result = await requireChatRoomUserAccess(ROOM_ID, GUEST_ID, tx);
+
+    expect(result.id).toBe(ROOM_ID);
+    expect(tx.member.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("still requires host org membership for access=member", async () => {
+    const tx = createAccessTx();
+    const room = createExternalRoom([
+      createRoomMembership(MEMBER_ID, "member"),
+    ]);
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(room as never);
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
+      id: ORG_ID,
+      name: "Host",
+    } as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(null);
+
+    await expect(
+      requireChatRoomUserAccess(ROOM_ID, MEMBER_ID, tx),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof HTTPException &&
+        error.status === 403 &&
+        error.message === "You are not a member of this organization",
+    );
+  });
+
+  it("allows access=member when host org membership exists", async () => {
+    const tx = createAccessTx();
+    const room = createExternalRoom([
+      createRoomMembership(MEMBER_ID, "member"),
+    ]);
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(room as never);
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
+      id: ORG_ID,
+      name: "Host",
+    } as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce({
+      id: "mem_1",
+      role: MemberRole.MEMBER,
+      userId: MEMBER_ID,
+      organizationId: ORG_ID,
+    } as never);
+
+    const result = await requireChatRoomUserAccess(ROOM_ID, MEMBER_ID, tx);
+    expect(result.id).toBe(ROOM_ID);
+    expect(tx.member.findUnique).toHaveBeenCalled();
+  });
+});
+
+describe("requireChatRoomUserWriteAccess guest gate", () => {
+  it("allows guest write access without host org membership", async () => {
+    const tx = createAccessTx();
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce({
+      id: ROOM_ID,
+      name: "External Client",
+      organizationId: ORG_ID,
+      slug: "external-client",
+      kind: "channel",
+      providerConversationId: null,
+      userMembers: [{ userId: GUEST_ID, access: "guest", user: { name: "G" } }],
+      coworkerMembers: [],
+    } as never);
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
+      id: ORG_ID,
+    } as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(null);
+
+    const result = await requireChatRoomUserWriteAccess(ROOM_ID, GUEST_ID, tx);
+    expect(result.id).toBe(ROOM_ID);
+    expect(tx.member.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("requireChatRoomUserMembership guest gate", () => {
+  it("allows guest membership without host org membership", async () => {
+    const tx = createAccessTx();
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce({
+      id: ROOM_ID,
+      organizationId: ORG_ID,
+      userMembers: [{ access: "guest" }],
+    } as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(null);
+
+    const result = await requireChatRoomUserMembership(ROOM_ID, GUEST_ID, tx);
+    expect(result.id).toBe(ROOM_ID);
+    expect(tx.member.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("requireArchivedChatRoomUserAccess guest gate", () => {
+  it("allows guest access on archived external rooms without org membership", async () => {
+    const tx = createAccessTx();
+    const room = createExternalRoom([createRoomMembership(GUEST_ID, "guest")], {
+      archivedAt: new Date("2025-02-01T00:00:00.000Z"),
+    });
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(room as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce(null);
+
+    const result = await requireArchivedChatRoomUserAccess(
+      ROOM_ID,
+      GUEST_ID,
+      tx,
+    );
+    expect(result.id).toBe(ROOM_ID);
+    expect(tx.member.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("isJoinableChannelDiscoverability", () => {
+  it("allows public and external for every caller", () => {
+    expect(isJoinableChannelDiscoverability("public", false)).toBe(true);
+    expect(isJoinableChannelDiscoverability("external", false)).toBe(true);
+    expect(isJoinableChannelDiscoverability("public", true)).toBe(true);
+    expect(isJoinableChannelDiscoverability("external", true)).toBe(true);
+  });
+
+  it("allows private only when elevated", () => {
+    expect(isJoinableChannelDiscoverability("private", false)).toBe(false);
+    expect(isJoinableChannelDiscoverability("private", true)).toBe(true);
+  });
+
+  it("rejects null or unknown discoverability", () => {
+    expect(isJoinableChannelDiscoverability(null, true)).toBe(false);
+    expect(isJoinableChannelDiscoverability("weird", true)).toBe(false);
+  });
+});
+
+describe("buildDiscoverabilityFilter", () => {
+  it("returns public+external for plain members", () => {
+    expect(buildDiscoverabilityFilter(false)).toEqual({
+      in: ["public", "external"],
+    });
+  });
+
+  it("returns public+private+external for elevated callers", () => {
+    expect(buildDiscoverabilityFilter(true)).toEqual({
+      in: ["public", "private", "external"],
+    });
+  });
+});
+
+describe("requireJoinableOrgChannel", () => {
+  it("allows public and external discoverability for host-org members", async () => {
+    const tx = createAccessTx();
+    vi.mocked(tx.organization.findUnique).mockResolvedValue({
+      id: ORG_ID,
+      name: "Host",
+    } as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValue({
+      id: "mem_1",
+      role: MemberRole.MEMBER,
+      userId: MEMBER_ID,
+      organizationId: ORG_ID,
+    } as never);
+
+    const publicRoom = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      { discoverability: "public" },
+    );
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(publicRoom as never);
+    await expect(
+      requireJoinableOrgChannel(ROOM_ID, MEMBER_ID, ORG_ID, tx),
+    ).resolves.toMatchObject({
+      elevated: false,
+      room: { id: ROOM_ID },
+    });
+
+    const externalRoom = createExternalRoom([
+      createRoomMembership(MEMBER_ID, "member"),
+    ]);
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(
+      externalRoom as never,
+    );
+    await expect(
+      requireJoinableOrgChannel(ROOM_ID, MEMBER_ID, ORG_ID, tx),
+    ).resolves.toMatchObject({
+      elevated: false,
+      room: { id: ROOM_ID, discoverability: "external" },
+    });
+
+    expect(tx.chatRoom.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          discoverability: { in: ["public", "external"] },
+        }),
+      }),
+    );
+  });
+
+  it("includes private channels for organization owners", async () => {
+    const tx = createAccessTx();
+    vi.mocked(tx.organization.findUnique).mockResolvedValue({
+      id: ORG_ID,
+      name: "Host",
+    } as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValue({
+      id: "mem_1",
+      role: MemberRole.OWNER,
+      userId: MEMBER_ID,
+      organizationId: ORG_ID,
+    } as never);
+
+    const privateRoom = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      { discoverability: "private" },
+    );
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(
+      privateRoom as never,
+    );
+    await expect(
+      requireJoinableOrgChannel(ROOM_ID, MEMBER_ID, ORG_ID, tx),
+    ).resolves.toMatchObject({ elevated: true, room: { id: ROOM_ID } });
+
+    expect(tx.chatRoom.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          discoverability: { in: ["public", "private", "external"] },
+        }),
+      }),
+    );
+  });
+});
+
+describe("requireRoomMemberCanInviteGuests", () => {
+  it("allows host-org room members on external channels", async () => {
+    const tx = createAccessTx();
+    const room = createExternalRoom([
+      createRoomMembership(MEMBER_ID, "member"),
+    ]);
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(room as never);
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
+      id: ORG_ID,
+      name: "Host",
+    } as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce({
+      id: "mem_1",
+      role: MemberRole.MEMBER,
+      userId: MEMBER_ID,
+      organizationId: ORG_ID,
+    } as never);
+
+    const result = await requireRoomMemberCanInviteGuests(
+      ROOM_ID,
+      MEMBER_ID,
+      tx,
+    );
+    expect(result.id).toBe(ROOM_ID);
+  });
+
+  it("rejects guests", async () => {
+    const tx = createAccessTx();
+    const room = createExternalRoom([createRoomMembership(GUEST_ID, "guest")]);
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(room as never);
+
+    await expect(
+      requireRoomMemberCanInviteGuests(ROOM_ID, GUEST_ID, tx),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof HTTPException && error.status === 403,
+    );
+  });
+
+  it("rejects non-external rooms", async () => {
+    const tx = createAccessTx();
+    const room = createExternalRoom(
+      [createRoomMembership(MEMBER_ID, "member")],
+      { discoverability: "public" },
+    );
+    vi.mocked(tx.chatRoom.findFirst).mockResolvedValueOnce(room as never);
+    vi.mocked(tx.organization.findUnique).mockResolvedValueOnce({
+      id: ORG_ID,
+      name: "Host",
+    } as never);
+    vi.mocked(tx.member.findUnique).mockResolvedValueOnce({
+      id: "mem_1",
+      role: MemberRole.MEMBER,
+      userId: MEMBER_ID,
+      organizationId: ORG_ID,
+    } as never);
+
+    await expect(
+      requireRoomMemberCanInviteGuests(ROOM_ID, MEMBER_ID, tx),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof HTTPException && error.status === 404,
+    );
   });
 });

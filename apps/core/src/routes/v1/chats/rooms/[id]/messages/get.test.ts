@@ -117,6 +117,7 @@ beforeEach(() => {
   roomFindFirstMock.mockResolvedValue({
     id: ROOM_ID,
     organizationId: ORG_ID,
+    userMembers: [{ access: "member" }],
   });
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });

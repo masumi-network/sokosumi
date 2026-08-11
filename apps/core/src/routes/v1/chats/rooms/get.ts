@@ -71,7 +71,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/",
     description:
-      "List chat rooms visible to the current user for the active organization only. With no active organization, lists personal coworker directs (`organizationId` null). Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
+      "List chat rooms visible to the current user: active-org membership rooms plus external channels where the caller is a guest. With no active organization, lists personal coworker directs (`organizationId` null) and guest rooms. Pass `status=archived` to list soft-archived membership rooms the caller may restore (organization owner/admin).",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -113,16 +113,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationRole = membership.role;
     }
 
-    // Strict org match: active org → only that org's channels/directs.
-    // No active org → personal coworker directs only. A kind=channel filter
-    // with no org cannot match anything — return an empty page instead of
-    // silently overriding the filter to directs. Archived rooms are always
-    // org channels, so personal workspace returns empty for status=archived.
-    // Archived list is OWNER/ADMIN only (same gate as restore).
+    // Active: membership of caller AND (active-org rooms ∪ guest rooms).
+    // No active org: personal coworker directs ∪ guest rooms.
+    // Archived rooms are always org channels, so personal workspace returns
+    // empty for status=archived. Archived list is OWNER/ADMIN only.
     const canManageAnyArchived =
       organizationRole != null && isOrganizationOwnerOrAdmin(organizationRole);
     if (
-      (!organizationId && kind === "channel") ||
       (!organizationId && status === "archived") ||
       (status === "archived" && !canManageAnyArchived)
     ) {
@@ -133,19 +130,41 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const where = {
-      archivedAt: status === "archived" ? { not: null } : null,
-      ...(kind ? { kind } : {}),
-      userMembers: {
-        some: { userId: userContext.userId },
-      },
-      ...(organizationId
-        ? { organizationId }
+    const userId = userContext.userId;
+    const where =
+      status === "archived"
+        ? {
+            archivedAt: { not: null } as const,
+            ...(kind ? { kind } : {}),
+            userMembers: {
+              some: { userId },
+            },
+            organizationId: organizationId as string,
+          }
         : {
-            organizationId: null,
-            kind: "direct" as const,
-          }),
-    };
+            archivedAt: null,
+            ...(kind ? { kind } : {}),
+            userMembers: {
+              some: { userId },
+            },
+            OR: organizationId
+              ? [
+                  { organizationId },
+                  {
+                    userMembers: {
+                      some: { userId, access: "guest" as const },
+                    },
+                  },
+                ]
+              : [
+                  { organizationId: null, kind: "direct" as const },
+                  {
+                    userMembers: {
+                      some: { userId, access: "guest" as const },
+                    },
+                  },
+                ],
+          };
 
     const [rows, count] = await Promise.all([
       prisma.chatRoom.findMany({
@@ -164,13 +183,34 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const hasMore = rows.length === takePlusOne;
     const rooms = rows.slice(0, take);
     const roomIds = rooms.map((room) => room.id);
-    const [unreadCounts, unreadMentionCounts, lastMessageAts, sidebarFlags] =
-      await Promise.all([
-        getChatRoomUnreadCounts(roomIds, userContext.userId, prisma),
-        getChatRoomUnreadMentionCounts(roomIds, userContext.userId, prisma),
-        getChatRoomLastMessageAts(roomIds, prisma),
-        getChatRoomSidebarFlags(roomIds, userContext.userId, prisma),
-      ]);
+    const organizationIds = [
+      ...new Set(
+        rooms
+          .map((room) => room.organizationId)
+          .filter((id): id is string => id != null),
+      ),
+    ];
+    const [
+      unreadCounts,
+      unreadMentionCounts,
+      lastMessageAts,
+      sidebarFlags,
+      organizations,
+    ] = await Promise.all([
+      getChatRoomUnreadCounts(roomIds, userId, prisma),
+      getChatRoomUnreadMentionCounts(roomIds, userId, prisma),
+      getChatRoomLastMessageAts(roomIds, prisma),
+      getChatRoomSidebarFlags(roomIds, userId, prisma),
+      organizationIds.length > 0
+        ? prisma.organization.findMany({
+            where: { id: { in: organizationIds } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([] as Array<{ id: string; name: string }>),
+    ]);
+    const organizationNameById = new Map(
+      organizations.map((org) => [org.id, org.name]),
+    );
 
     // Keep DB cursor order (`updatedAt` desc). Stream/message writes bump
     // room.updatedAt; do not re-sort by lastMessageAts after `take` — that
@@ -188,13 +228,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       z.array(chatRoomSchema).parse(
         rooms.map((room) => {
           const flags = sidebarFlags.get(room.id);
-          return mapChatRoom(room, userContext.userId, {
+          return mapChatRoom(room, userId, {
             unreadCount: unreadCounts.get(room.id) ?? 0,
             unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
             lastActivityAt: lastMessageAts.get(room.id) ?? room.updatedAt,
             pinnedAt: flags?.pinnedAt ?? null,
             mutedAt: flags?.mutedAt ?? null,
             markedUnread: flags?.markedUnread ?? false,
+            organizationName: room.organizationId
+              ? (organizationNameById.get(room.organizationId) ?? null)
+              : null,
           });
         }),
       ),

@@ -38,6 +38,17 @@
       "footer": "如果您未请求此邮件，您可以放心忽略。"
     }
   },
+  "chat": {
+    "invitation": {
+      "subject": "Sokosumi - 频道邀请",
+      "title": "加入 {organizationName} 的 {channelName}",
+      "greeting": "您好",
+      "message": "{invitorUsername} 邀请您加入 Sokosumi 上由 {organizationName} 托管的 {channelName}。点击下方按钮接受邀请。",
+      "button": "接受邀请",
+      "linkInstructions": "或将此 URL 复制并粘贴到浏览器中：",
+      "footer": "如果您未请求此邀请，您可以放心忽略此邮件。"
+    }
+  },
   "jobs": {
     "finalStatus": {
       "subject": "Sokosumi - {agentName} 作业{status}",

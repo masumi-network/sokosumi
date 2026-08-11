@@ -1,5 +1,6 @@
 export * from "./renderers/index.js";
 export type {
+  ChatRoomInvitationEmailProps,
   JobFailureNotificationEmailProps,
   JobFinalStatusEmailProps,
   JobInputRequiredEmailProps,

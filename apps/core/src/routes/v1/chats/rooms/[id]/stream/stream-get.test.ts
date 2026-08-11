@@ -119,6 +119,7 @@ describe("GET /chats/rooms/{id}/stream/active", () => {
     roomFindFirstMock.mockResolvedValue({
       id: ROOM_ID,
       organizationId: "org_1",
+      userMembers: [{ access: "member" }],
     });
 
     const app = createApp();
@@ -132,6 +133,7 @@ describe("GET /chats/rooms/{id}/stream/active", () => {
     roomFindFirstMock.mockResolvedValue({
       id: ROOM_ID,
       organizationId: "org_1",
+      userMembers: [{ access: "member" }],
     });
     readActiveUiStreamIdForRoomMock.mockResolvedValue(null);
 
@@ -146,6 +148,7 @@ describe("GET /chats/rooms/{id}/stream/active", () => {
     roomFindFirstMock.mockResolvedValue({
       id: ROOM_ID,
       organizationId: "org_1",
+      userMembers: [{ access: "member" }],
     });
     readActiveUiStreamIdForRoomMock.mockResolvedValue("stream_slow");
     resumeExistingStreamMock.mockRejectedValueOnce(
@@ -166,6 +169,7 @@ describe("GET /chats/rooms/{id}/stream/active", () => {
     roomFindFirstMock.mockResolvedValue({
       id: ROOM_ID,
       organizationId: "org_1",
+      userMembers: [{ access: "member" }],
     });
     readActiveUiStreamIdForRoomMock.mockResolvedValue("stream_gone");
     resumeExistingStreamMock.mockResolvedValueOnce(null);
@@ -184,6 +188,7 @@ describe("GET /chats/rooms/{id}/stream/active", () => {
     roomFindFirstMock.mockResolvedValue({
       id: ROOM_ID,
       organizationId: "org_1",
+      userMembers: [{ access: "member" }],
     });
     readActiveUiStreamIdForRoomMock.mockResolvedValue("stream_1");
 

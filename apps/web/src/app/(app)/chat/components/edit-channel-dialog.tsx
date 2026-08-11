@@ -41,7 +41,22 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
+import type { Discoverability } from "./create-channel-wizard";
+import { GuestInviteSection } from "./guest-invite-section";
 import { ParticipantCheckboxes } from "./participant-checkboxes";
+
+function channelDiscoverability(
+  value: ChatRoom["discoverability"],
+): Discoverability {
+  if (value === "private" || value === "external") {
+    return value;
+  }
+  return "public";
+}
+
+function isDiscoverability(value: string): value is Discoverability {
+  return value === "public" || value === "private" || value === "external";
+}
 
 export function EditChannelDialog({
   channel,
@@ -51,6 +66,7 @@ export function EditChannelDialog({
   canManageSettings,
   canArchive,
   canLeave,
+  canInviteGuests = false,
   membersLoadFailed = false,
 }: {
   channel: ChatRoom;
@@ -65,20 +81,31 @@ export function EditChannelDialog({
   /** Any member can leave, except the last one: an empty roster could not be
    * archived by a remaining elevated member. */
   canLeave: boolean;
+  /**
+   * Host-org room members (`myAccess=member`) on external channels may invite
+   * guests. Guests never invite.
+   */
+  canInviteGuests?: boolean;
   membersLoadFailed?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const showGuestInvite =
+    canInviteGuests &&
+    channelDiscoverability(channel.discoverability) === "external";
+  const [guestMembers, setGuestMembers] = useState(() =>
+    channel.userMembers.filter((member) => member.access === "guest"),
+  );
   const [pendingKind, setPendingKind] = useState<"archive" | "leave" | null>(
     null,
   );
   const [isExiting, setIsExiting] = useState(false);
   const [name, setName] = useState(channel.name);
   const [topic, setTopic] = useState(channel.topic ?? "");
-  const [discoverability, setDiscoverability] = useState<"public" | "private">(
-    channel.discoverability === "private" ? "private" : "public",
+  const [discoverability, setDiscoverability] = useState<Discoverability>(
+    channelDiscoverability(channel.discoverability),
   );
   const [memberIds, setMemberIds] = useState<string[]>(
     channel.userMembers.map((member) => member.id),
@@ -94,11 +121,12 @@ export function EditChannelDialog({
     if (!open) return;
     setName(channel.name);
     setTopic(channel.topic ?? "");
-    setDiscoverability(
-      channel.discoverability === "private" ? "private" : "public",
-    );
+    setDiscoverability(channelDiscoverability(channel.discoverability));
     setMemberIds(channel.userMembers.map((member) => member.id));
     setCoworkerIds(channel.coworkerMembers.map((coworker) => coworker.id));
+    setGuestMembers(
+      channel.userMembers.filter((member) => member.access === "guest"),
+    );
   }, [channel, open]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -122,7 +150,7 @@ export function EditChannelDialog({
             },
       );
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
       setOpen(false);
@@ -140,7 +168,7 @@ export function EditChannelDialog({
     setIsExiting(false);
 
     if (!result.ok) {
-      toast.error(result.message);
+      toast.error(result.error.message);
       setPendingKind(null);
       return;
     }
@@ -187,6 +215,7 @@ export function EditChannelDialog({
             scroll. Cap the dialog to the viewport and scroll the form body rather
             than the padded dialog box, whose children do not reflow around their
             own scrollbar. */}
+        {/* Settings form stays separate from guest invite (nested forms invalid). */}
         <DialogContent className="max-h-[calc(100svh-2rem)] min-w-0 overflow-x-hidden overflow-y-auto px-5 py-6 shadow-none sm:max-w-2xl">
           <form className="min-w-0 space-y-4" onSubmit={handleSubmit}>
             <DialogHeader className="pr-6">
@@ -226,7 +255,7 @@ export function EditChannelDialog({
                       <RadioGroup
                         value={discoverability}
                         onValueChange={(value) => {
-                          if (value === "public" || value === "private") {
+                          if (isDiscoverability(value)) {
                             setDiscoverability(value);
                           }
                         }}
@@ -256,11 +285,25 @@ export function EditChannelDialog({
                             {t("Visibility.private")}
                           </Label>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem
+                            value="external"
+                            id="edit-channel-external"
+                          />
+                          <Label
+                            htmlFor="edit-channel-external"
+                            className="cursor-pointer font-normal"
+                          >
+                            {t("Visibility.external")}
+                          </Label>
+                        </div>
                       </RadioGroup>
                       <p className="text-muted-foreground text-xs">
                         {discoverability === "public"
                           ? t("Visibility.publicHelp")
-                          : t("Visibility.privateHelp")}
+                          : discoverability === "private"
+                            ? t("Visibility.privateHelp")
+                            : t("Visibility.externalHelp")}
                       </p>
                     </div>
                   </>
@@ -278,37 +321,68 @@ export function EditChannelDialog({
                 ) : null}
               </div>
             ) : null}
-            {canArchive || canLeave ? (
-              <div className="space-y-3 border-t pt-4">
-                <p className="text-sm font-medium">
-                  {tActions("sectionTitle")}
-                </p>
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  {canLeave ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="justify-center gap-2"
-                      onClick={() => handleRequestExit("leave")}
-                    >
-                      <LogOut className="size-4" aria-hidden />
-                      {tActions("leave")}
-                    </Button>
+            {canSubmit ? (
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setOpen(false)}
+                >
+                  {t("Dialog.cancel")}
+                </Button>
+                <Button type="submit" variant="primary" disabled={isPending}>
+                  {isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
                   ) : null}
-                  {canArchive ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="text-semantic-destructive hover:text-semantic-destructive justify-center gap-2"
-                      onClick={() => handleRequestExit("archive")}
-                    >
-                      <ArchiveIcon className="size-4" aria-hidden />
-                      {tActions("archive")}
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
+                  {t("Dialog.save")}
+                </Button>
+              </DialogFooter>
             ) : null}
+          </form>
+          {/* Mount only while open so pending invites load on remount, not via open-synced Effect. */}
+          {showGuestInvite && open ? (
+            <GuestInviteSection
+              key={channel.id}
+              roomId={channel.id}
+              guests={guestMembers}
+              onGuestRemoved={(userId) => {
+                setGuestMembers((prev) =>
+                  prev.filter((member) => member.id !== userId),
+                );
+                router.refresh();
+              }}
+            />
+          ) : null}
+          {canArchive || canLeave ? (
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-sm font-medium">{tActions("sectionTitle")}</p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {canLeave ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="justify-center gap-2"
+                    onClick={() => handleRequestExit("leave")}
+                  >
+                    <LogOut className="size-4" aria-hidden />
+                    {tActions("leave")}
+                  </Button>
+                ) : null}
+                {canArchive ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-semantic-destructive hover:text-semantic-destructive justify-center gap-2"
+                    onClick={() => handleRequestExit("archive")}
+                  >
+                    <ArchiveIcon className="size-4" aria-hidden />
+                    {tActions("archive")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+          {!canSubmit ? (
             <DialogFooter>
               <Button
                 type="button"
@@ -317,16 +391,8 @@ export function EditChannelDialog({
               >
                 {t("Dialog.cancel")}
               </Button>
-              {canSubmit ? (
-                <Button type="submit" variant="primary" disabled={isPending}>
-                  {isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : null}
-                  {t("Dialog.save")}
-                </Button>
-              ) : null}
             </DialogFooter>
-          </form>
+          ) : null}
         </DialogContent>
       </Dialog>
 

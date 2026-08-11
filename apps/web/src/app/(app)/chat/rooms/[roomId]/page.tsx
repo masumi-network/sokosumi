@@ -63,6 +63,7 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
   const currentUserId = session?.user.id ?? "";
 
   // Personal workspace: coworker 1:1 directs may have null organizationId.
+  // Guest external channels also open here (host org id set, myAccess=guest).
   if (!activeOrganization) {
     const [selectedRoom, coworkers, messagePage] = await Promise.all([
       chatRoomService.getRoom(roomId),
@@ -74,10 +75,11 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
       redirect("/chat?notice=room-unavailable");
     }
 
-    if (
-      selectedRoom.organizationId !== null ||
-      selectedRoom.kind !== "direct"
-    ) {
+    const isPersonalDirect =
+      selectedRoom.organizationId === null && selectedRoom.kind === "direct";
+    const isGuestRoom = selectedRoom.myAccess === "guest";
+
+    if (!isPersonalDirect && !isGuestRoom) {
       return (
         <NoOrganizationCard
           title={t("NoOrganization.title")}
@@ -117,9 +119,11 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     redirect("/chat?notice=room-unavailable");
   }
 
-  // Active org: only rooms for this org. Cross-org membership or personal
-  // directs must not render under the wrong org chrome/roster.
-  if (selectedRoom.organizationId !== activeOrganization.id) {
+  // Active org: host-org rooms, or guest access to another org's external
+  // channel (spec: guests never switch into the host org).
+  const isHostOrgRoom = selectedRoom.organizationId === activeOrganization.id;
+  const isGuestRoom = selectedRoom.myAccess === "guest";
+  if (!isHostOrgRoom && !isGuestRoom) {
     redirect("/chat?notice=room-unavailable");
   }
 
