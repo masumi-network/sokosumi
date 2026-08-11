@@ -1,7 +1,6 @@
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
-import { MobileChatHomeRedirect } from "@/app/chat/components/mobile-chat-home-redirect.client";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
@@ -9,7 +8,7 @@ import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 import { ChatLanding } from "./components/landing/chat-landing";
-import { MarkVisit } from "./components/landing/mark-visit.client";
+import { ChatMobileWelcome } from "./components/landing/chat-mobile-welcome";
 import { RoomsClient } from "./components/rooms-client";
 import { loadOrganizationMembers } from "./load-organization-members";
 import { firstSearchValue } from "./load-room-messages";
@@ -30,9 +29,14 @@ interface ChatPageProps {
 }
 
 /**
- * `/chat` landing: a desktop welcome summarising what happened while the user
- * was away; mobile bare home redirects to `/chat/chats`. Draft modes via
- * query: `?create=channel`, `?dm=new`. Open rooms: `/chat/rooms/[roomId]`.
+ * `/chat` welcome: what happened while the user was away, and a way in via a
+ * coworker. This is the post-login landing on every breakpoint — desktop gets
+ * the full-page composition, mobile a version sized for a 390px column. The
+ * room list is its own surface (`/chat/chats` on mobile, the sidebar on
+ * desktop) rather than something stacked underneath the welcome.
+ *
+ * Draft modes via query: `?create=channel`, `?dm=new`.
+ * Open rooms: `/chat/rooms/[roomId]`.
  *
  * Instant Nav uses `chat/loading.tsx` while this page streams after
  * `connection()`. Room open uses `rooms/[roomId]/loading.tsx`.
@@ -163,10 +167,17 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     summary !== null &&
     (summary.lastVisitAt === null ||
       Date.now() - summary.lastVisitAt.getTime() >= LAST_SEEN_REFRESH_MS);
+  // Safe to stamp during the render: every breakpoint shows a welcome here, so
+  // reaching this line means the summary is on screen.
+  if (shouldAdvanceLastSeen) {
+    await userService.markLastSeenForMe();
+  }
 
   return (
     <>
       {landingNotice}
+      {/* One welcome per breakpoint. The compositions differ enough — six 64px
+          teammates versus four at 44px — that CSS alone cannot bridge them. */}
       <div className="hidden md:contents">
         <ChatLanding
           coworkers={coworkers}
@@ -175,10 +186,14 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           userName={session?.user.name ?? null}
         />
       </div>
-      {/* Desktop only: a mobile request here renders the landing markup but
-          redirects away without ever showing it. */}
-      <MarkVisit on="desktop" shouldAdvance={shouldAdvanceLastSeen} />
-      <MobileChatHomeRedirect />
+      <div className="flex min-h-full w-full flex-col md:hidden">
+        <ChatMobileWelcome
+          coworkers={coworkers}
+          isOrganizationWorkspace={activeOrganizationId !== null}
+          summary={summary}
+          userName={session?.user.name ?? null}
+        />
+      </div>
     </>
   );
 }

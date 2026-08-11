@@ -30,12 +30,12 @@ interface ChatMobileWelcomeProps {
 }
 
 /**
- * The welcome, sized for the mobile Chats tab.
+ * The welcome, sized for a 390px column.
  *
- * Mobile never reaches the desktop landing: bare `/chat` redirects to
- * `/chat/chats`, so this sits at the top of that list and scrolls away with it.
- * Deliberately shorter than the desktop composition — the first rooms should
- * still peek below the fold on a 390x844 screen rather than being pushed off.
+ * Owns `/chat` below `md`, the same page the desktop landing owns above it —
+ * the room list stays its own surface at `/chat/chats`. Same three zones as
+ * desktop (mark, centred pitch, stats), scaled down: 32px mark, an 80px
+ * featured face flanked by four at 44px, and a full-width CTA.
  */
 export async function ChatMobileWelcome({
   coworkers,
@@ -53,7 +53,9 @@ export async function ChatMobileWelcome({
   const hasAnyActivity = hasReportableActivity(summary);
 
   return (
-    <section className="flex flex-col items-center px-4 pt-4 pb-5 text-center">
+    // Same three zones as the desktop landing: the mark holds the top edge, the
+    // pitch centres in what is left, and the stats close out the bottom.
+    <section className="flex min-h-full w-full flex-col items-center px-4 pt-4 pb-5 text-center">
       <SokosumiIcon
         animated={false}
         className="text-foreground shrink-0"
@@ -61,43 +63,45 @@ export async function ChatMobileWelcome({
         width={32}
       />
 
-      <h1 className="text-foreground mt-2.5 text-xl font-light text-balance">
-        {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
-      </h1>
+      <div className="flex w-full flex-1 flex-col items-center justify-center py-6">
+        <h1 className="text-foreground text-2xl font-light text-balance">
+          {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
+        </h1>
 
-      <p className="text-muted-foreground mt-2 max-w-[42ch] text-sm leading-[1.55] text-balance">
-        {t("intro")}
-      </p>
+        <p className="text-muted-foreground mt-3 max-w-[42ch] text-sm leading-[1.6] text-balance">
+          {t("intro")}
+        </p>
 
-      {featured ? (
-        <>
-          <div className="mt-5 w-full">
-            <CoworkerStrip
-              featured={toStripCoworker(featured)}
-              others={others}
-              size="compact"
-            />
-          </div>
+        {featured ? (
+          <>
+            <div className="mt-8 w-full">
+              <CoworkerStrip
+                featured={toStripCoworker(featured)}
+                others={others}
+                size="compact"
+              />
+            </div>
 
-          <p className="mt-3 text-base font-semibold tracking-[-0.01em]">
-            {featured.name}
-          </p>
-          <p className="text-muted-foreground mt-1 max-w-[40ch] text-[0.8125rem] leading-[1.5] text-balance">
-            {t("role")}
-          </p>
+            <p className="mt-4 text-lg font-semibold tracking-[-0.01em]">
+              {featured.name}
+            </p>
+            <p className="text-muted-foreground mt-1.5 max-w-[40ch] text-[0.8125rem] leading-[1.5] text-balance">
+              {t("role")}
+            </p>
 
-          <div className="mt-4 w-full max-w-xs">
-            <StartChatButton
-              className="w-full"
-              coworkerId={featured.id}
-              coworkerName={featured.name}
-            />
-          </div>
-        </>
-      ) : null}
+            <div className="mt-6 w-full max-w-xs">
+              <StartChatButton
+                className="w-full"
+                coworkerId={featured.id}
+                coworkerName={featured.name}
+              />
+            </div>
+          </>
+        ) : null}
+      </div>
 
       {summary && hasAnyActivity && stats.length > 0 ? (
-        <div className="mt-5 flex w-full flex-col items-center gap-2">
+        <div className="flex w-full shrink-0 flex-col items-center gap-2.5">
           <p className="text-muted-foreground/70 text-xs">
             {summary.basis === "lastVisit" && summary.since
               ? t("stats.sinceLastVisit", {

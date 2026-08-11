@@ -4,15 +4,26 @@ import { describe, expect, it } from "vitest";
 import { ChatHomePageSkeleton } from "../chat-home-loading-view";
 
 describe("ChatHomePageSkeleton", () => {
-  it("splits desktop landing bones from the mobile chats-list bones", () => {
+  // Both breakpoints land on the welcome at `/chat`, so each gets its own
+  // welcome bones. Mobile used to borrow the chats-list shell back when bare
+  // `/chat` redirected to `/chat/chats`.
+  it("gives each breakpoint its own welcome bones", () => {
     render(<ChatHomePageSkeleton />);
 
     const desktop = screen.getByTestId("chat-home-loading-desktop");
     expect(desktop.className).toMatch(/md:flex/);
     expect(desktop.className).toMatch(/hidden/);
 
-    const mobile = screen.getByTestId("chat-chats-loading");
+    const mobile = screen.getByTestId("chat-home-loading-mobile");
     expect(mobile.className).toMatch(/md:hidden/);
+    // Featured face flanked by four teammates, at the compact scale.
+    expect(mobile.querySelectorAll(".size-11")).toHaveLength(4);
+    expect(mobile.querySelector(".size-20")).not.toBeNull();
+  });
+
+  it("no longer renders the chats-list shell on mobile", () => {
+    render(<ChatHomePageSkeleton />);
+    expect(screen.queryByTestId("chat-chats-loading")).toBeNull();
   });
 
   it("mirrors the landing's shape: greeting, stat, avatar and CTA", () => {

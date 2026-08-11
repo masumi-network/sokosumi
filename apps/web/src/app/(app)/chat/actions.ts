@@ -682,15 +682,3 @@ export async function editRoomMessageAction(
     return roomCatch(error, "Could not edit message.");
   }
 }
-
-/**
- * Advance the caller's recorded visit.
- *
- * A server action rather than a page-level call because only the client knows
- * whether the welcome is actually on screen: both surfaces render it behind a
- * breakpoint, and stamping a visit nobody saw discards the very window the
- * summary reports on.
- */
-export async function markVisitAction(): Promise<void> {
-  await userService.markLastSeenForMe();
-}

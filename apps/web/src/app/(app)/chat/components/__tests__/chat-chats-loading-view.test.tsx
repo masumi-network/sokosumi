@@ -13,26 +13,14 @@ describe("ChatChatsPageSkeleton", () => {
 
   it("omits Personal Assistant chrome (beta-gated on the real page)", () => {
     const { container } = render(<ChatChatsPageSkeleton />);
-    // Welcome block + list header + rows — no PA avatar/name row or separator.
+    // List header + rows only — no leading avatar/name PA row or separator.
     expect(container.querySelector("ul")).not.toBeNull();
     expect(container.querySelector("hr")).toBeNull();
-    const children = container.querySelectorAll(
+    const firstChild = container.querySelector(
       '[data-testid="chat-chats-loading"] > *',
     );
-    expect(children).toHaveLength(2);
-    expect(children[1]?.querySelector(".justify-between")).not.toBeNull();
-  });
-
-  // The real page leads with the welcome, so the shell must reserve it or the
-  // room list jumps down the moment the page streams in.
-  it("reserves the welcome block above the list", () => {
-    const { container } = render(<ChatChatsPageSkeleton />);
-    const welcome = container.querySelector(
-      '[data-testid="chat-chats-loading"] > *',
-    );
-    // Featured coworker bone (size-20) flanked by four teammates (size-11).
-    expect(welcome?.querySelectorAll(".size-11")).toHaveLength(4);
-    expect(welcome?.querySelector(".size-20")).not.toBeNull();
+    expect(firstChild?.tagName.toLowerCase()).toBe("div");
+    expect(firstChild?.className).toMatch(/justify-between/);
   });
 
   it("renders multiple list row bones", () => {
