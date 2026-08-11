@@ -1,5 +1,12 @@
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
-import { CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS } from "@/app/chat/components/chat-mobile-tab-registry";
+import {
+  CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS,
+  chatMobileComposerSafeAreaPbClass,
+} from "@/app/chat/components/chat-mobile-tab-registry";
+import {
+  ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+  ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
+} from "@/components/chat/room-message-composer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +57,60 @@ export function RoomMessageListSkeleton({
 }
 
 /**
+ * Matches live `RoomMessageComposer` chrome geometry (padding, card, editor
+ * min height, tool row, safe-area). Instant → real composer must not grow the
+ * footer and shove the message list.
+ */
+export function RoomComposerSkeleton({
+  className,
+}: {
+  className?: string;
+} = {}): React.ReactElement {
+  return (
+    <div
+      data-slot="chat-room-open-skeleton-composer"
+      data-testid="chat-room-composer-skeleton"
+      className={cn(
+        // Same outer inset as room `RoomComposer` → `RoomMessageComposer`.
+        "shrink-0 px-3 pt-2 md:px-5 md:pt-3",
+        chatMobileComposerSafeAreaPbClass(false),
+        className,
+      )}
+      aria-hidden
+    >
+      <div className="border-border overflow-hidden rounded-xl border bg-background">
+        {/* Format strip bone: desktop default open (SOK-681). Hidden on mobile
+            so Instant height matches resolveFormatToolbarOpenOnMount. */}
+        <div className="border-border bg-muted/20 hidden items-center gap-0.5 overflow-x-auto border-b px-2 py-1.5 md:flex">
+          {Array.from({ length: 8 }, (_, index) => (
+            <Skeleton key={index} className="size-8 shrink-0 rounded-md" />
+          ))}
+        </div>
+        {/* Editor: same min-h / vertical padding as ROOM_COMPOSER_TEXTAREA. */}
+        <div
+          className={cn(
+            ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+            "pointer-events-none",
+          )}
+        >
+          <Skeleton className="h-6 w-2/3 max-w-full rounded-md" />
+        </div>
+        {/* Tool row: attach / format / emoji / mention + send. */}
+        <div className="flex items-center justify-between gap-2 px-4 pt-2 pb-3">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <Skeleton className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME} />
+            <Skeleton className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME} />
+            <Skeleton className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME} />
+            <Skeleton className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME} />
+          </div>
+          <Skeleton className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Sync Instant / outer-Suspense shell for `/chat/rooms/[roomId]`.
  * No cookies, connection(), or i18n — header + message bones + composer bones.
  */
@@ -86,12 +147,7 @@ export function ChatRoomOpenSkeleton(): React.ReactElement {
         </div>
       </div>
 
-      <div
-        data-slot="chat-room-open-skeleton-composer"
-        className="shrink-0 border-t px-4 py-3 md:px-6"
-      >
-        <Skeleton className="h-11 w-full rounded-xl" />
-      </div>
+      <RoomComposerSkeleton />
     </div>
   );
 }

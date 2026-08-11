@@ -2,6 +2,7 @@ import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   ChatRoomOpenSkeleton,
+  RoomComposerSkeleton,
   RoomMessageListSkeleton,
 } from "../chat-room-open-skeleton";
 
@@ -25,6 +26,23 @@ describe("ChatRoomOpenSkeleton", () => {
     expect(
       container.querySelectorAll('[data-slot="skeleton"]').length,
     ).toBeGreaterThan(4);
+  });
+});
+
+describe("RoomComposerSkeleton", () => {
+  it("mirrors live composer card + tool-row geometry classes", () => {
+    const { container, getByTestId } = render(<RoomComposerSkeleton />);
+
+    expect(getByTestId("chat-room-composer-skeleton")).toBeTruthy();
+    // Rounded card shell (same as RoomMessageComposer).
+    expect(
+      container.querySelector(".rounded-xl.border.bg-background"),
+    ).toBeTruthy();
+    // Editor uses shared textarea class (min-h-10 + vertical padding).
+    expect(container.querySelector(".min-h-10")).toBeTruthy();
+    // Tool buttons use shared size classes.
+    expect(container.querySelectorAll(".size-9").length).toBeGreaterThan(3);
+    expect(container.textContent?.trim() ?? "").toBe("");
   });
 });
 

@@ -2065,6 +2065,9 @@ export function RoomsClient({
                 onClearPendingQuote={() => setPendingQuote(null)}
                 onRestorePendingQuote={setPendingQuote}
                 onChromeResize={scrollToBottomIfPinned}
+                // Defer autofocus until history is ready so progressive open
+                // does not open the soft keyboard / move selection mid-shell.
+                focusOnMount={!messagesPending}
                 onBeforeSend={handleChannelBeforeSend}
                 onSend={handleChannelSend}
               />
