@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function TaskDetailLoading() {
   return (
     <div className="min-h-full w-full">
-      <div className="mx-auto max-w-4xl px-2 pb-8 md:px-4">
+      <div className="mx-auto max-w-4xl pb-8 md:px-4">
         <div className="space-y-4">
           <div className="flex items-center justify-end md:justify-between">
             <Skeleton className="hidden h-9 w-24 md:block" />
