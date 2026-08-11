@@ -3,6 +3,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import {
+  PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_LIST_ROW_LAYOUT_CLASS,
+} from "@/app/projects/constants";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const appDir = join(here, "../..");
 
@@ -56,6 +61,47 @@ describe("projects Instant Nav skeleton contract", () => {
     assertDefaultReturnsSkeleton(
       readApp("projects/(root)/loading.tsx"),
       "ProjectsPageSkeleton",
+    );
+  });
+});
+
+/**
+ * Live list must share the same CLS footprint constants as the Instant skeleton
+ * so reverting only projects-view / list-item cannot silently reintroduce swap jank.
+ */
+describe("projects list CLS layout pairing", () => {
+  it("skeleton, live list, and empty state use PROJECTS_LIST_CARD_MIN_H_CLASS", () => {
+    const loading = stripComments(
+      readApp("projects/components/projects-loading-view.tsx"),
+    );
+    const view = stripComments(
+      readApp("projects/components/projects-view.tsx"),
+    );
+
+    expect(loading).toMatch(/PROJECTS_LIST_CARD_MIN_H_CLASS/);
+    expect(view).toMatch(/PROJECTS_LIST_CARD_MIN_H_CLASS/);
+    // Empty + loaded list both reference the constant (two call sites).
+    expect(
+      view.match(/PROJECTS_LIST_CARD_MIN_H_CLASS/g)?.length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(PROJECTS_LIST_CARD_MIN_H_CLASS).toBe("min-h-[320px]");
+  });
+
+  it("skeleton and live ProjectListItem use PROJECTS_LIST_ROW_LAYOUT_CLASS", () => {
+    const loading = stripComments(
+      readApp("projects/components/projects-loading-view.tsx"),
+    );
+    const item = stripComments(
+      readApp("projects/components/project-list-item.tsx"),
+    );
+
+    expect(loading).toMatch(/PROJECTS_LIST_ROW_LAYOUT_CLASS/);
+    expect(item).toMatch(/PROJECTS_LIST_ROW_LAYOUT_CLASS/);
+    expect(PROJECTS_LIST_ROW_LAYOUT_CLASS).toContain(
+      "[contain-intrinsic-size:auto_72px]",
+    );
+    expect(PROJECTS_LIST_ROW_LAYOUT_CLASS).toContain(
+      "[content-visibility:auto]",
     );
   });
 });

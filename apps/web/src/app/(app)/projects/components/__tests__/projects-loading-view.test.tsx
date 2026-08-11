@@ -6,6 +6,10 @@ import {
   ProjectsLoadingView,
   ProjectsPageSkeleton,
 } from "@/app/projects/components/projects-loading-view";
+import {
+  PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_LIST_ROW_LAYOUT_CLASS,
+} from "@/app/projects/constants";
 
 describe("ProjectsPageSkeleton", () => {
   it("renders Instant page shell without requiring labels props", () => {
@@ -54,13 +58,14 @@ describe("ProjectsLoadingView", () => {
     expect(rows.length).toBe(4);
 
     for (const row of rows) {
-      expect(row.className).toContain("[contain-intrinsic-size:auto_72px]");
-      expect(row.className).toContain("[content-visibility:auto]");
+      for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
+        expect(row.className).toContain(token);
+      }
     }
 
-    // List card min-height tracks empty-state chrome so empty swap is smaller.
+    // List card min-height tracks empty-state / live list chrome.
     const listCard = list.parentElement;
-    expect(listCard?.className).toMatch(/min-h-\[320px\]/);
+    expect(listCard?.className).toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
 
     // Outer shell matches ProjectsView flex column + FAB clearance.
     expect(container.firstElementChild?.className).toContain("flex");

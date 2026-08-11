@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_LIST_ROW_LAYOUT_CLASS,
   UNASSIGNED_PROJECT_QUERY,
   unassignedWorkspaceJobsQuery,
   unassignedWorkspaceTasksQuery,
@@ -9,6 +11,15 @@ import type {
   GetJobsData,
   GetTasksData,
 } from "@/lib/clients/generated/core/types.gen";
+
+describe("projects list CLS layout constants", () => {
+  it("exports full Tailwind class strings for scanner + Instant pairing", () => {
+    expect(PROJECTS_LIST_CARD_MIN_H_CLASS).toBe("min-h-[320px]");
+    expect(PROJECTS_LIST_ROW_LAYOUT_CLASS).toBe(
+      "[content-visibility:auto] [contain-intrinsic-size:auto_72px]",
+    );
+  });
+});
 
 describe("UNASSIGNED_PROJECT_QUERY", () => {
   it("matches the Core API query param for unassigned project filters", () => {

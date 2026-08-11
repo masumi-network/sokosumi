@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { deleteProject } from "@/lib/actions/project/action";
 import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
+import { cn } from "@/lib/utils";
 
 interface ProjectListItemLabels {
   actions: {
@@ -80,7 +82,12 @@ export function ProjectListItem({
   }
 
   return (
-    <article className="-mx-2 flex items-center gap-1 rounded-lg px-2 [content-visibility:auto] [contain-intrinsic-size:auto_72px] hover:bg-muted/50">
+    <article
+      className={cn(
+        "-mx-2 flex items-center gap-1 rounded-lg px-2 hover:bg-muted/50",
+        PROJECTS_LIST_ROW_LAYOUT_CLASS,
+      )}
+    >
       <Link
         href={`/tasks?projectId=${project.id}`}
         className="flex min-w-0 flex-1 flex-col gap-2 rounded-lg px-2 py-3 transition-colors active:scale-[0.995] sm:flex-row sm:items-center sm:gap-4"

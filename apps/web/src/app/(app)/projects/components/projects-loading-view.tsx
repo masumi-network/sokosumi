@@ -1,6 +1,10 @@
 import { Plus } from "lucide-react";
 
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import {
+  PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_LIST_ROW_LAYOUT_CLASS,
+} from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -43,8 +47,13 @@ export function ProjectsLoadingView({ labels }: ProjectsLoadingViewProps) {
         </Button>
       </div>
 
-      {/* min-h matches ProjectsEmptyState so empty swap is smaller than a full list collapse. */}
-      <div className="bg-muted/30 border-border/50 -mx-6 min-h-[320px] overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+      {/* min-h matches empty/list cards so Instant / empty swap does not thrash CLS. */}
+      <div
+        className={cn(
+          "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+          PROJECTS_LIST_CARD_MIN_H_CLASS,
+        )}
+      >
         <div
           data-testid="projects-loading-list"
           className="divide-border/50 divide-y px-2"
@@ -64,7 +73,12 @@ export function ProjectsLoadingView({ labels }: ProjectsLoadingViewProps) {
  */
 function ProjectListItemSkeleton() {
   return (
-    <article className="-mx-2 flex items-center gap-1 rounded-lg px-2 [content-visibility:auto] [contain-intrinsic-size:auto_72px]">
+    <article
+      className={cn(
+        "-mx-2 flex items-center gap-1 rounded-lg px-2",
+        PROJECTS_LIST_ROW_LAYOUT_CLASS,
+      )}
+    >
       <div className="flex min-w-0 flex-1 flex-col gap-2 px-2 py-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
