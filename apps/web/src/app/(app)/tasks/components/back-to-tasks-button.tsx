@@ -27,7 +27,7 @@ export function BackToTasksButton({ label }: BackToTasksButtonProps) {
   return (
     <button
       type="button"
-      className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+      className="text-muted-foreground hover:text-foreground hidden items-center gap-1.5 text-sm transition-colors md:inline-flex"
       onClick={handleNavigate}
       onPointerEnter={() => router.prefetch(returnPath)}
       onFocus={() => router.prefetch(returnPath)}
