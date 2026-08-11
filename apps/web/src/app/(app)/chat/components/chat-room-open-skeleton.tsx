@@ -79,7 +79,11 @@ export function ChatRoomOpenSkeleton(): React.ReactElement {
       </header>
 
       <div className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}>
-        <RoomMessageListSkeleton className="px-5 pt-6 pb-4" />
+        {/* min-h-full + justify-end: match live RoomsClient so Instant → shell
+            does not jump the message bones from top to bottom. */}
+        <div className="flex min-h-full min-w-0 w-full flex-col justify-end">
+          <RoomMessageListSkeleton className="px-5 pt-6 pb-4" />
+        </div>
       </div>
 
       <div

@@ -468,6 +468,7 @@ export function RoomsClient({
     setMessageLoadFailedState(page.failed);
     setDeferredHistoryPending(false);
   }, []);
+
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
   const threadParentMessageRef = useRef<ChatRoomMessage | null>(null);
@@ -500,11 +501,29 @@ export function RoomsClient({
     scrollerRef,
     contentRef,
     contentMinHeight,
+    scrollToBottom,
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
   } = useStickToBottom({
     resetKey: selectedRoomId,
   });
+  // Skeleton → real history changes list height; re-pin live edge after paint
+  // so the viewport does not jump mid-list or leave the user mid-skeleton.
+  const wasHistoryPendingRef = useRef(messagesPending);
+  useEffect(() => {
+    const wasPending = wasHistoryPendingRef.current;
+    wasHistoryPendingRef.current = messagesPending;
+    if (!wasPending || messagesPending) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      scrollToBottom();
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [messagesPending, scrollToBottom]);
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
@@ -1877,7 +1896,13 @@ export function RoomsClient({
               >
                 <div
                   ref={contentRef}
-                  className="flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0"
+                  className={cn(
+                    "flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0",
+                    // Before JS measures scroller height, keep justify-end
+                    // anchored to the full viewport so the pending skeleton
+                    // does not paint high then jump to the bottom.
+                    contentMinHeight == null && "min-h-full",
+                  )}
                   style={
                     contentMinHeight != null
                       ? { minHeight: contentMinHeight }
