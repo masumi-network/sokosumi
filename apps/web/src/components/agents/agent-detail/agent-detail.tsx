@@ -55,7 +55,7 @@ export function AgentDetail({
   return (
     <div
       className={cn(
-        "mt-4 flex w-full flex-col space-y-8 px-4 pb-8 md:px-0",
+        "mt-0 flex w-full flex-col space-y-8 px-4 pb-8 md:mt-4 md:px-0",
         className,
       )}
     >
