@@ -13,6 +13,13 @@ export const AUTH_BACKGROUND_IMAGES = [
 export type AuthBackgroundImage = (typeof AUTH_BACKGROUND_IMAGES)[number];
 
 /**
+ * Match Tailwind `lg` (1024px). Below that the hero is `hidden` — size `0px` so
+ * `priority` + srcset preload selects a near-zero candidate instead of a
+ * half-viewport PNG that never paints on mobile.
+ */
+export const AUTH_BACKGROUND_SIZES = "(max-width: 1023px) 0px, 50vw" as const;
+
+/**
  * Pick the auth hero image before first paint.
  * Inject `random` in tests; production uses Math.random on the dynamic auth shell.
  */
@@ -39,7 +46,7 @@ export default function AuthBackground() {
           fill
           priority
           className="rounded-xl object-cover"
-          sizes="50vw"
+          sizes={AUTH_BACKGROUND_SIZES}
         />
         <div className="pointer-events-none absolute right-4 bottom-4 text-white">
           <KanjiLogo className="fill-white" />

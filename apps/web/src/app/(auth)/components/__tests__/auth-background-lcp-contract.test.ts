@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AUTH_BACKGROUND_IMAGES,
+  AUTH_BACKGROUND_SIZES,
   pickAuthBackgroundImage,
 } from "@/auth/components/auth-background";
 
@@ -42,6 +43,9 @@ describe("auth background LCP contract (SOK-782)", () => {
     expect(code).toMatch(/\bpriority\b/);
     expect(code).toMatch(/from\s+["']next\/image["']/);
     expect(code).toMatch(/\bpickAuthBackgroundImage\s*\(/);
+    // Below Tailwind lg the panel is hidden — sizes must not claim 50vw there.
+    expect(AUTH_BACKGROUND_SIZES).toBe("(max-width: 1023px) 0px, 50vw");
+    expect(code).toMatch(/\bsizes=\{AUTH_BACKGROUND_SIZES\}/);
   });
 
   it("auth layout keeps Instant opt-out and still mounts AuthBackground", () => {
