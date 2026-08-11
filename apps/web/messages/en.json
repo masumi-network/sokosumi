@@ -1557,23 +1557,44 @@
         "openFab": "Start coworker chat",
         "greeting": "Welcome!",
         "greetingWithName": "Welcome {name}!",
-        "intentTitle": "What do you need help with?",
-        "intentDescription": "We'll match you with a coworker who fits.",
+        "intentTitle": "What are you here to do?",
+        "intentDescription": "Pick a lane so we can suggest the right coworker and starter prompts.",
         "intentChoices": {
           "chat": "Conversation",
           "tasks": "Tasks & projects",
           "either": "Not sure yet"
         },
         "intentChoiceHints": {
-          "chat": "Brainstorm, research, or get answers in chat.",
-          "tasks": "Plan work, track progress, or assign tasks.",
-          "either": "Show me a good default coworker."
+          "chat": "Brainstorm, research, or get answers in a back-and-forth.",
+          "tasks": "Break work down, track progress, or move a project forward.",
+          "either": "We'll open with Elena and a starter idea."
         },
-        "goalTitle": "Anything specific in mind?",
-        "goalDescription": "Optional — we'll pre-fill your first message.",
+        "goalTitle": "Try a starter — or write your own",
+        "goalDescription": "Tap a prompt to pre-fill your first message, or type something else below.",
         "goalLabel": "Your goal",
         "goalPlaceholder": "e.g. Help me draft a weekly update",
         "goalFallback": "general help",
+        "tryAsking": {
+          "label": "Try asking",
+          "orDivider": "or",
+          "prompts": {
+            "chat": {
+              "hannah": "Research our competitors and compare us to them.",
+              "alex": "Analyse the data in my OneDrive folder.",
+              "elena": "How can I use Sokosumi for my business, and where should I start?"
+            },
+            "tasks": {
+              "elena": "Show me the status of all my open tasks and what needs my attention.",
+              "alex": "Build me a dashboard for my research results.",
+              "hannah": "Analyze our target audience: needs, behaviors, and media habits."
+            },
+            "either": {
+              "elena": "Help me figure out how Sokosumi fits my business and where I should start.",
+              "hannah": "Research our competitors and compare us to them.",
+              "alex": "Build me a dashboard for my research results."
+            }
+          }
+        },
         "draftWithGoal": "{goal}",
         "draftWithIntent": "I'd like help with {intent}.",
         "next": "Next",

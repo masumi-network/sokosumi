@@ -2,6 +2,7 @@ import {
   type CoworkerCapability,
   coworkerCanChat,
   coworkerCanHandleTasks,
+  findCoworkerBySlugOrId,
   findDefaultCoworker,
 } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
@@ -45,9 +46,30 @@ function filterByIntent(
   };
 }
 
+function findPreferredCoworker(
+  preferredSlug: string | undefined,
+  pools: readonly (readonly Coworker[])[],
+): Coworker | null {
+  const preferred = preferredSlug?.trim();
+  if (!preferred) {
+    return null;
+  }
+  for (const pool of pools) {
+    if (pool.length === 0) {
+      continue;
+    }
+    const found = findCoworkerBySlugOrId([...pool], preferred);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
 /**
  * Pure mapper. Prefer chat-capable for chat intent; tasks-capable for tasks;
- * either → prefer chat then tasks. Fallback findDefaultCoworker among filtered.
+ * either → prefer chat then tasks. preferredCoworkerSlug pins when found in
+ * intent pool (then chat-capable / full pool). Else findDefaultCoworker.
  * Draft from goal freeform or intent label via DraftLabelBundle.
  */
 export function recommendFromAnswers(input: {
@@ -69,7 +91,12 @@ export function recommendFromAnswers(input: {
         ? chatCapable
         : [...coworkers];
 
-  const picked = findDefaultCoworker(pool);
+  const preferred = findPreferredCoworker(answers.preferredCoworkerSlug, [
+    filtered,
+    chatCapable,
+    coworkers,
+  ]);
+  const picked = preferred ?? findDefaultCoworker(pool);
   const coworkerId = picked?.id ?? "";
 
   const goalText = answers.goal?.trim() ? answers.goal.trim() : null;

@@ -38,13 +38,22 @@ function mergeAnswer(
     if (!trimmed) {
       const next = { ...answers };
       delete next.goal;
+      delete next.preferredCoworkerSlug;
       return next;
     }
-    return { ...answers, goal: trimmed };
+    const next: PartialOnboardingAnswers = { ...answers, goal: trimmed };
+    const preferred = value.preferredCoworkerSlug?.trim();
+    if (preferred) {
+      next.preferredCoworkerSlug = preferred;
+    } else {
+      delete next.preferredCoworkerSlug;
+    }
+    return next;
   }
   if (value.kind === "skipped") {
     const next = { ...answers };
     delete next.goal;
+    delete next.preferredCoworkerSlug;
     return next;
   }
   return answers;
@@ -59,6 +68,9 @@ function toCompleteAnswers(
   const complete: OnboardingAnswers = { intent: answers.intent };
   if (answers.goal) {
     complete.goal = answers.goal;
+  }
+  if (answers.preferredCoworkerSlug) {
+    complete.preferredCoworkerSlug = answers.preferredCoworkerSlug;
   }
   return complete;
 }
@@ -162,6 +174,12 @@ export function reduceOnboarding(
               intent: state.phase.answers.intent,
               ...(state.phase.answers.goal
                 ? { goal: state.phase.answers.goal }
+                : {}),
+              ...(state.phase.answers.preferredCoworkerSlug
+                ? {
+                    preferredCoworkerSlug:
+                      state.phase.answers.preferredCoworkerSlug,
+                  }
                 : {}),
             },
           },

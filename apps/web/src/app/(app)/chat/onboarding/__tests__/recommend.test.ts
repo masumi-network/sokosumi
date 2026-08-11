@@ -131,6 +131,62 @@ describe("recommendFromAnswers", () => {
 
     expect(result.coworkerId).toBe("elena-id");
   });
+  it("pins coworker from preferredCoworkerSlug (try-asking sample)", () => {
+    const coworkers = [
+      coworker({
+        id: "elena-id",
+        slug: "elena",
+        capabilities: ["chat"],
+        canChat: true,
+      }),
+      coworker({
+        id: "alex-id",
+        slug: "alex",
+        capabilities: ["chat"],
+        canChat: true,
+      }),
+    ];
+
+    const result = recommendFromAnswers({
+      answers: {
+        intent: "either",
+        goal: "Build me a dashboard for my research results.",
+        preferredCoworkerSlug: "alex",
+      },
+      coworkers,
+      draftLabels,
+    });
+
+    expect(result.coworkerId).toBe("alex-id");
+    expect(result.draftText).toBe(
+      "Goal: Build me a dashboard for my research results.",
+    );
+  });
+
+  it("either without sample still prefers Elena via findDefaultCoworker", () => {
+    const coworkers = [
+      coworker({
+        id: "hannah-id",
+        slug: "hannah",
+        capabilities: ["chat"],
+        canChat: true,
+      }),
+      coworker({
+        id: "elena-id",
+        slug: "elena",
+        capabilities: ["chat"],
+        canChat: true,
+      }),
+    ];
+
+    const result = recommendFromAnswers({
+      answers: { intent: "either" },
+      coworkers,
+      draftLabels,
+    });
+
+    expect(result.coworkerId).toBe("elena-id");
+  });
 });
 
 describe("chatCapableCoworkers", () => {

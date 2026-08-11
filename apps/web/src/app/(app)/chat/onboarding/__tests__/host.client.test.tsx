@@ -137,4 +137,41 @@ describe("ChatOnboardingHost confirm", () => {
     const shell = container.querySelector("[data-chat-onboarding-host] > div");
     expect(shell?.className).toContain("max-w-2xl");
   });
+
+  it("goal step shows try-asking samples and or divider", async () => {
+    render(<ChatOnboardingHost coworkers={[coworker]} userName="Francis" />);
+    fireEvent.click(screen.getByLabelText(/intentChoices\.either/i));
+    fireEvent.click(screen.getByRole("button", { name: "next" }));
+
+    expect(screen.getByText("tryAsking.label")).toBeTruthy();
+    expect(screen.getByText("tryAsking.orDivider")).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "tryAsking.prompts.either.elena",
+      }),
+    ).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "tryAsking.prompts.either.elena",
+      }),
+    );
+    expect(
+      (screen.getByLabelText("goalLabel") as HTMLTextAreaElement).value,
+    ).toBe("tryAsking.prompts.either.elena");
+  });
+
+  it("either skip recommends Elena on confirm", async () => {
+    render(
+      <ChatOnboardingHost
+        coworkers={[coworkerAlex, coworker]}
+        userName="Francis"
+      />,
+    );
+    fireEvent.click(screen.getByLabelText(/intentChoices\.either/i));
+    fireEvent.click(screen.getByRole("button", { name: "next" }));
+    fireEvent.click(screen.getByRole("button", { name: "skip" }));
+    await screen.findByText("confirmTitle");
+    expect(screen.getByTestId("gallery-card").textContent).toBe("Elena");
+  });
 });

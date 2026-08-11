@@ -100,8 +100,39 @@ describe("reduceOnboarding", () => {
     }
   });
 
-  it("ignores confirm_start outside confirm", () => {
-    const state = createInitialOnboardingState();
-    expect(reduceOnboarding(state, { type: "confirm_start" })).toEqual(state);
+  it("stores preferredCoworkerSlug from try-asking freeform", () => {
+    let state = createInitialOnboardingState();
+    state = reduceOnboarding(state, {
+      type: "answer_step",
+      stepId: "intent",
+      value: { kind: "single", choiceId: "either" },
+    });
+    state = reduceOnboarding(state, {
+      type: "advance",
+      coworkers: [coworker],
+      draftLabels,
+    });
+    state = reduceOnboarding(state, {
+      type: "answer_step",
+      stepId: "goal",
+      value: {
+        kind: "freeform",
+        text: "Help me figure out Sokosumi",
+        preferredCoworkerSlug: "elena",
+      },
+    });
+    state = reduceOnboarding(state, {
+      type: "advance",
+      coworkers: [coworker],
+      draftLabels,
+    });
+
+    expect(state.phase.kind).toBe("confirm");
+    if (state.phase.kind === "confirm") {
+      expect(state.phase.answers.preferredCoworkerSlug).toBe("elena");
+      expect(state.phase.recommendation.draftText).toBe(
+        "Help me figure out Sokosumi",
+      );
+    }
   });
 });

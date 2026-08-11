@@ -25,6 +25,11 @@ import { ONBOARDING_STEPS_MAX_WIDTH_CLASS } from "./feature-width";
 import { createInitialOnboardingState, reduceOnboarding } from "./machine";
 import { ONBOARDING_QUESTION_TREE, stepIndex } from "./questions";
 import { chatCapableCoworkers } from "./recommend";
+import {
+  type FeaturedCoworkerSlug,
+  TRY_ASKING_BY_INTENT,
+  tryAskingPromptKey,
+} from "./try-asking";
 import type { DraftLabelBundle, IntentChoiceId } from "./types";
 
 export interface ChatOnboardingHostProps {
@@ -56,6 +61,12 @@ export function ChatOnboardingHost({
     createInitialOnboardingState,
   );
   const [goalDraft, setGoalDraft] = useState("");
+  const [preferredCoworkerSlug, setPreferredCoworkerSlug] = useState<
+    string | undefined
+  >(undefined);
+  const [pinnedSampleText, setPinnedSampleText] = useState<string | undefined>(
+    undefined,
+  );
 
   const draftLabels = useMemo((): DraftLabelBundle => {
     const intent =
@@ -176,7 +187,13 @@ export function ChatOnboardingHost({
                     type: "answer_step",
                     stepId: "goal",
                     value: trimmed
-                      ? { kind: "freeform", text: trimmed }
+                      ? {
+                          kind: "freeform",
+                          text: trimmed,
+                          ...(preferredCoworkerSlug
+                            ? { preferredCoworkerSlug }
+                            : {}),
+                        }
                       : { kind: "skipped" },
                   });
                 }
@@ -189,6 +206,9 @@ export function ChatOnboardingHost({
               onSkip={
                 state.phase.stepId === "goal"
                   ? () => {
+                      setGoalDraft("");
+                      setPreferredCoworkerSlug(undefined);
+                      setPinnedSampleText(undefined);
                       dispatch({
                         type: "answer_step",
                         stepId: "goal",
@@ -251,17 +271,36 @@ export function ChatOnboardingHost({
                   ))}
                 </RadioGroup>
               ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="onboarding-goal">{t("goalLabel")}</Label>
-                  <Textarea
-                    id="onboarding-goal"
-                    value={goalDraft}
-                    onChange={(event) => setGoalDraft(event.target.value)}
-                    placeholder={t("goalPlaceholder")}
-                    rows={4}
-                    className="min-h-28"
-                  />
-                </div>
+                <GoalStepBody
+                  intent={state.phase.answers.intent ?? "either"}
+                  goalDraft={goalDraft}
+                  preferredCoworkerSlug={preferredCoworkerSlug}
+                  pinnedSampleText={pinnedSampleText}
+                  onPickSample={(text, slug) => {
+                    setGoalDraft(text);
+                    setPreferredCoworkerSlug(slug);
+                    setPinnedSampleText(text);
+                    dispatch({
+                      type: "answer_step",
+                      stepId: "goal",
+                      value: {
+                        kind: "freeform",
+                        text,
+                        preferredCoworkerSlug: slug,
+                      },
+                    });
+                  }}
+                  onGoalChange={(text) => {
+                    setGoalDraft(text);
+                    if (
+                      pinnedSampleText !== undefined &&
+                      text !== pinnedSampleText
+                    ) {
+                      setPreferredCoworkerSlug(undefined);
+                      setPinnedSampleText(undefined);
+                    }
+                  }}
+                />
               )}
             </Questionnaire>
           </>
@@ -282,12 +321,88 @@ export function ChatOnboardingHost({
             onSelectCoworker={(coworkerId) =>
               dispatch({ type: "select_coworker", coworkerId })
             }
-            onBack={() => dispatch({ type: "back" })}
+            onBack={() => {
+              setGoalDraft(state.phase.answers.goal ?? "");
+              setPreferredCoworkerSlug(
+                state.phase.answers.preferredCoworkerSlug,
+              );
+              setPinnedSampleText(state.phase.answers.goal);
+              dispatch({ type: "back" });
+            }}
             onConfirm={() => {
               void handleConfirm();
             }}
           />
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+interface GoalStepBodyProps {
+  intent: IntentChoiceId;
+  goalDraft: string;
+  preferredCoworkerSlug: string | undefined;
+  pinnedSampleText: string | undefined;
+  onPickSample: (text: string, slug: FeaturedCoworkerSlug) => void;
+  onGoalChange: (text: string) => void;
+}
+
+function GoalStepBody({
+  intent,
+  goalDraft,
+  preferredCoworkerSlug,
+  pinnedSampleText,
+  onPickSample,
+  onGoalChange,
+}: GoalStepBodyProps): React.ReactElement {
+  const t = useTranslations("App.Chat.Onboarding");
+  const samples = TRY_ASKING_BY_INTENT[intent];
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        <p className="text-sm font-medium">{t("tryAsking.label")}</p>
+        <div className="flex flex-col gap-3">
+          {samples.map((slug) => {
+            const promptKey = tryAskingPromptKey(intent, slug);
+            const text = t(promptKey);
+            const selected =
+              preferredCoworkerSlug === slug && pinnedSampleText === text;
+            return (
+              <button
+                key={slug}
+                type="button"
+                data-testid={`try-asking-${slug}`}
+                onClick={() => onPickSample(text, slug)}
+                className={cn(
+                  "border-border hover:bg-muted/50 w-full rounded-lg border p-4 text-left text-sm transition-colors",
+                  selected && "border-primary bg-primary/5",
+                )}
+              >
+                {text}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="text-muted-foreground flex items-center gap-3 text-sm">
+        <div className="bg-border h-px flex-1" />
+        <span>{t("tryAsking.orDivider")}</span>
+        <div className="bg-border h-px flex-1" />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="onboarding-goal">{t("goalLabel")}</Label>
+        <Textarea
+          id="onboarding-goal"
+          value={goalDraft}
+          onChange={(event) => onGoalChange(event.target.value)}
+          placeholder={t("goalPlaceholder")}
+          rows={4}
+          className="min-h-28"
+        />
       </div>
     </div>
   );

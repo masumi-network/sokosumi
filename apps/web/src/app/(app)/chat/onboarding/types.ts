@@ -9,18 +9,25 @@ export type IntentChoiceId = "chat" | "tasks" | "either";
 export type StepAnswerValue =
   | { kind: "single"; choiceId: string }
   | { kind: "multi"; choiceIds: readonly string[] }
-  | { kind: "freeform"; text: string }
+  | {
+      kind: "freeform";
+      text: string;
+      /** When set from a try-asking sample, pins recommend coworker. */
+      preferredCoworkerSlug?: string;
+    }
   | { kind: "skipped" };
 
 /** Accumulated answers; required fields only after questionnaire completes. */
 export interface PartialOnboardingAnswers {
   intent?: IntentChoiceId;
   goal?: string;
+  preferredCoworkerSlug?: string;
 }
 
 export interface OnboardingAnswers {
   intent: IntentChoiceId;
   goal?: string;
+  preferredCoworkerSlug?: string;
 }
 
 export interface OnboardingRecommendation {

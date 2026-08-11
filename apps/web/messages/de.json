@@ -1557,23 +1557,44 @@
         "openFab": "Coworker-Chat starten",
         "greeting": "Willkommen!",
         "greetingWithName": "Willkommen {name}!",
-        "intentTitle": "Wobei brauchst du Hilfe?",
-        "intentDescription": "Wir finden einen passenden Coworker für dich.",
+        "intentTitle": "Wofür bist du hier?",
+        "intentDescription": "Wähle eine Richtung — wir schlagen den passenden Coworker und Starter-Prompts vor.",
         "intentChoices": {
           "chat": "Gespräch",
           "tasks": "Aufgaben & Projekte",
           "either": "Noch unsicher"
         },
         "intentChoiceHints": {
-          "chat": "Brainstormen, recherchieren oder Antworten im Chat.",
-          "tasks": "Arbeit planen, Fortschritt verfolgen oder Aufgaben zuweisen.",
-          "either": "Zeig mir einen guten Standard-Coworker."
+          "chat": "Brainstormen, recherchieren oder Antworten im Dialog.",
+          "tasks": "Arbeit aufteilen, Fortschritt verfolgen oder ein Projekt voranbringen.",
+          "either": "Wir starten mit Elena und einer Einstiegsidee."
         },
-        "goalTitle": "Hast du etwas Bestimmtes im Sinn?",
-        "goalDescription": "Optional — wir füllen deine erste Nachricht vor.",
+        "goalTitle": "Starter ausprobieren — oder selbst schreiben",
+        "goalDescription": "Tippe einen Prompt an, um deine erste Nachricht vorzufüllen, oder schreibe unten etwas Eigenes.",
         "goalLabel": "Dein Ziel",
         "goalPlaceholder": "z. B. Hilf mir, ein Wochenupdate zu schreiben",
         "goalFallback": "allgemeine Hilfe",
+        "tryAsking": {
+          "label": "Versuch’s mal mit",
+          "orDivider": "oder",
+          "prompts": {
+            "chat": {
+              "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
+              "alex": "Analysiere die Daten in meinem OneDrive-Ordner.",
+              "elena": "Wie kann ich Sokosumi für mein Business nutzen, und wo sollte ich starten?"
+            },
+            "tasks": {
+              "elena": "Zeig mir den Status all meiner offenen Aufgaben und was meine Aufmerksamkeit braucht.",
+              "alex": "Bau mir ein Dashboard für meine Research-Ergebnisse.",
+              "hannah": "Analysiere unsere Zielgruppe: Bedürfnisse, Verhalten und Mediennutzung."
+            },
+            "either": {
+              "elena": "Hilf mir zu klären, wie Sokosumi zu meinem Business passt und wo ich starten sollte.",
+              "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
+              "alex": "Bau mir ein Dashboard für meine Research-Ergebnisse."
+            }
+          }
+        },
         "draftWithGoal": "{goal}",
         "draftWithIntent": "Ich brauche Hilfe bei {intent}.",
         "next": "Weiter",

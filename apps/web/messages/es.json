@@ -1557,23 +1557,44 @@
         "openFab": "Iniciar chat con coworker",
         "greeting": "¡Bienvenido!",
         "greetingWithName": "¡Bienvenido {name}!",
-        "intentTitle": "¿En qué necesitas ayuda?",
-        "intentDescription": "Te emparejamos con un coworker adecuado.",
+        "intentTitle": "¿Para qué estás aquí?",
+        "intentDescription": "Elige un camino para sugerirte el coworker y los prompts iniciales adecuados.",
         "intentChoices": {
           "chat": "Conversación",
           "tasks": "Tareas y proyectos",
           "either": "Aún no estoy seguro"
         },
         "intentChoiceHints": {
-          "chat": "Idear, investigar o obtener respuestas en el chat.",
-          "tasks": "Planificar trabajo, seguir progreso o asignar tareas.",
-          "either": "Muéstrame un coworker predeterminado."
+          "chat": "Idear, investigar o obtener respuestas en un ida y vuelta.",
+          "tasks": "Dividir el trabajo, seguir el progreso o avanzar un proyecto.",
+          "either": "Abrimos con Elena y una idea para empezar."
         },
-        "goalTitle": "¿Tienes algo concreto en mente?",
-        "goalDescription": "Opcional — rellenaremos tu primer mensaje.",
+        "goalTitle": "Prueba un inicio — o escribe el tuyo",
+        "goalDescription": "Toca un prompt para rellenar tu primer mensaje, o escribe algo abajo.",
         "goalLabel": "Tu objetivo",
         "goalPlaceholder": "p. ej. Ayúdame a redactar un resumen semanal",
         "goalFallback": "ayuda general",
+        "tryAsking": {
+          "label": "Prueba a preguntar",
+          "orDivider": "o",
+          "prompts": {
+            "chat": {
+              "hannah": "Investiga a nuestros competidores y compáranos con ellos.",
+              "alex": "Analiza los datos de mi carpeta de OneDrive.",
+              "elena": "¿Cómo puedo usar Sokosumi en mi negocio y por dónde debería empezar?"
+            },
+            "tasks": {
+              "elena": "Muéstrame el estado de todas mis tareas abiertas y qué necesita mi atención.",
+              "alex": "Créame un panel para mis resultados de investigación.",
+              "hannah": "Analiza nuestra audiencia objetivo: necesidades, comportamientos y hábitos de medios."
+            },
+            "either": {
+              "elena": "Ayúdame a ver cómo encaja Sokosumi en mi negocio y por dónde debería empezar.",
+              "hannah": "Investiga a nuestros competidores y compáranos con ellos.",
+              "alex": "Créame un panel para mis resultados de investigación."
+            }
+          }
+        },
         "draftWithGoal": "{goal}",
         "draftWithIntent": "Me gustaría ayuda con {intent}.",
         "next": "Siguiente",
