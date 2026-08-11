@@ -905,13 +905,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function markUserLastSeen(userId: string) {
+  async function markUserLastSeen() {
     return executeCoreOperation(
       getClient,
       (client) =>
         corePostUsersByIdLastSeen({
           client,
-          path: { id: userId },
+          // Self-scoped: Core resolves `me` from the authenticated caller, so
+          // there is no id worth passing and no session to look up first.
+          path: { id: CURRENT_USER_PATH_ID },
         }),
       "Failed to record last seen",
     );

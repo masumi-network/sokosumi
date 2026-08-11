@@ -3733,7 +3733,7 @@ export type TaskActivitySummary = {
      */
     awaitingInput: number;
     /**
-     * Tasks created within the window by a different human in the same workspace. Always 0 in a personal workspace.
+     * Tasks created within the window by a different human in the same workspace, narrowed by `scope` like the other counters. Always 0 in a personal workspace.
      */
     createdByOtherHumans: number;
     /**

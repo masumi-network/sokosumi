@@ -12772,8 +12772,8 @@ export const TaskActivitySummarySchema = {
                 'null'
             ],
             format: 'date-time',
-            description: 'Start of the reporting window, echoed back. Null means the counts are all-time.',
-            example: '2026-08-10T09:00:00.000Z'
+            example: '2026-08-10T09:00:00.000Z',
+            description: 'Start of the reporting window, echoed back. Null means the counts are all-time.'
         },
         completed: {
             type: 'integer',
@@ -12790,7 +12790,7 @@ export const TaskActivitySummarySchema = {
         createdByOtherHumans: {
             type: 'integer',
             minimum: 0,
-            description: 'Tasks created within the window by a different human in the same workspace. Always 0 in a personal workspace.',
+            description: 'Tasks created within the window by a different human in the same workspace, narrowed by `scope` like the other counters. Always 0 in a personal workspace.',
             example: 3
         },
         lastVisitAt: {
@@ -12799,8 +12799,8 @@ export const TaskActivitySummarySchema = {
                 'null'
             ],
             format: 'date-time',
-            description: 'The caller\'s stored lastSeenAt, unmodified. Null before their first recorded visit.',
-            example: '2026-08-10T09:00:00.000Z'
+            example: '2026-08-10T09:00:00.000Z',
+            description: 'The caller\'s stored lastSeenAt, unmodified. Null before their first recorded visit.'
         },
         basis: {
             type: 'string',

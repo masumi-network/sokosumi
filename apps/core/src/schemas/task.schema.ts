@@ -327,7 +327,7 @@ export const TASK_AWAITING_INPUT_STATUSES = [
 
 export const taskSummaryResponseSchema = z
   .object({
-    since: z.iso.datetime().nullable().openapi({
+    since: dateTimeSchema.nullable().openapi({
       description:
         "Start of the reporting window, echoed back. Null means the counts are all-time.",
       example: "2026-08-10T09:00:00.000Z",
@@ -344,10 +344,10 @@ export const taskSummaryResponseSchema = z
     }),
     createdByOtherHumans: z.number().int().nonnegative().openapi({
       description:
-        "Tasks created within the window by a different human in the same workspace. Always 0 in a personal workspace.",
+        "Tasks created within the window by a different human in the same workspace, narrowed by `scope` like the other counters. Always 0 in a personal workspace.",
       example: 3,
     }),
-    lastVisitAt: z.iso.datetime().nullable().openapi({
+    lastVisitAt: dateTimeSchema.nullable().openapi({
       description:
         "The caller's stored lastSeenAt, unmodified. Null before their first recorded visit.",
       example: "2026-08-10T09:00:00.000Z",

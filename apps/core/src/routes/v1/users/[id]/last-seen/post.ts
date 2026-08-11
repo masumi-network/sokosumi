@@ -51,7 +51,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     return ok(
       c,
       userLastSeenResponseSchema.parse({
-        lastSeenAt: (updatedUser.lastSeenAt ?? new Date()).toISOString(),
+        lastSeenAt: updatedUser.lastSeenAt ?? new Date(),
       }),
     );
   });

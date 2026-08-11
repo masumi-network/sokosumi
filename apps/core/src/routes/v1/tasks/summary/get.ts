@@ -130,6 +130,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           ? prisma.task.count({
               where: {
                 ...workspaceWhere,
+                // Honour `scope` like every other counter here. Under `owned`
+                // this narrows to "tasks I own that a teammate created";
+                // under `workspace` it is a no-op.
+                ...ownerWhere,
                 creatorUserId: { not: userContext.userId },
                 NOT: { creatorUserId: null },
                 ...(sinceDate ? { createdAt: { gte: sinceDate } } : {}),
@@ -198,8 +202,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       taskSummaryResponseSchema.parse({
         basis,
-        lastVisitAt: lastSeenAt ? lastSeenAt.toISOString() : null,
-        since: sinceDate ? sinceDate.toISOString() : null,
+        // dateTimeSchema serialises Date itself.
+        lastVisitAt: lastSeenAt,
+        since: sinceDate,
         completed,
         awaitingInput,
         createdByOtherHumans,

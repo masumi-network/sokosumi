@@ -176,13 +176,8 @@ export const userService = (() => {
    * so a failed write must not break the page that triggered it.
    */
   async function markLastSeenForMe(): Promise<void> {
-    const session = await getSession();
-    if (!session) {
-      return;
-    }
-
     try {
-      await coreClient.markUserLastSeen(session.user.id);
+      await coreClient.markUserLastSeen();
     } catch (error) {
       console.error("Failed to record last seen", error);
     }
