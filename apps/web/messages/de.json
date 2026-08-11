@@ -1557,8 +1557,8 @@
         "openFab": "Coworker-Chat starten",
         "greeting": "Willkommen!",
         "greetingWithName": "Willkommen {name}!",
-        "intentTitle": "Wofür bist du hier?",
-        "intentDescription": "Wähle eine Richtung — wir schlagen den passenden Coworker und Starter-Prompts vor.",
+        "intentTitle": "Womit möchtest du starten?",
+        "intentDescription": "Wähle einen Schwerpunkt — wir empfehlen den passenden Coworker und Starter-Prompts.",
         "intentChoices": {
           "chat": "Gespräch",
           "tasks": "Aufgaben & Projekte",
@@ -1569,12 +1569,12 @@
           "tasks": "Arbeit aufteilen, Fortschritt verfolgen oder ein Projekt voranbringen.",
           "either": "Wir starten mit Elena und einer Einstiegsidee."
         },
-        "goalTitle": "Starter ausprobieren — oder selbst schreiben",
-        "goalDescription": "Tippe einen Prompt an, um deine erste Nachricht vorzufüllen, oder schreibe unten etwas Eigenes.",
-        "goalLabel": "Dein Ziel",
-        "goalPlaceholder": "z. B. Hilf mir, ein Wochenupdate zu schreiben",
+        "goalTitle": "Starter-Prompt wählen oder selbst formulieren",
+        "goalDescription": "Wähle einen Prompt, um deine erste Nachricht vorzufüllen, oder schreibe unten etwas Eigenes.",
+        "goalLabel": "Deine Nachricht",
+        "goalPlaceholder": "Beispiel: Hilf mir, ein Wochenupdate zu schreiben",
         "tryAsking": {
-          "label": "Versuch’s mal mit",
+          "label": "Vorgeschlagene Prompts",
           "orDivider": "oder",
           "prompts": {
             "chat": {
