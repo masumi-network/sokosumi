@@ -1,10 +1,10 @@
-import { ChatRoomOpenSkeleton } from "@/app/chat/components/chat-room-open-skeleton";
+import DefaultLoading from "@/components/default-loading";
 
 /**
- * Instant / soft-nav shell for room open: message-list skeleton only.
- * Real header + composer paint with the progressive shell (SOK-778).
- * Sync only (no cookies / connection / i18n).
+ * Full-page spinner when opening a room. Room chrome is dynamic (header,
+ * composer prefs, history) — Instant skeletons cannot match it without CLS.
+ * Home/Chats/Search keep their own segment skeletons under Instant Nav.
  */
 export default function ChatRoomLoading() {
-  return <ChatRoomOpenSkeleton />;
+  return <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />;
 }

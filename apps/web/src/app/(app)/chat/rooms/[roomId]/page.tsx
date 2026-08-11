@@ -2,34 +2,17 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { ChatRoomOpenSkeleton } from "@/app/chat/components/chat-room-open-skeleton";
 import { RoomsClient } from "@/app/chat/components/rooms-client";
 import { loadOrganizationMembers } from "@/app/chat/load-organization-members";
 import { loadRoomMessages } from "@/app/chat/load-room-messages";
+import DefaultLoading from "@/components/default-loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
-import type {
-  ChatRoom,
-  Coworker,
-  Member,
-  Organization,
-} from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
 interface ChatRoomPageProps {
   params: Promise<{ roomId: string }>;
-}
-
-/** Shell props for progressive open (header + composer) before history. */
-export interface ChatRoomShellProps {
-  activeOrganization: Organization | null;
-  rooms: ChatRoom[];
-  organizationMembers: Member[];
-  currentUserId: string;
-  coworkers: Coworker[];
-  selectedRoomId: string;
-  membersLoadFailed: boolean;
 }
 
 function NoOrganizationCard({
@@ -55,40 +38,17 @@ function NoOrganizationCard({
   );
 }
 
-/**
- * Single RoomsClient instance: chrome mounts immediately; history arrives via
- * a Server→Client promise + inner hydrator Suspense (no dual client remount).
- */
-function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
-  // Do not await — pass the promise so the client shell can paint first.
-  const messagesPromise = loadRoomMessages(roomId);
-
-  return (
-    <RoomsClient
-      activeOrganization={shell.activeOrganization}
-      rooms={shell.rooms}
-      organizationMembers={shell.organizationMembers}
-      currentUserId={shell.currentUserId}
-      coworkers={shell.coworkers}
-      selectedRoomId={shell.selectedRoomId}
-      isCreateChannelRequested={false}
-      isNewDirectMessage={false}
-      messageLoadFailed={false}
-      membersLoadFailed={shell.membersLoadFailed}
-      messages={[]}
-      messagesNextCursor={null}
-      messagesPromise={messagesPromise}
-    />
-  );
+function ChatRoomPageFallback() {
+  return <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />;
 }
 
 /**
  * Open one room. Avoid `listRooms()` here — sidebar already owns the list, and
  * full pagination blocked first paint after `/chat` → `/chat/rooms/{id}`.
  *
- * Progressive paint: resolve room chrome (header + composer) first; stream
- * message history into the same RoomsClient via `messagesPromise`. Never show
- * invented or half-rendered message bodies.
+ * Room chrome is highly dynamic (header, composer prefs, history). Instant
+ * skeletons cannot match it without layout jump — use a full-page spinner
+ * until room + first message page are ready.
  *
  * Non-member / missing room → soft land on `/chat` (cutover design), not 404.
  */
@@ -109,9 +69,10 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
   // Personal workspace: coworker 1:1 directs may have null organizationId.
   // Guest external channels also open here (host org id set, myAccess=guest).
   if (!activeOrganization) {
-    const [selectedRoom, coworkers] = await Promise.all([
+    const [selectedRoom, coworkers, messagePage] = await Promise.all([
       chatRoomService.getRoom(roomId),
       coworkerService.listCoworkers("chat"),
+      loadRoomMessages(roomId),
     ]);
 
     if (!selectedRoom) {
@@ -131,24 +92,32 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
       );
     }
 
-    const shell: ChatRoomShellProps = {
-      activeOrganization: null,
-      rooms: [selectedRoom],
-      organizationMembers: [],
-      currentUserId,
-      coworkers,
-      selectedRoomId: selectedRoom.id,
-      membersLoadFailed: false,
-    };
-
-    return progressiveRoomOpen(shell, selectedRoom.id);
+    return (
+      <RoomsClient
+        activeOrganization={null}
+        rooms={[selectedRoom]}
+        organizationMembers={[]}
+        currentUserId={currentUserId}
+        coworkers={coworkers}
+        selectedRoomId={selectedRoom.id}
+        isCreateChannelRequested={false}
+        isNewDirectMessage={false}
+        messageLoadFailed={messagePage.failed}
+        membersLoadFailed={false}
+        messages={messagePage.messages}
+        messagesNextCursor={messagePage.nextCursor}
+      />
+    );
   }
 
-  const [selectedRoom, membersPage, coworkers] = await Promise.all([
-    chatRoomService.getRoom(roomId),
-    loadOrganizationMembers(activeOrganization.id),
-    coworkerService.listCoworkers("chat"),
-  ]);
+  const [selectedRoom, membersPage, coworkers, messagePage] = await Promise.all(
+    [
+      chatRoomService.getRoom(roomId),
+      loadOrganizationMembers(activeOrganization.id),
+      coworkerService.listCoworkers("chat"),
+      loadRoomMessages(roomId),
+    ],
+  );
 
   if (!selectedRoom) {
     redirect("/chat?notice=room-unavailable");
@@ -162,22 +131,27 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     redirect("/chat?notice=room-unavailable");
   }
 
-  const shell: ChatRoomShellProps = {
-    activeOrganization,
-    rooms: [selectedRoom],
-    organizationMembers: membersPage.members,
-    currentUserId,
-    coworkers,
-    selectedRoomId: selectedRoom.id,
-    membersLoadFailed: membersPage.failed,
-  };
-
-  return progressiveRoomOpen(shell, selectedRoom.id);
+  return (
+    <RoomsClient
+      activeOrganization={activeOrganization}
+      rooms={[selectedRoom]}
+      organizationMembers={membersPage.members}
+      currentUserId={currentUserId}
+      coworkers={coworkers}
+      selectedRoomId={selectedRoom.id}
+      isCreateChannelRequested={false}
+      isNewDirectMessage={false}
+      messageLoadFailed={messagePage.failed}
+      membersLoadFailed={membersPage.failed}
+      messages={messagePage.messages}
+      messagesNextCursor={messagePage.nextCursor}
+    />
+  );
 }
 
 export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   return (
-    <Suspense fallback={<ChatRoomOpenSkeleton />}>
+    <Suspense fallback={<ChatRoomPageFallback />}>
       <ChatRoomPageContent params={params} />
     </Suspense>
   );

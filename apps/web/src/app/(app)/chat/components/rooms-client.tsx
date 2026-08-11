@@ -81,7 +81,6 @@ import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
-import { RoomMessageListSkeleton } from "./chat-room-open-skeleton";
 import { CreateChannelDialog } from "./create-channel-dialog";
 import { DraftDirectMessage } from "./draft-direct-message";
 import { EditChannelDialog } from "./edit-channel-dialog";
@@ -112,10 +111,6 @@ import {
 } from "./room-helpers";
 import { ChatMessageRow } from "./room-message-row";
 import {
-  type RoomMessagePage,
-  RoomMessagesHydrator,
-} from "./room-messages-hydrator";
-import {
   RoomSessionComposer,
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
@@ -138,17 +133,6 @@ interface RoomsClientProps {
   messages: ChatRoomMessage[];
   /** Cursor for the next older page; null when the initial page is complete. */
   messagesNextCursor: string | null;
-  /**
-   * Progressive open: shell (header + composer) is ready, history still loading.
-   * Shows message-list skeleton — never fake or half-rendered message bodies.
-   * Prefer `messagesPromise` so one RoomsClient stays mounted while history streams.
-   */
-  messagesPending?: boolean;
-  /**
-   * Deferred initial history (Server → Client promise). Hydrates into this
-   * instance under an inner Suspense so chrome/composer do not remount.
-   */
-  messagesPromise?: Promise<RoomMessagePage>;
 }
 
 const COWORKER_RESPONSE_POLL_MS = 2500;
@@ -419,8 +403,6 @@ export function RoomsClient({
   membersLoadFailed,
   messages,
   messagesNextCursor,
-  messagesPending: messagesPendingProp = false,
-  messagesPromise,
 }: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
@@ -441,34 +423,6 @@ export function RoomsClient({
   const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
     messagesNextCursor,
   );
-  /** True until `messagesPromise` hydrates (single-instance progressive open). */
-  const [deferredHistoryPending, setDeferredHistoryPending] = useState(
-    () => messagesPromise != null,
-  );
-  const [messageLoadFailedState, setMessageLoadFailedState] =
-    useState(messageLoadFailed);
-  const [syncedMessagesPromise, setSyncedMessagesPromise] =
-    useState(messagesPromise);
-  if (messagesPromise !== syncedMessagesPromise) {
-    setSyncedMessagesPromise(messagesPromise);
-    setDeferredHistoryPending(messagesPromise != null);
-    if (messagesPromise == null) {
-      setMessageLoadFailedState(messageLoadFailed);
-    }
-  }
-  const messagesPending = messagesPendingProp || deferredHistoryPending;
-  const effectiveMessageLoadFailed = messagesPending
-    ? false
-    : messageLoadFailedState;
-
-  const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
-    // Merge so optimistic sends / Ably rows that landed while pending survive.
-    setMessagesState((current) => mergeRoomMessages(current, page.messages));
-    setOlderNextCursor(page.nextCursor);
-    setMessageLoadFailedState(page.failed);
-    setDeferredHistoryPending(false);
-  }, []);
-
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
   const threadParentMessageRef = useRef<ChatRoomMessage | null>(null);
@@ -501,29 +455,11 @@ export function RoomsClient({
     scrollerRef,
     contentRef,
     contentMinHeight,
-    scrollToBottom,
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
   } = useStickToBottom({
     resetKey: selectedRoomId,
   });
-  // Skeleton → real history changes list height; re-pin live edge after paint
-  // so the viewport does not jump mid-list or leave the user mid-skeleton.
-  const wasHistoryPendingRef = useRef(messagesPending);
-  useEffect(() => {
-    const wasPending = wasHistoryPendingRef.current;
-    wasHistoryPendingRef.current = messagesPending;
-    if (!wasPending || messagesPending) {
-      return;
-    }
-    const frame = requestAnimationFrame(() => {
-      scrollToBottom();
-      requestAnimationFrame(() => {
-        scrollToBottom();
-      });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [messagesPending, scrollToBottom]);
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
@@ -1050,15 +986,6 @@ export function RoomsClient({
   }
 
   useEffect(() => {
-    // Deferred promise path owns the first page until hydrate completes.
-    // Empty shell props must not wipe optimistic/realtime rows meanwhile.
-    if (deferredHistoryPending) {
-      // Keep room cursor aligned so the first post-hydrate sync is a merge,
-      // not a "channel switch" replace that would wipe hydrated messages.
-      syncedRoomIdRef.current = selectedRoomId;
-      return;
-    }
-
     const isChannelSwitch = syncedRoomIdRef.current !== selectedRoomId;
     syncedRoomIdRef.current = selectedRoomId;
 
@@ -1067,23 +994,15 @@ export function RoomsClient({
     if (isChannelSwitch) {
       setMessagesState(messages);
       setOlderNextCursor(messagesNextCursor);
-      setMessageLoadFailedState(messageLoadFailed);
     } else {
       setMessagesState((current) => mergeRoomMessages(current, messages));
-      setMessageLoadFailedState(messageLoadFailed);
     }
     setThreadParentMessage((current) =>
       current
         ? (messages.find((message) => message.id === current.id) ?? current)
         : current,
     );
-  }, [
-    deferredHistoryPending,
-    messageLoadFailed,
-    messages,
-    messagesNextCursor,
-    selectedRoomId,
-  ]);
+  }, [messages, messagesNextCursor, selectedRoomId]);
 
   const latestTopLevelMessageId = displayMessages.at(-1)?.id ?? null;
   const latestOpenThreadMessageId = displayThreadMessages.at(-1)?.id ?? null;
@@ -1896,28 +1815,14 @@ export function RoomsClient({
               >
                 <div
                   ref={contentRef}
-                  className={cn(
-                    "flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0",
-                    // Before JS measures scroller height, keep justify-end
-                    // anchored to the full viewport so the pending skeleton
-                    // does not paint high then jump to the bottom.
-                    contentMinHeight == null && "min-h-full",
-                  )}
+                  className="flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0"
                   style={
                     contentMinHeight != null
                       ? { minHeight: contentMinHeight }
                       : undefined
                   }
                 >
-                  {messagesPromise ? (
-                    <RoomMessagesHydrator
-                      promise={messagesPromise}
-                      onResolved={handleDeferredHistoryResolved}
-                    />
-                  ) : null}
-                  {messagesPending && displayMessages.length === 0 ? (
-                    <RoomMessageListSkeleton />
-                  ) : effectiveMessageLoadFailed ? (
+                  {messageLoadFailed ? (
                     <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
                       <p className="font-medium">
                         {t("Empty.messagesLoadFailedTitle")}
@@ -1936,7 +1841,7 @@ export function RoomsClient({
                       </p>
                     </div>
                   ) : null}
-                  {messagesPending || !olderNextCursor ? null : (
+                  {olderNextCursor ? (
                     <div className="mb-4 flex justify-center">
                       <Button
                         type="button"
@@ -1955,89 +1860,79 @@ export function RoomsClient({
                         )}
                       </Button>
                     </div>
-                  )}
-                  {messagesPending && displayMessages.length === 0
-                    ? null
-                    : displayMessages.map((message, index) => {
-                        const previousMessage = displayMessages[index - 1];
-                        // Local calendar day keys differ UTC (SSR) vs browser TZ —
-                        // only insert separators / regroup after mount.
-                        const showDaySeparator =
-                          localCalendarReady &&
-                          (!previousMessage ||
-                            messageDayKey(previousMessage.createdAt) !==
-                              messageDayKey(message.createdAt));
-                        const isStreamOverlay =
-                          message.id.startsWith("stream:");
-                        return (
-                          <div key={message.id} className="min-w-0">
-                            {showDaySeparator ? (
-                              <DaySeparator
-                                date={new Date(message.createdAt)}
-                                formatDaySeparator={formatDaySeparator}
-                              />
-                            ) : null}
-                            {message.membership != null ? (
-                              <MembershipStatusRow message={message} />
-                            ) : (
-                              <ChatMessageRow
-                                message={message}
-                                coworkersById={coworkersById}
-                                coworkersBySlug={coworkersBySlug}
-                                usersById={usersById}
-                                usersBySlug={usersBySlug}
-                                currentUserId={currentUserId}
-                                canOpenHumanDirect={canOpenHumanDirect}
-                                onOpenDirectMessage={handleOpenDirectMessage}
-                                openingDirectParticipantKey={openingDirectKey}
-                                onToggleReaction={handleToggleReaction}
-                                onOpenThread={
-                                  shouldShowChatRoomThreadButton({
-                                    room: selectedRoom,
-                                    isStreamOverlay,
-                                  })
-                                    ? loadThreadMessages
-                                    : undefined
-                                }
-                                onQuote={handleQuoteMessage}
-                                onStartEdit={handleStartEdit}
-                                onDelete={handleDeleteMessage}
-                                isEditing={
-                                  editSession?.messageId === message.id
-                                }
-                                editDraft={
-                                  editSession?.messageId === message.id
-                                    ? editSession.draft
-                                    : ""
-                                }
-                                onEditDraftChange={handleEditDraftChange}
-                                onCancelEdit={handleCancelEdit}
-                                onSaveEdit={handleSaveEdit}
-                                isSavingEdit={
-                                  isSavingEdit &&
-                                  editSession?.messageId === message.id
-                                }
-                                // Stream overlays never show thread chrome.
-                                showThreadButton={shouldShowChatRoomThreadButton(
-                                  {
-                                    room: selectedRoom,
-                                    isStreamOverlay,
-                                  },
-                                )}
-                                isFirstOfDay={showDaySeparator}
-                                isContinuation={
-                                  localCalendarReady &&
-                                  !showDaySeparator &&
-                                  isMessageContinuation(
-                                    previousMessage,
-                                    message,
-                                  )
-                                }
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
+                  ) : null}
+                  {displayMessages.map((message, index) => {
+                    const previousMessage = displayMessages[index - 1];
+                    // Local calendar day keys differ UTC (SSR) vs browser TZ —
+                    // only insert separators / regroup after mount.
+                    const showDaySeparator =
+                      localCalendarReady &&
+                      (!previousMessage ||
+                        messageDayKey(previousMessage.createdAt) !==
+                          messageDayKey(message.createdAt));
+                    const isStreamOverlay = message.id.startsWith("stream:");
+                    return (
+                      <div key={message.id} className="min-w-0">
+                        {showDaySeparator ? (
+                          <DaySeparator
+                            date={new Date(message.createdAt)}
+                            formatDaySeparator={formatDaySeparator}
+                          />
+                        ) : null}
+                        {message.membership != null ? (
+                          <MembershipStatusRow message={message} />
+                        ) : (
+                          <ChatMessageRow
+                            message={message}
+                            coworkersById={coworkersById}
+                            coworkersBySlug={coworkersBySlug}
+                            usersById={usersById}
+                            usersBySlug={usersBySlug}
+                            currentUserId={currentUserId}
+                            canOpenHumanDirect={canOpenHumanDirect}
+                            onOpenDirectMessage={handleOpenDirectMessage}
+                            openingDirectParticipantKey={openingDirectKey}
+                            onToggleReaction={handleToggleReaction}
+                            onOpenThread={
+                              shouldShowChatRoomThreadButton({
+                                room: selectedRoom,
+                                isStreamOverlay,
+                              })
+                                ? loadThreadMessages
+                                : undefined
+                            }
+                            onQuote={handleQuoteMessage}
+                            onStartEdit={handleStartEdit}
+                            onDelete={handleDeleteMessage}
+                            isEditing={editSession?.messageId === message.id}
+                            editDraft={
+                              editSession?.messageId === message.id
+                                ? editSession.draft
+                                : ""
+                            }
+                            onEditDraftChange={handleEditDraftChange}
+                            onCancelEdit={handleCancelEdit}
+                            onSaveEdit={handleSaveEdit}
+                            isSavingEdit={
+                              isSavingEdit &&
+                              editSession?.messageId === message.id
+                            }
+                            // Stream overlays never show thread chrome.
+                            showThreadButton={shouldShowChatRoomThreadButton({
+                              room: selectedRoom,
+                              isStreamOverlay,
+                            })}
+                            isFirstOfDay={showDaySeparator}
+                            isContinuation={
+                              localCalendarReady &&
+                              !showDaySeparator &&
+                              isMessageContinuation(previousMessage, message)
+                            }
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -2065,9 +1960,6 @@ export function RoomsClient({
                 onClearPendingQuote={() => setPendingQuote(null)}
                 onRestorePendingQuote={setPendingQuote}
                 onChromeResize={scrollToBottomIfPinned}
-                // Defer autofocus until history is ready so progressive open
-                // does not open the soft keyboard / move selection mid-shell.
-                focusOnMount={!messagesPending}
                 onBeforeSend={handleChannelBeforeSend}
                 onSend={handleChannelSend}
               />
