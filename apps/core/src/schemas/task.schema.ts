@@ -325,40 +325,42 @@ export const TASK_AWAITING_INPUT_STATUSES = [
   "OUT_OF_CREDITS",
 ] as const;
 
-export const taskSummaryResponseSchema = z.object({
-  since: z.iso.datetime().nullable().openapi({
-    description:
-      "Start of the reporting window, echoed back. Null means the counts are all-time.",
-    example: "2026-08-10T09:00:00.000Z",
-  }),
-  completed: z.number().int().nonnegative().openapi({
-    description:
-      "Tasks that reached COMPLETED within the window. Approximated by updatedAt because Task has no completedAt column.",
-    example: 4,
-  }),
-  awaitingInput: z.number().int().nonnegative().openapi({
-    description:
-      "Tasks currently blocked on the user. Point-in-time, so it ignores the window.",
-    example: 2,
-  }),
-  createdByOtherHumans: z.number().int().nonnegative().openapi({
-    description:
-      "Tasks created within the window by a different human in the same workspace. Always 0 in a personal workspace.",
-    example: 3,
-  }),
-  lastVisitAt: z.iso.datetime().nullable().openapi({
-    description:
-      "The caller's stored lastSeenAt, unmodified. Null before their first recorded visit.",
-    example: "2026-08-10T09:00:00.000Z",
-  }),
-  basis: z.enum(["lastVisit", "recent"]).openapi({
-    description:
-      "Which window the counts cover: the caller's previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.",
-    example: "lastVisit",
-  }),
-  workedMinutes: z.number().int().nonnegative().openapi({
-    description:
-      "Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.",
-    example: 47,
-  }),
-});
+export const taskSummaryResponseSchema = z
+  .object({
+    since: z.iso.datetime().nullable().openapi({
+      description:
+        "Start of the reporting window, echoed back. Null means the counts are all-time.",
+      example: "2026-08-10T09:00:00.000Z",
+    }),
+    completed: z.number().int().nonnegative().openapi({
+      description:
+        "Tasks that reached COMPLETED within the window. Approximated by updatedAt because Task has no completedAt column.",
+      example: 4,
+    }),
+    awaitingInput: z.number().int().nonnegative().openapi({
+      description:
+        "Tasks currently blocked on the user. Point-in-time, so it ignores the window.",
+      example: 2,
+    }),
+    createdByOtherHumans: z.number().int().nonnegative().openapi({
+      description:
+        "Tasks created within the window by a different human in the same workspace. Always 0 in a personal workspace.",
+      example: 3,
+    }),
+    lastVisitAt: z.iso.datetime().nullable().openapi({
+      description:
+        "The caller's stored lastSeenAt, unmodified. Null before their first recorded visit.",
+      example: "2026-08-10T09:00:00.000Z",
+    }),
+    basis: z.enum(["lastVisit", "recent"]).openapi({
+      description:
+        "Which window the counts cover: the caller's previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.",
+      example: "lastVisit",
+    }),
+    workedMinutes: z.number().int().nonnegative().openapi({
+      description:
+        "Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.",
+      example: 47,
+    }),
+  })
+  .openapi("TaskActivitySummary");

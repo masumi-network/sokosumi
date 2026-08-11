@@ -4,6 +4,7 @@ import { coreClient } from "@/lib/clients/core.client";
 import type {
   JobSummary,
   Task,
+  TaskActivitySummary,
   TaskEvent,
   TaskLink,
   TaskLinkDeleted,
@@ -12,30 +13,6 @@ import type {
 } from "@/lib/clients/generated/core";
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { AgentJobStatus } from "@/lib/types/core-dto";
-
-export interface TaskActivitySummary {
-  awaitingInput: number;
-  /** Which window the counts cover, so the caption can say so. */
-  basis: "lastVisit" | "recent";
-  /** The stored visit timestamp, unclamped — drives the re-stamp guard. */
-  lastVisitAt: Date | null;
-  completed: number;
-  createdByOtherHumans: number;
-  /** Server-owned window start; null means this is the user's first visit. */
-  since: Date | null;
-  /** Wall-clock minutes tasks spent RUNNING inside the window. */
-  workedMinutes: number;
-}
-
-const EMPTY_TASK_ACTIVITY_SUMMARY: TaskActivitySummary = {
-  awaitingInput: 0,
-  basis: "recent",
-  lastVisitAt: null,
-  completed: 0,
-  createdByOtherHumans: 0,
-  since: null,
-  workedMinutes: 0,
-};
 
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
@@ -243,34 +220,24 @@ export const taskService = (() => {
   }
 
   /**
-   * Counts for the /chat landing. Never throws: the landing is a greeting, so
-   * a Core hiccup should cost the sentence, not the page.
+   * Counts for the /chat landing. Never throws — the landing is a greeting, so
+   * a Core hiccup should cost the sentence, not the page — but it does return
+   * null rather than a zeroed summary, because the caller uses the result to
+   * decide whether to move the user's "last seen" marker. A failure that looked
+   * like "nothing happened" would advance the marker past activity nobody saw.
    */
   async function getActivitySummary(params: {
     scope?: "owned" | "workspace";
-  }): Promise<TaskActivitySummary> {
+  }): Promise<TaskActivitySummary | null> {
     try {
       const result = await coreClient.getTasksSummary({
         scope: params.scope ?? "owned",
       });
 
-      const data = result.data;
-      if (!data) {
-        return EMPTY_TASK_ACTIVITY_SUMMARY;
-      }
-
-      return {
-        completed: data.completed,
-        awaitingInput: data.awaitingInput,
-        basis: data.basis,
-        lastVisitAt: data.lastVisitAt ? new Date(data.lastVisitAt) : null,
-        createdByOtherHumans: data.createdByOtherHumans,
-        since: data.since ? new Date(data.since) : null,
-        workedMinutes: data.workedMinutes,
-      };
+      return result.data ?? null;
     } catch (error) {
       console.error("Failed to load task activity summary", error);
-      return EMPTY_TASK_ACTIVITY_SUMMARY;
+      return null;
     }
   }
 

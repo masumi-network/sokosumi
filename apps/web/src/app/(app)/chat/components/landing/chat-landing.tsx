@@ -7,7 +7,7 @@ import {
 import type { Coworker } from "@/app/chat/utils/types";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import { canUseNextImageSrc } from "@/config/next-image";
-import type { TaskActivitySummary } from "@/lib/services/task.service";
+import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import { CoworkerStrip, type StripCoworker } from "./coworker-strip.client";
 import { StartChatButton } from "./start-chat-button.client";
@@ -28,9 +28,8 @@ interface ChatLandingProps {
   coworkers: Coworker[];
   /** True only for an organization workspace, where other humans exist. */
   isOrganizationWorkspace: boolean;
-  /** Null on a first-ever visit, which switches the stats caption. */
-  lastSeenAt: Date | null;
-  summary: TaskActivitySummary;
+  /** Null when Core could not be reached; the greeting renders without stats. */
+  summary: TaskActivitySummary | null;
   userName: null | string;
 }
 
@@ -62,7 +61,6 @@ function toStripCoworker(coworker: Coworker): StripCoworker {
 export async function ChatLanding({
   coworkers,
   isOrganizationWorkspace,
-  lastSeenAt,
   summary,
   userName,
 }: ChatLandingProps) {
@@ -83,30 +81,33 @@ export async function ChatLanding({
   );
   const others = otherCoworkers.slice(0, stripCount).map(toStripCoworker);
 
-  const stats = [
-    ...(summary.completed > 0
-      ? [t("stats.completed", { count: summary.completed })]
-      : []),
-    ...(summary.workedMinutes > 0
-      ? [t("stats.worked", { minutes: summary.workedMinutes })]
-      : []),
-    ...(summary.awaitingInput > 0
-      ? [t("stats.awaiting", { count: summary.awaitingInput })]
-      : []),
-    // Always in an organization, even at zero: "what my teammates added" is a
-    // question the row should answer rather than silently omit.
-    ...(isOrganizationWorkspace
-      ? [t("stats.byTeammates", { count: summary.createdByOtherHumans })]
-      : []),
-  ];
+  const stats = summary
+    ? [
+        ...(summary.completed > 0
+          ? [t("stats.completed", { count: summary.completed })]
+          : []),
+        ...(summary.workedMinutes > 0
+          ? [t("stats.worked", { minutes: summary.workedMinutes })]
+          : []),
+        ...(summary.awaitingInput > 0
+          ? [t("stats.awaiting", { count: summary.awaitingInput })]
+          : []),
+        // Always in an organization, even at zero: "what my teammates added" is
+        // a question the row should answer rather than silently omit.
+        ...(isOrganizationWorkspace
+          ? [t("stats.byTeammates", { count: summary.createdByOtherHumans })]
+          : []),
+      ]
+    : [];
 
   // A brand-new account has nothing to report, and a lone "0 tasks from your
   // team" chip is worse than no row at all.
   const hasAnyActivity =
-    summary.completed > 0 ||
-    summary.workedMinutes > 0 ||
-    summary.awaitingInput > 0 ||
-    summary.createdByOtherHumans > 0;
+    summary !== null &&
+    (summary.completed > 0 ||
+      summary.workedMinutes > 0 ||
+      summary.awaitingInput > 0 ||
+      summary.createdByOtherHumans > 0);
 
   return (
     // Three zones: the mark keeps the page's top edge aligned with every other
@@ -156,12 +157,12 @@ export async function ChatLanding({
         ) : null}
       </div>
 
-      {hasAnyActivity && stats.length > 0 ? (
+      {summary && hasAnyActivity && stats.length > 0 ? (
         <div className="flex w-full shrink-0 flex-col items-center gap-4">
           <p className="text-muted-foreground/70 text-[0.8125rem]">
-            {summary.basis === "lastVisit" && lastSeenAt
+            {summary.basis === "lastVisit" && summary.since
               ? t("stats.sinceLastVisit", {
-                  when: format.relativeTime(lastSeenAt),
+                  when: format.relativeTime(summary.since),
                 })
               : t("stats.recent")}
           </p>

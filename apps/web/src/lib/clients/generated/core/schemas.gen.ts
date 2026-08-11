@@ -12763,6 +12763,72 @@ export const TaskListItemSchema = {
     ]
 } as const;
 
+export const TaskActivitySummarySchema = {
+    type: 'object',
+    properties: {
+        since: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            description: 'Start of the reporting window, echoed back. Null means the counts are all-time.',
+            example: '2026-08-10T09:00:00.000Z'
+        },
+        completed: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Tasks that reached COMPLETED within the window. Approximated by updatedAt because Task has no completedAt column.',
+            example: 4
+        },
+        awaitingInput: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Tasks currently blocked on the user. Point-in-time, so it ignores the window.',
+            example: 2
+        },
+        createdByOtherHumans: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Tasks created within the window by a different human in the same workspace. Always 0 in a personal workspace.',
+            example: 3
+        },
+        lastVisitAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            description: 'The caller\'s stored lastSeenAt, unmodified. Null before their first recorded visit.',
+            example: '2026-08-10T09:00:00.000Z'
+        },
+        basis: {
+            type: 'string',
+            enum: [
+                'lastVisit',
+                'recent'
+            ],
+            description: 'Which window the counts cover: the caller\'s previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.',
+            example: 'lastVisit'
+        },
+        workedMinutes: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.',
+            example: 47
+        }
+    },
+    required: [
+        'since',
+        'completed',
+        'awaitingInput',
+        'createdByOtherHumans',
+        'lastVisitAt',
+        'basis',
+        'workedMinutes'
+    ]
+} as const;
+
 export const UserWritableTaskLinkRelationSchema = {
     type: 'string',
     enum: [

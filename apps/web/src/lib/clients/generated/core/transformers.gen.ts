@@ -1997,13 +1997,18 @@ export const postTasksResponseTransformer = async (data: any): Promise<PostTasks
     return data;
 };
 
+const taskActivitySummarySchemaResponseTransformer = (data: any) => {
+    if (data.since) {
+        data.since = new Date(data.since);
+    }
+    if (data.lastVisitAt) {
+        data.lastVisitAt = new Date(data.lastVisitAt);
+    }
+    return data;
+};
+
 export const getTasksSummaryResponseTransformer = async (data: any): Promise<GetTasksSummaryResponse> => {
-    if (data.data.since) {
-        data.data.since = new Date(data.data.since);
-    }
-    if (data.data.lastVisitAt) {
-        data.data.lastVisitAt = new Date(data.data.lastVisitAt);
-    }
+    data.data = taskActivitySummarySchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

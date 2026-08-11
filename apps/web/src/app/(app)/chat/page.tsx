@@ -156,9 +156,12 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   // Guard on the stored column, not on `since`: Core clamps `since` to a 24h
   // fallback whenever the last visit was recent, so comparing against it was
   // always true and the stamp fired on every render.
+  // A null summary means Core never answered, so we do not know what the user
+  // missed — moving the marker there would silently discard it.
   const shouldAdvanceLastSeen =
-    summary.lastVisitAt === null ||
-    Date.now() - summary.lastVisitAt.getTime() >= LAST_SEEN_REFRESH_MS;
+    summary !== null &&
+    (summary.lastVisitAt === null ||
+      Date.now() - summary.lastVisitAt.getTime() >= LAST_SEEN_REFRESH_MS);
   if (shouldAdvanceLastSeen) {
     await userService.markLastSeenForMe();
   }
@@ -170,7 +173,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
         <ChatLanding
           coworkers={coworkers}
           isOrganizationWorkspace={activeOrganizationId !== null}
-          lastSeenAt={summary.since}
           summary={summary}
           userName={session?.user.name ?? null}
         />

@@ -147,19 +147,40 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                  0
                )::double precision AS seconds
         FROM (
-          SELECT e."createdAt" AS started_at,
-                 e.status,
-                 LEAD(e."createdAt") OVER (
-                   PARTITION BY e."taskId" ORDER BY e."createdAt"
+          SELECT ev."createdAt" AS started_at,
+                 ev.status,
+                 LEAD(ev."createdAt") OVER (
+                   PARTITION BY ev."taskId" ORDER BY ev."createdAt"
                  ) AS next_at
-          FROM "taskEvent" e
-          JOIN "task" t ON t.id = e."taskId"
+          FROM "task" t
+          -- Per task, read only the events that can bear on the window rather
+          -- than its whole history: without this the landing page sorted every
+          -- status event the workspace had ever recorded, on every load.
+          CROSS JOIN LATERAL (
+            SELECT e."taskId", e."createdAt", e.status
+            FROM "taskEvent" e
+            WHERE e."taskId" = t.id
+              -- Only status transitions close a span. Progress comments are
+              -- written with a NULL status, and letting one win the LEAD cut
+              -- every run short at its first comment.
+              AND e.status IS NOT NULL
+              AND e."createdAt" >= ${sinceDate}
+            UNION ALL
+            -- Plus the last transition before the window — the only earlier
+            -- event that can still be in force at the window start, and so the
+            -- only one that can open a span crossing into it.
+            (
+              SELECT e."taskId", e."createdAt", e.status
+              FROM "taskEvent" e
+              WHERE e."taskId" = t.id
+                AND e.status IS NOT NULL
+                AND e."createdAt" < ${sinceDate}
+              ORDER BY e."createdAt" DESC
+              LIMIT 1
+            )
+          ) ev
           WHERE t."archivedAt" IS NULL
             AND t."workspaceId" = ${workspaceContext.workspaceId}
-            -- Only status transitions close a span. Progress comments are
-            -- written with a NULL status, and letting one win the LEAD cut
-            -- every run short at its first comment.
-            AND e.status IS NOT NULL
             ${ownerFilter}
         ) s
         -- Overlap, not containment: a run that began before the window still

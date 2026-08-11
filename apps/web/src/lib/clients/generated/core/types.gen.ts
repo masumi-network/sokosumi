@@ -3719,6 +3719,37 @@ export type TaskListItem = {
     commentsCount: number;
 };
 
+export type TaskActivitySummary = {
+    /**
+     * Start of the reporting window, echoed back. Null means the counts are all-time.
+     */
+    since: Date | null;
+    /**
+     * Tasks that reached COMPLETED within the window. Approximated by updatedAt because Task has no completedAt column.
+     */
+    completed: number;
+    /**
+     * Tasks currently blocked on the user. Point-in-time, so it ignores the window.
+     */
+    awaitingInput: number;
+    /**
+     * Tasks created within the window by a different human in the same workspace. Always 0 in a personal workspace.
+     */
+    createdByOtherHumans: number;
+    /**
+     * The caller's stored lastSeenAt, unmodified. Null before their first recorded visit.
+     */
+    lastVisitAt: Date | null;
+    /**
+     * Which window the counts cover: the caller's previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.
+     */
+    basis: 'lastVisit' | 'recent';
+    /**
+     * Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.
+     */
+    workedMinutes: number;
+};
+
 export const UserWritableTaskLinkRelation = {
     RELATED: 'related',
     BLOCKS: 'blocks',
@@ -28325,36 +28356,7 @@ export type GetTasksSummaryResponses = {
      * Task activity summary for the active workspace
      */
     200: {
-        data: {
-            /**
-             * Start of the reporting window, echoed back. Null means the counts are all-time.
-             */
-            since: Date | null;
-            /**
-             * Tasks that reached COMPLETED within the window. Approximated by updatedAt because Task has no completedAt column.
-             */
-            completed: number;
-            /**
-             * Tasks currently blocked on the user. Point-in-time, so it ignores the window.
-             */
-            awaitingInput: number;
-            /**
-             * Tasks created within the window by a different human in the same workspace. Always 0 in a personal workspace.
-             */
-            createdByOtherHumans: number;
-            /**
-             * The caller's stored lastSeenAt, unmodified. Null before their first recorded visit.
-             */
-            lastVisitAt: Date | null;
-            /**
-             * Which window the counts cover: the caller's previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.
-             */
-            basis: 'lastVisit' | 'recent';
-            /**
-             * Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.
-             */
-            workedMinutes: number;
-        };
+        data: TaskActivitySummary;
         meta: {
             timestamp: Date;
             requestId: string;
