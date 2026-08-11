@@ -2,47 +2,30 @@ import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   ChatRoomOpenSkeleton,
-  RoomComposerSkeleton,
   RoomMessageListSkeleton,
 } from "../chat-room-open-skeleton";
 
 describe("ChatRoomOpenSkeleton", () => {
-  it("renders header, message-list, and composer bones without real copy", () => {
+  it("renders message-list skeleton without fake composer chrome or copy", () => {
     const { container, getByTestId } = render(<ChatRoomOpenSkeleton />);
 
     expect(getByTestId("chat-room-loading")).toBeTruthy();
     expect(
-      container.querySelector('[data-slot="chat-room-open-skeleton-header"]'),
-    ).toBeTruthy();
-    expect(
       container.querySelector('[data-slot="room-message-list-skeleton"]'),
     ).toBeTruthy();
+    // No fake composer bones — real composer paints with the room shell.
     expect(
       container.querySelector('[data-slot="chat-room-open-skeleton-composer"]'),
-    ).toBeTruthy();
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-testid="chat-room-composer-skeleton"]'),
+    ).toBeNull();
 
     const text = container.textContent ?? "";
     expect(text).not.toMatch(/Hello|markdown|Thought|lorem/i);
     expect(
       container.querySelectorAll('[data-slot="skeleton"]').length,
-    ).toBeGreaterThan(4);
-  });
-});
-
-describe("RoomComposerSkeleton", () => {
-  it("mirrors live composer card + tool-row geometry classes", () => {
-    const { container, getByTestId } = render(<RoomComposerSkeleton />);
-
-    expect(getByTestId("chat-room-composer-skeleton")).toBeTruthy();
-    // Rounded card shell (same as RoomMessageComposer).
-    expect(
-      container.querySelector(".rounded-xl.border.bg-background"),
-    ).toBeTruthy();
-    // Editor uses shared textarea class (min-h-10 + vertical padding).
-    expect(container.querySelector(".min-h-10")).toBeTruthy();
-    // Tool buttons use shared size classes.
-    expect(container.querySelectorAll(".size-9").length).toBeGreaterThan(3);
-    expect(container.textContent?.trim() ?? "").toBe("");
+    ).toBeGreaterThan(0);
   });
 });
 
