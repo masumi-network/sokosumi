@@ -6,12 +6,9 @@ import { useEffect, useState } from "react";
 import type { ChatRoomPresence } from "@/lib/clients/generated/core";
 
 /**
- * Same online idle window as Core session presence
- * (`apps/core/src/routes/v1/chats/rooms/helpers.ts`, via
- * `CHAT_PRESENCE_ONLINE_WINDOW_MS`). This is a local self-approx only
- * (navigator.onLine / document.hidden / activity) — not session presence,
- * and not teammate parity. Core forces the viewing user's own session to
- * "online".
+ * Local self-approx for account chrome (navigator.onLine / document.hidden /
+ * activity). Teammate dots use Ably org Presence (ADR-0003); shares the same
+ * online idle window constant for Online vs AFK.
  */
 const TICK_INTERVAL_MS = 30 * 1000;
 const ACTIVITY_EVENTS = [

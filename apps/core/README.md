@@ -55,7 +55,7 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | `REGISTRY_API_URL`, `REGISTRY_API_KEY` | Masumi registry API |
 | `STRIPE_SECRET_KEY` | Stripe server secret |
 | `ABLY_PUBLISH_ONLY_KEY` | Ably publish key |
-| `ABLY_SUBSCRIBE_ONLY_KEY` | Ably subscribe key for minting client TokenRequests (`POST /v1/realtime/ably-token`) |
+| `ABLY_SUBSCRIBE_ONLY_KEY` | Ably key for minting client TokenRequests (`POST /v1/realtime/ably-token`); must allow subscribe on app channels and `presence`+`subscribe` on `presence:org_*` (ADR-0003) |
 
 `PORT` defaults to `8787`. See `.env.example` and `env.ts` for the full list (webhooks, OpenRouter keys, cron, blob storage, etc.).
 
