@@ -10,10 +10,14 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { archivedChatRoomSchema } from "@/schemas/chat-room.schema";
+import {
+  archivedChatRoomSchema,
+  CHAT_ROOM_ACCESS,
+} from "@/schemas/chat-room.schema";
 
 import {
   canManageChatRoomLifecycle,
+  membershipAccessForUser,
   requireChatRoomUserAccess,
 } from "../../helpers";
 
@@ -72,6 +76,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       if (!existing.organizationId) {
         throw badRequest("Organization rooms require an organization.");
+      }
+
+      // Guests pass room access but never archive; reject before org membership
+      // lookup so the message is about guest role, not missing host membership.
+      if (
+        membershipAccessForUser(existing.userMembers, userContext.userId) ===
+        CHAT_ROOM_ACCESS.GUEST
+      ) {
+        throw forbidden("Guests cannot archive channels.");
       }
 
       const lockedRooms = await tx.$queryRaw<Array<{ id: string }>>`

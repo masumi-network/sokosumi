@@ -5095,7 +5095,9 @@
         "public": "Público",
         "private": "Privado",
         "publicHelp": "Cualquiera en la organización puede encontrar y unirse a este canal.",
-        "privateHelp": "Solo los miembros invitados pueden ver este canal. Los propietarios y administradores de la organización aún pueden encontrarlo y unirse."
+        "privateHelp": "Solo los miembros invitados pueden ver este canal. Los propietarios y administradores de la organización aún pueden encontrarlo y unirse.",
+        "external": "Externo",
+        "externalHelp": "Cualquiera de la organización puede encontrar y unirse. Los externos solo entran por invitación por correo como invitados — no son miembros de la organización."
       },
       "CreateWizard": {
         "title": "Crear un canal",
@@ -5131,6 +5133,83 @@
       "MembershipStatus": {
         "joined": "{name} se unió",
         "left": "{name} salió"
+      },
+      "External": {
+        "title": "Externo",
+        "empty": "Aún no hay canales externos.",
+        "accept": "Aceptar",
+        "decline": "Rechazar",
+        "acceptSuccess": "Te uniste a {name}.",
+        "declineSuccess": "Invitación rechazada.",
+        "acceptError": "No se pudo aceptar la invitación.",
+        "declineError": "No se pudo rechazar la invitación.",
+        "pendingAria": "Invitación a {name} de {organization}",
+        "hostOrganization": "{organization}"
+      },
+      "GuestInvite": {
+        "title": "Invitar invitados",
+        "description": "Invita por correo a personas fuera de la organización. Los invitados solo se unen a este canal y no se convierten en miembros de la organización.",
+        "emailLabel": "Correo",
+        "emailPlaceholder": "invitado@example.com",
+        "send": "Enviar invitación",
+        "invalidEmail": "Introduce un correo válido.",
+        "inviteSuccess": "Invitación enviada a {email}.",
+        "guestsTitle": "Invitados",
+        "guestsEmpty": "Aún no hay invitados.",
+        "removeGuest": "Quitar invitado",
+        "removeGuestAria": "Quitar invitado {name}",
+        "removeGuestSuccess": "Se quitó a {name} del canal.",
+        "pendingTitle": "Invitaciones pendientes",
+        "empty": "No hay invitaciones pendientes.",
+        "loading": "Cargando invitaciones…",
+        "loadError": "No se pudieron cargar las invitaciones.",
+        "retry": "Reintentar",
+        "revoke": "Revocar invitación",
+        "revokeAria": "Revocar invitación de {email}",
+        "revokeSuccess": "Invitación revocada."
+      },
+      "ChatInvite": {
+        "title": "Invitación al canal",
+        "description": "Te han invitado a unirte a un canal como invitado.",
+        "hasInvitedYouToJoin": "te ha invitado a unirte a",
+        "organizationLabel": "Organización anfitriona: {organizationName}",
+        "guestNote": "Al aceptar solo te unes a este canal. No te conviertes en miembro de la organización anfitriona.",
+        "acceptedTitle": "Te uniste a #{roomName}",
+        "acceptedDescription": "Puedes abrir el canal en cualquier momento desde Externo en el chat. Anfitrión: {organizationName}.",
+        "goToRoom": "Abrir canal",
+        "goToChat": "Volver al chat",
+        "declinedTitle": "Invitación rechazada",
+        "declinedDescription": "Rechazaste la invitación a #{roomName} de {organizationName}.",
+        "revokedTitle": "Invitación revocada",
+        "revokedDescription": "La invitación a #{roomName} de {organizationName} fue revocada.",
+        "expiredTitle": "Invitación caducada",
+        "expiredDescription": "La invitación a #{roomName} de {organizationName} ha caducado.",
+        "Actions": {
+          "accept": "Aceptar",
+          "decline": "Rechazar",
+          "Success": {
+            "accept": "Invitación aceptada",
+            "decline": "Invitación rechazada"
+          },
+          "Error": {
+            "accept": "No se pudo aceptar la invitación",
+            "decline": "No se pudo rechazar la invitación"
+          }
+        },
+        "Error": {
+          "Expired": {
+            "title": "Invitación caducada",
+            "description": "Esta invitación al canal ya no es válida.",
+            "content": "Pide al anfitrión una nueva invitación si aún necesitas acceso.",
+            "footer": "Volver al chat"
+          },
+          "NotFound": {
+            "title": "Invitación no encontrada",
+            "description": "No encontramos esta invitación al canal.",
+            "content": "El enlace puede ser incorrecto, o la invitación ya se usó o se revocó.",
+            "footer": "Volver al chat"
+          }
+        }
       }
     }
   },

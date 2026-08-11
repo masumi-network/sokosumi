@@ -28,6 +28,13 @@ export interface OrganizationInvitationEmailProps extends LocalizedEmailProps {
   organizationName: string;
 }
 
+export interface ChatRoomInvitationEmailProps extends LocalizedEmailProps {
+  invitationLink: string;
+  invitorUsername: string;
+  organizationName: string;
+  channelName: string;
+}
+
 export interface JobFinalStatusEmailProps extends LocalizedEmailProps {
   agentName: string;
   jobLink: string;

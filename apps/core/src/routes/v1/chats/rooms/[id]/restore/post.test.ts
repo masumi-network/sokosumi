@@ -45,8 +45,10 @@ const tx = {
   $queryRaw: queryRawMock,
 };
 
-function member(id: string) {
+function member(id: string, access: "member" | "guest" = "member") {
   return {
+    userId: id,
+    access,
     user: {
       id,
       name: id,
@@ -98,13 +100,15 @@ function archivedRoom(
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     archivedAt: new Date("2026-02-01T00:00:00.000Z"),
-    userMembers: (overrides.memberIds ?? [SELF_ID, OTHER_ID]).map(member),
+    userMembers: (overrides.memberIds ?? [SELF_ID, OTHER_ID]).map((id) =>
+      member(id),
+    ),
     coworkerMembers: [],
   };
 }
 
-function restore() {
-  return createApp().request(`/${ROOM_ID}/restore`, { method: "POST" });
+function restore(userId = SELF_ID) {
+  return createApp(userId).request(`/${ROOM_ID}/restore`, { method: "POST" });
 }
 
 beforeEach(() => {
@@ -190,6 +194,21 @@ describe("POST /chats/rooms/{id}/restore", () => {
 
     expect((await restore()).status).toBe(404);
     expect(roomUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a guest who is not a host-org member with 403", async () => {
+    const guestId = "user_guest";
+    roomFindFirstMock.mockResolvedValue({
+      ...archivedRoom({ memberIds: [OTHER_ID, guestId] }),
+      userMembers: [member(OTHER_ID, "member"), member(guestId, "guest")],
+    });
+
+    const response = await restore(guestId);
+
+    expect(response.status).toBe(403);
+    expect(await response.text()).toMatch(/guests cannot restore/i);
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("400s when a concurrent restore already cleared archivedAt", async () => {

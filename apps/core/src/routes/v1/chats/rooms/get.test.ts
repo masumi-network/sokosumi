@@ -12,6 +12,7 @@ const {
   roomFindManyMock,
   roomCountMock,
   organizationFindUniqueMock,
+  organizationFindManyMock,
   memberFindUniqueMock,
   messageGroupByMock,
   notificationGroupByMock,
@@ -23,6 +24,7 @@ const {
   roomFindManyMock: vi.fn(),
   roomCountMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
+  organizationFindManyMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   messageGroupByMock: vi.fn(),
   notificationGroupByMock: vi.fn(),
@@ -40,6 +42,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     organization: {
       findUnique: organizationFindUniqueMock,
+      findMany: organizationFindManyMock,
     },
     member: {
       findUnique: memberFindUniqueMock,
@@ -63,6 +66,8 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const USER_ID = "user_123";
 const ORG_ID = "org_1";
+const HOST_ORG_ID = "org_host";
+const GUEST_ROOM_ID = "550e8400-e29b-41d4-a716-446655440099";
 
 function createApp(organizationId: string | null) {
   const app = new OpenAPIHono<{ Variables: AuthVariables }>({
@@ -82,9 +87,47 @@ function createApp(organizationId: string | null) {
   return app;
 }
 
+function guestRoomRow() {
+  return {
+    id: GUEST_ROOM_ID,
+    organizationId: HOST_ORG_ID,
+    name: "External Client",
+    slug: "external-client",
+    kind: "channel",
+    directKey: null,
+    topic: null,
+    discoverability: "external",
+    createdByUserId: "user_host",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+    archivedAt: null,
+    providerConversationId: null,
+    userMembers: [
+      {
+        id: "cum_guest",
+        roomId: GUEST_ROOM_ID,
+        userId: USER_ID,
+        access: "guest",
+        pinnedAt: null,
+        mutedAt: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        user: {
+          id: USER_ID,
+          name: "Ada",
+          email: "ada@example.com",
+          image: null,
+          sessions: [],
+        },
+      },
+    ],
+    coworkerMembers: [],
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
+  organizationFindManyMock.mockResolvedValue([]);
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   roomFindManyMock.mockResolvedValue([]);
   roomCountMock.mockResolvedValue(0);
@@ -152,17 +195,6 @@ describe("GET /chats/rooms", () => {
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("returns an empty page for kind=channel with no active organization", async () => {
-    const response = await createApp(null).request("/?kind=channel");
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.data).toEqual([]);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
-    expect(roomFindManyMock).not.toHaveBeenCalled();
-    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
-  });
-
   it("defaults to active rooms (archivedAt null) without creator filter", async () => {
     const response = await createApp(ORG_ID).request("/");
 
@@ -174,8 +206,76 @@ describe("GET /chats/rooms", () => {
     >;
     expect(where).toMatchObject({
       archivedAt: null,
-      organizationId: ORG_ID,
+      userMembers: { some: { userId: USER_ID } },
+      OR: [
+        { organizationId: ORG_ID },
+        { userMembers: { some: { userId: USER_ID, access: "guest" } } },
+      ],
     });
     expect(where).not.toHaveProperty("createdByUserId");
+    expect(where).not.toHaveProperty("organizationId");
+  });
+
+  it("includes guest rooms when another org is active", async () => {
+    roomFindManyMock.mockResolvedValue([guestRoomRow()]);
+    roomCountMock.mockResolvedValue(1);
+    organizationFindManyMock.mockResolvedValue([
+      { id: HOST_ORG_ID, name: "Acme Host" },
+    ]);
+
+    const response = await createApp(ORG_ID).request("/");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0]).toMatchObject({
+      id: GUEST_ROOM_ID,
+      organizationId: HOST_ORG_ID,
+      organizationName: "Acme Host",
+      myAccess: "guest",
+      discoverability: "external",
+    });
+    expect(organizationFindManyMock).toHaveBeenCalledWith({
+      where: { id: { in: [HOST_ORG_ID] } },
+      select: { id: true, name: true },
+    });
+  });
+
+  it("lists personal directs and guest rooms with no active organization", async () => {
+    const response = await createApp(null).request("/");
+
+    expect(response.status).toBe(200);
+    const where = roomFindManyMock.mock.calls[0]?.[0]?.where as Record<
+      string,
+      unknown
+    >;
+    expect(where).toMatchObject({
+      archivedAt: null,
+      userMembers: { some: { userId: USER_ID } },
+      OR: [
+        { organizationId: null, kind: "direct" },
+        { userMembers: { some: { userId: USER_ID, access: "guest" } } },
+      ],
+    });
+  });
+
+  it("lists guest channels with kind=channel and no active organization", async () => {
+    const response = await createApp(null).request("/?kind=channel");
+
+    expect(response.status).toBe(200);
+    expect(roomFindManyMock).toHaveBeenCalledOnce();
+    const where = roomFindManyMock.mock.calls[0]?.[0]?.where as Record<
+      string,
+      unknown
+    >;
+    expect(where).toMatchObject({
+      archivedAt: null,
+      kind: "channel",
+      userMembers: { some: { userId: USER_ID } },
+      OR: [
+        { organizationId: null, kind: "direct" },
+        { userMembers: { some: { userId: USER_ID, access: "guest" } } },
+      ],
+    });
   });
 });

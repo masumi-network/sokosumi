@@ -63,12 +63,17 @@ export default async function PrivateCachedAppSidebar({
     .catch(() => []);
   // Personal coworker directs exist with no active org; Core returns those when
   // organization context is null. Named channels still need an org (empty list then).
+  // Guest rooms (any host org) are mixed into listRooms; pending invites are
+  // separate (invitee-facing) for the External sidebar section.
   const chatRoomsPromise = chatRoomService
     .listRooms()
     .catch(() => EMPTY_ROOMS_PAGE);
   const archivedChatRoomsPromise = activeOrganizationId
     ? chatRoomService.listArchivedRooms().catch(() => EMPTY_ROOMS_PAGE)
     : Promise.resolve(EMPTY_ROOMS_PAGE);
+  const pendingInvitationsPromise = chatRoomService
+    .listPendingInvitations()
+    .catch(() => []);
   const creditsPromise = getCachedMyCredits();
 
   const [
@@ -76,6 +81,7 @@ export default async function PrivateCachedAppSidebar({
     members,
     chatRoomsPage,
     archivedChatRoomsPage,
+    pendingChatRoomInvitations,
     { showVendors: showDeveloperVendors },
     creditsResult,
   ] = await Promise.all([
@@ -83,6 +89,7 @@ export default async function PrivateCachedAppSidebar({
     membersPromise,
     chatRoomsPromise,
     archivedChatRoomsPromise,
+    pendingInvitationsPromise,
     getDeveloperVendorAdminAccess(),
     creditsPromise,
   ]);
@@ -136,6 +143,7 @@ export default async function PrivateCachedAppSidebar({
         canDeleteArchivedRooms={canDeleteArchivedRooms}
         chatRooms={chatRooms}
         chatRoomsNextCursor={chatRoomsNextCursor}
+        pendingChatRoomInvitations={pendingChatRoomInvitations}
         creditsData={creditsData}
         creditUsage={resolveCreditUsage(creditsData)}
         currentTimestampMs={currentTimestampMs}

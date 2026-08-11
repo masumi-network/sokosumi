@@ -278,6 +278,7 @@ function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
   return {
     id: "room-1",
     organizationId: "org-1",
+    organizationName: null,
     name: "general",
     slug: "general",
     kind: "channel",
@@ -292,6 +293,7 @@ function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     pinnedAt: null,
     mutedAt: null,
     markedUnread: false,
+    myAccess: "member",
     userMembers: [makeUser("user-1"), makeUser("user-2")],
     coworkerMembers: [],
     ...overrides,
@@ -306,10 +308,43 @@ async function openRoomMenu(label = "general") {
   return user;
 }
 
+describe("ChatRoomSidebarRow leading slot", () => {
+  it("wraps any room leading icon in a min-w-5 / h-5 alignment slot", () => {
+    const { container } = render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span data-testid="custom-leading">#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const leading = screen.getByTestId("custom-leading");
+    const slot = leading.parentElement;
+    expect(slot).not.toBeNull();
+    expect(slot?.getAttribute("data-slot")).toBe("room-leading");
+    // min-w-5 aligns single icons; width may grow for multi-avatar stacks.
+    expect(slot?.className).toContain("min-w-5");
+    expect(slot?.className).toContain("h-5");
+    expect(slot?.className).toContain("shrink-0");
+    expect(slot?.className).toContain("items-center");
+    expect(slot?.className).toContain("justify-center");
+
+    // Slot is a direct child of the room link so every room type shares the same column.
+    const link = container.querySelector('a[href="/chat/rooms/room-1"]');
+    expect(link?.firstElementChild).toBe(slot);
+  });
+});
+
 describe("ChatRoomSidebarRow leave menu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    leaveRoomActionMock.mockResolvedValue({ ok: true, data: { id: "room-1" } });
+    leaveRoomActionMock.mockResolvedValue({
+      ok: true,
+      value: { id: "room-1" },
+    });
   });
 
   afterEach(() => {

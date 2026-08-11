@@ -60,6 +60,11 @@ interface RoomSessionComposerProps {
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   onChromeResize?: () => void;
+  /**
+   * Autofocus editor. Progressive room open keeps this false while history is
+   * pending so Instant→shell does not open the OSK / jump selection early.
+   */
+  focusOnMount?: boolean;
   ref?: Ref<RoomComposerHandle>;
   /** Claim in-flight lock with clientMessageId; return false to abort clear. */
   onBeforeSend?: (clientMessageId: string) => boolean;
@@ -79,6 +84,7 @@ export function RoomSessionComposer({
   showMentionShortcut,
   allowAttachments,
   onChromeResize,
+  focusOnMount = true,
   ref,
   onBeforeSend,
   onSend,
@@ -197,7 +203,7 @@ export function RoomSessionComposer({
       pendingQuote={pendingQuote}
       onClearPendingQuote={onClearPendingQuote}
       onChromeResize={onChromeResize}
-      focusOnMount
+      focusOnMount={focusOnMount}
     />
   );
 }

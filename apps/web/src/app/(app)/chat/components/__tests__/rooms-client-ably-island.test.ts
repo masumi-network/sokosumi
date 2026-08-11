@@ -3,11 +3,19 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "../../chat-message-list-scroller";
+import {
+  ROOM_SHELL_MAIN_CLASSNAME,
+  ROOM_SHELL_SCROLLER_CLASSNAME,
+} from "../room-shell-layout";
 
 describe("RoomsClient Ably island", () => {
   it("wraps multi-room realtime bridge in local LazyAblyProvider (no single-user ChannelProvider)", () => {
     const source = readFileSync(
       join(import.meta.dirname, "../rooms-client.tsx"),
+      "utf8",
+    );
+    const shellSource = readFileSync(
+      join(import.meta.dirname, "../room-shell-layout.tsx"),
       "utf8",
     );
 
@@ -17,18 +25,20 @@ describe("RoomsClient Ably island", () => {
     );
     expect(source).not.toContain("ChannelProvider");
     expect(source).toContain("roomIds={rooms.map((room) => room.id)}");
-    expect(source).toContain(
-      '<main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">',
+    // Open room chrome lives in RoomShellLayout (Instant + progressive share it).
+    expect(source).toContain("listScrollerRef={scrollerRef}");
+    expect(source).toContain("<RoomShellLayout");
+    // Assert exported shell contracts (not source-string formatting).
+    expect(ROOM_SHELL_MAIN_CLASSNAME).toContain("overflow-x-clip");
+    expect(ROOM_SHELL_SCROLLER_CLASSNAME).toContain("overflow-y-auto");
+    expect(ROOM_SHELL_SCROLLER_CLASSNAME).toContain(
+      CHAT_MESSAGE_LIST_SCROLLER_CLASS,
     );
-    // Message list uses native overflow scroller (not Radix ScrollArea).
-    expect(CHAT_MESSAGE_LIST_SCROLLER_CLASS).toContain("overflow-y-auto");
-    expect(source).toContain("CHAT_MESSAGE_LIST_SCROLLER_CLASS");
-    expect(source).toMatch(
-      /<div\s+ref=\{scrollerRef\}\s+className=\{CHAT_MESSAGE_LIST_SCROLLER_CLASS\}/,
+    expect(shellSource).toMatch(
+      /ref=\{listScrollerRef\}[\s\S]*?className=\{ROOM_SHELL_SCROLLER_CLASSNAME\}/,
     );
-    expect(source).not.toMatch(
-      /<ScrollArea[\s\S]*?shrinkContent[\s\S]*?className="min-h-0 min-w-0 flex-1"/,
-    );
+    expect(source).not.toContain("ScrollArea");
+    expect(shellSource).not.toContain("ScrollArea");
   });
 
   it("routes realtime through scope helper and only merges room on top-level", () => {

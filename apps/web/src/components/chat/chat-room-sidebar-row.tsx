@@ -20,6 +20,7 @@ import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organizati
 import {
   markOrganizationChatRoomUnreadAction,
   muteOrganizationChatRoomAction,
+  type OrganizationChatListActionResult,
   pinOrganizationChatRoomAction,
   unmuteOrganizationChatRoomAction,
   unpinOrganizationChatRoomAction,
@@ -59,6 +60,8 @@ interface ChatRoomSidebarRowProps {
   room: ChatRoom;
   href: string;
   label: string;
+  /** Optional secondary line (e.g. host org name on External guest rows). */
+  subtitle?: string;
   isActive: boolean;
   leading: ReactNode;
   onRoomUpdated: (room: ChatRoom) => void;
@@ -87,6 +90,7 @@ export function ChatRoomSidebarRow({
   room,
   href,
   label,
+  subtitle,
   isActive,
   leading,
   onRoomUpdated,
@@ -111,7 +115,7 @@ export function ChatRoomSidebarRow({
   function runRoomAction(
     action: (
       roomId: string,
-    ) => Promise<{ ok: true; data: ChatRoom } | { ok: false }>,
+    ) => Promise<OrganizationChatListActionResult<ChatRoom>>,
     optimisticRoom?: ChatRoom,
   ) {
     if (optimisticRoom) {
@@ -124,7 +128,7 @@ export function ChatRoomSidebarRow({
         toast.error(tActions("actionFailed"));
         return;
       }
-      onRoomUpdated(result.data);
+      onRoomUpdated(result.value);
     });
   }
 
@@ -135,7 +139,7 @@ export function ChatRoomSidebarRow({
     setIsLeaving(false);
 
     if (!result.ok) {
-      toast.error(result.message);
+      toast.error(result.error.message || tActions("actionFailed"));
       setLeaveConfirmOpen(false);
       return;
     }
@@ -161,15 +165,27 @@ export function ChatRoomSidebarRow({
       )}
       href={href}
     >
-      {leading}
       <span
-        className={cn(
-          "min-w-0 flex-1 truncate",
-          bold && "font-semibold text-foreground",
-          isMuted && !isActive && "text-muted-foreground",
-        )}
+        data-slot="room-leading"
+        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center"
       >
-        {label}
+        {leading}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span
+          className={cn(
+            "block truncate",
+            bold && "font-semibold text-foreground",
+            isMuted && !isActive && "text-muted-foreground",
+          )}
+        >
+          {label}
+        </span>
+        {subtitle ? (
+          <span className="text-muted-foreground group-data-[collapsible=icon]:hidden block truncate text-xs leading-tight">
+            {subtitle}
+          </span>
+        ) : null}
       </span>
       <MentionBadge count={badgeCount} />
       <span

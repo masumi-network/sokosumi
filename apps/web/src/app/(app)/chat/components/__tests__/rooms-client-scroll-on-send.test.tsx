@@ -117,7 +117,7 @@ vi.mock("@/app/chat/actions", () => ({
 vi.mock("@/components/chat/organization-chat-list.actions", () => ({
   markOrganizationChatRoomReadAction: vi.fn(async (roomId: string) => ({
     ok: true as const,
-    data: {
+    value: {
       id: roomId,
       unreadCount: 0,
       unreadMentionCount: 0,
@@ -256,6 +256,7 @@ function channelRoom(): ChatRoom {
   return {
     id: "room-channel",
     organizationId: "org-1",
+    organizationName: "Acme",
     name: "general",
     slug: "general",
     kind: "channel",
@@ -270,6 +271,7 @@ function channelRoom(): ChatRoom {
     pinnedAt: null,
     mutedAt: null,
     markedUnread: false,
+    myAccess: "member",
     userMembers: [
       userParticipant("user-1", "Ada"),
       userParticipant("user-2", "Bob"),
@@ -282,6 +284,7 @@ function coworkerDirectRoom(): ChatRoom {
   return {
     id: "room-coworker",
     organizationId: "org-1",
+    organizationName: "Acme",
     name: "Jamal",
     slug: "jamal",
     kind: "direct",
@@ -296,6 +299,7 @@ function coworkerDirectRoom(): ChatRoom {
     pinnedAt: null,
     mutedAt: null,
     markedUnread: false,
+    myAccess: "member",
     userMembers: [userParticipant("user-1", "Ada")],
     coworkerMembers: [coworkerParticipant("cow-1", "Jamal")],
   };
@@ -373,7 +377,7 @@ describe("RoomsClient scroll on own send", () => {
     const room = channelRoom();
     sendRoomMessageAction.mockResolvedValue({
       ok: true,
-      data: sentMessage(room.id),
+      value: sentMessage(room.id),
     });
     renderRoomsClient(room);
 

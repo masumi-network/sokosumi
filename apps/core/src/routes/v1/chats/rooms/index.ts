@@ -4,6 +4,10 @@ import mountPostArchiveChatRoom from "./[id]/archive/post.js";
 import mountDeleteChatRoom from "./[id]/delete.js";
 import mountPostChatRoomFile from "./[id]/files/post.js";
 import mountGetChatRoom from "./[id]/get.js";
+import mountDeleteChatRoomInvitation from "./[id]/invitations/[invitationId]/delete.js";
+import mountGetChatRoomInvitations from "./[id]/invitations/get.js";
+import mountPostChatRoomInvitation from "./[id]/invitations/post.js";
+import mountDeleteChatRoomMember from "./[id]/members/[userId]/delete.js";
 import mountDeleteChatRoomSelfMembership from "./[id]/members/me/delete.js";
 import mountPostChatRoomSelfMembership from "./[id]/members/me/post.js";
 import mountDeleteChatRoomMessage from "./[id]/messages/[messageId]/delete.js";
@@ -42,8 +46,14 @@ mountPatchChatRoom(app);
 mountPostArchiveChatRoom(app);
 mountPostRestoreChatRoom(app);
 mountDeleteChatRoom(app);
+// Room invitations under `/{id}/invitations` (host create/list/revoke).
+mountPostChatRoomInvitation(app);
+mountGetChatRoomInvitations(app);
+mountDeleteChatRoomInvitation(app);
+// Static `members/me` before `members/{userId}`.
 mountPostChatRoomSelfMembership(app);
 mountDeleteChatRoomSelfMembership(app);
+mountDeleteChatRoomMember(app);
 mountPostChatRoomRead(app);
 mountPostChatRoomUnread(app);
 // Static `/threads/read` before `/threads/{parentMessageId}`.

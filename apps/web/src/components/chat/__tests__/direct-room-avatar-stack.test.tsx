@@ -86,6 +86,7 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
   return {
     id: "dm-1",
     organizationId: "org-1",
+    organizationName: "Acme",
     name: "dm",
     slug: "dm",
     kind: "direct",
@@ -100,6 +101,7 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     pinnedAt: null,
     mutedAt: null,
     markedUnread: false,
+    myAccess: "member",
     userMembers: [makeUser("me", "Me"), makeUser("patrick", "Patrick Tobler")],
     coworkerMembers: [],
     ...overrides,
@@ -110,6 +112,38 @@ describe("DirectRoomAvatarStack", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     openDirectMock.mockResolvedValue({ ok: true, roomId: "dm-2" });
+  });
+
+  it("fits empty and 1:1 DM leadings in a min-w-5 / h-5 box matching channel icons", () => {
+    const { container: emptyContainer, unmount } = render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({ userMembers: [makeUser("me", "Me")] })}
+        currentUserId="me"
+        canOpenHumanDirect
+        selectedRoomId={null}
+      />,
+    );
+
+    const emptyRoot = emptyContainer.firstElementChild;
+    expect(emptyRoot?.className).toContain("size-5");
+    expect(emptyRoot?.className).toContain("shrink-0");
+    unmount();
+
+    const { container } = render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom()}
+        currentUserId="me"
+        canOpenHumanDirect
+        selectedRoomId={null}
+      />,
+    );
+
+    // min-w-5 / h-5 matches channel icon column; multi stacks may grow wider.
+    const stackRoot = container.firstElementChild;
+    expect(stackRoot?.className).toContain("min-w-5");
+    expect(stackRoot?.className).toContain("h-5");
+    expect(stackRoot?.className).toContain("shrink-0");
+    expect(stackRoot?.className).toContain("items-center");
   });
 
   it("shows participant hover card for a 1:1 human DM avatar", async () => {

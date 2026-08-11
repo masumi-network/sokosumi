@@ -1,17 +1,6 @@
-import { getTranslations } from "next-intl/server";
+import { ProjectsPageSkeleton } from "@/app/projects/components/projects-loading-view";
 
-import { ProjectsLoadingView } from "@/app/projects/components/projects-loading-view";
-
-export default async function ProjectsRootLoading() {
-  const t = await getTranslations("App.Projects");
-
-  return (
-    <div className="w-full px-2">
-      <ProjectsLoadingView
-        labels={{
-          newProject: t("empty.action"),
-        }}
-      />
-    </div>
-  );
+/** Sync shell only — no cookies/`connection()`/i18n (Instant Nav). */
+export default function ProjectsRootLoading() {
+  return <ProjectsPageSkeleton />;
 }

@@ -15,6 +15,7 @@ import type {
   GetAgentsByIdReviewsData,
   GetAgentsData,
   GetCategoriesData,
+  GetChatsInvitationsData,
   GetChatsRoomsByIdMessagesData,
   GetChatsRoomsByIdThreadsByParentMessageIdMessagesData,
   GetChatsRoomsData,
@@ -92,6 +93,8 @@ import {
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
+  deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
+  deleteChatsRoomsByIdMembersByUserId as coreDeleteChatsRoomsByIdMembersByUserId,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
@@ -124,8 +127,11 @@ import {
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
+  getChatsInvitations as coreGetChatsInvitations,
+  getChatsInvitationsById as coreGetChatsInvitationsById,
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
+  getChatsRoomsByIdInvitations as coreGetChatsRoomsByIdInvitations,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
   getChatsRoomsByIdThreads as coreGetChatsRoomsByIdThreads,
   getChatsRoomsByIdThreadsByParentMessageId as coreGetChatsRoomsByIdThreadsByParentMessageId,
@@ -228,9 +234,12 @@ import {
   patchVendor as corePatchVendor,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
+  postChatsInvitationsByIdAccept as corePostChatsInvitationsByIdAccept,
+  postChatsInvitationsByIdDecline as corePostChatsInvitationsByIdDecline,
   postChatsRooms as corePostChatsRooms,
   postChatsRoomsByIdArchive as corePostChatsRoomsByIdArchive,
   postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
+  postChatsRoomsByIdInvitations as corePostChatsRoomsByIdInvitations,
   postChatsRoomsByIdMembersMe as corePostChatsRoomsByIdMembersMe,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
@@ -414,6 +423,99 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getChatRoomInvitations(
+    query?: GetChatsInvitationsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsInvitations({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch chat room invitations",
+    );
+  }
+
+  async function acceptChatRoomInvitation(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsInvitationsByIdAccept({
+          client,
+          path: { id },
+        }),
+      "Failed to accept chat room invitation",
+    );
+  }
+
+  async function declineChatRoomInvitation(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsInvitationsByIdDecline({
+          client,
+          path: { id },
+        }),
+      "Failed to decline chat room invitation",
+    );
+  }
+
+  async function getChatRoomInvitation(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsInvitationsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch chat room invitation",
+    );
+  }
+
+  async function listChatRoomInvitations(roomId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdInvitations({
+          client,
+          path: { id: roomId },
+          cache: "no-store",
+        }),
+      "Failed to fetch room invitations",
+    );
+  }
+
+  async function createChatRoomInvitation(roomId: string, email: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdInvitations({
+          client,
+          path: { id: roomId },
+          body: { email },
+        }),
+      "Failed to create room invitation",
+    );
+  }
+
+  async function revokeChatRoomInvitation(
+    roomId: string,
+    invitationId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdInvitationsByInvitationId({
+          client,
+          path: { id: roomId, invitationId },
+        }),
+      "Failed to revoke room invitation",
+    );
+  }
+
   async function getDiscoverableChatRooms(
     query?: GetChatsRoomsDiscoverableData["query"],
   ) {
@@ -521,6 +623,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to leave chat room",
+    );
+  }
+
+  /** Host: remove an external guest from a room. */
+  async function removeChatRoomMember(roomId: string, userId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMembersByUserId({
+          client,
+          path: { id: roomId, userId },
+        }),
+      "Failed to remove room member",
     );
   }
 
@@ -3855,16 +3970,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchEnterpriseContract,
     previewEnterpriseContractPeriods,
     acknowledgeNotice,
+    acceptChatRoomInvitation,
     addChatRoomMessage,
     archiveChatRoom,
+    createChatRoomInvitation,
+    declineChatRoomInvitation,
     deleteChatRoom,
     restoreChatRoom,
     leaveChatRoom,
+    removeChatRoomMember,
     joinChatRoom,
     assignOrganizationSeat,
     createChatRoom,
     createAgentJob,
     createChatRoomFileUploadSession,
+    getChatRoomInvitation,
+    listChatRoomInvitations,
+    revokeChatRoomInvitation,
     cleanupOrganizationLogo,
     cleanupVendorLogo,
     createMyFileUploadSession,
@@ -3883,6 +4005,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteTask,
     deleteTaskSchedule,
     getChatRoom,
+    getChatRoomInvitations,
     getChatRoomMessages,
     getChatRoomThread,
     getChatRoomThreadMessages,

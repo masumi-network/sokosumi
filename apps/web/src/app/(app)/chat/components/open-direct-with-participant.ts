@@ -40,17 +40,17 @@ export async function openDirectWithParticipant(options: {
       : await createDirectRoomAction({ memberUserId: profile.id });
 
   if (!result.ok) {
-    onError(result.message);
+    onError(result.error.message ?? "Could not start direct message.");
     return { ok: false };
   }
-  if (!result.data) {
+  if (!result.value) {
     onError("Could not start direct message.");
     return { ok: false };
   }
 
-  notifyOrganizationChatRoomsChanged(result.data);
-  if (result.data.id !== selectedRoomId) {
-    router.push(`/chat/rooms/${result.data.id}`);
+  notifyOrganizationChatRoomsChanged(result.value);
+  if (result.value.id !== selectedRoomId) {
+    router.push(`/chat/rooms/${result.value.id}`);
   }
-  return { ok: true, roomId: result.data.id };
+  return { ok: true, roomId: result.value.id };
 }

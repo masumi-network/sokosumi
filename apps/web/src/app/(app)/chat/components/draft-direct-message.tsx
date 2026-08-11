@@ -246,21 +246,23 @@ export function DraftDirectMessage({
           selectedCoworkerIds[0],
         );
         if (!roomResult.ok) {
-          toast.error(roomResult.message);
+          toast.error(
+            roomResult.error.message ?? "Could not start direct message.",
+          );
           return;
         }
-        if (!roomResult.data) {
+        if (!roomResult.value) {
           toast.error("Could not ensure coworker direct room.");
           return;
         }
 
-        stashPendingRoomMessage(roomResult.data.id, content);
+        stashPendingRoomMessage(roomResult.value.id, content);
         setComposerValue("");
         setComposerAttachments([]);
         setMentionedIds([]);
         clearDraft();
-        notifyOrganizationChatRoomsChanged(roomResult.data);
-        router.replace(`/chat/rooms/${roomResult.data.id}`);
+        notifyOrganizationChatRoomsChanged(roomResult.value);
+        router.replace(`/chat/rooms/${roomResult.value.id}`);
       });
       return;
     }
@@ -300,15 +302,15 @@ export function DraftDirectMessage({
         mentionedUserIds,
       });
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
       setComposerValue("");
       setComposerAttachments([]);
       setMentionedIds([]);
       clearDraft();
-      notifyOrganizationChatRoomsChanged(result.data.room);
-      router.replace(`/chat/rooms/${result.data.room.id}`);
+      notifyOrganizationChatRoomsChanged(result.value.room);
+      router.replace(`/chat/rooms/${result.value.room.id}`);
     });
   }
 

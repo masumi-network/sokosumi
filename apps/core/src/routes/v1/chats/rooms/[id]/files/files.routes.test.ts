@@ -104,6 +104,7 @@ describe("POST /chats/rooms/{id}/files", () => {
     roomFindFirstMock.mockResolvedValueOnce({
       id: ROOM_ID,
       organizationId: null,
+      userMembers: [{ access: "member" }],
     });
 
     const app = createUserApp();
@@ -266,6 +267,7 @@ describe("POST /chats/rooms/{id}/files", () => {
     roomFindFirstMock.mockResolvedValueOnce({
       id: ROOM_ID,
       organizationId: null,
+      userMembers: [{ access: "member" }],
     });
     getEnvMock.mockReturnValue({
       BLOB_READ_WRITE_TOKEN: "blob-token",

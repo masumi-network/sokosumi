@@ -95,6 +95,8 @@ model User {
   chatRoomReactions        ChatRoomReaction[]
   chatRoomReadStates       ChatRoomReadState[]
   chatRoomThreadReadStates ChatRoomThreadReadState[]
+  chatRoomGuestInvitationsInvited  ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationInviter")
+  chatRoomGuestInvitationsAccepted ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationAcceptedBy")
   noticeAcknowledgments    NoticeAcknowledgment[]
 
   // Hermes (per-user private agent — single conversation)
@@ -1875,10 +1877,11 @@ model ChatRoom {
   createdByUserId String
   createdByUser   User   @relation("ChatRoomCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
-  userMembers     ChatRoomUserMember[]
-  coworkerMembers ChatRoomCoworkerMember[]
-  messages        ChatRoomMessage[]
-  readStates      ChatRoomReadState[]
+  userMembers       ChatRoomUserMember[]
+  coworkerMembers   ChatRoomCoworkerMember[]
+  messages          ChatRoomMessage[]
+  readStates        ChatRoomReadState[]
+  guestInvitations  ChatRoomGuestInvitation[]
 
   // Uniqueness for (organizationId, slug|directKey) and personal directKey is
   // enforced with partial unique indexes in the SQL migration — Prisma cannot
@@ -1898,6 +1901,10 @@ model ChatRoomUserMember {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// `"member"` = host-org participant; `"guest"` = external channel only (not org Member).
+  /// Values constrained by SQL CHECK; guests only on discoverability=external via trigger.
+  access String @default("member")
+
   /// Null = unpinned. Set to now when the user pins the room in their sidebar.
   /// Mutually exclusive with mutedAt (enforced by DB check + API updateMany).
   pinnedAt  DateTime?
@@ -1911,6 +1918,37 @@ model ChatRoomUserMember {
   @@index([userId, pinnedAt])
   @@index([userId, mutedAt])
   @@map("chat_room_user_member")
+}
+
+/// Room-scoped email invite for external channel guests. Accept creates
+/// `ChatRoomUserMember` with `access=guest` (no org Member / seat). One
+/// pending invite per room+email is enforced by a partial unique index in SQL.
+model ChatRoomGuestInvitation {
+  id     String   @id @default(uuid(7)) @db.Uuid
+  roomId String   @db.Uuid
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  email String
+
+  inviterId String
+  inviter   User   @relation("ChatRoomGuestInvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+
+  /// Values constrained by SQL CHECK (pending|accepted|revoked|declined|expired).
+  status     String    @default("pending")
+  expiresAt  DateTime
+  acceptedAt DateTime?
+
+  acceptedByUserId String?
+  acceptedByUser   User?   @relation("ChatRoomGuestInvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roomId, status])
+  @@index([email, status])
+  @@index([inviterId, createdAt])
+  @@index([status, expiresAt])
+  @@map("chat_room_guest_invitation")
 }
 
 model ChatRoomCoworkerMember {
