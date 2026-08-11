@@ -12,12 +12,12 @@ import mountDeclineInviteeInvitation from "./post";
 const {
   userFindUniqueMock,
   invitationFindUniqueMock,
-  invitationUpdateMock,
+  invitationUpdateManyMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   invitationFindUniqueMock: vi.fn(),
-  invitationUpdateMock: vi.fn(),
+  invitationUpdateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -37,7 +37,7 @@ const tx = {
   user: { findUnique: userFindUniqueMock },
   chatRoomGuestInvitation: {
     findUnique: invitationFindUniqueMock,
-    update: invitationUpdateMock,
+    updateMany: invitationUpdateManyMock,
   },
 };
 
@@ -94,7 +94,7 @@ beforeEach(() => {
   prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
   userFindUniqueMock.mockResolvedValue({ email: "guest@example.com" });
   invitationFindUniqueMock.mockResolvedValue(pendingInvitation());
-  invitationUpdateMock.mockResolvedValue(pendingInvitation("declined"));
+  invitationUpdateManyMock.mockResolvedValue({ count: 1 });
 });
 
 describe("POST /chats/invitations/{id}/decline", () => {
@@ -113,9 +113,13 @@ describe("POST /chats/invitations/{id}/decline", () => {
       organizationName: "Acme Corp",
     });
 
-    expect(invitationUpdateMock).toHaveBeenCalledWith(
+    expect(invitationUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: INVITE_ID },
+        where: expect.objectContaining({
+          id: INVITE_ID,
+          status: "pending",
+          expiresAt: { gt: expect.any(Date) },
+        }),
         data: { status: "declined" },
       }),
     );
@@ -129,7 +133,7 @@ describe("POST /chats/invitations/{id}/decline", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(invitationUpdateMock).not.toHaveBeenCalled();
+    expect(invitationUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("decline is idempotent when already declined", async () => {
@@ -142,6 +146,18 @@ describe("POST /chats/invitations/{id}/decline", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.status).toBe("declined");
-    expect(invitationUpdateMock).not.toHaveBeenCalled();
+    expect(invitationUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("decline fails when invitation is no longer pending (accept race)", async () => {
+    invitationUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const response = await createApp().request(`/${INVITE_ID}/decline`, {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.message).toMatch(/no longer pending/i);
   });
 });

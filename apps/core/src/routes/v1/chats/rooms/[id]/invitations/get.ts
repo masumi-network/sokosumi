@@ -68,7 +68,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("External channels require a host organization.");
     }
 
-    // Lazy-expire past-due pending so host list matches invitee + rate-limit caps.
+    // Intentional write-on-GET: lazy-expire past-due pending so host list
+    // matches invitee + rate-limit caps. Cron also expires daily; create path
+    // expires before counting. List still filters via livePendingInvitationWhere.
     await expireStalePendingInvitations(prisma, { roomId: room.id });
 
     const [rows, organization] = await Promise.all([

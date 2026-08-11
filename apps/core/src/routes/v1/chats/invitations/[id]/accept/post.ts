@@ -14,7 +14,11 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatRoomInvitationSchema } from "@/schemas/chat-room-invitation.schema";
+import { CHAT_ROOM_ACCESS } from "@/schemas/chat-room.schema";
+import {
+  CHAT_ROOM_INVITATION_STATUS,
+  chatRoomInvitationSchema,
+} from "@/schemas/chat-room-invitation.schema";
 
 import { recordChannelMembershipStatus } from "../../../rooms/membership-status";
 
@@ -69,6 +73,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }
         const email = normalizeInvitationEmail(user.email);
 
+        // Lock invitation before status decisions so revoke/decline cannot
+        // commit after a stale pending read and still lose to accept.
+        await tx.$queryRaw`
+          SELECT "id" FROM "chat_room_guest_invitation"
+          WHERE "id" = ${id}::uuid
+          FOR UPDATE
+        `;
+
         const row = await tx.chatRoomGuestInvitation.findUnique({
           where: { id },
           include: {
@@ -107,18 +119,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
 
         // Idempotent: already guest on the room — ensure invitation accepted.
-        if (existingMembership?.access === "guest") {
+        if (existingMembership?.access === CHAT_ROOM_ACCESS.GUEST) {
           let status = row.status;
-          if (status === "pending") {
-            await tx.chatRoomGuestInvitation.update({
-              where: { id: row.id },
+          if (status === CHAT_ROOM_INVITATION_STATUS.PENDING) {
+            const accepted = await tx.chatRoomGuestInvitation.updateMany({
+              where: {
+                id: row.id,
+                status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+              },
               data: {
-                status: "accepted",
+                status: CHAT_ROOM_INVITATION_STATUS.ACCEPTED,
                 acceptedAt: now,
                 acceptedByUserId: userContext.userId,
               },
             });
-            status = "accepted";
+            if (accepted.count > 0) {
+              status = CHAT_ROOM_INVITATION_STATUS.ACCEPTED;
+            }
           }
           return {
             invitation: mapChatRoomInvitationFromRecord(
@@ -143,14 +160,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         // Leave / host-remove after accept does not revive membership via the
         // same invitation. Host must send a new invite.
-        if (row.status !== "pending") {
+        if (row.status !== CHAT_ROOM_INVITATION_STATUS.PENDING) {
           throw badRequest("Invitation is no longer pending.");
         }
 
         if (row.expiresAt <= now) {
-          await tx.chatRoomGuestInvitation.update({
-            where: { id: row.id },
-            data: { status: "expired" },
+          await tx.chatRoomGuestInvitation.updateMany({
+            where: {
+              id: row.id,
+              status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+            },
+            data: { status: CHAT_ROOM_INVITATION_STATUS.EXPIRED },
           });
           throw badRequest("Invitation has expired.");
         }
@@ -208,10 +228,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           create: {
             roomId: room.id,
             userId: userContext.userId,
-            access: "guest",
+            access: CHAT_ROOM_ACCESS.GUEST,
           },
           update: {
-            access: "guest",
+            access: CHAT_ROOM_ACCESS.GUEST,
           },
         });
         await tx.chatRoomReadState.createMany({
@@ -219,14 +239,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           skipDuplicates: true,
         });
 
-        await tx.chatRoomGuestInvitation.update({
-          where: { id: row.id },
+        // Conditional transition: if revoke/decline won under another txn that
+        // committed after our lock wait, do not leave guest membership.
+        // Throwing rolls back the upsert + read-state writes above.
+        const accepted = await tx.chatRoomGuestInvitation.updateMany({
+          where: {
+            id: row.id,
+            status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+            expiresAt: { gt: now },
+          },
           data: {
-            status: "accepted",
+            status: CHAT_ROOM_INVITATION_STATUS.ACCEPTED,
             acceptedAt: now,
             acceptedByUserId: userContext.userId,
           },
         });
+        if (accepted.count === 0) {
+          throw badRequest("Invitation is no longer pending.");
+        }
 
         const actorName = user.name?.trim() || "Someone";
         const statusMessages = await recordChannelMembershipStatus(tx, {
@@ -253,7 +283,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               organizationId: room.organizationId,
               organizationName: room.organization?.name,
             },
-            { status: "accepted" },
+            { status: CHAT_ROOM_INVITATION_STATUS.ACCEPTED },
           ),
           statusMessages,
         };

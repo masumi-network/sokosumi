@@ -12,7 +12,7 @@ import mountAcceptInviteeInvitation from "./post";
 const {
   userFindUniqueMock,
   invitationFindUniqueMock,
-  invitationUpdateMock,
+  invitationUpdateManyMock,
   userMemberFindUniqueMock,
   userMemberUpsertMock,
   readStateCreateManyMock,
@@ -25,7 +25,7 @@ const {
 } = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   invitationFindUniqueMock: vi.fn(),
-  invitationUpdateMock: vi.fn(),
+  invitationUpdateManyMock: vi.fn(),
   userMemberFindUniqueMock: vi.fn(),
   userMemberUpsertMock: vi.fn(),
   readStateCreateManyMock: vi.fn(),
@@ -59,7 +59,7 @@ const tx = {
   chatRoom: { findUnique: roomFindUniqueMock },
   chatRoomGuestInvitation: {
     findUnique: invitationFindUniqueMock,
-    update: invitationUpdateMock,
+    updateMany: invitationUpdateManyMock,
   },
   chatRoomUserMember: {
     findUnique: userMemberFindUniqueMock,
@@ -146,9 +146,7 @@ beforeEach(() => {
     access: "guest",
   });
   readStateCreateManyMock.mockResolvedValue({ count: 1 });
-  invitationUpdateMock.mockResolvedValue(
-    pendingInvitation({ status: "accepted" }),
-  );
+  invitationUpdateManyMock.mockResolvedValue({ count: 1 });
   messageCreateMock.mockResolvedValue({
     id: "550e8400-e29b-41d4-a716-446655440099",
     roomId: ROOM_ID,
@@ -217,9 +215,13 @@ describe("POST /chats/invitations/{id}/accept", () => {
         skipDuplicates: true,
       }),
     );
-    expect(invitationUpdateMock).toHaveBeenCalledWith(
+    expect(invitationUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: INVITE_ID },
+        where: expect.objectContaining({
+          id: INVITE_ID,
+          status: "pending",
+          expiresAt: { gt: expect.any(Date) },
+        }),
         data: expect.objectContaining({
           status: "accepted",
           acceptedByUserId: GUEST_ID,
@@ -227,6 +229,16 @@ describe("POST /chats/invitations/{id}/accept", () => {
         }),
       }),
     );
+    // Invitation row locked before room so revoke/decline serialize.
+    expect(queryRawMock).toHaveBeenCalled();
+    const lockSql = queryRawMock.mock.calls
+      .map((call) => {
+        const parts = call[0] as TemplateStringsArray | string[];
+        return Array.isArray(parts) ? parts.join(" ") : String(parts);
+      })
+      .join(" ");
+    expect(lockSql).toContain("chat_room_guest_invitation");
+    expect(lockSql).toContain("FOR UPDATE");
     // No org Member create — only the host-membership check.
     expect(memberFindUniqueMock).toHaveBeenCalled();
     expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledOnce();
@@ -247,7 +259,7 @@ describe("POST /chats/invitations/{id}/accept", () => {
 
     expect(response.status).toBe(404);
     expect(userMemberUpsertMock).not.toHaveBeenCalled();
-    expect(invitationUpdateMock).not.toHaveBeenCalled();
+    expect(invitationUpdateManyMock).not.toHaveBeenCalled();
   });
 
   it("accept rejects host-org members", async () => {
@@ -274,8 +286,12 @@ describe("POST /chats/invitations/{id}/accept", () => {
     const body = await response.json();
     expect(body.data.status).toBe("accepted");
     expect(userMemberUpsertMock).not.toHaveBeenCalled();
-    expect(invitationUpdateMock).toHaveBeenCalledWith(
+    expect(invitationUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        where: expect.objectContaining({
+          id: INVITE_ID,
+          status: "pending",
+        }),
         data: expect.objectContaining({ status: "accepted" }),
       }),
     );
@@ -299,6 +315,30 @@ describe("POST /chats/invitations/{id}/accept", () => {
     const body = await response.json();
     expect(body.message).toMatch(/no longer pending/i);
     expect(userMemberUpsertMock).not.toHaveBeenCalled();
-    expect(invitationUpdateMock).not.toHaveBeenCalled();
+    expect(invitationUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("accept fails and rolls back when invite is no longer pending (revoke race)", async () => {
+    // Membership create may run before the conditional status transition;
+    // count 0 means revoke/decline won — throw aborts the transaction.
+    invitationUpdateManyMock.mockResolvedValue({ count: 0 });
+
+    const response = await createApp().request(`/${INVITE_ID}/accept`, {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.message).toMatch(/no longer pending/i);
+    expect(userMemberUpsertMock).toHaveBeenCalled();
+    expect(invitationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: INVITE_ID,
+          status: "pending",
+        }),
+      }),
+    );
+    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
   });
 });

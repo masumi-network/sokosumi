@@ -13,7 +13,10 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatRoomInvitationSchema } from "@/schemas/chat-room-invitation.schema";
+import {
+  CHAT_ROOM_INVITATION_STATUS,
+  chatRoomInvitationSchema,
+} from "@/schemas/chat-room-invitation.schema";
 
 const paramsSchema = z.object({
   id: z
@@ -84,7 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Invitation not found");
       }
 
-      if (row.status === "declined") {
+      if (row.status === CHAT_ROOM_INVITATION_STATUS.DECLINED) {
         return mapChatRoomInvitationFromRecord(
           row,
           {
@@ -93,48 +96,48 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             organizationId: row.room.organizationId,
             organizationName: row.room.organization?.name,
           },
-          { status: "declined" },
+          { status: CHAT_ROOM_INVITATION_STATUS.DECLINED },
         );
       }
 
-      if (row.status !== "pending") {
+      if (row.status !== CHAT_ROOM_INVITATION_STATUS.PENDING) {
         throw badRequest("Invitation is no longer pending.");
       }
 
       if (row.expiresAt <= now) {
-        await tx.chatRoomGuestInvitation.update({
-          where: { id: row.id },
-          data: { status: "expired" },
+        await tx.chatRoomGuestInvitation.updateMany({
+          where: {
+            id: row.id,
+            status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+          },
+          data: { status: CHAT_ROOM_INVITATION_STATUS.EXPIRED },
         });
         throw badRequest("Invitation has expired.");
       }
 
-      const updated = await tx.chatRoomGuestInvitation.update({
-        where: { id: row.id },
-        data: { status: "declined" },
-        include: {
-          inviter: { select: { id: true, name: true } },
-          room: {
-            select: {
-              id: true,
-              name: true,
-              organizationId: true,
-              organization: { select: { id: true, name: true } },
-            },
-          },
+      // Conditional transition so concurrent accept/revoke wins cleanly.
+      const declined = await tx.chatRoomGuestInvitation.updateMany({
+        where: {
+          id: row.id,
+          status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+          expiresAt: { gt: now },
         },
+        data: { status: CHAT_ROOM_INVITATION_STATUS.DECLINED },
       });
-
-      if (!updated.room.organizationId) {
-        throw notFound("Invitation not found");
+      if (declined.count === 0) {
+        throw badRequest("Invitation is no longer pending.");
       }
 
-      return mapChatRoomInvitationFromRecord(updated, {
-        id: updated.room.id,
-        name: updated.room.name,
-        organizationId: updated.room.organizationId,
-        organizationName: updated.room.organization?.name,
-      });
+      return mapChatRoomInvitationFromRecord(
+        row,
+        {
+          id: row.room.id,
+          name: row.room.name,
+          organizationId: row.room.organizationId,
+          organizationName: row.room.organization?.name,
+        },
+        { status: CHAT_ROOM_INVITATION_STATUS.DECLINED },
+      );
     });
 
     return ok(c, invitation);
