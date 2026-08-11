@@ -30,7 +30,7 @@ describe("auth background LCP contract (SOK-782)", () => {
     );
   });
 
-  it("auth-background is a server module with prioritized LCP image", () => {
+  it("auth-background is a server module with preloaded LCP image", () => {
     const code = stripComments(readAuth("components/auth-background.tsx"));
 
     // Chosen server-side for first paint — not a post-hydrate surprise.
@@ -39,8 +39,9 @@ describe("auth background LCP contract (SOK-782)", () => {
     expect(code).not.toMatch(/\buseMountEffect\b/);
     expect(code).not.toMatch(/\buseEffect\b/);
 
-    // Half-viewport hero must be an LCP-priority candidate.
-    expect(code).toMatch(/\bpriority\b/);
+    // Half-viewport hero must preload (Next deprecates priority → preload).
+    expect(code).toMatch(/\bpreload\b/);
+    expect(code).not.toMatch(/\bpriority\b/);
     expect(code).toMatch(/from\s+["']next\/image["']/);
     expect(code).toMatch(/\bpickAuthBackgroundImage\s*\(/);
     // Below Tailwind lg the panel is hidden — sizes must not claim 50vw there.

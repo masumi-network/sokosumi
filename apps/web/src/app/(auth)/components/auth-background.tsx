@@ -14,8 +14,8 @@ export type AuthBackgroundImage = (typeof AUTH_BACKGROUND_IMAGES)[number];
 
 /**
  * Match Tailwind `lg` (1024px). Below that the hero is `hidden` — size `0px` so
- * `priority` + srcset preload selects a near-zero candidate instead of a
- * half-viewport PNG that never paints on mobile.
+ * `preload` + srcset selects a near-zero candidate instead of a half-viewport
+ * PNG that never paints on mobile.
  */
 export const AUTH_BACKGROUND_SIZES = "(max-width: 1023px) 0px, 50vw" as const;
 
@@ -32,7 +32,7 @@ export function pickAuthBackgroundImage(
 
 /**
  * Half-viewport auth marketing image (lg+). Server Component so the LCP src is
- * final on first HTML — no client mount swap — and `priority` preloads it.
+ * final on first HTML — no client mount swap — and `preload` starts the fetch.
  */
 export default function AuthBackground() {
   const backgroundImage = pickAuthBackgroundImage();
@@ -44,7 +44,7 @@ export default function AuthBackground() {
           alt=""
           src={backgroundImage}
           fill
-          priority
+          preload
           className="rounded-xl object-cover"
           sizes={AUTH_BACKGROUND_SIZES}
         />
