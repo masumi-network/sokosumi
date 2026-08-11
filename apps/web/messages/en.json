@@ -1573,7 +1573,6 @@
         "goalDescription": "Tap a prompt to pre-fill your first message, or type something else below.",
         "goalLabel": "Your goal",
         "goalPlaceholder": "e.g. Help me draft a weekly update",
-        "goalFallback": "general help",
         "tryAsking": {
           "label": "Try asking",
           "orDivider": "or",
@@ -1596,7 +1595,11 @@
           }
         },
         "draftWithGoal": "{goal}",
-        "draftWithIntent": "I'd like help with {intent}.",
+        "draftWhenSkipped": {
+          "chat": "I'd like help with conversation — tell me how you can help me.",
+          "tasks": "I'd like help with tasks and projects.",
+          "either": "Explain how to use Sokosumi."
+        },
         "next": "Next",
         "back": "Back",
         "skip": "Skip",

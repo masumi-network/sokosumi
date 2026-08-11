@@ -20,10 +20,8 @@ function coworker(
 }
 
 const draftLabels: DraftLabelBundle = {
-  intentLabel: "Chat",
-  goalFallbackLabel: "general help",
-  composeDraft: ({ intentLabel, goalText }) =>
-    goalText ? `Goal: ${goalText}` : `Intent: ${intentLabel}`,
+  composeDraft: ({ goalText }) =>
+    goalText ? `Goal: ${goalText}` : "Skipped draft",
 };
 
 describe("recommendFromAnswers", () => {
@@ -51,7 +49,7 @@ describe("recommendFromAnswers", () => {
 
     expect(result.coworkerId).toBe("chat-1");
     expect(result.filterCapability).toBe("chat");
-    expect(result.draftText).toBe("Intent: Chat");
+    expect(result.draftText).toBe("Skipped draft");
   });
 
   it("prefers tasks-capable coworker for tasks intent", () => {

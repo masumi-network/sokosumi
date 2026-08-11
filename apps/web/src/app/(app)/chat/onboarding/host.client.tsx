@@ -73,17 +73,13 @@ export function ChatOnboardingHost({
       state.phase.kind === "questionnaire"
         ? state.phase.answers.intent
         : state.phase.answers.intent;
-    const intentLabel = intent
-      ? t(`intentChoices.${intent}`)
-      : t("intentChoices.either");
+    const skippedIntent = intent ?? "either";
     return {
-      intentLabel,
-      goalFallbackLabel: t("goalFallback"),
-      composeDraft: ({ intentLabel: label, goalText }) => {
+      composeDraft: ({ goalText }) => {
         if (goalText) {
           return t("draftWithGoal", { goal: goalText });
         }
-        return t("draftWithIntent", { intent: label });
+        return t(`draftWhenSkipped.${skippedIntent}`);
       },
     };
   }, [state.phase, t]);

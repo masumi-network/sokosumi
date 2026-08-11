@@ -1573,7 +1573,6 @@
         "goalDescription": "Toca un prompt para rellenar tu primer mensaje, o escribe algo abajo.",
         "goalLabel": "Tu objetivo",
         "goalPlaceholder": "p. ej. Ayúdame a redactar un resumen semanal",
-        "goalFallback": "ayuda general",
         "tryAsking": {
           "label": "Prueba a preguntar",
           "orDivider": "o",
@@ -1596,7 +1595,11 @@
           }
         },
         "draftWithGoal": "{goal}",
-        "draftWithIntent": "Me gustaría ayuda con {intent}.",
+        "draftWhenSkipped": {
+          "chat": "Me gustaría ayuda con una conversación — cuéntame cómo puedes ayudarme.",
+          "tasks": "Me gustaría ayuda con tareas y proyectos.",
+          "either": "Explícame cómo usar Sokosumi."
+        },
         "next": "Siguiente",
         "back": "Atrás",
         "skip": "Omitir",

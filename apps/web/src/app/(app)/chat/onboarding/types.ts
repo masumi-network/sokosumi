@@ -69,14 +69,8 @@ export interface OnboardingConfirmError {
 }
 
 export interface DraftLabelBundle {
-  /** Resolved choice label for intent (and any future choice steps). */
-  intentLabel: string;
-  goalFallbackLabel: string;
-  /** Template fn — keep i18n at host, pure join here. */
-  composeDraft: (parts: {
-    intentLabel: string;
-    goalText: string | null;
-  }) => string;
+  /** Template fn — keep i18n at host; skip path uses intent-specific starters. */
+  composeDraft: (parts: { goalText: string | null }) => string;
 }
 
 export interface QuestionStepDef {

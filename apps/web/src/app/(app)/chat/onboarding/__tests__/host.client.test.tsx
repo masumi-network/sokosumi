@@ -173,5 +173,15 @@ describe("ChatOnboardingHost confirm", () => {
     fireEvent.click(screen.getByRole("button", { name: "skip" }));
     await screen.findByText("confirmTitle");
     expect(screen.getByTestId("gallery-card").textContent).toBe("Elena");
+    expect(screen.getByText("draftWhenSkipped.either")).toBeTruthy();
+  });
+
+  it("chat skip uses conversation help draft", async () => {
+    render(<ChatOnboardingHost coworkers={[coworker]} userName="Francis" />);
+    fireEvent.click(screen.getByLabelText(/intentChoices\.chat/i));
+    fireEvent.click(screen.getByRole("button", { name: "next" }));
+    fireEvent.click(screen.getByRole("button", { name: "skip" }));
+    await screen.findByText("confirmTitle");
+    expect(screen.getByText("draftWhenSkipped.chat")).toBeTruthy();
   });
 });

@@ -16,9 +16,7 @@ const coworker: Coworker = {
 };
 
 const draftLabels: DraftLabelBundle = {
-  intentLabel: "Chat",
-  goalFallbackLabel: "help",
-  composeDraft: ({ intentLabel, goalText }) => goalText ?? intentLabel,
+  composeDraft: ({ goalText }) => goalText ?? "Skipped draft",
 };
 
 describe("reduceOnboarding", () => {

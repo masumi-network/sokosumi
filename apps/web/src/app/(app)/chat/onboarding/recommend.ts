@@ -100,10 +100,7 @@ export function recommendFromAnswers(input: {
   const coworkerId = picked?.id ?? "";
 
   const goalText = answers.goal?.trim() ? answers.goal.trim() : null;
-  const draftText = draftLabels.composeDraft({
-    intentLabel: draftLabels.intentLabel,
-    goalText,
-  });
+  const draftText = draftLabels.composeDraft({ goalText });
 
   return {
     coworkerId,
