@@ -76,19 +76,25 @@ ALTER TABLE "chat_room_guest_invitation"
 ALTER TABLE "chat_room_guest_invitation"
   VALIDATE CONSTRAINT "chat_room_guest_invitation_status_check";
 
--- Guests may only exist on external channels (cross-table invariant)
+-- Guests may only exist on external channels (cross-table invariant).
+-- FOR UPDATE on chat_room serializes with discoverability convert and with
+-- app paths that already lock the room before guest writes, so a concurrent
+-- convert cannot miss an in-flight guest insert (or vice versa).
 CREATE OR REPLACE FUNCTION chat_room_guest_access_external_only()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  room_discoverability text;
 BEGIN
   IF NEW."access" = 'guest' THEN
-    IF NOT EXISTS (
-      SELECT 1
-      FROM "chat_room" r
-      WHERE r."id" = NEW."roomId"
-        AND r."discoverability" = 'external'
-    ) THEN
+    SELECT r."discoverability"
+    INTO room_discoverability
+    FROM "chat_room" r
+    WHERE r."id" = NEW."roomId"
+    FOR UPDATE;
+
+    IF room_discoverability IS DISTINCT FROM 'external' THEN
       RAISE EXCEPTION 'guest access is only allowed on external channels'
         USING ERRCODE = 'check_violation';
     END IF;
@@ -106,19 +112,23 @@ CREATE TRIGGER chat_room_user_member_guest_external_only
   FOR EACH ROW
   EXECUTE FUNCTION chat_room_guest_access_external_only();
 
--- Guest invitations may only target external channels
+-- Guest invitations may only target external channels (same room-row lock).
 CREATE OR REPLACE FUNCTION chat_room_guest_invitation_external_only()
 RETURNS trigger
 LANGUAGE plpgsql
 AS $$
+DECLARE
+  room_discoverability text;
+  room_kind text;
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1
-    FROM "chat_room" r
-    WHERE r."id" = NEW."roomId"
-      AND r."discoverability" = 'external'
-      AND r."kind" = 'channel'
-  ) THEN
+  SELECT r."discoverability", r."kind"
+  INTO room_discoverability, room_kind
+  FROM "chat_room" r
+  WHERE r."id" = NEW."roomId"
+  FOR UPDATE;
+
+  IF room_discoverability IS DISTINCT FROM 'external'
+    OR room_kind IS DISTINCT FROM 'channel' THEN
     RAISE EXCEPTION 'guest invitations are only allowed on external channels'
       USING ERRCODE = 'check_violation';
   END IF;
