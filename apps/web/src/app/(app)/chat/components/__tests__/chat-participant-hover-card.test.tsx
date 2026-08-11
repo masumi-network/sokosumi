@@ -192,6 +192,21 @@ describe("ChatParticipantHoverCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps a non-button trigger when interactive is false (nested in links)", () => {
+    render(
+      <ChatParticipantHoverCard profile={humanProfile} interactive={false}>
+        <span data-testid="passive-trigger">avatar</span>
+      </ChatParticipantHoverCard>,
+    );
+
+    const trigger = screen.getByTestId("passive-trigger");
+    expect(trigger).toHaveAttribute("aria-label", "Ada Lovelace");
+    expect(trigger).not.toHaveAttribute("role", "button");
+    expect(
+      screen.queryByRole("button", { name: "Ada Lovelace" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("uses the child control itself as the hover trigger hit target", () => {
     render(
       <div className="flex" style={{ display: "flex", height: 400 }}>
