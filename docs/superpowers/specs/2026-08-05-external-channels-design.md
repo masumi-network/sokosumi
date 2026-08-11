@@ -16,7 +16,6 @@ Guests keep full participation inside the room (messages, reactions, threads). T
 
 ## Non-goals
 
-- Shareable invite links (explicit **follow-up** after email invites)
 - Org-level guest / limited collaborator role on `Member`
 - Seat or billing changes for guests
 - Multi-channel grants from a single invite
@@ -32,7 +31,7 @@ Guests keep full participation inside the room (messages, reactions, threads). T
 | Guest identity | Existing or new Sokosumi account; not host-org `Member`; no seat |
 | Scope | One channel per guest membership row |
 | Invite v1 | Email invite → accept / decline |
-| Invite links | Follow-up (remember; not this spec) |
+| Invite links | Shareable multi-use guest links (SOK-770): host mint/revoke; claim → `access=guest` |
 | Channel model | Dedicated mode: `discoverability: "external"` |
 | Guest powers | Full room participant; **cannot** invite or manage roster/settings |
 | Create external channel | Org owner / admin only |
@@ -221,7 +220,7 @@ Deep link: `/chat/invites/{id}` (or equivalent) for email; same accept/decline a
 | Email not registered | Pending until signup with same email, then accept |
 | Expired invite | `expired` or reject on accept |
 | Room archived | Guests lose access with room; pending invites not acceptable |
-| Convert external → public/private | **Block** while any `access=guest` or pending invite exists |
+| Convert external → public/private | **Block** while any `access=guest`, pending email invite, or live shareable invite link exists |
 
 ## Security
 
@@ -253,9 +252,9 @@ Deep link: `/chat/invites/{id}` (or equivalent) for email; same accept/decline a
 
 ## Follow-ups
 
-- Shareable room invite links (product decision B deferred)
 - Optional: invitee invite history (`status=accepted`)
 - Optional: richer decline reasons / re-invite after decline
+- Optional: max-uses defaults / analytics for shareable guest links
 
 ## Open implementation choices (resolve in plan, not product)
 

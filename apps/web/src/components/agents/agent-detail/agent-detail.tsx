@@ -137,3 +137,14 @@ export function AgentDetailSkeleton({
     </div>
   );
 }
+
+/** Route-level Instant shell — sync only (no session/i18n/cookies). */
+export function AgentDetailPageSkeleton() {
+  return (
+    <div className="min-h-full w-full">
+      <div className="mx-auto w-full max-w-4xl">
+        <AgentDetailSkeleton className="mt-4 space-y-8 px-4 pb-8 md:px-0" />
+      </div>
+    </div>
+  );
+}
