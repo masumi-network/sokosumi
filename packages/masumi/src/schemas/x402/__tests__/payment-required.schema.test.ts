@@ -249,9 +249,20 @@ describe("normalizeX402PaymentRequired", () => {
       ],
     });
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toMatch(
-      /Conflicting x402 per-entry resource URLs/,
-    );
+    expect(result._unsafeUnwrapErr()).toMatch(/Conflicting x402 resource URLs/);
+  });
+
+  it("rejects a top-level resource that disagrees with a per-entry one", () => {
+    // The pool includes the top-level v2 resource AND the per-entry v1
+    // strings, so a hybrid 402 whose top-level url contradicts an entry url
+    // is caught, not silently preferred.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      resource: { url: "https://top.example.com/api" },
+      accepts: [v1Entry({ resource: "https://entry.example.com/api" })],
+    });
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(/Conflicting x402 resource URLs/);
   });
 
   it("accepts agreeing per-entry resource URLs across entries", () => {

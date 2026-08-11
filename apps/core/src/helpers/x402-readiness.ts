@@ -85,12 +85,12 @@ export function findX402ReadySource(
   asset: string,
   readySources: readonly X402ReadySource[],
 ): X402ReadySource | undefined {
-  const normalizedNetwork = caip2Network.toLowerCase();
-  const normalizedAsset = asset.toLowerCase();
+  const normalizedNetwork = caip2Network.trim().toLowerCase();
+  const normalizedAsset = asset.trim().toLowerCase();
   return readySources.find(
     (source) =>
-      source.caip2Network.toLowerCase() === normalizedNetwork &&
-      source.asset.toLowerCase() === normalizedAsset,
+      source.caip2Network.trim().toLowerCase() === normalizedNetwork &&
+      source.asset.trim().toLowerCase() === normalizedAsset,
   );
 }
 

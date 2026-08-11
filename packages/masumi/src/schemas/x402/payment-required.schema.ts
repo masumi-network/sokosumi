@@ -227,25 +227,27 @@ export function normalizeX402PaymentRequired(
   }
 
   // v2 carries the resource as a top-level object; v1 as a per-entry string.
-  // Entries naming DIFFERENT resources is not a dialect — it is a malformed
+  // A 402 naming DIFFERENT resources is not a dialect — it is a malformed
   // (or manipulated) 402. Never pick one (same stance as the
-  // conflicting-amounts guard).
-  const entryResources = Array.from(
-    new Set(
-      wild.data.accepts
-        .map((entry) => entry.resource)
-        .filter((value): value is string => value !== undefined),
-    ),
-  );
-  if (entryResources.length > 1) {
-    return err(
-      `Conflicting x402 per-entry resource URLs: ${entryResources.join(", ")}`,
-    );
-  }
-  const resourceUrl =
+  // conflicting-amounts guard). ALL resource sources are pooled — the
+  // top-level object AND every per-entry string — so a top-level url that
+  // disagrees with a per-entry one is caught too, not silently preferred.
+  const topLevelResource =
     typeof wild.data.resource === "object"
       ? wild.data.resource.url
-      : (wild.data.resource ?? entryResources[0]);
+      : wild.data.resource;
+  const resources = Array.from(
+    new Set(
+      [
+        topLevelResource,
+        ...wild.data.accepts.map((entry) => entry.resource),
+      ].filter((value): value is string => value !== undefined),
+    ),
+  );
+  if (resources.length > 1) {
+    return err(`Conflicting x402 resource URLs: ${resources.join(", ")}`);
+  }
+  const resourceUrl = resources[0];
 
   const normalized: X402PaymentRequired = {
     x402Version: wild.data.x402Version,
