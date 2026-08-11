@@ -61,7 +61,7 @@ export function useOrgPresenceMap(
       return;
     }
 
-    // Narrow for async start() — TS does not carry control-flow into closures.
+    // Narrow for async runSyncOnce() — TS does not carry control-flow into closures.
     const activeOrganizationId = organizationId;
     // Drop prior org roster immediately so UI does not flash stale members
     // while authorize runs for the new workspace.
