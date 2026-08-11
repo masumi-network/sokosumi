@@ -61,7 +61,7 @@ describe("partitionRoomsForSidebar", () => {
     expect(result.directMessages.map((r) => r.id)).toEqual(["dm-1"]);
   });
 
-  it("does not treat member external channels as externalJoined", () => {
+  it("puts host-member external channels under External, not Channels", () => {
     const hostExternal = makeRoom({
       id: "ext-member",
       kind: "channel",
@@ -69,11 +69,18 @@ describe("partitionRoomsForSidebar", () => {
       discoverability: "external",
       name: "External host view",
     });
+    const publicChannel = makeRoom({
+      id: "public-1",
+      kind: "channel",
+      myAccess: "member",
+      discoverability: "public",
+      name: "General",
+    });
 
-    const result = partitionRoomsForSidebar([hostExternal]);
+    const result = partitionRoomsForSidebar([hostExternal, publicChannel]);
 
-    expect(result.externalJoined).toEqual([]);
-    expect(result.namedChannels.map((r) => r.id)).toEqual(["ext-member"]);
+    expect(result.externalJoined.map((r) => r.id)).toEqual(["ext-member"]);
+    expect(result.namedChannels.map((r) => r.id)).toEqual(["public-1"]);
   });
 
   it("returns empty buckets for empty input", () => {

@@ -10,8 +10,10 @@ export interface PartitionedSidebarRooms {
 
 /**
  * Split the unified room list for the chat sidebar.
- * Guest rows (`myAccess === "guest"`) go only under External — never under
- * host Channels — so external channels do not look like normal org channels.
+ *
+ * External channels (`discoverability === "external"`) — host members and
+ * guests — live only under External, never under Channels, so they read as a
+ * peer section next to Channels / Direct Messages.
  */
 export function partitionRoomsForSidebar(
   rooms: ChatRoom[],
@@ -21,6 +23,12 @@ export function partitionRoomsForSidebar(
   const externalJoined: ChatRoom[] = [];
 
   for (const room of rooms) {
+    if (room.kind === "channel" && room.discoverability === "external") {
+      externalJoined.push(room);
+      continue;
+    }
+
+    // Guests are always on external rooms (DB invariant); keep as safety net.
     if (room.myAccess === "guest") {
       externalJoined.push(room);
       continue;
