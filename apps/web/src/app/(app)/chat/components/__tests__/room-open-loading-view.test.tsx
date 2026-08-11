@@ -28,6 +28,7 @@ describe("RoomOpenLoadingView", () => {
     expect(
       container.querySelector("[data-room-composer-mention-anchor]"),
     ).toBeTruthy();
+    expect(container.querySelector("[data-placeholder]")).toBeTruthy();
     expect(container.querySelector('[role="toolbar"]')).toBeTruthy();
     expect(container.querySelectorAll("button").length).toBeGreaterThan(5);
     expect(container.querySelector(".animate-spin")).toBeNull();

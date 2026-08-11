@@ -1953,10 +1953,8 @@ export function RoomsClient({
           ? createPortal(roomHeaderChrome, headerRoomSlotHost)
           : null}
         <RoomShellLayout
-          rootClassName={cn(
-            ROOM_SHELL_ROOT_CLASSNAME,
-            chatMobileHeightShellClass(pathname, isApple, searchParams),
-          )}
+          // ROOM_SHELL_ROOT already includes no-tab-bar height (matches Instant).
+          rootClassName={ROOM_SHELL_ROOT_CLASSNAME}
           beforeMain={
             currentUserId ? (
               <LazyAblyProvider>
@@ -2016,6 +2014,8 @@ export function RoomsClient({
               onClearPendingQuote={() => setPendingQuote(null)}
               onRestorePendingQuote={setPendingQuote}
               onChromeResize={scrollToBottomIfPinned}
+              // Autofocus only after history settles. Send stays enabled so
+              // optimistic posts work during progressive open (merge into list).
               focusOnMount={!messagesPending}
               onBeforeSend={handleChannelBeforeSend}
               onSend={handleChannelSend}

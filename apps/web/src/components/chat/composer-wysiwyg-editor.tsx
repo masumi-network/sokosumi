@@ -15,7 +15,10 @@ import {
   type ComposerSuggestion,
   resolveComposerSuggestion,
 } from "@/components/chat/composer-suggestions";
-import { ROOM_COMPOSER_MENTION_ANCHOR_ATTR } from "@/components/chat/room-message-composer";
+import {
+  ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
+  ROOM_COMPOSER_MENTION_ANCHOR_ATTR,
+} from "@/components/chat/room-message-composer";
 import {
   createMentionSpan,
   deslugifyMentionSlug,
@@ -1237,11 +1240,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
         className={cn(
           "outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
-          // Classic empty:before placeholder. Single-line ellipsis so long
-          // room names never grow the empty box; min-h on the host (shared
-          // ROOM_COMPOSER_TEXTAREA_CLASSNAME) is the only height for empty
-          // and first keystroke.
-          "empty:before:pointer-events-none empty:before:block empty:before:max-w-full empty:before:overflow-hidden empty:before:text-ellipsis empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]",
+          // Host min-h (ROOM_COMPOSER_TEXTAREA_CLASSNAME) owns empty height;
+          // shared placeholder classes keep Instant bone and live editor aligned.
+          ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
           EDITOR_PROSE_CLASSNAME,
           className,
         )}

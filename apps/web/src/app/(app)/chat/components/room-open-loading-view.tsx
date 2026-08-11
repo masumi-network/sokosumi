@@ -11,6 +11,7 @@ import {
 } from "@/app/chat/utils/format-toolbar-preference-storage";
 import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
 import {
+  ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
   RoomMessageComposer,
@@ -120,11 +121,18 @@ export function RoomOpenLoadingView(): React.ReactElement {
               </>
             }
           >
+            {/*
+              Structural twin of ComposerWysiwygEditor empty host: same min-h
+              + empty:before placeholder geometry (no contenteditable / i18n
+              room name — generic bone only).
+            */}
             <div
               className={cn(
                 ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+                ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
                 "pointer-events-none",
               )}
+              data-placeholder=" "
             />
           </RoomMessageComposer>
         </div>
