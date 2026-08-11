@@ -4,7 +4,6 @@ import {
   ChevronDown,
   Ellipsis,
   Globe2,
-  MessageCircle,
   Plus,
   RotateCcw,
   Trash2,
@@ -29,11 +28,7 @@ import {
   restoreRoomAction,
 } from "@/app/chat/actions";
 import { BrowseChannelsDialog } from "@/app/chat/components/browse-channels-dialog";
-import {
-  getDirectRoomParticipants,
-  getRoomDisplayName,
-} from "@/app/chat/components/room-helpers";
-import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
+import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,7 +39,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Collapsible,
@@ -72,10 +66,10 @@ import type {
   ChatRoomInvitation,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { getInitials } from "@/lib/utils/text";
 import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
 import { ChatRoomSidebarRow } from "./chat-room-sidebar-row";
 import { countChatRoomsWithUnreadAttention } from "./chat-unread-document-title";
+import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 import {
   notifyOrganizationChatRoomsChanged,
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
@@ -132,55 +126,6 @@ interface OrganizationChatListProps {
    * Set false when the list is page-mounted outside a Sheet.
    */
   dismissSheetOnNavigate?: boolean;
-}
-
-function DirectAvatarStack({
-  room,
-  currentUserId,
-}: {
-  room: ChatRoom;
-  currentUserId: string;
-}) {
-  const participants = getDirectRoomParticipants(room, currentUserId).slice(
-    0,
-    3,
-  );
-
-  if (participants.length === 0) {
-    return (
-      <span className="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium">
-        <MessageCircle className="size-3" aria-hidden />
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex h-5 shrink-0 items-center">
-      {participants.map((participant, index) => (
-        <span
-          className={cn("relative block", index > 0 && "-ml-2")}
-          key={participant.id}
-          title={participant.name}
-        >
-          <Avatar className="border-sidebar-background size-5 border">
-            <AvatarImage
-              alt={participant.name}
-              src={participant.image ?? undefined}
-            />
-            <AvatarFallback className="text-[0.5625rem] font-medium">
-              {getInitials(participant.name)}
-            </AvatarFallback>
-          </Avatar>
-          <LiveMemberPresenceDot
-            className="-right-0.5 -bottom-0.5 absolute size-2"
-            fallback={participant.presence}
-            isCoworker={participant.kind === "coworker"}
-            userId={participant.id}
-          />
-        </span>
-      ))}
-    </span>
-  );
 }
 
 function SectionHeader({
@@ -965,9 +910,11 @@ export function OrganizationChatList({
                   label={getRoomDisplayName(room, currentUserId)}
                   isActive={activeRoomId === room.id}
                   leading={
-                    <DirectAvatarStack
+                    <DirectRoomAvatarStack
                       room={room}
                       currentUserId={currentUserId}
+                      canOpenHumanDirect={hasOrganization}
+                      selectedRoomId={activeRoomId}
                     />
                   }
                   onRoomUpdated={handleRoomUpdated}

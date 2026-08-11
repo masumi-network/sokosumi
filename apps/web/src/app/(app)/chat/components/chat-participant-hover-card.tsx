@@ -39,6 +39,11 @@ interface ChatParticipantHoverCardProps {
   isOpeningDirect?: boolean;
   /** True while any hover-card DM open is in flight (disables Message). */
   isDirectActionBusy?: boolean;
+  /**
+   * When false, the trigger is not a keyboard button (use when nested inside
+   * a link/row that already owns activation). Still hoverable.
+   */
+  interactive?: boolean;
 }
 
 interface TriggerChildProps {
@@ -55,11 +60,13 @@ function renderHoverTrigger({
   children,
   className,
   style,
+  interactive,
 }: {
   profileName: string;
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
+  interactive: boolean;
 }) {
   const childItems = Children.toArray(children).filter((child) => {
     if (typeof child === "string" || typeof child === "number") {
@@ -74,17 +81,43 @@ function renderHoverTrigger({
 
   if (singleChild) {
     return cloneElement(singleChild, {
-      role: singleChild.props.role ?? "button",
-      tabIndex: singleChild.props.tabIndex ?? 0,
-      "aria-label": singleChild.props["aria-label"] ?? profileName,
+      ...(interactive
+        ? {
+            role: singleChild.props.role ?? "button",
+            tabIndex: singleChild.props.tabIndex ?? 0,
+            // Named for keyboard focus; skip when nested in a link (row owns name).
+            "aria-label": singleChild.props["aria-label"] ?? profileName,
+          }
+        : {
+            // Strip focus semantics if the child brought them (e.g. nested in a link).
+            role: undefined,
+            tabIndex: undefined,
+            // Drop any child label so SRs don't double-speak the row link name.
+            "aria-label": undefined,
+          }),
       "aria-hidden": undefined,
       style: { ...singleChild.props.style, ...style },
       className: cn(
-        "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "cursor-pointer outline-none",
+        interactive && "focus-visible:ring-2 focus-visible:ring-ring",
         singleChild.props.className,
         className,
       ),
     });
+  }
+
+  if (!interactive) {
+    return (
+      <span
+        style={style}
+        className={cn(
+          "relative inline-flex w-fit max-w-full cursor-pointer self-start p-0 leading-none",
+          className,
+        )}
+      >
+        {children}
+      </span>
+    );
   }
 
   return (
@@ -115,6 +148,7 @@ export function ChatParticipantHoverCard({
   onOpenDirect,
   isOpeningDirect = false,
   isDirectActionBusy = false,
+  interactive = true,
 }: ChatParticipantHoverCardProps) {
   const t = useTranslations("App.Channels");
 
@@ -143,6 +177,7 @@ export function ChatParticipantHoverCard({
           children,
           className,
           style,
+          interactive,
         })}
       </HoverCardTrigger>
       <HoverCardContent
