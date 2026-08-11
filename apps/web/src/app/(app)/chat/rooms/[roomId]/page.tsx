@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import type {
   ChatRoom,
-  ChatRoomMessage,
   Coworker,
   Member,
   Organization,
@@ -56,19 +55,14 @@ function NoOrganizationCard({
   );
 }
 
-function RoomsClientFromShell({
-  shell,
-  messages,
-  messagesNextCursor,
-  messageLoadFailed,
-  messagesPending = false,
-}: {
-  shell: ChatRoomShellProps;
-  messages: ChatRoomMessage[];
-  messagesNextCursor: string | null;
-  messageLoadFailed: boolean;
-  messagesPending?: boolean;
-}) {
+/**
+ * Single RoomsClient instance: chrome mounts immediately; history arrives via
+ * a Server→Client promise + inner hydrator Suspense (no dual client remount).
+ */
+function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
+  // Do not await — pass the promise so the client shell can paint first.
+  const messagesPromise = loadRoomMessages(roomId);
+
   return (
     <RoomsClient
       activeOrganization={shell.activeOrganization}
@@ -79,53 +73,12 @@ function RoomsClientFromShell({
       selectedRoomId={shell.selectedRoomId}
       isCreateChannelRequested={false}
       isNewDirectMessage={false}
-      messageLoadFailed={messageLoadFailed}
+      messageLoadFailed={false}
       membersLoadFailed={shell.membersLoadFailed}
-      messages={messages}
-      messagesNextCursor={messagesNextCursor}
-      messagesPending={messagesPending}
+      messages={[]}
+      messagesNextCursor={null}
+      messagesPromise={messagesPromise}
     />
-  );
-}
-
-/**
- * Deferred history island. Streams in after the room chrome shell paints.
- * Soft-land for missing/non-member rooms happens in the shell, not here.
- */
-export async function ChatRoomWithMessages({
-  shell,
-  roomId,
-}: {
-  shell: ChatRoomShellProps;
-  roomId: string;
-}) {
-  const messagePage = await loadRoomMessages(roomId);
-  return (
-    <RoomsClientFromShell
-      shell={shell}
-      messages={messagePage.messages}
-      messagesNextCursor={messagePage.nextCursor}
-      messageLoadFailed={messagePage.failed}
-    />
-  );
-}
-
-/** Progressive room open: chrome shell first, history behind Suspense. */
-function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
-  return (
-    <Suspense
-      fallback={
-        <RoomsClientFromShell
-          shell={shell}
-          messages={[]}
-          messagesNextCursor={null}
-          messageLoadFailed={false}
-          messagesPending
-        />
-      }
-    >
-      <ChatRoomWithMessages shell={shell} roomId={roomId} />
-    </Suspense>
   );
 }
 
@@ -134,8 +87,8 @@ function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
  * full pagination blocked first paint after `/chat` → `/chat/rooms/{id}`.
  *
  * Progressive paint: resolve room chrome (header + composer) first; stream
- * message history behind an inner Suspense with a skeleton list fallback.
- * Never show invented or half-rendered message bodies.
+ * message history into the same RoomsClient via `messagesPromise`. Never show
+ * invented or half-rendered message bodies.
  *
  * Non-member / missing room → soft land on `/chat` (cutover design), not 404.
  */

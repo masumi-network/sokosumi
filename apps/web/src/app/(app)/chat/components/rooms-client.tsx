@@ -112,6 +112,10 @@ import {
 } from "./room-helpers";
 import { ChatMessageRow } from "./room-message-row";
 import {
+  type RoomMessagePage,
+  RoomMessagesHydrator,
+} from "./room-messages-hydrator";
+import {
   RoomSessionComposer,
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
@@ -137,8 +141,14 @@ interface RoomsClientProps {
   /**
    * Progressive open: shell (header + composer) is ready, history still loading.
    * Shows message-list skeleton — never fake or half-rendered message bodies.
+   * Prefer `messagesPromise` so one RoomsClient stays mounted while history streams.
    */
   messagesPending?: boolean;
+  /**
+   * Deferred initial history (Server → Client promise). Hydrates into this
+   * instance under an inner Suspense so chrome/composer do not remount.
+   */
+  messagesPromise?: Promise<RoomMessagePage>;
 }
 
 const COWORKER_RESPONSE_POLL_MS = 2500;
@@ -409,7 +419,8 @@ export function RoomsClient({
   membersLoadFailed,
   messages,
   messagesNextCursor,
-  messagesPending = false,
+  messagesPending: messagesPendingProp = false,
+  messagesPromise,
 }: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
@@ -430,6 +441,33 @@ export function RoomsClient({
   const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
     messagesNextCursor,
   );
+  /** True until `messagesPromise` hydrates (single-instance progressive open). */
+  const [deferredHistoryPending, setDeferredHistoryPending] = useState(
+    () => messagesPromise != null,
+  );
+  const [messageLoadFailedState, setMessageLoadFailedState] =
+    useState(messageLoadFailed);
+  const [syncedMessagesPromise, setSyncedMessagesPromise] =
+    useState(messagesPromise);
+  if (messagesPromise !== syncedMessagesPromise) {
+    setSyncedMessagesPromise(messagesPromise);
+    setDeferredHistoryPending(messagesPromise != null);
+    if (messagesPromise == null) {
+      setMessageLoadFailedState(messageLoadFailed);
+    }
+  }
+  const messagesPending = messagesPendingProp || deferredHistoryPending;
+  const effectiveMessageLoadFailed = messagesPending
+    ? false
+    : messageLoadFailedState;
+
+  const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
+    // Merge so optimistic sends / Ably rows that landed while pending survive.
+    setMessagesState((current) => mergeRoomMessages(current, page.messages));
+    setOlderNextCursor(page.nextCursor);
+    setMessageLoadFailedState(page.failed);
+    setDeferredHistoryPending(false);
+  }, []);
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
   const threadParentMessageRef = useRef<ChatRoomMessage | null>(null);
@@ -993,6 +1031,15 @@ export function RoomsClient({
   }
 
   useEffect(() => {
+    // Deferred promise path owns the first page until hydrate completes.
+    // Empty shell props must not wipe optimistic/realtime rows meanwhile.
+    if (deferredHistoryPending) {
+      // Keep room cursor aligned so the first post-hydrate sync is a merge,
+      // not a "channel switch" replace that would wipe hydrated messages.
+      syncedRoomIdRef.current = selectedRoomId;
+      return;
+    }
+
     const isChannelSwitch = syncedRoomIdRef.current !== selectedRoomId;
     syncedRoomIdRef.current = selectedRoomId;
 
@@ -1001,15 +1048,23 @@ export function RoomsClient({
     if (isChannelSwitch) {
       setMessagesState(messages);
       setOlderNextCursor(messagesNextCursor);
+      setMessageLoadFailedState(messageLoadFailed);
     } else {
       setMessagesState((current) => mergeRoomMessages(current, messages));
+      setMessageLoadFailedState(messageLoadFailed);
     }
     setThreadParentMessage((current) =>
       current
         ? (messages.find((message) => message.id === current.id) ?? current)
         : current,
     );
-  }, [messages, messagesNextCursor, selectedRoomId]);
+  }, [
+    deferredHistoryPending,
+    messageLoadFailed,
+    messages,
+    messagesNextCursor,
+    selectedRoomId,
+  ]);
 
   const latestTopLevelMessageId = displayMessages.at(-1)?.id ?? null;
   const latestOpenThreadMessageId = displayThreadMessages.at(-1)?.id ?? null;
@@ -1563,21 +1618,17 @@ export function RoomsClient({
 
   const handleChannelBeforeSend = useCallback(
     (clientMessageId: string) => {
-      // Progressive shell remounts when history resolves — do not send into a
-      // fallback instance whose optimistic state will be discarded.
-      if (messagesPending) return false;
       if (!selectedRoom) return false;
       if (shouldUseCoworkerRoomStream(selectedRoom)) return true;
       if (classicSendInFlightRef.current) return false;
       classicSendInFlightRef.current = clientMessageId;
       return true;
     },
-    [messagesPending, selectedRoom],
+    [selectedRoom],
   );
 
   const handleChannelSend = useCallback(
     async (request: RoomSessionSendRequest): Promise<RoomSessionSendResult> => {
-      if (messagesPending) return { ok: false };
       if (!selectedRoom) return { ok: false };
       const roomId = selectedRoom.id;
 
@@ -1639,7 +1690,6 @@ export function RoomsClient({
       });
     },
     [
-      messagesPending,
       partitionMentionIds,
       pinToBottomAfterOwnSend,
       selectedRoom,
@@ -1762,7 +1812,7 @@ export function RoomsClient({
       roomHeaderChrome
         ? createPortal(roomHeaderChrome, headerRoomSlotHost)
         : null}
-      {currentUserId && !messagesPending ? (
+      {currentUserId ? (
         <LazyAblyProvider>
           <RoomMessageRealtimeBridge
             roomIds={rooms.map((room) => room.id)}
@@ -1834,9 +1884,15 @@ export function RoomsClient({
                       : undefined
                   }
                 >
-                  {messagesPending ? (
+                  {messagesPromise ? (
+                    <RoomMessagesHydrator
+                      promise={messagesPromise}
+                      onResolved={handleDeferredHistoryResolved}
+                    />
+                  ) : null}
+                  {messagesPending && displayMessages.length === 0 ? (
                     <RoomMessageListSkeleton />
-                  ) : messageLoadFailed ? (
+                  ) : effectiveMessageLoadFailed ? (
                     <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
                       <p className="font-medium">
                         {t("Empty.messagesLoadFailedTitle")}
@@ -1875,7 +1931,7 @@ export function RoomsClient({
                       </Button>
                     </div>
                   )}
-                  {messagesPending
+                  {messagesPending && displayMessages.length === 0
                     ? null
                     : displayMessages.map((message, index) => {
                         const previousMessage = displayMessages[index - 1];
@@ -1975,13 +2031,11 @@ export function RoomsClient({
                         channel: selectedRoomDisplayName,
                       })
                 }
-                // Treat history-pending as in-flight so send is disabled without
-                // posting into a Suspense fallback that remounts on resolve.
-                isSending={isSending || isCoworkerStreaming || messagesPending}
+                isSending={isSending || isCoworkerStreaming}
                 showMentionShortcut={shouldShowRoomMentionShortcut(
                   selectedRoom,
                 )}
-                allowAttachments={!isCoworkerStreamRoom && !messagesPending}
+                allowAttachments={!isCoworkerStreamRoom}
                 pendingQuote={pendingQuote}
                 onClearPendingQuote={() => setPendingQuote(null)}
                 onRestorePendingQuote={setPendingQuote}

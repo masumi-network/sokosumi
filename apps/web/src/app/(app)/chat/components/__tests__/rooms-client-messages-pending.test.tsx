@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -214,12 +214,14 @@ function channelRoom(): ChatRoom {
   };
 }
 
-function sampleMessage(): ChatRoomMessage {
+function sampleMessage(
+  content = "SECRET_BODY_SHOULD_NOT_RENDER",
+): ChatRoomMessage {
   return {
     id: "msg-real",
     roomId: "room-channel",
     parentMessageId: null,
-    content: "SECRET_BODY_SHOULD_NOT_RENDER",
+    content,
     createdAt: new Date("2026-07-01T12:01:00.000Z"),
     editedAt: null,
     deletedAt: null,
@@ -250,50 +252,79 @@ const organization = {
   slug: "acme",
 } as Organization;
 
-describe("RoomsClient messagesPending progressive shell", () => {
+const baseProps = {
+  activeOrganization: organization,
+  rooms: [channelRoom()],
+  organizationMembers: [] as [],
+  currentUserId: "user-1",
+  coworkers: [] as [],
+  selectedRoomId: "room-channel",
+  isCreateChannelRequested: false,
+  isNewDirectMessage: false,
+  messageLoadFailed: false,
+  membersLoadFailed: false,
+  messages: [] as ChatRoomMessage[],
+  messagesNextCursor: null as string | null,
+};
+
+describe("RoomsClient progressive history (single instance)", () => {
   it("shows list skeleton and hides message bodies while history is pending", () => {
-    render(
-      <RoomsClient
-        activeOrganization={organization}
-        rooms={[channelRoom()]}
-        organizationMembers={[]}
-        currentUserId="user-1"
-        coworkers={[]}
-        selectedRoomId="room-channel"
-        isCreateChannelRequested={false}
-        isNewDirectMessage={false}
-        messageLoadFailed={false}
-        membersLoadFailed={false}
-        messages={[sampleMessage()]}
-        messagesNextCursor={null}
-        messagesPending
-      />,
-    );
+    render(<RoomsClient {...baseProps} messages={[]} messagesPending />);
 
     expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
     expect(screen.queryByTestId("chat-message-row")).toBeNull();
-    expect(screen.queryByText("SECRET_BODY_SHOULD_NOT_RENDER")).toBeNull();
+    // Composer stays mounted and send-enabled (no dual-mount discard risk).
     expect(screen.getByTestId("room-session-composer")).toHaveAttribute(
       "data-sending",
-      "true",
+      "false",
     );
+  });
+
+  it("hydrates messagesPromise into the same instance without invented bodies", async () => {
+    let resolvePage!: (page: {
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }) => void;
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>((resolve) => {
+      resolvePage = resolve;
+    });
+
+    render(<RoomsClient {...baseProps} messagesPromise={messagesPromise} />);
+
+    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
+    expect(screen.queryByTestId("chat-message-row")).toBeNull();
+    // Same composer host for pending and resolved — single instance.
+    const composer = screen.getByTestId("room-session-composer");
+    expect(composer).toBeTruthy();
+
+    await act(async () => {
+      resolvePage({
+        messages: [sampleMessage("hydrated history body")],
+        nextCursor: null,
+        failed: false,
+      });
+      await messagesPromise;
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
+    });
+    expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
+      "hydrated history body",
+    );
+    expect(screen.getByTestId("room-session-composer")).toBe(composer);
   });
 
   it("renders message bodies when history is ready", () => {
     render(
       <RoomsClient
-        activeOrganization={organization}
-        rooms={[channelRoom()]}
-        organizationMembers={[]}
-        currentUserId="user-1"
-        coworkers={[]}
-        selectedRoomId="room-channel"
-        isCreateChannelRequested={false}
-        isNewDirectMessage={false}
-        messageLoadFailed={false}
-        membersLoadFailed={false}
+        {...baseProps}
         messages={[sampleMessage()]}
-        messagesNextCursor={null}
         messagesPending={false}
       />,
     );
