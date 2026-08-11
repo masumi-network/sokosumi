@@ -1545,7 +1545,7 @@ export function ChatMessageRow({
               ) : (
                 <>
                   {thoughtView?.disclosure ? (
-                    <div className="mb-1.5">
+                    <div className="mb-1">
                       <CoworkerThoughtTrace
                         working={false}
                         headerLabel={
