@@ -1563,17 +1563,21 @@ export function RoomsClient({
 
   const handleChannelBeforeSend = useCallback(
     (clientMessageId: string) => {
+      // Progressive shell remounts when history resolves — do not send into a
+      // fallback instance whose optimistic state will be discarded.
+      if (messagesPending) return false;
       if (!selectedRoom) return false;
       if (shouldUseCoworkerRoomStream(selectedRoom)) return true;
       if (classicSendInFlightRef.current) return false;
       classicSendInFlightRef.current = clientMessageId;
       return true;
     },
-    [selectedRoom],
+    [messagesPending, selectedRoom],
   );
 
   const handleChannelSend = useCallback(
     async (request: RoomSessionSendRequest): Promise<RoomSessionSendResult> => {
+      if (messagesPending) return { ok: false };
       if (!selectedRoom) return { ok: false };
       const roomId = selectedRoom.id;
 
@@ -1635,6 +1639,7 @@ export function RoomsClient({
       });
     },
     [
+      messagesPending,
       partitionMentionIds,
       pinToBottomAfterOwnSend,
       selectedRoom,
@@ -1757,7 +1762,7 @@ export function RoomsClient({
       roomHeaderChrome
         ? createPortal(roomHeaderChrome, headerRoomSlotHost)
         : null}
-      {currentUserId ? (
+      {currentUserId && !messagesPending ? (
         <LazyAblyProvider>
           <RoomMessageRealtimeBridge
             roomIds={rooms.map((room) => room.id)}
@@ -1970,11 +1975,13 @@ export function RoomsClient({
                         channel: selectedRoomDisplayName,
                       })
                 }
-                isSending={isSending || isCoworkerStreaming}
+                // Treat history-pending as in-flight so send is disabled without
+                // posting into a Suspense fallback that remounts on resolve.
+                isSending={isSending || isCoworkerStreaming || messagesPending}
                 showMentionShortcut={shouldShowRoomMentionShortcut(
                   selectedRoom,
                 )}
-                allowAttachments={!isCoworkerStreamRoom}
+                allowAttachments={!isCoworkerStreamRoom && !messagesPending}
                 pendingQuote={pendingQuote}
                 onClearPendingQuote={() => setPendingQuote(null)}
                 onRestorePendingQuote={setPendingQuote}
