@@ -1,3 +1,5 @@
+import { Namefully } from "namefully";
+
 export function getFallbackUserName(email: string): string {
   const normalizedEmail = email.trim();
   const [prefix] = normalizedEmail.split("@");
@@ -13,4 +15,30 @@ export function getStoredUserName(
   const normalizedName = name?.trim();
 
   return normalizedName || getFallbackUserName(email);
+}
+
+/**
+ * Given name only (e.g. greetings). Uses namefully; mononyms supported.
+ * Returns undefined when input is blank or unparsable.
+ */
+export function getFirstName(
+  name: null | string | undefined,
+): string | undefined {
+  const normalized = name?.trim().replace(/\s+/g, " ");
+  if (!normalized) {
+    return undefined;
+  }
+
+  const parsed =
+    Namefully.tryParse(normalized) ??
+    (() => {
+      try {
+        return new Namefully(normalized, { mono: true });
+      } catch {
+        return undefined;
+      }
+    })();
+
+  const first = parsed?.first.trim();
+  return first || undefined;
 }

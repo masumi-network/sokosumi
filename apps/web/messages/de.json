@@ -1556,18 +1556,18 @@
       "Onboarding": {
         "openFab": "Coworker-Chat starten",
         "greeting": "Willkommen!",
-        "greetingWithName": "Willkommen {name}!",
-        "intentTitle": "Womit möchtest du starten?",
-        "intentDescription": "Wähle einen Schwerpunkt — wir empfehlen den passenden Coworker und Starter-Prompts.",
+        "greetingWithName": "Willkommen, {name}!",
+        "intentTitle": "Wofür bist du hier?",
+        "intentDescription": "Sag uns, woran du arbeitest — wir matchen dich mit dem richtigen Coworker und Starter-Prompts.",
         "intentChoices": {
           "chat": "Gespräch",
-          "tasks": "Aufgaben & Projekte",
+          "tasks": "Projekte & Aufgaben",
           "either": "Noch unsicher"
         },
         "intentChoiceHints": {
-          "chat": "Brainstormen, recherchieren oder Antworten im Dialog.",
-          "tasks": "Arbeit aufteilen, Fortschritt verfolgen oder ein Projekt voranbringen.",
-          "either": "Wir starten mit Elena und einer Einstiegsidee."
+          "chat": "Recherchieren, brainstormen oder etwas mit einem Coworker durchdenken.",
+          "tasks": "Arbeit aufteilen, einem Coworker zuweisen oder etwas voranbringen.",
+          "either": "Wir starten mit Elena, unserer Standard-KI-Coworkerin, und einer Idee zum Ausprobieren."
         },
         "goalTitle": "Starter-Prompt wählen oder selbst formulieren",
         "goalDescription": "Wähle einen Prompt, um deine erste Nachricht vorzufüllen, oder schreibe unten etwas Eigenes.",
