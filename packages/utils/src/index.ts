@@ -1,10 +1,12 @@
 export {
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeOrgPresenceChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
   parseChatRoomIdFromChannelName,
+  parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel.js";
 export {
   betterAuthOrganizationAdditionalFields,
@@ -33,6 +35,19 @@ export {
   type ChatMembershipRevokeReason,
 } from "./chat-membership-revoked.js";
 export {
+  ABLY_CLIENT_INSTANCE_ID_PATTERN,
+  ABLY_PRESENCE_CLIENT_ID_SEPARATOR,
+  aggregateChatPresenceByUserId,
+  buildAblyPresenceClientId,
+  type ChatPresenceMemberData,
+  type ChatPresenceState,
+  isValidAblyClientInstanceId,
+  type PresenceConnectionInput,
+  parseChatPresenceMemberData,
+  parseUserIdFromAblyPresenceClientId,
+  resolveUserChatPresence,
+} from "./chat-presence.js";
+export {
   CHAT_PRESENCE_AFK_WINDOW_MS,
   CHAT_PRESENCE_ONLINE_WINDOW_MS,
 } from "./chat-presence-windows.js";
@@ -56,10 +71,10 @@ export {
   type ChatRoomQuoteSnippetParts,
 } from "./chat-room-quote-snippet.js";
 export {
-  CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
-  CHAT_UI_NON_REASONING_PART_TYPES,
+  CHAT_UI_REASONING_PART_TYPE_VALUES,
+  CHAT_UI_REASONING_PART_TYPES,
   isChatUiProviderReasoningPartType,
-} from "./chat-ui-non-reasoning-part-types.js";
+} from "./chat-ui-reasoning-part-types.js";
 export {
   CORE_API_ERROR_KINDS,
   type CoreApiErrorKind,
