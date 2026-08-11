@@ -114,28 +114,14 @@ describe("HermesPage first paint + billing gate", () => {
   });
 
   it("returns Suspense shell without awaiting coverage or catalog", async () => {
-    let resolveCoverage!: (value: boolean) => void;
-    hasPaidPlanCoverageMock.mockReturnValue(
-      new Promise<boolean>((resolve) => {
-        resolveCoverage = resolve;
-      }),
-    );
-    getSubscriptionCatalogMock.mockReturnValue(
-      new Promise(() => {
-        /* intentionally never resolves during this assertion */
-      }),
-    );
-
+    // Assertion is "not called" — keep resolved mocks (no open-handle stubs).
     const { default: HermesPage } = await import("../page");
     const tree = await HermesPage();
 
-    // Shell returned while billing promises are still pending.
     expect(hasPaidPlanCoverageMock).not.toHaveBeenCalled();
     expect(getSubscriptionCatalogMock).not.toHaveBeenCalled();
+    expect(getMyMembersWithOrganizationsMock).not.toHaveBeenCalled();
     expect(isValidElement(tree)).toBe(true);
-
-    // Cleanup pending promise so Vitest does not hang on open handles.
-    resolveCoverage(false);
   });
 
   it("passes fail-closed hasActiveSubscription when coverage is false", async () => {
@@ -221,6 +207,57 @@ describe("HermesPage first paint + billing gate", () => {
     expect(element.props).toEqual(
       expect.objectContaining({
         hasActiveSubscription: true,
+      }),
+    );
+  });
+
+  it("empty wall plans when catalog fetch fails", async () => {
+    getSubscriptionCatalogMock.mockRejectedValue(new Error("catalog down"));
+    hasPaidPlanCoverageMock.mockResolvedValue(false);
+    const { HermesExperienceWithAccess } = await import("../page");
+
+    const element = await HermesExperienceWithAccess({
+      userId: "user-1",
+      userName: "Ada",
+      userEmail: "ada@example.com",
+      userImageUrl: null,
+      activeOrganizationId: "org-1",
+      userRole: "user",
+    });
+
+    expect(isValidElement(element)).toBe(true);
+    expect(element.props).toEqual(
+      expect.objectContaining({
+        hasActiveSubscription: false,
+        subscriptionWallPlans: [],
+      }),
+    );
+  });
+
+  it("memberships failure still probes coverage with empty org ids", async () => {
+    getMyMembersWithOrganizationsMock.mockRejectedValue(
+      new Error("memberships down"),
+    );
+    hasPaidPlanCoverageMock.mockResolvedValue(true);
+    const { HermesExperienceWithAccess } = await import("../page");
+
+    const element = await HermesExperienceWithAccess({
+      userId: "user-1",
+      userName: "Ada",
+      userEmail: "ada@example.com",
+      userImageUrl: null,
+      activeOrganizationId: null,
+      userRole: "user",
+    });
+
+    expect(hasPaidPlanCoverageMock).toHaveBeenCalledWith({
+      organizationIds: [],
+    });
+    expect(isValidElement(element)).toBe(true);
+    expect(element.props).toEqual(
+      expect.objectContaining({
+        hasActiveSubscription: true,
+        organizations: [],
       }),
     );
   });

@@ -37,6 +37,10 @@ interface HermesExperienceWithAccessProps {
  * so LoadingState paints before paid-plan coverage / catalog finish
  * (SOK-780). Fail-closed gate once resolved.
  */
+type MembershipList = Awaited<
+  ReturnType<typeof userService.getMyMembersWithOrganizations>
+>;
+
 export async function HermesExperienceWithAccess({
   userId,
   userName,
@@ -45,21 +49,20 @@ export async function HermesExperienceWithAccess({
   activeOrganizationId,
   userRole,
 }: HermesExperienceWithAccessProps) {
+  // Catalog does not need org IDs — start it with memberships so multi-org
+  // membership latency does not serialize catalog TTI after the shell.
+  const catalogPromise: Promise<GetSubscriptionCatalogResponse | null> = userId
+    ? coreClient.getSubscriptionCatalog().catch(() => null)
+    : Promise.resolve(null);
+
   // Org context for the confirmation-card dropdown (lets the user reroute
   // sokosumi_create_task / sokosumi_create_job into the right workspace
   // before approving). Empty list when not signed in or no memberships.
-  const memberships = userId
+  const memberships: MembershipList = userId
     ? await userService
         .getMyMembersWithOrganizations()
-        .catch(
-          () =>
-            [] as Awaited<
-              ReturnType<typeof userService.getMyMembersWithOrganizations>
-            >,
-        )
-    : ([] as Awaited<
-        ReturnType<typeof userService.getMyMembersWithOrganizations>
-      >);
+        .catch((): MembershipList => [])
+    : [];
   const organizations = memberships.map((m) => ({
     id: m.organization.id,
     name: m.organization.name,
@@ -74,13 +77,13 @@ export async function HermesExperienceWithAccess({
   // entirely so the team can set up and test instances without billing.
   // Coverage = personal Stripe plan OR any member org's billing plan
   // (enterprise contract or paid self-serve) — same rule as Core.
-  const [hasCoverage, catalogResultRaw] = await Promise.all([
+  const [hasCoverage, catalogResult] = await Promise.all([
     userId
       ? hasPaidPlanCoverage({
           organizationIds: memberships.map((m) => m.organization.id),
         })
       : Promise.resolve(false),
-    userId ? coreClient.getSubscriptionCatalog().catch(() => null) : null,
+    catalogPromise,
   ]);
   const hasActiveSubscription = resolveHermesHasActiveSubscription(
     hasCoverage,
@@ -90,8 +93,6 @@ export async function HermesExperienceWithAccess({
   // The 3 paid plans — gives the subscription wall real, clickable plan
   // links instead of a vague "upgrade to unlock". Best-effort: the wall
   // still works (minus the plan links) if the catalog fetch fails.
-  const catalogResult =
-    catalogResultRaw as GetSubscriptionCatalogResponse | null;
   const subscriptionWallPlans = buildSubscriptionWallPlans(catalogResult);
 
   return (
