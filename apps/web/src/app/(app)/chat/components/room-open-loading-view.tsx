@@ -1,26 +1,45 @@
 "use client";
 
-import { ALargeSmall, AtSign, Bold, Italic, Paperclip } from "lucide-react";
+import { ALargeSmall, AtSign, Paperclip, SmilePlus } from "lucide-react";
+import { useLayoutEffect, useState } from "react";
 
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS } from "@/app/chat/components/chat-mobile-tab-registry";
 import { RoomMessageListSkeleton } from "@/app/chat/components/room-message-list-skeleton";
+import {
+  getFormatToolbarOpenPreference,
+  resolveFormatToolbarOpenOnMount,
+} from "@/app/chat/utils/format-toolbar-preference-storage";
+import { ComposerFormatToolbar } from "@/components/chat/composer-format-toolbar";
 import {
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
   RoomMessageComposer,
 } from "@/components/chat/room-message-composer";
 import { Button } from "@/components/ui/button";
+import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 /**
  * Instant / Suspense fallback for room open: **real** composer chrome +
- * message-list skeleton. No full-page spinner and no pulse fake composer.
+ * message-list skeleton. Toolbars mirror live `RoomComposer` so shell paint
+ * does not swap icons (format strip + attach / Aa / emoji / mention).
  *
- * Sync-safe for Instant: no room data, cookies, or i18n. Disabled controls only.
- * Progressive shell swaps in room-aware header/composer after meta loads.
+ * No room data, cookies, or interaction — disabled controls only.
  */
 export function RoomOpenLoadingView(): React.ReactElement {
+  // Same default + layout-effect preference as live RoomComposer (SOK-681).
+  const [formatToolbarOpen, setFormatToolbarOpen] = useState(false);
+  useLayoutEffect(() => {
+    setFormatToolbarOpen(
+      resolveFormatToolbarOpenOnMount({
+        stored: getFormatToolbarOpenPreference(),
+        viewportWidth: window.innerWidth,
+        mobileBreakpoint: MOBILE_BREAKPOINT,
+      }),
+    );
+  }, []);
+
   return (
     <div
       data-testid="chat-room-loading"
@@ -43,96 +62,92 @@ export function RoomOpenLoadingView(): React.ReactElement {
         </div>
       </div>
 
-      <RoomMessageComposer
-        onSubmit={(event) => {
-          event.preventDefault();
-        }}
-        attachments={[]}
-        onRemoveAttachment={() => {
-          /* no-op: Instant shell is non-interactive */
-        }}
-        removeAttachmentLabel={() => ""}
-        isSending={false}
-        sendDisabled
-        sendAriaLabel="Send"
-        withOuterPadding={false}
-        withSafeAreaPadding
-        className="px-3 pt-2 md:px-5 md:pt-3"
-        aboveEditor={
-          // Desktop default often shows the format strip (SOK-681) — reserve
-          // the same row so shell paint does not grow the footer.
+      <div className="pointer-events-none" aria-hidden>
+        <RoomMessageComposer
+          onSubmit={(event) => {
+            event.preventDefault();
+          }}
+          attachments={[]}
+          onRemoveAttachment={() => {
+            /* no-op */
+          }}
+          removeAttachmentLabel={() => ""}
+          isSending={false}
+          sendDisabled
+          sendAriaLabel="Send"
+          withOuterPadding={false}
+          withSafeAreaPadding
+          className="px-3 pt-2 md:px-5 md:pt-3"
+          aboveEditor={
+            formatToolbarOpen ? (
+              <ComposerFormatToolbar
+                onFormat={() => {
+                  /* no-op */
+                }}
+                onLink={() => {
+                  /* no-op */
+                }}
+              />
+            ) : null
+          }
+          toolbarStart={
+            <>
+              {/* Order matches live RoomComposer: attach, Aa, emoji, mention */}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                disabled
+                tabIndex={-1}
+              >
+                <Paperclip className="size-4" aria-hidden />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME,
+                  formatToolbarOpen && "bg-muted text-foreground",
+                )}
+                disabled
+                tabIndex={-1}
+                aria-pressed={formatToolbarOpen}
+              >
+                <ALargeSmall className="size-4" aria-hidden />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                disabled
+                tabIndex={-1}
+              >
+                <SmilePlus className="size-4" aria-hidden />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                disabled
+                tabIndex={-1}
+              >
+                <AtSign className="size-4" aria-hidden />
+              </Button>
+            </>
+          }
+        >
           <div
-            className="border-border bg-muted/20 hidden items-center gap-0.5 overflow-x-auto border-b px-2 py-1.5 md:flex"
-            aria-hidden
-          >
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0"
-              disabled
-              tabIndex={-1}
-            >
-              <Bold className="size-4" aria-hidden />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8 shrink-0"
-              disabled
-              tabIndex={-1}
-            >
-              <Italic className="size-4" aria-hidden />
-            </Button>
-          </div>
-        }
-        toolbarStart={
-          <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-              disabled
-              tabIndex={-1}
-              aria-hidden
-            >
-              <Paperclip className="size-4" aria-hidden />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-              disabled
-              tabIndex={-1}
-              aria-hidden
-            >
-              <ALargeSmall className="size-4" aria-hidden />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
-              disabled
-              tabIndex={-1}
-              aria-hidden
-            >
-              <AtSign className="size-4" aria-hidden />
-            </Button>
-          </>
-        }
-      >
-        <div
-          className={cn(
-            ROOM_COMPOSER_TEXTAREA_CLASSNAME,
-            "pointer-events-none",
-          )}
-          aria-hidden
-        />
-      </RoomMessageComposer>
+            className={cn(
+              ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+              "pointer-events-none",
+            )}
+          />
+        </RoomMessageComposer>
+      </div>
     </div>
   );
 }
