@@ -185,4 +185,80 @@ describe("useOrgPresenceMap", () => {
       expect(getMock).toHaveBeenCalledWith("presence:org_active_org");
     });
   });
+
+  it("clears prior roster and unsubscribes when organization switches", async () => {
+    let resolveOrgBAuth: ((value: unknown) => void) | undefined;
+    authorizeMock
+      .mockResolvedValueOnce(tokenWithOrgs("org_a"))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveOrgBAuth = resolve;
+          }),
+      );
+
+    channelFor("presence:org_org_a").presence.get.mockResolvedValue([
+      {
+        // instance id must pass isValidAblyClientInstanceId (≥8 chars pattern)
+        clientId: "user_1:instanceA1",
+        data: { lastActiveAt: Date.now(), visible: true },
+      },
+    ]);
+
+    const { result, rerender } = renderHook(
+      ({ organizationId }: { organizationId: string }) =>
+        useOrgPresenceMap(organizationId),
+      { initialProps: { organizationId: "org_a" } },
+    );
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith("presence:org_org_a");
+      expect(result.current.size).toBeGreaterThan(0);
+    });
+
+    const orgAUnsubscribe =
+      channelFor("presence:org_org_a").presence.unsubscribe;
+
+    rerender({ organizationId: "org_b" });
+
+    // Effect entry clears roster before the deferred org_b authorize settles.
+    await waitFor(() => {
+      expect(result.current.size).toBe(0);
+      expect(orgAUnsubscribe).toHaveBeenCalled();
+    });
+    expect(getMock).not.toHaveBeenCalledWith("presence:org_org_b");
+
+    resolveOrgBAuth?.(tokenWithOrgs("org_b"));
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith("presence:org_org_b");
+      expect(
+        channelFor("presence:org_org_b").presence.subscribe,
+      ).toHaveBeenCalled();
+    });
+  });
+
+  it("tears down an attached channel when reconnect authorize fails", async () => {
+    authorizeMock
+      .mockResolvedValueOnce(tokenWithOrgs("active_org"))
+      .mockRejectedValueOnce(new Error("token refresh failed"));
+
+    const { result } = renderHook(() => useOrgPresenceMap("active_org"));
+
+    await waitFor(() => {
+      expect(getMock).toHaveBeenCalledWith("presence:org_active_org");
+      expect(
+        channelFor("presence:org_active_org").presence.subscribe,
+      ).toHaveBeenCalled();
+    });
+
+    const channel = channelFor("presence:org_active_org");
+    connectedHandler()?.();
+
+    await waitFor(() => {
+      expect(authorizeMock).toHaveBeenCalledTimes(2);
+      expect(channel.presence.unsubscribe).toHaveBeenCalled();
+      expect(result.current.size).toBe(0);
+    });
+  });
 });

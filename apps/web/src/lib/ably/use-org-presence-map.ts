@@ -155,6 +155,9 @@ export function useOrgPresenceMap(
       } catch (error) {
         if (!cancelled) {
           console.error("Ably authorize for presence map failed:", error);
+          // Prior successful attach must not keep handlers/interval/roster after
+          // a reconnect auth failure (REST fallback needs empty map).
+          tearDownSubscription();
         }
         return;
       }
