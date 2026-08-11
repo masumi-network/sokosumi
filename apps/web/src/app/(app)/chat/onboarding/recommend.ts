@@ -67,10 +67,11 @@ function findPreferredCoworker(
 }
 
 /**
- * Pure mapper. Prefer chat-capable for chat intent; tasks-capable for tasks;
- * either → prefer chat then tasks. preferredCoworkerSlug pins when found in
- * intent pool (then chat-capable / full pool). Else findDefaultCoworker.
- * Draft from goal freeform or intent label via DraftLabelBundle.
+ * Pure mapper. Confirm always opens a DM, so the pick is always chat-capable.
+ * Prefer intent-matching ∩ chat (tasks→tasks+chat, chat→chat, either→chat then
+ * tasks). preferredCoworkerSlug pins when found in those chat pools. Else
+ * findDefaultCoworker. Draft from goal freeform or intent label via
+ * DraftLabelBundle.
  */
 export function recommendFromAnswers(input: {
   answers: OnboardingAnswers;
@@ -84,17 +85,19 @@ export function recommendFromAnswers(input: {
   );
 
   const chatCapable = chatCapableCoworkers(coworkers);
+  // Intent pool may include tasks-only coworkers; intersect with chat so
+  // selectedCoworkerId matches ConfirmStep's chat-only gallery / ensure DM.
+  const intentAndChat = filtered.filter(coworkerCanChat);
   const pool =
-    filtered.length > 0
-      ? filtered
+    intentAndChat.length > 0
+      ? intentAndChat
       : chatCapable.length > 0
         ? chatCapable
-        : [...coworkers];
+        : [];
 
   const preferred = findPreferredCoworker(answers.preferredCoworkerSlug, [
-    filtered,
+    intentAndChat,
     chatCapable,
-    coworkers,
   ]);
   const picked = preferred ?? findDefaultCoworker(pool);
   const coworkerId = picked?.id ?? "";
@@ -106,7 +109,7 @@ export function recommendFromAnswers(input: {
     coworkerId,
     draftText,
     filterCapability:
-      filtered.length > 0
+      intentAndChat.length > 0
         ? filterCapability
         : chatCapable.length > 0
           ? "chat"

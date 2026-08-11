@@ -52,19 +52,25 @@ describe("recommendFromAnswers", () => {
     expect(result.draftText).toBe("Skipped draft");
   });
 
-  it("prefers tasks-capable coworker for tasks intent", () => {
+  it("prefers tasks+chat coworker for tasks intent (never tasks-only)", () => {
     const coworkers = [
       coworker({
-        id: "chat-1",
+        id: "chat-only",
         slug: "elena",
         capabilities: ["chat"],
         canChat: true,
       }),
       coworker({
-        id: "task-1",
-        slug: "alex",
+        id: "tasks-only",
+        slug: "tasky",
         capabilities: ["tasks"],
         canChat: false,
+      }),
+      coworker({
+        id: "tasks-and-chat",
+        slug: "alex",
+        capabilities: ["tasks", "chat"],
+        canChat: true,
       }),
     ];
 
@@ -74,9 +80,35 @@ describe("recommendFromAnswers", () => {
       draftLabels,
     });
 
-    expect(result.coworkerId).toBe("task-1");
+    expect(result.coworkerId).toBe("tasks-and-chat");
     expect(result.filterCapability).toBe("tasks");
     expect(result.draftText).toBe("Goal: Weekly update");
+  });
+
+  it("falls back to chat-capable when tasks intent has no tasks+chat coworker", () => {
+    const coworkers = [
+      coworker({
+        id: "tasks-only",
+        slug: "tasky",
+        capabilities: ["tasks"],
+        canChat: false,
+      }),
+      coworker({
+        id: "chat-1",
+        slug: "elena",
+        capabilities: ["chat"],
+        canChat: true,
+      }),
+    ];
+
+    const result = recommendFromAnswers({
+      answers: { intent: "tasks", goal: "Weekly update" },
+      coworkers,
+      draftLabels,
+    });
+
+    expect(result.coworkerId).toBe("chat-1");
+    expect(result.filterCapability).toBe("chat");
   });
 
   it("either prefers chat when available", () => {

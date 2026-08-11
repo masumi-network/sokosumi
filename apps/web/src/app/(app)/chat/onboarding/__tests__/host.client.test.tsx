@@ -176,12 +176,37 @@ describe("ChatOnboardingHost confirm", () => {
     expect(screen.getByText("draftWhenSkipped.either")).toBeTruthy();
   });
 
-  it("chat skip uses conversation help draft", async () => {
-    render(<ChatOnboardingHost coworkers={[coworker]} userName="Francis" />);
-    fireEvent.click(screen.getByLabelText(/intentChoices\.chat/i));
+  it("tasks skip opens ensure with chat coworker, not tasks-only recommendation", async () => {
+    const tasksOnly: Coworker = {
+      id: "tasks-only-id",
+      slug: "tasky",
+      name: "Tasky",
+      caption: "Tasks",
+      description: "Tasks only",
+      useCase: "",
+      capabilities: ["tasks"],
+      canChat: false,
+    };
+    ensureMock.mockResolvedValue({
+      ok: true,
+      data: { id: "room-1", kind: "direct" },
+    });
+    render(
+      <ChatOnboardingHost
+        coworkers={[tasksOnly, coworker]}
+        userName="Francis"
+      />,
+    );
+    fireEvent.click(screen.getByLabelText(/intentChoices\.tasks/i));
     fireEvent.click(screen.getByRole("button", { name: "next" }));
     fireEvent.click(screen.getByRole("button", { name: "skip" }));
     await screen.findByText("confirmTitle");
-    expect(screen.getByText("draftWhenSkipped.chat")).toBeTruthy();
+    expect(screen.getByTestId("gallery-card").textContent).toBe("Elena");
+
+    fireEvent.click(screen.getByRole("button", { name: "confirmCta" }));
+
+    await waitFor(() => {
+      expect(ensureMock).toHaveBeenCalledWith("elena-id");
+    });
   });
 });

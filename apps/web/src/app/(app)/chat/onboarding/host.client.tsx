@@ -88,9 +88,16 @@ export function ChatOnboardingHost({
     if (state.phase.kind !== "confirm") {
       return;
     }
-    const coworkerId = state.phase.selectedCoworkerId;
     const draftText = state.phase.recommendation.draftText;
-    if (!coworkerId || chatCapableCoworkers(coworkers).length === 0) {
+    const selectedId = state.phase.selectedCoworkerId;
+    // ConfirmStep gallery is chat-only; resolve selection against that pool so a
+    // stale non-chat selectedCoworkerId cannot call ensure on the wrong persona.
+    const chatCapable = chatCapableCoworkers(coworkers);
+    const coworkerId =
+      chatCapable.find((coworker) => coworker.id === selectedId)?.id ??
+      chatCapable[0]?.id ??
+      "";
+    if (!coworkerId) {
       toast.error(t("noChatCoworker"));
       return;
     }
