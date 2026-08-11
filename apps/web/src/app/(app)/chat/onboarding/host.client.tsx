@@ -1,5 +1,6 @@
 "use client";
 
+import { getFirstName } from "@sokosumi/utils";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useReducer, useState } from "react";
@@ -136,7 +137,7 @@ export function ChatOnboardingHost({
   }, [coworkers, router, state.phase, t]);
 
   // First name only — match Hermes welcome (full name feels heavy here).
-  const firstName = userName?.trim().split(/\s+/)[0];
+  const firstName = getFirstName(userName);
   const greeting = firstName
     ? t("greetingWithName", { name: firstName })
     : t("greeting");

@@ -141,6 +141,11 @@ describe("ChatOnboardingHost confirm", () => {
     expect(shell?.className).toContain("max-w-2xl");
   });
 
+  it("greeting uses first name only from a full name", () => {
+    render(<ChatOnboardingHost coworkers={[coworker]} userName="Alexa Kuk" />);
+    expect(screen.getByText("hi Alexa")).toBeTruthy();
+  });
+
   it("goal step shows try-asking samples and or divider", async () => {
     render(<ChatOnboardingHost coworkers={[coworker]} userName="Francis" />);
     fireEvent.click(screen.getByLabelText(/intentChoices\.either/i));
