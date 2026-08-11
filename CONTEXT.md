@@ -38,6 +38,28 @@ _Avoid_: Sidebar rooms, room list (when meaning who is in the room)
 The event that the current user is no longer a member of a room — by remote removal (kick / roster remove) or by voluntary leave. After revoke they must not remain in membership-visible rooms for that room.
 _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room membership)
 
+### Chat presence
+
+**Presence**:
+Whether a human participant is currently reachable on the product — they have at least one live client connection. App-global (any Sokosumi surface with a live connection), not room-scoped. Multi-device: any connected device makes the person reachable (aggregate by user, not by single connection id).
+_Avoid_: Session freshness, last seen (that is a separate timestamp), membership, Ably channel subscribe alone without a presence signal, equating one connection id with one human
+
+**Online**:
+Presence state: reachable and recently active in a connected client.
+_Avoid_: Logged in, has session, has unread
+
+**AFK**:
+Presence state: reachable (still connected) but idle — no recent activity on any connected client that counts for activity.
+_Avoid_: Offline, invisible, away (unless product renames the label)
+
+**Offline**:
+Presence state: not reachable — no live client connection (after any disconnect grace the system applies).
+_Avoid_: AFK, logged out (logout implies offline but offline does not require logout)
+
+**Last seen**:
+A coarse timestamp of recent session activity (e.g. org members table). Not the same concept as Presence; must not drive green-dot Online/AFK/Offline.
+_Avoid_: Presence, online status
+
 ### Chat coworker thought
 
 **Mention status**:

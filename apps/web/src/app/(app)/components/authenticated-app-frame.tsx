@@ -6,6 +6,7 @@ import { AccountNoticeProvider } from "@/contexts/account-notice-provider";
 import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-context";
 import { CoworkersProvider } from "@/contexts/coworkers-context";
 import { NotificationProvider } from "@/contexts/notification-provider";
+import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import type { Notice } from "@/lib/clients/generated/core";
@@ -40,73 +41,73 @@ export default async function AuthenticatedAppFrame({
     (session.user as typeof session.user & { role?: string | null }).role,
   );
 
+  const activeOrganizationId = session.session.activeOrganizationId ?? null;
+
   return (
     <NotificationProvider userId={session.user.id}>
-      <AccountNoticeProvider notice={null} sessionId={session.session.id}>
-        <CoworkersProvider initialCoworkers={EMPTY_COWORKERS}>
-          <NoticeDialogProvider
-            legalNotices={EMPTY_NOTICES}
-            announcementNotices={EMPTY_NOTICES}
-          >
-            <NotificationToaster />
-            <LoginAccountNoticeToast />
-            <HistorySearchDialogProvider
-              activeOrganizationId={
-                session.session.activeOrganizationId ?? null
-              }
+      <OrgPresenceProvider organizationId={activeOrganizationId}>
+        <AccountNoticeProvider notice={null} sessionId={session.session.id}>
+          <CoworkersProvider initialCoworkers={EMPTY_COWORKERS}>
+            <NoticeDialogProvider
+              legalNotices={EMPTY_NOTICES}
+              announcementNotices={EMPTY_NOTICES}
             >
-              <BreadcrumbOverrideProvider>
-                <Suspense fallback={<AppSidebarFallback />}>
-                  <PrivateCachedAppSidebar
-                    sessionUser={session.user}
-                    activeOrganizationId={
-                      session.session.activeOrganizationId ?? null
-                    }
-                    adminMenuEnabled={adminMenuEnabled}
-                  />
-                </Suspense>
-                <Suspense fallback={null}>
-                  <AppShellOverlays session={session} />
-                </Suspense>
-                <div
-                  className="flex min-w-0 flex-1 overflow-clip"
-                  data-app-content
-                >
-                  <div
-                    className="flex min-w-0 flex-1 flex-col overflow-clip"
-                    data-app-content-inner
-                  >
-                    <Header
-                      // Horizontal pad only on md: vertical py would fight the
-                      // shared h-16 hairline with SidebarHeader.
-                      className="px-4 py-3 md:px-4 md:py-0"
-                      session={session}
+              <NotificationToaster />
+              <LoginAccountNoticeToast />
+              <HistorySearchDialogProvider
+                activeOrganizationId={activeOrganizationId}
+              >
+                <BreadcrumbOverrideProvider>
+                  <Suspense fallback={<AppSidebarFallback />}>
+                    <PrivateCachedAppSidebar
+                      sessionUser={session.user}
+                      activeOrganizationId={activeOrganizationId}
                       adminMenuEnabled={adminMenuEnabled}
                     />
-                    <main
-                      className={cn(
-                        "relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",
-                        APP_MAIN_MOBILE_PT_CLASS,
-                        APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
-                        APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
-                      )}
-                      data-app-main
+                  </Suspense>
+                  <Suspense fallback={null}>
+                    <AppShellOverlays session={session} />
+                  </Suspense>
+                  <div
+                    className="flex min-w-0 flex-1 overflow-clip"
+                    data-app-content
+                  >
+                    <div
+                      className="flex min-w-0 flex-1 flex-col overflow-clip"
+                      data-app-content-inner
                     >
-                      <EmergencyDialog />
-                      <div
-                        className="flex min-h-full flex-1 flex-col overflow-visible"
-                        data-app-main-inner
+                      <Header
+                        // Horizontal pad only on md: vertical py would fight the
+                        // shared h-16 hairline with SidebarHeader.
+                        className="px-4 py-3 md:px-4 md:py-0"
+                        session={session}
+                        adminMenuEnabled={adminMenuEnabled}
+                      />
+                      <main
+                        className={cn(
+                          "relative flex max-h-svh min-h-svh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 md:pt-4",
+                          APP_MAIN_MOBILE_PT_CLASS,
+                          APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
+                          APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
+                        )}
+                        data-app-main
                       >
-                        <AppMobileChrome>{children}</AppMobileChrome>
-                      </div>
-                    </main>
+                        <EmergencyDialog />
+                        <div
+                          className="flex min-h-full flex-1 flex-col overflow-visible"
+                          data-app-main-inner
+                        >
+                          <AppMobileChrome>{children}</AppMobileChrome>
+                        </div>
+                      </main>
+                    </div>
                   </div>
-                </div>
-              </BreadcrumbOverrideProvider>
-            </HistorySearchDialogProvider>
-          </NoticeDialogProvider>
-        </CoworkersProvider>
-      </AccountNoticeProvider>
+                </BreadcrumbOverrideProvider>
+              </HistorySearchDialogProvider>
+            </NoticeDialogProvider>
+          </CoworkersProvider>
+        </AccountNoticeProvider>
+      </OrgPresenceProvider>
     </NotificationProvider>
   );
 }

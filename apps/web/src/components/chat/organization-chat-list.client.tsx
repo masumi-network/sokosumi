@@ -26,7 +26,7 @@ import {
   getDirectRoomParticipants,
   getRoomDisplayName,
 } from "@/app/chat/components/room-helpers";
-import { PresenceDot } from "@/components/chat/presence-dot";
+import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,7 +60,7 @@ import {
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useChatUnreadDocumentTitle } from "@/hooks/use-chat-unread-document-title";
 import { useChatMembershipRevokedControl } from "@/lib/ably/use-chat-membership-revoked-control";
-import type { ChatRoom, ChatRoomPresence } from "@/lib/clients/generated/core";
+import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { ChannelDiscoverabilityIcon } from "./channel-discoverability-icon";
@@ -123,21 +123,6 @@ interface OrganizationChatListProps {
   dismissSheetOnNavigate?: boolean;
 }
 
-function presenceLabel(
-  t: ReturnType<typeof useTranslations<"App.Channels">>,
-  presence: ChatRoomPresence,
-) {
-  if (presence === "online") {
-    return t("Presence.online");
-  }
-
-  if (presence === "afk") {
-    return t("Presence.afk");
-  }
-
-  return t("Presence.offline");
-}
-
 function DirectAvatarStack({
   room,
   currentUserId,
@@ -145,7 +130,6 @@ function DirectAvatarStack({
   room: ChatRoom;
   currentUserId: string;
 }) {
-  const t = useTranslations("App.Channels");
   const participants = getDirectRoomParticipants(room, currentUserId).slice(
     0,
     3,
@@ -176,10 +160,11 @@ function DirectAvatarStack({
               {getInitials(participant.name)}
             </AvatarFallback>
           </Avatar>
-          <PresenceDot
+          <LiveMemberPresenceDot
             className="-right-0.5 -bottom-0.5 absolute size-2"
-            label={presenceLabel(t, participant.presence)}
-            presence={participant.presence}
+            fallback={participant.presence}
+            isCoworker={participant.kind === "coworker"}
+            userId={participant.id}
           />
         </span>
       ))}
