@@ -5,16 +5,14 @@ const MESSAGE_SKELETON_ROWS = 6;
 
 /**
  * Outer padding for room message list content (skeleton + live).
- * Instant loading and progressive shell must share this exactly so the gap
- * above the composer does not shrink on paint swaps.
+ * Instant loading and progressive shell must share this exactly.
  */
 export const ROOM_MESSAGE_LIST_CONTENT_CLASSNAME =
   "flex min-h-full min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0";
 
 /**
- * Message-list only skeleton for progressive room open.
- * Real header + composer paint with the shell; only history is deferred.
- * No extra padding — parent uses ROOM_MESSAGE_LIST_CONTENT_CLASSNAME.
+ * Message-list only skeleton. Left-aligned rows only (matches live room
+ * transcript — no right-aligned “own message” bones).
  */
 export function RoomMessageListSkeleton({
   className,
@@ -29,13 +27,7 @@ export function RoomMessageListSkeleton({
       aria-hidden
     >
       {Array.from({ length: MESSAGE_SKELETON_ROWS }, (_, index) => (
-        <div
-          key={index}
-          className={cn(
-            "flex gap-3",
-            index % 3 === 1 ? "flex-row-reverse" : "flex-row",
-          )}
-        >
+        <div key={index} className="flex flex-row gap-3">
           <Skeleton className="size-8 shrink-0 rounded-full" />
           <div
             className={cn(

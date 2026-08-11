@@ -23,7 +23,6 @@ import {
   sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
-import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
@@ -110,10 +109,7 @@ import {
   shouldShowRoomMentionShortcut,
   shouldUseCoworkerRoomStream,
 } from "./room-helpers";
-import {
-  ROOM_MESSAGE_LIST_CONTENT_CLASSNAME,
-  RoomMessageListSkeleton,
-} from "./room-message-list-skeleton";
+import { RoomMessageListSkeleton } from "./room-message-list-skeleton";
 import { ChatMessageRow } from "./room-message-row";
 import {
   type RoomMessagePage,
@@ -124,6 +120,11 @@ import {
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
 } from "./room-session-composer";
+import {
+  ROOM_SHELL_COLUMN_CLASSNAME,
+  ROOM_SHELL_ROOT_CLASSNAME,
+  RoomShellLayout,
+} from "./room-shell-layout";
 import { ThreadPanel } from "./thread-panel";
 
 interface RoomsClientProps {
@@ -1804,283 +1805,201 @@ export function RoomsClient({
       />
     ) : null;
 
-  return (
-    <div
-      className={cn(
-        "-m-4 flex min-h-0 min-w-0 flex-col overflow-hidden bg-background",
-        chatMobileHeightShellClass(pathname, isApple, searchParams),
-      )}
-    >
-      {selectedRoom &&
-      isMobile === true &&
-      headerRoomSlotHost &&
-      roomHeaderChrome
-        ? createPortal(roomHeaderChrome, headerRoomSlotHost)
-        : null}
-      {currentUserId ? (
-        <LazyAblyProvider>
-          <RoomMessageRealtimeBridge
-            roomIds={rooms.map((room) => room.id)}
-            currentUserId={currentUserId}
-            selectedRoomId={selectedRoomId}
-            onMessage={handleChatRoomRealtimeMessage}
+  if (selectedRoom) {
+    const openRoomListBody = (
+      <>
+        {messagesPromise ? (
+          <RoomMessagesHydrator
+            promise={messagesPromise}
+            onResolved={handleDeferredHistoryResolved}
           />
-        </LazyAblyProvider>
-      ) : null}
-      {/* `relative` anchors the thread panel's mobile full-screen takeover. */}
-      <main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-          {isCreateChannelRequested ? (
-            <>
-              <div className="flex flex-1 items-center justify-center p-6">
-                <div className="border-border/70 bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">
-                  <Hash className="text-muted-foreground mx-auto size-8" />
-                  <h2 className="mt-4 text-lg font-semibold">
-                    {t("Empty.noChannelTitle")}
-                  </h2>
-                  <p className="text-muted-foreground mt-2 text-sm">
-                    {t("Empty.noChannelDescription")}
-                  </p>
+        ) : null}
+        {messagesPending && displayMessages.length === 0 ? (
+          <RoomMessageListSkeleton />
+        ) : effectiveMessageLoadFailed ? (
+          <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
+            <p className="font-medium">{t("Empty.messagesLoadFailedTitle")}</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {t("Empty.messagesLoadFailedDescription")}
+            </p>
+          </div>
+        ) : displayMessages.length === 0 ? (
+          <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
+            <p className="font-medium">{t("Empty.noMessagesTitle")}</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {t("Empty.noMessagesDescription")}
+            </p>
+          </div>
+        ) : null}
+        {messagesPending || !olderNextCursor ? null : (
+          <div className="mb-4 flex justify-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isLoadingOlder}
+              onClick={handleLoadOlderMessages}
+            >
+              {isLoadingOlder ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  {t("loadingOlder")}
+                </>
+              ) : (
+                t("loadOlder")
+              )}
+            </Button>
+          </div>
+        )}
+        {messagesPending && displayMessages.length === 0
+          ? null
+          : displayMessages.map((message, index) => {
+              const previousMessage = displayMessages[index - 1];
+              const showDaySeparator =
+                localCalendarReady &&
+                (!previousMessage ||
+                  messageDayKey(previousMessage.createdAt) !==
+                    messageDayKey(message.createdAt));
+              const isStreamOverlay = message.id.startsWith("stream:");
+              return (
+                <div key={message.id} className="min-w-0">
+                  {showDaySeparator ? (
+                    <DaySeparator
+                      date={new Date(message.createdAt)}
+                      formatDaySeparator={formatDaySeparator}
+                    />
+                  ) : null}
+                  {message.membership != null ? (
+                    <MembershipStatusRow message={message} />
+                  ) : (
+                    <ChatMessageRow
+                      message={message}
+                      coworkersById={coworkersById}
+                      coworkersBySlug={coworkersBySlug}
+                      usersById={usersById}
+                      usersBySlug={usersBySlug}
+                      currentUserId={currentUserId}
+                      canOpenHumanDirect={canOpenHumanDirect}
+                      onOpenDirectMessage={handleOpenDirectMessage}
+                      openingDirectParticipantKey={openingDirectKey}
+                      onToggleReaction={handleToggleReaction}
+                      onOpenThread={
+                        shouldShowChatRoomThreadButton({
+                          room: selectedRoom,
+                          isStreamOverlay,
+                        })
+                          ? loadThreadMessages
+                          : undefined
+                      }
+                      onQuote={handleQuoteMessage}
+                      onStartEdit={handleStartEdit}
+                      onDelete={handleDeleteMessage}
+                      isEditing={editSession?.messageId === message.id}
+                      editDraft={
+                        editSession?.messageId === message.id
+                          ? editSession.draft
+                          : ""
+                      }
+                      onEditDraftChange={handleEditDraftChange}
+                      onCancelEdit={handleCancelEdit}
+                      onSaveEdit={handleSaveEdit}
+                      isSavingEdit={
+                        isSavingEdit && editSession?.messageId === message.id
+                      }
+                      showThreadButton={shouldShowChatRoomThreadButton({
+                        room: selectedRoom,
+                        isStreamOverlay,
+                      })}
+                      isFirstOfDay={showDaySeparator}
+                      isContinuation={
+                        localCalendarReady &&
+                        !showDaySeparator &&
+                        isMessageContinuation(previousMessage, message)
+                      }
+                    />
+                  )}
                 </div>
-              </div>
-              <CreateChannelDialog
-                key="create-channel"
-                open={isCreateChannelRequested}
-                members={organizationMembers}
-                coworkers={coworkers}
-                organizationName={activeOrganization?.name ?? ""}
-                membersLoadFailed={membersLoadFailed}
-                canCreateExternal={isOrgOwnerOrAdmin}
-              />
-            </>
-          ) : isNewDirectMessage ? (
-            <DraftDirectMessage
-              members={organizationMembers}
-              coworkers={coworkers}
-              currentUserId={currentUserId}
-              canCreateRoomDirect={activeOrganization != null}
-              membersLoadFailed={membersLoadFailed}
-            />
-          ) : selectedRoom ? (
+              );
+            })}
+      </>
+    );
+
+    return (
+      <>
+        {isMobile === true && headerRoomSlotHost && roomHeaderChrome
+          ? createPortal(roomHeaderChrome, headerRoomSlotHost)
+          : null}
+        <RoomShellLayout
+          rootClassName={cn(
+            ROOM_SHELL_ROOT_CLASSNAME,
+            chatMobileHeightShellClass(pathname, isApple, searchParams),
+          )}
+          beforeMain={
+            currentUserId ? (
+              <LazyAblyProvider>
+                <RoomMessageRealtimeBridge
+                  roomIds={rooms.map((room) => room.id)}
+                  currentUserId={currentUserId}
+                  selectedRoomId={selectedRoomId}
+                  onMessage={handleChatRoomRealtimeMessage}
+                />
+              </LazyAblyProvider>
+            ) : null
+          }
+          reserveDesktopHeader
+          desktopHeader={
+            isMobile === false && roomHeaderChrome ? roomHeaderChrome : null
+          }
+          wrapColumn={(columnBody) => (
             <RoomFileDropZone
               enabled={!isCoworkerStreamRoom}
               onFiles={(files) => {
                 roomComposerRef.current?.attachFiles(files);
               }}
               label={t("Toolbar.dropToAttach")}
-              className="flex min-h-0 min-w-0 flex-1 flex-col"
+              className={ROOM_SHELL_COLUMN_CLASSNAME}
             >
-              {isMobile === false && roomHeaderChrome ? (
-                <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
-                  {roomHeaderChrome}
-                </header>
-              ) : null}
-
-              <div
-                ref={scrollerRef}
-                className={cn(
-                  CHAT_MESSAGE_LIST_SCROLLER_CLASS,
-                  "flex flex-col",
-                )}
-              >
-                <div
-                  ref={contentRef}
-                  className={ROOM_MESSAGE_LIST_CONTENT_CLASSNAME}
-                  style={
-                    // Pixel minHeight only after measure; class always has
-                    // min-h-full so Instant / pending / live share the same
-                    // padding and bottom gap to the composer.
-                    contentMinHeight != null
-                      ? { minHeight: contentMinHeight }
-                      : undefined
-                  }
-                >
-                  {messagesPromise ? (
-                    <RoomMessagesHydrator
-                      promise={messagesPromise}
-                      onResolved={handleDeferredHistoryResolved}
-                    />
-                  ) : null}
-                  {messagesPending && displayMessages.length === 0 ? (
-                    <RoomMessageListSkeleton />
-                  ) : effectiveMessageLoadFailed ? (
-                    <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
-                      <p className="font-medium">
-                        {t("Empty.messagesLoadFailedTitle")}
-                      </p>
-                      <p className="text-muted-foreground mt-1 text-sm">
-                        {t("Empty.messagesLoadFailedDescription")}
-                      </p>
-                    </div>
-                  ) : displayMessages.length === 0 ? (
-                    <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
-                      <p className="font-medium">
-                        {t("Empty.noMessagesTitle")}
-                      </p>
-                      <p className="text-muted-foreground mt-1 text-sm">
-                        {t("Empty.noMessagesDescription")}
-                      </p>
-                    </div>
-                  ) : null}
-                  {messagesPending || !olderNextCursor ? null : (
-                    <div className="mb-4 flex justify-center">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={isLoadingOlder}
-                        onClick={handleLoadOlderMessages}
-                      >
-                        {isLoadingOlder ? (
-                          <>
-                            <Loader2 className="size-4 animate-spin" />
-                            {t("loadingOlder")}
-                          </>
-                        ) : (
-                          t("loadOlder")
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                  {messagesPending && displayMessages.length === 0
-                    ? null
-                    : displayMessages.map((message, index) => {
-                        const previousMessage = displayMessages[index - 1];
-                        // Local calendar day keys differ UTC (SSR) vs browser TZ —
-                        // only insert separators / regroup after mount.
-                        const showDaySeparator =
-                          localCalendarReady &&
-                          (!previousMessage ||
-                            messageDayKey(previousMessage.createdAt) !==
-                              messageDayKey(message.createdAt));
-                        const isStreamOverlay =
-                          message.id.startsWith("stream:");
-                        return (
-                          <div key={message.id} className="min-w-0">
-                            {showDaySeparator ? (
-                              <DaySeparator
-                                date={new Date(message.createdAt)}
-                                formatDaySeparator={formatDaySeparator}
-                              />
-                            ) : null}
-                            {message.membership != null ? (
-                              <MembershipStatusRow message={message} />
-                            ) : (
-                              <ChatMessageRow
-                                message={message}
-                                coworkersById={coworkersById}
-                                coworkersBySlug={coworkersBySlug}
-                                usersById={usersById}
-                                usersBySlug={usersBySlug}
-                                currentUserId={currentUserId}
-                                canOpenHumanDirect={canOpenHumanDirect}
-                                onOpenDirectMessage={handleOpenDirectMessage}
-                                openingDirectParticipantKey={openingDirectKey}
-                                onToggleReaction={handleToggleReaction}
-                                onOpenThread={
-                                  shouldShowChatRoomThreadButton({
-                                    room: selectedRoom,
-                                    isStreamOverlay,
-                                  })
-                                    ? loadThreadMessages
-                                    : undefined
-                                }
-                                onQuote={handleQuoteMessage}
-                                onStartEdit={handleStartEdit}
-                                onDelete={handleDeleteMessage}
-                                isEditing={
-                                  editSession?.messageId === message.id
-                                }
-                                editDraft={
-                                  editSession?.messageId === message.id
-                                    ? editSession.draft
-                                    : ""
-                                }
-                                onEditDraftChange={handleEditDraftChange}
-                                onCancelEdit={handleCancelEdit}
-                                onSaveEdit={handleSaveEdit}
-                                isSavingEdit={
-                                  isSavingEdit &&
-                                  editSession?.messageId === message.id
-                                }
-                                // Stream overlays never show thread chrome.
-                                showThreadButton={shouldShowChatRoomThreadButton(
-                                  {
-                                    room: selectedRoom,
-                                    isStreamOverlay,
-                                  },
-                                )}
-                                isFirstOfDay={showDaySeparator}
-                                isContinuation={
-                                  localCalendarReady &&
-                                  !showDaySeparator &&
-                                  isMessageContinuation(
-                                    previousMessage,
-                                    message,
-                                  )
-                                }
-                              />
-                            )}
-                          </div>
-                        );
-                      })}
-                </div>
-              </div>
-
-              <RoomSessionComposer
-                key={selectedRoom.id}
-                ref={roomComposerRef}
-                roomId={selectedRoom.id}
-                draftKey={composeDraftKey.room(selectedRoom.id)}
-                mentions={mentionRecords}
-                placeholder={
-                  isDirectRoom
-                    ? t("directComposerPlaceholder", {
-                        member: selectedRoomDisplayName,
-                      })
-                    : t("composerPlaceholderWithChannel", {
-                        channel: selectedRoomDisplayName,
-                      })
-                }
-                isSending={isSending || isCoworkerStreaming}
-                showMentionShortcut={shouldShowRoomMentionShortcut(
-                  selectedRoom,
-                )}
-                allowAttachments={!isCoworkerStreamRoom}
-                pendingQuote={pendingQuote}
-                onClearPendingQuote={() => setPendingQuote(null)}
-                onRestorePendingQuote={setPendingQuote}
-                onChromeResize={scrollToBottomIfPinned}
-                // After history: autofocus. While list skeletons, keep keyboard off.
-                focusOnMount={!messagesPending}
-                onBeforeSend={handleChannelBeforeSend}
-                onSend={handleChannelSend}
-              />
+              {columnBody}
             </RoomFileDropZone>
-          ) : (
-            <div className="flex flex-1 items-center justify-center p-6">
-              <div className="border-border/70 bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">
-                <Hash className="text-muted-foreground mx-auto size-8" />
-                <h2 className="mt-4 text-lg font-semibold">
-                  {t("Empty.noChannelTitle")}
-                </h2>
-                <p className="text-muted-foreground mt-2 text-sm">
-                  {t("Empty.noChannelDescription")}
-                </p>
-                <div className="mt-5">
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => router.push("/chat?create=channel")}
-                  >
-                    {t("createChannel")}
-                  </Button>
-                </div>
-              </div>
-            </div>
           )}
-        </section>
-        {selectedRoom && threadParentMessage ? (
+          listScrollerRef={scrollerRef}
+          listContentRef={contentRef}
+          listContentStyle={
+            contentMinHeight != null
+              ? { minHeight: contentMinHeight }
+              : undefined
+          }
+          listContent={openRoomListBody}
+          composer={
+            <RoomSessionComposer
+              key={selectedRoom.id}
+              ref={roomComposerRef}
+              roomId={selectedRoom.id}
+              draftKey={composeDraftKey.room(selectedRoom.id)}
+              mentions={mentionRecords}
+              placeholder={
+                isDirectRoom
+                  ? t("directComposerPlaceholder", {
+                      member: selectedRoomDisplayName,
+                    })
+                  : t("composerPlaceholderWithChannel", {
+                      channel: selectedRoomDisplayName,
+                    })
+              }
+              isSending={isSending || isCoworkerStreaming}
+              showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
+              allowAttachments={!isCoworkerStreamRoom}
+              pendingQuote={pendingQuote}
+              onClearPendingQuote={() => setPendingQuote(null)}
+              onRestorePendingQuote={setPendingQuote}
+              onChromeResize={scrollToBottomIfPinned}
+              focusOnMount={!messagesPending}
+              onBeforeSend={handleChannelBeforeSend}
+              onSend={handleChannelSend}
+            />
+          }
+        />
+        {threadParentMessage ? (
           <ThreadPanel
             parentMessage={threadParentMessage}
             replies={displayThreadMessages}
@@ -2130,6 +2049,74 @@ export function RoomsClient({
             roomId={selectedRoom.id}
           />
         ) : null}
+      </>
+    );
+  }
+
+  // Create-channel / new-DM / empty selection — unchanged non-room surfaces.
+  return (
+    <div
+      className={cn(
+        ROOM_SHELL_ROOT_CLASSNAME,
+        chatMobileHeightShellClass(pathname, isApple, searchParams),
+      )}
+    >
+      <main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {isCreateChannelRequested ? (
+            <>
+              <div className="flex flex-1 items-center justify-center p-6">
+                <div className="border-border/70 bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">
+                  <Hash className="text-muted-foreground mx-auto size-8" />
+                  <h2 className="mt-4 text-lg font-semibold">
+                    {t("Empty.noChannelTitle")}
+                  </h2>
+                  <p className="text-muted-foreground mt-2 text-sm">
+                    {t("Empty.noChannelDescription")}
+                  </p>
+                </div>
+              </div>
+              <CreateChannelDialog
+                key="create-channel"
+                open={isCreateChannelRequested}
+                members={organizationMembers}
+                coworkers={coworkers}
+                organizationName={activeOrganization?.name ?? ""}
+                membersLoadFailed={membersLoadFailed}
+                canCreateExternal={isOrgOwnerOrAdmin}
+              />
+            </>
+          ) : isNewDirectMessage ? (
+            <DraftDirectMessage
+              members={organizationMembers}
+              coworkers={coworkers}
+              currentUserId={currentUserId}
+              canCreateRoomDirect={activeOrganization != null}
+              membersLoadFailed={membersLoadFailed}
+            />
+          ) : (
+            <div className="flex flex-1 items-center justify-center p-6">
+              <div className="border-border/70 bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">
+                <Hash className="text-muted-foreground mx-auto size-8" />
+                <h2 className="mt-4 text-lg font-semibold">
+                  {t("Empty.noChannelTitle")}
+                </h2>
+                <p className="text-muted-foreground mt-2 text-sm">
+                  {t("Empty.noChannelDescription")}
+                </p>
+                <div className="mt-5">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    onClick={() => router.push("/chat?create=channel")}
+                  >
+                    {t("createChannel")}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
       </main>
     </div>
   );
