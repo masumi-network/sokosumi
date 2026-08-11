@@ -78,55 +78,43 @@ export function DirectRoomAvatarStack({
     );
   }
 
-  // Fixed size-5 box so group stacks cannot widen the leading column.
-  // Extra faces overlap to the right (absolute) and may paint into the gap.
-  // Position on an outer span — HoverCard trigger forces `relative` and would
-  // fight `absolute` if both lived on the same node.
   return (
-    <span className="relative size-5 shrink-0">
+    <span className="inline-flex h-5 min-w-5 shrink-0 items-center">
       {participants.map((participant, index) => (
-        <span
+        <ChatParticipantHoverCard
           key={`${participant.kind}-${participant.id}`}
-          className={cn(
-            "absolute top-1/2 -translate-y-1/2",
-            index === 0 && "left-0",
-            index === 1 && "left-1.5",
-            index === 2 && "left-3",
-          )}
+          profile={participant}
+          side="right"
+          align="start"
+          className={cn("relative block", index > 0 && "-ml-2")}
           style={{ zIndex: participants.length - index }}
+          currentUserId={currentUserId}
+          canOpenHumanDirect={canOpenHumanDirect}
+          onOpenDirect={handleOpenDirect}
+          isOpeningDirect={
+            openingDirectKey === participantDirectKey(participant)
+          }
+          isDirectActionBusy={openingDirectKey != null}
+          interactive={false}
         >
-          <ChatParticipantHoverCard
-            profile={participant}
-            side="right"
-            align="start"
-            currentUserId={currentUserId}
-            canOpenHumanDirect={canOpenHumanDirect}
-            onOpenDirect={handleOpenDirect}
-            isOpeningDirect={
-              openingDirectKey === participantDirectKey(participant)
-            }
-            isDirectActionBusy={openingDirectKey != null}
-            interactive={false}
+          <span
+            className="relative inline-flex"
+            data-testid={`dm-sidebar-avatar-${participant.id}`}
           >
-            <span
-              className="relative inline-flex"
-              data-testid={`dm-sidebar-avatar-${participant.id}`}
-            >
-              <Avatar className="border-sidebar-background size-5 border">
-                <AvatarImage alt="" src={participant.image ?? undefined} />
-                <AvatarFallback className="text-[0.5625rem] font-medium">
-                  {getInitials(participant.name)}
-                </AvatarFallback>
-              </Avatar>
-              <LiveMemberPresenceDot
-                className="-right-0.5 -bottom-0.5 absolute size-2"
-                fallback={participant.presence}
-                isCoworker={participant.kind === "coworker"}
-                userId={participant.id}
-              />
-            </span>
-          </ChatParticipantHoverCard>
-        </span>
+            <Avatar className="border-sidebar-background size-5 border">
+              <AvatarImage alt="" src={participant.image ?? undefined} />
+              <AvatarFallback className="text-[0.5625rem] font-medium">
+                {getInitials(participant.name)}
+              </AvatarFallback>
+            </Avatar>
+            <LiveMemberPresenceDot
+              className="-right-0.5 -bottom-0.5 absolute size-2"
+              fallback={participant.presence}
+              isCoworker={participant.kind === "coworker"}
+              userId={participant.id}
+            />
+          </span>
+        </ChatParticipantHoverCard>
       ))}
     </span>
   );
