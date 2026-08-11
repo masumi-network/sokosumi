@@ -13,8 +13,7 @@ import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 
 /**
  * Shared editor footprint for live composer + Instant room loading shell.
- * `empty:max-h-10` keeps empty Instant/live height locked so placeholder text
- * cannot grow the footer on progressive room open.
+ * `empty:max-h-10` keeps empty Instant/live height aligned (room progressive open).
  */
 export const ROOM_COMPOSER_TEXTAREA_CLASSNAME = withEditableTextSize(
   "max-h-40 min-h-10 empty:max-h-10 empty:overflow-hidden field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 pt-3.5 pb-2.5 leading-6 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",

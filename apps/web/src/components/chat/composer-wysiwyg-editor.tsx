@@ -1217,33 +1217,45 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [applyFormat, insertLink, insertText, openMentions],
   );
 
+  // Overlay placeholder (not empty:before) so long channel/DM names truncate
+  // without growing empty-editor height or garbling contenteditable layout.
+  const showPlaceholderOverlay =
+    placeholder.trim().length > 0 && value.trim().length === 0;
+
   return (
     <>
-      <div
-        ref={editorRef}
-        id={id}
-        contentEditable
-        suppressContentEditableWarning
-        onInput={handleInput}
-        onPaste={handlePaste}
-        onKeyDown={handleKeyDown}
-        onKeyUp={syncSuggestionsWithCaret}
-        onMouseUp={syncSuggestionsWithCaret}
-        onBlur={handleBlur}
-        data-placeholder={placeholder}
-        role="textbox"
-        aria-multiline="true"
-        style={{ scrollMarginTop: MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX }}
-        className={cn(
-          // relative: empty placeholder is absolutely positioned so long
-          // channel/DM names do not grow empty-editor height (room Instant → shell).
-          "relative outline-none focus:outline-none",
-          "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
-          "empty:before:pointer-events-none empty:before:absolute empty:before:inset-x-0 empty:before:top-0 empty:before:max-w-full empty:before:truncate empty:before:overflow-hidden empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]",
-          EDITOR_PROSE_CLASSNAME,
-          className,
-        )}
-      />
+      <div className="relative min-w-0">
+        {showPlaceholderOverlay ? (
+          <div
+            className="text-muted-foreground pointer-events-none absolute inset-x-4 top-3.5 z-0 truncate leading-6"
+            aria-hidden
+          >
+            {placeholder}
+          </div>
+        ) : null}
+        <div
+          ref={editorRef}
+          id={id}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleInput}
+          onPaste={handlePaste}
+          onKeyDown={handleKeyDown}
+          onKeyUp={syncSuggestionsWithCaret}
+          onMouseUp={syncSuggestionsWithCaret}
+          onBlur={handleBlur}
+          role="textbox"
+          aria-multiline="true"
+          aria-placeholder={placeholder || undefined}
+          style={{ scrollMarginTop: MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX }}
+          className={cn(
+            "relative z-[1] outline-none focus:outline-none",
+            "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
+            EDITOR_PROSE_CLASSNAME,
+            className,
+          )}
+        />
+      </div>
       {typeof window !== "undefined" &&
         isOpen &&
         visibleSuggestionCount > 0 &&

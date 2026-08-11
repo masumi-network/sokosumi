@@ -70,6 +70,41 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor).toHaveStyle({ scrollMarginTop: "252px" });
   });
 
+  it("shows a truncating overlay placeholder when empty and hides it when typing", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+          placeholder="Message #Everyone"
+        />
+      );
+    }
+
+    const { rerender } = render(<Harness />);
+    expect(screen.getByText("Message #Everyone")).toBeTruthy();
+    expect(screen.getByRole("textbox")).toHaveAttribute(
+      "aria-placeholder",
+      "Message #Everyone",
+    );
+
+    function Typed() {
+      const [value, setValue] = useState("hi");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+          placeholder="Message #Everyone"
+        />
+      );
+    }
+    rerender(<Typed />);
+    expect(screen.queryByText("Message #Everyone")).toBeNull();
+  });
+
   it("applies top-side flip and dynamic maxHeight to the mention listbox", () => {
     function Harness() {
       const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
