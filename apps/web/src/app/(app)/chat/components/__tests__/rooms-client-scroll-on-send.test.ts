@@ -24,10 +24,11 @@ describe("RoomsClient scroll on own send", () => {
       /setMessagesState\(\(current\) =>\s*appendMessage\(current, result\.data\),\s*\);\s*pinToBottomAfterOwnSend\(\);/,
     );
 
-    // Coworker stream path re-pins immediately (optimistic own bubble).
+    // Coworker stream path re-pins only when the stream turn actually started.
     expect(source).toMatch(
-      /sendStreamMessage\(request\.content, \{ quote: request\.quote \}\);\s*pinToBottomAfterOwnSend\(\);/,
+      /const started = sendStreamMessage\(request\.content, \{\s*quote: request\.quote,\s*\}\);\s*if \(started\) \{\s*pinToBottomAfterOwnSend\(\);\s*\}/,
     );
+    expect(source).toMatch(/return \{ ok: started \}/);
 
     // Chrome resize stays pin-gated (must not force-jump while reading history).
     expect(source).toContain("onChromeResize={scrollToBottomIfPinned}");

@@ -1548,9 +1548,13 @@ export function RoomsClient({
       // Coworker stream rooms keep SSE even with a pending quote (Core persists
       // the quote snapshot on the user message). Classic POST stays for non-stream.
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
-        sendStreamMessage(request.content, { quote: request.quote });
-        pinToBottomAfterOwnSend();
-        return { ok: true };
+        const started = sendStreamMessage(request.content, {
+          quote: request.quote,
+        });
+        if (started) {
+          pinToBottomAfterOwnSend();
+        }
+        return { ok: started };
       }
 
       const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
@@ -1621,11 +1625,11 @@ export function RoomsClient({
       const parentMessageId = threadParentMessage.id;
 
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
-        sendStreamMessage(request.content, {
+        const started = sendStreamMessage(request.content, {
           parentMessageId,
           quote: request.quote,
         });
-        return { ok: true };
+        return { ok: started };
       }
 
       const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
