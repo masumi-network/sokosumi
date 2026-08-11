@@ -87,6 +87,17 @@ describe("linkifyBareDomainsInMarkdown", () => {
     expect(linkifyBareDomainsInMarkdown(input)).toBe(input);
   });
 
+  it("does not linkify inside tilde-fenced code blocks", () => {
+    const input = ["~~~", "google.com", "~~~"].join("\n");
+    expect(linkifyBareDomainsInMarkdown(input)).toBe(input);
+  });
+
+  it("escapes Markdown-significant characters in the generated link label", () => {
+    expect(linkifyBareDomainsInMarkdown("see google.com/a\\b*c")).toBe(
+      "see [google.com/a\\\\b\\*c](https://google.com/a\\\\b*c)",
+    );
+  });
+
   it("does not linkify IPv4 or localhost", () => {
     expect(linkifyBareDomainsInMarkdown("go 192.168.1.1")).toBe(
       "go 192.168.1.1",

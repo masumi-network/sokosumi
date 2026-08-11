@@ -418,10 +418,19 @@ function tryMatchBareDomain(
   return { match: stripped, end: start + stripped.length };
 }
 
-function skipFencedCode(text: string, openIndex: number): number {
+function isFenceChar(ch: string): ch is "`" | "~" {
+  return ch === "`" || ch === "~";
+}
+
+/** Skip a CommonMark/GFM fenced code block opened with `` ` `` or `~` (length ≥ 3). */
+function skipFencedCode(
+  text: string,
+  openIndex: number,
+  fenceChar: "`" | "~",
+): number {
   let i = openIndex;
   let fenceLen = 0;
-  while (i < text.length && text[i] === "`") {
+  while (i < text.length && text[i] === fenceChar) {
     fenceLen += 1;
     i += 1;
   }
@@ -434,10 +443,10 @@ function skipFencedCode(text: string, openIndex: number): number {
   if (i < text.length && text[i] === "\n") i += 1;
 
   while (i < text.length) {
-    if (text[i] === "`") {
+    if (text[i] === fenceChar) {
       let closeLen = 0;
       const closeStart = i;
-      while (i < text.length && text[i] === "`") {
+      while (i < text.length && text[i] === fenceChar) {
         closeLen += 1;
         i += 1;
       }
@@ -450,6 +459,27 @@ function skipFencedCode(text: string, openIndex: number): number {
     i += 1;
   }
   return text.length;
+}
+
+/** Escape characters that break or reformat Markdown link labels. */
+function escapeMarkdownLinkLabel(label: string): string {
+  let out = "";
+  for (let i = 0; i < label.length; i += 1) {
+    const ch = label[i]!;
+    if (
+      ch === "\\" ||
+      ch === "[" ||
+      ch === "]" ||
+      ch === "*" ||
+      ch === "_" ||
+      ch === "~"
+    ) {
+      out += `\\${ch}`;
+    } else {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 function skipInlineCode(text: string, openIndex: number): number {
@@ -538,23 +568,26 @@ export function linkifyBareDomainsInMarkdown(markdown: string): string {
 
     const ch = markdown[i]!;
 
-    if (ch === "`") {
+    if (isFenceChar(ch)) {
       let fenceLen = 0;
       let j = i;
-      while (j < len && markdown[j] === "`") {
+      while (j < len && markdown[j] === ch) {
         fenceLen += 1;
         j += 1;
       }
       if (fenceLen >= 3) {
-        const end = skipFencedCode(markdown, i);
+        const end = skipFencedCode(markdown, i, ch);
         result += markdown.slice(i, end);
         i = end;
         continue;
       }
-      const end = skipInlineCode(markdown, i);
-      result += markdown.slice(i, end);
-      i = end;
-      continue;
+      // Inline code is backtick-only; `~~` is GFM strikethrough, not a fence.
+      if (ch === "`") {
+        const end = skipInlineCode(markdown, i);
+        result += markdown.slice(i, end);
+        i = end;
+        continue;
+      }
     }
 
     if (ch === "<") {
@@ -583,7 +616,7 @@ export function linkifyBareDomainsInMarkdown(markdown: string): string {
       const hit = tryMatchBareDomain(markdown, i);
       if (hit) {
         const href = `https://${hit.match}`;
-        result += `[${hit.match}](${escapeMarkdownLinkUrl(href)})`;
+        result += `[${escapeMarkdownLinkLabel(hit.match)}](${escapeMarkdownLinkUrl(href)})`;
         i = hit.end;
         continue;
       }
