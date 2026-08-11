@@ -38,8 +38,8 @@ export interface ChatOnboardingHostProps {
 }
 
 const INTENT_CHOICES: readonly IntentChoiceId[] = [
-  "chat",
   "tasks",
+  "chat",
   "either",
 ] as const;
 
@@ -135,8 +135,10 @@ export function ChatOnboardingHost({
     }
   }, [coworkers, router, state.phase, t]);
 
-  const greeting = userName
-    ? t("greetingWithName", { name: userName })
+  // First name only — match Hermes welcome (full name feels heavy here).
+  const firstName = userName?.trim().split(/\s+/)[0];
+  const greeting = firstName
+    ? t("greetingWithName", { name: firstName })
     : t("greeting");
 
   return (
