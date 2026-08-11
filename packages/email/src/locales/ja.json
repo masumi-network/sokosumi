@@ -38,6 +38,17 @@
       "footer": "このメールに心当たりがない場合は、無視して問題ありません。"
     }
   },
+  "chat": {
+    "invitation": {
+      "subject": "Sokosumi - チャンネルへの招待",
+      "title": "{organizationName}の{channelName}に参加",
+      "greeting": "こんにちは",
+      "message": "{invitorUsername}さんがSokosumi上の{organizationName}がホストする{channelName}への参加にあなたを招待しました。下のボタンをクリックして招待を承諾してください。",
+      "button": "招待を承諾",
+      "linkInstructions": "または、このURLをブラウザにコピーして貼り付けてください:",
+      "footer": "この招待に心当たりがない場合は、このメールを無視して問題ありません。"
+    }
+  },
   "jobs": {
     "finalStatus": {
       "subject": "Sokosumi - {agentName} のジョブが{status}",

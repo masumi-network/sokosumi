@@ -63,11 +63,32 @@ describe("create-channel-wizard", () => {
       ...visibility,
       discoverability: "private",
     });
+    expect(setDiscoverability(visibility, "external")).toEqual({
+      ...visibility,
+      discoverability: "external",
+    });
     expect(backToName(visibility)).toEqual({ step: "name", name: "launch" });
 
     const nameStep = createInitialWizard();
     expect(setDiscoverability(nameStep, "private")).toBe(nameStep);
+    expect(setDiscoverability(nameStep, "external")).toBe(nameStep);
     expect(backToName(nameStep)).toBe(nameStep);
+  });
+
+  it("supports external discoverability through create flow", () => {
+    const visibility = {
+      step: "visibility" as const,
+      name: "partners",
+      discoverability: "external" as const,
+    };
+    expect(visibility.discoverability).toBe("external");
+    expect(
+      toAddPeople(visibility, { id: "room-ext", name: "partners" }),
+    ).toMatchObject({
+      step: "add-people",
+      roomId: "room-ext",
+      roomName: "partners",
+    });
   });
 
   it("toAddPeople transitions after create with all mode", () => {

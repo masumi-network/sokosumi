@@ -5131,7 +5131,9 @@
         "public": "Public",
         "private": "Private",
         "publicHelp": "Anyone in the organization can find and join this channel.",
-        "privateHelp": "Only invited members can see this channel. Organization owners and admins can still find and join it."
+        "privateHelp": "Only invited members can see this channel. Organization owners and admins can still find and join it.",
+        "external": "External",
+        "externalHelp": "Anyone in the organization can find and join. Outsiders join only by email invite as guests — they are not organization members."
       },
       "CreateWizard": {
         "title": "Create a channel",
@@ -5167,6 +5169,83 @@
       "MembershipStatus": {
         "joined": "{name} joined",
         "left": "{name} left"
+      },
+      "External": {
+        "title": "External",
+        "empty": "No external channels yet.",
+        "accept": "Accept",
+        "decline": "Decline",
+        "acceptSuccess": "You joined {name}.",
+        "declineSuccess": "Invitation declined.",
+        "acceptError": "Could not accept invitation.",
+        "declineError": "Could not decline invitation.",
+        "pendingAria": "Invitation to {name} from {organization}",
+        "hostOrganization": "{organization}"
+      },
+      "GuestInvite": {
+        "title": "Invite guests",
+        "description": "Invite people outside the organization by email. Guests join this channel only and do not become organization members.",
+        "emailLabel": "Email",
+        "emailPlaceholder": "guest@example.com",
+        "send": "Send invite",
+        "invalidEmail": "Enter a valid email address.",
+        "inviteSuccess": "Invitation sent to {email}.",
+        "guestsTitle": "Guests",
+        "guestsEmpty": "No guests yet.",
+        "removeGuest": "Remove guest",
+        "removeGuestAria": "Remove guest {name}",
+        "removeGuestSuccess": "Removed {name} from the channel.",
+        "pendingTitle": "Pending invitations",
+        "empty": "No pending invitations.",
+        "loading": "Loading invitations…",
+        "loadError": "Could not load invitations.",
+        "retry": "Retry",
+        "revoke": "Revoke invitation",
+        "revokeAria": "Revoke invitation for {email}",
+        "revokeSuccess": "Invitation revoked."
+      },
+      "ChatInvite": {
+        "title": "Channel invitation",
+        "description": "You've been invited to join a channel as a guest.",
+        "hasInvitedYouToJoin": "has invited you to join",
+        "organizationLabel": "Host organization: {organizationName}",
+        "guestNote": "Accepting joins this channel only. You will not become a member of the host organization.",
+        "acceptedTitle": "You joined #{roomName}",
+        "acceptedDescription": "You can open the channel anytime from External in chat. Host: {organizationName}.",
+        "goToRoom": "Open channel",
+        "goToChat": "Back to chat",
+        "declinedTitle": "Invitation declined",
+        "declinedDescription": "You declined the invitation to #{roomName} from {organizationName}.",
+        "revokedTitle": "Invitation revoked",
+        "revokedDescription": "The invitation to #{roomName} from {organizationName} was revoked.",
+        "expiredTitle": "Invitation expired",
+        "expiredDescription": "The invitation to #{roomName} from {organizationName} has expired.",
+        "Actions": {
+          "accept": "Accept",
+          "decline": "Decline",
+          "Success": {
+            "accept": "Invitation accepted",
+            "decline": "Invitation declined"
+          },
+          "Error": {
+            "accept": "Failed to accept invitation",
+            "decline": "Failed to decline invitation"
+          }
+        },
+        "Error": {
+          "Expired": {
+            "title": "Invitation expired",
+            "description": "This channel invitation is no longer valid.",
+            "content": "Ask the host to send a new invitation if you still need access.",
+            "footer": "Back to chat"
+          },
+          "NotFound": {
+            "title": "Invitation not found",
+            "description": "We couldn't find this channel invitation.",
+            "content": "The link may be wrong, or the invitation was already used or revoked.",
+            "footer": "Back to chat"
+          }
+        }
       }
     }
   },

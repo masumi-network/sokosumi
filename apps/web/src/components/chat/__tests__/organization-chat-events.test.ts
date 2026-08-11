@@ -9,6 +9,7 @@ function makeRoom(id = "room-1"): ChatRoom {
   return {
     id,
     organizationId: "org-1",
+    organizationName: null,
     name: "general",
     slug: "general",
     kind: "channel",
@@ -23,6 +24,7 @@ function makeRoom(id = "room-1"): ChatRoom {
     pinnedAt: null,
     mutedAt: null,
     markedUnread: false,
+    myAccess: "member",
     userMembers: [],
     coworkerMembers: [],
   };

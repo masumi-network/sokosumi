@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  renderChatRoomInvitationEmail,
   renderJobFailureNotificationEmail,
   renderJobFinalStatusEmail,
   renderJobInputRequiredEmail,
@@ -82,6 +83,23 @@ describe("email renderers", () => {
     expect(rendered.subject).toBe("Sokosumi - Organization Invitation");
     expect(rendered.html).toContain("Join Chris on Sokosumi Org");
     expect(rendered.html).toContain("https://example.com/invite");
+  });
+
+  it("renders chat room invitation emails with interpolation", async () => {
+    const rendered = await renderChatRoomInvitationEmail({
+      channelName: "Client Room",
+      invitationLink: "https://example.com/chat/invites/invite-1",
+      invitorUsername: "Ada",
+      locale: "en",
+      organizationName: "Acme Corp",
+    });
+
+    expect(rendered.subject).toBe("Sokosumi - Channel Invitation");
+    expect(rendered.html).toContain("Join Client Room on Acme Corp");
+    expect(rendered.html).toContain("Ada invited you to join Client Room");
+    expect(rendered.html).toContain(
+      "https://example.com/chat/invites/invite-1",
+    );
   });
 
   it("renders job final status emails with fallback job names in a localized locale", async () => {

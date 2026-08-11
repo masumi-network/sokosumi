@@ -28,6 +28,7 @@ import {
   type CreateChannelWizard,
   canAdvanceFromName,
   createInitialWizard,
+  type Discoverability,
   remainingNameChars,
   sanitizeChannelNameInput,
   setAddPeopleMode,
@@ -43,6 +44,12 @@ interface CreateChannelDialogProps {
   coworkers: Coworker[];
   organizationName: string;
   membersLoadFailed?: boolean;
+  /** Org owner/admin only — create discoverability external. */
+  canCreateExternal?: boolean;
+}
+
+function isDiscoverability(value: string): value is Discoverability {
+  return value === "public" || value === "private" || value === "external";
 }
 
 export function CreateChannelDialog({
@@ -51,6 +58,7 @@ export function CreateChannelDialog({
   coworkers,
   organizationName,
   membersLoadFailed = false,
+  canCreateExternal = false,
 }: CreateChannelDialogProps) {
   const t = useTranslations("App.Channels.CreateWizard");
   const tVisibility = useTranslations("App.Channels.Visibility");
@@ -99,12 +107,12 @@ export function CreateChannelDialog({
     startTransition(async () => {
       const result = await createChannelAction({ name, discoverability });
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
-      notifyOrganizationChatRoomsChanged(result.data);
+      notifyOrganizationChatRoomsChanged(result.value);
       setWizard(
-        toAddPeople(wizard, { id: result.data.id, name: result.data.name }),
+        toAddPeople(wizard, { id: result.value.id, name: result.value.name }),
       );
     });
   }
@@ -128,10 +136,10 @@ export function CreateChannelDialog({
         coworkerIds: options.coworkerIds,
       });
       if (!result.ok) {
-        toast.error(result.message);
+        toast.error(result.error.message);
         return;
       }
-      notifyOrganizationChatRoomsChanged(result.data);
+      notifyOrganizationChatRoomsChanged(result.value);
       navigateToRoom(roomId);
     });
   }
@@ -237,9 +245,13 @@ export function CreateChannelDialog({
             <RadioGroup
               value={wizard.discoverability}
               onValueChange={(value) => {
-                if (value === "public" || value === "private") {
-                  setWizard(setDiscoverability(wizard, value));
+                if (!isDiscoverability(value)) {
+                  return;
                 }
+                if (value === "external" && !canCreateExternal) {
+                  return;
+                }
+                setWizard(setDiscoverability(wizard, value));
               }}
               className="flex flex-wrap gap-4"
             >
@@ -261,11 +273,27 @@ export function CreateChannelDialog({
                   {tVisibility("private")}
                 </Label>
               </div>
+              {canCreateExternal ? (
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem
+                    value="external"
+                    id="create-channel-external"
+                  />
+                  <Label
+                    htmlFor="create-channel-external"
+                    className="cursor-pointer font-normal"
+                  >
+                    {tVisibility("external")}
+                  </Label>
+                </div>
+              ) : null}
             </RadioGroup>
             <p className="text-muted-foreground text-xs">
               {wizard.discoverability === "public"
                 ? tVisibility("publicHelp")
-                : tVisibility("privateHelp")}
+                : wizard.discoverability === "private"
+                  ? tVisibility("privateHelp")
+                  : tVisibility("externalHelp")}
             </p>
           </div>
         ) : null}

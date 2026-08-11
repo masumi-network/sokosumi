@@ -37,6 +37,10 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/sync/chat-room-guest-invitations-expire",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/sync/hermes/poll-inboxes",
       "schedule": "* * * * *"
     },

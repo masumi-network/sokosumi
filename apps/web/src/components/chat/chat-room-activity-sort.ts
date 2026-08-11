@@ -3,7 +3,7 @@ export interface ChatRoomActivitySortKey {
   updatedAt: string | Date;
   pinnedAt?: string | Date | null;
   mutedAt?: string | Date | null;
-  discoverability?: "public" | "private" | null;
+  discoverability?: "public" | "private" | "external" | null;
 }
 
 function isPinned(value: string | Date | null | undefined): boolean {
@@ -21,9 +21,9 @@ function mutedRank(value: string | Date | null | undefined): number {
   return value == null ? 0 : 1;
 }
 
-/** Public / null (directs) before private. */
+/** Public / external / null (directs) before private. */
 function discoverabilityRank(
-  value: "public" | "private" | null | undefined,
+  value: "public" | "private" | "external" | null | undefined,
 ): number {
   return value === "private" ? 1 : 0;
 }

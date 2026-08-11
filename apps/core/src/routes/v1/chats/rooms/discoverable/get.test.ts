@@ -105,7 +105,7 @@ describe("GET /chats/rooms/discoverable", () => {
         where: expect.objectContaining({
           organizationId: ORG_ID,
           kind: "channel",
-          discoverability: "public",
+          discoverability: { in: ["public", "external"] },
           archivedAt: null,
           userMembers: { none: { userId: USER_ID } },
         }),
@@ -114,36 +114,39 @@ describe("GET /chats/rooms/discoverable", () => {
     );
   });
 
-  it("lists public and private channels for organization owners", async () => {
-    memberFindUniqueMock.mockResolvedValue({ role: "owner" });
+  it("lists external channels in discoverable", async () => {
     roomFindManyMock.mockResolvedValue([
-      discoverableRow({ discoverability: "private" }),
+      discoverableRow({
+        name: "Client External",
+        slug: "client-external",
+        topic: null,
+        discoverability: "external",
+        _count: { userMembers: 2 },
+      }),
     ]);
+    roomCountMock.mockResolvedValue(1);
 
     const response = await createApp(userAuthContext).request("/discoverable");
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data[0].discoverability).toBe("private");
+    expect(body.data).toEqual([
+      {
+        id: ROOM_ID,
+        name: "Client External",
+        slug: "client-external",
+        topic: null,
+        discoverability: "external",
+        memberCount: 2,
+        createdByUserId: "user_creator",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+      },
+    ]);
     expect(roomFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          discoverability: { in: ["public", "private"] },
-        }),
-      }),
-    );
-  });
-
-  it("lists public and private channels for organization admins", async () => {
-    memberFindUniqueMock.mockResolvedValue({ role: "admin" });
-
-    const response = await createApp(userAuthContext).request("/discoverable");
-
-    expect(response.status).toBe(200);
-    expect(roomFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          discoverability: { in: ["public", "private"] },
+          discoverability: { in: ["public", "external"] },
         }),
       }),
     );
@@ -177,5 +180,28 @@ describe("GET /chats/rooms/discoverable", () => {
 
     expect(response.status).toBe(400);
     expect(roomFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("lists private channels for organization owners", async () => {
+    memberFindUniqueMock.mockResolvedValue({ role: "owner" });
+    roomFindManyMock.mockResolvedValue([
+      discoverableRow({
+        name: "Secret",
+        slug: "secret",
+        discoverability: "private",
+      }),
+    ]);
+
+    const response = await createApp(userAuthContext).request("/discoverable");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data[0].discoverability).toBe("private");
+    expect(roomFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          discoverability: { in: ["public", "private", "external"] },
+        }),
+      }),
+    );
   });
 });

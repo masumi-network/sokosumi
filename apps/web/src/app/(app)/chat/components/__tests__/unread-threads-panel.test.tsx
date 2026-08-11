@@ -110,11 +110,11 @@ describe("UnreadThreadsPanel", () => {
     vi.clearAllMocks();
     listUnreadThreadsActionMock.mockResolvedValue({
       ok: true,
-      data: [unreadThreadItem()],
+      value: [unreadThreadItem()],
     });
     markAllUnreadThreadsReadActionMock.mockResolvedValue({
       ok: true,
-      data: { markedCount: 1 },
+      value: { markedCount: 1 },
     });
   });
 
@@ -150,7 +150,7 @@ describe("UnreadThreadsPanel", () => {
   });
 
   it("shows no badge when there are no unread threads", async () => {
-    listUnreadThreadsActionMock.mockResolvedValue({ ok: true, data: [] });
+    listUnreadThreadsActionMock.mockResolvedValue({ ok: true, value: [] });
 
     renderPanel();
 
@@ -165,7 +165,7 @@ describe("UnreadThreadsPanel", () => {
   it("shows a plain-text preview instead of raw markdown mentions", async () => {
     listUnreadThreadsActionMock.mockResolvedValue({
       ok: true,
-      data: [
+      value: [
         unreadThreadItem({
           parentMessage: parentMessage({
             content:
@@ -185,7 +185,7 @@ describe("UnreadThreadsPanel", () => {
   });
 
   it("shows empty state when nothing needs attention", async () => {
-    listUnreadThreadsActionMock.mockResolvedValue({ ok: true, data: [] });
+    listUnreadThreadsActionMock.mockResolvedValue({ ok: true, value: [] });
 
     renderPanel();
 
@@ -253,7 +253,7 @@ describe("UnreadThreadsPanel", () => {
       ).not.toBeInTheDocument();
     });
 
-    resolveMarkAll?.({ ok: true, data: { markedCount: 1 } });
+    resolveMarkAll?.({ ok: true, value: { markedCount: 1 } });
 
     // Badge must stay until a fresh successful load clears it — late mark-all
     // must not stomp after dismiss.
@@ -364,7 +364,7 @@ describe("UnreadThreadsPanel", () => {
   it("updates badge from live refresh while closed without showing the list", async () => {
     listUnreadThreadsActionMock.mockResolvedValueOnce({
       ok: true,
-      data: [],
+      value: [],
     });
 
     const { rerender } = render(
@@ -388,7 +388,7 @@ describe("UnreadThreadsPanel", () => {
 
     listUnreadThreadsActionMock.mockResolvedValueOnce({
       ok: true,
-      data: [unreadThreadItem(), unreadThreadItem()],
+      value: [unreadThreadItem(), unreadThreadItem()],
     });
 
     vi.useFakeTimers();
@@ -422,7 +422,7 @@ describe("UnreadThreadsPanel", () => {
   it("refreshes the open panel list when attentionRefreshToken bumps", async () => {
     listUnreadThreadsActionMock.mockResolvedValue({
       ok: true,
-      data: [
+      value: [
         unreadThreadItem({
           parentMessage: parentMessage({ content: "First unread" }),
         }),
@@ -450,7 +450,7 @@ describe("UnreadThreadsPanel", () => {
 
     listUnreadThreadsActionMock.mockResolvedValue({
       ok: true,
-      data: [
+      value: [
         unreadThreadItem({
           parentMessage: parentMessage({
             id: "550e8400-e29b-41d4-a716-446655440099",

@@ -50,11 +50,11 @@ export function BrowseChannelsDialog({
       }
       setIsLoading(false);
       if (!result.ok) {
-        toast.error(result.message || t("loadError"));
+        toast.error(result.error.message || t("loadError"));
         setRooms([]);
         return;
       }
-      setRooms(result.data);
+      setRooms(result.value);
     }, 200);
 
     return () => {
@@ -81,15 +81,15 @@ export function BrowseChannelsDialog({
       const result = await joinRoomAction(room.id);
       setJoiningRoomId(null);
       if (!result.ok) {
-        toast.error(result.message || t("joinError"));
+        toast.error(result.error.message || t("joinError"));
         return;
       }
-      toast.success(t("joinSuccess", { name: result.data.name }));
-      notifyOrganizationChatRoomsChanged(result.data);
+      toast.success(t("joinSuccess", { name: result.value.name }));
+      notifyOrganizationChatRoomsChanged(result.value);
       setOpen(false);
       // Soft router navigation from this Dialog + useTransition path does not
       // commit; hard assign reliably opens the joined room.
-      window.location.assign(`/chat/rooms/${result.data.id}`);
+      window.location.assign(`/chat/rooms/${result.value.id}`);
     });
   }
 

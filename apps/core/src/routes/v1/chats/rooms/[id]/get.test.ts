@@ -116,7 +116,11 @@ function room() {
 beforeEach(() => {
   vi.clearAllMocks();
   roomFindFirstMock.mockResolvedValue(room());
-  organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
+  // Membership gate + organizationName on GET both load the org.
+  organizationFindUniqueMock.mockResolvedValue({
+    id: ORG_ID,
+    name: "Acme Corp",
+  });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
   notificationGroupByMock.mockResolvedValue([
@@ -133,7 +137,8 @@ describe("GET /chats/rooms/{id}", () => {
     expect(response.status).toBe(200);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(roomFindFirstMock).toHaveBeenCalledOnce();
-    expect(organizationFindUniqueMock).toHaveBeenCalledOnce();
+    // once for host-org membership resolve, once for organizationName
+    expect(organizationFindUniqueMock).toHaveBeenCalledTimes(2);
     expect(memberFindUniqueMock).toHaveBeenCalledOnce();
     expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
     expect(notificationGroupByMock).toHaveBeenCalledOnce();
@@ -144,6 +149,7 @@ describe("GET /chats/rooms/{id}", () => {
     expect(body.data).toMatchObject({
       id: ROOM_ID,
       name: "Launch Room",
+      organizationName: "Acme Corp",
       unreadCount: 2,
       unreadMentionCount: 1,
       pinnedAt: null,

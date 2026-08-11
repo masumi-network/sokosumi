@@ -3,6 +3,7 @@ import { OrganizationOwnerRetentionError } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
+import { demoteExternalChatRoomMembershipsToGuest } from "@/helpers/chat-room-guest-upgrade";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import prisma from "@/lib/db/prisma";
@@ -51,6 +52,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     try {
       await prisma.$transaction(async (tx) => {
         await memberRepository.removeMember(memberId, organization.id, tx);
+        // Better Auth leave/remove uses afterRemoveMember; admin path is
+        // direct Prisma — demote external host-member rows back to guest.
+        await demoteExternalChatRoomMembershipsToGuest(
+          member.userId,
+          organization.id,
+          tx,
+        );
       });
     } catch (error) {
       if (error instanceof OrganizationOwnerRetentionError) {

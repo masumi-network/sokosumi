@@ -86,6 +86,7 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
   return {
     id: "dm-1",
     organizationId: "org-1",
+    organizationName: "Acme",
     name: "dm",
     slug: "dm",
     kind: "direct",
@@ -100,6 +101,7 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     pinnedAt: null,
     mutedAt: null,
     markedUnread: false,
+    myAccess: "member",
     userMembers: [makeUser("me", "Me"), makeUser("patrick", "Patrick Tobler")],
     coworkerMembers: [],
     ...overrides,

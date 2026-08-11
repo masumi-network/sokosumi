@@ -278,6 +278,7 @@ function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
   return {
     id: "room-1",
     organizationId: "org-1",
+    organizationName: null,
     name: "general",
     slug: "general",
     kind: "channel",
@@ -292,6 +293,7 @@ function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     pinnedAt: null,
     mutedAt: null,
     markedUnread: false,
+    myAccess: "member",
     userMembers: [makeUser("user-1"), makeUser("user-2")],
     coworkerMembers: [],
     ...overrides,
@@ -309,7 +311,10 @@ async function openRoomMenu(label = "general") {
 describe("ChatRoomSidebarRow leave menu", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    leaveRoomActionMock.mockResolvedValue({ ok: true, data: { id: "room-1" } });
+    leaveRoomActionMock.mockResolvedValue({
+      ok: true,
+      value: { id: "room-1" },
+    });
   });
 
   afterEach(() => {
