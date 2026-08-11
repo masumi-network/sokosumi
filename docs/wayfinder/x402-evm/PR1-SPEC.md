@@ -242,9 +242,17 @@ Cardano-parallel Preprod/Mainnet split (ticket 003):
   `/x402/networks/available` + `/x402/budgets` (both per-chain today), reusing
   the cached last-known-value pattern from Cardano V2 readiness. The
   env-global `/rail-readiness` x402 checks remain the coarse health signal.
+  `GET /x402/budgets` requires **admin permission** and returns every key's
+  rows unless filtered — the client resolves its own key id via
+  `/api-key-status` and passes the `apiKeyId` filter, because `/x402/pay`
+  only draws on budgets granted to the calling key (verified against
+  upstream `main`, `src/routes/api/x402/index.ts` + `pay.ts`).
 - **Node setup per chain:** X402Network enabled, a funded purchasing EVM
   wallet bound to it, the Soko API key's `ChainIdLimit` covering the target
-  `eip155:*` ids. Funding stays a manual verification.
+  `eip155:*` ids, and the key holding **admin permission** (the budgets
+  readiness read above is admin-gated; without it readiness stays
+  never-recorded and the x402 listing is hidden). Funding stays a manual
+  verification.
 
 ## 7. External dependencies — RESOLVED (ticket 011, from upstream source)
 

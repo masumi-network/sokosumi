@@ -4,11 +4,13 @@ import { createPaymentClient } from "../masumi-payment.client.js";
 
 const getX402NetworksAvailableMock = vi.fn();
 const getX402BudgetsMock = vi.fn();
+const getApiKeyStatusMock = vi.fn();
 
 vi.mock("../openapi/generated/payment/index.js", () => ({
   getX402NetworksAvailable: (...args: unknown[]) =>
     getX402NetworksAvailableMock(...args),
   getX402Budgets: (...args: unknown[]) => getX402BudgetsMock(...args),
+  getApiKeyStatus: (...args: unknown[]) => getApiKeyStatusMock(...args),
 }));
 
 const USDC_BASE_SEPOLIA = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
@@ -128,6 +130,11 @@ describe("getX402AvailableNetworks", () => {
 describe("getX402Budgets", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getApiKeyStatusMock.mockResolvedValue({
+      data: { status: "success", data: { id: "apikey_own" } },
+      error: undefined,
+      response: { status: 200 },
+    });
   });
 
   it("returns the node's budget rows on success", async () => {
@@ -144,6 +151,40 @@ describe("getX402Budgets", () => {
     expect(result.isOk() && result.value).toEqual(budgets);
   });
 
+  it("filters the admin-scoped budget list to its own API key", async () => {
+    // GET /x402/budgets is admin-only and returns EVERY key's rows unless
+    // filtered — but POST /x402/pay only draws on budgets granted to the
+    // calling key, so an unfiltered read would mark pairs ready off budgets
+    // this key can never spend.
+    getX402BudgetsMock.mockResolvedValue({
+      data: { status: "success", data: { Budgets: [] } },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    await createClient().getX402Budgets();
+
+    expect(getX402BudgetsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ query: { apiKeyId: "apikey_own" } }),
+    );
+  });
+
+  it("fails when the own-key lookup fails instead of reading unscoped", async () => {
+    getApiKeyStatusMock.mockResolvedValue({
+      data: undefined,
+      error: { error: { message: "unauthorized" } },
+      response: { status: 401 },
+    });
+
+    const result = await createClient().getX402Budgets();
+
+    expect(result.isErr()).toBe(true);
+    expect(result.isErr() && result.error).toBe(
+      "api-key-status 401: unauthorized",
+    );
+    expect(getX402BudgetsMock).not.toHaveBeenCalled();
+  });
+
   it("forwards the abort signal", async () => {
     getX402BudgetsMock.mockResolvedValue({
       data: { status: "success", data: { Budgets: [] } },
@@ -154,6 +195,9 @@ describe("getX402Budgets", () => {
 
     await createClient().getX402Budgets({ signal });
 
+    expect(getApiKeyStatusMock).toHaveBeenCalledWith(
+      expect.objectContaining({ signal }),
+    );
     expect(getX402BudgetsMock).toHaveBeenCalledWith(
       expect.objectContaining({ signal }),
     );

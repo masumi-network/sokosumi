@@ -13,6 +13,7 @@ import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
   type GetX402BudgetsResponses,
   type GetX402NetworksAvailableResponses,
+  getApiKeyStatus,
   getRailReadiness,
   getX402Budgets as getX402BudgetsRequest,
   getX402NetworksAvailable,
@@ -467,16 +468,37 @@ export function createPaymentClient(
     },
 
     /**
-     * x402 wallet budgets visible to this API key. The node scopes the list
-     * to the caller's key, so no query filter is passed. Raw node rows —
-     * see getX402AvailableNetworks.
+     * x402 wallet budgets this API key can actually draw on at pay time.
+     *
+     * Verified against masumi-payment-service `main`
+     * (`src/routes/api/x402/index.ts`): `GET /x402/budgets` requires ADMIN
+     * permission (`adminAuthenticatedEndpointFactory`) — a plain pay key is
+     * rejected outright — and its handler
+     * (`listX402WalletBudgets(input.apiKeyId)`) returns EVERY key's budget
+     * rows unless the optional `apiKeyId` query filter is passed; it is
+     * never scoped to the caller. `POST /x402/pay`, however, only draws on
+     * budgets whose `apiKeyId` equals the calling key (`pay.ts`,
+     * `createX402Payment`). So this method resolves its own key id via
+     * `GET /api-key-status` and filters server-side: a foreign key's budget
+     * must never mark a (network, asset) pair buy-side ready. Raw node
+     * rows — see getX402AvailableNetworks.
      */
     async getX402Budgets(
       options: PaymentClientRequestOptions = {},
     ): Promise<Result<X402Budget[], string>> {
       try {
+        const statusResponse = await getApiKeyStatus({
+          client: client(),
+          signal: options.signal,
+        });
+        if (statusResponse.error || !statusResponse.data) {
+          return err(
+            `api-key-status ${statusResponse.response?.status ?? "unknown"}: ${extractNodeErrorMessage(statusResponse.error)}`,
+          );
+        }
         const response = await getX402BudgetsRequest({
           client: client(),
+          query: { apiKeyId: statusResponse.data.data.id },
           signal: options.signal,
         });
         if (response.error || !response.data) {

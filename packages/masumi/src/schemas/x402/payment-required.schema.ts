@@ -39,8 +39,16 @@ const V1_NETWORK_NAME_TO_CAIP2: Readonly<Record<string, string>> = {
  */
 export const X402_PAYMENT_IDENTIFIER_EXTENSION_KEY = "payment-identifier";
 
-/** One v2-shaped payment requirement, exactly as `POST /x402/pay` wants it. */
-export const x402PaymentRequirementsSchema = z.object({
+/**
+ * One v2-shaped payment requirement, exactly as `POST /x402/pay` wants it.
+ * Deliberately LOOSE: unknown keys pass through untouched, because the
+ * chosen entry must survive byte-for-byte into the signed payload's
+ * `accepted` echo (research 001 §3) — live Bazaar entries carry aliases
+ * like `currency`/`recipient`, and a strict server re-402s a stripped echo
+ * AFTER the charge. The node's spec has no `additionalProperties: false`,
+ * so forwarding them is valid.
+ */
+export const x402PaymentRequirementsSchema = z.looseObject({
   scheme: z.string().min(1),
   network: z.string().regex(CAIP2_EVM_NETWORK_PATTERN),
   asset: z.string().min(1),
@@ -56,7 +64,9 @@ export const x402PaymentRequiredSchema = z.object({
   x402Version: z.number().int().positive(),
   error: z.string().optional(),
   resource: z.object({ url: z.string().optional() }).optional(),
-  accepts: z.array(x402PaymentRequirementsSchema).min(1),
+  // The node caps `accepts` at 20 entries (`maxItems: 20`); mirroring the
+  // bound here fails an oversized 402 BEFORE any credits are charged.
+  accepts: z.array(x402PaymentRequirementsSchema).min(1).max(20),
   extensions: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -65,8 +75,12 @@ export type X402PaymentRequirements = z.infer<
 >;
 export type X402PaymentRequired = z.infer<typeof x402PaymentRequiredSchema>;
 
-/** Lenient parse of one wild-dialect requirement entry (v1 or v2 fields). */
-const wildRequirementSchema = z.object({
+/**
+ * Lenient parse of one wild-dialect requirement entry (v1 or v2 fields).
+ * LOOSE on purpose: every key beyond the recognized dialect fields must
+ * survive normalization verbatim (see x402PaymentRequirementsSchema).
+ */
+const wildRequirementSchema = z.looseObject({
   scheme: z.string().min(1),
   network: z.string().min(1),
   asset: z.string().min(1),
@@ -86,7 +100,7 @@ const wildPaymentRequiredSchema = z.object({
   resource: z
     .union([z.string(), z.object({ url: z.string().optional() })])
     .optional(),
-  accepts: z.array(wildRequirementSchema).min(1),
+  accepts: z.array(wildRequirementSchema).min(1).max(20),
   extensions: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -136,17 +150,15 @@ function decodeBase64PaymentRequired(value: string): Result<unknown, string> {
   if (trimmed.length === 0) {
     return err("Empty x402 payment-required payload");
   }
-  let decoded: string;
-  try {
-    decoded = Buffer.from(trimmed, "base64").toString("utf8");
-  } catch {
-    return err("x402 payment-required header is not valid base64");
-  }
+  // Buffer.from(..., "base64") never throws — it skips invalid characters
+  // and decodes best-effort — so non-base64 garbage surfaces as unparseable
+  // JSON below.
+  const decoded = Buffer.from(trimmed, "base64").toString("utf8");
   try {
     return ok(JSON.parse(decoded) as unknown);
   } catch {
     return err(
-      "x402 payment-required header did not decode to JSON (expected the base64 PAYMENT-REQUIRED transport)",
+      "x402 payment-required header is not base64-encoded JSON (expected the base64 PAYMENT-REQUIRED transport)",
     );
   }
 }
@@ -183,7 +195,27 @@ export function normalizeX402PaymentRequired(
     if (amount.isErr()) {
       return err(amount.error);
     }
+    // Split the recognized dialect fields from everything else so unknown
+    // keys (live Bazaar aliases like `currency`/`recipient`) pass through
+    // VERBATIM — the chosen entry must survive byte-for-byte into the
+    // signed payload's `accepted` echo (research 001 §3); a strict server
+    // re-402s a stripped echo AFTER the charge. Only keys a dialect
+    // translation consumes are dropped: `maxAmountRequired` (unified into
+    // `amount`) and the v1 per-entry `resource` (hoisted below).
+    const {
+      scheme: _scheme,
+      network: _network,
+      asset: _asset,
+      amount: _amount,
+      maxAmountRequired: _maxAmountRequired,
+      payTo: _payTo,
+      maxTimeoutSeconds: _maxTimeoutSeconds,
+      extra: _extra,
+      resource: _resource,
+      ...unknownKeys
+    } = entry;
     accepts.push({
+      ...unknownKeys,
       scheme: entry.scheme,
       network: network.value,
       asset: entry.asset,
@@ -195,10 +227,25 @@ export function normalizeX402PaymentRequired(
   }
 
   // v2 carries the resource as a top-level object; v1 as a per-entry string.
+  // Entries naming DIFFERENT resources is not a dialect — it is a malformed
+  // (or manipulated) 402. Never pick one (same stance as the
+  // conflicting-amounts guard).
+  const entryResources = Array.from(
+    new Set(
+      wild.data.accepts
+        .map((entry) => entry.resource)
+        .filter((value): value is string => value !== undefined),
+    ),
+  );
+  if (entryResources.length > 1) {
+    return err(
+      `Conflicting x402 per-entry resource URLs: ${entryResources.join(", ")}`,
+    );
+  }
   const resourceUrl =
     typeof wild.data.resource === "object"
       ? wild.data.resource.url
-      : (wild.data.resource ?? wild.data.accepts[0]?.resource);
+      : (wild.data.resource ?? entryResources[0]);
 
   const normalized: X402PaymentRequired = {
     x402Version: wild.data.x402Version,

@@ -85,11 +85,40 @@ describe("normalizeX402PaymentRequired", () => {
         asset: USDC_BASE,
         payTo: PAY_TO,
         maxTimeoutSeconds: 60,
+        // Unrecognized entry fields survive verbatim; only the dialect
+        // translations (maxAmountRequired→amount, per-entry resource) are
+        // consumed.
+        description: "An API call",
+        mimeType: "application/json",
       },
     ]);
     // v1 carries the resource per entry as a plain string.
     expect(normalized.resource).toEqual({
       url: "https://agent.example.com/api",
+    });
+  });
+
+  it("carries unknown alias fields through normalization verbatim", () => {
+    // Live Bazaar entries carry aliases like `currency`/`recipient`; the
+    // chosen entry must be echoable byte-for-byte (research 001 §3) — a
+    // strict server re-402s a stripped echo AFTER the charge.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [
+        v2Entry({
+          currency: "USDC",
+          recipient: PAY_TO,
+          outputSchema: { type: "object" },
+        }),
+      ],
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().accepts[0]).toMatchObject({
+      amount: "1000",
+      currency: "USDC",
+      recipient: PAY_TO,
+      outputSchema: { type: "object" },
     });
   });
 
@@ -195,6 +224,47 @@ describe("normalizeX402PaymentRequired", () => {
     expect(result._unsafeUnwrapErr()).toMatch(/Unparseable x402 402 payload/);
   });
 
+  it("rejects more than 20 accepts entries pre-charge (node maxItems)", () => {
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: Array.from({ length: 21 }, () => v2Entry()),
+    });
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(/Unparseable x402 402 payload/);
+
+    expect(
+      normalizeX402PaymentRequired({
+        x402Version: 2,
+        accepts: Array.from({ length: 20 }, () => v2Entry()),
+      }).isOk(),
+    ).toBe(true);
+  });
+
+  it("rejects disagreeing per-entry resource URLs instead of guessing", () => {
+    const result = normalizeX402PaymentRequired({
+      x402Version: 1,
+      accepts: [
+        v1Entry(),
+        v1Entry({ resource: "https://other.example.com/api" }),
+      ],
+    });
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(
+      /Conflicting x402 per-entry resource URLs/,
+    );
+  });
+
+  it("accepts agreeing per-entry resource URLs across entries", () => {
+    const result = normalizeX402PaymentRequired({
+      x402Version: 1,
+      accepts: [v1Entry(), v1Entry({ network: "base" })],
+    });
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().resource).toEqual({
+      url: "https://agent.example.com/api",
+    });
+  });
+
   it("rejects structurally alien input loudly", () => {
     for (const input of [
       null,
@@ -213,7 +283,7 @@ describe("normalizeX402PaymentRequired", () => {
   it("rejects a string that is not base64 JSON", () => {
     const result = normalizeX402PaymentRequired("not-actually-base64-json");
     expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toMatch(/did not decode to JSON/);
+    expect(result._unsafeUnwrapErr()).toMatch(/not base64-encoded JSON/);
   });
 
   it("rejects an empty string payload", () => {
