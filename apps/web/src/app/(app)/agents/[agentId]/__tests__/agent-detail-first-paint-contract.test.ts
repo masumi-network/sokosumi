@@ -75,12 +75,14 @@ describe("agent detail first-paint contract (SOK-781)", () => {
       /Promise\.all\s*\(\s*\[[\s\S]*getCoreAgentById[\s\S]*getSession[\s\S]*\]\s*\)/,
     );
 
-    // Second wave: reviews share a Promise.all with other independent reads.
+    // Second wave: reviews, rating eligibility, and my-review share one Promise.all
+    // (serial rating after reviews would still match a looser scan).
     const secondWave = body!.match(
       /Promise\.all\s*\(\s*\[[\s\S]*?getAgentReviews[\s\S]*?\]\s*\)/,
     );
     expect(secondWave).toBeTruthy();
-    expect(body).toMatch(/canUserRateAgent|getUserRatingForAgent/);
+    expect(secondWave![0]).toMatch(/canUserRateAgent/);
+    expect(secondWave![0]).toMatch(/getUserRatingForAgent/);
   });
 
   it("page keeps create-job modal form graph off default first paint", () => {
@@ -95,6 +97,19 @@ describe("agent detail first-paint contract (SOK-781)", () => {
     // Context provider stays (hire trigger); modal itself is lazy/open-gated.
     expect(page).toMatch(/CreateJobModalContextProvider/);
     expect(page).toMatch(/LazyCreateJobModal/);
+  });
+
+  it("LazyCreateJobModal defers form graph until first open", () => {
+    const lazy = stripComments(
+      readWebSrc("components/create-job-modal/lazy-create-job-modal.tsx"),
+    );
+    expect(lazy).toMatch(
+      /dynamic\s*\(\s*\(\s*\)\s*=>\s*import\s*\(\s*["']\.\/create-job-modal["']/,
+    );
+    expect(lazy).toMatch(/ssr\s*:\s*false/);
+    // Open-gated latch (render-time, not useEffect mirror).
+    expect(lazy).toMatch(/open\s*&&\s*!hasOpened/);
+    expect(lazy).not.toMatch(/useEffect\s*\(/);
   });
 
   it("route-level loading shell exists and stays sync", () => {
