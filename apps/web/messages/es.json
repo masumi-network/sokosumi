@@ -1569,12 +1569,12 @@
           "tasks": "Desglosa el trabajo, asígnalo a un coworker o avanza algo.",
           "either": "Te empezamos con Elena, nuestra coworker de IA predeterminada, y una idea para probar."
         },
-        "goalTitle": "Prueba un inicio — o escribe el tuyo",
-        "goalDescription": "Toca un prompt para rellenar tu primer mensaje, o escribe algo abajo.",
-        "goalLabel": "Tu objetivo",
-        "goalPlaceholder": "p. ej. Ayúdame a redactar un resumen semanal",
+        "goalTitle": "Elige un prompt inicial o escribe el tuyo",
+        "goalDescription": "Selecciona un prompt para rellenar tu primer mensaje, o escribe el tuyo abajo.",
+        "goalLabel": "Tu mensaje",
+        "goalPlaceholder": "Ejemplo: Ayúdame a redactar un resumen semanal",
         "tryAsking": {
-          "label": "Prueba a preguntar",
+          "label": "Prompts sugeridos",
           "orDivider": "o",
           "prompts": {
             "chat": {

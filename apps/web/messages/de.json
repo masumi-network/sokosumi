@@ -1569,12 +1569,12 @@
           "tasks": "Arbeit aufteilen, einem Coworker zuweisen oder etwas voranbringen.",
           "either": "Wir starten mit Elena, unserer Standard-KI-Coworkerin, und einer Idee zum Ausprobieren."
         },
-        "goalTitle": "Starter ausprobieren — oder selbst schreiben",
-        "goalDescription": "Tippe einen Prompt an, um deine erste Nachricht vorzufüllen, oder schreibe unten etwas Eigenes.",
-        "goalLabel": "Dein Ziel",
-        "goalPlaceholder": "z. B. Hilf mir, ein Wochenupdate zu schreiben",
+        "goalTitle": "Starter-Prompt wählen oder selbst formulieren",
+        "goalDescription": "Wähle einen Prompt, um deine erste Nachricht vorzufüllen, oder schreibe unten etwas Eigenes.",
+        "goalLabel": "Deine Nachricht",
+        "goalPlaceholder": "Beispiel: Hilf mir, ein Wochenupdate zu schreiben",
         "tryAsking": {
-          "label": "Versuch’s mal mit",
+          "label": "Vorgeschlagene Prompts",
           "orDivider": "oder",
           "prompts": {
             "chat": {
