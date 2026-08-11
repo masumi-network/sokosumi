@@ -1235,9 +1235,11 @@ export function ComposerWysiwygEditor<TData = unknown>({
         aria-multiline="true"
         style={{ scrollMarginTop: MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX }}
         className={cn(
-          "outline-none focus:outline-none",
+          // relative: empty placeholder is absolutely positioned so long
+          // channel/DM names do not grow empty-editor height (room Instant → shell).
+          "relative outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
-          "empty:before:text-muted-foreground empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]",
+          "empty:before:pointer-events-none empty:before:absolute empty:before:inset-x-0 empty:before:top-0 empty:before:max-w-full empty:before:truncate empty:before:overflow-hidden empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]",
           EDITOR_PROSE_CLASSNAME,
           className,
         )}
