@@ -71,3 +71,81 @@ deployed x402 surface. Only `spec/SPEC_SOURCES.md` changed (provenance note).
   `PENDING|VERIFIED|FAILED|REFUNDED`, `@@index([agentId, status])` for the
   per-endpoint refund aggregation, plus the FK-free append-only
   `TaskX402PaymentAction` sibling.
+
+## Sub-component 2 — TaskX402Payment schema + migration (`x402-2-model`) — 2026-08-11
+
+**Branch:** `x402-2-model`, cut from `x402-1-spec-refresh` (`eafc3a89d`). Two
+commits: the schema + migration, and the user-deletion guard + tests.
+
+### Schema decisions
+
+- `TaskX402PaymentStatus` (`PENDING|VERIFIED|FAILED|REFUNDED`) with a doc
+  comment pinning why VERIFIED is terminal for the automated flow: the node
+  signs locally, Soko cannot observe settlement until the phased-settlement
+  reconciler (ticket 011 Q3) ships; REFUNDED is reachable only from
+  PENDING/FAILED auto-refunds or an operator goodwill refund.
+- `TaskX402Payment` per PR1-SPEC §4 verbatim, plus the relations the spec
+  implies: `taskId → Task` **Restrict** (a money record must never vanish
+  with its task — the same reasoning as the claim's Restrict on its
+  transactions; the claim itself has no task FK, only `taskEventId SetNull`),
+  `agentId → Agent` Restrict (aggregation key; no production code path
+  hard-deletes Agent rows, so Restrict costs nothing today),
+  `taskEventId → TaskEvent` SetNull `@unique`, `transactionId` /
+  `refundTransactionId → Transaction` Restrict `@unique` — mirroring the
+  claim exactly.
+- Indexes: the `@@unique([taskId, idempotencyKey])` dedupe ships in the same
+  migration as the table (the node has no idempotency of its own),
+  `@@index([agentId, status])` for §5 aggregation, and
+  `@@index([status, validBefore])` for the future reconciler's expiry scan.
+- `TaskX402PaymentAction` mirrors `TaskPaymentClaimAction`: append-only,
+  FK-free (account deletion hard-deletes terminal payments and can remove the
+  operator's User row; cascade would erase the audit trail, restrict would
+  block deletion).
+- Back-relations added on `Task`, `Agent`, `TaskEvent` (`x402Payment?`), and
+  `Transaction` (two named relations, claim-style).
+
+### Migration
+
+`20260811130000_task_x402_payment` — timestamped after
+`20260811120000_external_channels`. Fully idempotent (enum via
+`duplicate_object` guard, `CREATE TABLE/INDEX IF NOT EXISTS`, FK adds in
+`DO $$` guards), matching the payment-v2 branch style. Validated on scratch
+local Postgres: full `prisma migrate deploy` from zero, a second direct
+`psql` re-apply of the new file (no-op, NOTICEs only), and
+`prisma migrate diff` from the applied DB to the schema shows **no x402
+drift** (the only reported diffs are pre-existing SQL-only partial unique
+indexes Prisma cannot model, e.g. `chat_room_guest_invitation`'s
+pending-status unique).
+
+### User-deletion guard (apps/core)
+
+`prepareTasksForUserDeletion` now mirrors the claim guard for x402 payments:
+PENDING blocks with `TASK_X402_PAYMENT_PENDING` (no Sentry page — unlike a
+review-required claim it self-clears via coworker retry or reconciler
+auto-refund), then terminal payments are swept across **all three** RESTRICT
+branches (`transaction`, `refundTransaction`, `task.ownerId`) before
+`task.deleteMany`. The task-owner branch is the one the claim guard does not
+have: `taskId` is Restrict, so a payment row on an owned task would fail the
+owned-task delete regardless of who was charged.
+
+### Verification
+
+- Scratch-DB migration validation as above (local Postgres was available).
+- `pnpm --filter @sokosumi/database test` — 36 files passed, 245 tests.
+- `pnpm --filter core test src/helpers/user-deletion-tasks.test.ts` — 11
+  passed (5 existing + 6 new/extended).
+- `pnpm typecheck` — all workspaces clean.
+- `pnpm check` — 3118 files, no fixes.
+- `prisma format` fixed pre-existing alignment drift from the
+  external-channels commit; formatting-only churn in `schema.prisma`.
+
+### What sub-component 3 needs to know
+
+- Core resolves `@sokosumi/database` through its built `dist` — after any
+  schema change run `pnpm --filter @sokosumi/database build` (not just
+  `prisma:generate`) or core tests see `undefined` enums.
+- `TaskX402PaymentAction.action` doc comment reserves `"refund" | "resolve"`;
+  the admin surface (§5) should stick to those strings.
+- No status transition guard exists at the DB layer — terminal-at-VERIFIED is
+  enforced by application code; the pay-route service must not add post-
+  VERIFIED transitions until the phased-settlement reconciler ships.
