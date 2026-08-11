@@ -1556,21 +1556,21 @@
       "Onboarding": {
         "openFab": "Start coworker chat",
         "greeting": "Welcome!",
-        "greetingWithName": "Welcome {name}!",
+        "greetingWithName": "Welcome, {name}!",
         "intentTitle": "What would you like to focus on?",
         "intentDescription": "Choose a focus so we can recommend the right coworker and starter prompts.",
         "intentChoices": {
           "chat": "Conversation",
-          "tasks": "Tasks & projects",
+          "tasks": "Projects & tasks",
           "either": "Not sure yet"
         },
         "intentChoiceHints": {
-          "chat": "Brainstorm, research, or get answers in a back-and-forth.",
-          "tasks": "Break work down, track progress, or move a project forward.",
-          "either": "We'll open with Elena and a starter idea."
+          "chat": "Research, brainstorm, or work through a problem with a coworker.",
+          "tasks": "Break down work, assign tasks to a coworker, or advance a project.",
+          "either": "We'll start with Elena, our default AI coworker, and a suggested prompt."
         },
         "goalTitle": "Choose a starter prompt or write your own",
-        "goalDescription": "Select a prompt to prefill your first message, or write your own below.",
+        "goalDescription": "Select a prompt to fill in your first message, or write your own below.",
         "goalLabel": "Your message",
         "goalPlaceholder": "Example: Help me draft a weekly update",
         "tryAsking": {
@@ -1578,27 +1578,27 @@
           "orDivider": "or",
           "prompts": {
             "chat": {
-              "hannah": "Research our competitors and compare us to them.",
-              "alex": "Analyse the data in my OneDrive folder.",
-              "elena": "Help me figure out how Sokosumi fits my business and where I should start."
+              "hannah": "Research our competitors and compare us with them.",
+              "alex": "Analyze the data in my OneDrive folder.",
+              "elena": "Help me understand how Sokosumi fits my business and where I should start."
             },
             "tasks": {
-              "elena": "Show me the status of all my open tasks and what needs my attention.",
-              "alex": "Build me a Dashboard for my research results.",
-              "hannah": "Analyze our target audience: needs, behaviors, media habits."
+              "elena": "Show me the status of my open tasks and what needs attention.",
+              "alex": "Build a dashboard for my research results.",
+              "hannah": "Analyze our target audience: needs, behaviors, and media habits."
             },
             "either": {
-              "elena": "Help me figure out how Sokosumi fits my business and where I should start.",
-              "hannah": "Research our competitors and compare us to them.",
-              "alex": "Create me Data Visualisation for my Excel Sheet."
+              "elena": "Help me understand how Sokosumi fits my business and where I should start.",
+              "hannah": "Research our competitors and compare us with them.",
+              "alex": "Create a data visualization from my Excel spreadsheet."
             }
           }
         },
         "draftWithGoal": "{goal}",
         "draftWhenSkipped": {
-          "chat": "I'd like help with conversation — tell me how you can help me.",
+          "chat": "I'd like to start a conversation — tell me how you can help.",
           "tasks": "I'd like help with tasks and projects.",
-          "either": "Explain how to use Sokosumi."
+          "either": "Explain how to get started with Sokosumi."
         },
         "next": "Next",
         "back": "Back",

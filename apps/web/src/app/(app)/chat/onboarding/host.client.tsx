@@ -1,5 +1,6 @@
 "use client";
 
+import { getFirstName } from "@sokosumi/utils";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useReducer, useState } from "react";
@@ -38,8 +39,8 @@ export interface ChatOnboardingHostProps {
 }
 
 const INTENT_CHOICES: readonly IntentChoiceId[] = [
-  "chat",
   "tasks",
+  "chat",
   "either",
 ] as const;
 
@@ -135,8 +136,10 @@ export function ChatOnboardingHost({
     }
   }, [coworkers, router, state.phase, t]);
 
-  const greeting = userName
-    ? t("greetingWithName", { name: userName })
+  // First name only — match Hermes welcome (full name feels heavy here).
+  const firstName = getFirstName(userName);
+  const greeting = firstName
+    ? t("greetingWithName", { name: firstName })
     : t("greeting");
 
   return (

@@ -15,7 +15,10 @@ import {
   type ComposerSuggestion,
   resolveComposerSuggestion,
 } from "@/components/chat/composer-suggestions";
-import { ROOM_COMPOSER_MENTION_ANCHOR_ATTR } from "@/components/chat/room-message-composer";
+import {
+  ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
+  ROOM_COMPOSER_MENTION_ANCHOR_ATTR,
+} from "@/components/chat/room-message-composer";
 import {
   createMentionSpan,
   deslugifyMentionSlug,
@@ -1237,7 +1240,9 @@ export function ComposerWysiwygEditor<TData = unknown>({
         className={cn(
           "outline-none focus:outline-none",
           "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
-          "empty:before:text-muted-foreground empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]",
+          // Host min-h (ROOM_COMPOSER_TEXTAREA_CLASSNAME) owns empty height;
+          // shared placeholder classes keep Instant bone and live editor aligned.
+          ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
           EDITOR_PROSE_CLASSNAME,
           className,
         )}

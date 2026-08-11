@@ -11,9 +11,24 @@ import { useKeyboardOpen } from "@/hooks/use-keyboard-open";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 
+/**
+ * Shared editor footprint for live composer + Instant room loading shell.
+ *
+ * Single-line height is explicit (pt-3.5 + pb-2.5 + leading-6) so empty,
+ * placeholder, and first keystroke share the same box. Do not use
+ * `empty:max-h-*` (jumps when :empty ends). Placeholder is single-line
+ * ellipsis on empty:before (see ComposerWysiwygEditor).
+ */
 export const ROOM_COMPOSER_TEXTAREA_CLASSNAME = withEditableTextSize(
-  "max-h-40 min-h-10 field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 pt-3.5 pb-2.5 leading-6 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
+  "box-border max-h-40 min-h-[calc(0.875rem+0.625rem+1.5rem)] field-sizing-content resize-none overflow-y-auto rounded-none border-0! bg-transparent px-4 pt-3.5 pb-2.5 leading-6 ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 dark:bg-transparent",
 );
+
+/**
+ * Classic empty:before placeholder on the editor host (live wysiwyg + Instant
+ * bone). Single-line ellipsis; host min-h owns empty and first-keystroke height.
+ */
+export const ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME =
+  "empty:before:pointer-events-none empty:before:block empty:before:max-w-full empty:before:overflow-hidden empty:before:text-ellipsis empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]";
 
 export const ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME =
   "size-9 rounded-full sm:size-8";

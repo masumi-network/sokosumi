@@ -1556,21 +1556,21 @@
       "Onboarding": {
         "openFab": "Coworker-Chat starten",
         "greeting": "Willkommen!",
-        "greetingWithName": "Willkommen {name}!",
-        "intentTitle": "Womit möchtest du starten?",
-        "intentDescription": "Wähle einen Schwerpunkt — wir empfehlen den passenden Coworker und Starter-Prompts.",
+        "greetingWithName": "Willkommen, {name}!",
+        "intentTitle": "Worauf möchtest du dich konzentrieren?",
+        "intentDescription": "Wähle einen Schwerpunkt, damit wir den passenden Coworker und passende Starter-Prompts vorschlagen können.",
         "intentChoices": {
           "chat": "Gespräch",
-          "tasks": "Aufgaben & Projekte",
+          "tasks": "Projekte & Aufgaben",
           "either": "Noch unsicher"
         },
         "intentChoiceHints": {
-          "chat": "Brainstormen, recherchieren oder Antworten im Dialog.",
-          "tasks": "Arbeit aufteilen, Fortschritt verfolgen oder ein Projekt voranbringen.",
-          "either": "Wir starten mit Elena und einer Einstiegsidee."
+          "chat": "Recherchieren, brainstormen oder ein Problem mit einem Coworker durchdenken.",
+          "tasks": "Arbeit aufteilen, Aufgaben an einen Coworker vergeben oder ein Projekt vorantreiben.",
+          "either": "Wir starten mit Elena, unserer Standard-KI-Coworkerin, und einem vorgeschlagenen Prompt."
         },
         "goalTitle": "Starter-Prompt wählen oder selbst formulieren",
-        "goalDescription": "Wähle einen Prompt, um deine erste Nachricht vorzufüllen, oder schreibe unten etwas Eigenes.",
+        "goalDescription": "Wähle einen Prompt für deine erste Nachricht oder schreibe unten etwas Eigenes.",
         "goalLabel": "Deine Nachricht",
         "goalPlaceholder": "Beispiel: Hilf mir, ein Wochenupdate zu schreiben",
         "tryAsking": {
@@ -1580,25 +1580,25 @@
             "chat": {
               "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
               "alex": "Analysiere die Daten in meinem OneDrive-Ordner.",
-              "elena": "Hilf mir zu klären, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte."
+              "elena": "Hilf mir zu verstehen, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte."
             },
             "tasks": {
-              "elena": "Zeig mir den Status aller meiner offenen Tasks und was meine Aufmerksamkeit benötigt.",
-              "alex": "Erstelle mir ein Dashboard für meine Rechercheergebnisse.",
-              "hannah": "Analysiere unsere Zielgruppe: Bedürfnisse, Verhalten, Mediennutzung."
+              "elena": "Zeig mir den Status meiner offenen Tasks und was Aufmerksamkeit braucht.",
+              "alex": "Erstelle ein Dashboard für meine Rechercheergebnisse.",
+              "hannah": "Analysiere unsere Zielgruppe: Bedürfnisse, Verhalten und Mediennutzung."
             },
             "either": {
-              "elena": "Hilf mir zu klären, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte.",
+              "elena": "Hilf mir zu verstehen, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte.",
               "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
-              "alex": "Erstelle mir eine Datenvisualisierung für mein Excel-Dokument."
+              "alex": "Erstelle eine Datenvisualisierung aus meinem Excel-Dokument."
             }
           }
         },
         "draftWithGoal": "{goal}",
         "draftWhenSkipped": {
-          "chat": "Ich brauche Hilfe im Gespräch — erzähl mir, wie du mir helfen kannst.",
+          "chat": "Ich möchte ein Gespräch starten — erzähl mir, wie du mir helfen kannst.",
           "tasks": "Ich brauche Hilfe bei Aufgaben und Projekten.",
-          "either": "Erklär mir, wie ich Sokosumi nutze."
+          "either": "Erklär mir, wie ich mit Sokosumi starte."
         },
         "next": "Weiter",
         "back": "Zurück",
