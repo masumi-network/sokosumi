@@ -329,4 +329,158 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     expect(screen.getByTestId("room-session-composer")).toBe(composer);
     expect(composer).toHaveAttribute("data-focus-on-mount", "true");
   });
+
+  it("shows load-failed empty state when deferred history fails", async () => {
+    let resolvePage!: (page: {
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }) => void;
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>((resolve) => {
+      resolvePage = resolve;
+    });
+
+    render(<RoomsClient {...baseProps} messagesPromise={messagesPromise} />);
+
+    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
+    const composer = screen.getByTestId("room-session-composer");
+
+    await act(async () => {
+      resolvePage({
+        messages: [],
+        nextCursor: null,
+        failed: true,
+      });
+      await messagesPromise;
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
+    });
+    expect(screen.getByText("Empty.messagesLoadFailedTitle")).toBeTruthy();
+    expect(screen.queryByTestId("chat-message-row")).toBeNull();
+    expect(screen.getByTestId("room-session-composer")).toBe(composer);
+  });
+
+  it("settles to load-failed when deferred history promise rejects", async () => {
+    let rejectPage!: (reason?: unknown) => void;
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>((_resolve, reject) => {
+      rejectPage = reject;
+    });
+
+    render(<RoomsClient {...baseProps} messagesPromise={messagesPromise} />);
+
+    await act(async () => {
+      rejectPage(new Error("network boom"));
+      await messagesPromise.catch(() => undefined);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
+    });
+    expect(screen.getByText("Empty.messagesLoadFailedTitle")).toBeTruthy();
+    expect(screen.getByTestId("room-session-composer")).toBeTruthy();
+  });
+
+  it("clears prior room messages when progressive room switches", async () => {
+    let resolveA!: (page: {
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }) => void;
+    let resolveB!: (page: {
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }) => void;
+    const promiseA = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>((resolve) => {
+      resolveA = resolve;
+    });
+    const promiseB = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>((resolve) => {
+      resolveB = resolve;
+    });
+
+    const roomA = channelRoom();
+    const roomB: ChatRoom = {
+      ...channelRoom(),
+      id: "room-other",
+      name: "other",
+      slug: "other",
+    };
+
+    const { rerender } = render(
+      <RoomsClient
+        {...baseProps}
+        rooms={[roomA]}
+        selectedRoomId={roomA.id}
+        messagesPromise={promiseA}
+      />,
+    );
+
+    await act(async () => {
+      resolveA({
+        messages: [sampleMessage("from room A")],
+        nextCursor: null,
+        failed: false,
+      });
+      await promiseA;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
+        "from room A",
+      );
+    });
+
+    rerender(
+      <RoomsClient
+        {...baseProps}
+        rooms={[roomA, roomB]}
+        selectedRoomId={roomB.id}
+        messagesPromise={promiseB}
+      />,
+    );
+
+    expect(screen.queryByText("from room A")).toBeNull();
+    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
+
+    await act(async () => {
+      resolveB({
+        messages: [
+          {
+            ...sampleMessage("from room B"),
+            id: "msg-b",
+            roomId: roomB.id,
+          },
+        ],
+        nextCursor: null,
+        failed: false,
+      });
+      await promiseB;
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
+    });
+    expect(screen.queryByText("from room A")).toBeNull();
+    expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
+      "from room B",
+    );
+  });
 });

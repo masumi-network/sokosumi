@@ -446,6 +446,20 @@ export function RoomsClient({
     useState(messageLoadFailed);
   const [syncedMessagesPromise, setSyncedMessagesPromise] =
     useState(messagesPromise);
+  const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
+    useState(selectedRoomId);
+  // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
+  // room switch must drop the prior timeline so skeleton shows and hydrate
+  // cannot merge room A into room B (or show A under B's header).
+  if (selectedRoomId !== syncedHistoryRoomId) {
+    setSyncedHistoryRoomId(selectedRoomId);
+    if (messagesPromise != null) {
+      setMessagesState([]);
+      setOlderNextCursor(null);
+      setMessageLoadFailedState(false);
+      setDeferredHistoryPending(true);
+    }
+  }
   if (messagesPromise !== syncedMessagesPromise) {
     setSyncedMessagesPromise(messagesPromise);
     setDeferredHistoryPending(messagesPromise != null);
@@ -1046,6 +1060,14 @@ export function RoomsClient({
       return;
     }
 
+    // Progressive open keeps messagesPromise after hydrate; props stay empty.
+    // Do not re-apply prop messages / messageLoadFailed or we wipe hydrate
+    // and clobber failed:true from the hydrator.
+    if (messagesPromise != null) {
+      syncedRoomIdRef.current = selectedRoomId;
+      return;
+    }
+
     const isChannelSwitch = syncedRoomIdRef.current !== selectedRoomId;
     syncedRoomIdRef.current = selectedRoomId;
 
@@ -1069,6 +1091,7 @@ export function RoomsClient({
     messageLoadFailed,
     messages,
     messagesNextCursor,
+    messagesPromise,
     selectedRoomId,
   ]);
 

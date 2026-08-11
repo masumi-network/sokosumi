@@ -29,16 +29,34 @@ export function RoomMessagesHydrator({
   useEffect(() => {
     let cancelled = false;
 
-    void promise.then((page) => {
-      if (cancelled) {
-        return;
-      }
-      if (deliveredPromiseRef.current === promise) {
-        return;
-      }
-      deliveredPromiseRef.current = promise;
-      onResolvedRef.current(page);
-    });
+    void promise.then(
+      (page) => {
+        if (cancelled) {
+          return;
+        }
+        if (deliveredPromiseRef.current === promise) {
+          return;
+        }
+        deliveredPromiseRef.current = promise;
+        onResolvedRef.current(page);
+      },
+      () => {
+        // Unexpected reject (loadRoomMessages maps CoreApiRequestError to
+        // failed:true; other throws still reject). Never leave parent pending.
+        if (cancelled) {
+          return;
+        }
+        if (deliveredPromiseRef.current === promise) {
+          return;
+        }
+        deliveredPromiseRef.current = promise;
+        onResolvedRef.current({
+          messages: [],
+          nextCursor: null,
+          failed: true,
+        });
+      },
+    );
 
     return () => {
       cancelled = true;
