@@ -48,9 +48,15 @@ export default async function ChatChatsPage() {
 
   return (
     <Sheet open>
+      {/*
+        Grow with content — do not height-lock with min-h-0 + overflow-y-auto.
+        AppMobileChrome's in-flow tab-bar spacer must sit after the last row in
+        main's scroll; padding on a nested overflow flex child does not clear
+        the fixed bottom nav (last DM was clipped).
+      */}
       <div
         className={cn(
-          "md:hidden -m-4 flex min-h-0 flex-1 flex-col overflow-y-auto bg-background",
+          "md:hidden -m-4 flex flex-1 flex-col bg-background",
           LIST_MOBILE_CREATE_FAB_CLEARANCE,
         )}
       >

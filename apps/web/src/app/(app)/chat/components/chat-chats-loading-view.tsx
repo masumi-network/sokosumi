@@ -13,7 +13,9 @@ export function ChatChatsPageSkeleton(): React.ReactElement {
     <div
       data-testid="chat-chats-loading"
       className={cn(
-        "md:hidden -m-4 min-h-0 flex-1 overflow-y-auto p-4",
+        // Match live chats page: grow with content so tab-bar spacer clears
+        // the last row (no nested overflow-y-auto height lock).
+        "md:hidden -m-4 flex flex-1 flex-col bg-background p-4",
         LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
