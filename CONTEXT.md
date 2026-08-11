@@ -60,6 +60,16 @@ _Avoid_: AFK, logged out (logout implies offline but offline does not require lo
 A coarse timestamp of recent session activity (e.g. org members table). Not the same concept as Presence; must not drive green-dot Online/AFK/Offline.
 _Avoid_: Presence, online status
 
+### Chat message body
+
+**Room message body**:
+The markdown string stored for a chat room message (what was sent). Presentation may turn some plain text into links without changing the stored string.
+_Avoid_: Wire content (implementation jargon), rendered HTML (that is display, not the body)
+
+**Bare domain**:
+In a room message body, a plain hostname with optional path, query, or fragment and no URL scheme (e.g. `google.com`, `naturstein-koester.de/path?q=1`). Shown as a clickable link in the room after send; not converted while typing in the composer; not rewritten in storage.
+_Avoid_: Autolink (ambiguous with GFM scheme/`www` links), live link (composer does not convert bare domains while typing)
+
 ### Chat coworker thought
 
 **Mention status**:
