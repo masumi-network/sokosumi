@@ -15,6 +15,27 @@ function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
 
+/**
+ * Brace-depth slice of `export default async function … { … }`.
+ * More stable than non-greedy `^}` (nested top-level-looking closes).
+ */
+function extractDefaultAsyncFunction(source: string): string | null {
+  const header = source.match(
+    /export\s+default\s+async\s+function\s+\w+\s*\([^)]*\)\s*\{/,
+  );
+  if (!header || header.index === undefined) return null;
+  let depth = 1;
+  let i = header.index + header[0].length;
+  while (i < source.length && depth > 0) {
+    const ch = source[i];
+    if (ch === "{") depth += 1;
+    else if (ch === "}") depth -= 1;
+    i += 1;
+  }
+  if (depth !== 0) return null;
+  return source.slice(header.index, i);
+}
+
 describe("personal-assistant first-paint contract (SOK-780)", () => {
   it("keeps Instant soft-nav opt-out", () => {
     const layout = stripComments(readPa("layout.tsx"));
@@ -29,13 +50,9 @@ describe("personal-assistant first-paint contract (SOK-780)", () => {
     expect(page).toMatch(/hasPaidPlanCoverage/);
     expect(page).toMatch(/getSubscriptionCatalog/);
     // Default export should return Suspense without awaiting coverage first:
-    // coverage call must appear after the default function's return of Suspense,
-    // i.e. only inside a separate async component in the same file.
-    const defaultMatch = page.match(
-      /export\s+default\s+async\s+function\s+\w+[\s\S]*?^}/m,
-    );
-    expect(defaultMatch).toBeTruthy();
-    const defaultBody = defaultMatch?.[0] ?? "";
+    // coverage call must appear only inside a separate async component.
+    const defaultBody = extractDefaultAsyncFunction(page);
+    expect(defaultBody).toBeTruthy();
     expect(defaultBody).toMatch(/return\s*\(\s*<Suspense/);
     expect(defaultBody).not.toMatch(/hasPaidPlanCoverage\s*\(/);
     expect(defaultBody).not.toMatch(/getSubscriptionCatalog\s*\(/);

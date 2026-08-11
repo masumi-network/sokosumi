@@ -9,6 +9,7 @@ import {
   buildSubscriptionWallPlans,
   resolveHermesHasActiveSubscription,
 } from "@/app/personal-assistant/hermes-page-subscription";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { getSession } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import type { GetSubscriptionCatalogResponse } from "@/lib/clients/generated/core";
@@ -116,6 +117,7 @@ export async function HermesExperienceWithAccess({
  */
 export default async function HermesPage() {
   const session = await getSession();
+  const userId = session?.user.id ?? null;
   const userName = session?.user.name ?? null;
   const userEmail = session?.user.email ?? null;
   const userImageUrl = session?.user.image
@@ -124,11 +126,15 @@ export default async function HermesPage() {
       ? gravatarUrl(session.user.email, { size: 80, default: "404" })
       : null;
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  // Match HermesExperience's pre-instance loading seed so Suspense → client
+  // loading does not flash a different orb. loading.tsx stays seedless
+  // (no session without an extra await that would delay route shell paint).
+  const shellOrbSeed = userId ? defaultOrbSeed(userId) : undefined;
 
   return (
-    <Suspense fallback={<LoadingState />}>
+    <Suspense fallback={<LoadingState seed={shellOrbSeed} />}>
       <HermesExperienceWithAccess
-        userId={session?.user.id ?? null}
+        userId={userId}
         userName={userName}
         userEmail={userEmail}
         userImageUrl={userImageUrl}
