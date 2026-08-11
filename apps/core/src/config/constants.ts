@@ -50,6 +50,18 @@ export const LIMITS = {
    */
   CHAT_ROOM_GUEST_INVITATION_CREATE_PER_HOUR: 30,
 
+  /**
+   * Maximum live (non-revoked, non-expired) shareable guest invite links per
+   * external channel. Bounds link sprawl; hosts revoke unused links first.
+   */
+  CHAT_ROOM_GUEST_INVITE_LINK_ACTIVE_LIMIT: 10,
+
+  /**
+   * Maximum shareable guest invite links one creator may mint per hour
+   * (across rooms). Complements the per-room active cap.
+   */
+  CHAT_ROOM_GUEST_INVITE_LINK_CREATE_PER_HOUR: 10,
+
   /** Maximum organizations per user */
   ORGANIZATION_LIMIT: 100,
 
