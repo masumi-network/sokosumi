@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -22,7 +23,6 @@ import {
   sendRoomMessageAction,
   toggleMessageReactionAction,
 } from "@/app/chat/actions";
-import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
@@ -109,12 +109,22 @@ import {
   shouldShowRoomMentionShortcut,
   shouldUseCoworkerRoomStream,
 } from "./room-helpers";
+import { RoomMessageListSkeleton } from "./room-message-list-skeleton";
 import { ChatMessageRow } from "./room-message-row";
+import {
+  type RoomMessagePage,
+  RoomMessagesHydrator,
+} from "./room-messages-hydrator";
 import {
   RoomSessionComposer,
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
 } from "./room-session-composer";
+import {
+  ROOM_SHELL_COLUMN_CLASSNAME,
+  ROOM_SHELL_ROOT_CLASSNAME,
+  RoomShellLayout,
+} from "./room-shell-layout";
 import { ThreadPanel } from "./thread-panel";
 
 interface RoomsClientProps {
@@ -133,6 +143,11 @@ interface RoomsClientProps {
   messages: ChatRoomMessage[];
   /** Cursor for the next older page; null when the initial page is complete. */
   messagesNextCursor: string | null;
+  /**
+   * Deferred initial history (Server → Client promise). Hydrates into this
+   * instance so real header + composer stay mounted while the list skeletons.
+   */
+  messagesPromise?: Promise<RoomMessagePage>;
 }
 
 const COWORKER_RESPONSE_POLL_MS = 2500;
@@ -403,6 +418,7 @@ export function RoomsClient({
   membersLoadFailed,
   messages,
   messagesNextCursor,
+  messagesPromise,
 }: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
@@ -423,6 +439,49 @@ export function RoomsClient({
   const [olderNextCursor, setOlderNextCursor] = useState<string | null>(
     messagesNextCursor,
   );
+  const [deferredHistoryPending, setDeferredHistoryPending] = useState(
+    () => messagesPromise != null,
+  );
+  const [messageLoadFailedState, setMessageLoadFailedState] =
+    useState(messageLoadFailed);
+  const [syncedMessagesPromise, setSyncedMessagesPromise] =
+    useState(messagesPromise);
+  const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
+    useState(selectedRoomId);
+  // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
+  // room switch must drop the prior timeline so skeleton shows and hydrate
+  // cannot merge room A into room B (or show A under B's header).
+  if (selectedRoomId !== syncedHistoryRoomId) {
+    setSyncedHistoryRoomId(selectedRoomId);
+    if (messagesPromise != null) {
+      setMessagesState([]);
+      setOlderNextCursor(null);
+      setMessageLoadFailedState(false);
+      setDeferredHistoryPending(true);
+    }
+  }
+  if (messagesPromise !== syncedMessagesPromise) {
+    setSyncedMessagesPromise(messagesPromise);
+    // Same-room promise identity swap (RSC refresh) must not re-enter pending
+    // or focusOnMount false→true steals caret mid-type. Room change above
+    // already sets pending; initial mount seeds deferredHistoryPending.
+    if (messagesPromise == null) {
+      setDeferredHistoryPending(false);
+      setMessageLoadFailedState(messageLoadFailed);
+    }
+  }
+  const messagesPending = deferredHistoryPending;
+  const effectiveMessageLoadFailed = messagesPending
+    ? false
+    : messageLoadFailedState;
+
+  const handleDeferredHistoryResolved = useCallback((page: RoomMessagePage) => {
+    setMessagesState((current) => mergeRoomMessages(current, page.messages));
+    setOlderNextCursor(page.nextCursor);
+    setMessageLoadFailedState(page.failed);
+    setDeferredHistoryPending(false);
+  }, []);
+
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
   const threadParentMessageRef = useRef<ChatRoomMessage | null>(null);
@@ -455,11 +514,23 @@ export function RoomsClient({
     scrollerRef,
     contentRef,
     contentMinHeight,
+    scrollToBottom,
     pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
   } = useStickToBottom({
     resetKey: selectedRoomId,
   });
+  // When history lands, pin live edge in layout (same frame as skeleton →
+  // messages) so the list does not paint mid-jump then scroll.
+  const wasHistoryPendingRef = useRef(messagesPending);
+  useLayoutEffect(() => {
+    const wasPending = wasHistoryPendingRef.current;
+    wasHistoryPendingRef.current = messagesPending;
+    if (!wasPending || messagesPending) {
+      return;
+    }
+    scrollToBottom();
+  }, [messagesPending, scrollToBottom]);
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
@@ -986,6 +1057,20 @@ export function RoomsClient({
   }
 
   useEffect(() => {
+    // Deferred promise owns the first page until hydrate completes.
+    if (deferredHistoryPending) {
+      syncedRoomIdRef.current = selectedRoomId;
+      return;
+    }
+
+    // Progressive open keeps messagesPromise after hydrate; props stay empty.
+    // Do not re-apply prop messages / messageLoadFailed or we wipe hydrate
+    // and clobber failed:true from the hydrator.
+    if (messagesPromise != null) {
+      syncedRoomIdRef.current = selectedRoomId;
+      return;
+    }
+
     const isChannelSwitch = syncedRoomIdRef.current !== selectedRoomId;
     syncedRoomIdRef.current = selectedRoomId;
 
@@ -994,15 +1079,24 @@ export function RoomsClient({
     if (isChannelSwitch) {
       setMessagesState(messages);
       setOlderNextCursor(messagesNextCursor);
+      setMessageLoadFailedState(messageLoadFailed);
     } else {
       setMessagesState((current) => mergeRoomMessages(current, messages));
+      setMessageLoadFailedState(messageLoadFailed);
     }
     setThreadParentMessage((current) =>
       current
         ? (messages.find((message) => message.id === current.id) ?? current)
         : current,
     );
-  }, [messages, messagesNextCursor, selectedRoomId]);
+  }, [
+    deferredHistoryPending,
+    messageLoadFailed,
+    messages,
+    messagesNextCursor,
+    messagesPromise,
+    selectedRoomId,
+  ]);
 
   const latestTopLevelMessageId = displayMessages.at(-1)?.id ?? null;
   const latestOpenThreadMessageId = displayThreadMessages.at(-1)?.id ?? null;
@@ -1737,30 +1831,268 @@ export function RoomsClient({
       />
     ) : null;
 
+  if (selectedRoom) {
+    const showListSkeleton = messagesPending && displayMessages.length === 0;
+    const openRoomListBody = (
+      <>
+        {messagesPromise ? (
+          <RoomMessagesHydrator
+            promise={messagesPromise}
+            onResolved={handleDeferredHistoryResolved}
+          />
+        ) : null}
+        {showListSkeleton ? (
+          <RoomMessageListSkeleton />
+        ) : effectiveMessageLoadFailed ? (
+          <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
+            <p className="font-medium">{t("Empty.messagesLoadFailedTitle")}</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {t("Empty.messagesLoadFailedDescription")}
+            </p>
+          </div>
+        ) : displayMessages.length === 0 ? (
+          <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
+            <p className="font-medium">{t("Empty.noMessagesTitle")}</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {t("Empty.noMessagesDescription")}
+            </p>
+          </div>
+        ) : null}
+        {messagesPending || !olderNextCursor ? null : (
+          <div className="mb-4 flex justify-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isLoadingOlder}
+              onClick={handleLoadOlderMessages}
+            >
+              {isLoadingOlder ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  {t("loadingOlder")}
+                </>
+              ) : (
+                t("loadOlder")
+              )}
+            </Button>
+          </div>
+        )}
+        {showListSkeleton
+          ? null
+          : displayMessages.map((message, index) => {
+              const previousMessage = displayMessages[index - 1];
+              const showDaySeparator =
+                localCalendarReady &&
+                (!previousMessage ||
+                  messageDayKey(previousMessage.createdAt) !==
+                    messageDayKey(message.createdAt));
+              const isStreamOverlay = message.id.startsWith("stream:");
+              return (
+                <div key={message.id} className="min-w-0">
+                  {showDaySeparator ? (
+                    <DaySeparator
+                      date={new Date(message.createdAt)}
+                      formatDaySeparator={formatDaySeparator}
+                    />
+                  ) : null}
+                  {message.membership != null ? (
+                    <MembershipStatusRow message={message} />
+                  ) : (
+                    <ChatMessageRow
+                      message={message}
+                      coworkersById={coworkersById}
+                      coworkersBySlug={coworkersBySlug}
+                      usersById={usersById}
+                      usersBySlug={usersBySlug}
+                      currentUserId={currentUserId}
+                      canOpenHumanDirect={canOpenHumanDirect}
+                      onOpenDirectMessage={handleOpenDirectMessage}
+                      openingDirectParticipantKey={openingDirectKey}
+                      onToggleReaction={handleToggleReaction}
+                      onOpenThread={
+                        shouldShowChatRoomThreadButton({
+                          room: selectedRoom,
+                          isStreamOverlay,
+                        })
+                          ? loadThreadMessages
+                          : undefined
+                      }
+                      onQuote={handleQuoteMessage}
+                      onStartEdit={handleStartEdit}
+                      onDelete={handleDeleteMessage}
+                      isEditing={editSession?.messageId === message.id}
+                      editDraft={
+                        editSession?.messageId === message.id
+                          ? editSession.draft
+                          : ""
+                      }
+                      onEditDraftChange={handleEditDraftChange}
+                      onCancelEdit={handleCancelEdit}
+                      onSaveEdit={handleSaveEdit}
+                      isSavingEdit={
+                        isSavingEdit && editSession?.messageId === message.id
+                      }
+                      showThreadButton={shouldShowChatRoomThreadButton({
+                        room: selectedRoom,
+                        isStreamOverlay,
+                      })}
+                      isFirstOfDay={showDaySeparator}
+                      isContinuation={
+                        localCalendarReady &&
+                        !showDaySeparator &&
+                        isMessageContinuation(previousMessage, message)
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
+      </>
+    );
+
+    return (
+      <>
+        {isMobile === true && headerRoomSlotHost && roomHeaderChrome
+          ? createPortal(roomHeaderChrome, headerRoomSlotHost)
+          : null}
+        <RoomShellLayout
+          // ROOM_SHELL_ROOT already includes no-tab-bar height (matches Instant).
+          rootClassName={ROOM_SHELL_ROOT_CLASSNAME}
+          beforeMain={
+            currentUserId ? (
+              <LazyAblyProvider>
+                <RoomMessageRealtimeBridge
+                  roomIds={rooms.map((room) => room.id)}
+                  currentUserId={currentUserId}
+                  selectedRoomId={selectedRoomId}
+                  onMessage={handleChatRoomRealtimeMessage}
+                />
+              </LazyAblyProvider>
+            ) : null
+          }
+          reserveDesktopHeader
+          desktopHeader={
+            isMobile === false && roomHeaderChrome ? roomHeaderChrome : null
+          }
+          wrapColumn={(columnBody) => (
+            <RoomFileDropZone
+              enabled={!isCoworkerStreamRoom}
+              onFiles={(files) => {
+                roomComposerRef.current?.attachFiles(files);
+              }}
+              label={t("Toolbar.dropToAttach")}
+              className={ROOM_SHELL_COLUMN_CLASSNAME}
+            >
+              {columnBody}
+            </RoomFileDropZone>
+          )}
+          listScrollerRef={scrollerRef}
+          listContentRef={contentRef}
+          listContentStyle={
+            contentMinHeight != null
+              ? { minHeight: contentMinHeight }
+              : undefined
+          }
+          listContent={openRoomListBody}
+          composer={
+            <RoomSessionComposer
+              key={selectedRoom.id}
+              ref={roomComposerRef}
+              roomId={selectedRoom.id}
+              draftKey={composeDraftKey.room(selectedRoom.id)}
+              mentions={mentionRecords}
+              placeholder={
+                isDirectRoom
+                  ? t("directComposerPlaceholder", {
+                      member: selectedRoomDisplayName,
+                    })
+                  : t("composerPlaceholderWithChannel", {
+                      channel: selectedRoomDisplayName,
+                    })
+              }
+              isSending={isSending || isCoworkerStreaming}
+              showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
+              allowAttachments={!isCoworkerStreamRoom}
+              pendingQuote={pendingQuote}
+              onClearPendingQuote={() => setPendingQuote(null)}
+              onRestorePendingQuote={setPendingQuote}
+              onChromeResize={scrollToBottomIfPinned}
+              // Autofocus only after history settles. Send stays enabled so
+              // optimistic posts work during progressive open (merge into list).
+              focusOnMount={!messagesPending}
+              onBeforeSend={handleChannelBeforeSend}
+              onSend={handleChannelSend}
+            />
+          }
+          mainEnd={
+            threadParentMessage ? (
+              <ThreadPanel
+                parentMessage={threadParentMessage}
+                replies={displayThreadMessages}
+                isLoading={isThreadLoading}
+                olderNextCursor={threadOlderNextCursor}
+                isLoadingOlder={isLoadingOlderThread}
+                onLoadOlder={handleLoadOlderThreadMessages}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+                mentionRecords={mentionRecords}
+                draftKey={composeDraftKey.thread(
+                  selectedRoom.id,
+                  threadParentMessage.id,
+                )}
+                onBeforeSendReply={handleThreadBeforeSend}
+                onSendReply={handleThreadSend}
+                isSendingReply={
+                  isSendingThreadReply ||
+                  (isCoworkerStreaming &&
+                    threadStreamOverlayMessages.length > 0)
+                }
+                onClose={() => {
+                  setThreadParentMessage(null);
+                  setThreadMessages([]);
+                  setThreadOlderNextCursor(null);
+                  setPendingThreadQuote(null);
+                }}
+                onToggleReaction={handleToggleReaction}
+                onQuote={handleQuoteThreadMessage}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={handleOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectKey}
+                onStartEdit={handleStartEdit}
+                onDelete={handleDeleteMessage}
+                editSession={editSession}
+                onEditDraftChange={handleEditDraftChange}
+                onCancelEdit={handleCancelEdit}
+                onSaveEdit={handleSaveEdit}
+                isSavingEdit={isSavingEdit}
+                pendingQuote={pendingThreadQuote}
+                onClearPendingQuote={() => setPendingThreadQuote(null)}
+                onRestorePendingQuote={setPendingThreadQuote}
+                showMentionShortcut={shouldShowRoomMentionShortcut(
+                  selectedRoom,
+                )}
+                allowAttachments={!isCoworkerStreamRoom}
+                roomId={selectedRoom.id}
+              />
+            ) : null
+          }
+        />
+      </>
+    );
+  }
+
+  // Create-channel / new-DM / empty selection — unchanged non-room surfaces.
   return (
     <div
       className={cn(
-        "-m-4 flex min-h-0 min-w-0 flex-col overflow-hidden bg-background",
+        ROOM_SHELL_ROOT_CLASSNAME,
         chatMobileHeightShellClass(pathname, isApple, searchParams),
       )}
     >
-      {selectedRoom &&
-      isMobile === true &&
-      headerRoomSlotHost &&
-      roomHeaderChrome
-        ? createPortal(roomHeaderChrome, headerRoomSlotHost)
-        : null}
-      {currentUserId ? (
-        <LazyAblyProvider>
-          <RoomMessageRealtimeBridge
-            roomIds={rooms.map((room) => room.id)}
-            currentUserId={currentUserId}
-            selectedRoomId={selectedRoomId}
-            onMessage={handleChatRoomRealtimeMessage}
-          />
-        </LazyAblyProvider>
-      ) : null}
-      {/* `relative` anchors the thread panel's mobile full-screen takeover. */}
       <main className="relative flex min-h-0 min-w-0 flex-1 overflow-x-clip">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col">
           {isCreateChannelRequested ? (
@@ -1794,176 +2126,6 @@ export function RoomsClient({
               canCreateRoomDirect={activeOrganization != null}
               membersLoadFailed={membersLoadFailed}
             />
-          ) : selectedRoom ? (
-            <RoomFileDropZone
-              enabled={!isCoworkerStreamRoom}
-              onFiles={(files) => {
-                roomComposerRef.current?.attachFiles(files);
-              }}
-              label={t("Toolbar.dropToAttach")}
-              className="flex min-h-0 min-w-0 flex-1 flex-col"
-            >
-              {isMobile === false && roomHeaderChrome ? (
-                <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b px-6">
-                  {roomHeaderChrome}
-                </header>
-              ) : null}
-
-              <div
-                ref={scrollerRef}
-                className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}
-              >
-                <div
-                  ref={contentRef}
-                  className="flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0"
-                  style={
-                    contentMinHeight != null
-                      ? { minHeight: contentMinHeight }
-                      : undefined
-                  }
-                >
-                  {messageLoadFailed ? (
-                    <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
-                      <p className="font-medium">
-                        {t("Empty.messagesLoadFailedTitle")}
-                      </p>
-                      <p className="text-muted-foreground mt-1 text-sm">
-                        {t("Empty.messagesLoadFailedDescription")}
-                      </p>
-                    </div>
-                  ) : displayMessages.length === 0 ? (
-                    <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
-                      <p className="font-medium">
-                        {t("Empty.noMessagesTitle")}
-                      </p>
-                      <p className="text-muted-foreground mt-1 text-sm">
-                        {t("Empty.noMessagesDescription")}
-                      </p>
-                    </div>
-                  ) : null}
-                  {olderNextCursor ? (
-                    <div className="mb-4 flex justify-center">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={isLoadingOlder}
-                        onClick={handleLoadOlderMessages}
-                      >
-                        {isLoadingOlder ? (
-                          <>
-                            <Loader2 className="size-4 animate-spin" />
-                            {t("loadingOlder")}
-                          </>
-                        ) : (
-                          t("loadOlder")
-                        )}
-                      </Button>
-                    </div>
-                  ) : null}
-                  {displayMessages.map((message, index) => {
-                    const previousMessage = displayMessages[index - 1];
-                    // Local calendar day keys differ UTC (SSR) vs browser TZ —
-                    // only insert separators / regroup after mount.
-                    const showDaySeparator =
-                      localCalendarReady &&
-                      (!previousMessage ||
-                        messageDayKey(previousMessage.createdAt) !==
-                          messageDayKey(message.createdAt));
-                    const isStreamOverlay = message.id.startsWith("stream:");
-                    return (
-                      <div key={message.id} className="min-w-0">
-                        {showDaySeparator ? (
-                          <DaySeparator
-                            date={new Date(message.createdAt)}
-                            formatDaySeparator={formatDaySeparator}
-                          />
-                        ) : null}
-                        {message.membership != null ? (
-                          <MembershipStatusRow message={message} />
-                        ) : (
-                          <ChatMessageRow
-                            message={message}
-                            coworkersById={coworkersById}
-                            coworkersBySlug={coworkersBySlug}
-                            usersById={usersById}
-                            usersBySlug={usersBySlug}
-                            currentUserId={currentUserId}
-                            canOpenHumanDirect={canOpenHumanDirect}
-                            onOpenDirectMessage={handleOpenDirectMessage}
-                            openingDirectParticipantKey={openingDirectKey}
-                            onToggleReaction={handleToggleReaction}
-                            onOpenThread={
-                              shouldShowChatRoomThreadButton({
-                                room: selectedRoom,
-                                isStreamOverlay,
-                              })
-                                ? loadThreadMessages
-                                : undefined
-                            }
-                            onQuote={handleQuoteMessage}
-                            onStartEdit={handleStartEdit}
-                            onDelete={handleDeleteMessage}
-                            isEditing={editSession?.messageId === message.id}
-                            editDraft={
-                              editSession?.messageId === message.id
-                                ? editSession.draft
-                                : ""
-                            }
-                            onEditDraftChange={handleEditDraftChange}
-                            onCancelEdit={handleCancelEdit}
-                            onSaveEdit={handleSaveEdit}
-                            isSavingEdit={
-                              isSavingEdit &&
-                              editSession?.messageId === message.id
-                            }
-                            // Stream overlays never show thread chrome.
-                            showThreadButton={shouldShowChatRoomThreadButton({
-                              room: selectedRoom,
-                              isStreamOverlay,
-                            })}
-                            isFirstOfDay={showDaySeparator}
-                            isContinuation={
-                              localCalendarReady &&
-                              !showDaySeparator &&
-                              isMessageContinuation(previousMessage, message)
-                            }
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <RoomSessionComposer
-                key={selectedRoom.id}
-                ref={roomComposerRef}
-                roomId={selectedRoom.id}
-                draftKey={composeDraftKey.room(selectedRoom.id)}
-                mentions={mentionRecords}
-                placeholder={
-                  isDirectRoom
-                    ? t("directComposerPlaceholder", {
-                        member: selectedRoomDisplayName,
-                      })
-                    : t("composerPlaceholderWithChannel", {
-                        channel: selectedRoomDisplayName,
-                      })
-                }
-                isSending={isSending || isCoworkerStreaming}
-                showMentionShortcut={shouldShowRoomMentionShortcut(
-                  selectedRoom,
-                )}
-                allowAttachments={!isCoworkerStreamRoom}
-                pendingQuote={pendingQuote}
-                onClearPendingQuote={() => setPendingQuote(null)}
-                onRestorePendingQuote={setPendingQuote}
-                onChromeResize={scrollToBottomIfPinned}
-                onBeforeSend={handleChannelBeforeSend}
-                onSend={handleChannelSend}
-              />
-            </RoomFileDropZone>
           ) : (
             <div className="flex flex-1 items-center justify-center p-6">
               <div className="border-border/70 bg-muted/20 max-w-md rounded-md border border-dashed px-6 py-10 text-center">
@@ -1987,56 +2149,6 @@ export function RoomsClient({
             </div>
           )}
         </section>
-        {selectedRoom && threadParentMessage ? (
-          <ThreadPanel
-            parentMessage={threadParentMessage}
-            replies={displayThreadMessages}
-            isLoading={isThreadLoading}
-            olderNextCursor={threadOlderNextCursor}
-            isLoadingOlder={isLoadingOlderThread}
-            onLoadOlder={handleLoadOlderThreadMessages}
-            coworkersById={coworkersById}
-            coworkersBySlug={coworkersBySlug}
-            usersById={usersById}
-            usersBySlug={usersBySlug}
-            mentionRecords={mentionRecords}
-            draftKey={composeDraftKey.thread(
-              selectedRoom.id,
-              threadParentMessage.id,
-            )}
-            onBeforeSendReply={handleThreadBeforeSend}
-            onSendReply={handleThreadSend}
-            isSendingReply={
-              isSendingThreadReply ||
-              (isCoworkerStreaming && threadStreamOverlayMessages.length > 0)
-            }
-            onClose={() => {
-              setThreadParentMessage(null);
-              setThreadMessages([]);
-              setThreadOlderNextCursor(null);
-              setPendingThreadQuote(null);
-            }}
-            onToggleReaction={handleToggleReaction}
-            onQuote={handleQuoteThreadMessage}
-            currentUserId={currentUserId}
-            canOpenHumanDirect={canOpenHumanDirect}
-            onOpenDirectMessage={handleOpenDirectMessage}
-            openingDirectParticipantKey={openingDirectKey}
-            onStartEdit={handleStartEdit}
-            onDelete={handleDeleteMessage}
-            editSession={editSession}
-            onEditDraftChange={handleEditDraftChange}
-            onCancelEdit={handleCancelEdit}
-            onSaveEdit={handleSaveEdit}
-            isSavingEdit={isSavingEdit}
-            pendingQuote={pendingThreadQuote}
-            onClearPendingQuote={() => setPendingThreadQuote(null)}
-            onRestorePendingQuote={setPendingThreadQuote}
-            showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
-            allowAttachments={!isCoworkerStreamRoom}
-            roomId={selectedRoom.id}
-          />
-        ) : null}
       </main>
     </div>
   );
