@@ -164,6 +164,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 "Cannot change discoverability while guest members or pending invitations exist.",
               );
             }
+            const liveLinkCount = await tx.chatRoomGuestInviteLink.count({
+              where: {
+                roomId: existing.id,
+                revokedAt: null,
+                OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+              },
+            });
+            if (liveLinkCount > 0) {
+              throw badRequest(
+                "Cannot change discoverability while shareable invite links exist. Revoke or wait for them to expire first.",
+              );
+            }
           }
 
           const updateData: {
