@@ -12,13 +12,15 @@ export default function mount(app: Hono) {
     return await handleSyncRequest(
       c,
       CHAT_ROOM_GUEST_INVITATIONS_EXPIRE_SYNC_LOCK_KEY,
-      async () => {
+      async (context) => {
         console.info(
           "[sync/chat-room-guest-invitations-expire] Starting stale guest invitation expiry",
         );
         const startedAt = Date.now();
         const result =
-          await chatRoomGuestInvitationSyncService.expireStaleGuestInvitations();
+          await chatRoomGuestInvitationSyncService.expireStaleGuestInvitations({
+            abortSignal: context.abortSignal,
+          });
 
         console.info(
           "[sync/chat-room-guest-invitations-expire] Completed sync",
