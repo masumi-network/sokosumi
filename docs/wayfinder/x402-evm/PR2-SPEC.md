@@ -23,13 +23,24 @@ client, refund policy. Ships **after** PR 1; reuses its helpers.
   no data rewrite needed beyond the default.
 - `JobX402Payment` — sibling of `JobPurchase` AND of PR 1's
   `TaskX402Payment` (two tables by decision, shared columns by convention):
-  `jobId @unique`, `attemptId`, `caip2Network`, `asset`, `amount` (BigInt),
-  `decimals`, `payTo`, `paymentIdentifier?`, `status`
+  `jobId @unique`, `caip2Network`, `asset`, `amount` (BigInt), `decimals`,
+  `payTo`, `paymentIdentifier?`, `status`
   (`PENDING | VERIFIED | FAILED | REFUNDED` — terminal at `VERIFIED`,
-  confirmed), `failureReason?`, phased-settlement fields (`payerAddress`,
-  `payloadNonce`, `paymentPayloadHash`, `validBefore`), `transactionId
-  @unique`, `refundTransactionId? @unique`, `@@index([status, validBefore])`
-  for the future expiry reconciler.
+  confirmed), `failureReason?`. **Signed-once fields are nullable** —
+  `attemptId?` and the phased-settlement group (`payerAddress?`,
+  `payloadNonce?`, `paymentPayloadHash?`, `validBefore?`) fill in only when the
+  node returns a 200, so `PENDING` rows lack them (mirrors PR 1's shipped
+  `TaskX402Payment`, [PR1-SPEC §4](PR1-SPEC.md)). `transactionId @unique` is
+  set at charge and is present from row creation; `refundTransactionId?
+  @unique` is the compensating refund. `@@index([status, validBefore])` for the
+  future expiry reconciler.
+  - **Record lifecycle:** the `PENDING` row is created in the hire transaction
+    with the credit charge (`transactionId`); the signed tuple + settlement
+    fields fill in on `VERIFIED`.
+  - **Allowed transitions:** `PENDING → VERIFIED` (sign 200);
+    `PENDING → FAILED` (pre-sign refusal, + synchronous refund);
+    `VERIFIED → REFUNDED` (admin goodwill lever);
+    `PENDING → REFUNDED` (future reconciler, `EXPIRED_UNUSED`).
 
 ## 3. Job flow
 
@@ -43,9 +54,14 @@ client, refund policy. Ships **after** PR 1; reuses its helpers.
    ≤ the job's charged price (drift → fail the job, refund — provably
    unpaid, nothing signed).
 3. **Pay** — node `POST /x402/pay` (Soko wallet, `paymentIdentifier` only if
-   advertised). Non-200 → **synchronous refund**, job `PAYMENT_FAILED`
-   (provably unpaid, confirmed). 200 → record `VERIFIED` + tuple + phased
-   fields.
+   advertised). Three outcomes (the taxonomy PR 1 shipped):
+   - **Pre-sign refusal** (non-200, no header) → **provably unpaid** →
+     **synchronous refund**, record `FAILED`, job `PAYMENT_FAILED`.
+   - **200 with a usable signed header** → record `VERIFIED` + signed tuple +
+     phased fields; proceed to replay.
+   - **Ambiguous / malformed 200** (no usable header) → record **stays
+     `PENDING`**, not refunded inline; left for the post-hoc expiry
+     reconciler.
 4. **Replay** the original request with `xPaymentHeader`. 2xx → response is
    the result; persist, job completes. Non-2xx/timeout after a signed header
    → job fails, **debit stands** (not provably unpaid — the agent holds a

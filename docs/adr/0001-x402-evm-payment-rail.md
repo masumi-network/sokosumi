@@ -97,7 +97,13 @@ A dedicated model records the payment leg of an x402 job:
   `Verified` | `Failed`, terminal at `Verified` once the payment is signed.
   There is no settle leg on this row — `Settled` belongs to the receiving
   node's inbound lifecycle and never arrives for our outbound attempts.
-  (Terminal status confirmed — ticket 011; see Context above.)
+  (Terminal status confirmed — ticket 011; see Context above.) The persisted
+  Soko enum is `PENDING | VERIFIED | FAILED | REFUNDED` — `PENDING` is the
+  pre-sign row (the node's `PaymentRequired`), and `REFUNDED` is Soko's
+  compensating-refund state (admin goodwill lever or the future
+  `EXPIRED_UNUSED` reconciler), not a node status — matching PR 1's shipped
+  `TaskX402Payment` (`docs/wayfinder/x402-evm/PR1-SPEC.md` §4,
+  `docs/wayfinder/x402-evm/PR2-SPEC.md` §2).
 
 `JobX402Payment` (job-scoped, this PR) and `TaskX402Payment` (task-scoped,
 PR 1 — the Bazaar coworker surface) are **two sibling tables, not one shared
