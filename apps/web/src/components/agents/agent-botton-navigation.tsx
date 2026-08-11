@@ -13,14 +13,12 @@ interface AgentBottomNavigationProps {
 export default function AgentBottomNavigation({
   agent,
 }: AgentBottomNavigationProps) {
-  // Detect client-side rendering without setState in useEffect
   const isClient = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
 
-  // Compute URL only on client to avoid hydration mismatch
   const url = isClient
     ? new URL(`${window.location.origin}/agents/${agent.id}`)
     : undefined;
