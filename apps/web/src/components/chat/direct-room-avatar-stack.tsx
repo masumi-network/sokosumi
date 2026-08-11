@@ -79,7 +79,7 @@ export function DirectRoomAvatarStack({
   }
 
   return (
-    <span className="inline-flex h-5 shrink-0 items-center">
+    <span className="inline-flex h-5 min-w-5 shrink-0 items-center">
       {participants.map((participant, index) => (
         <ChatParticipantHoverCard
           key={`${participant.kind}-${participant.id}`}

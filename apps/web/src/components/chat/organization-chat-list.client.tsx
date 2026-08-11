@@ -789,10 +789,7 @@ export function OrganizationChatList({
                   }
                   isActive={activeRoomId === room.id}
                   leading={
-                    <Globe2
-                      className="text-muted-foreground size-3.5 shrink-0"
-                      aria-hidden
-                    />
+                    <ChannelDiscoverabilityIcon discoverability="external" />
                   }
                   onRoomUpdated={handleRoomUpdated}
                   dismissSheetOnNavigate={dismissSheetOnNavigate}

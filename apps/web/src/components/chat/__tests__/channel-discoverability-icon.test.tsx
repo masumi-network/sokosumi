@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ChannelDiscoverabilityIcon } from "../channel-discoverability-icon";
 
 describe("ChannelDiscoverabilityIcon", () => {
-  it("keeps public/private/external icons in equal text-sm slots under sidebar svg override", () => {
+  it("keeps public/private/external icons in equal size-5 slots under sidebar svg override", () => {
     const { container } = render(
       <a className="flex items-center gap-2 text-sm [&>svg]:size-4">
         <ChannelDiscoverabilityIcon discoverability="public" />
@@ -19,8 +19,11 @@ describe("ChannelDiscoverabilityIcon", () => {
     expect(slots).toHaveLength(3);
 
     for (const slot of slots) {
-      expect(slot.className).toContain("size-3.5");
+      // Outer box matches DM avatars (size-5); glyph stays slightly smaller.
+      expect(slot.className).toContain("size-5");
       expect(slot.className).toContain("[&_svg]:size-3.5");
+      expect(slot.className).toContain("items-center");
+      expect(slot.className).toContain("justify-center");
     }
 
     // Direct child of the menu row must not be an svg, or [&>svg]:size-4 wins.
