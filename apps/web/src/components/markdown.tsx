@@ -1,3 +1,4 @@
+import { linkifyBareDomainsInMarkdown } from "@sokosumi/utils";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
@@ -47,6 +48,8 @@ export default function Markdown({
   });
   const normalizedChildren = normalizeLooseInlineMarkdown(highlightedChildren);
   const sanitizedChildren = sanitizeMarkdown(normalizedChildren);
+  // Display-only: bare domains → markdown links; room message body stays plain.
+  const linkifiedChildren = linkifyBareDomainsInMarkdown(sanitizedChildren);
 
   const components: Components = {
     a: ({ href, children, className, ...props }) => {
@@ -185,7 +188,7 @@ export default function Markdown({
         rehypePlugins={[rehypeRaw, [rehypeHighlight, { detect: true }]]}
         components={components}
       >
-        {sanitizedChildren}
+        {linkifiedChildren}
       </ReactMarkdown>
     </div>
   );

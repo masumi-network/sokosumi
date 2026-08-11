@@ -43,6 +43,17 @@ export function useStickToBottom({
     stickToBottomRef.current = true;
   }, []);
 
+  /**
+   * Own send: always reveal the new bubble, even if typing/composer resize
+   * cleared the sticky flag. Immediate + rAF so late layout still pins.
+   */
+  const pinToBottomAfterOwnSend = useCallback(() => {
+    scrollToBottom();
+    requestAnimationFrame(() => {
+      scrollToBottom();
+    });
+  }, [scrollToBottom]);
+
   const scrollToBottomIfPinned = useCallback(() => {
     if (!stickToBottomRef.current) {
       return;
@@ -138,6 +149,7 @@ export function useStickToBottom({
     contentRef,
     contentMinHeight,
     scrollToBottom,
+    pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
   };
 }

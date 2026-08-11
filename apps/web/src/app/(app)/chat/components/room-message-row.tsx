@@ -1483,7 +1483,7 @@ export function ChatMessageRow({
         )}
       >
         {isContinuation ? null : (
-          <div className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-1">
             <ChatParticipantHoverCard
               profile={hoverProfile}
               side="top"
@@ -1501,10 +1501,10 @@ export function ChatMessageRow({
             </ChatParticipantHoverCard>
             <MessageWallClockTime
               value={message.createdAt}
-              className="text-muted-foreground text-xs"
+              className="text-muted-foreground text-xs leading-none"
             />
             {showEdited ? (
-              <span className="text-muted-foreground text-xs">
+              <span className="text-muted-foreground text-xs leading-none">
                 {tChannels("Edit.edited")}
               </span>
             ) : null}

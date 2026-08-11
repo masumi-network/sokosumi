@@ -64,25 +64,48 @@ describe("chatUiReasoningPartSchema", () => {
     ).toThrow();
   });
 
-  it("accepts explicit reasoning and provider-specific types", () => {
+  it("accepts type reasoning", () => {
     expect(
       chatUiReasoningPartSchema.parse({
         type: "reasoning",
         text: "thinking",
       }),
     ).toEqual({ type: "reasoning", text: "thinking" });
+  });
 
+  it("trims type whitespace so parsed value is exact reasoning", () => {
     expect(
       chatUiReasoningPartSchema.parse({
-        type: "redacted_reasoning",
-        text: "hidden",
+        type: "  reasoning  ",
+        text: "thinking",
       }),
-    ).toEqual({ type: "redacted_reasoning", text: "hidden" });
+    ).toEqual({ type: "reasoning", text: "thinking" });
   });
 
   it("rejects reserved body part types", () => {
     expect(() =>
       chatUiReasoningPartSchema.parse({ type: "text", text: "x" }),
+    ).toThrow();
+  });
+
+  it("rejects tool/step, legacy, and other non-allowlisted types", () => {
+    expect(() =>
+      chatUiReasoningPartSchema.parse({ type: "tool-call", text: "x" }),
+    ).toThrow();
+    expect(() =>
+      chatUiReasoningPartSchema.parse({ type: "step-start", text: "x" }),
+    ).toThrow();
+    expect(() =>
+      chatUiReasoningPartSchema.parse({
+        type: "redacted_reasoning",
+        text: "x",
+      }),
+    ).toThrow();
+    expect(() =>
+      chatUiReasoningPartSchema.parse({
+        type: "unknown_provider_part",
+        text: "x",
+      }),
     ).toThrow();
   });
 });

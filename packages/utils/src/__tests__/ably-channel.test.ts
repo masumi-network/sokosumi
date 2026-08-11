@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeOrgPresenceChannelName,
   makeUserChatControlChannelName,
   makeUserTasksChannelName,
   parseChatRoomIdFromChannelName,
+  parseOrganizationIdFromPresenceChannelName,
 } from "../ably-channel";
 
 describe("makeUserTasksChannelName", () => {
@@ -54,5 +56,24 @@ describe("parseChatRoomIdFromChannelName", () => {
     ).toBeNull();
     expect(parseChatRoomIdFromChannelName("chat_rooms:room_")).toBeNull();
     expect(parseChatRoomIdFromChannelName("chat_rooms:all:user_x")).toBeNull();
+  });
+});
+
+describe("org presence channel names", () => {
+  it("round-trips makeOrgPresenceChannelName", () => {
+    expect(
+      parseOrganizationIdFromPresenceChannelName(
+        makeOrgPresenceChannelName("org_123"),
+      ),
+    ).toBe("org_123");
+  });
+
+  it("returns null for non-presence channels", () => {
+    expect(
+      parseOrganizationIdFromPresenceChannelName("chat_rooms:room_x"),
+    ).toBeNull();
+    expect(
+      parseOrganizationIdFromPresenceChannelName("presence:org_"),
+    ).toBeNull();
   });
 });

@@ -1,9 +1,5 @@
 import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
-import {
-  buildRoomQuoteSnippetParts,
-  CHAT_PRESENCE_AFK_WINDOW_MS,
-  CHAT_PRESENCE_ONLINE_WINDOW_MS,
-} from "@sokosumi/utils";
+import { buildRoomQuoteSnippetParts } from "@sokosumi/utils";
 
 import {
   buildCoworkerNonEmptyBaseUrlWhere,
@@ -29,14 +25,6 @@ export const chatRoomUserSelect = {
   name: true,
   email: true,
   image: true,
-  sessions: {
-    select: {
-      expiresAt: true,
-      updatedAt: true,
-    },
-    orderBy: { updatedAt: "desc" },
-    take: 1,
-  },
 } as const satisfies Prisma.UserSelect;
 
 export const chatRoomCoworkerSelect = {
@@ -109,29 +97,17 @@ type ChatRoomMessageWithSender = Prisma.ChatRoomMessageGetPayload<{
   include: typeof chatRoomMessageInclude;
 }>;
 
+/**
+ * REST placeholder for human presence (ADR-0003).
+ * Live Online/AFK comes from Ably Presence on the client. Self stays online on
+ * personalized REST so the viewer never flashes offline before Ably hydrates.
+ */
 function resolveUserPresence(
-  user: Pick<ChatRoomWithMembers["userMembers"][number]["user"], "id"> & {
-    sessions: Array<{ expiresAt: Date; updatedAt: Date }>;
-  },
+  user: Pick<ChatRoomWithMembers["userMembers"][number]["user"], "id">,
   currentUserId?: string,
 ): ChatRoomPresence {
   if (user.id === currentUserId) {
     return "online";
-  }
-
-  const activeSession = user.sessions.find(
-    (session) => session.expiresAt.getTime() > Date.now(),
-  );
-  if (!activeSession) {
-    return "offline";
-  }
-
-  const idleMs = Date.now() - activeSession.updatedAt.getTime();
-  if (idleMs <= CHAT_PRESENCE_ONLINE_WINDOW_MS) {
-    return "online";
-  }
-  if (idleMs <= CHAT_PRESENCE_AFK_WINDOW_MS) {
-    return "afk";
   }
   return "offline";
 }

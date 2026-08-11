@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
+import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
 
 import { LIMITS } from "@/config/constants";
-import { CHAT_UI_NON_REASONING_PART_TYPES } from "@/helpers/chat-ui-non-reasoning-part-types";
 import { isSafeRemoteUrl } from "@/helpers/safe-url";
 
 /**
@@ -20,27 +20,23 @@ export const responsesApiInputTextPartSchema = z
   });
 
 /**
- * AI SDK / UI message parts persisted for chat (reasoning then text in `conversationMessagesToUiMessages`).
- * `type` is usually `reasoning` but may be provider-specific (e.g. redacted variants).
+ * AI SDK / UI message parts persisted for chat (reasoning then text in
+ * `conversationMessagesToUiMessages`). `type` must be `reasoning` (AI SDK
+ * `ReasoningUIPart`); whitespace around `type` is trimmed on parse so stored
+ * values match the allowlist exactly.
  *
  * `type` is required so `{ text }` alone cannot match this branch of the request-part union; otherwise
  * user/system messages would accept it as reasoning and `mapChatRequestToUiMessages` would strip it.
  */
-export const chatUiReasoningPartSchema = z
-  .object({
-    type: z.string(),
-    text: z.string(),
-  })
-  .refine(
-    (part) => {
-      const t = part.type.trim();
-      return t.length > 0 && !CHAT_UI_NON_REASONING_PART_TYPES.has(t);
-    },
-    {
-      message:
-        "Reasoning parts require a non-empty type (e.g. reasoning) that is not text, file, input_text, or output_text.",
-    },
-  );
+export const chatUiReasoningPartSchema = z.object({
+  type: z
+    .string()
+    .transform((value) => value.trim())
+    .refine((value) => isChatUiProviderReasoningPartType(value), {
+      message: "Reasoning parts require type reasoning.",
+    }),
+  text: z.string(),
+});
 
 export const chatUiTextPartSchema = z.object({
   type: z.literal("text"),

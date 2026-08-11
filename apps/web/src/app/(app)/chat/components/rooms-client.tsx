@@ -52,9 +52,9 @@ import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-sign
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
+import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
-import { PresenceDot } from "@/components/chat/presence-dot";
 import { applyRoomReadResultToOverlay } from "@/components/chat/room-read-overlay";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -102,7 +102,6 @@ import {
   messageDayKey,
   type PendingRoomQuote,
   pendingQuoteFromMessage,
-  presenceLabel,
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
   shouldIncludeRoomAllMention,
@@ -251,10 +250,11 @@ function RoomParticipantStack({
                 {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>
-            <PresenceDot
-              presence={participant.presence}
-              label={presenceLabel(t, participant.presence)}
+            <LiveMemberPresenceDot
               className="absolute -right-0.5 -bottom-0.5"
+              fallback={participant.presence}
+              isCoworker={participant.kind === "coworker"}
+              userId={participant.id}
             />
           </span>
         </ChatParticipantHoverCard>
@@ -452,10 +452,15 @@ export function RoomsClient({
   }
 
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
-  const { scrollerRef, contentRef, contentMinHeight, scrollToBottomIfPinned } =
-    useStickToBottom({
-      resetKey: selectedRoomId,
-    });
+  const {
+    scrollerRef,
+    contentRef,
+    contentMinHeight,
+    pinToBottomAfterOwnSend,
+    scrollToBottomIfPinned,
+  } = useStickToBottom({
+    resetKey: selectedRoomId,
+  });
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Async
@@ -1566,8 +1571,13 @@ export function RoomsClient({
       // Coworker stream rooms keep SSE even with a pending quote (Core persists
       // the quote snapshot on the user message). Classic POST stays for non-stream.
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
-        sendStreamMessage(request.content, { quote: request.quote });
-        return { ok: true };
+        const started = sendStreamMessage(request.content, {
+          quote: request.quote,
+        });
+        if (started) {
+          pinToBottomAfterOwnSend();
+        }
+        return { ok: started };
       }
 
       const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
@@ -1604,6 +1614,7 @@ export function RoomsClient({
               setMessagesState((current) =>
                 appendMessage(current, result.value),
               );
+              pinToBottomAfterOwnSend();
             }
             resolve({ ok: true });
           } finally {
@@ -1614,7 +1625,12 @@ export function RoomsClient({
         });
       });
     },
-    [partitionMentionIds, selectedRoom, sendStreamMessage],
+    [
+      partitionMentionIds,
+      pinToBottomAfterOwnSend,
+      selectedRoom,
+      sendStreamMessage,
+    ],
   );
 
   const handleThreadBeforeSend = useCallback(
@@ -1635,11 +1651,11 @@ export function RoomsClient({
       const parentMessageId = threadParentMessage.id;
 
       if (shouldUseCoworkerRoomStream(selectedRoom)) {
-        sendStreamMessage(request.content, {
+        const started = sendStreamMessage(request.content, {
           parentMessageId,
           quote: request.quote,
         });
-        return { ok: true };
+        return { ok: started };
       }
 
       const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
