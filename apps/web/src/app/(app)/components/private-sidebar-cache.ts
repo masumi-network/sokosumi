@@ -36,6 +36,11 @@ export interface PrivateCachedChatListChrome {
  * Testable body for membership-visible rooms + archived + members.
  * Prefer {@link getPrivateCachedChatListChrome} from RSC so sidebar and chats
  * list share one private-cache slice (React.cache does not cross use-cache).
+ *
+ * Fail-soft: service errors become empty pages/arrays (same as pre-SOK-779
+ * sidebar/page). When used under private cache those empties are shared until
+ * revalidate or `invalidatePrivateSidebarChrome` — intentional chrome tradeoff,
+ * not a hard fail that would blank the whole layout.
  */
 export async function loadChatListChromeData(
   activeOrganizationId: string | null,

@@ -35,7 +35,10 @@ describe("loadChatListChromeData", () => {
     ]);
   });
 
-  it("loads membership-visible rooms, archived, and members once per call", async () => {
+  it("issues one rooms + archived + members fetch per loadChatListChromeData call", async () => {
+    // Proves the shared body is a single fan-out, not N service calls per field.
+    // In-request SSR dedupe of sidebar+page is Next private-cache runtime (not
+    // exercisable here); dual call-site wiring is locked by the contract tests.
     const { loadChatListChromeData } = await import("../private-sidebar-cache");
 
     const result = await loadChatListChromeData("org-1");
