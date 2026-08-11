@@ -55,12 +55,23 @@ describe("readRawMessagePartItems (via extractMessageText)", () => {
 });
 
 describe("readReasoningPartsFromMetadata", () => {
-  it("preserves provider-specific reasoning type labels", () => {
+  it("preserves allowlisted reasoning steps and trims text", () => {
     expect(
       readReasoningPartsFromMetadata({
-        reasoning: [{ type: "redacted_reasoning", text: "  hidden  " }],
+        reasoning: [{ type: "reasoning", text: "  hidden  " }],
       }),
-    ).toEqual([{ type: "redacted_reasoning", text: "hidden" }]);
+    ).toEqual([{ type: "reasoning", text: "hidden" }]);
+  });
+
+  it("drops legacy redacted_reasoning steps", () => {
+    expect(
+      readReasoningPartsFromMetadata({
+        reasoning: [
+          { type: "redacted_reasoning", text: "legacy" },
+          { type: "reasoning", text: "keep" },
+        ],
+      }),
+    ).toEqual([{ type: "reasoning", text: "keep" }]);
   });
 });
 
@@ -74,6 +85,19 @@ describe("extractReasoningPartsFromMessage", () => {
         ],
       }),
     ).toEqual([{ type: "reasoning", text: "Step one" }]);
+  });
+
+  it("does not collect tool/step parts as reasoning even when they have text", () => {
+    expect(
+      extractReasoningPartsFromMessage({
+        content: [
+          { type: "tool-call", text: "Calling search" },
+          { type: "step-start", text: "Step 1" },
+          { type: "reasoning", text: "Only this" },
+          { type: "text", text: "Answer" },
+        ],
+      }),
+    ).toEqual([{ type: "reasoning", text: "Only this" }]);
   });
 });
 
