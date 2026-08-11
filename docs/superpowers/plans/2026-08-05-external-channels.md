@@ -53,7 +53,7 @@
 
 **Files:**
 - Modify: `packages/database/prisma/schema.prisma`
-- Create: `packages/database/prisma/migrations/20260810171000_external_channels/migration.sql` (timestamp after main tip)
+- Create: `packages/database/prisma/migrations/20260811120000_external_channels/migration.sql` (timestamp after main tip; single migration includes access column, invitation table, CHECKs, guest-external + discoverability guards)
 - Test: `pnpm prisma:generate` + migrate on dev DB
 
 **Interfaces:**
