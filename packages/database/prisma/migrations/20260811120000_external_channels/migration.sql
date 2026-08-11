@@ -192,3 +192,34 @@ CREATE TRIGGER chat_room_external_discoverability_guard
   ON "chat_room"
   FOR EACH ROW
   EXECUTE FUNCTION chat_room_external_discoverability_guard();
+
+-- When a host-org Member row is deleted (leave org, remove member, admin),
+-- demote that user's access=member rows on the org's external channels to
+-- guest so channel-only access remains valid without org membership.
+-- Covers Better Auth leaveOrganization, which does not fire afterRemoveMember.
+CREATE OR REPLACE FUNCTION chat_room_demote_external_on_member_delete()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  UPDATE "chat_room_user_member" m
+  SET "access" = 'guest'
+  FROM "chat_room" r
+  WHERE m."roomId" = r."id"
+    AND m."userId" = OLD."userId"
+    AND m."access" = 'member'
+    AND r."organizationId" = OLD."organizationId"
+    AND r."kind" = 'channel'
+    AND r."discoverability" = 'external';
+  RETURN OLD;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS chat_room_demote_external_on_member_delete
+  ON "member";
+
+CREATE TRIGGER chat_room_demote_external_on_member_delete
+  AFTER DELETE
+  ON "member"
+  FOR EACH ROW
+  EXECUTE FUNCTION chat_room_demote_external_on_member_delete();

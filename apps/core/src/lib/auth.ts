@@ -58,7 +58,10 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
-import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
+import {
+  demoteExternalChatRoomMembershipsToGuest,
+  upgradeGuestChatRoomMembershipsToMember,
+} from "@/helpers/chat-room-guest-upgrade";
 import {
   applyDesignMdMetadataGuardToOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate,
@@ -685,6 +688,13 @@ export const auth = betterAuth({
         },
         afterAddMember: async ({ organization, user }) => {
           await upgradeGuestChatRoomMembershipsToMember(
+            user.id,
+            organization.id,
+          );
+          await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
+        },
+        afterRemoveMember: async ({ organization, user }) => {
+          await demoteExternalChatRoomMembershipsToGuest(
             user.id,
             organization.id,
           );
