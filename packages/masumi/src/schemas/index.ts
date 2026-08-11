@@ -9,3 +9,6 @@ export * from "./agent/status.schema.js";
 export * from "./input/blank-numeric-input.js";
 export * from "./input/input.schema.js";
 export * from "./input/validation.schema.js";
+
+// x402 schemas
+export * from "./x402/payment-required.schema.js";
