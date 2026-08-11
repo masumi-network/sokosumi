@@ -72,8 +72,8 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 | `begin_checkout`      | checkout opened                                | billing |
 | `purchase` `{transaction_id, value, currency, items}` | **a subscription / credit purchase succeeds** | `components/billing/purchase-tracker.tsx` |
 | `onboarding_complete` | onboarding finished                            | `app/(app)/components/onboarding-dialog.tsx` |
-| `view_agent`, `view_credits`, `view_register_area`, `view_login_area`, `register_form_start`, `login_area_form_start`, `doi_confirmed` | funnel context | various |
-| `consent_update` `{consent_analytics, consent_marketing}` | cookie choice made | banner |
+| `view_agent`, `view_credits`, `view_register_area`, `view_login_area`, `register_form_start`, `login_area_form_start`, `doi_confirmed` (defined, not yet fired — no call site) | funnel context | various |
+| `consent_status` `{consent_analytics, consent_marketing}` | cookie choice made | banner |
 | `set_user_id` `{user_id}` | login state resolves (and on logout, null) | `components/analytics/analytics-user-id.tsx` |
 
 The three the business cares about most map cleanly:
