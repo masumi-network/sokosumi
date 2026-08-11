@@ -80,5 +80,13 @@ describe("personal-assistant first-paint contract (SOK-780)", () => {
     expect(experience).toMatch(
       /dynamic\s*\(\s*\(\s*\)\s*=>\s*import\s*\(\s*["'][^"']*running-state["']/,
     );
+    // Seed-aware Suspense fallback while the chunk is pending (not default
+    // "personal-assistant" seed on next/dynamic loading option).
+    expect(experience).not.toMatch(
+      /dynamic\s*\([\s\S]*?loading\s*:\s*\(\s*\)\s*=>\s*<\s*LoadingState/,
+    );
+    expect(experience).toMatch(
+      /fallback=\{<\s*LoadingState\s+seed=\{effectiveOrbSeed\}/,
+    );
   });
 });
