@@ -18314,6 +18314,100 @@ export type PostUsersByIdFilesResponses = {
 
 export type PostUsersByIdFilesResponse = PostUsersByIdFilesResponses[keyof PostUsersByIdFilesResponses];
 
+export type PostUsersByIdLastSeenData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/last-seen';
+};
+
+export type PostUsersByIdLastSeenErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdLastSeenError = PostUsersByIdLastSeenErrors[keyof PostUsersByIdLastSeenErrors];
+
+export type PostUsersByIdLastSeenResponses = {
+    /**
+     * Visit recorded
+     */
+    200: {
+        data: {
+            /**
+             * The freshly recorded visit timestamp
+             */
+            lastSeenAt: Date;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdLastSeenResponse = PostUsersByIdLastSeenResponses[keyof PostUsersByIdLastSeenResponses];
+
 export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
     path: {
@@ -27309,6 +27403,106 @@ export type PostTasksResponses = {
 
 export type PostTasksResponse = PostTasksResponses[keyof PostTasksResponses];
 
+export type GetTasksSummaryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * `owned` counts only the caller's own tasks; `workspace` counts every task in the active workspace.
+         */
+        scope?: 'owned' | 'workspace';
+    };
+    url: '/tasks/summary';
+};
+
+export type GetTasksSummaryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksSummaryError = GetTasksSummaryErrors[keyof GetTasksSummaryErrors];
+
+export type GetTasksSummaryResponses = {
+    /**
+     * Task activity summary for the active workspace
+     */
+    200: {
+        data: {
+            /**
+             * Start of the reporting window, echoed back. Null means the counts are all-time.
+             */
+            since: Date | null;
+            /**
+             * Tasks that reached COMPLETED within the window. Approximated by updatedAt because Task has no completedAt column.
+             */
+            completed: number;
+            /**
+             * Tasks currently blocked on the user. Point-in-time, so it ignores the window.
+             */
+            awaitingInput: number;
+            /**
+             * Tasks created within the window by a different human in the same workspace. Always 0 in a personal workspace.
+             */
+            createdByOtherHumans: number;
+            /**
+             * Which window the counts cover: the caller's previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.
+             */
+            basis: 'lastVisit' | 'recent';
+            /**
+             * Minutes tasks spent in RUNNING within the window, summed from status-transition events. Wall-clock time in progress, not billed compute.
+             */
+            workedMinutes: number;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksSummaryResponse = GetTasksSummaryResponses[keyof GetTasksSummaryResponses];
+
 export type GetTasksByIdLinksData = {
     body?: never;
     path: {
@@ -30208,11 +30402,27 @@ export type PostRealtimeAblyTokenData = {
         'X-Context-Organization-Id'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        clientInstanceId?: string;
+    };
     url: '/realtime/ably-token';
 };
 
 export type PostRealtimeAblyTokenErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */

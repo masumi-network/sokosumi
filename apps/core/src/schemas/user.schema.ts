@@ -133,6 +133,13 @@ export const userOnboardingResponseSchema = z.object({
   }),
 });
 
+export const userLastSeenResponseSchema = z.object({
+  lastSeenAt: z.iso.datetime().openapi({
+    description: "The freshly recorded visit timestamp",
+    example: "2026-08-11T12:00:00.000Z",
+  }),
+});
+
 export const utmAttributionRequestSchema = z
   .object({
     utm_source: z.string().min(1).max(255).openapi({

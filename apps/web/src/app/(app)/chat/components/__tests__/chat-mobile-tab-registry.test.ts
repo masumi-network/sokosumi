@@ -24,11 +24,7 @@ describe("chatMobileHeightShellClass", () => {
 
   it("uses no-tab-bar shell for welcome compose", () => {
     expect(
-      chatMobileHeightShellClass(
-        "/chat",
-        false,
-        new URLSearchParams("welcome=1"),
-      ),
+      chatMobileHeightShellClass("/chat", false, new URLSearchParams("dm=new")),
     ).toBe(CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS);
   });
 

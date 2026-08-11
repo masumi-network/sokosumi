@@ -64,7 +64,7 @@ describe("resolveChatMobileActiveTabId", () => {
       resolveChatMobileActiveTabId("/chat", new URLSearchParams("dm=new")),
     ).toBeNull();
     expect(
-      resolveChatMobileActiveTabId("/chat", new URLSearchParams("welcome=1")),
+      resolveChatMobileActiveTabId("/chat", new URLSearchParams("dm=new")),
     ).toBeNull();
     expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
     expect(resolveChatMobileActiveTabId("/chat/chats/extra")).toBeNull();

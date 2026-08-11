@@ -106,7 +106,7 @@ describe("mobile-app-chrome", () => {
         ),
       ).toBe(false);
       expect(
-        shouldShowMobileBottomNav("/chat", new URLSearchParams("welcome=1")),
+        shouldShowMobileBottomNav("/chat", new URLSearchParams("dm=new")),
       ).toBe(false);
     });
 
@@ -151,7 +151,7 @@ describe("mobile-app-chrome", () => {
         shouldShowMobileBrandLeading("/chat", new URLSearchParams("dm=new")),
       ).toBe(false);
       expect(
-        shouldShowMobileBrandLeading("/chat", new URLSearchParams("welcome=1")),
+        shouldShowMobileBrandLeading("/chat", new URLSearchParams("dm=new")),
       ).toBe(false);
       expect(shouldShowMobileBrandLeading("/tasks/t1")).toBe(false);
       expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);
@@ -178,7 +178,7 @@ describe("mobile-app-chrome", () => {
         shouldShowMobileCreateFab("/chat", new URLSearchParams("dm=new")),
       ).toBe(false);
       expect(
-        shouldShowMobileCreateFab("/chat", new URLSearchParams("welcome=1")),
+        shouldShowMobileCreateFab("/chat", new URLSearchParams("dm=new")),
       ).toBe(false);
     });
   });

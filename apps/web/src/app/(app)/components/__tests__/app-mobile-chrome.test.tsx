@@ -84,7 +84,7 @@ describe("AppMobileChrome", () => {
     expect(spacer?.className).not.toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
 
-  it("keeps bottom nav and onboarding FAB on /chat/chats", () => {
+  it("keeps the bottom nav on /chat/chats and renders no FAB", () => {
     mockPathname = "/chat/chats";
 
     render(
@@ -94,10 +94,7 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "openFab" })).toHaveAttribute(
-      "href",
-      "/chat?welcome=1",
-    );
+    expect(screen.queryByRole("link", { name: "openFab" })).toBeNull();
   });
 
   it("shows bottom nav without create FAB on main hub list routes", () => {

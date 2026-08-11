@@ -21,12 +21,15 @@ import mountGetTaskWorkspace from "./[id]/workspace/get.js";
 import mountPutTaskWorkspace from "./[id]/workspace/put.js";
 import mountGetTasks from "./get.js";
 import mountPostTask from "./post.js";
+import mountGetTaskSummary from "./summary/get.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
 });
 
 mountGetTasks(app);
+// Before the `/{id}` routes so the literal path cannot be read as a task id.
+mountGetTaskSummary(app);
 mountPostTask(app);
 mountGetTaskLinks(app);
 mountPostTaskLink(app);

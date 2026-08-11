@@ -171,7 +171,25 @@ export const userService = (() => {
     await updateCurrentUserViaCore({ onboardingCompleted: true });
   }
 
+  /**
+   * Stamps "the user is here now". Best-effort: the visit summary is cosmetic,
+   * so a failed write must not break the page that triggered it.
+   */
+  async function markLastSeenForMe(): Promise<void> {
+    const session = await getSession();
+    if (!session) {
+      return;
+    }
+
+    try {
+      await coreClient.markUserLastSeen(session.user.id);
+    } catch (error) {
+      console.error("Failed to record last seen", error);
+    }
+  }
+
   return {
+    markLastSeenForMe,
     getActiveOrganizationId,
     getActiveOrganization,
     getMyMembersWithOrganizations,

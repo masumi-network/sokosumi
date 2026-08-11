@@ -13,6 +13,27 @@ import type {
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { AgentJobStatus } from "@/lib/types/core-dto";
 
+export interface TaskActivitySummary {
+  awaitingInput: number;
+  /** Which window the counts cover, so the caption can say so. */
+  basis: "lastVisit" | "recent";
+  completed: number;
+  createdByOtherHumans: number;
+  /** Server-owned window start; null means this is the user's first visit. */
+  since: Date | null;
+  /** Wall-clock minutes tasks spent RUNNING inside the window. */
+  workedMinutes: number;
+}
+
+const EMPTY_TASK_ACTIVITY_SUMMARY: TaskActivitySummary = {
+  awaitingInput: 0,
+  basis: "recent",
+  completed: 0,
+  createdByOtherHumans: 0,
+  since: null,
+  workedMinutes: 0,
+};
+
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
   assigneeId?: string;
@@ -218,7 +239,39 @@ export const taskService = (() => {
     return result.data;
   }
 
+  /**
+   * Counts for the /chat landing. Never throws: the landing is a greeting, so
+   * a Core hiccup should cost the sentence, not the page.
+   */
+  async function getActivitySummary(params: {
+    scope?: "owned" | "workspace";
+  }): Promise<TaskActivitySummary> {
+    try {
+      const result = await coreClient.getTasksSummary({
+        scope: params.scope ?? "owned",
+      });
+
+      const data = result.data;
+      if (!data) {
+        return EMPTY_TASK_ACTIVITY_SUMMARY;
+      }
+
+      return {
+        completed: data.completed,
+        awaitingInput: data.awaitingInput,
+        basis: data.basis,
+        createdByOtherHumans: data.createdByOtherHumans,
+        since: data.since ? new Date(data.since) : null,
+        workedMinutes: data.workedMinutes,
+      };
+    } catch (error) {
+      console.error("Failed to load task activity summary", error);
+      return EMPTY_TASK_ACTIVITY_SUMMARY;
+    }
+  }
+
   return {
+    getActivitySummary,
     listJobs,
     listTasks,
     getTaskById,

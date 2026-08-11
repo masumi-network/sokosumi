@@ -29,6 +29,7 @@ import type {
   GetProjectsStatsData,
   GetShareByTokenError,
   GetTasksData,
+  GetTasksSummaryData,
   HermesApproveConfirmationRequest,
   HermesFinalizeIntegrationRequest,
   HermesInitiateIntegrationRequest,
@@ -180,6 +181,7 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
+  getTasksSummary as coreGetTasksSummary,
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCoworkerAccess as coreGetUsersByIdCoworkerAccess,
@@ -278,6 +280,7 @@ import {
   postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
   postUsersByIdFiles as corePostUsersByIdFiles,
+  postUsersByIdLastSeen as corePostUsersByIdLastSeen,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
@@ -771,6 +774,31 @@ export function createCoreClient(getClient: GetCoreClient) {
             transformTaskListResponseEnvelope(data),
         }),
       "Failed to fetch tasks",
+    );
+  }
+
+  async function getTasksSummary(query?: GetTasksSummaryData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksSummary({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch task summary",
+    );
+  }
+
+  async function markUserLastSeen(userId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdLastSeen({
+          client,
+          path: { id: userId },
+        }),
+      "Failed to record last seen",
     );
   }
 
@@ -4039,6 +4067,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTaskLinks,
     getTaskWorkspace,
     getTasks,
+    getTasksSummary,
+    markUserLastSeen,
     patchTask,
     putJobShare,
     putTaskSchedule,

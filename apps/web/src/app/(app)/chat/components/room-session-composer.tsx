@@ -9,11 +9,11 @@ import {
 } from "react";
 
 import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
-import { takeRoomComposerPrefill } from "@/app/chat/onboarding/composer-prefill";
 import {
   type ComposeDraft,
   clearComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
+import { takeRoomComposerPrefill } from "@/app/chat/utils/composer-prefill";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 

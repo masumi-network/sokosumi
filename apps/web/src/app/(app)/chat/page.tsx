@@ -2,30 +2,36 @@ import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { ChatLandingNotice } from "@/app/chat/components/chat-landing-notice";
 import { MobileChatHomeRedirect } from "@/app/chat/components/mobile-chat-home-redirect.client";
-import { ChatOnboardingHost } from "@/app/chat/onboarding/host.client";
 import { mapDbCoworkerToChatCoworker } from "@/app/chat/utils/coworker-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
+import { taskService } from "@/lib/services/task.service";
+import { ChatLanding } from "./components/landing/chat-landing";
 import { RoomsClient } from "./components/rooms-client";
 import { loadOrganizationMembers } from "./load-organization-members";
 import { firstSearchValue } from "./load-room-messages";
+
+/**
+ * How stale the recorded visit must be before a page view counts as a new one.
+ * Long enough that reloading, or bouncing back from a room, keeps showing the
+ * same "while you were gone" summary.
+ */
+const LAST_SEEN_REFRESH_MS = 30 * 60 * 1000;
 
 interface ChatPageProps {
   searchParams: Promise<{
     create?: string | string[];
     dm?: string | string[];
-    welcome?: string | string[];
     notice?: string | string[];
   }>;
 }
 
 /**
- * `/chat` landing: desktop questionnaire onboarding; mobile bare home
- * redirects to `/chat/chats`. Draft modes via query: `?create=channel`,
- * `?dm=new`, `?welcome=1` (mobile onboarding host). Open rooms:
- * `/chat/rooms/[roomId]`.
+ * `/chat` landing: a desktop welcome summarising what happened while the user
+ * was away; mobile bare home redirects to `/chat/chats`. Draft modes via
+ * query: `?create=channel`, `?dm=new`. Open rooms: `/chat/rooms/[roomId]`.
  *
  * Instant Nav uses `chat/loading.tsx` while this page streams after
  * `connection()`. Room open uses `rooms/[roomId]/loading.tsx`.
@@ -42,7 +48,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const isCreateChannelRequested = firstSearchValue(query.create) === "channel";
   const isNewDirectMessage = firstSearchValue(query.dm) === "new";
-  const isOnboardingHost = firstSearchValue(query.welcome) === "1";
   const notice = firstSearchValue(query.notice);
   const landingNotice = <ChatLandingNotice notice={notice} />;
 
@@ -130,29 +135,41 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     );
   }
 
-  const coworkers = (await coworkerService.listCoworkers("chat")).map(
-    mapDbCoworkerToChatCoworker,
-  );
+  const activeOrganizationId = await userService.getActiveOrganizationId();
 
-  if (isOnboardingHost) {
-    return (
-      <>
-        {landingNotice}
-        <ChatOnboardingHost
-          coworkers={coworkers}
-          userName={session?.user.name ?? undefined}
-        />
-      </>
-    );
+  const [coworkerRows, summary] = await Promise.all([
+    coworkerService.listCoworkers("chat"),
+    // Core reads the window from the stored lastSeenAt itself — a session
+    // cookie can lag the column and would silently zero the counts.
+    taskService.getActivitySummary({
+      // In an org the greeting talks about the team, so count the whole
+      // workspace rather than only the caller's own tasks.
+      scope: activeOrganizationId ? "workspace" : "owned",
+    }),
+  ]);
+  const coworkers = coworkerRows.map(mapDbCoworkerToChatCoworker);
+
+  // After reading the window, not before, or the user always sees zero — and
+  // only once the previous visit is genuinely old. Stamping on every load meant
+  // a reload moved the window to "a second ago" and blanked the summary the
+  // user had just been shown.
+  const shouldAdvanceLastSeen =
+    summary.since === null ||
+    Date.now() - summary.since.getTime() >= LAST_SEEN_REFRESH_MS;
+  if (shouldAdvanceLastSeen) {
+    await userService.markLastSeenForMe();
   }
 
   return (
     <>
       {landingNotice}
       <div className="hidden md:contents">
-        <ChatOnboardingHost
+        <ChatLanding
           coworkers={coworkers}
-          userName={session?.user.name ?? undefined}
+          isOrganizationWorkspace={activeOrganizationId !== null}
+          lastSeenAt={summary.since}
+          summary={summary}
+          userName={session?.user.name ?? null}
         />
       </div>
       <MobileChatHomeRedirect />

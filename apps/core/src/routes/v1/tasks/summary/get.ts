@@ -1,0 +1,179 @@
+import { createRoute, z } from "@hono/zod-openapi";
+import { TaskStatus } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
+
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireUserContext } from "@/middleware/auth";
+import { requireWorkspaceContext } from "@/middleware/workspace";
+import {
+  TASK_AWAITING_INPUT_STATUSES,
+  taskSummaryResponseSchema,
+} from "@/schemas/task.schema";
+
+/** Below this, "since your last visit" covers nothing worth reporting. */
+const MIN_MEANINGFUL_WINDOW_MS = 30 * 60 * 1000;
+
+/** Rolling fallback window when the last visit was only moments ago. */
+const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+const query = z.object({
+  scope: z
+    .enum(["owned", "workspace"])
+    .default("owned")
+    .openapi({
+      param: { name: "scope", in: "query" },
+      description:
+        "`owned` counts only the caller's own tasks; `workspace` counts every task in the active workspace.",
+    }),
+});
+
+const route = createRoute({
+  method: "get",
+  path: "/summary",
+  description:
+    "Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window is the caller's stored `lastSeenAt` (null on a first visit means all-time), read here rather than supplied by the client so a stale session cookie cannot skew it. Session users only.",
+  tags: ["Tasks"],
+  request: { query },
+  responses: {
+    200: jsonSuccessResponse(
+      taskSummaryResponseSchema,
+      "Task activity summary for the active workspace",
+      {
+        data: {
+          since: "2026-08-10T09:00:00.000Z",
+          completed: 4,
+          awaitingInput: 2,
+          createdByOtherHumans: 3,
+        },
+        meta: {
+          timestamp: "2026-08-11T12:00:00.000Z",
+          requestId: "550e8400-e29b-41d4-a716-446655440000",
+        },
+      },
+    ),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    500: jsonErrorResponse("Internal Server Error"),
+  },
+});
+
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    // Session users only. A coworker asking "what did my human miss" is not a
+    // use case, and it would leak other members' activity to a vendor token.
+    const userContext = requireUserContext(c.var.authContext);
+    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
+    const { scope } = c.req.valid("query");
+
+    const caller = await prisma.user.findUnique({
+      where: { id: userContext.userId },
+      select: { lastSeenAt: true },
+    });
+
+    // A visit recorded seconds ago produces a window nothing can fall into, so
+    // the page would go blank the moment the user reloaded or came back from a
+    // room. Fall back to a rolling day so there is always something true to
+    // show, and tell the client which window it got so the caption matches.
+    const lastSeenAt = caller?.lastSeenAt ?? null;
+    const elapsedMs = lastSeenAt ? Date.now() - lastSeenAt.getTime() : null;
+    const useLastVisit =
+      lastSeenAt !== null &&
+      elapsedMs !== null &&
+      elapsedMs >= MIN_MEANINGFUL_WINDOW_MS;
+    const basis = useLastVisit ? "lastVisit" : "recent";
+    const sinceDate = useLastVisit
+      ? lastSeenAt
+      : new Date(Date.now() - RECENT_WINDOW_MS);
+    const workspaceWhere = {
+      archivedAt: null,
+      workspaceId: workspaceContext.workspaceId,
+    };
+    const ownerWhere = scope === "owned" ? { ownerId: userContext.userId } : {};
+    const withinWindow = sinceDate ? { updatedAt: { gte: sinceDate } } : {};
+
+    // Time in progress, reconstructed from status-transition events: each
+    // RUNNING event is paired with whatever event superseded it. There is no
+    // duration column anywhere, and elapsed created→completed would count
+    // nights and weekends a task merely sat around waiting.
+    const ownerFilter =
+      scope === "owned"
+        ? PrismaRaw.sql`AND t."ownerId" = ${userContext.userId}`
+        : PrismaRaw.empty;
+    const windowFilter = sinceDate
+      ? PrismaRaw.sql`AND s.next_at >= ${sinceDate}`
+      : PrismaRaw.empty;
+
+    const [completed, awaitingInput, createdByOtherHumans, workedRows] =
+      await Promise.all([
+        prisma.task.count({
+          where: {
+            ...workspaceWhere,
+            ...ownerWhere,
+            status: TaskStatus.COMPLETED,
+            // Task has no completedAt column, so the last write stands in for the
+            // completion time. A COMPLETED task is terminal, so in practice its
+            // final update is the completion itself.
+            ...withinWindow,
+          },
+        }),
+        prisma.task.count({
+          where: {
+            ...workspaceWhere,
+            ...ownerWhere,
+            // Point-in-time: "waiting on you right now", so the window does not
+            // apply. Something blocked since last month still needs answering.
+            status: { in: [...TASK_AWAITING_INPUT_STATUSES] },
+          },
+        }),
+        // Only an organization workspace has other humans in it.
+        workspaceContext.organizationId
+          ? prisma.task.count({
+              where: {
+                ...workspaceWhere,
+                creatorUserId: { not: userContext.userId },
+                NOT: { creatorUserId: null },
+                ...(sinceDate ? { createdAt: { gte: sinceDate } } : {}),
+              },
+            })
+          : Promise.resolve(0),
+        prisma.$queryRaw<{ seconds: number | null }[]>`
+        SELECT COALESCE(
+                 SUM(EXTRACT(EPOCH FROM (s.next_at - s.started_at))),
+                 0
+               )::double precision AS seconds
+        FROM (
+          SELECT e."createdAt" AS started_at,
+                 e.status,
+                 LEAD(e."createdAt") OVER (
+                   PARTITION BY e."taskId" ORDER BY e."createdAt"
+                 ) AS next_at
+          FROM "taskEvent" e
+          JOIN "task" t ON t.id = e."taskId"
+          WHERE t."archivedAt" IS NULL
+            AND t."workspaceId" = ${workspaceContext.workspaceId}
+            ${ownerFilter}
+        ) s
+        WHERE s.status = ${TaskStatus.RUNNING}::"TaskStatus"
+          AND s.next_at IS NOT NULL
+          ${windowFilter}
+      `,
+      ]);
+
+    const workedSeconds = Number(workedRows[0]?.seconds ?? 0);
+
+    return ok(
+      c,
+      taskSummaryResponseSchema.parse({
+        basis,
+        since: sinceDate ? sinceDate.toISOString() : null,
+        completed,
+        awaitingInput,
+        createdByOtherHumans,
+        workedMinutes: Math.max(0, Math.round(workedSeconds / 60)),
+      }),
+    );
+  });
+}

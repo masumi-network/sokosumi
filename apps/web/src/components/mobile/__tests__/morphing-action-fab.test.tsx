@@ -83,10 +83,10 @@ import { MorphingActionFab } from "../morphing-action-fab";
 describe("MorphingActionFab", () => {
   it("single-action mode is a Link without menu", () => {
     const { container } = render(
-      <MorphingActionFab href="/chat?welcome=1" label="Open onboarding" />,
+      <MorphingActionFab href="/chat?dm=new" label="Start a chat" />,
     );
-    const link = screen.getByRole("link", { name: "Open onboarding" });
-    expect(link).toHaveAttribute("href", "/chat?welcome=1");
+    const link = screen.getByRole("link", { name: "Start a chat" });
+    expect(link).toHaveAttribute("href", "/chat?dm=new");
     expect(container.querySelector("[data-mobile-create-fab-menu]")).toBeNull();
   });
 

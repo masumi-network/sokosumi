@@ -95,7 +95,7 @@ export function resolveMobileAppBackTarget(
 
 /**
  * Fixed tab bar: chat shell (except rooms/drafts) + main list routes.
- * Drafts (`?dm=new`, `?create=channel`, `?welcome=1`) share `/chat`
+ * Drafts (`?dm=new`, `?create=channel`) share `/chat`
  * but hide the tab bar like rooms.
  */
 export function shouldShowMobileBottomNav(

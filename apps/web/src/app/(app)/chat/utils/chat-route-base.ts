@@ -96,9 +96,8 @@ export function classifyChatChromeSurface(
   if (pathname === CHAT_APP_ROUTE_PREFIX) {
     const create = readSearchParam(searchParams, "create");
     const dm = readSearchParam(searchParams, "dm");
-    const welcome = readSearchParam(searchParams, "welcome");
     // Compose flows share `/chat` but use room-style chrome (no tab bar, back).
-    if (create === "channel" || dm === "new" || welcome === "1") {
+    if (create === "channel" || dm === "new") {
       return "draft";
     }
     return "home";
