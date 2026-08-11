@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -498,20 +499,16 @@ export function RoomsClient({
   } = useStickToBottom({
     resetKey: selectedRoomId,
   });
+  // When history lands, pin live edge in layout (same frame as skeleton →
+  // messages) so the list does not paint mid-jump then scroll.
   const wasHistoryPendingRef = useRef(messagesPending);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const wasPending = wasHistoryPendingRef.current;
     wasHistoryPendingRef.current = messagesPending;
     if (!wasPending || messagesPending) {
       return;
     }
-    const frame = requestAnimationFrame(() => {
-      scrollToBottom();
-      requestAnimationFrame(() => {
-        scrollToBottom();
-      });
-    });
-    return () => cancelAnimationFrame(frame);
+    scrollToBottom();
   }, [messagesPending, scrollToBottom]);
   const readMarkerRef = useRef<string | null>(null);
   const syncedRoomIdRef = useRef<string | null>(null);
@@ -1878,16 +1875,27 @@ export function RoomsClient({
 
               <div
                 ref={scrollerRef}
-                className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}
+                className={cn(
+                  CHAT_MESSAGE_LIST_SCROLLER_CLASS,
+                  "flex flex-col",
+                )}
               >
                 <div
                   ref={contentRef}
                   className={cn(
-                    "flex min-w-0 w-full flex-col justify-end px-5 pt-6 pb-0",
-                    contentMinHeight == null && "min-h-full",
+                    "flex min-w-0 w-full flex-col px-5 pt-6 pb-0",
+                    // Pending: pin with mt-auto only — never swap min-h-full ↔
+                    // pixel minHeight mid-wait (that shoved the skeleton down
+                    // just before history painted).
+                    messagesPending
+                      ? "mt-auto"
+                      : cn(
+                          "justify-end",
+                          contentMinHeight == null && "min-h-full",
+                        ),
                   )}
                   style={
-                    contentMinHeight != null
+                    !messagesPending && contentMinHeight != null
                       ? { minHeight: contentMinHeight }
                       : undefined
                   }

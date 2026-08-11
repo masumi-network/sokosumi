@@ -56,8 +56,9 @@ export function RoomOpenLoadingView(): React.ReactElement {
         aria-hidden
       />
 
-      <div className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}>
-        <div className="flex min-h-full min-w-0 w-full flex-col justify-end">
+      <div className={cn(CHAT_MESSAGE_LIST_SCROLLER_CLASS, "flex flex-col")}>
+        {/* mt-auto: pin skeleton without min-height swap (matches progressive shell). */}
+        <div className="mt-auto flex min-w-0 w-full flex-col">
           <RoomMessageListSkeleton className="px-5 pt-6 pb-4" />
         </div>
       </div>
