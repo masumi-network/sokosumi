@@ -789,6 +789,7 @@ model Agent {
 
   userAgentRating UserAgentRating[]
   jobs            Job[]
+  x402Payments    TaskX402Payment[]
 
   tags       Tag[]      @relation("AgentTag")
   categories Category[] @relation("AgentCategory")
@@ -926,6 +927,8 @@ model Transaction {
   taskEvents               TaskEvent[]        @relation("TransactionTaskEvent")
   taskPaymentClaim         TaskPaymentClaim?  @relation("TransactionTaskPaymentClaim")
   refundedTaskPaymentClaim TaskPaymentClaim?  @relation("RefundedTransactionTaskPaymentClaim")
+  taskX402Payment          TaskX402Payment?   @relation("TransactionTaskX402Payment")
+  refundedTaskX402Payment  TaskX402Payment?   @relation("RefundedTransactionTaskX402Payment")
   coworkerUsage            CoworkerUsage?     @relation("TransactionCoworkerUsage")
   orchestratorUsage        OrchestratorUsage? @relation("TransactionOrchestratorUsage")
 
@@ -1665,9 +1668,10 @@ model Task {
 
   share PublicShare?
 
-  events TaskEvent[]
-  jobs   Job[]
-  files  TaskFile[]
+  events       TaskEvent[]
+  jobs         Job[]
+  files        TaskFile[]
+  x402Payments TaskX402Payment[]
 
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
@@ -1795,6 +1799,19 @@ enum TaskPaymentClaimStatus {
   REFUNDED
 }
 
+/// VERIFIED is terminal for the automated flow (PR1-SPEC §4): the node signs
+/// the X-PAYMENT header locally and Soko cannot observe settlement, so nothing
+/// may auto-progress a VERIFIED record until the phased-settlement reconciler
+/// (ticket 011 Q3) ships. REFUNDED is reached from PENDING (stale-sign
+/// auto-refund), FAILED (synchronous provably-unpaid refund), or an operator
+/// goodwill refund — never by automated post-VERIFIED reconciliation.
+enum TaskX402PaymentStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  REFUNDED
+}
+
 model TaskEvent {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -1823,6 +1840,7 @@ model TaskEvent {
   transaction   Transaction? @relation("TransactionTaskEvent", fields: [transactionId], references: [id], onDelete: SetNull)
 
   paymentClaim TaskPaymentClaim?
+  x402Payment  TaskX402Payment?
 
   @@index([transactionId])
   @@index([orchestratorId])
@@ -1890,6 +1908,97 @@ model TaskPaymentClaimAction {
   @@index([claimId, createdAt])
   @@index([operatorId, createdAt])
   @@map("task_payment_claim_action")
+}
+
+/// x402/Bazaar payment record (PR1-SPEC §4). Sibling of TaskPaymentClaim, not
+/// a reuse — the escrow claim's state machine (processing lease, retry ladder,
+/// blockchainIdentifier) is meaningless here; this record is terminal at sign
+/// time.
+model TaskX402Payment {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Coworker-supplied; the node has no idempotency of its own (ticket 011),
+  /// so [taskId, idempotencyKey] is the sole dedupe.
+  idempotencyKey String
+  status         TaskX402PaymentStatus @default(PENDING)
+
+  // What was requested / signed
+  caip2Network  String
+  asset         String
+  amount        String // base units, chain-native
+  payTo         String
+  attemptId     String? // node attempt id, present once signed
+  failureReason String?
+
+  // Phased settlement observation (ticket 011 Q3): stored now, consumed by a
+  // later reconciler that checks EIP-3009 authorizationState after expiry —
+  // consumed → settled-observed; unused → EXPIRED_UNUSED → post-hoc
+  // auto-refund (provably unpaid). Terminal-at-VERIFIED until that ships.
+  payerAddress       String? // EIP-3009 `from`
+  payloadNonce       String?
+  paymentPayloadHash String?
+  validBefore        DateTime? // authorization expiry
+
+  // Links: task identity, the charged agent (per-endpoint aggregation),
+  // the credit debit, and its compensating refund.
+
+  /// Restrict, not Cascade: a money record must never vanish with its task.
+  /// Account deletion resolves payments first (prepareTasksForUserDeletion) —
+  /// same reasoning as the claim's Restrict on its transactions.
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  /// Restrict: agentId is the per-endpoint aggregation key (PR1-SPEC §5);
+  /// agent rows are never hard-deleted while payment history exists.
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Restrict)
+
+  taskEventId String?    @unique
+  taskEvent   TaskEvent? @relation(fields: [taskEventId], references: [id], onDelete: SetNull)
+
+  /// The credit charge. Restrict so the debit stays available for
+  /// refund/compensation for the record's lifetime.
+  transactionId String      @unique
+  transaction   Transaction @relation("TransactionTaskX402Payment", fields: [transactionId], references: [id], onDelete: Restrict)
+
+  refundTransactionId String?      @unique
+  refundTransaction   Transaction? @relation("RefundedTransactionTaskX402Payment", fields: [refundTransactionId], references: [id], onDelete: Restrict)
+
+  @@unique([taskId, idempotencyKey]) // the dedupe unique (ticket 003)
+  @@index([agentId, status]) // per-endpoint refund aggregation (PR1-SPEC §5)
+  @@index([status, validBefore]) // phased-settlement reconciler expiry scan
+  @@map("task_x402_payment")
+}
+
+/// Append-only audit trail for operator decisions on a task x402 payment.
+/// These actions move money (goodwill refund) or resolve a record, so
+/// attribution must live in rows that are never updated or deleted.
+///
+/// Deliberately FK-free: account deletion hard-deletes terminal payments and
+/// can remove the operator's User row, so a cascade would erase the financial
+/// audit trail while a restrict would block account deletion. Storing plain
+/// ids lets the record outlive both, which is the normal shape for an audit
+/// log.
+model TaskX402PaymentAction {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  /// TaskX402Payment.id — intentionally not a relation (see above).
+  paymentId String
+
+  /// "refund" | "resolve"
+  action String
+
+  /// User.id of the acting administrator — intentionally not a relation.
+  operatorId String
+
+  reason String
+
+  @@index([paymentId, createdAt])
+  @@index([operatorId, createdAt])
+  @@map("task_x402_payment_action")
 }
 
 model CoworkerUsage {
