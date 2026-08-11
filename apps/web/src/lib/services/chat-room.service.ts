@@ -3,16 +3,20 @@ import "server-only";
 import { cache } from "react";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  AcceptChatRoomGuestInviteLink,
   ChatRoom,
+  ChatRoomGuestInviteLink,
   ChatRoomInvitation,
   ChatRoomKind,
   ChatRoomMessage,
   ChatRoomThread,
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
+  CreateChatRoomGuestInviteLinkRequest,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
   DiscoverableChatRoom,
+  ResolveChatRoomGuestInviteLink,
   UpdateChatRoomRequest,
 } from "@/lib/clients/generated/core";
 
@@ -148,6 +152,50 @@ export const chatRoomService = (() => {
     invitationId: string,
   ): Promise<void> {
     await coreClient.revokeChatRoomInvitation(roomId, invitationId);
+  }
+
+  /** Host: list shareable guest invite links for an external channel. */
+  async function listRoomGuestInviteLinks(
+    roomId: string,
+  ): Promise<ChatRoomGuestInviteLink[]> {
+    const response = await coreClient.listChatRoomGuestInviteLinks(roomId);
+    return response.data;
+  }
+
+  /** Host: mint a shareable guest invite link. */
+  async function createRoomGuestInviteLink(
+    roomId: string,
+    body: CreateChatRoomGuestInviteLinkRequest = {},
+  ): Promise<ChatRoomGuestInviteLink> {
+    const response = await coreClient.createChatRoomGuestInviteLink(
+      roomId,
+      body,
+    );
+    return response.data;
+  }
+
+  /** Host: revoke a shareable guest invite link. */
+  async function revokeRoomGuestInviteLink(
+    roomId: string,
+    token: string,
+  ): Promise<void> {
+    await coreClient.revokeChatRoomGuestInviteLink(roomId, token);
+  }
+
+  /** Public resolve for `/chat/join/{token}` preview. */
+  async function resolveRoomGuestInviteLink(
+    token: string,
+  ): Promise<ResolveChatRoomGuestInviteLink> {
+    const response = await coreClient.resolveChatRoomGuestInviteLink(token);
+    return response.data;
+  }
+
+  /** Accept shareable guest invite link → access=guest. */
+  async function acceptRoomGuestInviteLink(
+    token: string,
+  ): Promise<AcceptChatRoomGuestInviteLink> {
+    const response = await coreClient.acceptChatRoomGuestInviteLink(token);
+    return response.data;
   }
 
   const getRoom = cache(async function getRoom(
@@ -341,8 +389,10 @@ export const chatRoomService = (() => {
 
   return {
     acceptInvitation,
+    acceptRoomGuestInviteLink,
     archiveRoom,
     createRoom,
+    createRoomGuestInviteLink,
     createRoomInvitation,
     declineInvitation,
     deleteMessage,
@@ -355,6 +405,7 @@ export const chatRoomService = (() => {
     listDiscoverableChannels,
     listMessages,
     listPendingInvitations,
+    listRoomGuestInviteLinks,
     listRoomInvitations,
     listRooms,
     listUnreadThreads,
@@ -366,7 +417,9 @@ export const chatRoomService = (() => {
     markThreadRead,
     markUnread,
     pinRoom,
+    resolveRoomGuestInviteLink,
     restoreRoom,
+    revokeRoomGuestInviteLink,
     revokeRoomInvitation,
     unpinRoom,
     muteRoom,
