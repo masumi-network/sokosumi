@@ -74,6 +74,9 @@ The registry-team question is dropped — resolved by
 [ticket 010](010-bazaar-source-of-truth.md) (x402 agents register through the
 payment service onto the V2 registry policy).
 
+**(Superseded — the message was never sent; answered in-house, see
+`## Resolution` above. Original next-action draft kept for the record:)**
+
 **Next action: Sandro sends the message; answers return under a `## Answers`
 section in NODE-QUESTIONS.md, then this ticket closes and the mapped
 follow-up edits (1→003+006, 2→003, 3+4→ADR/009, 5→ADR, 6→003, 7→spec

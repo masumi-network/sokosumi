@@ -9,9 +9,12 @@
 > **Ratified 2026-08-11** via the x402/EVM wayfinder map
 > (`docs/wayfinder/x402-evm/`). The refund-policy blocker below is resolved,
 > and the payment-record model is settled as a sibling of PR 1's
-> `TaskX402Payment`. Node behaviors the pinned spec does not guarantee are
-> marked **[pending node confirmation — wayfinder ticket 011]** inline; they
-> gate the PR 2 build, not this decision.
+> `TaskX402Payment`. The node behaviors the pinned spec did not guarantee are
+> now **confirmed** against masumi-payment-service `main`
+> (`docs/wayfinder/x402-evm/NODE-QUESTIONS.md` `## Answers`) and folded into
+> the body below; nothing external gates the PR 2 build. The only node-side
+> work still outstanding is the future settlement-observation surface, called
+> out as explicitly-future below.
 
 ## Context
 
@@ -35,11 +38,12 @@ The two rails differ structurally, not just by network:
   lifecycle terminates at `Verified` (or `Failed`) once the payment is
   signed; settlement to `Settled` is the receiving side's concern. There is
   no escrow, no result hash, and no on-chain refund path.
-  **[pending node confirmation — ticket 011]** The pinned spec exposes a flat
-  five-value `X402PaymentAttempt.status` (`PaymentRequired | Verified |
-  Settled | Failed | Replayed`) with no direction-scoped lifecycle and no
-  status on the `/x402/pay` response; terminal-at-`Verified` is the design
-  intent, to be confirmed before code hardcodes it.
+  **Confirmed (ticket 011):** the pinned spec exposes a flat five-value
+  `X402PaymentAttempt.status` (`PaymentRequired | Verified | Settled | Failed
+  | Replayed`), but for an OUTBOUND attempt the lifecycle terminates at
+  `Verified` | `Failed` — `Settled`/`Replayed` are inbound-only. Eventual
+  settlement (agent → facilitator → chain) is observed post-hoc by a later
+  reconciler (see the refund policy), never carried on this status.
 
 Relevant payment-node surface (pinned in `packages/masumi/spec/payment.openapi.json`):
 
@@ -84,17 +88,16 @@ A dedicated model records the payment leg of an x402 job:
   `/x402/payments`.
 - `paymentPayloadHash` — hash of the signed payment payload we replayed.
 - `paymentIdentifier` — present when the 402 advertises the Masumi
-  payment-identifier extension. **[pending node confirmation — ticket 011]**
-  The `/x402/pay` `paymentIdentifier` request field is undocumented in the
-  pin; that it echoes the 402's Masumi extension (rather than being an
-  independent correlation/dedup id) is an assumption to confirm.
+  payment-identifier extension. **Confirmed (ticket 011):** it is a fail-loud
+  correlation echo into the signed payload's extensions — the node 400s if the
+  402 does not advertise the extension — never an independent dedup key.
 - `caip2Network`, `asset`, `amount` (BigInt), `decimals` — what was paid,
   denominated chain-natively.
 - Status mirrors the node's OUTBOUND attempt lifecycle: `PaymentRequired` →
   `Verified` | `Failed`, terminal at `Verified` once the payment is signed.
   There is no settle leg on this row — `Settled` belongs to the receiving
   node's inbound lifecycle and never arrives for our outbound attempts.
-  (Same terminal-status caveat as Context above — ticket 011.)
+  (Terminal status confirmed — ticket 011; see Context above.)
 
 `JobX402Payment` (job-scoped, this PR) and `TaskX402Payment` (task-scoped,
 PR 1 — the Bazaar coworker surface) are **two sibling tables, not one shared
@@ -115,20 +118,22 @@ keys — factors into a helper, not a table with a nullable parent.
    same flow.
 
 Timeouts and non-2xx replays leave the job failed with the payment attempt
-recorded. `/x402/payments` lookups by `attemptId` can confirm what was
-signed and charged, but NOT whether funds actually moved: the node's
-reconciler covers inbound settlements only, and outbound attempts never
-advance past `Verified`. A timed-out replay therefore stays genuinely
-ambiguous — the failure-handling and credit-refund policy must assume the
-payment may have been taken.
-**[pending node confirmation — ticket 011]** `/x402/payments` as pinned has
-no by-`attemptId` filter and no `/x402/payments/{id}` route — only paginated
-list filters (`status`, `direction`, `side`, `caip2Network`, …). Confirming a
-specific attempt today means paginating and matching client-side; the
-reconciler needs either an id lookup added or that workaround. The
-`/x402/pay` operation also declares **no non-200 responses**, so node-side
-failures (budget exhausted, wallet missing, no acceptable `accepts`) have no
-documented shape to branch on — needed before Soko can classify them.
+recorded. `/x402/payments` lookups confirm what was signed and charged, but
+NOT whether funds actually moved: the node's reconciler covers inbound
+settlements only, and outbound attempts never advance past `Verified`. A
+signed-then-failed replay is therefore not provably unpaid at replay time —
+the agent holds a settleable header — so the debit stands, subject to the
+post-hoc `EXPIRED_UNUSED` refund defined below.
+
+**Confirmed (ticket 011):** the `/x402/pay` error contract is now known —
+400 = deterministic pre-sign rejection (bad `accepts`, no `ChainIdLimit`
+match, network disabled, requirements drift, identifier not advertised),
+402 = budget/balance refusal, 500 = config/signing failure. Any non-200 means
+no header was issued, so a pre-sign refusal is provably unpaid and refunds
+synchronously. `/x402/payments` still has no by-`attemptId` filter and no
+`/x402/payments/{id}` route, but that lookup is **not needed for
+correctness** — refund-safety removes the reconciliation need, and
+paginate-and-match covers audit — so it is a low-priority node nicety.
 
 ### 5. Credits pricing via CAIP-19-style unit keys
 
@@ -153,12 +158,14 @@ Two corrections to how the proposed draft described this (both verified
   (`apps/core/src/helpers/agent.ts` `getCardanoV2ReadySources`,
   `agent-sync.readiness.ts`). x402 readiness should follow the same shape,
   not a TTL.
-- **[pending node confirmation — ticket 011]** `/rail-readiness` exposes the
-  x402 checks **once per environment, not per network** — there is no x402
-  analog of the Cardano `PurchaseSources` per-source readiness. "Extended per
-  EVM network" is therefore not buildable from the endpoint as pinned;
-  per-chain gating needs endpoint composition or node work. Until then,
-  x402 buy-side readiness is an environment-global gate.
+- **Confirmed (ticket 011):** `/rail-readiness` exposes the x402 checks
+  **once per environment, not per network** — there is no x402 analog of the
+  Cardano `PurchaseSources` per-source readiness. Per-chain buy-side readiness
+  is therefore **composed Soko-side** from `/x402/networks/available` +
+  `/x402/budgets` (both per-chain today), reusing the same cached
+  last-known-value pattern; the env-global `/rail-readiness` checks stay the
+  coarse health signal. Un-collapsing the per-chain breakdown `/rail-readiness`
+  already computes is a low-priority node ask, not a build gate.
 
 ### 7. Node prerequisites (operator runbook, not code)
 
@@ -176,13 +183,25 @@ on a single job:
 
 - **PR 2 (masumi jobs on x402): auto-refund only when provably unpaid.**
   Credits return automatically only where Soko provably never put funds at
-  risk — the payment was never signed, or the replay was never sent.
-  Everything after signing (settled, garbage result, non-2xx, timeout) keeps
-  the debit. The ambiguous timed-out replay above is answered by
-  construction: signed-but-timed-out is **not** provably unpaid, so no
-  auto-refund. There is deliberately **no parity** with escrow-job refunds —
-  escrow can claw back, x402 cannot, and Soko does not absorb a settled loss
-  silently.
+  risk — the payment was never signed (a non-200 from `/x402/pay`), or the
+  replay was never sent. Once a header is signed the debit stands: a settled
+  payment, a garbage result, or a non-2xx / timed-out **replay** — the agent
+  holds a settleable header, so signed-and-used is non-refundable. There is
+  deliberately **no parity** with escrow-job refunds — escrow can claw back,
+  x402 cannot, and Soko does not absorb a settled loss silently.
+- **`EXPIRED_UNUSED` (phased settlement observation — explicitly future
+  work).** The one narrow exception to "signed ⇒ debit stands": an EIP-3009
+  authorization Soko signed but that **expired without ever being consumed**
+  on-chain is provably unpaid after its `validBefore`. Records store the
+  authorization fields (`from` / nonce / `validBefore` / payload hash) now; a
+  later settlement-observation reconciler checks `authorizationState` past
+  expiry — consumed → settled-observed, debit stands; **expired unused →
+  `EXPIRED_UNUSED` → post-hoc auto-refund**. This is distinct from an
+  unresolved in-flight timeout, which stays ambiguous (debit stands) until
+  expiry resolves it, and from a signed-and-used authorization, which is never
+  refunded. Consistent with PR2-SPEC §5; the reconciler and the node-side
+  outbound settlement-observation surface it depends on are not yet built and
+  do not gate the initial ship.
 - **PR 1 (Bazaar coworker payments): no auto-refund** — credits spent are
   spent; Soko has no visibility into the externally-fetched result. Two
   levers ship instead: an admin refund action on the payment record
@@ -214,14 +233,16 @@ on a single job:
   payment sources; flipping availability is gated on this rail shipping.
 - The jobs pipeline gains one discriminator and one sibling model; escrow
   code paths remain untouched.
-- Status tooling must learn `/x402/payments` lookups by `attemptId` —
-  understanding they confirm signing/charging only, never settlement
-  (outbound attempts have no reconcilable settle state), and that the pinned
-  spec offers no id filter yet (ticket 011).
-- The credit-refund product decision is **resolved** (above); the rollout
-  gate is now the ticket-011 node confirmations. Engineering can proceed to
-  the PR 2 spec and implementation behind a flag; the marked items must be
-  confirmed before ship.
+- Status tooling uses `/x402/payments` lookups to confirm signing/charging
+  only, never settlement (outbound attempts have no reconcilable settle
+  state). The pinned spec offers no by-`attemptId` filter, but that is a
+  low-priority nicety, not a correctness gap — paginate-and-match suffices
+  (ticket 011).
+- The credit-refund product decision is **resolved** (above), and the
+  ticket-011 node confirmations have landed (`NODE-QUESTIONS.md` `## Answers`)
+  — nothing external gates the build. Engineering can proceed to the PR 2 spec
+  and implementation; the only remaining node-side work is the future
+  settlement-observation surface, which does not gate the initial ship.
 - PR 1 (the Bazaar coworker surface, `docs/wayfinder/x402-evm/PR1-SPEC.md`)
   ships first and independently — it shares the CAIP-19 credit keys, the
   `/x402/pay` delegation, and the refund policy with this rail, but no job

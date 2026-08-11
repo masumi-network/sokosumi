@@ -217,8 +217,10 @@ All confirmed against masumi-payment-service `main`; see
 - **By-`attemptId` lookup:** not needed for correctness; paginate-and-match
   covers audit. Low-priority node nicety.
 - **Dialect:** v2-shaped only; Soko normalizes (§3).
-- The pinned specs lag upstream `main`; refresh via `fetch-specs` is a
-  pre-implementation step — the deployed nodes are already current.
+- The pinned-spec refresh via `fetch-specs` is **complete** — the pull was
+  byte-identical to the existing pins, so there is no generated-client diff
+  and no spec drift gating the build; the deployed nodes already run the
+  current x402 surface.
 
 ## 8. Test strategy
 
@@ -229,14 +231,9 @@ All confirmed against masumi-payment-service `main`; see
 - **Route:** authz parity with `masumiPayment` (non-coworker rejected;
   unassigned task rejected); fail-closed listing (unpriced asset, wrong
   network, unready rail each drop the agent); charge-then-refund on a stubbed
-  node refusal; PENDING-on-timeout leaves no auto-refund.
+  node refusal; stale-PENDING reconciler auto-refunds a timed-out record
+  (refund-safe, § 3).
 - **Mutation-tested** on the money paths, per repo discipline: the charge
   floor, the idempotency unique, the provably-unpaid refund branch.
 - Node interaction stubbed at the payment-client boundary (the pinned spec is
   the contract); one integration smoke against a testnet agent on preprod.
-
-## 9. Open question for review
-
-- Endpoint path: `/v1/tasks/{taskId}/x402-payments` (task-nested, matches the
-  charge-scope decision) vs a top-level `/v1/x402-payments` with taskId in
-  the body. The spec assumes task-nested — confirm.

@@ -47,12 +47,14 @@ Decided by Sandro (2026-08-11), grilled in three questions:
    removed from the whitelist.
 2. **PR 2 (masumi x402 jobs): auto-refund only when provably unpaid.**
    Credits return automatically only when Soko provably never put funds at
-   risk — the payment was never signed, or the replay was never sent.
-   Everything after signing (settled, garbage result, non-2xx, timeout)
-   keeps the debit; the admin lever is the only path. The ADR's ambiguous
-   timed-out replay is answered by construction: signed-but-timed-out is
-   not provably unpaid → no auto-refund. There is deliberately NO parity
-   with escrow-job refunds.
+   risk — a **pre-sign `POST /x402/pay` refusal** (any non-200, so no header
+   is ever issued) triggers a synchronous refund, as does a replay that was
+   never sent. Once a header is signed the debit stands: a settled payment, a
+   garbage result, or a **non-2xx / timed-out replay** keeps the debit — the
+   agent holds a settleable header — and the admin lever is the only path. The
+   ADR's ambiguous timed-out replay is answered by construction:
+   signed-but-timed-out is not provably unpaid → no auto-refund. There is
+   deliberately NO parity with escrow-job refunds.
 3. **Disputable-vs-x402 source preference is moot**: by registry design
    those are different agents — a single agent never offers both settlement
    layers, so no selection rule exists.

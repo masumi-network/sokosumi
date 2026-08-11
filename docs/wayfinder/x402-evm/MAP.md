@@ -29,8 +29,8 @@ priority.
   (file names); frontier = open, unclaimed, all blockers closed.
 - Substrate: [ADR 0001](../../adr/0001-x402-evm-payment-rail.md) already
   designs most of PR 2 (rail discriminator, `JobX402Payment`, node-delegated
-  signing, CAIP-19 credit-cost keys, buy-side readiness). Status Proposed;
-  its one named blocker is the credit-refund product decision.
+  signing, CAIP-19 credit-cost keys, buy-side readiness). **Accepted
+  2026-08-11, credit-refund blocker resolved.**
 - Standing decision inherited from ADR 0001: **no EVM keys in Soko** — all
   signing is delegated to the payment node (`POST /x402/pay`). PR 1 reuses
   this; a Soko-held wallet is off the table unless the ADR is reopened.
@@ -125,14 +125,10 @@ priority.
 
 ## Not yet specified
 
-- **Admin/observability surface** for x402 payments — sharpened by the
-  refund-policy decision: an admin refund action on the payment record plus
-  per-endpoint refund/failure aggregation with a whitelist-disable lever.
-  Concrete shape lands in the PR 1 spec once the pay-endpoint contract
-  fixes the payment record.
-- **PR 2 rollout gating and ops runbook** — flag strategy, per-chain node
-  wallets/budgets, funding verification. Sharpens once ADR 0001 is ratified.
-- **Map migration to Linear** if the connector gets authorized.
+- **Map migration to Linear** if the connector gets authorized. (The
+  admin/observability surface and PR 2 rollout/ops runbook, formerly listed
+  here, are now specified — see [PR1-SPEC.md](PR1-SPEC.md) §5 and
+  [PR2-SPEC.md](PR2-SPEC.md) §6.)
 
 ## Out of scope
 

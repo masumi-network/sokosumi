@@ -1,5 +1,9 @@
 # x402 buy-side — questions for the payment-node team
 
+> **RESOLVED record.** All seven questions are answered in the `## Answers`
+> section below (in-house, 2026-08-11); the handoff message was **never sent**.
+> The draft and rationale are kept for the record.
+
 > Handoff draft for wayfinder ticket 011. Everything below is about the
 > **`POST /x402/pay` buy-side** as pinned in
 > `packages/masumi/spec/payment.openapi.json`. Sokosumi's x402 integration
@@ -11,6 +15,8 @@
 ---
 
 ## Paste-ready message
+
+> *(Never sent — resolved in-house; the answers are in `## Answers` below.)*
 
 Hey — we've specced Sokosumi's x402 buy-side against the pinned
 `/x402/pay` surface and hit a handful of spots where the OpenAPI is silent

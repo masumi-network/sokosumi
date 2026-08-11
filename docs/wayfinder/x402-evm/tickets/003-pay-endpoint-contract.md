@@ -68,6 +68,14 @@ provably unpaid. The durable payment record carries the idempotency key,
 `attemptId`, agent link (for per-endpoint aggregation), and the admin
 refund action. Field-level schema lands in the PR 1 spec (007).
 
+> **Superseded by the ticket-011 answers:** (a) `paymentIdentifier` is stamped
+> **only when the 402 advertises the payment-identifier extension** (the node
+> 400s otherwise), not on every call; (b) a crash/timeout between charge and a
+> confirmed sign result is **refund-safe**, not review-only — the node signs
+> locally and never sends the buyer's request, so the stale-PENDING reconciler
+> auto-refunds without consulting the node. See [PR1-SPEC.md](../PR1-SPEC.md)
+> §3 and [NODE-QUESTIONS.md](../NODE-QUESTIONS.md) `## Answers`.
+
 ## Progress (superseded by Resolution above)
 
 - **Trust boundary decided** (Sandro, 2026-08-11): the endpoint signs only

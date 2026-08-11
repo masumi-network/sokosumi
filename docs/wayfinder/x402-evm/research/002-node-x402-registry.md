@@ -358,6 +358,12 @@ Matches first, then drift. ADR: `docs/adr/0001-x402-evm-payment-rail.md`.
 
 ## Unresolved / external dependencies
 
+> *(Superseded — every item below is resolved: the payment-node questions were
+> answered in-house (see [NODE-QUESTIONS.md](../NODE-QUESTIONS.md) `## Answers`
+> and [MAP.md](../MAP.md)), and the registry/Bazaar question is closed by
+> [ticket 010](../tickets/010-bazaar-source-of-truth.md). Kept as the
+> pinned-spec audit of record.)*
+
 Needs the **payment-node team**:
 
 1. `/x402/pay` error contract — no non-200 response is specced; the shapes for

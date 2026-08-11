@@ -31,6 +31,8 @@ The three review items resolved as drafted (approval = accept):
    safely around the four pinned-spec unknowns, but the node team's answers
    (ticket 011) must land before ship; the refund-on-refusal branch in
    particular is designed-but-unconfirmed until the node's error contract is
-   known.
+   known. *(Superseded — the ticket-011 answers landed in-house and confirmed
+   the error contract; nothing external gates the build. See the PR1-SPEC §7
+   RESOLVED section and [NODE-QUESTIONS.md](../NODE-QUESTIONS.md) `## Answers`.)*
 
 Handoff-ready. First half of the destination reached.

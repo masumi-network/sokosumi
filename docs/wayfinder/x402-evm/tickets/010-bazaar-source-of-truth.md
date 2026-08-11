@@ -61,3 +61,8 @@ through Soko. Whether the pay endpoint signs for *unlisted* 402s remains
 ticket 003's question. The pinned specs will need a refresh when the
 deployed registry/payment node catch up to upstream main; spec tickets
 should read upstream `main` schemas, not only the pins.
+
+> *(Superseded — the deployed nodes already run latest `main` (ticket 011
+> answer 7), so the spec refresh and preprod e2e can start now; the refresh
+> pulled byte-identical to the pins. See [NODE-QUESTIONS.md](../NODE-QUESTIONS.md)
+> `## Answers`.)*

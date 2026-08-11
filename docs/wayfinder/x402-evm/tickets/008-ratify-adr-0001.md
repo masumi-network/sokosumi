@@ -28,6 +28,10 @@ Accepted** (2026-08-11), edited in place. Two decisions grilled with Sandro:
    011]` in the ADR: the terminal attempt status, the missing by-`attemptId`
    lookup + absent `/x402/pay` error contract, per-network readiness, and
    `paymentIdentifier` semantics. They gate the PR 2 build, not the decision.
+   *(Superseded — the ticket-011 answers landed in-house; the ADR's
+   `[pending node confirmation]` markers are now resolved inline and nothing
+   external gates the PR 2 build. See [NODE-QUESTIONS.md](../NODE-QUESTIONS.md)
+   `## Answers`.)*
 2. **Two sibling tables** — `JobX402Payment` (PR 2, job-scoped) and
    `TaskX402Payment` (PR 1, task-scoped) stay separate; shared logic factors
    into a helper. Recorded in ADR decision 3.

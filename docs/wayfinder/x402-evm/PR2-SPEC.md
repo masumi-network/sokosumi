@@ -1,10 +1,11 @@
 # PR 2 spec — masumi-job x402 rail
 
-> **Status:** draft for review (wayfinder ticket 009). Substrate:
-> [ADR 0001](../../adr/0001-x402-evm-payment-rail.md) (Accepted) — this spec
-> does not restate it; it binds the ADR's decisions to concrete schema, flow,
-> and rollout. All former node unknowns are resolved
-> ([NODE-QUESTIONS.md](NODE-QUESTIONS.md) `## Answers`).
+> **Status:** approved (wayfinder ticket 009) — the second half of the
+> destination, **reached 2026-08-11**; all three review points accepted as
+> specced. Substrate: [ADR 0001](../../adr/0001-x402-evm-payment-rail.md)
+> (Accepted 2026-08-11) — this spec does not restate it; it binds the ADR's
+> decisions to concrete schema, flow, and rollout. All former node unknowns
+> are resolved ([NODE-QUESTIONS.md](NODE-QUESTIONS.md) `## Answers`).
 
 ## 1. Scope
 
