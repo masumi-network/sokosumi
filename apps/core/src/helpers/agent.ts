@@ -3,16 +3,12 @@ import {
   AgentEntryType,
   type AgentMetadataOverride,
   AgentStatus,
-  type AgentWithPricing,
   type CreditCost,
   PaymentType,
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
-import {
-  listV2RegistryPolicyIds,
-  normalizeMasumiPaymentUnit,
-} from "@sokosumi/masumi";
+import { listV2RegistryPolicyIds } from "@sokosumi/masumi";
 import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 
@@ -28,6 +24,7 @@ import {
   type RatingMetrics,
 } from "@/schemas/agent.schema";
 
+import { listCardanoBillableUnitSpellings } from "./agent-cost";
 import { internalServerError, notFound, unprocessableEntity } from "./error";
 
 type AgentMetadataOverrideScalars = AgentMetadataOverride;
@@ -301,28 +298,10 @@ export const buildAvailableAgentWhereClause = (
   creditCosts: CreditCost[],
   cardanoV2ReadySources: readonly CardanoV2ReadySource[],
 ): Prisma.AgentWhereInput => {
-  // Both spellings of every unit, because the two sides of this comparison
-  // were written in different eras. Ingestion now stores
-  // normalizeMasumiPaymentUnit(...) — lowercased — but `CreditCost.unit` is
-  // free-form operator input (POST /v1/credit-costs takes z.string().min(1)),
-  // and rows ingested before this branch kept the registry's original casing.
-  // isSameAgentPricing normalizes before comparing, so a pure case change
-  // reads as "unchanged" and those older rows are never rewritten.
-  //
-  // Prisma `in` is a case-sensitive `= ANY(...)`, so matching on one spelling
-  // alone silently drops agents in SQL — no buildAgentSummaries skip, no log
-  // line, the row is simply absent from /v1/agents and /v1/categories and
-  // 404s from /v1/agents/{id}. Carrying both keeps pre- and post-branch rows
-  // matchable without a UnitValue backfill.
-  const validUnits = Array.from(
-    new Set(
-      creditCosts.flatMap((creditCost) =>
-        normalizeMasumiPaymentUnit(creditCost.unit) === "lovelace"
-          ? [creditCost.unit, "lovelace", ""]
-          : [creditCost.unit, normalizeMasumiPaymentUnit(creditCost.unit)],
-      ),
-    ),
-  );
+  // Both spellings of every billable unit; CAIP-19 rows are excluded — they
+  // price per whole token and must never make a Cardano-convention agent
+  // billable (see listCardanoBillableUnitSpellings).
+  const validUnits = listCardanoBillableUnitSpellings(creditCosts);
   // V2 availability is gated on rail readiness alone: the payment node must
   // have recently reported at least one purchase-ready Cardano V2 source.
   // That is the gate that actually reflects whether a V2 hire can settle — a
@@ -457,115 +436,9 @@ export const requireAvailableAgentOrThrow = async (
   }
 };
 
-export interface AgentCost {
-  cents: bigint;
-}
-
-/**
- * Gets an agent's cost.
- * @param agent - The agent with pricing.
- * @param creditCosts - The credit costs.
- * @returns The cost for the agent.
- */
-export const getAgentCost = (
-  agent: AgentWithPricing,
-  creditCosts: CreditCost[],
-): AgentCost => {
-  return calculateAgentCost(agent, creditCosts);
-};
-
-/**
- * Converts on-chain pricing rows (unit + amount in smallest units) to billable cents
- * using the CreditCost table. Used for fixed agent pricing and task masumi payments.
- */
-function calculateCentsFromPricingAmountRows(
-  rows: readonly { unit: string; amount: bigint }[],
-  creditCosts: CreditCost[],
-): bigint {
-  let totalCents = BigInt(0);
-  for (const row of rows) {
-    const unit = normalizeMasumiPaymentUnit(row.unit);
-    const creditCost = creditCosts.find(
-      (candidate) => normalizeMasumiPaymentUnit(candidate.unit) === unit,
-    );
-    if (!creditCost) {
-      throw unprocessableEntity(`Credit cost not found for unit ${unit}`);
-    }
-    totalCents += row.amount * creditCost.centsPerUnit;
-  }
-  return totalCents;
-}
-
-/**
- * Parses Masumi payment Amounts (string amounts) and returns billable cents.
- */
-export function calculateCentsFromMasumiAmountStrings(
-  amounts: readonly { amount: string; unit: string }[],
-  creditCosts: CreditCost[],
-): bigint {
-  if (amounts.length === 0) {
-    throw unprocessableEntity("Amounts must not be empty");
-  }
-
-  const rows: { unit: string; amount: bigint }[] = [];
-  for (const entry of amounts) {
-    let amount: bigint;
-    try {
-      amount = BigInt(entry.amount);
-    } catch {
-      throw unprocessableEntity(`Invalid amount: ${entry.amount}`);
-    }
-    if (amount <= 0n) {
-      throw unprocessableEntity("Amount must be positive");
-    }
-    const unit = normalizeMasumiPaymentUnit(entry.unit);
-    // Deliberately AFTER normalization: an empty unit is Masumi's spelling of
-    // ADA and becomes "lovelace", so only a whitespace-only unit — which
-    // normalizes to itself and names no asset — is rejected here.
-    if (unit.trim().length === 0) {
-      throw unprocessableEntity("Unit must not be empty");
-    }
-    rows.push({ unit, amount });
-  }
-
-  return calculateCentsFromPricingAmountRows(rows, creditCosts);
-}
-
-/**
- * Calculates the cost for an agent from its pricing configuration.
- * @param agent - The agent with pricing.
- * @param creditCosts - The credit costs.
- * @returns The cost for the agent.
- */
-const calculateAgentCost = (
-  agent: AgentWithPricing,
-  creditCosts: CreditCost[],
-): AgentCost => {
-  switch (agent.pricing.pricingType) {
-    case PricingType.FIXED: {
-      if (
-        !agent.pricing.fixedPricing ||
-        agent.pricing.fixedPricing.amounts.length === 0
-      ) {
-        throw unprocessableEntity("Agent has invalid or unknown pricing");
-      }
-      const pricing = agent.pricing.fixedPricing.amounts.map((amount) => ({
-        unit: amount.unit,
-        amount: amount.amount,
-      }));
-
-      return {
-        cents: calculateCentsFromPricingAmountRows(pricing, creditCosts),
-      };
-    }
-    case PricingType.FREE: {
-      return { cents: BigInt(0) };
-    }
-    case PricingType.UNKNOWN: {
-      throw unprocessableEntity("Agent has invalid or unknown pricing");
-    }
-  }
-};
+// Agent pricing → billable cents lives in `./agent-cost` (getAgentCost,
+// calculateCentsFromMasumiAmountStrings), extracted with the CAIP-19
+// convention fence so this file stays within the size ceiling.
 
 /**
  * Calculates the average execution time (in seconds) for a given agent's jobs.

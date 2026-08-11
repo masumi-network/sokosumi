@@ -22,14 +22,22 @@ export const X402_BUY_SIDE_READINESS_FAILURE_KEY =
 
 /**
  * One (network, asset) pair the payment node can pay on right now: the chain
- * is enabled for x402 and a budget in that asset has remaining spend. Both
- * values are canonical lowercase.
+ * is enabled for x402 and a budget in that asset has remaining spend.
+ * Network and asset are canonical lowercase; `evmWalletId` is the node's
+ * opaque wallet id, carried verbatim.
  */
 export interface X402ReadySource {
   /** CAIP-2 EVM network id, e.g. `eip155:84532`. */
   caip2Network: string;
   /** ERC-20 contract address the funded budget is denominated in. */
   asset: string;
+  /**
+   * Managed EVM wallet backing the pair's budget — the `evmWalletId` the pay
+   * route passes to `POST /x402/pay`, so signing needs no per-payment
+   * `/x402/budgets` fetch. When several budgets back the pair, the sync
+   * recorded the one with the most remaining spend.
+   */
+  evmWalletId: string;
 }
 
 /**
@@ -67,22 +75,32 @@ export function isX402NetworkAllowed(
 }
 
 /**
- * Whether an advertised (network, asset) pair is buy-side ready. Lowercases
- * both sides so a mixed-case address from the registry still matches the
- * canonical cached pair.
+ * The recorded ready pair for an advertised (network, asset), or undefined
+ * when the pair is not buy-side ready. Lowercases both sides so a mixed-case
+ * address from the registry still matches the canonical cached pair. The
+ * returned pair carries the `evmWalletId` the pay route signs with.
  */
+export function findX402ReadySource(
+  caip2Network: string,
+  asset: string,
+  readySources: readonly X402ReadySource[],
+): X402ReadySource | undefined {
+  const normalizedNetwork = caip2Network.toLowerCase();
+  const normalizedAsset = asset.toLowerCase();
+  return readySources.find(
+    (source) =>
+      source.caip2Network.toLowerCase() === normalizedNetwork &&
+      source.asset.toLowerCase() === normalizedAsset,
+  );
+}
+
+/** Whether an advertised (network, asset) pair is buy-side ready. */
 export function isX402SourceReady(
   caip2Network: string,
   asset: string,
   readySources: readonly X402ReadySource[],
 ): boolean {
-  const normalizedNetwork = caip2Network.toLowerCase();
-  const normalizedAsset = asset.toLowerCase();
-  return readySources.some(
-    (source) =>
-      source.caip2Network.toLowerCase() === normalizedNetwork &&
-      source.asset.toLowerCase() === normalizedAsset,
-  );
+  return findX402ReadySource(caip2Network, asset, readySources) !== undefined;
 }
 
 /**
@@ -125,7 +143,13 @@ export const getX402ReadySources = async (
         CAIP2_EVM_NETWORK_PATTERN.test(source.caip2Network) &&
         "asset" in source &&
         typeof source.asset === "string" &&
-        EVM_ADDRESS_PATTERN.test(source.asset),
+        EVM_ADDRESS_PATTERN.test(source.asset) &&
+        // A pair without its backing wallet cannot be signed with — a row
+        // cached before the evmWalletId field existed is unusable and drops
+        // until the next sync rewrites the cache.
+        "evmWalletId" in source &&
+        typeof source.evmWalletId === "string" &&
+        source.evmWalletId.length > 0,
     );
   } catch {
     return [];

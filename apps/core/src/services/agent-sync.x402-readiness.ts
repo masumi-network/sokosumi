@@ -17,7 +17,13 @@ import prisma from "@/lib/db/prisma";
  * Composes per-network x402 buy-side readiness from the node's
  * `GET /x402/networks/available` and `GET /x402/budgets` (ticket 011 Q5):
  * a (network, asset) pair is ready when the chain is enabled for x402 AND a
- * budget in that asset still has remaining spend. `canSettle` is
+ * budget in that asset still has remaining spend. The budget rows are
+ * already scoped to Soko's own API key by `getX402Budgets` (the node's
+ * admin-gated list is otherwise unscoped, and `POST /x402/pay` only draws
+ * on the calling key's budgets — a foreign key's budget must never mark a
+ * pair ready). Each pair records the `evmWalletId` of its backing budget so
+ * the pay route can sign without a per-payment budgets fetch; when several
+ * budgets back a pair, the most-funded wallet wins. `canSettle` is
  * deliberately ignored — outbound (buy) wallets do not require a
  * facilitator, and gating the buy side on inbound settlement would hide
  * payable agents for no reason.
@@ -41,13 +47,20 @@ export function composeX402ReadySources(
     }
   }
 
-  const readySources = new Map<string, X402ReadySource>();
+  const readySources = new Map<
+    string,
+    { pair: X402ReadySource; remainingAmount: bigint }
+  >();
   for (const budget of budgets) {
     const caip2Network = budget.caip2Network?.toLowerCase();
     const asset = budget.asset?.toLowerCase();
+    // The wallet id is the node's opaque identifier — carried verbatim, no
+    // case normalization.
+    const evmWalletId = budget.evmWalletId;
     if (
       !caip2Network ||
       !asset ||
+      !evmWalletId ||
       !enabledNetworks.has(caip2Network) ||
       !EVM_ADDRESS_PATTERN.test(asset)
     ) {
@@ -56,22 +69,41 @@ export function composeX402ReadySources(
     if (!/^\d+$/.test(budget.remainingAmount)) {
       continue;
     }
-    if (BigInt(budget.remainingAmount) <= 0n) {
+    const remainingAmount = BigInt(budget.remainingAmount);
+    if (remainingAmount <= 0n) {
       // An exhausted budget cannot sign — the pair is not payable NOW,
       // which is exactly what listed ⇒ payable promises.
       continue;
     }
-    readySources.set(`${caip2Network}:${asset}`, { caip2Network, asset });
+    // Several budgets (wallets) can back one (network, asset) pair. Record
+    // the one with the most remaining spend — the wallet most likely to
+    // cover a demand at pay time — with the wallet id as a deterministic
+    // tie-break so the recorded set is stable across syncs.
+    const key = `${caip2Network}:${asset}`;
+    const current = readySources.get(key);
+    if (
+      !current ||
+      remainingAmount > current.remainingAmount ||
+      (remainingAmount === current.remainingAmount &&
+        evmWalletId.localeCompare(current.pair.evmWalletId) < 0)
+    ) {
+      readySources.set(key, {
+        pair: { caip2Network, asset, evmWalletId },
+        remainingAmount,
+      });
+    }
   }
 
-  return Array.from(readySources.values()).sort((left, right) => {
-    const networkComparison = left.caip2Network.localeCompare(
-      right.caip2Network,
-    );
-    return networkComparison !== 0
-      ? networkComparison
-      : left.asset.localeCompare(right.asset);
-  });
+  return Array.from(readySources.values())
+    .map(({ pair }) => pair)
+    .sort((left, right) => {
+      const networkComparison = left.caip2Network.localeCompare(
+        right.caip2Network,
+      );
+      return networkComparison !== 0
+        ? networkComparison
+        : left.asset.localeCompare(right.asset);
+    });
 }
 
 /**

@@ -6,7 +6,6 @@ import {
   buildAvailableAgentWhereClause,
   calculateAgentRating,
   calculateAverageExecutionTime,
-  getAgentCost,
   getAgentDescription,
   getAgentIcon,
   getAgentImage,
@@ -14,6 +13,7 @@ import {
   getCardanoV2ReadySources,
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
+import { getAgentCost } from "@/helpers/agent-cost";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";

@@ -336,3 +336,79 @@ Handoff items:
   after pulling — core resolves it through `dist`.
 - Step-2 follow-up still open: bound `idempotencyKey` in the pay route's
   Zod (max ~200) before it reaches the btree unique.
+
+### Step-3 review fixes (same branch) — 2026-08-11
+
+Eight findings from the step-3 review, fixed in place. Where they touch the
+handoff signatures above, this section supersedes it.
+
+**`GET /x402/budgets` is ADMIN-gated and unscoped — verified upstream.**
+Checked against masumi-payment-service `main`: `listX402BudgetsGet`
+(`src/routes/api/x402/index.ts`) is built with
+`adminAuthenticatedEndpointFactory` — a plain pay key is rejected — and its
+handler `listX402WalletBudgets(input.apiKeyId)` returns EVERY key's budget
+rows unless the optional `apiKeyId` query filter is passed; it is never
+ctx-scoped. Meanwhile `POST /x402/pay` (`pay.ts`, `createX402Payment`) only
+draws on budgets `where { apiKeyId: <calling key>, evmWalletId, asset,
+enabled }` — a foreign key's budget is never spendable by our key. Fixes:
+`getX402Budgets` now resolves its own key id via `GET /api-key-status` and
+passes the `apiKeyId` filter (fails loud if the status call fails — never a
+silent unscoped read), so readiness can never mark a pair ready off another
+key's budget; the wrong "node scopes to the caller" comment is gone; the
+admin-permission operator prerequisite is documented in PR1-SPEC §6.
+Note the original review suggestion (filter by wallet ids from
+`/x402/networks/available`) was unimplementable — that endpoint returns
+network rows only, no wallet ids; `apiKeyId` scoping matches the pay-time
+predicate exactly.
+
+**Ready pairs now carry `evmWalletId` (decision for steps 4/5).**
+`X402ReadySource` is `{ caip2Network, asset, evmWalletId }`; the pair's
+`evmWalletId` is the budget-backing wallet the pay route passes to
+`POST /x402/pay` — no per-payment `/x402/budgets` fetch. When several
+budgets back one (network, asset) pair, `composeX402ReadySources` records
+the one with the most remaining spend (tie-break: lexicographic wallet id)
+so the recorded set is deterministic. New helper
+`findX402ReadySource(caip2Network, asset, readySources):
+X402ReadySource | undefined` returns the pair (and wallet) for the matched
+402 entry; `isX402SourceReady` delegates to it. Cached rows without
+`evmWalletId` (pre-field or malformed) are dropped by `getX402ReadySources`
+— fail closed until the next sync rewrites the cache.
+
+**402 normalizer hardening.** The wild entry schema and the node-shape
+`x402PaymentRequirementsSchema` are now `looseObject`s: unknown entry keys
+(live Bazaar aliases like `currency`/`recipient`) survive normalization
+verbatim, because the chosen entry must be echoable byte-for-byte into the
+signed payload's `accepted` (research 001 §3) and a strict server re-402s a
+stripped echo AFTER the charge; only dialect-translated keys
+(`maxAmountRequired`→`amount`, per-entry `resource`→top-level) are
+consumed. `accepts` is capped at 20 entries (node `maxItems`) so an
+oversized 402 fails pre-charge. v1 multi-entry bodies with DISAGREEING
+per-entry resource URLs now error (never-guess, matching the
+conflicting-amounts guard); agreeing/single resources keep working. The
+dead not-valid-base64 catch is gone (`Buffer.from` never throws); the
+surviving error reads "not base64-encoded JSON".
+
+**CAIP-19 conventions fenced out of the Cardano pricing path.** The cost
+calculators moved from `helpers/agent.ts` (was over the 750-line ceiling)
+into `helpers/agent-cost.ts`: `getAgentCost`,
+`calculateCentsFromMasumiAmountStrings`, `AgentCost`, plus new
+`listCardanoBillableUnitSpellings`. `calculateCentsFromPricingAmountRows`
+throws 422 on a CAIP-19 unit (it bills per SMALLEST unit; CAIP-19 rows
+price per WHOLE token — honoring one would charge 10^decimals× wrong), and
+`buildAvailableAgentWhereClause` excludes CAIP-19 units from `validUnits`
+so a CAIP-19-keyed CreditCost row can never make a Cardano agent billable.
+Import sites updated (`job.ts`, `agent-summary.ts`, `events/post.ts`,
+`agents/[id]/get.ts`); mutation-tested (fence disabled → 2 tests fail →
+restored → green). `agent.ts` is now 765 lines — still over the ceiling;
+step 4 must keep extracting, not append.
+
+**Re-arm test fixed.** The readiness re-arm test now seeds a recorded
+readiness row before every failure call, so each failure takes the warm
+(latched) path: held latch stays silent (count 0), success deletes the
+marker, and the next failure's fresh insert (count 1) is what pages — the
+latch re-arm itself is what the assertion proves, not the cold-start
+bypass.
+
+**Verification:** `pnpm --filter @sokosumi/masumi test` 14 files / 250
+passed; core x402 + agent + deletion suites (12 files) 282 passed;
+`pnpm typecheck` all workspaces; `pnpm format` + `pnpm check` clean.

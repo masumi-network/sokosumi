@@ -141,6 +141,31 @@ describe("buildAvailableAgentWhereClause", () => {
     ]);
   });
 
+  it("excludes CAIP-19 credit-cost units from the billable unit match", () => {
+    // CAIP-19 rows price per WHOLE token (x402 convention); the Cardano
+    // pricing path bills per SMALLEST unit. A CAIP-19-keyed CreditCost row
+    // must never make a Cardano agent billable — it would price 10^decimals×
+    // wrong in getAgentCost.
+    const caip19Unit =
+      "eip155:84532/erc20:0x036cbd53842c5426634e7929541ec2318f3dcf7e";
+    const where = buildAvailableAgentWhereClause(
+      [createCreditCost("USD"), createCreditCost(caip19Unit)],
+      [],
+    );
+
+    const fixedBranch = (
+      where.pricing as {
+        OR: {
+          fixedPricing?: { amounts: { some: { unit: { in: string[] } } } };
+        }[];
+      }
+    ).OR[1];
+    expect(fixedBranch.fixedPricing?.amounts.some.unit.in).toEqual([
+      "USD",
+      "usd",
+    ]);
+  });
+
   it("excludes pointer types, endpointless, unknown-rail, and V2-contract agents when the rail is not ready", () => {
     const where = buildAvailableAgentWhereClause([createCreditCost("USD")], []);
 

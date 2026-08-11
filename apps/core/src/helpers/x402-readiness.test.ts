@@ -2,6 +2,7 @@ import type { Prisma } from "@sokosumi/database";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  findX402ReadySource,
   getAllowedX402Caip2Networks,
   getX402ReadySources,
   isX402NetworkAllowed,
@@ -27,6 +28,7 @@ const USDC_BASE_SEPOLIA =
 const X402_READY_SOURCE = {
   caip2Network: "eip155:84532",
   asset: USDC_BASE_SEPOLIA,
+  evmWalletId: "wallet_1",
 };
 
 describe("getX402ReadySources", () => {
@@ -90,18 +92,37 @@ describe("getX402ReadySources", () => {
     await expect(getX402ReadySources(tx)).resolves.toEqual([]);
   });
 
-  it("drops cached pairs with malformed networks or assets", async () => {
+  it("drops cached pairs with malformed networks, assets, or missing wallets", async () => {
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: JSON.stringify([
-        { caip2Network: "base-sepolia", asset: USDC_BASE_SEPOLIA },
-        { caip2Network: "eip155:84532", asset: "USDC" },
-        { caip2Network: "eip155:84532" },
+        { ...X402_READY_SOURCE, caip2Network: "base-sepolia" },
+        { ...X402_READY_SOURCE, asset: "USDC" },
+        { caip2Network: "eip155:84532", evmWalletId: "wallet_1" },
+        // Rows cached before evmWalletId existed (or with it emptied) are
+        // unsignable and must not be served.
+        { caip2Network: "eip155:84532", asset: USDC_BASE_SEPOLIA },
+        { ...X402_READY_SOURCE, evmWalletId: "" },
         X402_READY_SOURCE,
       ]),
       lastSyncedAt: new Date(),
     });
 
     await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+  });
+});
+
+describe("findX402ReadySource", () => {
+  it("returns the recorded pair with its backing wallet id", () => {
+    expect(
+      findX402ReadySource("EIP155:84532", USDC_BASE_SEPOLIA.toUpperCase(), [
+        X402_READY_SOURCE,
+      ]),
+    ).toEqual(X402_READY_SOURCE);
+    expect(
+      findX402ReadySource("eip155:8453", USDC_BASE_SEPOLIA, [
+        X402_READY_SOURCE,
+      ]),
+    ).toBeUndefined();
   });
 });
 

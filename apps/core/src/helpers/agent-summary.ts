@@ -9,12 +9,12 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 
 import {
   calculateAgentRatings,
-  getAgentCost,
   getAgentDescription,
   getAgentIcon,
   getAgentImage,
   getAgentName,
 } from "@/helpers/agent";
+import { getAgentCost } from "@/helpers/agent-cost";
 import {
   getAgentLegalFromAgent,
   getAuthorFromAgent,

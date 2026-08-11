@@ -101,6 +101,7 @@ function budget(overrides: Partial<X402Budget> = {}): X402Budget {
 const READY_SOURCE = {
   caip2Network: "eip155:84532",
   asset: USDC_BASE_SEPOLIA,
+  evmWalletId: "wallet_1",
 };
 
 describe("composeX402ReadySources", () => {
@@ -134,9 +135,41 @@ describe("composeX402ReadySources", () => {
           budget({ remainingAmount: "-5" }),
           budget({ remainingAmount: "not-a-number" }),
           budget({ asset: "USDC" }),
+          // Without a backing wallet id the pay route cannot sign — the
+          // pair must not be recorded ready.
+          budget({ evmWalletId: "" }),
         ],
       ),
     ).toEqual([]);
+  });
+
+  it("records the most-funded wallet when several budgets back one pair", () => {
+    const result = composeX402ReadySources(
+      [availableNetwork()],
+      [
+        budget({ id: "b1", evmWalletId: "wallet_small", remainingAmount: "5" }),
+        budget({
+          id: "b2",
+          evmWalletId: "wallet_large",
+          remainingAmount: "9000000",
+        }),
+        budget({ id: "b3", evmWalletId: "wallet_1", remainingAmount: "100" }),
+      ],
+    );
+
+    expect(result).toEqual([{ ...READY_SOURCE, evmWalletId: "wallet_large" }]);
+  });
+
+  it("tie-breaks equal budgets on the wallet id deterministically", () => {
+    const result = composeX402ReadySources(
+      [availableNetwork()],
+      [
+        budget({ id: "b1", evmWalletId: "wallet_b", remainingAmount: "100" }),
+        budget({ id: "b2", evmWalletId: "wallet_a", remainingAmount: "100" }),
+      ],
+    );
+
+    expect(result).toEqual([{ ...READY_SOURCE, evmWalletId: "wallet_a" }]);
   });
 
   it("normalizes casing, dedupes, and sorts deterministically", () => {
@@ -164,7 +197,11 @@ describe("composeX402ReadySources", () => {
     );
 
     expect(result).toEqual([
-      { caip2Network: "eip155:8453", asset: baseMainnetUsdc },
+      {
+        caip2Network: "eip155:8453",
+        asset: baseMainnetUsdc,
+        evmWalletId: "wallet_1",
+      },
       READY_SOURCE,
     ]);
   });
@@ -350,20 +387,45 @@ describe("syncX402BuySideReadiness", () => {
       .spyOn(console, "warn")
       .mockImplementation(() => undefined);
 
+    // Warm from the start: a readiness row exists, so every failure below
+    // takes the latched (stale) path — never the cold-start bypass. The
+    // latch alone decides who pages, which is what this test proves.
+    syncMetadataFindUniqueMock.mockResolvedValue({
+      key: X402_BUY_SIDE_READINESS_KEY,
+      cursorId: JSON.stringify([READY_SOURCE]),
+      lastSyncedAt: new Date(),
+    });
+
     getX402AvailableNetworksMock.mockResolvedValue(err("node unavailable"));
     await syncX402BuySideReadiness();
     expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ tags: { x402_readiness: "stale" } }),
+    );
 
+    // While the marker row is held, further warm failures stay silent.
+    syncMetadataCreateManyMock.mockResolvedValue({ count: 0 });
+    await syncX402BuySideReadiness();
+    expect(captureExceptionMock).toHaveBeenCalledTimes(1);
+
+    // A successful check deletes the marker …
     getX402AvailableNetworksMock.mockResolvedValue(ok([availableNetwork()]));
     await syncX402BuySideReadiness();
     expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
       where: { key: X402_BUY_SIDE_READINESS_FAILURE_KEY },
     });
 
+    // … so the next failure's createMany inserts a fresh marker (count 1)
+    // and pages again: the re-armed latch, not the cold-start bypass.
     syncMetadataCreateManyMock.mockResolvedValue({ count: 1 });
     getX402AvailableNetworksMock.mockResolvedValue(err("node unavailable"));
     await syncX402BuySideReadiness();
     expect(captureExceptionMock).toHaveBeenCalledTimes(2);
+    expect(captureExceptionMock).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ tags: { x402_readiness: "stale" } }),
+    );
 
     consoleWarnSpy.mockRestore();
   });

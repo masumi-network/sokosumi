@@ -41,13 +41,16 @@ vi.mock("@/helpers/agent", () => ({
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
   calculateAgentRating: calculateAgentRatingMock,
   calculateAverageExecutionTime: calculateAverageExecutionTimeMock,
-  getAgentCost: getAgentCostMock,
   getAgentAuthorImage: getAgentAuthorImageMock,
   getAgentDescription: getAgentDescriptionMock,
   getAgentIcon: getAgentIconMock,
   getAgentImage: getAgentImageMock,
   getAgentName: getAgentNameMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+}));
+
+vi.mock("@/helpers/agent-cost", () => ({
+  getAgentCost: getAgentCostMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
