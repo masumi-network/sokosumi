@@ -143,31 +143,15 @@ export function useOrgPresencePublisher(): void {
         return;
       }
 
-      const data = buildPresenceData(lastActiveAtRef.current, !document.hidden);
-
+      // Ensure every granted org channel is tracked, then force enter/update on
+      // all of them. Skipping already-tracked channels leaves self offline after
+      // hard reconnect (Ably only auto-restores presence on resume).
       for (const name of nextNames) {
-        if (cancelled) {
-          return;
-        }
-        if (channels.has(name)) {
-          continue;
-        }
-        const channel = ably.channels.get(name);
-        channels.set(name, channel);
-        try {
-          await channel.presence.enter(data);
-        } catch (error) {
-          if (!cancelled) {
-            console.error("Ably presence enter failed:", error);
-          }
+        if (!channels.has(name)) {
+          channels.set(name, ably.channels.get(name));
         }
       }
-
-      if (cancelled) {
-        return;
-      }
-      lastPublishedAtRef.current = Date.now();
-      lastPublishedVisibleRef.current = !document.hidden;
+      await publishPresence(true);
     }
 
     async function syncChannels(): Promise<void> {

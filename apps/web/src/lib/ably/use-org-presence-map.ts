@@ -113,11 +113,19 @@ export function useOrgPresenceMap(
 
     void hydrate();
 
+    // Non-resumable reconnects can leave local members stale (ghost Online/AFK).
+    // Replace from presence.get() whenever Ably reconnects.
+    const onConnected = () => {
+      void hydrate();
+    };
+    ably.connection.on("connected", onConnected);
+
     const intervalId = window.setInterval(recompute, RECLASSIFY_TICK_MS);
 
     return () => {
       cancelled = true;
       window.clearInterval(intervalId);
+      ably.connection.off("connected", onConnected);
       channel.presence.unsubscribe("enter", upsertMember);
       channel.presence.unsubscribe("update", upsertMember);
       channel.presence.unsubscribe("present", upsertMember);
