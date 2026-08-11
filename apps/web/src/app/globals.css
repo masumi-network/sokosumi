@@ -504,27 +504,24 @@
 /*
  * Agents full-bleed layout
  *
- * Keyed off `body[data-agent-fullbleed="true"]` (toggled by
- * AgentFullbleedEffect), not `:has([data-agent-fullbleed])`. Under Next.js
- * Activity / Instant Navigations the segment layout can stay mounted but
- * hidden; `:has` would still match and leave gallery `main` padding at 0.
- * Effect cleanup clears the body attribute when the segment hides/unmounts.
+ * We scope these overrides to `/agents/[agentId]/*` via the
+ * `data-agent-fullbleed` marker in that segment layout.
  *
- * Layout still keeps a `data-agent-fullbleed` marker for clarity; CSS does
- * not key off it. Overflow visible avoids nested scroll so sticky works.
+ * This avoids nested scroll containers and allows `position: sticky` to work by
+ * disabling overflow clipping/hidden wrappers for that subtree.
  */
-body[data-agent-fullbleed="true"] [data-app-shell],
-body[data-agent-fullbleed="true"] [data-app-content],
-body[data-agent-fullbleed="true"] [data-app-content-inner] {
+[data-app-shell]:has([data-agent-fullbleed]),
+[data-app-content]:has([data-agent-fullbleed]),
+[data-app-content-inner]:has([data-agent-fullbleed]) {
   overflow: visible !important;
 }
 
-body[data-agent-fullbleed="true"] main[data-app-main] {
+main[data-app-main]:has([data-agent-fullbleed]) {
   padding: 0 !important;
   overflow: visible !important;
 }
 
-body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
+main[data-app-main]:has([data-agent-fullbleed]) [data-app-main-inner] {
   overflow: visible !important;
 }
 
