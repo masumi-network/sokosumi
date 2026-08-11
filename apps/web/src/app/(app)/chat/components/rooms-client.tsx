@@ -497,6 +497,11 @@ export function RoomsClient({
     draft: string;
   } | null>(null);
   const [isSavingEdit, startSavingEditTransition] = useTransition();
+  // Explicit flag (not useTransition): open must paint loading before any
+  // await. mark-read used to run first with replies=[] + isLoading false →
+  // "No replies yet" blink. Generation invalidates in-flight opens/closes.
+  const [isThreadLoading, setIsThreadLoading] = useState(false);
+  const threadLoadGenerationRef = useRef(0);
   const composeSurfaceEpoch = `${selectedRoomId}:${isNewDirectMessage}:${isCreateChannelRequested}`;
   const [syncedComposeSurfaceEpoch, setSyncedComposeSurfaceEpoch] =
     useState(composeSurfaceEpoch);
@@ -507,6 +512,8 @@ export function RoomsClient({
     setThreadMessages([]);
     setPendingThreadQuote(null);
     setEditSession(null);
+    threadLoadGenerationRef.current += 1;
+    setIsThreadLoading(false);
   }
 
   const roomComposerRef = useRef<RoomComposerHandle | null>(null);
@@ -550,7 +557,6 @@ export function RoomsClient({
     setAttentionRefreshToken(0);
   }
   const [isSending, startSendingTransition] = useTransition();
-  const [isThreadLoading, startThreadLoadingTransition] = useTransition();
   const [isSendingThreadReply, startSendingThreadReplyTransition] =
     useTransition();
   const [_isReacting, startReactionTransition] = useTransition();
@@ -1438,29 +1444,43 @@ export function RoomsClient({
       return false;
     }
     const roomId = selectedRoom.id;
+    const generation = ++threadLoadGenerationRef.current;
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
-    // Look state first, then room mark-read so dual-baseline unreadCount
-    // already excludes this thread when the sidebar event lands.
-    const markResult = await markThreadReadAction(roomId, parentMessage.id);
-    if (markResult.ok) {
-      setAttentionRefreshToken((token) => token + 1);
-      await syncRoomAttentionAfterThreadLook(roomId);
-    }
-    startThreadLoadingTransition(async () => {
+    // Loading true in the same tick as clear — before any await — so the
+    // panel never paints Thread.empty while mark-read / list are in flight.
+    setIsThreadLoading(true);
+    try {
+      // Look state first, then room mark-read so dual-baseline unreadCount
+      // already excludes this thread when the sidebar event lands.
+      const markResult = await markThreadReadAction(roomId, parentMessage.id);
+      if (markResult.ok) {
+        setAttentionRefreshToken((token) => token + 1);
+        await syncRoomAttentionAfterThreadLook(roomId);
+      }
+      if (generation !== threadLoadGenerationRef.current) {
+        return markResult.ok;
+      }
       const result = await listThreadMessagesAction(roomId, parentMessage.id);
       if (!result.ok) {
         toast.error(result.error.message);
-        return;
+        return markResult.ok;
       }
-      if (!isStillSelectedRoom(roomId)) {
-        return;
+      if (
+        !isStillSelectedRoom(roomId) ||
+        generation !== threadLoadGenerationRef.current
+      ) {
+        return markResult.ok;
       }
       setThreadMessages(result.value.messages);
       setThreadOlderNextCursor(result.value.nextCursor);
-    });
-    return markResult.ok;
+      return markResult.ok;
+    } finally {
+      if (generation === threadLoadGenerationRef.current) {
+        setIsThreadLoading(false);
+      }
+    }
   }
 
   function handleLoadOlderMessages() {
@@ -2051,6 +2071,8 @@ export function RoomsClient({
                     threadStreamOverlayMessages.length > 0)
                 }
                 onClose={() => {
+                  threadLoadGenerationRef.current += 1;
+                  setIsThreadLoading(false);
                   setThreadParentMessage(null);
                   setThreadMessages([]);
                   setThreadOlderNextCursor(null);

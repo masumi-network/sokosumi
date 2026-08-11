@@ -4,8 +4,8 @@ import { AgentDetail, AgentDetailViewTracker } from "@/components/agents";
 import AgentBottomNavigation from "@/components/agents/agent-botton-navigation";
 import AgentMobileHeader from "@/components/agents/agent-mobile-header";
 import {
-  CreateJobModal,
   CreateJobModalContextProvider,
+  LazyCreateJobModal,
 } from "@/components/create-job-modal";
 import { mapCoreAgentReviews } from "@/lib/agents/core-dto-mappers";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
@@ -22,31 +22,34 @@ export default async function AgentDetailPage({
 }) {
   const { agentId } = await params;
 
-  const agent = await getCoreAgentById(agentId);
+  // Wave 1: agent + session are independent.
+  const [agent, session] = await Promise.all([
+    getCoreAgentById(agentId),
+    getSession(),
+  ]);
   if (!agent) {
     return notFound();
   }
 
-  const session = await getSession();
   const userId = session?.user.id ?? null;
 
-  const [reviewsResponse, projectOptions] = await Promise.all([
-    coreClient.getAgentReviews(agentId),
-    session ? getProjectFilterOptions() : Promise.resolve(undefined),
-  ]);
+  // Wave 2: reviews, projects, and rating reads share no mutual deps.
+  const [reviewsResponse, projectOptions, canRate, myReview] =
+    await Promise.all([
+      coreClient.getAgentReviews(agentId),
+      session ? getProjectFilterOptions() : Promise.resolve(undefined),
+      userId ? agentService.canUserRateAgent(agentId) : Promise.resolve(false),
+      userId
+        ? agentService.getUserRatingForAgent(agentId)
+        : Promise.resolve(null),
+    ]);
   const { ratingDistribution, ratingsWithComments } = mapCoreAgentReviews(
     reviewsResponse.data,
   );
   const executedJobsCount = agent.metrics.executions.count;
   const averageExecutionDuration = agent.metrics.executions.averageTime;
   const ratingStats = getAgentRatingStats(agent);
-
-  const canRate = userId ? await agentService.canUserRateAgent(agentId) : false;
-
-  const existingRating =
-    userId && canRate
-      ? await agentService.getUserRatingForAgent(agentId)
-      : null;
+  const existingRating = canRate ? myReview : null;
 
   return (
     <CreateJobModalContextProvider
@@ -72,7 +75,7 @@ export default async function AgentDetailPage({
         </div>
       </div>
       <AgentBottomNavigation agent={agent} />
-      <CreateJobModal />
+      <LazyCreateJobModal />
     </CreateJobModalContextProvider>
   );
 }

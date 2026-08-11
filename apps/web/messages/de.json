@@ -5184,7 +5184,7 @@
       },
       "GuestInvite": {
         "title": "Gäste einladen",
-        "description": "Lade Personen außerhalb der Organisation per E-Mail ein. Gäste treten nur diesem Kanal bei und werden keine Organisationsmitglieder.",
+        "description": "Gäste treten nur diesem Kanal bei und werden keine Organisationsmitglieder.",
         "emailLabel": "E-Mail",
         "emailPlaceholder": "gast@example.com",
         "send": "Einladung senden",
@@ -5194,7 +5194,7 @@
         "guestsEmpty": "Noch keine Gäste.",
         "removeGuest": "Gast entfernen",
         "removeGuestAria": "Gast {name} entfernen",
-        "removeGuestSuccess": "{name} wurde aus dem Kanal entfernt.",
+        "removeGuestSuccess": "{name} aus dem Kanal entfernt.",
         "pendingTitle": "Ausstehende Einladungen",
         "empty": "Keine ausstehenden Einladungen.",
         "loading": "Einladungen werden geladen…",
@@ -5202,7 +5202,34 @@
         "retry": "Erneut versuchen",
         "revoke": "Einladung widerrufen",
         "revokeAria": "Einladung für {email} widerrufen",
-        "revokeSuccess": "Einladung widerrufen."
+        "revokeSuccess": "Einladung widerrufen.",
+        "linksTitle": "Teilbarer Link",
+        "linksDescription": "Erstelle einen Link, den jede angemeldete Person außerhalb deiner Organisation öffnen kann, um als Gast beizutreten. Keine E-Mail im Voraus nötig.",
+        "linksEmpty": "Noch keine teilbaren Links.",
+        "createLink": "Link erstellen",
+        "copyLink": "Link kopieren",
+        "copyLinkAria": "Einladungslink kopieren",
+        "linkCopySuccess": "Link kopiert.",
+        "linkCopyError": "Link konnte nicht kopiert werden.",
+        "linkCreateSuccess": "Einladungslink erstellt.",
+        "linkCreateCopySuccess": "Einladungslink erstellt und kopiert.",
+        "revokeLink": "Link widerrufen",
+        "revokeLinkAria": "Einladungslink widerrufen",
+        "linkRevokeSuccess": "Einladungslink widerrufen.",
+        "emailTitle": "Per E-Mail einladen",
+        "emailDescription": "Sende eine persönliche Einladung an eine bekannte E-Mail-Adresse. Die Person muss mit diesem Konto annehmen.",
+        "linkExpiryLabel": "Gültigkeit",
+        "linkExpiryDays": "{days, plural, one {# Tag} other {# Tage}}",
+        "linkExpiryNever": "Kein Ablauf",
+        "linkExpiryInvalid": "Bitte eine gültige Gültigkeit wählen.",
+        "linkMaxUsesLabel": "Max. Nutzungen",
+        "linkMaxUsesUnlimited": "Unbegrenzt",
+        "linkMaxUsesCount": "{count, plural, one {# Nutzung} other {# Nutzungen}}",
+        "linkMaxUsesInvalid": "Bitte eine gültige Nutzungshöchstzahl wählen.",
+        "linkMetaExpires": "Läuft ab am {date}",
+        "linkMetaNoExpiry": "Kein Ablauf",
+        "linkMetaUses": "{used} / {max} Nutzungen",
+        "linkMetaUsesUnlimited": "{used} Nutzungen · unbegrenzt"
       },
       "ChatInvite": {
         "title": "Kanaleinladung",
@@ -5245,6 +5272,29 @@
             "content": "Der Link ist möglicherweise falsch, oder die Einladung wurde bereits genutzt oder widerrufen.",
             "footer": "Zurück zum Chat"
           }
+        }
+      },
+      "ChatJoin": {
+        "title": "Kanal beitreten",
+        "invitedToJoin": "Du wurdest eingeladen, #{room} ({organization}) beizutreten.",
+        "guestNote": "Als Gast beizutreten macht dich nicht zum Mitglied der Host-Organisation.",
+        "join": "#{room} beitreten",
+        "joining": "Beitritt…",
+        "joined": "Du bist #{room} beigetreten.",
+        "alreadyGuest": "Du bist bereits in #{room}.",
+        "signedOutHint": "Melde dich an oder erstelle ein Konto, um diesem Kanal als Gast beizutreten.",
+        "signIn": "Anmelden",
+        "register": "Konto erstellen",
+        "Error": {
+          "joinFailed": "Beitritt zu diesem Kanal fehlgeschlagen."
+        },
+        "Invalid": {
+          "title": "Einladungslink ungültig",
+          "expired": "Dieser Einladungslink ist abgelaufen.",
+          "revoked": "Dieser Einladungslink wurde widerrufen.",
+          "depleted": "Dieser Einladungslink hat sein Nutzungslimit erreicht.",
+          "notFound": "Dieser Einladungslink ist ungültig.",
+          "back": "Zurück zum Chat"
         }
       }
     }
