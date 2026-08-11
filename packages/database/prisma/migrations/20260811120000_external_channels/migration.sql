@@ -56,15 +56,25 @@ CREATE UNIQUE INDEX "chat_room_guest_invitation_room_email_pending_uidx"
 CREATE INDEX "chat_room_guest_invitation_inviterId_createdAt_idx"
   ON "chat_room_guest_invitation" ("inviterId", "createdAt");
 
--- Valid membership access values
+-- CreateIndex
+-- Daily global expiry sweep (status + expiresAt)
+CREATE INDEX "chat_room_guest_invitation_status_expiresAt_idx"
+  ON "chat_room_guest_invitation" ("status", "expiresAt");
+
+-- Valid membership access values.
+-- NOT VALID + VALIDATE: avoid a long ACCESS EXCLUSIVE write block while scanning.
 ALTER TABLE "chat_room_user_member"
   ADD CONSTRAINT "chat_room_user_member_access_check"
-  CHECK ("access" IN ('member', 'guest'));
+  CHECK ("access" IN ('member', 'guest')) NOT VALID;
+ALTER TABLE "chat_room_user_member"
+  VALIDATE CONSTRAINT "chat_room_user_member_access_check";
 
 -- Valid guest invitation statuses
 ALTER TABLE "chat_room_guest_invitation"
   ADD CONSTRAINT "chat_room_guest_invitation_status_check"
-  CHECK ("status" IN ('pending', 'accepted', 'revoked', 'declined', 'expired'));
+  CHECK ("status" IN ('pending', 'accepted', 'revoked', 'declined', 'expired')) NOT VALID;
+ALTER TABLE "chat_room_guest_invitation"
+  VALIDATE CONSTRAINT "chat_room_guest_invitation_status_check";
 
 -- Guests may only exist on external channels (cross-table invariant)
 CREATE OR REPLACE FUNCTION chat_room_guest_access_external_only()
@@ -95,6 +105,35 @@ CREATE TRIGGER chat_room_user_member_guest_external_only
   ON "chat_room_user_member"
   FOR EACH ROW
   EXECUTE FUNCTION chat_room_guest_access_external_only();
+
+-- Guest invitations may only target external channels
+CREATE OR REPLACE FUNCTION chat_room_guest_invitation_external_only()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM "chat_room" r
+    WHERE r."id" = NEW."roomId"
+      AND r."discoverability" = 'external'
+      AND r."kind" = 'channel'
+  ) THEN
+    RAISE EXCEPTION 'guest invitations are only allowed on external channels'
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS chat_room_guest_invitation_external_only
+  ON "chat_room_guest_invitation";
+
+CREATE TRIGGER chat_room_guest_invitation_external_only
+  BEFORE INSERT OR UPDATE OF "roomId"
+  ON "chat_room_guest_invitation"
+  FOR EACH ROW
+  EXECUTE FUNCTION chat_room_guest_invitation_external_only();
 
 -- Block discoverability flips off external while guests or live pending invites remain.
 CREATE OR REPLACE FUNCTION chat_room_external_discoverability_guard()

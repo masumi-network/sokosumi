@@ -1943,6 +1943,7 @@ model ChatRoomGuestInvitation {
   @@index([roomId, status])
   @@index([email, status])
   @@index([inviterId, createdAt])
+  @@index([status, expiresAt])
   @@map("chat_room_guest_invitation")
 }
 

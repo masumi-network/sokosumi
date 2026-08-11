@@ -414,7 +414,6 @@ export function RoomsClient({
   const headerRoomSlotHost = useHeaderRoomSlotHost();
   // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
   const localCalendarReady = useClientLocalCalendarReady();
-  const canOpenHumanDirect = Boolean(activeOrganization);
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
   const [pendingQuote, setPendingQuote] = useState<PendingRoomQuote | null>(
     null,
@@ -523,6 +522,9 @@ export function RoomsClient({
 
   const isDirectRoom = selectedRoom?.kind === "direct";
   const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
+  // Guest rooms: no DM affordances from the host roster (channel-only guest).
+  const canOpenHumanDirect =
+    Boolean(activeOrganization) && !isGuestInSelectedRoom;
   const currentMemberRole = organizationMembers.find(
     (member) => member.user.id === currentUserId,
   )?.role;

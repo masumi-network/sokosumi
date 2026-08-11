@@ -94,10 +94,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest("External channels require a host organization.");
       }
 
-      // Serialize invite create + rate-limit counts against concurrent creates.
+      // Serialize invite create + rate-limit counts:
+      // - room lock: pending-per-room cap and unique pending email
+      // - inviter lock: hourly create cap across rooms (room lock alone is not enough)
       await tx.$queryRaw`
         SELECT "id" FROM "chat_room"
         WHERE "id" = ${room.id}::uuid
+        FOR UPDATE
+      `;
+      await tx.$queryRaw`
+        SELECT "id" FROM "user"
+        WHERE "id" = ${userContext.userId}
         FOR UPDATE
       `;
 

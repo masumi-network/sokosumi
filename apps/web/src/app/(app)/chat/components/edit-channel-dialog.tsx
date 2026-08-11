@@ -349,6 +349,7 @@ export function EditChannelDialog({
                 setGuestMembers((prev) =>
                   prev.filter((member) => member.id !== userId),
                 );
+                router.refresh();
               }}
             />
           ) : null}

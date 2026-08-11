@@ -139,7 +139,7 @@ export function ChatRoomSidebarRow({
     setIsLeaving(false);
 
     if (!result.ok) {
-      toast.error(result.error.message);
+      toast.error(result.error.message || tActions("actionFailed"));
       setLeaveConfirmOpen(false);
       return;
     }

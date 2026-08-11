@@ -119,13 +119,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         });
 
         // Idempotent: already guest on the room — ensure invitation accepted.
+        // Still reject expired pending rows so a second invite cannot flip to
+        // accepted after expiresAt.
         if (existingMembership?.access === CHAT_ROOM_ACCESS.GUEST) {
           let status = row.status;
           if (status === CHAT_ROOM_INVITATION_STATUS.PENDING) {
+            if (row.expiresAt <= now) {
+              await tx.chatRoomGuestInvitation.updateMany({
+                where: {
+                  id: row.id,
+                  status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+                },
+                data: { status: CHAT_ROOM_INVITATION_STATUS.EXPIRED },
+              });
+              throw badRequest("Invitation has expired.");
+            }
             const accepted = await tx.chatRoomGuestInvitation.updateMany({
               where: {
                 id: row.id,
                 status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+                expiresAt: { gt: now },
               },
               data: {
                 status: CHAT_ROOM_INVITATION_STATUS.ACCEPTED,

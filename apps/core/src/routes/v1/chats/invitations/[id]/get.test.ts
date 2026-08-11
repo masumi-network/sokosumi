@@ -9,19 +9,22 @@ import type { AuthVariables } from "@/middleware/auth";
 
 import mountGetInviteeInvitation from "./get";
 
-const { userFindUniqueMock, invitationFindUniqueMock, invitationUpdateMock } =
-  vi.hoisted(() => ({
-    userFindUniqueMock: vi.fn(),
-    invitationFindUniqueMock: vi.fn(),
-    invitationUpdateMock: vi.fn(),
-  }));
+const {
+  userFindUniqueMock,
+  invitationFindUniqueMock,
+  invitationUpdateManyMock,
+} = vi.hoisted(() => ({
+  userFindUniqueMock: vi.fn(),
+  invitationFindUniqueMock: vi.fn(),
+  invitationUpdateManyMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: { findUnique: userFindUniqueMock },
     chatRoomGuestInvitation: {
       findUnique: invitationFindUniqueMock,
-      update: invitationUpdateMock,
+      updateMany: invitationUpdateManyMock,
     },
   },
 }));
@@ -137,8 +140,8 @@ describe("GET /chats/invitations/{id}", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.status).toBe("expired");
-    expect(invitationUpdateMock).toHaveBeenCalledWith({
-      where: { id: INVITE_ID },
+    expect(invitationUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: INVITE_ID, status: "pending" },
       data: { status: "expired" },
     });
   });

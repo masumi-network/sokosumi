@@ -496,6 +496,8 @@ export async function removeRoomGuestAction(
 
   try {
     await chatRoomService.removeMember(cleanRoomId, cleanUserId);
+    await invalidateSidebarChatList();
+    revalidatePath("/chat");
     return roomOk(null);
   } catch (error) {
     return roomCatch(error, "Could not remove guest.");

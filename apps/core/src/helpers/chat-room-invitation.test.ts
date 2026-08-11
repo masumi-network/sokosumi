@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   assertChatRoomInvitationRateLimits,
   assertInviteeNotHostOrgMember,
+  assertInviteeNotRoomMember,
   expireStalePendingInvitations,
   INVITE_TTL_MS,
   invitationExpiresAt,
@@ -114,6 +115,52 @@ describe("assertInviteeNotHostOrgMember", () => {
         error instanceof HTTPException &&
         error.status === 400 &&
         error.message.includes("organization member"),
+    );
+  });
+});
+
+describe("assertInviteeNotRoomMember", () => {
+  it("allows when the email has no room membership", async () => {
+    const tx = {
+      chatRoomUserMember: { findFirst: vi.fn().mockResolvedValue(null) },
+    };
+
+    await expect(
+      assertInviteeNotRoomMember("room_1", "guest@example.com", tx as never),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects when the email is already a guest", async () => {
+    const tx = {
+      chatRoomUserMember: {
+        findFirst: vi.fn().mockResolvedValue({ id: "mem_1", access: "guest" }),
+      },
+    };
+
+    await expect(
+      assertInviteeNotRoomMember("room_1", "guest@example.com", tx as never),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof HTTPException &&
+        error.status === 400 &&
+        error.message.includes("already a guest"),
+    );
+  });
+
+  it("rejects when the email is already a member", async () => {
+    const tx = {
+      chatRoomUserMember: {
+        findFirst: vi.fn().mockResolvedValue({ id: "mem_1", access: "member" }),
+      },
+    };
+
+    await expect(
+      assertInviteeNotRoomMember("room_1", "member@example.com", tx as never),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof HTTPException &&
+        error.status === 400 &&
+        error.message.includes("already a member"),
     );
   });
 });

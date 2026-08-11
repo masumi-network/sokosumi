@@ -291,8 +291,36 @@ describe("POST /chats/invitations/{id}/accept", () => {
         where: expect.objectContaining({
           id: INVITE_ID,
           status: "pending",
+          expiresAt: { gt: expect.any(Date) },
         }),
         data: expect.objectContaining({ status: "accepted" }),
+      }),
+    );
+  });
+
+  it("accept rejects expired pending invite when already guest", async () => {
+    userMemberFindUniqueMock.mockResolvedValue({ access: "guest" });
+    invitationFindUniqueMock.mockResolvedValue(
+      pendingInvitation({
+        expiresAt: new Date("2020-01-01T00:00:00.000Z"),
+      }),
+    );
+
+    const response = await createApp().request(`/${INVITE_ID}/accept`, {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.message).toMatch(/expired/i);
+    expect(userMemberUpsertMock).not.toHaveBeenCalled();
+    expect(invitationUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: INVITE_ID,
+          status: "pending",
+        }),
+        data: { status: "expired" },
       }),
     );
   });

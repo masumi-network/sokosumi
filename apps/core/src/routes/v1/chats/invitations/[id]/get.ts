@@ -13,7 +13,10 @@ import {
   withGlobalHeaderParameters,
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import { chatRoomInvitationSchema } from "@/schemas/chat-room-invitation.schema";
+import {
+  CHAT_ROOM_INVITATION_STATUS,
+  chatRoomInvitationSchema,
+} from "@/schemas/chat-room-invitation.schema";
 
 const paramsSchema = z.object({
   id: z
@@ -85,12 +88,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     let status = row.status;
-    if (status === "pending" && row.expiresAt <= now) {
-      await prisma.chatRoomGuestInvitation.update({
-        where: { id: row.id },
-        data: { status: "expired" },
+    if (
+      status === CHAT_ROOM_INVITATION_STATUS.PENDING &&
+      row.expiresAt <= now
+    ) {
+      // Conditional so concurrent revoke/decline is not overwritten with expired.
+      await prisma.chatRoomGuestInvitation.updateMany({
+        where: {
+          id: row.id,
+          status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+        },
+        data: { status: CHAT_ROOM_INVITATION_STATUS.EXPIRED },
       });
-      status = "expired";
+      status = CHAT_ROOM_INVITATION_STATUS.EXPIRED;
     }
 
     return ok(
