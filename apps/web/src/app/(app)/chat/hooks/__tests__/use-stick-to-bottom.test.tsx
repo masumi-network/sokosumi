@@ -60,10 +60,15 @@ function setScrollerMetrics(
 }
 
 function Harness({ resetKey }: { resetKey: string | null }) {
-  const { scrollerRef, contentRef, scrollToBottomIfPinned, contentMinHeight } =
-    useStickToBottom({
-      resetKey,
-    });
+  const {
+    scrollerRef,
+    contentRef,
+    scrollToBottomIfPinned,
+    pinToBottomAfterOwnSend,
+    contentMinHeight,
+  } = useStickToBottom({
+    resetKey,
+  });
 
   return (
     <div>
@@ -80,6 +85,9 @@ function Harness({ resetKey }: { resetKey: string | null }) {
       </div>
       <button type="button" onClick={scrollToBottomIfPinned}>
         pin-scroll
+      </button>
+      <button type="button" onClick={pinToBottomAfterOwnSend}>
+        own-send-pin
       </button>
     </div>
   );
@@ -188,6 +196,32 @@ describe("useStickToBottom", () => {
     });
 
     expect(scroller.scrollTop).toBe(50);
+  });
+
+  it("pinToBottomAfterOwnSend forces bottom even when unpinned", async () => {
+    render(<Harness resetKey="room-1" />);
+    const scroller = screen.getByTestId("scroller");
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1000,
+      clientHeight: 400,
+      scrollTop: 50,
+    });
+    act(() => {
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+
+    setScrollerMetrics(scroller, {
+      scrollHeight: 1300,
+      clientHeight: 400,
+      scrollTop: 50,
+    });
+
+    await act(async () => {
+      screen.getByRole("button", { name: "own-send-pin" }).click();
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    expect(scroller.scrollTop).toBe(1300);
   });
 
   it("mirrors scroller clientHeight onto content minHeight for short transcripts", () => {
