@@ -10,9 +10,12 @@ import {
 } from "@/helpers/message-content";
 
 /**
- * Coerce assistant body parts to AI SDK `UIMessage` parts: non-text/file segments
- * with `text` become `{ type: "reasoning", text }` so provider-specific labels
- * (e.g. `redacted_reasoning`) pass `validateUIMessages`.
+ * Coerce assistant body parts to AI SDK `UIMessage` parts: `output_text` →
+ * `text`; text-bearing non-body segments → `{ type: "reasoning", text }` so
+ * `validateUIMessages` accepts the payload (AI SDK only knows `reasoning`).
+ *
+ * Ingress/persist already allowlist `type: "reasoning"` only; this is a final
+ * shape normalize for AI SDK, not a second Thought classifier.
  */
 export function assistantContentPartsToAiSdkUiParts(
   rawParts: PersistedConversationContentPart[],

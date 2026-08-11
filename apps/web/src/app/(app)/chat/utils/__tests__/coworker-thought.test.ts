@@ -32,12 +32,13 @@ describe("extractThoughtTextFromMessageParts", () => {
     ).toBe("First beat.\n\nSecond beat.");
   });
 
-  it("treats redacted_reasoning as Thought", () => {
+  it("does not treat legacy redacted_reasoning as Thought", () => {
     expect(
       extractThoughtTextFromMessageParts([
         { type: "redacted_reasoning", text: "[hidden summary]" },
+        { type: "reasoning", text: "Visible Thought." },
       ]),
-    ).toBe("[hidden summary]");
+    ).toBe("Visible Thought.");
   });
 
   it("ignores empty reasoning and non-reasoning types", () => {

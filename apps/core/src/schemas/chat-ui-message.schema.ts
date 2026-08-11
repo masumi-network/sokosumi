@@ -20,8 +20,9 @@ export const responsesApiInputTextPartSchema = z
   });
 
 /**
- * AI SDK / UI message parts persisted for chat (reasoning then text in `conversationMessagesToUiMessages`).
- * `type` is usually `reasoning` but may be provider-specific (e.g. redacted variants).
+ * AI SDK / UI message parts persisted for chat (reasoning then text in
+ * `conversationMessagesToUiMessages`). `type` must be `reasoning` (AI SDK
+ * `ReasoningUIPart`).
  *
  * `type` is required so `{ text }` alone cannot match this branch of the request-part union; otherwise
  * user/system messages would accept it as reasoning and `mapChatRequestToUiMessages` would strip it.
@@ -32,8 +33,7 @@ export const chatUiReasoningPartSchema = z
     text: z.string(),
   })
   .refine((part) => isChatUiProviderReasoningPartType(part.type), {
-    message:
-      "Reasoning parts require an allowlisted type (reasoning or redacted_reasoning).",
+    message: "Reasoning parts require type reasoning.",
   });
 
 export const chatUiTextPartSchema = z.object({
