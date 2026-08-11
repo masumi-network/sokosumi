@@ -7,7 +7,6 @@ import {
 } from "@sokosumi/database";
 
 import { getEnv } from "@/config/env";
-import { getCreditCostsOrThrow } from "@/helpers/agent";
 import {
   getAgentDescription,
   getAgentImage,
@@ -54,15 +53,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("Coworker agent authentication required");
     }
 
-    // Readiness FIRST, and alone: getCreditCostsOrThrow throws on an empty
-    // credit_cost table, so reading it eagerly turns a fresh environment
-    // (nothing ready, nothing priced) into a 500 where the fail-closed
-    // contract promises an empty listing.
+    // Readiness first as a cheap early-out: an empty ready-source set (or one
+    // never recorded) hides the whole listing before any other query.
     const readySources = await getX402ReadySources(prisma);
     if (readySources.length === 0) {
       return ok(c, x402AgentsSchema.parse([]));
     }
-    const creditCosts = await getCreditCostsOrThrow(prisma);
+    // Non-throwing on purpose (NOT getCreditCostsOrThrow): an empty
+    // credit_cost table must not 500 the listing. With nothing priced, every
+    // agent fails the pricing gate and drops out, so the fail-closed listing
+    // is simply empty — the same contract as the readiness early-out above.
+    const creditCosts = await prisma.creditCost.findMany();
 
     const agents = await prisma.agent.findMany({
       where: {

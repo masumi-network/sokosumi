@@ -29,12 +29,25 @@ export default function mount(app: Hono) {
       // cursor: the x402 listing reads getX402ReadySources at request time,
       // so nothing readiness-dependent is baked into agent rows (unlike the
       // Cardano readiness, which feeds the projected availability filters).
-      await syncX402BuySideReadiness({
-        signal: AbortSignal.any([
-          context.abortSignal,
-          AbortSignal.timeout(10_000),
-        ]),
-      });
+      //
+      // Isolated: x402 readiness is advisory, and the registry sync below is
+      // this route's primary job. syncX402BuySideReadiness returns false on
+      // its own handled failures, but an unhandled throw here (e.g. the 10s
+      // AbortSignal firing) must not abort the registry sync — swallow it,
+      // last-known readiness stays served, and the next cron retries.
+      try {
+        await syncX402BuySideReadiness({
+          signal: AbortSignal.any([
+            context.abortSignal,
+            AbortSignal.timeout(10_000),
+          ]),
+        });
+      } catch (error) {
+        console.warn(
+          "[sync/agents] x402 buy-side readiness sync failed; continuing registry sync:",
+          error,
+        );
+      }
       await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
         abortSignal: context.abortSignal,
         shouldContinue: context.shouldContinue,

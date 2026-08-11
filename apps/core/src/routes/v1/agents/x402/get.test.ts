@@ -253,6 +253,28 @@ describe("GET /agents/x402", () => {
     expect(agentFindManyMock).not.toHaveBeenCalled();
   });
 
+  it("returns an empty listing (not 500) when the credit_cost table is empty", async () => {
+    // Ready sources exist, but nothing is priced. The listing must fail closed
+    // to an empty array — every agent drops out of the pricing gate — not 500
+    // out of a throwing credit-cost read.
+    seedReadiness([
+      {
+        caip2Network: BASE_SEPOLIA,
+        asset: USDC_ADDRESS,
+        evmWalletId: "wallet-1",
+      },
+    ]);
+    creditCostFindManyMock.mockResolvedValue([]);
+    agentFindManyMock.mockResolvedValue([createAgentRow()]);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: unknown };
+    expect(body.data).toEqual([]);
+  });
+
   it("drops an agent whose advertised asset has no CreditCost row", async () => {
     agentFindManyMock.mockResolvedValue([
       createAgentRow(),

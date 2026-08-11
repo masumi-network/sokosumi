@@ -398,6 +398,24 @@ describe("sync routes", () => {
     );
   });
 
+  it("still runs the registry sync when x402 readiness throws", async () => {
+    // x402 readiness is advisory; the registry sync is this route's primary
+    // job. An unhandled throw from the readiness refresh (e.g. its 10s abort
+    // firing) must be swallowed so the registry replay still runs.
+    syncX402BuySideReadinessMock.mockRejectedValue(new Error("node timeout"));
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/sync/agents", {
+      headers: {
+        Authorization: "Bearer test-cron-secret",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    await flushMicrotasks();
+    expect(syncRegistryAgentsMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not request a cursor reset on the recurring agents sync", async () => {
     const app = await createApp();
 
