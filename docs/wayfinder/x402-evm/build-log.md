@@ -149,3 +149,14 @@ owned-task delete regardless of who was charged.
 - No status transition guard exists at the DB layer — terminal-at-VERIFIED is
   enforced by application code; the pay-route service must not add post-
   VERIFIED transitions until the phased-settlement reconciler ships.
+
+### Step-2 review follow-ups (for sub-component 3+)
+
+- **`idempotencyKey` MUST be `.max()`-bounded in the pay route's Zod** —
+  it sits inside the `[taskId, idempotencyKey]` btree unique, and an
+  unbounded coworker-supplied key can exceed the btree row limit at INSERT
+  time: a runtime 500 (charge rolls back, no money lost) where a 400 belongs.
+  Mirror identifierFromPurchaser's bounds (something like max 200).
+- Review fixes applied on x402-2-model: order assertion on the terminal
+  sweep (RESTRICT means sweep-before-task-delete is load-bearing), and a
+  third `refundTransaction` OR branch on the PENDING guard.

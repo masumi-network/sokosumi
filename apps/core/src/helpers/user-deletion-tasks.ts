@@ -56,7 +56,15 @@ export async function prepareTasksForUserDeletion(
     const pendingX402Payment = await tx.taskX402Payment.findFirst({
       where: {
         status: TaskX402PaymentStatus.PENDING,
-        OR: [{ transaction: { userId } }, { task: { ownerId: userId } }],
+        // refundTransaction should be impossible on a PENDING row (the refund
+        // is written when status flips), but nothing DB-level forbids it and
+        // the FK is RESTRICT — without this branch such a row would fail the
+        // user cascade with a raw FK 500 instead of this clean 400.
+        OR: [
+          { transaction: { userId } },
+          { refundTransaction: { userId } },
+          { task: { ownerId: userId } },
+        ],
       },
       select: { id: true },
     });

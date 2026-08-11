@@ -163,8 +163,12 @@ describe("prepareTasksForUserDeletion", () => {
     expect(taskX402PaymentFindFirstMock).toHaveBeenCalledWith({
       where: {
         status: TaskX402PaymentStatus.PENDING,
+        // All three RESTRICT branches, including refundTransaction — a
+        // PENDING row carrying one should be impossible, but the FK would
+        // 500 the user cascade if it existed, so the guard checks it.
         OR: [
           { transaction: { userId: "user_delete" } },
+          { refundTransaction: { userId: "user_delete" } },
           { task: { ownerId: "user_delete" } },
         ],
       },
@@ -204,7 +208,13 @@ describe("prepareTasksForUserDeletion", () => {
         ],
       },
     });
-    expect(taskDeleteManyMock).toHaveBeenCalled();
+    // ORDER is the invariant, not just both-called: taskId is RESTRICT, so
+    // sweeping x402 payments after the task delete fails the owned-task
+    // delete on task_x402_payment_taskId_fkey and account deletion 500s.
+    const x402SweepCallOrder =
+      taskX402PaymentDeleteManyMock.mock.invocationCallOrder[0];
+    const taskDeleteCallOrder = taskDeleteManyMock.mock.invocationCallOrder[0];
+    expect(x402SweepCallOrder).toBeLessThan(taskDeleteCallOrder);
   });
 
   it("clears coworker-creator RESTRICT refs for foreign-owned tasks", async () => {
