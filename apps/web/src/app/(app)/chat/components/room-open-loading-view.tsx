@@ -5,7 +5,10 @@ import { useLayoutEffect, useState } from "react";
 
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS } from "@/app/chat/components/chat-mobile-tab-registry";
-import { RoomMessageListSkeleton } from "@/app/chat/components/room-message-list-skeleton";
+import {
+  ROOM_MESSAGE_LIST_CONTENT_CLASSNAME,
+  RoomMessageListSkeleton,
+} from "@/app/chat/components/room-message-list-skeleton";
 import {
   getFormatToolbarOpenPreference,
   resolveFormatToolbarOpenOnMount,
@@ -57,9 +60,9 @@ export function RoomOpenLoadingView(): React.ReactElement {
       />
 
       <div className={cn(CHAT_MESSAGE_LIST_SCROLLER_CLASS, "flex flex-col")}>
-        {/* mt-auto: pin skeleton without min-height swap (matches progressive shell). */}
-        <div className="mt-auto flex min-w-0 w-full flex-col">
-          <RoomMessageListSkeleton className="px-5 pt-6 pb-4" />
+        {/* Same content chrome as progressive RoomsClient list (no extra pb). */}
+        <div className={ROOM_MESSAGE_LIST_CONTENT_CLASSNAME}>
+          <RoomMessageListSkeleton />
         </div>
       </div>
 

@@ -110,7 +110,10 @@ import {
   shouldShowRoomMentionShortcut,
   shouldUseCoworkerRoomStream,
 } from "./room-helpers";
-import { RoomMessageListSkeleton } from "./room-message-list-skeleton";
+import {
+  ROOM_MESSAGE_LIST_CONTENT_CLASSNAME,
+  RoomMessageListSkeleton,
+} from "./room-message-list-skeleton";
 import { ChatMessageRow } from "./room-message-row";
 import {
   type RoomMessagePage,
@@ -1882,20 +1885,12 @@ export function RoomsClient({
               >
                 <div
                   ref={contentRef}
-                  className={cn(
-                    "flex min-w-0 w-full flex-col px-5 pt-6 pb-0",
-                    // Pending: pin with mt-auto only — never swap min-h-full ↔
-                    // pixel minHeight mid-wait (that shoved the skeleton down
-                    // just before history painted).
-                    messagesPending
-                      ? "mt-auto"
-                      : cn(
-                          "justify-end",
-                          contentMinHeight == null && "min-h-full",
-                        ),
-                  )}
+                  className={ROOM_MESSAGE_LIST_CONTENT_CLASSNAME}
                   style={
-                    !messagesPending && contentMinHeight != null
+                    // Pixel minHeight only after measure; class always has
+                    // min-h-full so Instant / pending / live share the same
+                    // padding and bottom gap to the composer.
+                    contentMinHeight != null
                       ? { minHeight: contentMinHeight }
                       : undefined
                   }
