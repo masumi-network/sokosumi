@@ -220,3 +220,119 @@ Verification for this step:
 - `pnpm typecheck` — all workspaces clean.
 - `pnpm check` — 3119 files, no fixes.
 - `prisma format` / `prisma validate` — no churn beyond the added comment.
+## Sub-component 3 — buy-side helpers (`x402-3-helpers`) — 2026-08-11
+
+**Branch:** `x402-3-helpers`, cut from `x402-2-model` (clean tree). Three
+feature commits (one per area) plus this log entry. Framework-agnostic
+helpers only — no route, no wiring into the sync cron yet.
+
+### Area A — CAIP-19 pricing
+
+- `packages/masumi/src/utils/caip19.ts`: canonical lowercase
+  `eip155:<chainId>/erc20:<address>` CreditCost keys. Build throws on
+  malformed input; parse is case-insensitive and returns lowercase parts.
+  The form is a fixed point of `normalizeMasumiPaymentUnit` (it only
+  lowercases), so CAIP-19 rows need no ingestion-era dual-spelling dance.
+- `apps/core/src/helpers/x402-pricing.ts`:
+  `calculateCentsFromX402Amount`. **Pricing convention decided here:**
+  CAIP-19 CreditCost rows store `centsPerUnit` per **whole token**
+  (ticket 004's "explicit decimals handling"), NOT per base unit like
+  Cardano's `lovelace` rows — cents carry 10 decimal places, so a
+  per-base-unit price for any asset over 10 decimals would round to zero
+  and floor-charge everything. Conversion is ceiling division by
+  `10^decimals`, then floored at `MIN_CHARGEABLE_CREDITS`. Unknown asset,
+  non-positive row, malformed amount/decimals → 422 pre-charge.
+
+### Area B — 402 dialect normalizer
+
+- `packages/masumi/src/schemas/x402/payment-required.schema.ts`
+  (exported from `@sokosumi/masumi/schemas`): accepts a v1 JSON body
+  (`maxAmountRequired`, plain network names), a v2 JSON body, or the v2
+  base64 `PAYMENT-REQUIRED` header transport (string input), and returns
+  the node's v2 `paymentRequired` shape. Network-name map holds ONLY the
+  researched names (base→eip155:8453, base-sepolia→eip155:84532); unknown
+  names and non-EVM CAIP-2 namespaces error. Conflicting
+  `amount`/`maxAmountRequired` spellings error. `x402Version` is
+  preserved from the input (the node validates entry shape, not the
+  version number). `isX402PaymentIdentifierAdvertised` gates whether the
+  pay route may send `paymentIdentifier` (node 400s otherwise, 011 Q2).
+
+### Area C — buy-side readiness composition
+
+- Payment client grew thin `getX402AvailableNetworks` (passes
+  `isTestnet` derived from the client's Preprod/Mainnet network) and
+  `getX402Budgets`; both neverthrow, both raw node rows. NOTE:
+  `clients/index.ts` is a curated export list — `X402AvailableNetwork` /
+  `X402Budget` had to be added explicitly.
+- `apps/core/src/services/agent-sync.x402-readiness.ts`:
+  `syncX402BuySideReadiness` composes ready **(caip2Network, asset)
+  pairs** — chain enabled AND a budget in that asset with
+  `remainingAmount > 0`; `canSettle` deliberately ignored (buy side needs
+  no facilitator). Cache key `x402-buy-side-readiness` +
+  `…-failure` marker, copying the Cardano V2 pattern exactly: stale
+  served on failure, one page per failure streak via the createMany
+  latch, never-recorded bypasses the latch and keeps paging, empty-set
+  pages once on transition, `x402_readiness: stale|never_recorded` tags.
+- `apps/core/src/helpers/x402-readiness.ts`: `getX402ReadySources`
+  (fail closed when never recorded, drops malformed cached pairs, never
+  age-expired), `isX402SourceReady`, and the per-environment allowlist —
+  Preprod → `eip155:84532` only, Mainnet → `eip155:8453` only, unknown
+  never allowed. Environment comes from the existing `NETWORK` env;
+  helpers take it as a parameter so they stay pure.
+
+### Verification
+
+- `pnpm --filter @sokosumi/masumi test` — 14 files, 244 tests passed.
+- `pnpm --filter core test` on the three new test files — 40 passed;
+  plus `agent-sync.service.test.ts` + `agent.test.ts` (146 across 5
+  files) to guard the mirrored patterns.
+- Mutation-tested by hand (mutate → watch fail → revert → green):
+  dropped charge floor, truncating division, unknown-network guess in
+  the normalizer, fail-open allowlist. Each killed by a dedicated test.
+- `pnpm typecheck` all workspaces; `pnpm check` clean (3129 files).
+
+### What sub-components 4/5 need to know
+
+Exact signatures (all exported):
+
+- `buildCaip19AssetKey(caip2Network: string, assetAddress: string): string`
+  (throws on malformed input);
+  `parseCaip19AssetKey(key: string): Caip19AssetKeyParts | null`;
+  `isCaip19AssetKey(key: string): boolean`; patterns
+  `CAIP2_EVM_NETWORK_PATTERN`, `EVM_ADDRESS_PATTERN` — `@sokosumi/masumi`.
+- `calculateCentsFromX402Amount(input: { caip2Network; asset; amount;
+  decimals }, creditCosts: CreditCost[]): bigint` — throws 422
+  `HTTPException`; `@/helpers/x402-pricing`.
+- `normalizeX402PaymentRequired(input: unknown):
+  Result<X402PaymentRequired, string>`;
+  `isX402PaymentIdentifierAdvertised(pr): boolean`;
+  `x402PaymentRequiredSchema` (reuse it inside the route's request Zod)
+  — `@sokosumi/masumi/schemas`.
+- `paymentClient().getX402AvailableNetworks({ signal? })` /
+  `.getX402Budgets({ signal? })` →
+  `Result<X402AvailableNetwork[] | X402Budget[], string>`.
+- `syncX402BuySideReadiness({ signal? }): Promise<boolean>` (changed?) —
+  `@/services/agent-sync.x402-readiness`;
+  `getX402ReadySources(tx?)`, `isX402SourceReady(network, asset, pairs)`,
+  `getAllowedX402Caip2Networks(getEnv().NETWORK)`,
+  `isX402NetworkAllowed(network, getEnv().NETWORK)` —
+  `@/helpers/x402-readiness`.
+
+Handoff items:
+
+- **The readiness sync is NOT wired into `/sync/agents` yet.**
+  `helpers/agent.ts` (890 lines) and `agent-sync.service.ts` (973) both
+  sit over the 750-line ceiling, so nothing was added to them. Step 4:
+  call `syncX402BuySideReadiness` from `routes/sync/agents/get.ts`
+  (import the module directly, same signal/timeout treatment as the
+  Cardano call) and extend the `routes/sync/index.test.ts` service mock.
+- **Operator prerequisite:** CAIP-19 CreditCost rows price per whole
+  token — `POST /v1/credit-costs` `creditsPerUnit` = credits per 1 USDC,
+  unit = the `buildCaip19AssetKey` output.
+- The listing gate composes: readiness pair (`isX402SourceReady`) +
+  per-env allowlist (`isX402NetworkAllowed`) + CreditCost row + curation
+  (`isShown`, production only). All fail closed independently.
+- Rebuild `@sokosumi/masumi` (`pnpm --filter @sokosumi/masumi build`)
+  after pulling — core resolves it through `dist`.
+- Step-2 follow-up still open: bound `idempotencyKey` in the pay route's
+  Zod (max ~200) before it reaches the btree unique.
