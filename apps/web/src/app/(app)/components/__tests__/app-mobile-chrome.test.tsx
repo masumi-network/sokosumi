@@ -8,6 +8,10 @@ let mockIsApple = false;
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
   useSearchParams: () => mockSearchParams,
+  useRouter: () => ({
+    push: vi.fn(),
+    prefetch: vi.fn(),
+  }),
 }));
 
 vi.mock("next-intl", () => ({

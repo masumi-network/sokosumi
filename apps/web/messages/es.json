@@ -43,6 +43,7 @@
       }
     },
     "ShareButton": {
+      "share": "Compartir",
       "linkCopied": "Enlace copiado al portapapeles",
       "copyError": "No se pudo copiar el enlace"
     },

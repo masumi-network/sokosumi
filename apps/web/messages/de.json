@@ -43,6 +43,7 @@
       }
     },
     "ShareButton": {
+      "share": "Teilen",
       "linkCopied": "Link in Zwischenablage kopiert",
       "copyError": "Link konnte nicht kopiert werden"
     },
