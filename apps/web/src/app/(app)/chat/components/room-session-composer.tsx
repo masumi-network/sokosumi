@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
+import { takeRoomComposerPrefill } from "@/app/chat/onboarding/composer-prefill";
 import {
   type ComposeDraft,
   clearComposeDraft,
@@ -82,7 +83,10 @@ export function RoomSessionComposer({
   onBeforeSend,
   onSend,
 }: RoomSessionComposerProps) {
-  const [composerValue, setComposerValue] = useState("");
+  const [composerValue, setComposerValue] = useState(() => {
+    // Onboarding prefill — never auto-send (distinct from pending-room-message).
+    return takeRoomComposerPrefill(roomId) ?? "";
+  });
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);
@@ -104,14 +108,17 @@ export function RoomSessionComposer({
     key: draftKey,
     draft: composeDraft,
     onHydrate: (draft) => {
-      setComposerValue(draft.text);
-      setComposerAttachments(
-        draft.attachments.map((attachment) => ({
-          url: attachment.url,
-          fileName: attachment.fileName,
-          mediaType: attachment.mediaType ?? null,
-        })),
-      );
+      // Prefer persisted compose draft when non-empty; keep mount prefill otherwise.
+      if (draft.text || draft.attachments.length > 0) {
+        setComposerValue(draft.text);
+        setComposerAttachments(
+          draft.attachments.map((attachment) => ({
+            url: attachment.url,
+            fileName: attachment.fileName,
+            mediaType: attachment.mediaType ?? null,
+          })),
+        );
+      }
     },
   });
 

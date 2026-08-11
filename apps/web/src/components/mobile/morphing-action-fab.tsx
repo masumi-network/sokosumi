@@ -1,10 +1,8 @@
 "use client";
 
-import { Hash, MessagesSquare, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
 import {
   type ComponentType,
   type KeyboardEvent,
@@ -12,24 +10,27 @@ import {
   useRef,
   useState,
 } from "react";
-import { shouldShowMobileCreateFab } from "@/app/components/mobile-app-chrome";
-import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
-import useIsApplePlatform from "@/hooks/use-is-apple-platform";
+
 import { cn } from "@/lib/utils";
 
-import {
-  chatMobileCreateFabScrimBottom,
-  type MobileCreateFabActionId,
-  mobileCreateFabActions,
-} from "./chat-mobile-create-fab-actions";
+export interface MorphingActionFabItem {
+  id: string;
+  href: string;
+  label: string;
+  subtitle?: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+}
 
-const ACTION_ICONS: Record<
-  MobileCreateFabActionId,
-  ComponentType<SVGProps<SVGSVGElement>>
-> = {
-  createChannel: Hash,
-  newDm: MessagesSquare,
-};
+export interface MorphingActionFabProps {
+  /** Single-action mode when actions omitted/empty: dial is a Link to href. */
+  href?: string;
+  label: string;
+  closeLabel?: string;
+  actions?: readonly MorphingActionFabItem[];
+  className?: string;
+  bottomClassName?: string;
+  scrimBottomClassName?: string;
+}
 
 const SHELL_SPRING = {
   type: "spring" as const,
@@ -39,32 +40,23 @@ const SHELL_SPRING = {
 };
 
 /**
- * Mobile create FAB for Chats list (md:hidden).
- * One shell morphs from the circular dial into the overlay list panel.
- *
- * Menu state lives in a child that only mounts on the FAB surface so tab
- * switches clear an open overlay instead of restoring it later.
+ * Generic morphing dial ↔ menu shell.
+ * Menu opens only when actions.length > 0. Single href = Link, no overlay.
  */
-export function ChatMobileCreateFab(): React.ReactElement | null {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  if (!shouldShowMobileCreateFab(pathname, searchParams)) {
-    return null;
-  }
-
-  return <ChatMobileCreateFabMenu key="chats" />;
-}
-
-function ChatMobileCreateFabMenu(): React.ReactElement {
-  const t = useTranslations("App.Channels.MobileCreateFab");
-  const isApple = useIsApplePlatform();
+export function MorphingActionFab({
+  href,
+  label,
+  closeLabel = "Close",
+  actions,
+  className,
+  bottomClassName,
+  scrimBottomClassName,
+}: MorphingActionFabProps): React.ReactElement {
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
-  // Panel paint stays through the close morph; dial purple applies after.
   const [panelChrome, setPanelChrome] = useState(false);
   const openRef = useRef(false);
-
-  const actions = mobileCreateFabActions("chats");
+  const hasMenu = (actions?.length ?? 0) > 0;
 
   function setMenuOpen(next: boolean) {
     openRef.current = next;
@@ -102,11 +94,38 @@ function ChatMobileCreateFabMenu(): React.ReactElement {
     }
   }
 
+  if (!hasMenu) {
+    if (!href) {
+      return <></>;
+    }
+    return (
+      <div
+        className={cn(
+          "pointer-events-none fixed inset-x-4 z-50 md:hidden",
+          bottomClassName,
+          className,
+        )}
+        data-mobile-create-fab
+      >
+        <div className="relative z-50 flex h-14 justify-end">
+          <Link
+            href={href}
+            aria-label={label}
+            className="bg-primary text-primary-foreground pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg"
+          >
+            <Plus className="size-6" aria-hidden />
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
         "pointer-events-none fixed inset-x-4 z-50 md:hidden",
-        mobileCreateFabBottom(isApple),
+        bottomClassName,
+        className,
       )}
       data-mobile-create-fab
     >
@@ -115,10 +134,10 @@ function ChatMobileCreateFabMenu(): React.ReactElement {
           <motion.button
             key="scrim"
             type="button"
-            aria-label={t("closeMenu")}
+            aria-label={closeLabel}
             className={cn(
               "pointer-events-auto fixed inset-x-0 top-0 z-40 bg-background/50 md:hidden",
-              chatMobileCreateFabScrimBottom(isApple),
+              scrimBottomClassName,
             )}
             initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -129,10 +148,6 @@ function ChatMobileCreateFabMenu(): React.ReactElement {
         ) : null}
       </AnimatePresence>
 
-      {/*
-        Footprint stays FAB-sized when closed. Open shell is absolute
-        bottom-anchored so the same surface grows upward into the menu.
-      */}
       <div className="relative z-50 flex h-14 justify-end">
         <motion.div
           layout={!reduceMotion}
@@ -140,7 +155,7 @@ function ChatMobileCreateFabMenu(): React.ReactElement {
           tabIndex={open ? undefined : 0}
           aria-expanded={open ? undefined : false}
           aria-haspopup={open ? undefined : "menu"}
-          aria-label={t("openMenu")}
+          aria-label={label}
           data-mobile-create-fab-menu={open ? "" : undefined}
           transition={reduceMotion ? { duration: 0 } : SHELL_SPRING}
           onLayoutAnimationComplete={handleLayoutAnimationComplete}
@@ -152,12 +167,7 @@ function ChatMobileCreateFabMenu(): React.ReactElement {
               ? "absolute inset-x-0 bottom-0 rounded-3xl p-2"
               : "flex size-14 cursor-pointer items-center justify-center rounded-full",
             panelChrome
-              ? cn(
-                  "text-card-foreground",
-                  isApple
-                    ? "border-border/40 bg-background/45 shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:bg-background/35 dark:shadow-black/40 border"
-                    : "border-border bg-card border",
-                )
+              ? "border-border bg-card text-card-foreground border"
               : "bg-primary text-primary-foreground",
           )}
           style={{
@@ -178,8 +188,8 @@ function ChatMobileCreateFabMenu(): React.ReactElement {
                     : { duration: 0.15, delay: 0.06 }
                 }
               >
-                {actions.map((action, index) => {
-                  const Icon = ACTION_ICONS[action.id];
+                {actions?.map((action, index) => {
+                  const Icon = action.icon;
                   return (
                     <motion.li
                       key={action.id}
@@ -211,11 +221,13 @@ function ChatMobileCreateFabMenu(): React.ReactElement {
                         </span>
                         <span className="min-w-0 flex-1 text-left">
                           <span className="text-foreground block text-base font-semibold tracking-tight">
-                            {t(`${action.id}.title`)}
+                            {action.label}
                           </span>
-                          <span className="text-muted-foreground mt-0.5 block text-sm leading-snug">
-                            {t(`${action.id}.subtitle`)}
-                          </span>
+                          {action.subtitle ? (
+                            <span className="text-muted-foreground mt-0.5 block text-sm leading-snug">
+                              {action.subtitle}
+                            </span>
+                          ) : null}
                         </span>
                       </Link>
                     </motion.li>

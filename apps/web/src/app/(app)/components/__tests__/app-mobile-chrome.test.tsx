@@ -66,7 +66,7 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "openFab" })).toBeNull();
     const spacer = getTabBarSpacer(container);
     expect(spacer?.className).toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
@@ -84,7 +84,7 @@ describe("AppMobileChrome", () => {
     expect(spacer?.className).not.toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
 
-  it("keeps bottom nav and create FAB on /chat/chats", () => {
+  it("keeps bottom nav and onboarding FAB on /chat/chats", () => {
     mockPathname = "/chat/chats";
 
     render(
@@ -94,7 +94,10 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "openMenu" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "openFab" })).toHaveAttribute(
+      "href",
+      "/chat?welcome=1",
+    );
   });
 
   it("shows bottom nav without create FAB on main hub list routes", () => {
@@ -107,7 +110,7 @@ describe("AppMobileChrome", () => {
     );
 
     expect(screen.getByRole("navigation", { name: "ariaLabel" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "openFab" })).toBeNull();
     expect(getTabBarSpacer(container)?.className).toContain(
       CHAT_MOBILE_TAB_BAR_CLEARANCE,
     );
@@ -138,7 +141,7 @@ describe("AppMobileChrome", () => {
 
     expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
     expect(getTabBarSpacer(container)).toBeNull();
-    expect(screen.queryByRole("button", { name: "openMenu" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "openFab" })).toBeNull();
   });
 
   it("hides bottom nav on nested detail routes", () => {

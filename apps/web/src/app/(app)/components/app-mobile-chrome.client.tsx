@@ -4,8 +4,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 import { ChatMobileBottomNav } from "@/app/chat/components/chat-mobile-bottom-nav";
-import { ChatMobileCreateFab } from "@/app/chat/components/chat-mobile-create-fab";
 import { chatMobileTabBarClearance } from "@/app/chat/components/chat-mobile-tab-registry";
+import { ChatOnboardingFab } from "@/app/chat/components/chat-onboarding-fab";
 import { shouldShowMobileBottomNav } from "@/app/components/mobile-app-chrome";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
@@ -62,7 +62,7 @@ function AppMobileBottomChrome(): React.ReactElement | null {
         <ChatMobileBottomNav />
       </Suspense>
       <Suspense fallback={null}>
-        <ChatMobileCreateFab />
+        <ChatOnboardingFab />
       </Suspense>
     </>
   );

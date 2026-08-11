@@ -126,16 +126,16 @@ function SectionHeader({
   secondaryAction?: ReactNode;
   dismissSheetOnNavigate?: boolean;
 }) {
-  // Create `+` is desktop-only (mobile uses the create FAB); Browse stays.
+  // Create `+` visible on mobile (FAB opens onboarding); Browse stays.
   const createHref = href && label ? href : null;
-  const mobileTrailingCount = secondaryAction ? 1 : 0;
+  const mobileTrailingCount = (secondaryAction ? 1 : 0) + (createHref ? 1 : 0);
   const desktopTrailingCount = (secondaryAction ? 1 : 0) + (createHref ? 1 : 0);
   const hasTrailing = mobileTrailingCount > 0 || desktopTrailingCount > 0;
 
   const createLink = createHref ? (
     <Link
       aria-label={label}
-      className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative hidden size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden md:flex"
+      className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative flex size-7 items-center justify-center rounded-md transition-colors before:absolute before:-inset-2 before:content-[''] sm:before:hidden"
       href={createHref}
     >
       <Plus className="size-4 md:size-3.5" aria-hidden />
