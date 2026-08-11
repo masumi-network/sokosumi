@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/tasks/task-1",
   useRouter: () => ({
     prefetch: vi.fn(),
     push: vi.fn(),
