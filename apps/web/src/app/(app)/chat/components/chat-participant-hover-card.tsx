@@ -85,9 +85,13 @@ function renderHoverTrigger({
         ? {
             role: singleChild.props.role ?? "button",
             tabIndex: singleChild.props.tabIndex ?? 0,
+            // Named for keyboard focus; skip when nested in a link (row owns name).
+            "aria-label": singleChild.props["aria-label"] ?? profileName,
           }
-        : {}),
-      "aria-label": singleChild.props["aria-label"] ?? profileName,
+        : {
+            // Drop any child label so SRs don't double-speak the row link name.
+            "aria-label": undefined,
+          }),
       "aria-hidden": undefined,
       style: { ...singleChild.props.style, ...style },
       className: cn(
@@ -102,7 +106,6 @@ function renderHoverTrigger({
   if (!interactive) {
     return (
       <span
-        aria-label={profileName}
         style={style}
         className={cn(
           "relative inline-flex w-fit max-w-full cursor-pointer self-start p-0 leading-none",

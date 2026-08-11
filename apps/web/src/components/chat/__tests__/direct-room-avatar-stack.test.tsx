@@ -44,29 +44,20 @@ vi.mock("@/components/chat/live-member-presence-dot", () => ({
   LiveMemberPresenceDot: () => <span data-testid="presence-dot" />,
 }));
 
-vi.mock("@/app/chat/components/open-direct-with-participant", () => ({
-  participantDirectKey: (profile: { kind: string; id: string }) =>
-    `${profile.kind}:${profile.id}`,
-  canShowOpenDirect: ({
-    profile,
-    currentUserId,
-    canOpenHumanDirect,
-    onOpenDirect,
-  }: {
-    profile: { kind: string; id: string };
-    currentUserId?: string;
-    canOpenHumanDirect: boolean;
-    onOpenDirect?: unknown;
-  }) => {
-    if (!onOpenDirect) return false;
-    if (profile.kind === "human") {
-      if (!canOpenHumanDirect) return false;
-      if (currentUserId && profile.id === currentUserId) return false;
-    }
-    return true;
+vi.mock(
+  "@/app/chat/components/open-direct-with-participant",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/app/chat/components/open-direct-with-participant")
+      >();
+    return {
+      ...actual,
+      openDirectWithParticipant: (...args: unknown[]) =>
+        openDirectMock(...args),
+    };
   },
-  openDirectWithParticipant: (...args: unknown[]) => openDirectMock(...args),
-}));
+);
 
 import { DirectRoomAvatarStack } from "../direct-room-avatar-stack";
 
@@ -132,7 +123,10 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
-    await user.hover(screen.getByLabelText("Patrick Tobler"));
+    const avatar = screen.getByTestId("dm-sidebar-avatar-patrick");
+    expect(avatar).not.toHaveAttribute("role", "button");
+    expect(avatar).not.toHaveAttribute("aria-label");
+    await user.hover(avatar);
 
     const card = screen.getByTestId("chat-participant-hover-card");
     expect(card).toHaveTextContent("Patrick Tobler");
@@ -161,8 +155,14 @@ describe("DirectRoomAvatarStack", () => {
     expect(cards).toHaveLength(2);
     expect(cards.map((card) => card.textContent).join(" ")).toContain("Alice");
     expect(cards.map((card) => card.textContent).join(" ")).toContain("Bob");
-    expect(screen.getByLabelText("Alice")).toBeInTheDocument();
-    expect(screen.getByLabelText("Bob")).toBeInTheDocument();
+    expect(screen.getByTestId("dm-sidebar-avatar-alice")).toBeInTheDocument();
+    expect(screen.getByTestId("dm-sidebar-avatar-bob")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Alice" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Bob" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows coworker hover card with caption and Message action", async () => {
@@ -179,7 +179,7 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
-    await user.hover(screen.getByLabelText("Matt"));
+    await user.hover(screen.getByTestId("dm-sidebar-avatar-cw-1"));
 
     const card = screen.getByTestId("chat-participant-hover-card");
     expect(card).toHaveTextContent("Matt");
@@ -201,7 +201,7 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
-    await user.hover(screen.getByLabelText("Patrick Tobler"));
+    await user.hover(screen.getByTestId("dm-sidebar-avatar-patrick"));
     await user.click(screen.getByRole("button", { name: /Message/i }));
 
     expect(openDirectMock).toHaveBeenCalledWith(
@@ -232,6 +232,8 @@ describe("DirectRoomAvatarStack", () => {
     expect(
       screen.queryByTestId("chat-participant-hover-card"),
     ).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Me")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("dm-sidebar-avatar-me"),
+    ).not.toBeInTheDocument();
   });
 });

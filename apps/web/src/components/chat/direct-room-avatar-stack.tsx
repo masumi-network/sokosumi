@@ -97,7 +97,10 @@ export function DirectRoomAvatarStack({
           isDirectActionBusy={openingDirectKey != null}
           interactive={false}
         >
-          <span className="relative inline-flex" aria-label={participant.name}>
+          <span
+            className="relative inline-flex"
+            data-testid={`dm-sidebar-avatar-${participant.id}`}
+          >
             <Avatar className="border-sidebar-background size-5 border">
               <AvatarImage alt="" src={participant.image ?? undefined} />
               <AvatarFallback className="text-[0.5625rem] font-medium">

@@ -192,15 +192,17 @@ describe("ChatParticipantHoverCard", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps a non-button trigger when interactive is false (nested in links)", () => {
+  it("keeps a non-button unlabeled trigger when interactive is false (nested in links)", () => {
     render(
       <ChatParticipantHoverCard profile={humanProfile} interactive={false}>
-        <span data-testid="passive-trigger">avatar</span>
+        <span data-testid="passive-trigger" aria-label="should-be-cleared">
+          avatar
+        </span>
       </ChatParticipantHoverCard>,
     );
 
     const trigger = screen.getByTestId("passive-trigger");
-    expect(trigger).toHaveAttribute("aria-label", "Ada Lovelace");
+    expect(trigger).not.toHaveAttribute("aria-label");
     expect(trigger).not.toHaveAttribute("role", "button");
     expect(
       screen.queryByRole("button", { name: "Ada Lovelace" }),
