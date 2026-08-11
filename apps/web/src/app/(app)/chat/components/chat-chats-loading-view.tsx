@@ -1,6 +1,4 @@
-import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 
 /**
  * Sync Instant Nav shell for `/chat/chats` (no cookies/`connection()`/i18n).
@@ -12,10 +10,7 @@ export function ChatChatsPageSkeleton(): React.ReactElement {
   return (
     <div
       data-testid="chat-chats-loading"
-      className={cn(
-        "md:hidden -m-4 min-h-0 flex-1 overflow-y-auto p-4",
-        LIST_MOBILE_CREATE_FAB_CLEARANCE,
-      )}
+      className="md:hidden -m-4 min-h-0 flex-1 overflow-y-auto p-4"
     >
       <div className="mb-3 flex items-center justify-between">
         <Skeleton className="h-5 w-24" />

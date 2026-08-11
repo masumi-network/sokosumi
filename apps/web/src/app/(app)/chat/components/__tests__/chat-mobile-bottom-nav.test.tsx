@@ -63,8 +63,9 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(
       resolveChatMobileActiveTabId("/chat", new URLSearchParams("dm=new")),
     ).toBeNull();
+    // Retired param: treated as bare /chat, which has no tab of its own.
     expect(
-      resolveChatMobileActiveTabId("/chat", new URLSearchParams("dm=new")),
+      resolveChatMobileActiveTabId("/chat", new URLSearchParams("welcome=1")),
     ).toBeNull();
     expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
     expect(resolveChatMobileActiveTabId("/chat/chats/extra")).toBeNull();

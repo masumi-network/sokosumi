@@ -1,5 +1,4 @@
 import { connection } from "next/server";
-import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { getPrivateCachedChatListChrome } from "@/app/components/private-sidebar-cache";
 import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
@@ -8,7 +7,6 @@ import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-import { cn } from "@/lib/utils";
 
 /**
  * Mobile Chats tab: Personal Assistant (beta-gated) above Channels + DMs
@@ -48,12 +46,9 @@ export default async function ChatChatsPage() {
 
   return (
     <Sheet open>
-      <div
-        className={cn(
-          "md:hidden -m-4 flex min-h-0 flex-1 flex-col overflow-y-auto bg-background",
-          LIST_MOBILE_CREATE_FAB_CLEARANCE,
-        )}
-      >
+      {/* No create-FAB clearance: this surface's FAB went away with the
+          questionnaire onboarding, and the tab bar has its own spacer. */}
+      <div className="md:hidden -m-4 flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
         <PersonalAssistantNav enabled={hermesMenuEnabled} />
         {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
         <OrganizationChatList
