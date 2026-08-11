@@ -14,7 +14,7 @@ const {
   invitationFindUniqueMock,
   invitationUpdateManyMock,
   userMemberFindUniqueMock,
-  userMemberUpsertMock,
+  userMemberCreateMock,
   readStateCreateManyMock,
   memberFindUniqueMock,
   messageCreateMock,
@@ -27,7 +27,7 @@ const {
   invitationFindUniqueMock: vi.fn(),
   invitationUpdateManyMock: vi.fn(),
   userMemberFindUniqueMock: vi.fn(),
-  userMemberUpsertMock: vi.fn(),
+  userMemberCreateMock: vi.fn(),
   readStateCreateManyMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
   messageCreateMock: vi.fn(),
@@ -63,7 +63,7 @@ const tx = {
   },
   chatRoomUserMember: {
     findUnique: userMemberFindUniqueMock,
-    upsert: userMemberUpsertMock,
+    create: userMemberCreateMock,
   },
   chatRoomReadState: { createMany: readStateCreateManyMock },
   member: { findUnique: memberFindUniqueMock },
@@ -139,7 +139,7 @@ beforeEach(() => {
     kind: "channel",
     discoverability: "external",
   });
-  userMemberUpsertMock.mockResolvedValue({
+  userMemberCreateMock.mockResolvedValue({
     id: "mem_row",
     roomId: ROOM_ID,
     userId: GUEST_ID,
@@ -193,19 +193,10 @@ describe("POST /chats/invitations/{id}/accept", () => {
       inviter: { id: INVITER_ID, name: "Ada Lovelace" },
     });
 
-    expect(userMemberUpsertMock).toHaveBeenCalledWith({
-      where: {
-        roomId_userId: {
-          roomId: ROOM_ID,
-          userId: GUEST_ID,
-        },
-      },
-      create: {
+    expect(userMemberCreateMock).toHaveBeenCalledWith({
+      data: {
         roomId: ROOM_ID,
         userId: GUEST_ID,
-        access: "guest",
-      },
-      update: {
         access: "guest",
       },
     });
@@ -258,7 +249,7 @@ describe("POST /chats/invitations/{id}/accept", () => {
     }).request(`/${INVITE_ID}/accept`, { method: "POST" });
 
     expect(response.status).toBe(404);
-    expect(userMemberUpsertMock).not.toHaveBeenCalled();
+    expect(userMemberCreateMock).not.toHaveBeenCalled();
     expect(invitationUpdateManyMock).not.toHaveBeenCalled();
   });
 
@@ -272,7 +263,7 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.message).toMatch(/organization member/i);
-    expect(userMemberUpsertMock).not.toHaveBeenCalled();
+    expect(userMemberCreateMock).not.toHaveBeenCalled();
   });
 
   it("accept is idempotent when already guest on room", async () => {
@@ -285,7 +276,7 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.data.status).toBe("accepted");
-    expect(userMemberUpsertMock).not.toHaveBeenCalled();
+    expect(userMemberCreateMock).not.toHaveBeenCalled();
     expect(invitationUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -313,7 +304,7 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.message).toMatch(/expired/i);
-    expect(userMemberUpsertMock).not.toHaveBeenCalled();
+    expect(userMemberCreateMock).not.toHaveBeenCalled();
     expect(invitationUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -342,7 +333,7 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.message).toMatch(/no longer pending/i);
-    expect(userMemberUpsertMock).not.toHaveBeenCalled();
+    expect(userMemberCreateMock).not.toHaveBeenCalled();
     expect(invitationUpdateManyMock).not.toHaveBeenCalled();
   });
 
@@ -358,13 +349,37 @@ describe("POST /chats/invitations/{id}/accept", () => {
     expect(response.status).toBe(400);
     const body = await response.json();
     expect(body.message).toMatch(/no longer pending/i);
-    expect(userMemberUpsertMock).toHaveBeenCalled();
+    expect(userMemberCreateMock).toHaveBeenCalled();
     expect(invitationUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           id: INVITE_ID,
           status: "pending",
         }),
+      }),
+    );
+    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+  });
+
+  it("accept does not demote concurrent host-member row on unique race", async () => {
+    userMemberCreateMock.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), { code: "P2002" }),
+    );
+    // First findUnique (pre-create): no row; second (after P2002): host member.
+    userMemberFindUniqueMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ access: "member" });
+
+    const response = await createApp().request(`/${INVITE_ID}/accept`, {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.message).toMatch(/already a member/i);
+    expect(invitationUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "accepted" }),
       }),
     );
     expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();

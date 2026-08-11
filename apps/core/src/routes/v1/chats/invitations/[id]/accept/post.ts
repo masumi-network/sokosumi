@@ -7,6 +7,7 @@ import {
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -229,24 +230,37 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           );
         }
 
-        // Upsert so concurrent double-accept on the unique (roomId, userId)
-        // does not 500; create path is the normal case after the null check.
-        await tx.chatRoomUserMember.upsert({
-          where: {
-            roomId_userId: {
+        // Create-only: never update an existing row to guest. A concurrent
+        // self-join as host member must not be demoted by accept's upsert.
+        // Unique races re-read membership and surface the correct error.
+        try {
+          await tx.chatRoomUserMember.create({
+            data: {
               roomId: room.id,
               userId: userContext.userId,
+              access: CHAT_ROOM_ACCESS.GUEST,
             },
-          },
-          create: {
-            roomId: room.id,
-            userId: userContext.userId,
-            access: CHAT_ROOM_ACCESS.GUEST,
-          },
-          update: {
-            access: CHAT_ROOM_ACCESS.GUEST,
-          },
-        });
+          });
+        } catch (error) {
+          if (!isPrismaUniqueViolation(error)) {
+            throw error;
+          }
+          const raced = await tx.chatRoomUserMember.findUnique({
+            where: {
+              roomId_userId: {
+                roomId: room.id,
+                userId: userContext.userId,
+              },
+            },
+            select: { access: true },
+          });
+          if (raced?.access !== CHAT_ROOM_ACCESS.GUEST) {
+            // Concurrent self-join as host member (or other non-guest) must not
+            // be demoted; surface as already a member.
+            throw badRequest("Already a member of this room.");
+          }
+          // Concurrent double-accept as guest: fall through to mark accepted.
+        }
         await tx.chatRoomReadState.createMany({
           data: [{ roomId: room.id, userId: userContext.userId }],
           skipDuplicates: true,
