@@ -11,7 +11,11 @@ import {
 } from "../utils/payment-amounts.js";
 import { createClient } from "./openapi/generated/payment/client/index.js";
 import {
+  type GetX402BudgetsResponses,
+  type GetX402NetworksAvailableResponses,
   getRailReadiness,
+  getX402Budgets as getX402BudgetsRequest,
+  getX402NetworksAvailable,
   type PostPurchaseData,
   type PostPurchaseResolveBlockchainIdentifierResponses,
   type PostPurchaseResponses,
@@ -49,6 +53,14 @@ export interface CardanoV2ReadySource {
   policyId: string;
   smartContractAddress: string;
 }
+
+/** One x402 EVM chain the node reports accessible (`GET /x402/networks/available`). */
+export type X402AvailableNetwork =
+  GetX402NetworksAvailableResponses["200"]["data"]["Networks"][number];
+
+/** One x402 wallet budget granted to an API key (`GET /x402/budgets`). */
+export type X402Budget =
+  GetX402BudgetsResponses["200"]["data"]["Budgets"][number];
 
 type ResolvedPurchase =
   PostPurchaseResolveBlockchainIdentifierResponses["200"]["data"];
@@ -424,6 +436,57 @@ export function createPaymentClient(
         return ok(Array.from(readySources.values()));
       } catch (error) {
         return err(String(error) || "Failed to get rail readiness");
+      }
+    },
+
+    /**
+     * x402 EVM chains the node reports accessible for this environment.
+     * Filtered node-side to the client's environment: the Cardano
+     * Preprod/Mainnet split maps onto the node's testnet/mainnet flag
+     * (PR1-SPEC §6). Raw node rows — buy-side readiness composition
+     * (enabled + funded budget) happens in the caller.
+     */
+    async getX402AvailableNetworks(
+      options: PaymentClientRequestOptions = {},
+    ): Promise<Result<X402AvailableNetwork[], string>> {
+      try {
+        const response = await getX402NetworksAvailable({
+          client: client(),
+          query: { isTestnet: network === "Preprod" ? "true" : "false" },
+          signal: options.signal,
+        });
+        if (response.error || !response.data) {
+          return err(
+            `x402 networks/available ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
+          );
+        }
+        return ok(response.data.data.Networks);
+      } catch (error) {
+        return err(String(error) || "Failed to get x402 available networks");
+      }
+    },
+
+    /**
+     * x402 wallet budgets visible to this API key. The node scopes the list
+     * to the caller's key, so no query filter is passed. Raw node rows —
+     * see getX402AvailableNetworks.
+     */
+    async getX402Budgets(
+      options: PaymentClientRequestOptions = {},
+    ): Promise<Result<X402Budget[], string>> {
+      try {
+        const response = await getX402BudgetsRequest({
+          client: client(),
+          signal: options.signal,
+        });
+        if (response.error || !response.data) {
+          return err(
+            `x402 budgets ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
+          );
+        }
+        return ok(response.data.data.Budgets);
+      } catch (error) {
+        return err(String(error) || "Failed to get x402 budgets");
       }
     },
 
