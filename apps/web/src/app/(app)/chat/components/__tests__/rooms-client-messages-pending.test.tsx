@@ -267,18 +267,12 @@ const baseProps = {
 
 describe("RoomsClient progressive history (real composer + list skeleton)", () => {
   it("shows list skeleton and real composer while history is pending", () => {
-    let resolvePage!: (page: {
-      messages: ChatRoomMessage[];
-      nextCursor: string | null;
-      failed: boolean;
-    }) => void;
+    // Intentionally never settles — pending shell only.
     const messagesPromise = new Promise<{
       messages: ChatRoomMessage[];
       nextCursor: string | null;
       failed: boolean;
-    }>((resolve) => {
-      resolvePage = resolve;
-    });
+    }>(() => undefined);
 
     render(<RoomsClient {...baseProps} messagesPromise={messagesPromise} />);
 
@@ -289,8 +283,6 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       "data-focus-on-mount",
       "false",
     );
-
-    void resolvePage;
   });
 
   it("hydrates history into the same instance and enables composer focus", async () => {
@@ -481,6 +473,90 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
     expect(screen.queryByText("from room A")).toBeNull();
     expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
       "from room B",
+    );
+  });
+
+  it("does not re-enter pending or flip focus on same-room promise swap", async () => {
+    let resolveA!: (page: {
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }) => void;
+    const promiseA = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>((resolve) => {
+      resolveA = resolve;
+    });
+
+    const { rerender } = render(
+      <RoomsClient {...baseProps} messagesPromise={promiseA} />,
+    );
+
+    await act(async () => {
+      resolveA({
+        messages: [sampleMessage("stable history")],
+        nextCursor: null,
+        failed: false,
+      });
+      await promiseA;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
+        "stable history",
+      );
+    });
+    const composer = screen.getByTestId("room-session-composer");
+    expect(composer).toHaveAttribute("data-focus-on-mount", "true");
+
+    let resolveB!: (page: {
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }) => void;
+    const promiseB = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>((resolve) => {
+      resolveB = resolve;
+    });
+
+    // RSC refresh: new promise, same room — must not show skeleton / defocus.
+    rerender(<RoomsClient {...baseProps} messagesPromise={promiseB} />);
+
+    expect(screen.queryByTestId("room-message-list-skeleton")).toBeNull();
+    expect(screen.getByTestId("chat-message-row")).toHaveTextContent(
+      "stable history",
+    );
+    expect(screen.getByTestId("room-session-composer")).toHaveAttribute(
+      "data-focus-on-mount",
+      "true",
+    );
+
+    await act(async () => {
+      resolveB({
+        messages: [
+          {
+            ...sampleMessage("refreshed page"),
+            id: "msg-refresh",
+          },
+        ],
+        nextCursor: null,
+        failed: false,
+      });
+      await promiseB;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("refreshed page")).toBeTruthy();
+    });
+    expect(screen.getByText("stable history")).toBeTruthy();
+    expect(screen.getByTestId("room-session-composer")).toHaveAttribute(
+      "data-focus-on-mount",
+      "true",
     );
   });
 });

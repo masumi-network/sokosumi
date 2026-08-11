@@ -33,8 +33,6 @@ export const ROOM_SHELL_SCROLLER_CLASSNAME = cn(
   "flex flex-col",
 );
 
-export { ROOM_MESSAGE_LIST_CONTENT_CLASSNAME };
-
 interface RoomShellLayoutProps {
   testId?: string;
   dataSlot?: string;
@@ -52,6 +50,12 @@ interface RoomShellLayoutProps {
   listContentStyle?: CSSProperties;
   listContent: ReactNode;
   composer: ReactNode;
+  /**
+   * Sibling of the message column inside `main` (e.g. ThreadPanel). Must stay
+   * under ROOM_SHELL_MAIN_CLASSNAME so absolute mobile overlay / lg side column
+   * position against the room shell, not an outer fragment.
+   */
+  mainEnd?: ReactNode;
 }
 
 /**
@@ -70,6 +74,7 @@ export function RoomShellLayout({
   listContentStyle,
   listContent,
   composer,
+  mainEnd = null,
 }: RoomShellLayoutProps): React.ReactElement {
   const header =
     desktopHeader != null ? (
@@ -111,6 +116,7 @@ export function RoomShellLayout({
       {beforeMain}
       <main className={ROOM_SHELL_MAIN_CLASSNAME}>
         <section className={ROOM_SHELL_SECTION_CLASSNAME}>{column}</section>
+        {mainEnd}
       </main>
     </div>
   );

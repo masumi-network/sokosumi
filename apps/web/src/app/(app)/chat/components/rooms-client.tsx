@@ -462,8 +462,11 @@ export function RoomsClient({
   }
   if (messagesPromise !== syncedMessagesPromise) {
     setSyncedMessagesPromise(messagesPromise);
-    setDeferredHistoryPending(messagesPromise != null);
+    // Same-room promise identity swap (RSC refresh) must not re-enter pending
+    // or focusOnMount false→true steals caret mid-type. Room change above
+    // already sets pending; initial mount seeds deferredHistoryPending.
     if (messagesPromise == null) {
+      setDeferredHistoryPending(false);
       setMessageLoadFailedState(messageLoadFailed);
     }
   }
@@ -1829,6 +1832,7 @@ export function RoomsClient({
     ) : null;
 
   if (selectedRoom) {
+    const showListSkeleton = messagesPending && displayMessages.length === 0;
     const openRoomListBody = (
       <>
         {messagesPromise ? (
@@ -1837,7 +1841,7 @@ export function RoomsClient({
             onResolved={handleDeferredHistoryResolved}
           />
         ) : null}
-        {messagesPending && displayMessages.length === 0 ? (
+        {showListSkeleton ? (
           <RoomMessageListSkeleton />
         ) : effectiveMessageLoadFailed ? (
           <div className="border-border/70 bg-muted/20 rounded-md border border-dashed px-5 py-10 text-center">
@@ -1874,7 +1878,7 @@ export function RoomsClient({
             </Button>
           </div>
         )}
-        {messagesPending && displayMessages.length === 0
+        {showListSkeleton
           ? null
           : displayMessages.map((message, index) => {
               const previousMessage = displayMessages[index - 1];
@@ -2021,57 +2025,62 @@ export function RoomsClient({
               onSend={handleChannelSend}
             />
           }
+          mainEnd={
+            threadParentMessage ? (
+              <ThreadPanel
+                parentMessage={threadParentMessage}
+                replies={displayThreadMessages}
+                isLoading={isThreadLoading}
+                olderNextCursor={threadOlderNextCursor}
+                isLoadingOlder={isLoadingOlderThread}
+                onLoadOlder={handleLoadOlderThreadMessages}
+                coworkersById={coworkersById}
+                coworkersBySlug={coworkersBySlug}
+                usersById={usersById}
+                usersBySlug={usersBySlug}
+                mentionRecords={mentionRecords}
+                draftKey={composeDraftKey.thread(
+                  selectedRoom.id,
+                  threadParentMessage.id,
+                )}
+                onBeforeSendReply={handleThreadBeforeSend}
+                onSendReply={handleThreadSend}
+                isSendingReply={
+                  isSendingThreadReply ||
+                  (isCoworkerStreaming &&
+                    threadStreamOverlayMessages.length > 0)
+                }
+                onClose={() => {
+                  setThreadParentMessage(null);
+                  setThreadMessages([]);
+                  setThreadOlderNextCursor(null);
+                  setPendingThreadQuote(null);
+                }}
+                onToggleReaction={handleToggleReaction}
+                onQuote={handleQuoteThreadMessage}
+                currentUserId={currentUserId}
+                canOpenHumanDirect={canOpenHumanDirect}
+                onOpenDirectMessage={handleOpenDirectMessage}
+                openingDirectParticipantKey={openingDirectKey}
+                onStartEdit={handleStartEdit}
+                onDelete={handleDeleteMessage}
+                editSession={editSession}
+                onEditDraftChange={handleEditDraftChange}
+                onCancelEdit={handleCancelEdit}
+                onSaveEdit={handleSaveEdit}
+                isSavingEdit={isSavingEdit}
+                pendingQuote={pendingThreadQuote}
+                onClearPendingQuote={() => setPendingThreadQuote(null)}
+                onRestorePendingQuote={setPendingThreadQuote}
+                showMentionShortcut={shouldShowRoomMentionShortcut(
+                  selectedRoom,
+                )}
+                allowAttachments={!isCoworkerStreamRoom}
+                roomId={selectedRoom.id}
+              />
+            ) : null
+          }
         />
-        {threadParentMessage ? (
-          <ThreadPanel
-            parentMessage={threadParentMessage}
-            replies={displayThreadMessages}
-            isLoading={isThreadLoading}
-            olderNextCursor={threadOlderNextCursor}
-            isLoadingOlder={isLoadingOlderThread}
-            onLoadOlder={handleLoadOlderThreadMessages}
-            coworkersById={coworkersById}
-            coworkersBySlug={coworkersBySlug}
-            usersById={usersById}
-            usersBySlug={usersBySlug}
-            mentionRecords={mentionRecords}
-            draftKey={composeDraftKey.thread(
-              selectedRoom.id,
-              threadParentMessage.id,
-            )}
-            onBeforeSendReply={handleThreadBeforeSend}
-            onSendReply={handleThreadSend}
-            isSendingReply={
-              isSendingThreadReply ||
-              (isCoworkerStreaming && threadStreamOverlayMessages.length > 0)
-            }
-            onClose={() => {
-              setThreadParentMessage(null);
-              setThreadMessages([]);
-              setThreadOlderNextCursor(null);
-              setPendingThreadQuote(null);
-            }}
-            onToggleReaction={handleToggleReaction}
-            onQuote={handleQuoteThreadMessage}
-            currentUserId={currentUserId}
-            canOpenHumanDirect={canOpenHumanDirect}
-            onOpenDirectMessage={handleOpenDirectMessage}
-            openingDirectParticipantKey={openingDirectKey}
-            onStartEdit={handleStartEdit}
-            onDelete={handleDeleteMessage}
-            editSession={editSession}
-            onEditDraftChange={handleEditDraftChange}
-            onCancelEdit={handleCancelEdit}
-            onSaveEdit={handleSaveEdit}
-            isSavingEdit={isSavingEdit}
-            pendingQuote={pendingThreadQuote}
-            onClearPendingQuote={() => setPendingThreadQuote(null)}
-            onRestorePendingQuote={setPendingThreadQuote}
-            showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
-            allowAttachments={!isCoworkerStreamRoom}
-            roomId={selectedRoom.id}
-          />
-        ) : null}
       </>
     );
   }

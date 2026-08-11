@@ -60,6 +60,8 @@ vi.mock("@/app/chat/components/rooms-client", () => ({
   RoomsClient: () => <div data-testid="rooms-client" />,
 }));
 
+import type { ChatRoom } from "@/lib/clients/generated/core";
+
 import { ChatRoomPageContent } from "../page";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -73,22 +75,23 @@ function room(
     kind?: "channel" | "direct";
     myAccess?: "member" | "guest";
   } = {},
-) {
+): ChatRoom {
   return {
     id: ROOM_ID,
     organizationId:
-      "organizationId" in overrides ? overrides.organizationId : ORG_A,
+      "organizationId" in overrides
+        ? (overrides.organizationId ?? null)
+        : ORG_A,
     organizationName: null,
     kind: overrides.kind ?? "channel",
     name: "general",
     slug: "general",
     topic: null,
     directKey: null,
-    discoverability: "public" as const,
+    discoverability: "public",
     createdByUserId: USER_ID,
-    createdAt: new Date("2025-01-01T00:00:00.000Z").toISOString(),
-    updatedAt: new Date("2025-01-01T00:00:00.000Z").toISOString(),
-    archivedAt: null,
+    createdAt: new Date("2025-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2025-01-01T00:00:00.000Z"),
     userMembers: [],
     coworkerMembers: [],
     unreadCount: 0,

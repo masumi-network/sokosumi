@@ -6,7 +6,10 @@ import {
   ComposerWysiwygEditor,
   type ComposerWysiwygEditorHandle,
 } from "@/components/chat/composer-wysiwyg-editor";
-import { ROOM_COMPOSER_MENTION_ANCHOR_ATTR } from "@/components/chat/room-message-composer";
+import {
+  ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
+  ROOM_COMPOSER_MENTION_ANCHOR_ATTR,
+} from "@/components/chat/room-message-composer";
 
 const getPopupPositionFromRect = vi.hoisted(() =>
   vi.fn(() => ({
@@ -86,12 +89,11 @@ describe("ComposerWysiwygEditor", () => {
     render(<Harness />);
     const editor = screen.getByRole("textbox");
     expect(editor).toHaveAttribute("data-placeholder", "Message #Everyone");
-    expect(editor.className).toMatch(
-      /empty:before:content-\[attr\(data-placeholder\)\]/,
-    );
-    expect(editor.className).toMatch(
-      /empty:before:truncate|empty:before:text-ellipsis/,
-    );
+    for (const className of ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME.split(
+      " ",
+    )) {
+      expect(editor.className).toContain(className);
+    }
   });
 
   it("applies top-side flip and dynamic maxHeight to the mention listbox", () => {
