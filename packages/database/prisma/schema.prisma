@@ -1920,8 +1920,11 @@ model TaskX402Payment {
   updatedAt DateTime @updatedAt
 
   /// Coworker-supplied; the node has no idempotency of its own (ticket 011),
-  /// so [taskId, idempotencyKey] is the sole dedupe.
-  idempotencyKey String
+  /// so [taskId, idempotencyKey] is the sole dedupe. Bounded at the DB level
+  /// (the route Zod also caps it at 200): it sits inside the composite btree
+  /// unique, and an unbounded value could exceed the 2704-byte index-row
+  /// limit — a length error the DB rejects cleanly beats an opaque overflow.
+  idempotencyKey String                @db.VarChar(200)
   status         TaskX402PaymentStatus @default(PENDING)
 
   // What was requested / signed

@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS "task_x402_payment" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "idempotencyKey" TEXT NOT NULL,
+    "idempotencyKey" VARCHAR(200) NOT NULL,
     "status" "TaskX402PaymentStatus" NOT NULL DEFAULT 'PENDING',
     "caip2Network" TEXT NOT NULL,
     "asset" TEXT NOT NULL,
