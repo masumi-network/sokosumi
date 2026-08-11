@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { getPrivateCachedChatListChrome } from "@/app/components/private-sidebar-cache";
 import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import { Sheet } from "@/components/ui/sheet";
@@ -7,17 +8,7 @@ import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-import {
-  type ChatRoomsPage,
-  chatRoomService,
-  userService,
-} from "@/lib/services";
 import { cn } from "@/lib/utils";
-
-const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
-  rooms: [],
-  nextCursor: null,
-};
 
 /**
  * Mobile Chats tab: Personal Assistant (beta-gated) above Channels + DMs
@@ -26,31 +17,23 @@ const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
  *
  * Instant Nav uses `chats/loading.tsx` while this page streams after
  * `connection()`.
+ *
+ * Membership-visible rooms come from the same private-cache slice as the app
+ * sidebar (`getPrivateCachedChatListChrome`) so cold load does not double-hit
+ * Core (SOK-779). Cache key must match sidebar: session user id + active org.
  */
 export default async function ChatChatsPage() {
   await connection();
 
-  const [activeOrganization, session] = await Promise.all([
-    userService.getActiveOrganization(),
-    getSession(),
-  ]);
+  const session = await getSession();
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const currentUserId = session?.user.id ?? "";
 
-  const activeOrganizationId = activeOrganization?.id ?? null;
-  const chatRoomsPromise = chatRoomService
-    .listRooms()
-    .catch(() => EMPTY_ROOMS_PAGE);
-  const archivedChatRoomsPromise = activeOrganizationId
-    ? chatRoomService.listArchivedRooms().catch(() => EMPTY_ROOMS_PAGE)
-    : Promise.resolve(EMPTY_ROOMS_PAGE);
-  const membersPromise = userService
-    .getMyMembersWithOrganizations()
-    .catch(() => []);
-
-  const [chatRoomsPage, archivedChatRoomsPage, members] = await Promise.all([
-    chatRoomsPromise,
-    archivedChatRoomsPromise,
-    membersPromise,
-  ]);
+  const { chatRoomsPage, archivedChatRoomsPage, members } =
+    await getPrivateCachedChatListChrome({
+      userId: currentUserId,
+      activeOrganizationId,
+    });
 
   const canDeleteArchivedRooms = Boolean(
     activeOrganizationId &&
@@ -79,7 +62,7 @@ export default async function ChatChatsPage() {
           roomsNextCursor={chatRoomsPage.nextCursor}
           archivedRooms={archivedChatRoomsPage.rooms}
           archivedRoomsNextCursor={archivedChatRoomsPage.nextCursor}
-          currentUserId={session?.user.id ?? ""}
+          currentUserId={currentUserId}
           organizationId={activeOrganizationId}
           canDeleteArchivedRooms={canDeleteArchivedRooms}
           dismissSheetOnNavigate={false}
