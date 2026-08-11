@@ -2,7 +2,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import {
-  PROJECTS_LOADING_DEFAULT_LABELS,
   ProjectsLoadingView,
   ProjectsPageSkeleton,
 } from "@/app/projects/components/projects-loading-view";
@@ -12,34 +11,35 @@ import {
 } from "@/app/projects/constants";
 
 describe("ProjectsPageSkeleton", () => {
-  it("renders Instant page shell without requiring labels props", () => {
+  it("renders Instant page shell without labels or copy", () => {
     const { container } = render(<ProjectsPageSkeleton />);
 
     expect(container.firstElementChild?.className).toContain("w-full");
     expect(container.firstElementChild?.className).toContain("px-2");
     expect(screen.getByTestId("projects-loading")).toBeTruthy();
     expect(screen.getByTestId("projects-loading-list")).toBeTruthy();
+    expect(container.textContent?.trim()).toBe("");
   });
 
-  it("uses default New project label on the desktop create control", () => {
+  it("uses a non-textual skeleton for the desktop create control", () => {
     render(<ProjectsPageSkeleton />);
 
-    expect(
-      screen.getByRole("button", {
-        name: PROJECTS_LOADING_DEFAULT_LABELS.newProject,
-      }),
-    ).toBeDisabled();
+    const createSlot = screen.getByTestId("projects-loading-create");
+    expect(createSlot.className).toContain("hidden");
+    expect(createSlot.className).toContain("md:flex");
+    expect(createSlot.querySelector('[data-slot="skeleton"]')).toBeTruthy();
+    // No accessible button with English (or any) create label.
+    expect(createSlot.querySelector("button")).toBeNull();
   });
 });
 
 describe("ProjectsLoadingView", () => {
   it("hides header create below md and pads for the mobile FAB", () => {
-    const { container } = render(
-      <ProjectsLoadingView labels={PROJECTS_LOADING_DEFAULT_LABELS} />,
-    );
+    const { container } = render(<ProjectsLoadingView />);
 
-    const headerRow = container.querySelector(".hidden.justify-end.md\\:flex");
-    expect(headerRow).toBeTruthy();
+    const headerRow = screen.getByTestId("projects-loading-create");
+    expect(headerRow.className).toContain("hidden");
+    expect(headerRow.className).toContain("md:flex");
     expect(container.firstElementChild?.className).toContain(
       "pb-[calc(3.5rem+1rem)]",
     );
@@ -47,9 +47,7 @@ describe("ProjectsLoadingView", () => {
   });
 
   it("reserves list chrome and stable row size to limit Instant swap CLS", () => {
-    const { container } = render(
-      <ProjectsLoadingView labels={PROJECTS_LOADING_DEFAULT_LABELS} />,
-    );
+    const { container } = render(<ProjectsLoadingView />);
 
     const list = screen.getByTestId("projects-loading-list");
     expect(list.className).toContain("divide-y");

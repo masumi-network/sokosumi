@@ -1,50 +1,36 @@
-import { Plus } from "lucide-react";
-
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
 } from "@/app/projects/constants";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-
-interface ProjectsLoadingViewLabels {
-  newProject: string;
-}
-
-interface ProjectsLoadingViewProps {
-  labels: ProjectsLoadingViewLabels;
-}
-
-/** Sync shell labels for Instant Navigations / `loading.tsx` (no cookies/i18n). */
-export const PROJECTS_LOADING_DEFAULT_LABELS: ProjectsLoadingViewLabels = {
-  newProject: "New project",
-};
 
 /**
  * Sync Instant Nav shell for `/projects`.
  * Mirrors `ProjectsView` chrome so the Instant swap stays stable.
+ * No user-facing copy (locale flash) — desktop create is a non-textual skeleton.
  */
 export function ProjectsPageSkeleton() {
   return (
     <div className="w-full px-2">
-      <ProjectsLoadingView labels={PROJECTS_LOADING_DEFAULT_LABELS} />
+      <ProjectsLoadingView />
     </div>
   );
 }
 
-export function ProjectsLoadingView({ labels }: ProjectsLoadingViewProps) {
+export function ProjectsLoadingView() {
   return (
     <div
       data-testid="projects-loading"
       className={cn("flex flex-col gap-5", LIST_MOBILE_CREATE_FAB_CLEARANCE)}
     >
-      <div className="hidden justify-end md:flex">
-        <Button size="sm" className="self-start gap-1.5" disabled>
-          <Plus className="size-4" aria-hidden />
-          {labels.newProject}
-        </Button>
+      <div
+        data-testid="projects-loading-create"
+        className="hidden justify-end md:flex"
+      >
+        {/* Matches sm Button footprint without English (or other locale) text. */}
+        <Skeleton className="h-8 w-[7.25rem] rounded-md" />
       </div>
 
       {/* min-h matches empty/list cards so Instant / empty swap does not thrash CLS. */}
