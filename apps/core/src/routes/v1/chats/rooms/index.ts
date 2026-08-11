@@ -7,6 +7,9 @@ import mountGetChatRoom from "./[id]/get.js";
 import mountDeleteChatRoomInvitation from "./[id]/invitations/[invitationId]/delete.js";
 import mountGetChatRoomInvitations from "./[id]/invitations/get.js";
 import mountPostChatRoomInvitation from "./[id]/invitations/post.js";
+import mountDeleteChatRoomGuestInviteLink from "./[id]/invite-links/[token]/delete.js";
+import mountGetChatRoomGuestInviteLinks from "./[id]/invite-links/get.js";
+import mountPostChatRoomGuestInviteLink from "./[id]/invite-links/post.js";
 import mountDeleteChatRoomMember from "./[id]/members/[userId]/delete.js";
 import mountDeleteChatRoomSelfMembership from "./[id]/members/me/delete.js";
 import mountPostChatRoomSelfMembership from "./[id]/members/me/post.js";
@@ -50,6 +53,10 @@ mountDeleteChatRoom(app);
 mountPostChatRoomInvitation(app);
 mountGetChatRoomInvitations(app);
 mountDeleteChatRoomInvitation(app);
+// Shareable guest invite links under `/{id}/invite-links` (host create/list/revoke).
+mountPostChatRoomGuestInviteLink(app);
+mountGetChatRoomGuestInviteLinks(app);
+mountDeleteChatRoomGuestInviteLink(app);
 // Static `members/me` before `members/{userId}`.
 mountPostChatRoomSelfMembership(app);
 mountDeleteChatRoomSelfMembership(app);

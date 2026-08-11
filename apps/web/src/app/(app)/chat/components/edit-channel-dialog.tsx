@@ -341,17 +341,19 @@ export function EditChannelDialog({
           </form>
           {/* Mount only while open so pending invites load on remount, not via open-synced Effect. */}
           {showGuestInvite && open ? (
-            <GuestInviteSection
-              key={channel.id}
-              roomId={channel.id}
-              guests={guestMembers}
-              onGuestRemoved={(userId) => {
-                setGuestMembers((prev) =>
-                  prev.filter((member) => member.id !== userId),
-                );
-                router.refresh();
-              }}
-            />
+            <div className="min-w-0">
+              <GuestInviteSection
+                key={channel.id}
+                roomId={channel.id}
+                guests={guestMembers}
+                onGuestRemoved={(userId) => {
+                  setGuestMembers((prev) =>
+                    prev.filter((member) => member.id !== userId),
+                  );
+                  router.refresh();
+                }}
+              />
+            </div>
           ) : null}
           {canArchive || canLeave ? (
             <div className="space-y-3 border-t pt-4">

@@ -5148,7 +5148,7 @@
       },
       "GuestInvite": {
         "title": "Invitar invitados",
-        "description": "Invita por correo a personas fuera de la organización. Los invitados solo se unen a este canal y no se convierten en miembros de la organización.",
+        "description": "Los invitados solo se unen a este canal y no se convierten en miembros de la organización.",
         "emailLabel": "Correo",
         "emailPlaceholder": "invitado@example.com",
         "send": "Enviar invitación",
@@ -5166,7 +5166,34 @@
         "retry": "Reintentar",
         "revoke": "Revocar invitación",
         "revokeAria": "Revocar invitación de {email}",
-        "revokeSuccess": "Invitación revocada."
+        "revokeSuccess": "Invitación revocada.",
+        "linksTitle": "Enlace compartible",
+        "linksDescription": "Crea un enlace que cualquiera con sesión iniciada fuera de tu organización puede abrir para unirse como invitado. No hace falta el correo de antemano.",
+        "linksEmpty": "Aún no hay enlaces compartibles.",
+        "createLink": "Crear enlace",
+        "copyLink": "Copiar enlace",
+        "copyLinkAria": "Copiar enlace de invitación",
+        "linkCopySuccess": "Enlace copiado.",
+        "linkCopyError": "No se pudo copiar el enlace.",
+        "linkCreateSuccess": "Enlace de invitación creado.",
+        "linkCreateCopySuccess": "Enlace de invitación creado y copiado.",
+        "revokeLink": "Revocar enlace",
+        "revokeLinkAria": "Revocar enlace de invitación",
+        "linkRevokeSuccess": "Enlace de invitación revocado.",
+        "emailTitle": "Invitar por correo",
+        "emailDescription": "Envía una invitación personal a un correo conocido. Debe aceptar con esa cuenta.",
+        "linkExpiryLabel": "Caducidad",
+        "linkExpiryDays": "{days, plural, one {# día} other {# días}}",
+        "linkExpiryNever": "Sin caducidad",
+        "linkExpiryInvalid": "Elige una caducidad válida.",
+        "linkMaxUsesLabel": "Usos máximos",
+        "linkMaxUsesUnlimited": "Ilimitados",
+        "linkMaxUsesCount": "{count, plural, one {# uso} other {# usos}}",
+        "linkMaxUsesInvalid": "Elige un máximo de usos válido.",
+        "linkMetaExpires": "Caduca el {date}",
+        "linkMetaNoExpiry": "Sin caducidad",
+        "linkMetaUses": "{used} / {max} usos",
+        "linkMetaUsesUnlimited": "{used} usos · ilimitados"
       },
       "ChatInvite": {
         "title": "Invitación al canal",
@@ -5209,6 +5236,29 @@
             "content": "El enlace puede ser incorrecto, o la invitación ya se usó o se revocó.",
             "footer": "Volver al chat"
           }
+        }
+      },
+      "ChatJoin": {
+        "title": "Unirse al canal",
+        "invitedToJoin": "Te han invitado a unirte a #{room} ({organization}).",
+        "guestNote": "Unirte como invitado no te hace miembro de la organización anfitriona.",
+        "join": "Unirse a #{room}",
+        "joining": "Uniéndose…",
+        "joined": "Te uniste a #{room}.",
+        "alreadyGuest": "Ya estás en #{room}.",
+        "signedOutHint": "Inicia sesión o crea una cuenta para unirte a este canal como invitado.",
+        "signIn": "Iniciar sesión",
+        "register": "Crear cuenta",
+        "Error": {
+          "joinFailed": "No se pudo unir a este canal."
+        },
+        "Invalid": {
+          "title": "Enlace de invitación no disponible",
+          "expired": "Este enlace de invitación ha caducado.",
+          "revoked": "Este enlace de invitación ha sido revocado.",
+          "depleted": "Este enlace de invitación ha alcanzado su límite de usos.",
+          "notFound": "Este enlace de invitación no es válido.",
+          "back": "Volver al chat"
         }
       }
     }

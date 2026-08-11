@@ -97,6 +97,7 @@ model User {
   chatRoomThreadReadStates ChatRoomThreadReadState[]
   chatRoomGuestInvitationsInvited  ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationInviter")
   chatRoomGuestInvitationsAccepted ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationAcceptedBy")
+  chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[] @relation("ChatRoomGuestInviteLinkCreator")
   noticeAcknowledgments    NoticeAcknowledgment[]
 
   // Hermes (per-user private agent — single conversation)
@@ -1882,6 +1883,7 @@ model ChatRoom {
   messages          ChatRoomMessage[]
   readStates        ChatRoomReadState[]
   guestInvitations  ChatRoomGuestInvitation[]
+  guestInviteLinks  ChatRoomGuestInviteLink[]
 
   // Uniqueness for (organizationId, slug|directKey) and personal directKey is
   // enforced with partial unique indexes in the SQL migration — Prisma cannot
@@ -1949,6 +1951,35 @@ model ChatRoomGuestInvitation {
   @@index([inviterId, createdAt])
   @@index([status, expiresAt])
   @@map("chat_room_guest_invitation")
+}
+
+/// Shareable, email-agnostic invite link for external channel guests.
+/// Token is the capability embedded in `/chat/join/<token>`. Anyone signed in
+/// who is not a host-org member may claim → `access=guest` (no org Member).
+model ChatRoomGuestInviteLink {
+  id     String   @id @default(uuid(7)) @db.Uuid
+  /// High-entropy URL-safe capability token.
+  token  String   @unique
+  roomId String   @db.Uuid
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  createdByUserId String
+  createdBy       User   @relation("ChatRoomGuestInviteLinkCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+  /// Hard expiry; accept rejects past this instant. Null = no expiry.
+  expiresAt DateTime?
+  /// Set when a host-org room member revokes the link. Non-null = unusable.
+  revokedAt DateTime?
+  /// Optional cap on total successful joins. Null = unlimited (until expiry/revoke).
+  maxUses   Int?
+  /// Successful joins so far; compared against `maxUses` when set.
+  useCount  Int       @default(0)
+
+  @@index([roomId, createdAt])
+  @@index([roomId, revokedAt, expiresAt])
+  @@index([createdByUserId, createdAt])
+  @@map("chat_room_guest_invite_link")
 }
 
 model ChatRoomCoworkerMember {

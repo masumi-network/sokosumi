@@ -14,7 +14,8 @@ export type InviteLinkPresentStatus = Exclude<InviteLinkStatus, "not_found">;
 
 export interface InviteLinkStatusFields {
   revokedAt: Date | string | null;
-  expiresAt: Date | string;
+  /** Null/undefined = no hard expiry (never expires by time). */
+  expiresAt: Date | string | null;
   maxUses: number | null;
   useCount: number;
 }
@@ -26,7 +27,7 @@ function toTime(value: Date | string): number {
 /**
  * Classify an invite-link row's usability at `now` (defaults to current time).
  * Priority: revoked → expired → depleted → valid.
- * `not_found` only when `link` is null.
+ * `not_found` only when `link` is null. Null `expiresAt` never expires by time.
  */
 export function evaluateInviteLinkStatus(
   link: InviteLinkStatusFields,
@@ -43,7 +44,9 @@ export function evaluateInviteLinkStatus(
 ): InviteLinkStatus {
   if (!link) return "not_found";
   if (link.revokedAt) return "revoked";
-  if (toTime(link.expiresAt) <= now.getTime()) return "expired";
+  if (link.expiresAt != null && toTime(link.expiresAt) <= now.getTime()) {
+    return "expired";
+  }
   if (link.maxUses !== null && link.useCount >= link.maxUses) return "depleted";
   return "valid";
 }
