@@ -1,4 +1,5 @@
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -60,7 +61,11 @@ vi.mock("@/app/chat/components/rooms-client", () => ({
   RoomsClient: () => <div data-testid="rooms-client" />,
 }));
 
-import { ChatRoomPageContent } from "../page";
+import {
+  ChatRoomPageContent,
+  type ChatRoomShellProps,
+  ChatRoomWithMessages,
+} from "../page";
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const ORG_A = "org_a";
@@ -100,11 +105,23 @@ function room(
   };
 }
 
-function roomsClientProps(element: ReactElement) {
+/** Props on the shell wrapper that eventually renders RoomsClient. */
+function shellClientProps(element: ReactElement) {
   return element.props as {
-    membersLoadFailed?: boolean;
-    organizationMembers?: unknown[];
+    shell: ChatRoomShellProps;
+    messagesPending?: boolean;
+    messageLoadFailed?: boolean;
+    messages?: unknown[];
+    messagesNextCursor?: string | null;
   };
+}
+
+/** Progressive open wraps history behind Suspense with a messagesPending fallback. */
+function progressiveFallback(element: ReactElement): ReactElement {
+  expect(element.type).toBe(Suspense);
+  const fallback = (element.props as { fallback: ReactNode }).fallback;
+  expect(fallback).toBeTruthy();
+  return fallback as ReactElement;
 }
 
 describe("ChatRoomPage org deep-link guard", () => {
@@ -136,6 +153,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
 
     expect(redirectMock).toHaveBeenCalledWith("/chat?notice=room-unavailable");
+    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
   });
 
   it("redirects when active-org user opens a personal direct", async () => {
@@ -153,6 +171,7 @@ describe("ChatRoomPage org deep-link guard", () => {
     ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
 
     expect(redirectMock).toHaveBeenCalledWith("/chat?notice=room-unavailable");
+    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
   });
 
   it("redirects when room is missing", async () => {
@@ -166,9 +185,10 @@ describe("ChatRoomPage org deep-link guard", () => {
     await expect(
       ChatRoomPageContent({ params: Promise.resolve({ roomId: ROOM_ID }) }),
     ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
+    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
   });
 
-  it("renders when room matches the active org", async () => {
+  it("renders progressive shell when room matches the active org", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: ORG_A,
       name: "Org A",
@@ -182,10 +202,18 @@ describe("ChatRoomPage org deep-link guard", () => {
 
     expect(element).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
-    expect(roomsClientProps(element).membersLoadFailed).toBe(false);
+    // Shell paints without waiting for history.
+    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+
+    const fallback = progressiveFallback(element);
+    const props = shellClientProps(fallback);
+    expect(props.messagesPending).toBe(true);
+    expect(props.messageLoadFailed).toBe(false);
+    expect(props.shell.membersLoadFailed).toBe(false);
+    expect(props.shell.selectedRoomId).toBe(ROOM_ID);
   });
 
-  it("renders guest room when active org is not the host org", async () => {
+  it("renders progressive guest room when active org is not the host org", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: ORG_B,
       name: "Org B",
@@ -201,9 +229,13 @@ describe("ChatRoomPage org deep-link guard", () => {
 
     expect(element).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
+    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+    expect(shellClientProps(progressiveFallback(element)).messagesPending).toBe(
+      true,
+    );
   });
 
-  it("renders guest channel in personal workspace", async () => {
+  it("renders guest channel progressive shell in personal workspace", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     getRoomMock.mockResolvedValue(
       room({ organizationId: ORG_A, myAccess: "guest" }),
@@ -215,9 +247,13 @@ describe("ChatRoomPage org deep-link guard", () => {
 
     expect(element).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
+    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+    expect(shellClientProps(progressiveFallback(element)).messagesPending).toBe(
+      true,
+    );
   });
 
-  it("still renders when organization members fail to load", async () => {
+  it("still renders progressive shell when organization members fail to load", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: ORG_A,
       name: "Org A",
@@ -236,11 +272,15 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(element).toBeTruthy();
     expect(redirectMock).not.toHaveBeenCalled();
     expect(loadOrganizationMembersMock).toHaveBeenCalledWith(ORG_A);
-    expect(roomsClientProps(element).membersLoadFailed).toBe(true);
-    expect(roomsClientProps(element).organizationMembers).toEqual([]);
+    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+
+    const props = shellClientProps(progressiveFallback(element));
+    expect(props.shell.membersLoadFailed).toBe(true);
+    expect(props.shell.organizationMembers).toEqual([]);
+    expect(props.messagesPending).toBe(true);
   });
 
-  it("treats personal workspace as membersLoadFailed false", async () => {
+  it("treats personal workspace progressive shell as membersLoadFailed false", async () => {
     getActiveOrganizationMock.mockResolvedValue(null);
     getRoomMock.mockResolvedValue(
       room({ organizationId: null, kind: "direct" }),
@@ -252,7 +292,106 @@ describe("ChatRoomPage org deep-link guard", () => {
 
     expect(element).toBeTruthy();
     expect(loadOrganizationMembersMock).not.toHaveBeenCalled();
-    expect(roomsClientProps(element).membersLoadFailed).toBe(false);
-    expect(roomsClientProps(element).organizationMembers).toEqual([]);
+    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+
+    const props = shellClientProps(progressiveFallback(element));
+    expect(props.shell.membersLoadFailed).toBe(false);
+    expect(props.shell.organizationMembers).toEqual([]);
+    expect(props.messagesPending).toBe(true);
+  });
+});
+
+describe("ChatRoomWithMessages history island", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    loadRoomMessagesMock.mockResolvedValue({
+      messages: [{ id: "msg_1" }],
+      nextCursor: "cursor_older",
+      failed: false,
+    });
+  });
+
+  function baseShell(): ChatRoomShellProps {
+    return {
+      activeOrganization: {
+        id: ORG_A,
+        name: "Org A",
+        slug: "org-a",
+      } as ChatRoomShellProps["activeOrganization"],
+      rooms: [
+        room({
+          organizationId: ORG_A,
+        }) as unknown as ChatRoomShellProps["rooms"][0],
+      ],
+      organizationMembers: [],
+      currentUserId: USER_ID,
+      coworkers: [],
+      selectedRoomId: ROOM_ID,
+      membersLoadFailed: false,
+    };
+  }
+
+  it("loads message history and renders RoomsClient without pending flag", async () => {
+    const element = (await ChatRoomWithMessages({
+      shell: baseShell(),
+      roomId: ROOM_ID,
+    })) as ReactElement;
+
+    expect(loadRoomMessagesMock).toHaveBeenCalledWith(ROOM_ID);
+    const props = shellClientProps(element);
+    expect(props.messagesPending).toBeFalsy();
+    expect(props.messageLoadFailed).toBe(false);
+    expect(props.messages).toEqual([{ id: "msg_1" }]);
+    expect(props.messagesNextCursor).toBe("cursor_older");
+  });
+
+  it("surfaces message load failure on the history island", async () => {
+    loadRoomMessagesMock.mockResolvedValue({
+      messages: [],
+      nextCursor: null,
+      failed: true,
+    });
+
+    const element = (await ChatRoomWithMessages({
+      shell: baseShell(),
+      roomId: ROOM_ID,
+    })) as ReactElement;
+
+    const props = shellClientProps(element);
+    expect(props.messageLoadFailed).toBe(true);
+    expect(props.messagesPending).toBeFalsy();
+    expect(props.messages).toEqual([]);
+  });
+
+  it("connects progressive shell fallback to the same room as history island", async () => {
+    getSessionMock.mockResolvedValue({ user: { id: USER_ID } });
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_A,
+      name: "Org A",
+      slug: "org-a",
+    });
+    getRoomMock.mockResolvedValue(room({ organizationId: ORG_A }));
+    loadOrganizationMembersMock.mockResolvedValue({
+      members: [],
+      failed: false,
+    });
+    listCoworkersMock.mockResolvedValue([]);
+
+    const shellTree = (await ChatRoomPageContent({
+      params: Promise.resolve({ roomId: ROOM_ID }),
+    })) as ReactElement;
+    const fallback = progressiveFallback(shellTree);
+    const fallbackProps = shellClientProps(fallback);
+
+    const withMessages = (await ChatRoomWithMessages({
+      shell: fallbackProps.shell,
+      roomId: ROOM_ID,
+    })) as ReactElement;
+    const historyProps = shellClientProps(withMessages);
+
+    expect(fallbackProps.shell.selectedRoomId).toBe(ROOM_ID);
+    expect(historyProps.shell.selectedRoomId).toBe(ROOM_ID);
+    expect(fallbackProps.messagesPending).toBe(true);
+    expect(historyProps.messagesPending).toBeFalsy();
   });
 });
