@@ -9,8 +9,11 @@ import { toast } from "sonner";
 import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface StartChatButtonProps {
+  /** Mobile passes `w-full` so the CTA spans the column. */
+  className?: string;
   coworkerId: string;
   coworkerName: string;
 }
@@ -22,6 +25,7 @@ interface StartChatButtonProps {
  * server action and there is no URL that addresses a specific coworker's DM.
  */
 export function StartChatButton({
+  className,
   coworkerId,
   coworkerName,
 }: StartChatButtonProps) {
@@ -57,7 +61,7 @@ export function StartChatButton({
       type="button"
       variant="primary"
       size="lg"
-      className="h-12 px-8 text-base"
+      className={cn("h-12 px-8 text-base", className)}
       disabled={isBusy}
       onClick={handleClick}
     >

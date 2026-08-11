@@ -1,22 +1,18 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 
-import {
-  findDefaultCoworker,
-  getCoworkerImageUrl,
-} from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { SokosumiIcon } from "@/components/masumi-logos";
-import { canUseNextImageSrc } from "@/config/next-image";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
-import { CoworkerStrip, type StripCoworker } from "./coworker-strip.client";
+import { CoworkerStrip } from "./coworker-strip.client";
+import {
+  buildActivityStats,
+  hasReportableActivity,
+  resolveFeaturedCoworker,
+  selectStripCoworkers,
+  toStripCoworker,
+} from "./landing-content";
 import { StartChatButton } from "./start-chat-button.client";
-
-/**
- * Elena fronts the product: she is the coworker who takes a goal and turns it
- * into work, which is the idea this screen exists to land.
- */
-const FEATURED_COWORKER_SLUG = "elena";
 
 /**
  * Enough to read as a team without the row wrapping on a laptop. Kept even so
@@ -33,31 +29,6 @@ interface ChatLandingProps {
   userName: null | string;
 }
 
-function resolveFeaturedCoworker(coworkers: Coworker[]): Coworker | null {
-  const featured = coworkers.find(
-    (coworker) => coworker.slug?.toLowerCase() === FEATURED_COWORKER_SLUG,
-  );
-
-  // Elena is not guaranteed: `scope=available` is whitelist ∪ granted access,
-  // and chat additionally needs a runnable endpoint. Lead with whoever is there.
-  return featured ?? findDefaultCoworker(coworkers);
-}
-
-function toStripCoworker(coworker: Coworker): StripCoworker {
-  // Keyed by SLUG on purpose: the static fallback map is slug-keyed, so
-  // passing the id (as most call sites do) silently yields null.
-  const imageUrl = getCoworkerImageUrl(coworker.slug ?? "", coworker.avatar);
-
-  return {
-    id: coworker.id,
-    // Vendors host avatars wherever they like; an unconfigured hostname makes
-    // next/image throw and takes the whole page down, so fall back to initials.
-    imageUrl: imageUrl && canUseNextImageSrc(imageUrl) ? imageUrl : null,
-    name: coworker.name,
-    title: coworker.caption ?? null,
-  };
-}
-
 export async function ChatLanding({
   coworkers,
   isOrganizationWorkspace,
@@ -69,45 +40,9 @@ export async function ChatLanding({
     getFormatter(),
   ]);
   const featured = resolveFeaturedCoworker(coworkers);
-
-  const otherCoworkers = featured
-    ? coworkers.filter((coworker) => coworker.id !== featured.id)
-    : [];
-  // Drop the odd one out rather than seat it on one side, which would shove the
-  // featured face off centre.
-  const stripCount = Math.min(
-    MAX_STRIP_COWORKERS,
-    otherCoworkers.length - (otherCoworkers.length % 2),
-  );
-  const others = otherCoworkers.slice(0, stripCount).map(toStripCoworker);
-
-  const stats = summary
-    ? [
-        ...(summary.completed > 0
-          ? [t("stats.completed", { count: summary.completed })]
-          : []),
-        ...(summary.workedMinutes > 0
-          ? [t("stats.worked", { minutes: summary.workedMinutes })]
-          : []),
-        ...(summary.awaitingInput > 0
-          ? [t("stats.awaiting", { count: summary.awaitingInput })]
-          : []),
-        // Always in an organization, even at zero: "what my teammates added" is
-        // a question the row should answer rather than silently omit.
-        ...(isOrganizationWorkspace
-          ? [t("stats.byTeammates", { count: summary.createdByOtherHumans })]
-          : []),
-      ]
-    : [];
-
-  // A brand-new account has nothing to report, and a lone "0 tasks from your
-  // team" chip is worse than no row at all.
-  const hasAnyActivity =
-    summary !== null &&
-    (summary.completed > 0 ||
-      summary.workedMinutes > 0 ||
-      summary.awaitingInput > 0 ||
-      summary.createdByOtherHumans > 0);
+  const others = selectStripCoworkers(coworkers, featured, MAX_STRIP_COWORKERS);
+  const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
+  const hasAnyActivity = hasReportableActivity(summary);
 
   return (
     // Three zones: the mark keeps the page's top edge aligned with every other

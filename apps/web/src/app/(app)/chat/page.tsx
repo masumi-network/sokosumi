@@ -9,6 +9,7 @@ import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 import { ChatLanding } from "./components/landing/chat-landing";
+import { MarkVisit } from "./components/landing/mark-visit.client";
 import { RoomsClient } from "./components/rooms-client";
 import { loadOrganizationMembers } from "./load-organization-members";
 import { firstSearchValue } from "./load-room-messages";
@@ -162,9 +163,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     summary !== null &&
     (summary.lastVisitAt === null ||
       Date.now() - summary.lastVisitAt.getTime() >= LAST_SEEN_REFRESH_MS);
-  if (shouldAdvanceLastSeen) {
-    await userService.markLastSeenForMe();
-  }
 
   return (
     <>
@@ -177,6 +175,9 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           userName={session?.user.name ?? null}
         />
       </div>
+      {/* Desktop only: a mobile request here renders the landing markup but
+          redirects away without ever showing it. */}
+      <MarkVisit on="desktop" shouldAdvance={shouldAdvanceLastSeen} />
       <MobileChatHomeRedirect />
     </>
   );

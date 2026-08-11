@@ -27,7 +27,30 @@ interface CoworkerStripProps {
   featured: StripCoworker;
   /** Rendered around the featured coworker, split evenly left and right. */
   others: StripCoworker[];
+  /** `compact` fits the row inside a 390px viewport. */
+  size?: "compact" | "default";
 }
+
+const STRIP_SIZES = {
+  compact: {
+    featured: "size-20",
+    other: "size-11",
+    gap: "gap-3",
+    featuredSizes: "80px",
+    otherSizes: "44px",
+    featuredInitial: "text-xl",
+    otherInitial: "text-xs",
+  },
+  default: {
+    featured: "size-28",
+    other: "size-16",
+    gap: "gap-5 sm:gap-8",
+    featuredSizes: "112px",
+    otherSizes: "64px",
+    featuredInitial: "text-2xl",
+    otherInitial: "text-sm",
+  },
+} as const;
 
 /**
  * The featured coworker flanked by the rest of the team.
@@ -36,11 +59,16 @@ interface CoworkerStripProps {
  * picker — the point being that Elena is a starting suggestion, not the only
  * coworker available.
  */
-export function CoworkerStrip({ featured, others }: CoworkerStripProps) {
+export function CoworkerStrip({
+  featured,
+  others,
+  size = "default",
+}: CoworkerStripProps) {
   const t = useTranslations("App.Chat.Landing");
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [openingId, setOpeningId] = useState<null | string>(null);
+  const scale = STRIP_SIZES[size];
 
   // Callers pass an even list, so the flanks match and the featured face lands
   // on the optical centre.
@@ -73,10 +101,13 @@ export function CoworkerStrip({ featured, others }: CoworkerStripProps) {
             type="button"
             aria-label={t("cta.button", { name: coworker.name })}
             className={cn(
-              "focus-visible:ring-ring bg-muted relative shrink-0 cursor-pointer overflow-hidden rounded-full transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+              // Ring on every face, not just the featured one: several
+              // coworker portraits are dark-on-dark and vanish into the page
+              // in dark mode without an edge to hold them.
+              "focus-visible:ring-ring ring-border bg-muted relative shrink-0 cursor-pointer overflow-hidden rounded-full ring-1 transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
               isFeatured
-                ? "ring-border size-28 ring-1"
-                : "size-16 opacity-70 hover:opacity-100",
+                ? scale.featured
+                : cn("opacity-70 hover:opacity-100", scale.other),
               openingId === coworker.id && "opacity-50",
             )}
             disabled={isPending}
@@ -88,14 +119,14 @@ export function CoworkerStrip({ featured, others }: CoworkerStripProps) {
                 className="object-cover object-top"
                 fill
                 priority={isFeatured}
-                sizes={isFeatured ? "112px" : "64px"}
+                sizes={isFeatured ? scale.featuredSizes : scale.otherSizes}
                 src={coworker.imageUrl}
               />
             ) : (
               <span
                 className={cn(
                   "text-muted-foreground flex size-full items-center justify-center font-medium",
-                  isFeatured ? "text-2xl" : "text-sm",
+                  isFeatured ? scale.featuredInitial : scale.otherInitial,
                 )}
               >
                 {coworker.name.charAt(0).toUpperCase()}
@@ -116,7 +147,7 @@ export function CoworkerStrip({ featured, others }: CoworkerStripProps) {
   }
 
   return (
-    <div className="flex w-full items-center justify-center gap-5 sm:gap-8">
+    <div className={cn("flex w-full items-center justify-center", scale.gap)}>
       {left.map((coworker) => renderCoworker(coworker, false))}
       {renderCoworker(featured, true)}
       {right.map((coworker) => renderCoworker(coworker, false))}
