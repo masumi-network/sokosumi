@@ -8,11 +8,27 @@ import { loadRoomMessages } from "@/app/chat/load-room-messages";
 import DefaultLoading from "@/components/default-loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
+import type {
+  ChatRoom,
+  Coworker,
+  Member,
+  Organization,
+} from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 
 interface ChatRoomPageProps {
   params: Promise<{ roomId: string }>;
+}
+
+interface ChatRoomShellProps {
+  activeOrganization: Organization | null;
+  rooms: ChatRoom[];
+  organizationMembers: Member[];
+  currentUserId: string;
+  coworkers: Coworker[];
+  selectedRoomId: string;
+  membersLoadFailed: boolean;
 }
 
 function NoOrganizationCard({
@@ -43,18 +59,44 @@ function ChatRoomPageFallback() {
 }
 
 /**
- * Open one room. Avoid `listRooms()` here — sidebar already owns the list, and
- * full pagination blocked first paint after `/chat` → `/chat/rooms/{id}`.
+ * Real header + composer as soon as the room is known; history via promise
+ * so the message list can skeleton without blocking chrome (SOK-778).
+ * Instant stays a full-page spinner — no fake Instant composer skeleton.
+ */
+function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
+  const messagesPromise = loadRoomMessages(roomId);
+
+  return (
+    <RoomsClient
+      activeOrganization={shell.activeOrganization}
+      rooms={shell.rooms}
+      organizationMembers={shell.organizationMembers}
+      currentUserId={shell.currentUserId}
+      coworkers={shell.coworkers}
+      selectedRoomId={shell.selectedRoomId}
+      isCreateChannelRequested={false}
+      isNewDirectMessage={false}
+      messageLoadFailed={false}
+      membersLoadFailed={shell.membersLoadFailed}
+      messages={[]}
+      messagesNextCursor={null}
+      messagesPromise={messagesPromise}
+    />
+  );
+}
+
+/**
+ * Open one room. Avoid `listRooms()` here — sidebar already owns the list.
  *
- * Room chrome is highly dynamic (header, composer prefs, history). Instant
- * skeletons cannot match it without layout jump — use a full-page spinner
- * until room + first message page are ready.
+ * Progressive paint (SOK-778):
+ * - Instant / outer Suspense: full-page spinner (room chrome is too dynamic
+ *   to Instant-skeleton without jump).
+ * - After room meta: real header + real composer + message-list skeleton.
+ * - After history: real messages into the same RoomsClient.
  *
- * Non-member / missing room → soft land on `/chat` (cutover design), not 404.
+ * Non-member / missing room → soft land on `/chat`, not 404.
  */
 export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
-  // Defer before any cookies()/headers()-bound work so PPR shell probing does
-  // not soft-reject dynamic APIs while filling this Suspense hole.
   await connection();
 
   const [{ roomId }, t, activeOrganization, session] = await Promise.all([
@@ -66,13 +108,10 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
 
   const currentUserId = session?.user.id ?? "";
 
-  // Personal workspace: coworker 1:1 directs may have null organizationId.
-  // Guest external channels also open here (host org id set, myAccess=guest).
   if (!activeOrganization) {
-    const [selectedRoom, coworkers, messagePage] = await Promise.all([
+    const [selectedRoom, coworkers] = await Promise.all([
       chatRoomService.getRoom(roomId),
       coworkerService.listCoworkers("chat"),
-      loadRoomMessages(roomId),
     ]);
 
     if (!selectedRoom) {
@@ -92,60 +131,47 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
       );
     }
 
-    return (
-      <RoomsClient
-        activeOrganization={null}
-        rooms={[selectedRoom]}
-        organizationMembers={[]}
-        currentUserId={currentUserId}
-        coworkers={coworkers}
-        selectedRoomId={selectedRoom.id}
-        isCreateChannelRequested={false}
-        isNewDirectMessage={false}
-        messageLoadFailed={messagePage.failed}
-        membersLoadFailed={false}
-        messages={messagePage.messages}
-        messagesNextCursor={messagePage.nextCursor}
-      />
+    return progressiveRoomOpen(
+      {
+        activeOrganization: null,
+        rooms: [selectedRoom],
+        organizationMembers: [],
+        currentUserId,
+        coworkers,
+        selectedRoomId: selectedRoom.id,
+        membersLoadFailed: false,
+      },
+      selectedRoom.id,
     );
   }
 
-  const [selectedRoom, membersPage, coworkers, messagePage] = await Promise.all(
-    [
-      chatRoomService.getRoom(roomId),
-      loadOrganizationMembers(activeOrganization.id),
-      coworkerService.listCoworkers("chat"),
-      loadRoomMessages(roomId),
-    ],
-  );
+  const [selectedRoom, membersPage, coworkers] = await Promise.all([
+    chatRoomService.getRoom(roomId),
+    loadOrganizationMembers(activeOrganization.id),
+    coworkerService.listCoworkers("chat"),
+  ]);
 
   if (!selectedRoom) {
     redirect("/chat?notice=room-unavailable");
   }
 
-  // Active org: host-org rooms, or guest access to another org's external
-  // channel (spec: guests never switch into the host org).
   const isHostOrgRoom = selectedRoom.organizationId === activeOrganization.id;
   const isGuestRoom = selectedRoom.myAccess === "guest";
   if (!isHostOrgRoom && !isGuestRoom) {
     redirect("/chat?notice=room-unavailable");
   }
 
-  return (
-    <RoomsClient
-      activeOrganization={activeOrganization}
-      rooms={[selectedRoom]}
-      organizationMembers={membersPage.members}
-      currentUserId={currentUserId}
-      coworkers={coworkers}
-      selectedRoomId={selectedRoom.id}
-      isCreateChannelRequested={false}
-      isNewDirectMessage={false}
-      messageLoadFailed={messagePage.failed}
-      membersLoadFailed={membersPage.failed}
-      messages={messagePage.messages}
-      messagesNextCursor={messagePage.nextCursor}
-    />
+  return progressiveRoomOpen(
+    {
+      activeOrganization,
+      rooms: [selectedRoom],
+      organizationMembers: membersPage.members,
+      currentUserId,
+      coworkers,
+      selectedRoomId: selectedRoom.id,
+      membersLoadFailed: membersPage.failed,
+    },
+    selectedRoom.id,
   );
 }
 
