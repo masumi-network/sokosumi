@@ -4,17 +4,7 @@ import {
   CHAT_MOBILE_CREATE_FAB_SCRIM_BOTTOM,
   CHAT_MOBILE_CREATE_FAB_SCRIM_BOTTOM_APPLE,
   chatMobileCreateFabScrimBottom,
-  mobileCreateFabActions,
 } from "../chat-mobile-create-fab-actions";
-
-describe("mobileCreateFabActions", () => {
-  it("returns chats actions with channel and dm only", () => {
-    expect(mobileCreateFabActions("chats")).toEqual([
-      { id: "createChannel", href: "/chat?create=channel" },
-      { id: "newDm", href: "/chat?dm=new" },
-    ]);
-  });
-});
 
 describe("chatMobileCreateFabScrimBottom", () => {
   it("uses docked and Apple scrim bottoms above the tab bar", () => {
