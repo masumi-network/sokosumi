@@ -663,3 +663,102 @@ special-cased.
 passed (115 of them x402); `pnpm --filter core test` 357 files / 3275
 passed (2 files / 6 skipped); `pnpm typecheck` all workspaces;
 `pnpm check` clean.
+## Sub-component 4 — readiness wiring + listing endpoint (`x402-4-listing`) — 2026-08-11
+
+**Branch:** `x402-4-listing`, cut from `x402-3-helpers` (clean tree). Three
+feature commits (refactor split, sync wiring, listing route) plus this log
+entry.
+
+### Readiness wiring
+
+`syncX402BuySideReadiness` now runs in `/sync/agents`
+(`apps/core/src/routes/sync/agents/get.ts`), after the Cardano readiness
+refresh and before the registry replay, with the identical
+`AbortSignal.any([cron signal, AbortSignal.timeout(10_000)])` treatment.
+Imported from `@/services/agent-sync.x402-readiness` directly — NOT through
+`agentSyncService` (the service file is over the ceiling; nothing was added
+to it beyond a one-line import split from the refactor). Decision: an x402
+readiness change does **not** reset the registry cursor — the listing reads
+`getX402ReadySources` at request time, nothing readiness-dependent is baked
+into agent rows (Cardano readiness differs: it feeds the projected
+availability filters). `routes/sync/index.test.ts` mock extended; new tests
+pin the sequencing, the abort signal, and the no-reset decision.
+
+### `agent.ts` split (750 ceiling)
+
+The metadata-override getter block moved to
+`apps/core/src/helpers/agent-metadata.ts`: `getAgentImage/Icon/Name/
+Description/AuthorImage/ApiBaseUrl`, `toMasumiAgent`, `toMasumiAgentForJob`,
+`getJobDetailsAgentOverrideFields`. `agent.ts` lands at 622 lines. Imports
+repointed repo-wide (16 sites incl. `schemas/agent.schema.ts`, which breaks
+the old schemas↔helpers/agent import cycle); test mocks for
+`@/helpers/agent` in the agents route suites were split so getter mocks now
+target `@/helpers/agent-metadata`. Tests moved to `agent-metadata.test.ts`
+plus new direct getter coverage.
+
+### Listing endpoint — `GET /v1/agents/x402`
+
+- **Route:** `apps/core/src/routes/v1/agents/x402/get.ts`, mounted on the
+  authed agents sub-router **before** `mountGetAgentById` so the static
+  `/x402` segment can never be captured by `/{id}`.
+- **Authz:** `isCoworkerAgentContext` or `403 forbidden("Coworker agent
+  authentication required")` — users, orchestrators, and context-carrying
+  (delegated) coworkers all rejected; same gate the pay endpoint must use.
+- **Schemas:** `apps/core/src/schemas/x402-agent.schema.ts` —
+  `x402AgentPaymentSourceSchema` (`X402AgentPaymentSource`),
+  `x402AgentSchema` (`X402Agent`, OpenAPI component names `X402Agent` /
+  `X402AgentPaymentSource`), `x402AgentsSchema` (array).
+- **Fail-closed composition:** empty `getX402ReadySources` (incl.
+  never-recorded) returns `[]` before any catalog read; SQL filters
+  `type: X402, status: ONLINE, isShown: true` (curation whitelist identical
+  to the catalog — preprod "lists all" via `SHOW_AGENTS_BY_DEFAULT`, not a
+  gate bypass); per agent `buildX402AgentPaymentSources`
+  (`apps/core/src/helpers/x402-agent-listing.ts`) requires EVERY advertised
+  source to pass every gate — FIXED pricing with ≥1 amount row, `payTo`
+  present, decimals recorded, `isX402NetworkAllowed`, `isX402SourceReady`,
+  positive CAIP-19 CreditCost row via `calculateCentsFromX402Amount` — one
+  failure hides the agent (`null`), because the agent picks which source its
+  402 demands. Response per source: `caip2Network` (lowercased), `asset`
+  (lowercased), `decimals`, `payTo`, `amount` (base-unit string), `credits`
+  (`convertCentsToCredits`, charge-floored).
+
+### Verification
+
+- `pnpm --filter core test` — 359 files passed (3288 tests), incl. new
+  `x402-agent-listing.test.ts` (13), `x402/get.test.ts` (9),
+  `agent-metadata.test.ts` (13), extended sync suite (35).
+- `pnpm --filter @sokosumi/masumi test` — 14 files, 251 passed.
+- `pnpm typecheck` all workspaces; `pnpm format` + `pnpm check` clean.
+- Mutation-tested (disable → watch fail → restore → green): readiness-pair
+  gate, network allowlist, unpriced-asset drop (catch→continue), readiness
+  fail-closed early return, authz gate, `isShown` curation filter. Each
+  killed by a dedicated test.
+- File sizes: `agent.ts` 622, `agent-metadata.ts` 152, route 111, helper
+  110, schema 68 — all under 750.
+
+### What sub-component 5 (pay endpoint) needs to know
+
+- **Reuse, don't re-derive:** the listing's per-source predicate in
+  `buildX402AgentPaymentSources` is exactly the §3 pre-charge verification
+  set. For a forwarded 402, verify the demanded (payTo, network, asset)
+  against the agent's `AgentPaymentSource` rows, then
+  `isX402NetworkAllowed(network, getEnv().NETWORK)` +
+  `findX402ReadySource(network, asset, readySources)` — the returned pair
+  carries the `evmWalletId` to pass to `POST /x402/pay` — then
+  `calculateCentsFromX402Amount` for the charge (it already throws 422
+  fail-closed on unpriced/malformed).
+- **Authz pattern to copy:** `requireTaskCollaboration` +
+  `isCoworkerAgentContext` (see the `masumiPayment` gate in
+  `routes/v1/tasks/[id]/events/post.ts`); the listing's bare
+  `isCoworkerAgentContext` check is the taskless subset.
+- **Route mounting:** task-nested pay route goes under
+  `routes/v1/tasks/[id]/x402-payments/post.ts` per the spec's assumed path;
+  nothing in this step constrains it.
+- **Sanity check anchor:** the listing advertises `amount`/`credits` from
+  the registered `AgentPaymentSourceAmount` rows — the §3 "demanded amount
+  passes a sanity check against registry pricing" should compare the 402's
+  demand against those same rows.
+- **Still open (step-2/3 carryover):** bound `idempotencyKey` in the pay
+  route Zod (max ~200) before it reaches the btree unique;
+  `agent-sync.service.ts` is 974 lines — over the ceiling, do not append,
+  extract when touched.
