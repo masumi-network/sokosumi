@@ -345,8 +345,8 @@ export function GuestInviteSection({
           </p>
         </div>
 
-        <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-          <div className="min-w-0 space-y-2">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1 space-y-2">
             <Label htmlFor="guest-invite-link-expiry">
               {t("linkExpiryLabel")}
             </Label>
@@ -369,7 +369,7 @@ export function GuestInviteSection({
               </SelectContent>
             </Select>
           </div>
-          <div className="min-w-0 space-y-2">
+          <div className="min-w-0 flex-1 space-y-2">
             <Label htmlFor="guest-invite-link-max-uses">
               {t("linkMaxUsesLabel")}
             </Label>
@@ -392,23 +392,22 @@ export function GuestInviteSection({
               </SelectContent>
             </Select>
           </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full shrink-0 sm:w-auto"
+            disabled={isCreatingLink}
+            onClick={() => void handleCreateLink()}
+          >
+            {isCreatingLink ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Link2 className="size-4" aria-hidden />
+            )}
+            {t("createLink")}
+          </Button>
         </div>
-
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="w-full sm:w-auto"
-          disabled={isCreatingLink}
-          onClick={() => void handleCreateLink()}
-        >
-          {isCreatingLink ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Link2 className="size-4" aria-hidden />
-          )}
-          {t("createLink")}
-        </Button>
 
         {isLoading ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
