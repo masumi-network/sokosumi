@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,7 +21,6 @@ import LoadingState from "@/app/personal-assistant/components/loading-state";
 import OnboardingProgress from "@/app/personal-assistant/components/onboarding-progress";
 import OnboardingScreen from "@/app/personal-assistant/components/onboarding-screen";
 import ProvisioningState from "@/app/personal-assistant/components/provisioning-state";
-import RunningState from "@/app/personal-assistant/components/running-state";
 import {
   SubscriptionRequiredDialog,
   type SubscriptionWallPlan,
@@ -42,6 +42,12 @@ import type {
   HermesPersistedMessage,
   HermesPersonality,
 } from "@/lib/hermes/types";
+
+/** Running chat + settings/skills panels — heavy; keep off first-paint entry. */
+const RunningState = dynamic(
+  () => import("@/app/personal-assistant/components/running-state"),
+  { loading: () => <LoadingState /> },
+);
 
 export type { HermesOrganizationOption };
 

@@ -1,4 +1,3 @@
-import type { SelfServeSubscriptionPlanName } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
@@ -6,19 +5,15 @@ import { Suspense } from "react";
 
 import HermesExperience from "@/app/personal-assistant/components/hermes-experience";
 import LoadingState from "@/app/personal-assistant/components/loading-state";
-import type { SubscriptionWallPlan } from "@/app/personal-assistant/components/subscription-required-dialog";
+import {
+  buildSubscriptionWallPlans,
+  resolveHermesHasActiveSubscription,
+} from "@/app/personal-assistant/hermes-page-subscription";
 import { getSession } from "@/lib/auth/auth.server";
-import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import { coreClient } from "@/lib/clients/core.client";
 import type { GetSubscriptionCatalogResponse } from "@/lib/clients/generated/core";
 import { hasPaidPlanCoverage } from "@/lib/hermes/paid-plan-coverage";
 import { userService } from "@/lib/services/user.service";
-
-const PAID_PLAN_ORDER = [
-  "starter",
-  "standard",
-  "pro",
-] as const satisfies SelfServeSubscriptionPlanName[];
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Hermes.Metadata");
@@ -28,21 +23,32 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function HermesPage() {
-  const session = await getSession();
-  const userName = session?.user.name ?? null;
-  const userEmail = session?.user.email ?? null;
-  const userImageUrl = session?.user.image
-    ? session.user.image
-    : session?.user.email
-      ? gravatarUrl(session.user.email, { size: 80, default: "404" })
-      : null;
+interface HermesExperienceWithAccessProps {
+  userId: string | null;
+  userName: string | null;
+  userEmail: string | null;
+  userImageUrl: string | null;
+  activeOrganizationId: string | null;
+  userRole: string | null | undefined;
+}
 
+/**
+ * Deferred billing + membership work. Suspends under the page Suspense
+ * so LoadingState paints before paid-plan coverage / catalog finish
+ * (SOK-780). Fail-closed gate once resolved.
+ */
+export async function HermesExperienceWithAccess({
+  userId,
+  userName,
+  userEmail,
+  userImageUrl,
+  activeOrganizationId,
+  userRole,
+}: HermesExperienceWithAccessProps) {
   // Org context for the confirmation-card dropdown (lets the user reroute
   // sokosumi_create_task / sokosumi_create_job into the right workspace
   // before approving). Empty list when not signed in or no memberships.
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const memberships = session
+  const memberships = userId
     ? await userService
         .getMyMembersWithOrganizations()
         .catch(
@@ -69,43 +75,64 @@ export default async function HermesPage() {
   // Coverage = personal Stripe plan OR any member org's billing plan
   // (enterprise contract or paid self-serve) — same rule as Core.
   const [hasCoverage, catalogResultRaw] = await Promise.all([
-    session
+    userId
       ? hasPaidPlanCoverage({
           organizationIds: memberships.map((m) => m.organization.id),
         })
       : Promise.resolve(false),
-    session ? coreClient.getSubscriptionCatalog().catch(() => null) : null,
+    userId ? coreClient.getSubscriptionCatalog().catch(() => null) : null,
   ]);
-  const hasActiveSubscription = hasCoverage || hasAdminRole(session?.user.role);
+  const hasActiveSubscription = resolveHermesHasActiveSubscription(
+    hasCoverage,
+    userRole,
+  );
 
   // The 3 paid plans — gives the subscription wall real, clickable plan
   // links instead of a vague "upgrade to unlock". Best-effort: the wall
   // still works (minus the plan links) if the catalog fetch fails.
   const catalogResult =
     catalogResultRaw as GetSubscriptionCatalogResponse | null;
-  const subscriptionWallPlans: SubscriptionWallPlan[] = catalogResult
-    ? PAID_PLAN_ORDER.map((name) => {
-        const plan = catalogResult.data[name];
-        return {
-          name,
-          monthlyAmount: plan.monthlyAmount,
-          currency: plan.currency,
-          credits: plan.credits,
-        };
-      })
-    : [];
+  const subscriptionWallPlans = buildSubscriptionWallPlans(catalogResult);
+
+  return (
+    <HermesExperience
+      userId={userId}
+      userName={userName}
+      userEmail={userEmail}
+      userImageUrl={userImageUrl}
+      organizations={organizations}
+      activeOrganizationId={activeOrganizationId}
+      hasActiveSubscription={hasActiveSubscription}
+      subscriptionWallPlans={subscriptionWallPlans}
+    />
+  );
+}
+
+/**
+ * Session-only fast path. Memberships, paid-plan coverage, and the
+ * subscription catalog stream behind Suspense so first paint is the
+ * loading shell (also used by loading.tsx for route transitions).
+ */
+export default async function HermesPage() {
+  const session = await getSession();
+  const userName = session?.user.name ?? null;
+  const userEmail = session?.user.email ?? null;
+  const userImageUrl = session?.user.image
+    ? session.user.image
+    : session?.user.email
+      ? gravatarUrl(session.user.email, { size: 80, default: "404" })
+      : null;
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
 
   return (
     <Suspense fallback={<LoadingState />}>
-      <HermesExperience
+      <HermesExperienceWithAccess
         userId={session?.user.id ?? null}
         userName={userName}
         userEmail={userEmail}
         userImageUrl={userImageUrl}
-        organizations={organizations}
         activeOrganizationId={activeOrganizationId}
-        hasActiveSubscription={hasActiveSubscription}
-        subscriptionWallPlans={subscriptionWallPlans}
+        userRole={session?.user.role}
       />
     </Suspense>
   );
