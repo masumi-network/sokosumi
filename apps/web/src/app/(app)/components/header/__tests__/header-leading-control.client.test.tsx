@@ -1,14 +1,19 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TASKS_RETURN_PATH_SESSION_KEY } from "@/app/tasks/components/task-navigation";
 
 let mockPathname = "/chat";
 let mockSearchParams = new URLSearchParams();
+const routerPushMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
   useSearchParams: () => mockSearchParams,
+  useRouter: () => ({
+    push: routerPushMock,
+    prefetch: vi.fn(),
+  }),
 }));
 
 vi.mock("next-intl", () => ({
@@ -43,6 +48,7 @@ describe("HeaderLeadingControl", () => {
     mockPathname = "/chat";
     mockSearchParams = new URLSearchParams();
     window.sessionStorage.clear();
+    routerPushMock.mockClear();
   });
 
   it("shows brand on home", () => {
@@ -139,5 +145,30 @@ describe("HeaderLeadingControl", () => {
         "/tasks?view=list&status=todo",
       );
     });
+  });
+
+  it("re-reads stored return path after list→detail without remounting header", async () => {
+    // Header chrome stays mounted across navigations. Mount on the list first
+    // (empty storage → /tasks), then store filters and move to detail.
+    mockPathname = "/tasks";
+    const { rerender } = render(<HeaderLeadingControl />);
+    expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
+
+    window.sessionStorage.setItem(
+      TASKS_RETURN_PATH_SESSION_KEY,
+      "/tasks?view=list&status=todo",
+    );
+    mockPathname = "/tasks/t1";
+    rerender(<HeaderLeadingControl />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("link", { name: "back" })).toHaveAttribute(
+        "href",
+        "/tasks?view=list&status=todo",
+      );
+    });
+
+    fireEvent.click(screen.getByRole("link", { name: "back" }));
+    expect(routerPushMock).toHaveBeenCalledWith("/tasks?view=list&status=todo");
   });
 });
