@@ -32,12 +32,13 @@ describe("extractThoughtTextFromMessageParts", () => {
     ).toBe("First beat.\n\nSecond beat.");
   });
 
-  it("treats redacted_reasoning as Thought", () => {
+  it("does not treat legacy redacted_reasoning as Thought", () => {
     expect(
       extractThoughtTextFromMessageParts([
         { type: "redacted_reasoning", text: "[hidden summary]" },
+        { type: "reasoning", text: "Visible Thought." },
       ]),
-    ).toBe("[hidden summary]");
+    ).toBe("Visible Thought.");
   });
 
   it("ignores empty reasoning and non-reasoning types", () => {
@@ -48,6 +49,17 @@ describe("extractThoughtTextFromMessageParts", () => {
         { type: "file", url: "https://x", mediaType: "image/png" },
       ]),
     ).toBe("");
+  });
+
+  it("does not treat tool/step parts with text as Thought", () => {
+    expect(
+      extractThoughtTextFromMessageParts([
+        { type: "tool-call", text: "Calling search…" },
+        { type: "tool-result", content: "42 results" },
+        { type: "step-start", text: "Step 1" },
+        { type: "reasoning", text: "Only this is Thought." },
+      ]),
+    ).toBe("Only this is Thought.");
   });
 });
 
@@ -67,6 +79,17 @@ describe("extractThoughtTextFromMetadata", () => {
     expect(extractThoughtTextFromMetadata(null)).toBe("");
     expect(extractThoughtTextFromMetadata({})).toBe("");
     expect(extractThoughtTextFromMetadata({ reasoning: [] })).toBe("");
+  });
+
+  it("rejects tool/step steps stored under metadata.reasoning", () => {
+    expect(
+      extractThoughtTextFromMetadata({
+        reasoning: [
+          { type: "tool-call", text: "should not show" },
+          { type: "reasoning", text: "real Thought" },
+        ],
+      }),
+    ).toBe("real Thought");
   });
 });
 

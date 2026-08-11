@@ -2,6 +2,8 @@
 
 import Ably from "ably";
 
+import { getOrCreateAblyClientInstanceId } from "./ably-client-instance-id";
+
 declare global {
   var __sokosumiAblyRealtimeClient: Ably.Realtime | undefined;
 }
@@ -20,9 +22,13 @@ export function getAblyRealtimeClient(): Ably.Realtime {
     return existingClient;
   }
 
+  const clientInstanceId = getOrCreateAblyClientInstanceId();
   const realtimeClient = new Ably.Realtime({
     authUrl: "/api/ably/auth",
     authMethod: "POST",
+    authParams: {
+      clientInstanceId,
+    },
   });
   setGlobalAblyRealtimeClient(realtimeClient);
   return realtimeClient;

@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { PresenceDot } from "@/components/chat/presence-dot";
+import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,10 +23,7 @@ import { getInitials } from "@/lib/utils/text";
 
 import { canShowOpenDirect } from "./open-direct-with-participant";
 import { AiCoworkerIcon } from "./room-draft-shared";
-import {
-  type ChatParticipantHoverProfile,
-  presenceLabel,
-} from "./room-helpers";
+import { type ChatParticipantHoverProfile } from "./room-helpers";
 
 interface ChatParticipantHoverCardProps {
   profile: ChatParticipantHoverProfile | null | undefined;
@@ -125,9 +122,8 @@ export function ChatParticipantHoverCard({
     return children;
   }
 
-  const statusLabel = presenceLabel(t, profile.presence);
-  const kindLabel =
-    profile.kind === "coworker" ? t("coworkerBadge") : t("humanBadge");
+  const isCoworker = profile.kind === "coworker";
+  const kindLabel = isCoworker ? t("coworkerBadge") : t("humanBadge");
   const detail =
     profile.kind === "human"
       ? profile.email
@@ -172,10 +168,11 @@ export function ChatParticipantHoverCard({
               </AvatarFallback>
             </Avatar>
             <span aria-hidden="true">
-              <PresenceDot
-                presence={profile.presence}
-                label={statusLabel}
+              <LiveMemberPresenceDot
                 className="absolute -right-0.5 -bottom-0.5 size-3"
+                fallback={profile.presence}
+                isCoworker={isCoworker}
+                userId={profile.id}
               />
             </span>
           </div>

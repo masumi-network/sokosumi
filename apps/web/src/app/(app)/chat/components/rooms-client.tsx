@@ -52,9 +52,9 @@ import { shouldSignalUnreadThreadsAttention } from "@/app/chat/utils/should-sign
 import { useHeaderRoomSlotHost } from "@/app/components/header/use-header-room-slot-host";
 import { applyChatMembershipRevokedUi } from "@/components/chat/apply-chat-membership-revoked-ui";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
+import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
-import { PresenceDot } from "@/components/chat/presence-dot";
 import { applyRoomReadResultToOverlay } from "@/components/chat/room-read-overlay";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -102,7 +102,6 @@ import {
   messageDayKey,
   type PendingRoomQuote,
   pendingQuoteFromMessage,
-  presenceLabel,
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
   shouldIncludeRoomAllMention,
@@ -251,10 +250,11 @@ function RoomParticipantStack({
                 {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>
-            <PresenceDot
-              presence={participant.presence}
-              label={presenceLabel(t, participant.presence)}
+            <LiveMemberPresenceDot
               className="absolute -right-0.5 -bottom-0.5"
+              fallback={participant.presence}
+              isCoworker={participant.kind === "coworker"}
+              userId={participant.id}
             />
           </span>
         </ChatParticipantHoverCard>
