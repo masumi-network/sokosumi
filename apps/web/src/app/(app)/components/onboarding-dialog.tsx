@@ -485,13 +485,16 @@ export function OnboardingDialog({
     },
   ];
 
-  const handleComplete = async (eventName: string) => {
+  const handleComplete = async (eventName: string, skipped = false) => {
     track(eventName);
     setIsLoading(true);
     try {
       const result = await completeOnboarding();
       if (result.ok) {
-        fireGTMEvent.onboardingComplete();
+        // Skipping still completes onboarding server-side, but it is not an
+        // activation signal — counting it would inflate the funnel step that
+        // is supposed to measure people who actually went through it.
+        if (!skipped) fireGTMEvent.onboardingComplete();
         const redirectUrl = result.value.redirectUrl ?? "/agents";
         setOpen(false);
         router.push(redirectUrl);
@@ -828,7 +831,7 @@ export function OnboardingDialog({
                   handleSubscriptionOnlySkip();
                   return;
                 }
-                void handleComplete("Onboarding skipped");
+                void handleComplete("Onboarding skipped", true);
               }}
               onFinish={() => void handleStartSubscription()}
             />

@@ -9,6 +9,7 @@ import {
   ChevronDown,
   CircleHelp,
   Code2,
+  Cookie,
   Landmark,
   LifeBuoy,
   ListChecks,
@@ -23,6 +24,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+import { openConsentPreferences } from "@/components/analytics/cookie-banner";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
   DropdownMenu,
@@ -55,6 +57,7 @@ export default function UserAvatarClient({
   activeOrganizationId,
 }: UserAvatarClientProps) {
   const t = useTranslations("Components.UserAvatar");
+  const tConsent = useTranslations("CookieConsent");
   const activeOrganizationMember = activeOrganizationId
     ? members.find((member) => member.organizationId === activeOrganizationId)
     : null;
@@ -275,6 +278,16 @@ export default function UserAvatarClient({
               >
                 <Shield className="text-muted-foreground size-4" />
                 {t("privacyPolicy")}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => {
+                  closeMenu();
+                  openConsentPreferences();
+                }}
+              >
+                <Cookie className="text-muted-foreground size-4" />
+                {tConsent("settings")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer"
