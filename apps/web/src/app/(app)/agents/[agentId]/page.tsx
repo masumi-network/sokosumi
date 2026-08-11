@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 
 import { AgentDetail, AgentDetailViewTracker } from "@/components/agents";
 import AgentBottomNavigation from "@/components/agents/agent-botton-navigation";
-import AgentMobileHeader from "@/components/agents/agent-mobile-header";
 import {
   CreateJobModalContextProvider,
   LazyCreateJobModal,
@@ -57,7 +56,6 @@ export default async function AgentDetailPage({
       averageExecutionDuration={averageExecutionDuration}
       projectOptions={projectOptions}
     >
-      <AgentMobileHeader agent={agent} />
       <div className="min-h-full w-full">
         <div className="mx-auto w-full max-w-4xl">
           <AgentDetailViewTracker agent={agent} />
