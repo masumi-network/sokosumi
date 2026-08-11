@@ -33,6 +33,9 @@ vi.mock("./organizations/index.js", () => ({ default: new Hono() }));
 vi.mock("./organization-invite-links/index.js", () => ({
   default: new Hono(),
 }));
+vi.mock("./chat-room-invite-links/index.js", () => ({
+  default: new Hono(),
+}));
 vi.mock("./projects/index.js", () => ({ default: new Hono() }));
 vi.mock("./tasks/index.js", () => ({ default: new Hono() }));
 vi.mock("./tools/index.js", () => ({ default: new Hono() }));
