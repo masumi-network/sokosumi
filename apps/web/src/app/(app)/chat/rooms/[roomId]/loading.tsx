@@ -1,10 +1,9 @@
-import DefaultLoading from "@/components/default-loading";
+import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-view";
 
 /**
- * Full-page spinner for Instant / soft-nav into a room.
- * Real header + composer paint after room meta (progressive shell); only the
- * message list skeletons. Instant does not fake composer chrome (CLS).
+ * Instant / soft-nav into a room: real composer chrome + message-list skeleton.
+ * No full-page spinner. Room-aware header/composer swap in after meta loads.
  */
 export default function ChatRoomLoading() {
-  return <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />;
+  return <RoomOpenLoadingView />;
 }

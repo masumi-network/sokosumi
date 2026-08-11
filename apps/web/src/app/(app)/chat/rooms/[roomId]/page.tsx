@@ -2,10 +2,10 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
+import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-view";
 import { RoomsClient } from "@/app/chat/components/rooms-client";
 import { loadOrganizationMembers } from "@/app/chat/load-organization-members";
 import { loadRoomMessages } from "@/app/chat/load-room-messages";
-import DefaultLoading from "@/components/default-loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import type {
@@ -54,14 +54,10 @@ function NoOrganizationCard({
   );
 }
 
-function ChatRoomPageFallback() {
-  return <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />;
-}
-
 /**
  * Real header + composer as soon as the room is known; history via promise
  * so the message list can skeleton without blocking chrome (SOK-778).
- * Instant stays a full-page spinner — no fake Instant composer skeleton.
+ * Instant / Suspense: RoomOpenLoadingView (real composer chrome + list bones).
  */
 function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
   const messagesPromise = loadRoomMessages(roomId);
@@ -89,9 +85,9 @@ function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
  * Open one room. Avoid `listRooms()` here — sidebar already owns the list.
  *
  * Progressive paint (SOK-778):
- * - Instant / outer Suspense: full-page spinner (room chrome is too dynamic
- *   to Instant-skeleton without jump).
- * - After room meta: real header + real composer + message-list skeleton.
+ * - Instant / outer Suspense: real composer chrome + message-list skeleton
+ *   (no full-page spinner; no pulse fake composer).
+ * - After room meta: room-aware header + composer + list skeleton.
  * - After history: real messages into the same RoomsClient.
  *
  * Non-member / missing room → soft land on `/chat`, not 404.
@@ -177,7 +173,7 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
 
 export default function ChatRoomPage({ params }: ChatRoomPageProps) {
   return (
-    <Suspense fallback={<ChatRoomPageFallback />}>
+    <Suspense fallback={<RoomOpenLoadingView />}>
       <ChatRoomPageContent params={params} />
     </Suspense>
   );
