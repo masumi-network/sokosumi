@@ -71,10 +71,10 @@ export {
   type ChatRoomQuoteSnippetParts,
 } from "./chat-room-quote-snippet.js";
 export {
-  CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
-  CHAT_UI_NON_REASONING_PART_TYPES,
+  CHAT_UI_REASONING_PART_TYPE_VALUES,
+  CHAT_UI_REASONING_PART_TYPES,
   isChatUiProviderReasoningPartType,
-} from "./chat-ui-non-reasoning-part-types.js";
+} from "./chat-ui-reasoning-part-types.js";
 export {
   CORE_API_ERROR_KINDS,
   type CoreApiErrorKind,
