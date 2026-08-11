@@ -89,6 +89,9 @@ function renderHoverTrigger({
             "aria-label": singleChild.props["aria-label"] ?? profileName,
           }
         : {
+            // Strip focus semantics if the child brought them (e.g. nested in a link).
+            role: undefined,
+            tabIndex: undefined,
             // Drop any child label so SRs don't double-speak the row link name.
             "aria-label": undefined,
           }),
