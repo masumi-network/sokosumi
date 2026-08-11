@@ -5342,5 +5342,21 @@
     "coworkerAccess": {
       "pending": "{coworkerName} hat Coworker-Early-Access für deinen Workspace angefordert"
     }
+  },
+  "CookieConsent": {
+    "title": "Wir verwenden Cookies",
+    "body": "Notwendige Cookies halten Sokosumi funktionsfähig. Mit deiner Zustimmung nutzen wir außerdem Analyse- und Marketing-Cookies, um das Produkt zu verbessern.",
+    "policyLink": "Cookie-Richtlinie",
+    "acceptAll": "Alle akzeptieren",
+    "rejectAll": "Nicht notwendige ablehnen",
+    "manage": "Einstellungen verwalten",
+    "save": "Auswahl speichern",
+    "necessaryTitle": "Unbedingt erforderlich",
+    "necessaryBody": "Für den Betrieb des Produkts erforderlich — Sicherheit und das Speichern dieser Auswahl. Immer aktiv.",
+    "analyticsTitle": "Analyse",
+    "analyticsBody": "Anonyme Nutzungsmessung (Google Analytics), damit wir sehen, was hilft und was nicht.",
+    "marketingTitle": "Marketing",
+    "marketingBody": "Ermöglicht die Messung von Werbekampagnen und das Erreichen von Personen, für die Sokosumi nützlich sein könnte.",
+    "settings": "Cookie-Einstellungen"
   }
 }

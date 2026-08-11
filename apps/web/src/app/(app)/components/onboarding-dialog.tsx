@@ -37,6 +37,7 @@ import {
   upgradeOrganizationSubscription,
   upgradePersonalSubscription,
 } from "@/lib/actions/subscription";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import { markSubscriptionOnboardingGateSeenSafely } from "@/lib/onboarding/mark-subscription-onboarding-gate-seen.client";
 
 const INTRO_STEP_COUNT = 5;
@@ -490,6 +491,7 @@ export function OnboardingDialog({
     try {
       const result = await completeOnboarding();
       if (result.ok) {
+        fireGTMEvent.onboardingComplete();
         const redirectUrl = result.value.redirectUrl ?? "/agents";
         setOpen(false);
         router.push(redirectUrl);

@@ -13,6 +13,7 @@ import type {
   ChatRoomMessage,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
+import { fireGTMEvent } from "@/lib/gtm-events";
 
 const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";
 
@@ -232,6 +233,8 @@ export function useCoworkerDirectRoomStream({
   const roomId = enabled && room ? room.id : null;
   const roomIdRef = useRef(roomId);
   roomIdRef.current = roomId;
+  // Which room we have already fired a `message_start` for this mount.
+  const messageStartFiredRoomRef = useRef<string | null>(null);
   const organizationSlugRef = useRef(organizationSlug);
   organizationSlugRef.current = organizationSlug;
   const onStreamSettledRef = useRef(onStreamSettled);
@@ -412,6 +415,12 @@ export function useCoworkerDirectRoomStream({
         return;
       }
       const parentMessageId = options?.parentMessageId?.trim() || null;
+      // Analytics: a coworker DM was started. Fire once per room per mount so
+      // "starting a conversation" is one event, not one per keystroke-send.
+      if (messageStartFiredRoomRef.current !== roomId) {
+        messageStartFiredRoomRef.current = roomId;
+        fireGTMEvent.messageStart(roomId);
+      }
       // Shared useChat instance — clear leftover turns so a failed settle cannot
       // retag prior top-level UI messages with a new thread parentMessageId.
       setMessages([]);

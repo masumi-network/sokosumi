@@ -93,4 +93,22 @@ export const fireGTMEvent = {
       agent_price: credits.toString(),
     });
   },
+
+  /**
+   * A user started a direct-message conversation with a coworker (fires on the
+   * first message they send in a room this session).
+   */
+  messageStart(roomId: string) {
+    fireEvent({
+      event: "message_start",
+      room_id: roomId,
+    });
+  },
+
+  /** A user finished onboarding. */
+  onboardingComplete() {
+    fireEvent({
+      event: "onboarding_complete",
+    });
+  },
 };
