@@ -33,6 +33,8 @@ export function ChatJoinActions({
       const result = await acceptRoomGuestInviteLinkAction(token);
       if (!result.ok) {
         toast.error(result.error.message ?? t("Error.joinFailed"));
+        // Re-enable only on failure so the user can retry.
+        setIsJoining(false);
         return;
       }
       toast.success(
@@ -41,12 +43,13 @@ export function ChatJoinActions({
           : t("joined", { room: roomName }),
       );
       notifyOrganizationChatRoomsChanged();
+      // Keep loading until navigation unmounts this page — clearing here
+      // flashes an idle CTA between accept and redirect.
       router.push(`/chat/rooms/${encodeURIComponent(result.value.roomId)}`);
       router.refresh();
     } catch (error) {
       console.error("Failed to join channel via invite link", error);
       toast.error(t("Error.joinFailed"));
-    } finally {
       setIsJoining(false);
     }
   };
