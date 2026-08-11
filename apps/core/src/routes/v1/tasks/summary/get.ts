@@ -6,7 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireUserContext } from "@/middleware/auth";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   TASK_AWAITING_INPUT_STATUSES,
@@ -62,9 +62,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    // Session users only. A coworker asking "what did my human miss" is not a
-    // use case, and it would leak other members' activity to a vendor token.
-    const userContext = requireUserContext(c.var.authContext);
+    // Owner context only. requireUserContext also admits a coworker token that
+    // carries user context, which would hand a vendor the workspace's activity.
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { scope } = c.req.valid("query");
 
@@ -102,9 +102,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       scope === "owned"
         ? PrismaRaw.sql`AND t."ownerId" = ${userContext.userId}`
         : PrismaRaw.empty;
-    const windowFilter = sinceDate
-      ? PrismaRaw.sql`AND s.next_at >= ${sinceDate}`
-      : PrismaRaw.empty;
 
     const [completed, awaitingInput, createdByOtherHumans, workedRows] =
       await Promise.all([
@@ -141,7 +138,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           : Promise.resolve(0),
         prisma.$queryRaw<{ seconds: number | null }[]>`
         SELECT COALESCE(
-                 SUM(EXTRACT(EPOCH FROM (s.next_at - s.started_at))),
+                 SUM(
+                   EXTRACT(EPOCH FROM (
+                     COALESCE(s.next_at, now())
+                     - GREATEST(s.started_at, ${sinceDate})
+                   ))
+                 ),
                  0
                )::double precision AS seconds
         FROM (
@@ -154,11 +156,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           JOIN "task" t ON t.id = e."taskId"
           WHERE t."archivedAt" IS NULL
             AND t."workspaceId" = ${workspaceContext.workspaceId}
+            -- Only status transitions close a span. Progress comments are
+            -- written with a NULL status, and letting one win the LEAD cut
+            -- every run short at its first comment.
+            AND e.status IS NOT NULL
             ${ownerFilter}
         ) s
+        -- Overlap, not containment: a run that began before the window still
+        -- did work inside it, and GREATEST clips the part that predates the
+        -- window so no run can report more minutes than the window holds.
+        -- COALESCE keeps a still-open run counting up to now.
         WHERE s.status = ${TaskStatus.RUNNING}::"TaskStatus"
-          AND s.next_at IS NOT NULL
-          ${windowFilter}
+          AND COALESCE(s.next_at, now()) > ${sinceDate}
       `,
       ]);
 
@@ -168,6 +177,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       taskSummaryResponseSchema.parse({
         basis,
+        lastVisitAt: lastSeenAt ? lastSeenAt.toISOString() : null,
         since: sinceDate ? sinceDate.toISOString() : null,
         completed,
         awaitingInput,

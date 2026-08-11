@@ -37,16 +37,16 @@ export function StartChatButton({
     startTransition(async () => {
       const result = await ensureCoworkerDirectRoomAction(coworkerId);
 
-      if (!result.ok || !result.data) {
-        toast.error(result.ok ? t("cta.error") : result.message);
+      if (!result.ok || !result.value) {
+        toast.error(result.ok ? t("cta.error") : result.error.message);
         setIsOpening(false);
         return;
       }
 
       // Same order the rest of chat uses: tell the sidebar before navigating so
       // the new room is already in the list when the route renders.
-      notifyOrganizationChatRoomsChanged(result.data);
-      router.push(`/chat/rooms/${result.data.id}`);
+      notifyOrganizationChatRoomsChanged(result.value);
+      router.push(`/chat/rooms/${result.value.id}`);
       // Deliberately leave the spinner running — the route change unmounts
       // this button, and resetting here would flash the idle label.
     });

@@ -17,6 +17,8 @@ export interface TaskActivitySummary {
   awaitingInput: number;
   /** Which window the counts cover, so the caption can say so. */
   basis: "lastVisit" | "recent";
+  /** The stored visit timestamp, unclamped — drives the re-stamp guard. */
+  lastVisitAt: Date | null;
   completed: number;
   createdByOtherHumans: number;
   /** Server-owned window start; null means this is the user's first visit. */
@@ -28,6 +30,7 @@ export interface TaskActivitySummary {
 const EMPTY_TASK_ACTIVITY_SUMMARY: TaskActivitySummary = {
   awaitingInput: 0,
   basis: "recent",
+  lastVisitAt: null,
   completed: 0,
   createdByOtherHumans: 0,
   since: null,
@@ -260,6 +263,7 @@ export const taskService = (() => {
         completed: data.completed,
         awaitingInput: data.awaitingInput,
         basis: data.basis,
+        lastVisitAt: data.lastVisitAt ? new Date(data.lastVisitAt) : null,
         createdByOtherHumans: data.createdByOtherHumans,
         since: data.since ? new Date(data.since) : null,
         workedMinutes: data.workedMinutes,

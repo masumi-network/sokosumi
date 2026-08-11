@@ -2001,6 +2001,9 @@ export const getTasksSummaryResponseTransformer = async (data: any): Promise<Get
     if (data.data.since) {
         data.data.since = new Date(data.data.since);
     }
+    if (data.data.lastVisitAt) {
+        data.data.lastVisitAt = new Date(data.data.lastVisitAt);
+    }
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

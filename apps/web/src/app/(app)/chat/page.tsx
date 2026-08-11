@@ -153,9 +153,12 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
   // only once the previous visit is genuinely old. Stamping on every load meant
   // a reload moved the window to "a second ago" and blanked the summary the
   // user had just been shown.
+  // Guard on the stored column, not on `since`: Core clamps `since` to a 24h
+  // fallback whenever the last visit was recent, so comparing against it was
+  // always true and the stamp fired on every render.
   const shouldAdvanceLastSeen =
-    summary.since === null ||
-    Date.now() - summary.since.getTime() >= LAST_SEEN_REFRESH_MS;
+    summary.lastVisitAt === null ||
+    Date.now() - summary.lastVisitAt.getTime() >= LAST_SEEN_REFRESH_MS;
   if (shouldAdvanceLastSeen) {
     await userService.markLastSeenForMe();
   }

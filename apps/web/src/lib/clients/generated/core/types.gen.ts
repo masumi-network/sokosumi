@@ -28343,11 +28343,15 @@ export type GetTasksSummaryResponses = {
              */
             createdByOtherHumans: number;
             /**
+             * The caller's stored lastSeenAt, unmodified. Null before their first recorded visit.
+             */
+            lastVisitAt: Date | null;
+            /**
              * Which window the counts cover: the caller's previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.
              */
             basis: 'lastVisit' | 'recent';
             /**
-             * Minutes tasks spent in RUNNING within the window, summed from status-transition events. Wall-clock time in progress, not billed compute.
+             * Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.
              */
             workedMinutes: number;
         };

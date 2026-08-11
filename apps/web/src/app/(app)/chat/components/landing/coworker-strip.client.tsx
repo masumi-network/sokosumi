@@ -54,14 +54,14 @@ export function CoworkerStrip({ featured, others }: CoworkerStripProps) {
     startTransition(async () => {
       const result = await ensureCoworkerDirectRoomAction(coworker.id);
 
-      if (!result.ok || !result.data) {
-        toast.error(result.ok ? t("cta.error") : result.message);
+      if (!result.ok || !result.value) {
+        toast.error(result.ok ? t("cta.error") : result.error.message);
         setOpeningId(null);
         return;
       }
 
-      notifyOrganizationChatRoomsChanged(result.data);
-      router.push(`/chat/rooms/${result.data.id}`);
+      notifyOrganizationChatRoomsChanged(result.value);
+      router.push(`/chat/rooms/${result.value.id}`);
     });
   }
 

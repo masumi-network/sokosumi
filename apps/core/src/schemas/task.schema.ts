@@ -346,6 +346,11 @@ export const taskSummaryResponseSchema = z.object({
       "Tasks created within the window by a different human in the same workspace. Always 0 in a personal workspace.",
     example: 3,
   }),
+  lastVisitAt: z.iso.datetime().nullable().openapi({
+    description:
+      "The caller's stored lastSeenAt, unmodified. Null before their first recorded visit.",
+    example: "2026-08-10T09:00:00.000Z",
+  }),
   basis: z.enum(["lastVisit", "recent"]).openapi({
     description:
       "Which window the counts cover: the caller's previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.",
@@ -353,7 +358,7 @@ export const taskSummaryResponseSchema = z.object({
   }),
   workedMinutes: z.number().int().nonnegative().openapi({
     description:
-      "Minutes tasks spent in RUNNING within the window, summed from status-transition events. Wall-clock time in progress, not billed compute.",
+      "Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.",
     example: 47,
   }),
 });
