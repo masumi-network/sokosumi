@@ -1,4 +1,5 @@
-import { CHAT_UI_NON_REASONING_PART_TYPES } from "@/helpers/chat-ui-non-reasoning-part-types";
+import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
+
 import { isSafeRemoteUrl, normalizeSafeRemoteUrl } from "@/helpers/safe-url";
 
 export interface PersistedChatUiReasoningPart {
@@ -204,12 +205,11 @@ function normalizeReasoningPart(
 
   const rawType =
     "type" in part && typeof part.type === "string" ? part.type.trim() : "";
-
-  if (CHAT_UI_NON_REASONING_PART_TYPES.has(rawType)) {
+  // Missing type defaults to standard reasoning; unknown labels are not Thought.
+  const type = rawType.length > 0 ? rawType : "reasoning";
+  if (!isChatUiProviderReasoningPartType(type)) {
     return null;
   }
-
-  const type = rawType.length > 0 ? rawType : "reasoning";
 
   return {
     type,

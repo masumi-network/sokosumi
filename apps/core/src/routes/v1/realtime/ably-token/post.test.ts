@@ -6,24 +6,31 @@ import type { AuthenticationContext } from "@/middleware/auth";
 
 import mountPostAblyToken from "./post";
 
-const { findManyMembersMock, createAblySubscribeTokenRequestMock } = vi.hoisted(
-  () => ({
-    findManyMembersMock: vi.fn(),
-    createAblySubscribeTokenRequestMock: vi.fn(),
-  }),
-);
+const {
+  findManyRoomMembersMock,
+  findManyOrgMembersMock,
+  createAblyClientTokenRequestMock,
+} = vi.hoisted(() => ({
+  findManyRoomMembersMock: vi.fn(),
+  findManyOrgMembersMock: vi.fn(),
+  createAblyClientTokenRequestMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     chatRoomUserMember: {
-      findMany: (...args: unknown[]) => findManyMembersMock(...args),
+      findMany: (...args: unknown[]) => findManyRoomMembersMock(...args),
+    },
+    member: {
+      findMany: (...args: unknown[]) => findManyOrgMembersMock(...args),
     },
   },
 }));
 
 vi.mock("@/lib/ably/create-token-request", () => ({
-  createAblySubscribeTokenRequest: (...args: unknown[]) =>
-    createAblySubscribeTokenRequestMock(...args),
+  createAblyClientTokenRequest: (...args: unknown[]) =>
+    createAblyClientTokenRequestMock(...args),
+  createAblySubscribeTokenRequest: vi.fn(),
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -48,56 +55,71 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
 
 describe("POST /realtime/ably-token", () => {
   beforeEach(() => {
-    findManyMembersMock.mockReset();
-    createAblySubscribeTokenRequestMock.mockReset();
+    findManyRoomMembersMock.mockReset();
+    findManyOrgMembersMock.mockReset();
+    createAblyClientTokenRequestMock.mockReset();
   });
 
-  it("mints a token from the caller's membership room ids", async () => {
-    findManyMembersMock.mockResolvedValue([
+  it("mints a token from room + org memberships and client instance id", async () => {
+    findManyRoomMembersMock.mockResolvedValue([
       { roomId: "room-a" },
       { roomId: "room-b" },
     ]);
-    createAblySubscribeTokenRequestMock.mockResolvedValue({
+    findManyOrgMembersMock.mockResolvedValue([
+      { organizationId: "org_a" },
+      { organizationId: "org_b" },
+    ]);
+    createAblyClientTokenRequestMock.mockResolvedValue({
       keyName: "app.key",
       capability: '{"x":["subscribe"]}',
       timestamp: 1_700_000_000_000,
       nonce: "n1",
       mac: "m1",
-      clientId: "user_123",
+      clientId: "user_123:inst_abcd",
     });
 
     const app = createApp();
-    const response = await app.request("http://localhost/ably-token", {
-      method: "POST",
-    });
+    const response = await app.request(
+      "http://localhost/ably-token?clientInstanceId=inst_abcd",
+      {
+        method: "POST",
+      },
+    );
 
     expect(response.status).toBe(200);
-    expect(findManyMembersMock).toHaveBeenCalledWith({
+    expect(findManyRoomMembersMock).toHaveBeenCalledWith({
       where: { userId: "user_123" },
       select: { roomId: true },
     });
-    expect(createAblySubscribeTokenRequestMock).toHaveBeenCalledWith(
-      "user_123",
-      ["room-a", "room-b"],
-    );
+    expect(findManyOrgMembersMock).toHaveBeenCalledWith({
+      where: { userId: "user_123" },
+      select: { organizationId: true },
+    });
+    expect(createAblyClientTokenRequestMock).toHaveBeenCalledWith({
+      userId: "user_123",
+      roomIds: ["room-a", "room-b"],
+      organizationIds: ["org_a", "org_b"],
+      clientInstanceId: "inst_abcd",
+    });
 
     const body = await response.json();
     expect(body.data).toMatchObject({
       keyName: "app.key",
-      clientId: "user_123",
+      clientId: "user_123:inst_abcd",
       mac: "m1",
     });
   });
 
-  it("mints with an empty room list when the user has no memberships", async () => {
-    findManyMembersMock.mockResolvedValue([]);
-    createAblySubscribeTokenRequestMock.mockResolvedValue({
+  it("mints with empty lists when the user has no memberships", async () => {
+    findManyRoomMembersMock.mockResolvedValue([]);
+    findManyOrgMembersMock.mockResolvedValue([]);
+    createAblyClientTokenRequestMock.mockResolvedValue({
       keyName: "app.key",
       capability: "{}",
       timestamp: 1_700_000_000_000,
       nonce: "n1",
       mac: "m1",
-      clientId: "user_123",
+      clientId: "user_123:default00",
     });
 
     const app = createApp();
@@ -106,10 +128,23 @@ describe("POST /realtime/ably-token", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(createAblySubscribeTokenRequestMock).toHaveBeenCalledWith(
-      "user_123",
-      [],
+    expect(createAblyClientTokenRequestMock).toHaveBeenCalledWith({
+      userId: "user_123",
+      roomIds: [],
+      organizationIds: [],
+      clientInstanceId: "default00",
+    });
+  });
+
+  it("rejects invalid clientInstanceId", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/ably-token?clientInstanceId=bad",
+      { method: "POST" },
     );
+
+    expect(response.status).toBe(400);
+    expect(createAblyClientTokenRequestMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker actors (owner-only mint)", async () => {
@@ -124,7 +159,7 @@ describe("POST /realtime/ably-token", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(createAblySubscribeTokenRequestMock).not.toHaveBeenCalled();
-    expect(findManyMembersMock).not.toHaveBeenCalled();
+    expect(createAblyClientTokenRequestMock).not.toHaveBeenCalled();
+    expect(findManyRoomMembersMock).not.toHaveBeenCalled();
   });
 });
