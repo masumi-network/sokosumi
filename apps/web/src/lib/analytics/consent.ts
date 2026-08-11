@@ -82,8 +82,7 @@ export function writeConsent(
 }
 
 /**
- * Flip Google Consent Mode v2 to match the choice, and emit a plain-language
- * `consent_update` event GTM can key off (e.g. to re-fire a tag now that
+ * Flip Google Consent Mode v2 to match the choice, and fire the `consent_status` event the GTM container gates on (e.g. to re-fire a tag now that
  * consent exists).
  */
 export function applyConsentMode(choice: ConsentChoice): void {
@@ -97,7 +96,7 @@ export function applyConsentMode(choice: ConsentChoice): void {
     const w = window as unknown as { dataLayer?: unknown[] };
     w.dataLayer = w.dataLayer ?? [];
     w.dataLayer.push({
-      event: "consent_update",
+      event: "consent_status",
       consent_analytics: choice.analytics ? "granted" : "denied",
       consent_marketing: choice.marketing ? "granted" : "denied",
     });
