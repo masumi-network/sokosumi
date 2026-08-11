@@ -179,18 +179,18 @@ export function GuestInviteSection({
   }
 
   return (
-    <div className="space-y-4 border-t pt-4">
-      <div className="space-y-1">
+    <div className="min-w-0 space-y-4 overflow-x-hidden border-t pt-4">
+      <div className="min-w-0 space-y-1">
         <p className="flex items-center gap-2 text-sm font-medium">
-          <UserPlus className="size-4" aria-hidden />
+          <UserPlus className="size-4 shrink-0" aria-hidden />
           {t("title")}
         </p>
         <p className="text-muted-foreground text-xs">{t("description")}</p>
       </div>
 
       {/* Email invite — direct, known recipient */}
-      <div className="bg-muted/20 space-y-3 rounded-lg border p-3">
-        <div className="space-y-1">
+      <div className="bg-muted/20 min-w-0 space-y-3 overflow-hidden rounded-lg border p-3">
+        <div className="min-w-0 space-y-1">
           <p className="text-sm font-medium">{t("emailTitle")}</p>
           <p className="text-muted-foreground text-xs">
             {t("emailDescription")}
@@ -281,9 +281,9 @@ export function GuestInviteSection({
       </div>
 
       {/* Shareable link — multi-use, no email required */}
-      <div className="bg-muted/20 space-y-3 rounded-lg border p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1">
+      <div className="bg-muted/20 min-w-0 space-y-3 overflow-hidden rounded-lg border p-3">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1 space-y-1">
             <p className="flex items-center gap-2 text-sm font-medium">
               <Link2 className="size-4 shrink-0" aria-hidden />
               {t("linksTitle")}
@@ -296,7 +296,7 @@ export function GuestInviteSection({
             type="button"
             variant="secondary"
             size="sm"
-            className="shrink-0"
+            className="w-full shrink-0 sm:w-auto"
             disabled={isCreatingLink}
             onClick={() => void handleCreateLink()}
           >
@@ -317,13 +317,16 @@ export function GuestInviteSection({
         ) : inviteLinks.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("linksEmpty")}</p>
         ) : (
-          <ul className="space-y-1.5">
+          <ul className="min-w-0 space-y-1.5">
             {inviteLinks.map((link) => (
               <li
                 key={link.token}
-                className="bg-muted/40 flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm"
+                className="bg-muted/40 flex min-w-0 items-center gap-2 overflow-hidden rounded-md px-3 py-2 text-sm"
               >
-                <span className="min-w-0 truncate font-mono text-xs">
+                <span
+                  className="min-w-0 flex-1 truncate font-mono text-xs"
+                  title={link.url}
+                >
                   {link.url}
                 </span>
                 <div className="flex shrink-0 items-center gap-1">
