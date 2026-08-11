@@ -7,8 +7,6 @@ import {
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { cn } from "@/lib/utils";
 
-import AgentFullbleedEffect from "./components/agent-fullbleed-effect";
-
 export async function generateMetadata({
   params,
 }: {
@@ -38,7 +36,6 @@ export default function AgentDetailLayout({
         "md:pt-0",
       )}
     >
-      <AgentFullbleedEffect />
       {children}
     </div>
   );
