@@ -1,7 +1,9 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { AgentHireButton } from "@/components/agents";
 import { AgentPriceBottomNavigation } from "@/components/agents/agent-price-bottom-navigation";
+import { ShareButton } from "@/components/share-button";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 interface AgentBottomNavigationProps {
@@ -11,10 +13,27 @@ interface AgentBottomNavigationProps {
 export default function AgentBottomNavigation({
   agent,
 }: AgentBottomNavigationProps) {
+  // Detect client-side rendering without setState in useEffect
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
+  // Compute URL only on client to avoid hydration mismatch
+  const url = isClient
+    ? new URL(`${window.location.origin}/agents/${agent.id}`)
+    : undefined;
+
   return (
     <AgentPriceBottomNavigation
       agent={agent}
-      action={<AgentHireButton agentId={agent.id} />}
+      action={
+        <div className="flex items-center gap-1.5">
+          {url ? <ShareButton url={url} className="size-8 md:size-7" /> : null}
+          <AgentHireButton agentId={agent.id} />
+        </div>
+      }
     />
   );
 }

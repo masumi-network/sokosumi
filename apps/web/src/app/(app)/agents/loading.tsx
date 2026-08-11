@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function AgentsLoading() {
   return (
     <div className="w-full">
-      <div className="space-y-16 px-2 pb-8 md:space-y-24">
+      <div className="space-y-16 px-4 pb-8 md:space-y-24 md:px-2">
         <section className="space-y-8">
           <div className="space-y-2">
             <Skeleton className="h-7 w-56 md:h-8" />
