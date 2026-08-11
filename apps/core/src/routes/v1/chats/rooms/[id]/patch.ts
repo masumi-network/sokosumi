@@ -173,7 +173,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             });
             if (liveLinkCount > 0) {
               throw badRequest(
-                "Cannot change discoverability while guest members or pending invitations exist.",
+                "Cannot change discoverability while shareable invite links exist. Revoke or wait for them to expire first.",
               );
             }
           }

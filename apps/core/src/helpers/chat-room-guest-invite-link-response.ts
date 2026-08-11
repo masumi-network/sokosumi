@@ -10,9 +10,11 @@ import { chatRoomGuestInviteLinkSchema } from "@/schemas/chat-room-guest-invite-
 export function toChatRoomGuestInviteLinkResponse(
   link: ChatRoomGuestInviteLink,
 ) {
+  // WEB_APP_BASE_URL may include a trailing slash; collapse so join path is single.
+  const webBase = getWebAppBaseUrl().replace(/\/+$/, "");
   return chatRoomGuestInviteLinkSchema.parse({
     token: link.token,
-    url: `${getWebAppBaseUrl()}/chat/join/${link.token}`,
+    url: `${webBase}/chat/join/${link.token}`,
     roomId: link.roomId,
     createdAt: link.createdAt.toISOString(),
     expiresAt: link.expiresAt?.toISOString() ?? null,

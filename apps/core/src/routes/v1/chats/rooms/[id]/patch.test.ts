@@ -768,9 +768,7 @@ describe("PATCH /chats/rooms/{id}", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(await response.text()).toMatch(
-      /guest members or pending invitations/i,
-    );
+    expect(await response.text()).toMatch(/shareable invite links/i);
     expect(guestInviteLinkCountMock).toHaveBeenCalledWith({
       where: expect.objectContaining({
         roomId: ROOM_ID,

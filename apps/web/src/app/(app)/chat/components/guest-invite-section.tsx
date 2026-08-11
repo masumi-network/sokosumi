@@ -1,7 +1,7 @@
 "use client";
 
 import { Copy, Link2, Loader2, Trash2, UserPlus } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import {
   type FormEvent,
   useCallback,
@@ -73,6 +73,7 @@ export function GuestInviteSection({
   onGuestRemoved,
 }: GuestInviteSectionProps) {
   const t = useTranslations("App.Channels.GuestInvite");
+  const format = useFormatter();
   const [email, setEmail] = useState("");
   const [invitations, setInvitations] = useState<ChatRoomInvitation[]>([]);
   const [inviteLinks, setInviteLinks] = useState<ChatRoomGuestInviteLink[]>([]);
@@ -462,7 +463,9 @@ export function GuestInviteSection({
                 <p className="text-muted-foreground text-xs">
                   {link.expiresAt
                     ? t("linkMetaExpires", {
-                        date: new Date(link.expiresAt).toLocaleDateString(),
+                        date: format.dateTime(new Date(link.expiresAt), {
+                          dateStyle: "medium",
+                        }),
                       })
                     : t("linkMetaNoExpiry")}
                   {" · "}

@@ -5,7 +5,7 @@ import { chatRoomGuestInviteLinkRepository } from "@sokosumi/database/repositori
 
 import { LIMITS } from "@/config/constants";
 import { toChatRoomGuestInviteLinkResponse } from "@/helpers/chat-room-guest-invite-link-response";
-import { badRequest } from "@/helpers/error";
+import { tooManyRequests } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -92,7 +92,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tx,
         );
       if (liveCount >= LIMITS.CHAT_ROOM_GUEST_INVITE_LINK_ACTIVE_LIMIT) {
-        throw badRequest(
+        // Match email guest-invite rate limits: 429, not 400.
+        throw tooManyRequests(
           `This channel already has ${LIMITS.CHAT_ROOM_GUEST_INVITE_LINK_ACTIVE_LIMIT} active invite links. Revoke some before creating more.`,
         );
       }
@@ -105,7 +106,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           tx,
         );
       if (recentCreates >= LIMITS.CHAT_ROOM_GUEST_INVITE_LINK_CREATE_PER_HOUR) {
-        throw badRequest(
+        throw tooManyRequests(
           `You can create at most ${LIMITS.CHAT_ROOM_GUEST_INVITE_LINK_CREATE_PER_HOUR} shareable invite links per hour. Try again later.`,
         );
       }

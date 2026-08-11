@@ -218,8 +218,24 @@ describe("POST /chats/rooms/{id}/invite-links", () => {
       body: JSON.stringify({}),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(429);
     expect(await response.text()).toMatch(/active invite links/i);
+    expect(createInviteLinkMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the hourly create cap is reached", async () => {
+    roomFindFirstMock.mockResolvedValue(externalRoom());
+    countRecentCreatesByUserMock.mockResolvedValue(10);
+
+    const app = createApp();
+    const response = await app.request(`/${ROOM_ID}/invite-links`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    expect(response.status).toBe(429);
+    expect(await response.text()).toMatch(/per hour/i);
     expect(createInviteLinkMock).not.toHaveBeenCalled();
   });
 
