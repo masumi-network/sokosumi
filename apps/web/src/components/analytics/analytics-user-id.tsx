@@ -20,9 +20,8 @@ export function AnalyticsUserId() {
     if (userId === last.current) return;
     last.current = userId;
 
-    const w = window as unknown as { dataLayer?: unknown[] };
-    w.dataLayer = w.dataLayer ?? [];
-    w.dataLayer.push({ event: "set_user_id", user_id: userId });
+    window.dataLayer = window.dataLayer ?? [];
+    window.dataLayer.push({ event: "set_user_id", user_id: userId });
   }, [userId]);
 
   return null;

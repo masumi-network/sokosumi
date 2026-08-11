@@ -5354,7 +5354,7 @@
     "necessaryTitle": "Estrictamente necesarias",
     "necessaryBody": "Necesarias para que el producto funcione — seguridad y recordar esta elección. Siempre activas.",
     "analyticsTitle": "Análisis",
-    "analyticsBody": "Medición anónima de uso (Google Analytics) para ver qué ayuda y qué no.",
+    "analyticsBody": "Medición de uso con Google Analytics. Mientras tienes la sesión iniciada, un identificador seudónimo de cuenta vincula tus visitas, nunca tu nombre ni tu correo electrónico.",
     "marketingTitle": "Marketing",
     "marketingBody": "Nos permite medir campañas publicitarias y llegar a personas a las que Sokosumi podría resultar útil.",
     "settings": "Configuración de cookies"

@@ -31,8 +31,7 @@ interface StoredConsent extends ConsentChoice {
  */
 function gtag(...args: unknown[]): void {
   if (typeof window === "undefined") return;
-  const w = window as unknown as { dataLayer?: unknown[] };
-  const dataLayer = (w.dataLayer = w.dataLayer ?? []);
+  const dataLayer = (window.dataLayer = window.dataLayer ?? []);
   function push() {
     dataLayer.push(arguments);
   }
@@ -47,12 +46,27 @@ function cookieDomainSuffix(): string {
     : "";
 }
 
+/**
+ * Secure over HTTPS. Without it a plain-HTTP response on the same domain can
+ * overwrite the cookie with granted values, and readConsent() would restore
+ * them — turning tracking on for someone who never agreed. Omitted on http so
+ * local development still works.
+ */
+function cookieSecureSuffix(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.protocol === "https:" ? "; Secure" : "";
+}
+
 export function readConsent(): ConsentChoice | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie.match(/(?:^|; )sokosumi_consent=([^;]+)/);
   if (!match) return null;
   try {
     const parsed = JSON.parse(decodeURIComponent(match[1])) as StoredConsent;
+    // A choice recorded against an older schema is not a choice about the
+    // current categories — treat it as no decision so the banner asks again.
+    // Without this check CONSENT_VERSION was written but never honoured.
+    if (parsed.v !== CONSENT_VERSION) return null;
     return {
       necessary: true,
       analytics: !!parsed.analytics,
@@ -76,7 +90,7 @@ export function writeConsent(
   if (typeof document !== "undefined") {
     document.cookie = `${CONSENT_COOKIE}=${encodeURIComponent(
       JSON.stringify(value),
-    )}; Max-Age=${MAX_AGE_SECONDS}; Path=/; SameSite=Lax${cookieDomainSuffix()}`;
+    )}; Max-Age=${MAX_AGE_SECONDS}; Path=/; SameSite=Lax${cookieDomainSuffix()}${cookieSecureSuffix()}`;
   }
   return value;
 }
@@ -93,9 +107,8 @@ export function applyConsentMode(choice: ConsentChoice): void {
     ad_personalization: choice.marketing ? "granted" : "denied",
   });
   if (typeof window !== "undefined") {
-    const w = window as unknown as { dataLayer?: unknown[] };
-    w.dataLayer = w.dataLayer ?? [];
-    w.dataLayer.push({
+    window.dataLayer = window.dataLayer ?? [];
+    window.dataLayer.push({
       event: "consent_status",
       consent_analytics: choice.analytics ? "granted" : "denied",
       consent_marketing: choice.marketing ? "granted" : "denied",

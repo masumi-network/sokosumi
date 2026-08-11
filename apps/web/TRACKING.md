@@ -6,7 +6,7 @@ describe the two halves of one system.
 
 ## The four layers
 
-```
+```text
 USER
   │
   ▼
@@ -47,6 +47,7 @@ Nothing analytics- or ads-related leaves the browser until the visitor opts in.
   ```
 
 - Categories → Consent Mode signals:
+
   | Category   | Signals set to granted                                            |
   |------------|-------------------------------------------------------------------|
   | necessary  | always on (`functionality_storage`, `security_storage`)           |

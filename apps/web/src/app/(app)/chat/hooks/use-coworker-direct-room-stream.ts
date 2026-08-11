@@ -234,7 +234,9 @@ export function useCoworkerDirectRoomStream({
   const roomIdRef = useRef(roomId);
   roomIdRef.current = roomId;
   // Which room we have already fired a `message_start` for this mount.
-  const messageStartFiredRoomRef = useRef<string | null>(null);
+  // Every room already counted this mount. A single ref held only the last
+  // room, so switching A -> B -> A fired message_start for A twice.
+  const messageStartFiredRoomsRef = useRef<Set<string>>(new Set());
   const organizationSlugRef = useRef(organizationSlug);
   organizationSlugRef.current = organizationSlug;
   const onStreamSettledRef = useRef(onStreamSettled);
@@ -417,8 +419,8 @@ export function useCoworkerDirectRoomStream({
       const parentMessageId = options?.parentMessageId?.trim() || null;
       // Analytics: a coworker DM was started. Fire once per room per mount so
       // "starting a conversation" is one event, not one per keystroke-send.
-      if (messageStartFiredRoomRef.current !== roomId) {
-        messageStartFiredRoomRef.current = roomId;
+      if (!messageStartFiredRoomsRef.current.has(roomId)) {
+        messageStartFiredRoomsRef.current.add(roomId);
         fireGTMEvent.messageStart(roomId);
       }
       // Shared useChat instance — clear leftover turns so a failed settle cannot

@@ -32,6 +32,16 @@ export function ConsentModeInit() {
             ad_user_data: c.marketing ? 'granted' : 'denied',
             ad_personalization: c.marketing ? 'granted' : 'denied'
           });
+          // The GTM container gates every conversion tag behind a
+          // \`consent_status\` event (trigger groups). The banner only fires it
+          // when someone clicks, and a returning visitor never sees the banner
+          // — so without this push their tags would never fire again after the
+          // visit where they first accepted.
+          window.dataLayer.push({
+            event: 'consent_status',
+            consent_analytics: c.analytics ? 'granted' : 'denied',
+            consent_marketing: c.marketing ? 'granted' : 'denied'
+          });
         }
       } catch (e) {}
       gtag('set', 'url_passthrough', true);

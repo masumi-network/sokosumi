@@ -14,6 +14,9 @@ export const GLOBAL_MESSAGE_PATHS = [
   "Components",
   "Library",
   "NotFound",
+  // The cookie banner renders on every route, including auth and error pages,
+  // so its copy has to ship with the global bundle or it renders raw keys.
+  "CookieConsent",
 ] as const;
 
 /** Auth + invitation/join flows. */

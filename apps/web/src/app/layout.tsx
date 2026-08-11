@@ -60,6 +60,9 @@ export default function RootLayout({
 }>) {
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
   const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
+  // Consent gates BOTH Google tags. Keying the banner off gtmId alone meant a
+  // GA-only deploy loaded Analytics with no consent init and no way to refuse.
+  const analyticsEnabled = Boolean(gtmId || gaId);
 
   return (
     <html
@@ -71,7 +74,7 @@ export default function RootLayout({
         <ApplePwaHead />
       </head>
       {/* Consent Mode (denied by default) MUST be set before GTM loads. */}
-      {gtmId && <ConsentModeInit />}
+      {analyticsEnabled && <ConsentModeInit />}
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       {gaId && <GoogleAnalytics gaId={gaId} />}
       <body className="bg-background min-h-svh max-w-dvw antialiased">
@@ -81,13 +84,13 @@ export default function RootLayout({
             <Suspense fallback={<div className="bg-background min-h-svh" />}>
               <RootIntlTree>
                 {children}
-                {gtmId && <CookieBanner />}
+                {analyticsEnabled && <CookieBanner />}
               </RootIntlTree>
             </Suspense>
           </ThemeProvider>
         </NuqsAdapter>
         <ClientAnalytics />
-        {gtmId && <AnalyticsUserId />}
+        {analyticsEnabled && <AnalyticsUserId />}
         <DeploymentRefreshHandler />
       </body>
     </html>
