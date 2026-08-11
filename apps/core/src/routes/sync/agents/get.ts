@@ -1,6 +1,10 @@
 import type { Hono } from "hono";
 
 import { agentSyncService } from "@/services/agent-sync.service";
+// Imported from the module directly, not through agentSyncService: the
+// service file sits at the size ceiling and the x402 readiness sync has no
+// other reason to pass through it.
+import { syncX402BuySideReadiness } from "@/services/agent-sync.x402-readiness";
 
 import { handleSyncRequest } from "../handler.js";
 
@@ -20,6 +24,17 @@ export default function mount(app: Hono) {
             AbortSignal.timeout(10_000),
           ]),
         });
+      // x402 buy-side readiness rides the same cron under the same timeout
+      // treatment. Its change signal deliberately does NOT reset the registry
+      // cursor: the x402 listing reads getX402ReadySources at request time,
+      // so nothing readiness-dependent is baked into agent rows (unlike the
+      // Cardano readiness, which feeds the projected availability filters).
+      await syncX402BuySideReadiness({
+        signal: AbortSignal.any([
+          context.abortSignal,
+          AbortSignal.timeout(10_000),
+        ]),
+      });
       await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
         abortSignal: context.abortSignal,
         shouldContinue: context.shouldContinue,
