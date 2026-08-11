@@ -1,8 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import EmptyState from "@/app/personal-assistant/components/empty-state";
@@ -20,7 +28,6 @@ import LoadingState from "@/app/personal-assistant/components/loading-state";
 import OnboardingProgress from "@/app/personal-assistant/components/onboarding-progress";
 import OnboardingScreen from "@/app/personal-assistant/components/onboarding-screen";
 import ProvisioningState from "@/app/personal-assistant/components/provisioning-state";
-import RunningState from "@/app/personal-assistant/components/running-state";
 import {
   SubscriptionRequiredDialog,
   type SubscriptionWallPlan,
@@ -42,6 +49,15 @@ import type {
   HermesPersistedMessage,
   HermesPersonality,
 } from "@/lib/hermes/types";
+
+/**
+ * Running chat + settings/skills panels — heavy; keep off first-paint entry.
+ * No `loading` option here: seed-aware fallback is the parent Suspense so the
+ * orb does not flash the default "personal-assistant" seed during chunk load.
+ */
+const RunningState = dynamic(
+  () => import("@/app/personal-assistant/components/running-state"),
+);
 
 export type { HermesOrganizationOption };
 
@@ -772,21 +788,23 @@ export default function HermesExperience({
   }
   return (
     <>
-      <RunningState
-        userName={userName ?? null}
-        userImageUrl={userImageUrl ?? null}
-        avatarSeed={effectiveOrbSeed}
-        orbBaseSeed={orbBaseSeed}
-        instance={instance}
-        previewMode={previewMode}
-        initialMessages={initialMessages}
-        organizations={effectiveOrganizations}
-        activeOrganizationId={effectiveActiveOrgId}
-        hasActiveSubscription={hasActiveSubscription}
-        onRequireSubscription={() => setSubscriptionWallOpen(true)}
-        onDestroy={handleDestroy}
-        onRefresh={() => refetchHermes({ background: true })}
-      />
+      <Suspense fallback={<LoadingState seed={effectiveOrbSeed} />}>
+        <RunningState
+          userName={userName ?? null}
+          userImageUrl={userImageUrl ?? null}
+          avatarSeed={effectiveOrbSeed}
+          orbBaseSeed={orbBaseSeed}
+          instance={instance}
+          previewMode={previewMode}
+          initialMessages={initialMessages}
+          organizations={effectiveOrganizations}
+          activeOrganizationId={effectiveActiveOrgId}
+          hasActiveSubscription={hasActiveSubscription}
+          onRequireSubscription={() => setSubscriptionWallOpen(true)}
+          onDestroy={handleDestroy}
+          onRefresh={() => refetchHermes({ background: true })}
+        />
+      </Suspense>
       {subscriptionWall}
     </>
   );

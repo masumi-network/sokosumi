@@ -68,6 +68,15 @@ the `ProgressPips` macro indicator (`Setup → Personalize → Ready`).
 The wrapper `HermesExperience` polls the instance, normalizes states, and
 unmounts the polling effect when the route leaves the foreground.
 
+### First paint (billing deferred)
+
+`page.tsx` does **not** await paid-plan coverage or the subscription catalog
+before streaming UI. It loads session, returns `<Suspense fallback={<LoadingState />}>`,
+and defers memberships + coverage + catalog to `HermesExperienceWithAccess`.
+Gate stays fail-closed once resolved; Core still re-checks on provision/chat.
+Soft-nav Instant stays off (`export const instant = false` on the layout).
+`RunningState` (and settings/skills) is dynamic-imported off the experience entry.
+
 ### Full-bleed chat under the shared header
 
 The shared `AppLayout` renders a breadcrumb `Header` (`h-16` / 4rem; 64px at
@@ -293,9 +302,12 @@ For a hard local-only reset, drop those rows directly.
 apps/web/src/app/(app)/personal-assistant/
 ├── README.md                            ← you are here
 ├── layout.tsx                           ← beta whitelist gate + FullscreenEffect
-├── page.tsx                             ← session pass-through, renders HermesExperience
+├── loading.tsx                          ← route-transition LoadingState shell
+├── page.tsx                             ← session + Suspense shell; billing deferred (see First paint)
+├── hermes-page-subscription.ts          ← fail-closed paid gate + wall plan mapping
 └── components/
-    ├── hermes-experience.tsx            ← state machine + polling
+    ├── hermes-experience.tsx            ← state machine + polling; RunningState dynamic-import
+
     ├── empty-state.tsx                  ← shell: /personal-assistant when no instance
     ├── empty-state/                     ← hero + journey + features + examples + disclaimer modules
     ├── provisioning-state.tsx           ← honest "Setting up your agent…" view
