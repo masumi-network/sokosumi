@@ -70,7 +70,7 @@ describe("ComposerWysiwygEditor", () => {
     expect(editor).toHaveStyle({ scrollMarginTop: "252px" });
   });
 
-  it("shows a truncating overlay placeholder when empty and hides it when typing", () => {
+  it("uses data-placeholder for classic empty:before (single-line) placeholder", () => {
     function Harness() {
       const [value, setValue] = useState("");
       return (
@@ -83,26 +83,15 @@ describe("ComposerWysiwygEditor", () => {
       );
     }
 
-    const { rerender } = render(<Harness />);
-    expect(screen.getByText("Message #Everyone")).toBeTruthy();
-    expect(screen.getByRole("textbox")).toHaveAttribute(
-      "aria-placeholder",
-      "Message #Everyone",
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveAttribute("data-placeholder", "Message #Everyone");
+    expect(editor.className).toMatch(
+      /empty:before:content-\[attr\(data-placeholder\)\]/,
     );
-
-    function Typed() {
-      const [value, setValue] = useState("hi");
-      return (
-        <ComposerWysiwygEditor
-          value={value}
-          onChange={setValue}
-          mentions={{}}
-          placeholder="Message #Everyone"
-        />
-      );
-    }
-    rerender(<Typed />);
-    expect(screen.queryByText("Message #Everyone")).toBeNull();
+    expect(editor.className).toMatch(
+      /empty:before:truncate|empty:before:text-ellipsis/,
+    );
   });
 
   it("applies top-side flip and dynamic maxHeight to the mention listbox", () => {

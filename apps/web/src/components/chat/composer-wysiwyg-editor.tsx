@@ -1217,45 +1217,35 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [applyFormat, insertLink, insertText, openMentions],
   );
 
-  // Overlay placeholder (not empty:before) so long channel/DM names truncate
-  // without growing empty-editor height or garbling contenteditable layout.
-  const showPlaceholderOverlay =
-    placeholder.trim().length > 0 && value.trim().length === 0;
-
   return (
     <>
-      <div className="relative min-w-0">
-        {showPlaceholderOverlay ? (
-          <div
-            className="text-muted-foreground pointer-events-none absolute inset-x-4 top-3.5 z-0 truncate leading-6"
-            aria-hidden
-          >
-            {placeholder}
-          </div>
-        ) : null}
-        <div
-          ref={editorRef}
-          id={id}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={handleInput}
-          onPaste={handlePaste}
-          onKeyDown={handleKeyDown}
-          onKeyUp={syncSuggestionsWithCaret}
-          onMouseUp={syncSuggestionsWithCaret}
-          onBlur={handleBlur}
-          role="textbox"
-          aria-multiline="true"
-          aria-placeholder={placeholder || undefined}
-          style={{ scrollMarginTop: MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX }}
-          className={cn(
-            "relative z-[1] outline-none focus:outline-none",
-            "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
-            EDITOR_PROSE_CLASSNAME,
-            className,
-          )}
-        />
-      </div>
+      <div
+        ref={editorRef}
+        id={id}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={handleInput}
+        onPaste={handlePaste}
+        onKeyDown={handleKeyDown}
+        onKeyUp={syncSuggestionsWithCaret}
+        onMouseUp={syncSuggestionsWithCaret}
+        onBlur={handleBlur}
+        data-placeholder={placeholder}
+        role="textbox"
+        aria-multiline="true"
+        style={{ scrollMarginTop: MENTION_ANCHOR_SCROLL_MARGIN_TOP_PX }}
+        className={cn(
+          "outline-none focus:outline-none",
+          "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
+          // Classic empty:before placeholder. Single-line ellipsis so long
+          // room names never grow the empty box; min-h on the host (shared
+          // ROOM_COMPOSER_TEXTAREA_CLASSNAME) is the only height for empty
+          // and first keystroke.
+          "empty:before:pointer-events-none empty:before:block empty:before:max-w-full empty:before:overflow-hidden empty:before:text-ellipsis empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]",
+          EDITOR_PROSE_CLASSNAME,
+          className,
+        )}
+      />
       {typeof window !== "undefined" &&
         isOpen &&
         visibleSuggestionCount > 0 &&
