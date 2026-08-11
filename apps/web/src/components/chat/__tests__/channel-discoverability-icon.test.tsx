@@ -19,11 +19,11 @@ describe("ChannelDiscoverabilityIcon", () => {
     expect(slots).toHaveLength(3);
 
     for (const slot of slots) {
-      // Outer box matches DM avatars (size-5); glyph stays slightly smaller.
+      // Outer box matches DM avatars (size-5); glyph left-aligned for optical match.
       expect(slot.className).toContain("size-5");
       expect(slot.className).toContain("[&_svg]:size-3.5");
       expect(slot.className).toContain("items-center");
-      expect(slot.className).toContain("justify-center");
+      expect(slot.className).toContain("justify-start");
     }
 
     // Direct child of the menu row must not be an svg, or [&>svg]:size-4 wins.

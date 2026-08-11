@@ -167,7 +167,7 @@ export function ChatRoomSidebarRow({
     >
       <span
         data-slot="room-leading"
-        className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center"
+        className="inline-flex size-5 shrink-0 items-center justify-start"
       >
         {leading}
       </span>

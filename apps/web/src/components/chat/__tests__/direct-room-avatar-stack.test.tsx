@@ -114,7 +114,7 @@ describe("DirectRoomAvatarStack", () => {
     openDirectMock.mockResolvedValue({ ok: true, roomId: "dm-2" });
   });
 
-  it("fits empty and 1:1 DM leadings in a min-w-5 / h-5 box matching channel icons", () => {
+  it("fits empty, 1:1, and group DM leadings in a fixed size-5 box", () => {
     const { container: emptyContainer, unmount } = render(
       <DirectRoomAvatarStack
         room={makeDirectRoom({ userMembers: [makeUser("me", "Me")] })}
@@ -129,7 +129,7 @@ describe("DirectRoomAvatarStack", () => {
     expect(emptyRoot?.className).toContain("shrink-0");
     unmount();
 
-    const { container } = render(
+    const { container: singleContainer, unmount: unmountSingle } = render(
       <DirectRoomAvatarStack
         room={makeDirectRoom()}
         currentUserId="me"
@@ -138,12 +138,33 @@ describe("DirectRoomAvatarStack", () => {
       />,
     );
 
-    // min-w-5 / h-5 matches channel icon column; multi stacks may grow wider.
-    const stackRoot = container.firstElementChild;
-    expect(stackRoot?.className).toContain("min-w-5");
-    expect(stackRoot?.className).toContain("h-5");
-    expect(stackRoot?.className).toContain("shrink-0");
-    expect(stackRoot?.className).toContain("items-center");
+    const singleRoot = singleContainer.firstElementChild;
+    expect(singleRoot?.className).toContain("size-5");
+    expect(singleRoot?.className).toContain("shrink-0");
+    unmountSingle();
+
+    // Group stacks stay size-5 so the label column does not shift right.
+    const { container: groupContainer } = render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [
+            makeUser("me", "Me"),
+            makeUser("alice", "Alice"),
+            makeUser("bob", "Bob"),
+          ],
+        })}
+        currentUserId="me"
+        canOpenHumanDirect
+        selectedRoomId={null}
+      />,
+    );
+
+    const groupRoot = groupContainer.firstElementChild;
+    expect(groupRoot?.className).toContain("size-5");
+    expect(groupRoot?.className).toContain("shrink-0");
+    expect(groupRoot?.className).toContain("relative");
+    expect(screen.getByTestId("dm-sidebar-avatar-alice")).toBeInTheDocument();
+    expect(screen.getByTestId("dm-sidebar-avatar-bob")).toBeInTheDocument();
   });
 
   it("shows participant hover card for a 1:1 human DM avatar", async () => {

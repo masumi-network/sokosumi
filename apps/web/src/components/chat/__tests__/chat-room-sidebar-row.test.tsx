@@ -309,7 +309,7 @@ async function openRoomMenu(label = "general") {
 }
 
 describe("ChatRoomSidebarRow leading slot", () => {
-  it("wraps any room leading icon in a min-w-5 / h-5 alignment slot", () => {
+  it("wraps any room leading icon in a fixed size-5 alignment slot", () => {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom()}
@@ -325,12 +325,11 @@ describe("ChatRoomSidebarRow leading slot", () => {
     const slot = leading.parentElement;
     expect(slot).not.toBeNull();
     expect(slot?.getAttribute("data-slot")).toBe("room-leading");
-    // min-w-5 aligns single icons; width may grow for multi-avatar stacks.
-    expect(slot?.className).toContain("min-w-5");
-    expect(slot?.className).toContain("h-5");
+    // Fixed size-5 so multi-avatar stacks cannot push labels right.
+    expect(slot?.className).toContain("size-5");
     expect(slot?.className).toContain("shrink-0");
     expect(slot?.className).toContain("items-center");
-    expect(slot?.className).toContain("justify-center");
+    expect(slot?.className).toContain("justify-start");
 
     // Slot is a direct child of the room link so every room type shares the same column.
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');

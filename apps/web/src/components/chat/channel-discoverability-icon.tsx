@@ -9,7 +9,8 @@ interface ChannelDiscoverabilityIconProps {
 /**
  * Slack-like: `#` for public, lock for private, globe for external.
  * Outer size-5 matches DM avatars so every room row shares one leading column.
- * Glyph stays size-3.5; wrapper blocks sidebar `[&>svg]:size-4` override.
+ * Glyph left-aligned (not centered) so thin icons share the avatar left edge.
+ * Wrapper blocks sidebar `[&>svg]:size-4` override.
  */
 export function ChannelDiscoverabilityIcon({
   discoverability,
@@ -25,7 +26,7 @@ export function ChannelDiscoverabilityIcon({
   return (
     <span
       className={cn(
-        "inline-flex size-5 shrink-0 items-center justify-center [&_svg]:size-3.5",
+        "inline-flex size-5 shrink-0 items-center justify-start [&_svg]:size-3.5",
         className,
       )}
       aria-hidden
