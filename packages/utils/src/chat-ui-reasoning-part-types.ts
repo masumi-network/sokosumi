@@ -1,19 +1,4 @@
 /**
- * Body part `type` values that are never reasoning. Retained for callers that
- * need the body denylist; Thought **collection** uses the allowlist below.
- */
-export const CHAT_UI_NON_REASONING_PART_TYPE_VALUES = [
-  "text",
-  "file",
-  "input_text",
-  "output_text",
-] as const satisfies readonly string[];
-
-export const CHAT_UI_NON_REASONING_PART_TYPES = new Set<string>(
-  CHAT_UI_NON_REASONING_PART_TYPE_VALUES,
-);
-
-/**
  * Allowlisted part `type` values for Thought collection (live stream, durable
  * disclosure, Core persist/Zod). Matches AI SDK `ReasoningUIPart` (`type:
  * "reasoning"`) and `@sokosumi/ai-provider` stream materialization.

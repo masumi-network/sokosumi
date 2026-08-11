@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CHAT_UI_REASONING_PART_TYPE_VALUES,
   isChatUiProviderReasoningPartType,
-} from "../chat-ui-non-reasoning-part-types";
+} from "../chat-ui-reasoning-part-types";
 
 describe("isChatUiProviderReasoningPartType", () => {
   it("allowlists only AI SDK reasoning", () => {

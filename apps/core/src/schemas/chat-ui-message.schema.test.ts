@@ -73,6 +73,15 @@ describe("chatUiReasoningPartSchema", () => {
     ).toEqual({ type: "reasoning", text: "thinking" });
   });
 
+  it("trims type whitespace so parsed value is exact reasoning", () => {
+    expect(
+      chatUiReasoningPartSchema.parse({
+        type: "  reasoning  ",
+        text: "thinking",
+      }),
+    ).toEqual({ type: "reasoning", text: "thinking" });
+  });
+
   it("rejects reserved body part types", () => {
     expect(() =>
       chatUiReasoningPartSchema.parse({ type: "text", text: "x" }),
