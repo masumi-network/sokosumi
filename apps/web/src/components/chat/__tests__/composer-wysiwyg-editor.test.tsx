@@ -6,7 +6,10 @@ import {
   ComposerWysiwygEditor,
   type ComposerWysiwygEditorHandle,
 } from "@/components/chat/composer-wysiwyg-editor";
-import { ROOM_COMPOSER_MENTION_ANCHOR_ATTR } from "@/components/chat/room-message-composer";
+import {
+  ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
+  ROOM_COMPOSER_MENTION_ANCHOR_ATTR,
+} from "@/components/chat/room-message-composer";
 
 const getPopupPositionFromRect = vi.hoisted(() =>
   vi.fn(() => ({
@@ -68,6 +71,29 @@ describe("ComposerWysiwygEditor", () => {
     const editor = screen.getByRole("textbox");
     expect(editor).toHaveClass("markdown-compose-surface");
     expect(editor).toHaveStyle({ scrollMarginTop: "252px" });
+  });
+
+  it("uses data-placeholder for classic empty:before (single-line) placeholder", () => {
+    function Harness() {
+      const [value, setValue] = useState("");
+      return (
+        <ComposerWysiwygEditor
+          value={value}
+          onChange={setValue}
+          mentions={{}}
+          placeholder="Message #Everyone"
+        />
+      );
+    }
+
+    render(<Harness />);
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveAttribute("data-placeholder", "Message #Everyone");
+    for (const className of ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME.split(
+      " ",
+    )) {
+      expect(editor.className).toContain(className);
+    }
   });
 
   it("applies top-side flip and dynamic maxHeight to the mention listbox", () => {

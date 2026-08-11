@@ -200,4 +200,47 @@ describe("RoomComposer focusOnMount", () => {
     await flushAnimationFrame();
     expect(editorFocus).not.toHaveBeenCalled();
   });
+
+  it("focuses when focusOnMount flips false → true (progressive history ready)", async () => {
+    editorFocus.mockClear();
+
+    function FlipHarness() {
+      const [focusOnMount, setFocusOnMount] = useState(false);
+      const [value, setValue] = useState("");
+      return (
+        <>
+          <button type="button" onClick={() => setFocusOnMount(true)}>
+            enable-focus
+          </button>
+          <RoomComposer
+            value={value}
+            onValueChange={setValue}
+            mentions={{}}
+            onSelectedKeysChange={() => undefined}
+            placeholder="Message"
+            attachments={[]}
+            onAttachmentsChange={() => undefined}
+            onSubmit={(event) => event.preventDefault()}
+            isSending={false}
+            sendDisabled={false}
+            showMentionShortcut={false}
+            allowAttachments={false}
+            focusOnMount={focusOnMount}
+          />
+        </>
+      );
+    }
+
+    const { getByRole } = render(<FlipHarness />);
+    await flushAnimationFrame();
+    expect(editorFocus).not.toHaveBeenCalled();
+
+    await act(async () => {
+      getByRole("button", { name: "enable-focus" }).click();
+    });
+    await flushAnimationFrame();
+    await waitFor(() => {
+      expect(editorFocus).toHaveBeenCalledTimes(1);
+    });
+  });
 });

@@ -1556,25 +1556,25 @@
       "Onboarding": {
         "openFab": "Iniciar chat con coworker",
         "greeting": "¡Bienvenido!",
-        "greetingWithName": "¡Bienvenido {name}!",
+        "greetingWithName": "¡Bienvenido, {name}!",
         "intentTitle": "¿Para qué estás aquí?",
-        "intentDescription": "Elige un camino para sugerirte el coworker y los prompts iniciales adecuados.",
+        "intentDescription": "Cuéntanos en qué estás trabajando y te emparejamos con el coworker y los prompts iniciales adecuados.",
         "intentChoices": {
           "chat": "Conversación",
-          "tasks": "Tareas y proyectos",
+          "tasks": "Proyectos y tareas",
           "either": "Aún no estoy seguro"
         },
         "intentChoiceHints": {
-          "chat": "Idear, investigar o obtener respuestas en un ida y vuelta.",
-          "tasks": "Dividir el trabajo, seguir el progreso o avanzar un proyecto.",
-          "either": "Abrimos con Elena y una idea para empezar."
+          "chat": "Investiga, idea o piensa algo a fondo con un coworker.",
+          "tasks": "Desglosa el trabajo, asígnalo a un coworker o avanza algo.",
+          "either": "Te empezamos con Elena, nuestra coworker de IA predeterminada, y una idea para probar."
         },
-        "goalTitle": "Prueba un inicio — o escribe el tuyo",
-        "goalDescription": "Toca un prompt para rellenar tu primer mensaje, o escribe algo abajo.",
-        "goalLabel": "Tu objetivo",
-        "goalPlaceholder": "p. ej. Ayúdame a redactar un resumen semanal",
+        "goalTitle": "Elige un prompt inicial o escribe el tuyo",
+        "goalDescription": "Selecciona un prompt para rellenar tu primer mensaje, o escribe el tuyo abajo.",
+        "goalLabel": "Tu mensaje",
+        "goalPlaceholder": "Ejemplo: Ayúdame a redactar un resumen semanal",
         "tryAsking": {
-          "label": "Prueba a preguntar",
+          "label": "Prompts sugeridos",
           "orDivider": "o",
           "prompts": {
             "chat": {

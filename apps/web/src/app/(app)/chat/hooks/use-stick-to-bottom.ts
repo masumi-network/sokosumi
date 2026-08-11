@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 /**
  * Within this distance of the bottom, content resizes still pin the viewport.
@@ -104,7 +110,9 @@ export function useStickToBottom({
     return () => observer.disconnect();
   }, [nearBottomPx, resetKey]);
 
-  useEffect(() => {
+  // Layout effect: avoid one painted frame with wrong min-height (skeleton
+  // / short transcript jumped when useEffect ran after paint).
+  useLayoutEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller || typeof ResizeObserver === "undefined") {
       return;

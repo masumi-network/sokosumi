@@ -34,7 +34,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "decimal.js": "10.6.0"
+    "decimal.js": "10.6.0",
+    "namefully": "2.2.0"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

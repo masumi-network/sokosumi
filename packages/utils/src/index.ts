@@ -287,7 +287,11 @@ export {
   parseUserMetadata,
   type UserMetadata,
 } from "./user-metadata.js";
-export { getFallbackUserName, getStoredUserName } from "./user-name.js";
+export {
+  getFallbackUserName,
+  getFirstName,
+  getStoredUserName,
+} from "./user-name.js";
 export {
   isUserUploadAllowedContentType,
   normalizeUserUploadContentType,

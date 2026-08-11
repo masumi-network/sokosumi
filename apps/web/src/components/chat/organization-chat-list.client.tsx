@@ -89,6 +89,10 @@ import {
 
 const ORGANIZATION_CHAT_POLL_MS = 15_000;
 
+/** Stable empty default — inline `= []` is a new array every render and
+ *  infinite-loops the render-time pendingInvitations sync (React #301). */
+const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
+
 /** Upsert first-page rooms; keep older rows previously appended via load-more. */
 function upsertFirstPageRooms(
   firstPage: ChatRoom[],
@@ -231,7 +235,7 @@ export function OrganizationChatList({
   roomsNextCursor,
   archivedRooms,
   archivedRoomsNextCursor,
-  pendingInvitations = [],
+  pendingInvitations = EMPTY_PENDING_INVITATIONS,
   currentUserId,
   organizationId,
   canDeleteArchivedRooms = false,
@@ -789,10 +793,7 @@ export function OrganizationChatList({
                   }
                   isActive={activeRoomId === room.id}
                   leading={
-                    <Globe2
-                      className="text-muted-foreground size-3.5 shrink-0"
-                      aria-hidden
-                    />
+                    <ChannelDiscoverabilityIcon discoverability="external" />
                   }
                   onRoomUpdated={handleRoomUpdated}
                   dismissSheetOnNavigate={dismissSheetOnNavigate}
