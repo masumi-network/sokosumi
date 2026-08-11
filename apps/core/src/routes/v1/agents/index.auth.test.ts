@@ -15,14 +15,18 @@ const {
   getAgentNameMock,
   getCreditCostsOrThrowMock,
   prismaTransactionMock,
+  syncMetadataFindUniqueMock,
 } = vi.hoisted(() => ({
   authContextState: {
-    current: null as {
-      actor: "user";
-      userId: string;
-      organizationId: string | null;
-      role: string;
-    } | null,
+    current: null as
+      | {
+          actor: "user";
+          userId: string;
+          organizationId: string | null;
+          role: string;
+        }
+      | { actor: "coworker"; agentId: string; context?: undefined }
+      | null,
   },
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
@@ -37,6 +41,7 @@ const {
   getAgentNameMock: vi.fn(),
   getCreditCostsOrThrowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
+  syncMetadataFindUniqueMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -86,6 +91,12 @@ vi.mock("@/lib/db/prisma", () => ({
     agent: {
       findMany: agentFindManyMock,
       count: agentCountMock,
+    },
+    // The x402 mount-order pin below routes GET /x402 through the REAL
+    // composed router; the listing's readiness read must resolve (null =
+    // never recorded -> fail-closed empty listing, no catalog query).
+    syncMetadata: {
+      findUnique: syncMetadataFindUniqueMock,
     },
     $transaction: prismaTransactionMock,
   },
@@ -140,5 +151,25 @@ describe("agents routes auth gate", () => {
 
     expect(response.status).toBe(401);
     expect(prismaTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("routes GET /x402 to the listing, never the {id} capture", async () => {
+    // Mount order in ./index.ts is load-bearing: Hono resolves by
+    // registration order, so mounting the by-id route first would capture
+    // the static "/x402" segment as id="x402" — every coworker listing call
+    // 404s "Agent not found" while CI stays green. This pin goes through the
+    // REAL composed router; readiness reads null (never recorded), so the
+    // listing handler answers with its fail-closed empty ARRAY. The by-id
+    // capture cannot produce that shape: it would transact a lookup for
+    // id="x402" and 404.
+    authContextState.current = { actor: "coworker", agentId: "cw_agent_1" };
+    syncMetadataFindUniqueMock.mockResolvedValue(null);
+
+    const response = await agentsRouter.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ data: [] });
+    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(agentFindManyMock).not.toHaveBeenCalled();
   });
 });

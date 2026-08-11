@@ -54,15 +54,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("Coworker agent authentication required");
     }
 
-    const [creditCosts, readySources] = await Promise.all([
-      getCreditCostsOrThrow(prisma),
-      getX402ReadySources(prisma),
-    ]);
-    // Fail closed before touching the catalog: no recorded buy-side-ready
-    // pair (or readiness never recorded at all) hides the entire listing.
+    // Readiness FIRST, and alone: getCreditCostsOrThrow throws on an empty
+    // credit_cost table, so reading it eagerly turns a fresh environment
+    // (nothing ready, nothing priced) into a 500 where the fail-closed
+    // contract promises an empty listing.
+    const readySources = await getX402ReadySources(prisma);
     if (readySources.length === 0) {
       return ok(c, x402AgentsSchema.parse([]));
     }
+    const creditCosts = await getCreditCostsOrThrow(prisma);
 
     const agents = await prisma.agent.findMany({
       where: {

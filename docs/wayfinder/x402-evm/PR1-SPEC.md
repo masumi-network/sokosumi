@@ -63,6 +63,15 @@ Ticket 005. One public catalog. Items are a discriminated union on `kind`:
   converted credits).
 - Listed ⇒ payable gives per-endpoint refund aggregation (§5) a stable
   population to count against.
+- **Fail-closed granularity is per-AGENT, ratified at build review** (stack
+  step 4): one unpriced asset, disallowed network, or unready pair hides the
+  whole agent, per the universal reading of "every advertised asset". Known
+  consequence, accepted: an agent registering both a mainnet and a testnet
+  source is unlistable in both environments until re-registered — the safe
+  direction, and out-of-env assets rarely carry CreditCost rows anyway. If
+  mixed-env registrations turn out to be common, the follow-up is an env
+  scoping PRE-filter (drop out-of-env sources, then per-agent fail-closed
+  over the remainder), not per-source listing.
 
 ## 3. Pay endpoint — `POST /v1/tasks/{taskId}/x402-payments`
 
