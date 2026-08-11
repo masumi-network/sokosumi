@@ -1581,17 +1581,17 @@
             "chat": {
               "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
               "alex": "Analysiere die Daten in meinem OneDrive-Ordner.",
-              "elena": "Wie kann ich Sokosumi für mein Business nutzen, und wo sollte ich starten?"
+              "elena": "Hilf mir zu klären, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte."
             },
             "tasks": {
-              "elena": "Zeig mir den Status all meiner offenen Aufgaben und was meine Aufmerksamkeit braucht.",
-              "alex": "Bau mir ein Dashboard für meine Research-Ergebnisse.",
-              "hannah": "Analysiere unsere Zielgruppe: Bedürfnisse, Verhalten und Mediennutzung."
+              "elena": "Zeig mir den Status aller meiner offenen Tasks und was meine Aufmerksamkeit benötigt.",
+              "alex": "Erstelle mir ein Dashboard für meine Rechercheergebnisse.",
+              "hannah": "Analysiere unsere Zielgruppe: Bedürfnisse, Verhalten, Mediennutzung."
             },
             "either": {
-              "elena": "Hilf mir zu klären, wie Sokosumi zu meinem Business passt und wo ich starten sollte.",
+              "elena": "Hilf mir zu klären, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte.",
               "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
-              "alex": "Bau mir ein Dashboard für meine Research-Ergebnisse."
+              "alex": "Erstelle mir eine Datenvisualisierung für mein Excel-Dokument."
             }
           }
         },

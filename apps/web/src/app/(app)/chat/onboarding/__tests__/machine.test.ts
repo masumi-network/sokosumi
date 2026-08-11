@@ -100,6 +100,11 @@ describe("reduceOnboarding", () => {
     }
   });
 
+  it("ignores confirm_start outside confirm", () => {
+    const state = createInitialOnboardingState();
+    expect(reduceOnboarding(state, { type: "confirm_start" })).toEqual(state);
+  });
+
   it("stores preferredCoworkerSlug from try-asking freeform", () => {
     let state = createInitialOnboardingState();
     state = reduceOnboarding(state, {
@@ -133,6 +138,64 @@ describe("reduceOnboarding", () => {
       expect(state.phase.recommendation.draftText).toBe(
         "Help me figure out Sokosumi",
       );
+    }
+  });
+
+  it("clears preferredCoworkerSlug on skip and preserves it on back", () => {
+    let state = createInitialOnboardingState();
+    state = reduceOnboarding(state, {
+      type: "answer_step",
+      stepId: "intent",
+      value: { kind: "single", choiceId: "chat" },
+    });
+    state = reduceOnboarding(state, {
+      type: "advance",
+      coworkers: [coworker],
+      draftLabels,
+    });
+    state = reduceOnboarding(state, {
+      type: "answer_step",
+      stepId: "goal",
+      value: {
+        kind: "freeform",
+        text: "Pinned sample",
+        preferredCoworkerSlug: "alex",
+      },
+    });
+    expect(state.phase.kind).toBe("questionnaire");
+    if (state.phase.kind === "questionnaire") {
+      expect(state.phase.answers.preferredCoworkerSlug).toBe("alex");
+    }
+
+    state = reduceOnboarding(state, {
+      type: "answer_step",
+      stepId: "goal",
+      value: { kind: "skipped" },
+    });
+    if (state.phase.kind === "questionnaire") {
+      expect(state.phase.answers.preferredCoworkerSlug).toBeUndefined();
+      expect(state.phase.answers.goal).toBeUndefined();
+    }
+
+    state = reduceOnboarding(state, {
+      type: "answer_step",
+      stepId: "goal",
+      value: {
+        kind: "freeform",
+        text: "Pinned again",
+        preferredCoworkerSlug: "alex",
+      },
+    });
+    state = reduceOnboarding(state, {
+      type: "advance",
+      coworkers: [coworker],
+      draftLabels,
+    });
+    state = reduceOnboarding(state, { type: "back" });
+    expect(state.phase.kind).toBe("questionnaire");
+    if (state.phase.kind === "questionnaire") {
+      expect(state.phase.answers.preferredCoworkerSlug).toBe("alex");
+      expect(state.phase.answers.goal).toBe("Pinned again");
     }
   });
 });

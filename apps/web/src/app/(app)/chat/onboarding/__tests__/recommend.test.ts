@@ -150,7 +150,7 @@ describe("recommendFromAnswers", () => {
     const result = recommendFromAnswers({
       answers: {
         intent: "either",
-        goal: "Build me a dashboard for my research results.",
+        goal: "Create me Data Visualisation for my Excel Sheet.",
         preferredCoworkerSlug: "alex",
       },
       coworkers,
@@ -159,8 +159,37 @@ describe("recommendFromAnswers", () => {
 
     expect(result.coworkerId).toBe("alex-id");
     expect(result.draftText).toBe(
-      "Goal: Build me a dashboard for my research results.",
+      "Goal: Create me Data Visualisation for my Excel Sheet.",
     );
+  });
+
+  it("finds preferred slug in chat-capable pool when missing from intent filter", () => {
+    const coworkers = [
+      coworker({
+        id: "task-only",
+        slug: "tasky",
+        capabilities: ["tasks"],
+        canChat: false,
+      }),
+      coworker({
+        id: "alex-id",
+        slug: "alex",
+        capabilities: ["chat"],
+        canChat: true,
+      }),
+    ];
+
+    const result = recommendFromAnswers({
+      answers: {
+        intent: "tasks",
+        goal: "Dashboard",
+        preferredCoworkerSlug: "alex",
+      },
+      coworkers,
+      draftLabels,
+    });
+
+    expect(result.coworkerId).toBe("alex-id");
   });
 
   it("either without sample still prefers Elena via findDefaultCoworker", () => {
