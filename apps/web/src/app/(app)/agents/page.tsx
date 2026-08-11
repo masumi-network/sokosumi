@@ -132,7 +132,7 @@ async function AllAgentsTier() {
 export default function GalleryPage() {
   return (
     <div className="w-full">
-      <div className="space-y-16 px-2 pb-8 md:space-y-24">
+      <div className="space-y-16 pb-8 md:space-y-24 md:px-2">
         <Suspense fallback={<CoworkersTierFallback />}>
           <CoworkersTier />
         </Suspense>

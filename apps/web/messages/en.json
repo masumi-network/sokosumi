@@ -43,6 +43,7 @@
       }
     },
     "ShareButton": {
+      "share": "Share",
       "linkCopied": "Link copied to clipboard",
       "copyError": "Failed to copy link"
     },
