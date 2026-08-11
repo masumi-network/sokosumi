@@ -1,4 +1,7 @@
-import { TaskPaymentClaimStatus } from "@sokosumi/database";
+import {
+  TaskPaymentClaimStatus,
+  TaskX402PaymentStatus,
+} from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { prepareTasksForUserDeletion } from "./user-deletion-tasks";
@@ -10,11 +13,14 @@ const {
   taskUpdateMock,
   taskDeleteManyMock,
   taskPaymentClaimDeleteManyMock,
+  taskX402PaymentFindFirstMock,
+  taskX402PaymentDeleteManyMock,
   chatRoomFindManyMock,
   chatRoomUpdateMock,
   chatRoomDeleteMock,
   transactionMock,
   deleteTaskFileIfOwnedMock,
+  captureMessageMock,
 } = vi.hoisted(() => ({
   coworkerAssignmentFindManyMock: vi.fn(),
   taskFindManyMock: vi.fn(),
@@ -22,15 +28,22 @@ const {
   taskUpdateMock: vi.fn(),
   taskDeleteManyMock: vi.fn(),
   taskPaymentClaimDeleteManyMock: vi.fn(),
+  taskX402PaymentFindFirstMock: vi.fn(),
+  taskX402PaymentDeleteManyMock: vi.fn(),
   chatRoomFindManyMock: vi.fn(),
   chatRoomUpdateMock: vi.fn(),
   chatRoomDeleteMock: vi.fn(),
   transactionMock: vi.fn(),
   deleteTaskFileIfOwnedMock: vi.fn(),
+  captureMessageMock: vi.fn(),
 }));
 
 vi.mock("@/lib/blob", () => ({
   deleteTaskFileIfOwned: deleteTaskFileIfOwnedMock,
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureMessage: captureMessageMock,
 }));
 
 describe("prepareTasksForUserDeletion", () => {
@@ -38,6 +51,8 @@ describe("prepareTasksForUserDeletion", () => {
     vi.clearAllMocks();
     taskFileFindManyMock.mockResolvedValue([]);
     taskPaymentClaimDeleteManyMock.mockResolvedValue({ count: 0 });
+    taskX402PaymentFindFirstMock.mockResolvedValue(null);
+    taskX402PaymentDeleteManyMock.mockResolvedValue({ count: 0 });
     chatRoomFindManyMock.mockResolvedValue([]);
     chatRoomUpdateMock.mockResolvedValue({});
     chatRoomDeleteMock.mockResolvedValue({});
@@ -57,6 +72,10 @@ describe("prepareTasksForUserDeletion", () => {
         },
         taskPaymentClaim: {
           deleteMany: taskPaymentClaimDeleteManyMock,
+        },
+        taskX402Payment: {
+          findFirst: taskX402PaymentFindFirstMock,
+          deleteMany: taskX402PaymentDeleteManyMock,
         },
         chatRoom: {
           findMany: chatRoomFindManyMock,
@@ -124,6 +143,64 @@ describe("prepareTasksForUserDeletion", () => {
         OR: [
           { transaction: { userId: "user_delete" } },
           { refundTransaction: { userId: "user_delete" } },
+        ],
+      },
+    });
+    expect(taskDeleteManyMock).toHaveBeenCalled();
+  });
+
+  it("blocks deletion while a task x402 payment is pending", async () => {
+    taskX402PaymentFindFirstMock.mockResolvedValue({ id: "x402_pending" });
+
+    const promise = prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    await expect(promise).rejects.toMatchObject({
+      status: "BAD_REQUEST",
+      body: expect.objectContaining({ code: "TASK_X402_PAYMENT_PENDING" }),
+    });
+    expect(taskX402PaymentFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        status: TaskX402PaymentStatus.PENDING,
+        OR: [
+          { transaction: { userId: "user_delete" } },
+          { task: { ownerId: "user_delete" } },
+        ],
+      },
+      select: { id: true },
+    });
+    expect(taskX402PaymentDeleteManyMock).not.toHaveBeenCalled();
+    expect(taskDeleteManyMock).not.toHaveBeenCalled();
+    // A pending x402 payment clears itself (coworker retry or reconciler
+    // auto-refund), so unlike a review-required claim it must not page.
+    expect(captureMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("removes terminal x402 payments before the task and transaction cascades", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    // Every RESTRICT branch (charge, refund, task owner) must be swept, or
+    // the owned-task delete / user cascade fails on the FK.
+    expect(taskX402PaymentDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        status: {
+          in: [
+            TaskX402PaymentStatus.VERIFIED,
+            TaskX402PaymentStatus.FAILED,
+            TaskX402PaymentStatus.REFUNDED,
+          ],
+        },
+        OR: [
+          { transaction: { userId: "user_delete" } },
+          { refundTransaction: { userId: "user_delete" } },
+          { task: { ownerId: "user_delete" } },
         ],
       },
     });
