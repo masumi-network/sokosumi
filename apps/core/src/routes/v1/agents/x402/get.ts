@@ -60,7 +60,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/x402",
     description:
-      "List the x402/Bazaar agents Sokosumi can pay right now (coworker agents only, paginated). Fail closed: an agent appears only when every advertised payment source is priced, on an allowed network, and buy-side ready. Unpayable agents are filtered out AFTER the page is read, so a page can hold fewer items than `limit` — or none — while `nextCursor` still points at more; `total` counts candidate X402 entries, not payable ones. Follow `nextCursor` until it is null.",
+      "List the x402/Bazaar agents Sokosumi can pay right now (coworker agents only, paginated). Fail closed: an agent appears only when every advertised payment source is priced, on an allowed network, and buy-side ready. Unpayable agents are filtered out AFTER the page is read, so a page can hold fewer items than `limit` — or none — while `nextCursor` still points at more; `total` counts candidate X402 entries, not payable ones. When the x402 rail itself is unavailable the whole listing is hidden without the catalog being read, and `total` is 0. Follow `nextCursor` until it is null.",
     tags: ["Agents"],
     request: {
       query: cursorPaginationQuerySchema,
@@ -93,6 +93,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // never recorded) hides the whole listing before any other query.
     const readySources = await getX402ReadySources(prisma);
     if (readySources.length === 0) {
+      // `total: 0` without counting the catalog. Counting would put a query on
+      // exactly the path whose point is to cost nothing, and the number would
+      // describe a page this response never read — so the documented contract
+      // says 0 here rather than the count being spent to fill it in.
       return ok(
         c,
         x402AgentsSchema.parse([]),
@@ -130,14 +134,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           orderBy: [...agentOrderBy, { id: "desc" }],
           // Narrowed to what the response actually needs. Registry entries are
           // third-party-created, so every extra column is multiplied by the
-          // page size and by up to 26 payment sources of 7 amounts each.
+          // page size and by up to 25 payment sources of 7 amounts each.
           select: {
             id: true,
             name: true,
             description: true,
             image: true,
             x402ResourcesUrl: true,
-            metadataOverride: true,
+            // Exactly the three columns the metadata getters below resolve;
+            // `metadataOverride: true` would load every scalar on the row.
+            metadataOverride: {
+              select: { name: true, description: true, image: true },
+            },
             paymentSources: {
               select: {
                 network: true,

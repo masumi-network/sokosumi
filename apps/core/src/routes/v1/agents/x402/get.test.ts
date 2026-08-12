@@ -361,6 +361,21 @@ describe("GET /agents/x402", () => {
     expect(query.select.paymentSources.orderBy).toEqual({ sourceIndex: "asc" });
   });
 
+  it("selects only the override columns the response actually reads", async () => {
+    // `metadataOverride: true` loads every scalar on the override row; the
+    // response resolves exactly three of them through the metadata getters,
+    // and the cost is multiplied by the page size.
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    const query = agentFindManyMock.mock.calls[0]?.[0];
+    expect(query.select.metadataOverride).toEqual({
+      select: { name: true, description: true, image: true },
+    });
+  });
+
   it("hides the entire listing when buy-side readiness has never been recorded", async () => {
     syncMetadataFindUniqueMock.mockResolvedValue(null);
     const app = createApp(COWORKER_AGENT_CONTEXT);
@@ -368,10 +383,16 @@ describe("GET /agents/x402", () => {
     const response = await app.request("http://localhost/x402");
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { data: unknown };
+    const body = (await response.json()) as {
+      data: unknown;
+      meta: { pagination: { total: number } };
+    };
     expect(body.data).toEqual([]);
     // Fail closed before touching the catalog.
     expect(agentFindManyMock).not.toHaveBeenCalled();
+    expect(agentCountMock).not.toHaveBeenCalled();
+    // Documented contract for this path: nothing was counted, so total is 0.
+    expect(body.meta.pagination.total).toBe(0);
   });
 
   it("returns an empty listing (not 500) when the credit_cost table is empty", async () => {
