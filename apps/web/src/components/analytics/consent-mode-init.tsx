@@ -1,5 +1,7 @@
 import Script from "next/script";
 
+import { CONSENT_COOKIE, CONSENT_VERSION } from "@/lib/analytics/consent";
+
 /**
  * Google Consent Mode v2, denied by default (Basic Consent Mode). This MUST
  * run before GTM loads, so it is a `beforeInteractive` inline script placed
@@ -23,9 +25,14 @@ export function ConsentModeInit() {
         security_storage: 'granted', wait_for_update: 500
       });
       try {
-        var m = document.cookie.match(/(?:^|; )sokosumi_consent=([^;]+)/);
+        var m = document.cookie.match(new RegExp('(?:^|; )' + ${JSON.stringify(CONSENT_COOKIE)} + '=([^;]+)'));
         if (m) {
           var c = JSON.parse(decodeURIComponent(m[1]));
+          // Mirror readConsent(): a cookie written against an older schema is
+          // not a decision about the current categories, and a hand-crafted one
+          // must not grant anything. Without this the inline path honoured a
+          // stale or forged cookie that the TypeScript reader rejects.
+          if (c && c.v === ${CONSENT_VERSION} && typeof c.analytics === 'boolean' && typeof c.marketing === 'boolean') {
           gtag('consent', 'update', {
             analytics_storage: c.analytics ? 'granted' : 'denied',
             ad_storage: c.marketing ? 'granted' : 'denied',
@@ -42,6 +49,7 @@ export function ConsentModeInit() {
             consent_analytics: c.analytics ? 'granted' : 'denied',
             consent_marketing: c.marketing ? 'granted' : 'denied'
           });
+          }
         }
       } catch (e) {}
       gtag('set', 'url_passthrough', true);
