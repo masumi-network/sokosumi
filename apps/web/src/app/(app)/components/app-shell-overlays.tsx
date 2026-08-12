@@ -39,18 +39,28 @@ export default async function AppShellOverlays({
   // Defer before cookies()/Core so Cache Components PPR probing does not
   // soft-reject dynamic APIs while filling this Suspense hole (#3617).
   await connection();
+
+  // Settle the onboarding question on its own, before anything else is
+  // awaited. It is the only input that can end this render, and for a user who
+  // has already onboarded it costs nothing — `showOnboarding` returns straight
+  // off the session flag without touching Core. Bundling it into the
+  // Promise.all below made the one user who *is* redirected wait for notices
+  // and the coworker list first, on a page they never see.
+  //
+  // Signup onboarding is its own full page. Redirecting from here rather than
+  // from the layout keeps this off the app shell's critical path — the layout
+  // is deliberately sync so Instant Nav can paint it without awaiting.
+  if (await userService.showOnboarding(session)) {
+    redirect("/onboarding");
+  }
+
   const cookieStorePromise = cookies();
-  const [
-    shouldShowOnboarding,
-    pendingNoticesResult,
-    coworkersResult,
-    cookieStore,
-  ] = await Promise.all([
-    userService.showOnboarding(session),
-    getPendingNoticesAction(),
-    coworkerService.listCoworkers().catch(() => []),
-    cookieStorePromise,
-  ]);
+  const [pendingNoticesResult, coworkersResult, cookieStore] =
+    await Promise.all([
+      getPendingNoticesAction(),
+      coworkerService.listCoworkers().catch(() => []),
+      cookieStorePromise,
+    ]);
   const coworkers = coworkersResult.map(mapDbCoworkerToChatCoworker);
   const pendingNotices = pendingNoticesResult.ok
     ? pendingNoticesResult.data
@@ -70,13 +80,6 @@ export default async function AppShellOverlays({
       subscriptionOnboardingGateCookie,
       session.session.id,
     );
-
-  // Signup onboarding is its own full page. Redirecting from here rather than
-  // from the layout keeps the Core read off the app shell's critical path —
-  // this component already had to resolve it.
-  if (shouldShowOnboarding) {
-    redirect("/onboarding");
-  }
 
   let activeOrganization: Organization | null = null;
   let shouldLoadSubscriptionOnboarding = false;

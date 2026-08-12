@@ -18,6 +18,7 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 import { OnboardingFlow } from "./components/onboarding-flow";
+import { OnboardingStepSkeleton } from "./components/onboarding-loading-view";
 import type { OnboardingVariant } from "./components/onboarding-steps";
 import type { OnboardingCoworker } from "./components/steps/welcome-step";
 
@@ -44,15 +45,10 @@ interface OnboardingPageProps {
  */
 export default function OnboardingPage({ searchParams }: OnboardingPageProps) {
   return (
-    <Suspense fallback={<OnboardingFlowFallback />}>
+    <Suspense fallback={<OnboardingStepSkeleton />}>
       <OnboardingFlowLoader searchParams={searchParams} />
     </Suspense>
   );
-}
-
-/** Holds the stage height so the footer does not jump in when data lands. */
-function OnboardingFlowFallback() {
-  return <div className="flex min-h-0 flex-1 flex-col" />;
 }
 
 async function OnboardingFlowLoader({ searchParams }: OnboardingPageProps) {
