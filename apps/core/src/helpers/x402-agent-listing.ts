@@ -46,8 +46,40 @@ export type X402AgentPaymentSourceRow = Pick<
 const X402_SUPPORTED_SCHEME = "exact";
 
 /**
+ * Why an agent was not advertised. Carried out of the gate loop so the route
+ * can report WHICH gate emptied a listing — "nothing registered", "nothing
+ * priced", and "everything failed the network gate" are indistinguishable
+ * from an empty array alone.
+ */
+export type X402ListingDropReason =
+  /** The agent registered no payment source at all. */
+  | "no_payment_source"
+  /** A source is FREE/DYNAMIC/UNKNOWN priced — no price to verify against. */
+  | "pricing_not_fixed"
+  /** A source records no `payTo` recipient. */
+  | "missing_pay_to"
+  /** A source advertises a scheme other than x402 `exact`. */
+  | "unsupported_scheme"
+  /** A source's CAIP-2 network is outside this environment's allowlist. */
+  | "network_not_allowed"
+  /** A FIXED source's amount rows are missing. */
+  | "no_amount_rows"
+  /** An amount row has no recorded decimals. */
+  | "missing_decimals"
+  /** The (network, asset) pair is not buy-side ready on the payment node. */
+  | "not_buy_side_ready"
+  /** The asset has no positive CAIP-19 `CreditCost` row. */
+  | "unpriced_asset"
+  /** One (payTo, network, asset) triple is advertised at two prices. */
+  | "conflicting_price";
+
+export type X402AgentListingResult =
+  | { status: "listed"; paymentSources: X402AgentPaymentSource[] }
+  | { status: "dropped"; reason: X402ListingDropReason };
+
+/**
  * Maps an x402 agent's registered payment sources to the listing response, or
- * returns `null` when the agent must be dropped (PR1-SPEC §2, fail closed).
+ * reports why the agent must be dropped (PR1-SPEC §2, fail closed).
  *
  * Listed ⇒ payable is a per-AGENT promise: EVERY advertised source must pass
  * every gate, because the agent — not Soko — picks which source its 402
@@ -69,10 +101,10 @@ const X402_SUPPORTED_SCHEME = "exact";
 export function buildX402AgentPaymentSources(
   paymentSources: readonly X402AgentPaymentSourceRow[],
   context: X402ListingGateContext,
-): X402AgentPaymentSource[] | null {
+): X402AgentListingResult {
   // No advertised source at all is "not payable now", not "free".
   if (paymentSources.length === 0) {
-    return null;
+    return { status: "dropped", reason: "no_payment_source" };
   }
 
   // Advertised entries keyed by (payTo, network, asset) — the triple the pay
@@ -84,29 +116,29 @@ export function buildX402AgentPaymentSources(
   const listed: X402AgentPaymentSource[] = [];
   for (const source of paymentSources) {
     if (source.pricingType !== PricingType.FIXED) {
-      return null;
+      return { status: "dropped", reason: "pricing_not_fixed" };
     }
     if (!source.payTo) {
-      return null;
+      return { status: "dropped", reason: "missing_pay_to" };
     }
     if (source.scheme?.trim().toLowerCase() !== X402_SUPPORTED_SCHEME) {
-      return null;
+      return { status: "dropped", reason: "unsupported_scheme" };
     }
     if (!isX402NetworkAllowed(source.network, context.network)) {
-      return null;
+      return { status: "dropped", reason: "network_not_allowed" };
     }
     // A FIXED source whose amount rows are momentarily gone (registry replay
     // deletes and recreates them) has no advertised price to verify against.
     if (source.amounts.length === 0) {
-      return null;
+      return { status: "dropped", reason: "no_amount_rows" };
     }
     const caip2Network = source.network.trim().toLowerCase();
     for (const amount of source.amounts) {
       if (amount.decimals === null) {
-        return null;
+        return { status: "dropped", reason: "missing_decimals" };
       }
       if (!isX402SourceReady(caip2Network, amount.unit, context.readySources)) {
-        return null;
+        return { status: "dropped", reason: "not_buy_side_ready" };
       }
       let cents: bigint;
       try {
@@ -122,7 +154,7 @@ export function buildX402AgentPaymentSources(
       } catch {
         // Unpriced asset, malformed identity, or non-positive CreditCost row —
         // the exact set of pre-charge rejections the pay endpoint enforces.
-        return null;
+        return { status: "dropped", reason: "unpriced_asset" };
       }
       const advertised: X402AgentPaymentSource = {
         caip2Network,
@@ -143,7 +175,7 @@ export function buildX402AgentPaymentSources(
           // exactly ONE amount row and rejects a demand above it, so which
           // price is real depends on unordered row identity — listed would
           // stop implying payable. Fail closed on the whole agent.
-          return null;
+          return { status: "dropped", reason: "conflicting_price" };
         }
         // Ingestion permits duplicate units within one source's fixed amounts
         // (agent-sync.projection zips decimals positionally). Rows that agree
@@ -155,7 +187,13 @@ export function buildX402AgentPaymentSources(
     }
   }
 
-  return listed;
+  // Unreachable via the gates above (a source with no amount rows already
+  // dropped), but the response schema requires at least one advertised source,
+  // so an empty list is a drop rather than a 500 on the way out.
+  if (listed.length === 0) {
+    return { status: "dropped", reason: "no_amount_rows" };
+  }
+  return { status: "listed", paymentSources: listed };
 }
 
 /**

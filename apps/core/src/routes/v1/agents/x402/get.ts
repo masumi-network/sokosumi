@@ -15,7 +15,10 @@ import {
 import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { buildX402AgentPaymentSources } from "@/helpers/x402-agent-listing";
+import {
+  buildX402AgentPaymentSources,
+  type X402ListingDropReason,
+} from "@/helpers/x402-agent-listing";
 import { getX402ReadySources } from "@/helpers/x402-readiness";
 import prisma from "@/lib/db/prisma";
 import {
@@ -24,6 +27,29 @@ import {
 } from "@/lib/hono";
 import { isCoworkerAgentContext } from "@/middleware/auth";
 import { type X402Agent, x402AgentsSchema } from "@/schemas/x402-agent.schema";
+
+/**
+ * One line per request summarising which gates hid agents, never one per
+ * agent. Warns only when the page came back empty despite candidates being
+ * queried — that is the state an operator reports as "the listing is broken";
+ * partial drops are routine and stay at debug.
+ */
+function logX402ListingDrops(
+  listedCount: number,
+  dropsByReason: ReadonlyMap<X402ListingDropReason, number>,
+): void {
+  if (dropsByReason.size === 0) {
+    return;
+  }
+  const summary = JSON.stringify(Object.fromEntries(dropsByReason));
+  if (listedCount === 0) {
+    console.warn(
+      `[agents/x402] every candidate agent was dropped as unpayable: ${summary}`,
+    );
+    return;
+  }
+  console.debug(`[agents/x402] dropped unpayable agents: ${summary}`);
+}
 
 const route = withGlobalHeaderParameters(
   createRoute({
@@ -89,15 +115,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const network = getEnv().NETWORK;
     const listed: X402Agent[] = [];
+    // Drops are silent and per-agent, so an empty listing has many causes. One
+    // tally per request (not per agent) keeps an operator from having to guess
+    // between "nothing registered", "nothing priced", and "everything failed
+    // the network gate".
+    const dropsByReason = new Map<X402ListingDropReason, number>();
     for (const agent of agents) {
-      const paymentSources = buildX402AgentPaymentSources(
-        agent.paymentSources,
-        { creditCosts, readySources, network },
-      );
-      if (!paymentSources || paymentSources.length === 0) {
+      const result = buildX402AgentPaymentSources(agent.paymentSources, {
+        creditCosts,
+        readySources,
+        network,
+      });
+      if (result.status === "dropped") {
         // Fail closed: at least one advertised source is unpriced, on a
         // disallowed network, or not buy-side ready — hide the agent rather
         // than list a 402 the pay endpoint would reject.
+        dropsByReason.set(
+          result.reason,
+          (dropsByReason.get(result.reason) ?? 0) + 1,
+        );
         continue;
       }
       listed.push({
@@ -106,9 +142,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         description: getAgentDescription(agent),
         image: getAgentImage(agent),
         x402ResourcesUrl: agent.x402ResourcesUrl,
-        paymentSources,
+        paymentSources: result.paymentSources,
       });
     }
+    logX402ListingDrops(listed.length, dropsByReason);
 
     return ok(c, x402AgentsSchema.parse(listed));
   });

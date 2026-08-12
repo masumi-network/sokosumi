@@ -63,16 +63,19 @@ describe("buildX402AgentPaymentSources", () => {
     const result = buildX402AgentPaymentSources([createSource()], CONTEXT);
 
     // ceil(250000 * 2e10 / 1e6) = 5e9 cents = 0.5 credits.
-    expect(result).toEqual([
-      {
-        caip2Network: BASE_SEPOLIA,
-        asset: USDC_ADDRESS,
-        decimals: 6,
-        payTo: PAY_TO,
-        amount: "250000",
-        credits: 0.5,
-      },
-    ]);
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [
+        {
+          caip2Network: BASE_SEPOLIA,
+          asset: USDC_ADDRESS,
+          decimals: 6,
+          payTo: PAY_TO,
+          amount: "250000",
+          credits: 0.5,
+        },
+      ],
+    });
   });
 
   it("canonicalizes mixed-case registry network and asset spellings", () => {
@@ -88,16 +91,22 @@ describe("buildX402AgentPaymentSources", () => {
       CONTEXT,
     );
 
-    expect(result).toEqual([
-      expect.objectContaining({
-        caip2Network: BASE_SEPOLIA,
-        asset: USDC_ADDRESS,
-      }),
-    ]);
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [
+        expect.objectContaining({
+          caip2Network: BASE_SEPOLIA,
+          asset: USDC_ADDRESS,
+        }),
+      ],
+    });
   });
 
   it("drops an agent with no advertised payment source", () => {
-    expect(buildX402AgentPaymentSources([], CONTEXT)).toBeNull();
+    expect(buildX402AgentPaymentSources([], CONTEXT)).toEqual({
+      status: "dropped",
+      reason: "no_payment_source",
+    });
   });
 
   it.each([
@@ -106,7 +115,10 @@ describe("buildX402AgentPaymentSources", () => {
   ])("drops an agent advertising a %s-priced source", (_label, pricingType) => {
     expect(
       buildX402AgentPaymentSources([createSource({ pricingType })], CONTEXT),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "pricing_not_fixed",
+    });
   });
 
   it.each([
@@ -118,7 +130,10 @@ describe("buildX402AgentPaymentSources", () => {
     // here, and an unrecorded one is unknown, not assumed.
     expect(
       buildX402AgentPaymentSources([createSource({ scheme })], CONTEXT),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "unsupported_scheme",
+    });
   });
 
   it("accepts the exact scheme in any registry spelling", () => {
@@ -127,13 +142,19 @@ describe("buildX402AgentPaymentSources", () => {
       CONTEXT,
     );
 
-    expect(result).toHaveLength(1);
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [expect.objectContaining({ asset: USDC_ADDRESS })],
+    });
   });
 
   it("drops an agent whose source has no payTo", () => {
     expect(
       buildX402AgentPaymentSources([createSource({ payTo: null })], CONTEXT),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "missing_pay_to",
+    });
   });
 
   it("drops an agent advertising a network outside the per-env allowlist", () => {
@@ -155,13 +176,19 @@ describe("buildX402AgentPaymentSources", () => {
         [createSource({ network: BASE_MAINNET })],
         mainnetContext,
       ),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "network_not_allowed",
+    });
   });
 
   it("drops an agent whose FIXED source has no amount rows", () => {
     expect(
       buildX402AgentPaymentSources([createSource({ amounts: [] })], CONTEXT),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "no_amount_rows",
+    });
   });
 
   it("drops an agent whose amount row has no recorded decimals", () => {
@@ -174,7 +201,10 @@ describe("buildX402AgentPaymentSources", () => {
         ],
         CONTEXT,
       ),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "missing_decimals",
+    });
   });
 
   it("drops an agent whose (network, asset) pair is not buy-side ready", () => {
@@ -189,7 +219,10 @@ describe("buildX402AgentPaymentSources", () => {
           },
         ],
       }),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "not_buy_side_ready",
+    });
   });
 
   it("drops an agent whose asset has no CreditCost row", () => {
@@ -198,7 +231,10 @@ describe("buildX402AgentPaymentSources", () => {
         ...CONTEXT,
         creditCosts: [createCreditCost("lovelace")],
       }),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "unpriced_asset",
+    });
   });
 
   it("drops an agent whose CreditCost row is not positive", () => {
@@ -209,7 +245,10 @@ describe("buildX402AgentPaymentSources", () => {
           createCreditCost(`${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`, 0n),
         ],
       }),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "unpriced_asset",
+    });
   });
 
   it("lists each distinct asset a single source prices", () => {
@@ -227,10 +266,13 @@ describe("buildX402AgentPaymentSources", () => {
       CONTEXT,
     );
 
-    expect(result).toEqual([
-      expect.objectContaining({ asset: USDC_ADDRESS, amount: "250000" }),
-      expect.objectContaining({ asset: EURC_ADDRESS, amount: "500000" }),
-    ]);
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [
+        expect.objectContaining({ asset: USDC_ADDRESS, amount: "250000" }),
+        expect.objectContaining({ asset: EURC_ADDRESS, amount: "500000" }),
+      ],
+    });
   });
 
   it("collapses an identical duplicate amount row into one advertised entry", () => {
@@ -249,16 +291,19 @@ describe("buildX402AgentPaymentSources", () => {
       CONTEXT,
     );
 
-    expect(result).toEqual([
-      {
-        caip2Network: BASE_SEPOLIA,
-        asset: USDC_ADDRESS,
-        decimals: 6,
-        payTo: PAY_TO,
-        amount: "250000",
-        credits: 0.5,
-      },
-    ]);
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [
+        {
+          caip2Network: BASE_SEPOLIA,
+          asset: USDC_ADDRESS,
+          decimals: 6,
+          payTo: PAY_TO,
+          amount: "250000",
+          credits: 0.5,
+        },
+      ],
+    });
   });
 
   it("drops an agent whose source prices one asset at two different amounts", () => {
@@ -278,7 +323,10 @@ describe("buildX402AgentPaymentSources", () => {
         ],
         CONTEXT,
       ),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "conflicting_price",
+    });
   });
 
   it("drops an agent whose duplicate amount rows disagree on decimals", () => {
@@ -296,7 +344,10 @@ describe("buildX402AgentPaymentSources", () => {
         ],
         CONTEXT,
       ),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "conflicting_price",
+    });
   });
 
   it("drops an agent whose two sources price the same triple differently", () => {
@@ -313,7 +364,10 @@ describe("buildX402AgentPaymentSources", () => {
         ],
         CONTEXT,
       ),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "conflicting_price",
+    });
   });
 
   it("keeps the same asset priced under two different payTo recipients", () => {
@@ -330,10 +384,13 @@ describe("buildX402AgentPaymentSources", () => {
       CONTEXT,
     );
 
-    expect(result).toEqual([
-      expect.objectContaining({ payTo: PAY_TO, amount: "250000" }),
-      expect.objectContaining({ payTo: OTHER_PAY_TO, amount: "5000000" }),
-    ]);
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [
+        expect.objectContaining({ payTo: PAY_TO, amount: "250000" }),
+        expect.objectContaining({ payTo: OTHER_PAY_TO, amount: "5000000" }),
+      ],
+    });
   });
 
   it("drops the whole agent when one of several sources fails a gate", () => {
@@ -344,6 +401,9 @@ describe("buildX402AgentPaymentSources", () => {
         [createSource(), createSource({ payTo: null })],
         CONTEXT,
       ),
-    ).toBeNull();
+    ).toEqual({
+      status: "dropped",
+      reason: "missing_pay_to",
+    });
   });
 });

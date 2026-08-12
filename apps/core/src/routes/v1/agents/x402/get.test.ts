@@ -330,6 +330,75 @@ describe("GET /agents/x402", () => {
     expect(body.data.map((agent) => agent.id)).toEqual(["agent_x402_1"]);
   });
 
+  it("warns once with a per-reason tally when every candidate is dropped", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        id: "agent_x402_unpriced",
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "FIXED",
+            scheme: "exact",
+            amounts: [{ unit: UNPRICED_ADDRESS, amount: 250000n, decimals: 6 }],
+          },
+        ],
+      }),
+      createAgentRow({
+        id: "agent_x402_upto",
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "FIXED",
+            scheme: "upto",
+            amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
+          },
+        ],
+      }),
+      createAgentRow({ id: "agent_x402_no_source", paymentSources: [] }),
+    ]);
+    seedReadiness([
+      {
+        caip2Network: BASE_SEPOLIA,
+        asset: USDC_ADDRESS,
+        evmWalletId: "wallet-1",
+      },
+      {
+        caip2Network: BASE_SEPOLIA,
+        asset: UNPRICED_ADDRESS,
+        evmWalletId: "wallet-1",
+      },
+    ]);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: unknown };
+    expect(body.data).toEqual([]);
+    // One line for the whole request, naming which gate hid what.
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      '[agents/x402] every candidate agent was dropped as unpayable: {"unpriced_asset":1,"unsupported_scheme":1,"no_payment_source":1}',
+    );
+  });
+
+  it("stays quiet when every candidate agent is payable", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect(warn).not.toHaveBeenCalled();
+    expect(debug).not.toHaveBeenCalled();
+  });
+
   it("drops an agent advertising a payment scheme other than exact", async () => {
     // `scheme` is what the payer signs against. A priced, allowed, ready
     // source in an unknown scheme is not payable, so it must not be listed.
