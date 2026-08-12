@@ -2527,7 +2527,7 @@ export const postTasks = <ThrowOnError extends boolean = false>(options?: Option
 });
 
 /**
- * Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window starts at the caller's most recent session activity (`max(Session.updatedAt)`), the same signal admin member last-seen uses. When that timestamp is missing or under 30 minutes old, a rolling 24h fallback is used (`basis: recent`) so a reload cannot blank the summary. Session users only.
+ * Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window starts at the caller's most recent session activity (`max(Session.updatedAt)`), the same signal admin member last-seen uses. When that timestamp is missing or under 30 minutes old, a rolling 24h fallback is used (`basis: recent`) so a reload cannot blank the summary. Owner actors only (session user or orchestrator with user context) — not coworker tokens.
  */
 export const getTasksSummary = <ThrowOnError extends boolean = false>(options?: Options<GetTasksSummaryData, ThrowOnError>): RequestResult<GetTasksSummaryResponses, GetTasksSummaryErrors, ThrowOnError> => (options?.client ?? client).get<GetTasksSummaryResponses, GetTasksSummaryErrors, ThrowOnError>({
     responseTransformer: getTasksSummaryResponseTransformer,

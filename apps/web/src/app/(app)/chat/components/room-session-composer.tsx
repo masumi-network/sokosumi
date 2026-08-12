@@ -13,7 +13,6 @@ import {
   type ComposeDraft,
   clearComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
-import { takeRoomComposerPrefill } from "@/app/chat/utils/composer-prefill";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import { formatTaskAttachmentMarkdown } from "@/lib/utils/task-attachments";
 
@@ -89,10 +88,7 @@ export function RoomSessionComposer({
   onBeforeSend,
   onSend,
 }: RoomSessionComposerProps) {
-  const [composerValue, setComposerValue] = useState(() => {
-    // Onboarding prefill — never auto-send (distinct from pending-room-message).
-    return takeRoomComposerPrefill(roomId) ?? "";
-  });
+  const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);

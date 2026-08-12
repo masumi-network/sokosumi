@@ -14,7 +14,7 @@ import type { StripCoworker } from "./coworker-strip.client";
  */
 const FEATURED_COWORKER_SLUG = "elena";
 
-export function isElenaCoworker(coworker: Pick<Coworker, "slug">): boolean {
+function isElenaCoworker(coworker: Pick<Coworker, "slug">): boolean {
   return coworker.slug?.toLowerCase() === FEATURED_COWORKER_SLUG;
 }
 
@@ -65,24 +65,21 @@ export function toStripCoworker(coworker: Coworker): StripCoworker {
 /**
  * The teammates flanking the featured coworker.
  *
- * Both landings pass an even `max` (6 desktop / 4 mobile) so flanks balance and
- * the featured face stays optically centred. `keepEven` (default true) drops
- * the odd one out rather than seating it on one side.
+ * Both landings pass an even `max` (6 desktop / 4 mobile). Odd counts are
+ * dropped so flanks balance and the featured face stays optically centred.
  */
 export function selectStripCoworkers(
   coworkers: Coworker[],
   featured: Coworker | null,
   max: number,
-  { keepEven = true }: { keepEven?: boolean } = {},
 ): StripCoworker[] {
   if (!featured) {
     return [];
   }
 
   const others = coworkers.filter((coworker) => coworker.id !== featured.id);
-  const limit = keepEven
-    ? Math.min(max, others.length - (others.length % 2))
-    : Math.min(max, others.length);
+  const capped = Math.min(max, others.length);
+  const limit = capped - (capped % 2);
 
   return others.slice(0, Math.max(0, limit)).map(toStripCoworker);
 }
