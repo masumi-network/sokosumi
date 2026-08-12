@@ -243,9 +243,12 @@ function dropShadowKeys(
     Object.entries(unknownKeys).filter(
       ([key]) =>
         // `Object.fromEntries` DOES materialize an own `__proto__` key, so
-        // this filter — not the sanitizer that already ran — is what stops
-        // this rebuild from re-creating one. Belt and braces on purpose: the
-        // two are independent, so neither is load-bearing alone.
+        // this rebuild is the one step that could re-create one. It cannot in
+        // practice: the sanitizer removed those keys from the parsed value
+        // before the wild schema ever saw it, so `unknownKeys` can never hold
+        // one and this filter never fires. Kept as belt and braces — the two
+        // are independent, and the ordering that makes the sanitizer
+        // sufficient is not something a future edit here would notice.
         !isPrototypePollutingKey(key) &&
         // Trimmed as well as case-folded: `"payTo "` and `" payTo"` are
         // distinct JS keys that a case-only check let through. Trimming

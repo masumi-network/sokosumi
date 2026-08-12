@@ -921,6 +921,33 @@ describe("normalizeX402PaymentRequired", () => {
     expect(result._unsafeUnwrapErr()).toMatch(/Conflicting x402 resource URLs/);
   });
 
+  it("hoists a top-level resource given as a plain string", () => {
+    // The wild union allows `resource` as a STRING as well as an object, and
+    // nothing exercised the string arm: a normalizer that ignored it entirely
+    // — reading only `resource.url` — left the whole suite green.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      resource: "https://top.example.com/api",
+      accepts: [v2Entry()],
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().resource).toEqual({
+      url: "https://top.example.com/api",
+    });
+  });
+
+  it("pools a top-level string resource into the conflict fence", () => {
+    const result = normalizeX402PaymentRequired({
+      x402Version: 1,
+      resource: "https://top.example.com/api",
+      accepts: [v1Entry({ resource: "https://entry.example.com/api" })],
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(/Conflicting x402 resource URLs/);
+  });
+
   it("rejects a top-level resource that disagrees with a per-entry one", () => {
     // The pool includes the top-level v2 resource AND the per-entry v1
     // strings, so a hybrid 402 whose top-level url contradicts an entry url
@@ -1039,6 +1066,11 @@ describe("normalizeX402PaymentRequired", () => {
     };
     const header = Buffer.from(JSON.stringify(body), "utf8").toString("base64");
 
+    // Pinned two-sided, like X402_MAX_TIMEOUT_SECONDS: asserting only that
+    // the header FITS bounds the constant from below, so raising it to 256 MB
+    // kept the suite green and silently reopened the allocation asymmetry the
+    // cap exists to close.
+    expect(X402_MAX_ENCODED_PAYLOAD_LENGTH).toBe(262_144);
     expect(header.length).toBeGreaterThan(200_000);
     expect(header.length).toBeLessThanOrEqual(X402_MAX_ENCODED_PAYLOAD_LENGTH);
     expect(normalizeX402PaymentRequired(header).isOk()).toBe(true);

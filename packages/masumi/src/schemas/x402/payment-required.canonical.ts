@@ -101,6 +101,13 @@ function serializeObject(
   if (depth >= X402_MAX_JSON_DEPTH) {
     throw new NotCanonicalizableError("nested too deep");
   }
+  // NOT redundant behind the depth guard above: `ancestors` holds the objects
+  // on the CURRENT path, so a self-referencing value trips here at depth 1.
+  // Only a cycle whose loop is longer than X402_MAX_JSON_DEPTH reaches the
+  // depth error instead. Both answers are `undefined` to the caller, which is
+  // why no test can tell them apart from outside this module — the sibling
+  // walk in payment-required.sanitize.ts returns distinct messages and pins
+  // both halves.
   if (ancestors.has(value)) {
     throw new NotCanonicalizableError("circular reference");
   }
