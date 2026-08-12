@@ -7,6 +7,12 @@ import type {
 /** Local-only row id: `pending:{clientTurnId}`. Never a server message id. */
 export const OUTBOUND_LOCAL_ID_PREFIX = "pending:" as const;
 
+/**
+ * How long the post-confirm check stays in the timestamp slot before
+ * swapping to wall-clock time (includes fade).
+ */
+export const OUTBOUND_SENT_TICK_MS = 1600;
+
 /** Core + local metadata key for the client turn id. */
 export const CLIENT_MESSAGE_ID_METADATA_KEY = "client_message_id" as const;
 

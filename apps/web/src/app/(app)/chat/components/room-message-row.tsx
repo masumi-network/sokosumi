@@ -3,6 +3,7 @@
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
   AlertCircle,
+  Check,
   Clock,
   MessageCircle,
   Pencil,
@@ -39,6 +40,7 @@ import {
 } from "@/app/chat/utils/jumbo-emoji";
 import {
   isOutboundLocalMessage,
+  OUTBOUND_SENT_TICK_MS,
   type OutboundDeliveryStatus,
   readOutboundDeliveryStatus,
 } from "@/app/chat/utils/outbound-room-message";
@@ -1206,26 +1208,48 @@ function MessageEditComposer({
   );
 }
 
+/** Shared width so clock / check / wall-clock time do not nudge the name. */
+const OUTBOUND_TIME_SLOT_CLASS =
+  "inline-flex min-w-11 items-center justify-start leading-none";
+
 /**
- * Timestamp slot: wall-clock once confirmed; clock while pending (no server
- * time yet); alert while failed. No checkmark — confirm just reveals the time.
+ * Timestamp slot: clock while pending; brief check on confirm (fades, then
+ * parent swaps to wall-clock); alert while failed; settled = real time.
  */
 function MessageTimeOrOutboundStatus({
   createdAt,
   outboundStatus,
+  showSentTick = false,
   className,
 }: {
   createdAt: Date | string;
   outboundStatus: OutboundDeliveryStatus | null;
+  showSentTick?: boolean;
   className?: string;
 }) {
   const t = useTranslations("App.Channels");
+  const [sentFading, setSentFading] = useState(false);
+
+  useEffect(() => {
+    if (!showSentTick) {
+      setSentFading(false);
+      return;
+    }
+    setSentFading(false);
+    const fadeAt = window.setTimeout(() => {
+      setSentFading(true);
+    }, OUTBOUND_SENT_TICK_MS / 2);
+    return () => {
+      window.clearTimeout(fadeAt);
+    };
+  }, [showSentTick, createdAt]);
 
   if (outboundStatus === "pending") {
     return (
       <span
         className={cn(
-          "text-muted-foreground inline-flex items-center leading-none",
+          OUTBOUND_TIME_SLOT_CLASS,
+          "text-muted-foreground",
           className,
         )}
         data-testid="outbound-delivery-pending"
@@ -1240,10 +1264,7 @@ function MessageTimeOrOutboundStatus({
   if (outboundStatus === "failed") {
     return (
       <span
-        className={cn(
-          "text-destructive inline-flex items-center leading-none",
-          className,
-        )}
+        className={cn(OUTBOUND_TIME_SLOT_CLASS, "text-destructive", className)}
         data-testid="outbound-delivery-failed-icon"
         title={t("Outbound.failed")}
         aria-label={t("Outbound.failed")}
@@ -1253,7 +1274,36 @@ function MessageTimeOrOutboundStatus({
     );
   }
 
-  return <MessageWallClockTime value={createdAt} className={className} />;
+  if (showSentTick) {
+    return (
+      <span
+        className={cn(
+          OUTBOUND_TIME_SLOT_CLASS,
+          "text-muted-foreground",
+          className,
+        )}
+        data-testid="outbound-delivery-sent"
+        title={t("Outbound.sent")}
+        aria-label={t("Outbound.sent")}
+      >
+        <Check
+          className={cn(
+            "size-3 transition-opacity duration-500 ease-out",
+            sentFading ? "opacity-0" : "opacity-100",
+          )}
+          aria-hidden
+          strokeWidth={2.5}
+        />
+      </span>
+    );
+  }
+
+  return (
+    <MessageWallClockTime
+      value={createdAt}
+      className={cn(OUTBOUND_TIME_SLOT_CLASS, className)}
+    />
+  );
 }
 
 function OutboundFailedActions({
@@ -1428,6 +1478,7 @@ export function ChatMessageRow({
   onDelete,
   onRetryOutbound,
   onRemoveOutbound,
+  showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
   onEditDraftChange,
@@ -1455,6 +1506,8 @@ export function ChatMessageRow({
   onDelete?: (message: ChatRoomMessage) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
+  showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
@@ -1565,10 +1618,12 @@ export function ChatMessageRow({
           <MessageTimeOrOutboundStatus
             createdAt={message.createdAt}
             outboundStatus={outboundStatus}
+            showSentTick={showOutboundSentTick}
             className={cn(
               "whitespace-nowrap text-[0.625rem] leading-4 tabular-nums",
-              // Pending/failed stay visible; confirmed time only on hover (existing).
+              // Pending/failed/sent-tick stay visible; settled time only on hover.
               outboundStatus == null &&
+                !showOutboundSentTick &&
                 "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100",
             )}
           />
@@ -1626,6 +1681,7 @@ export function ChatMessageRow({
             <MessageTimeOrOutboundStatus
               createdAt={message.createdAt}
               outboundStatus={outboundStatus}
+              showSentTick={showOutboundSentTick}
               className="text-muted-foreground text-xs leading-none"
             />
             {showEdited ? (

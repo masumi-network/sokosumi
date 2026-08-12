@@ -139,6 +139,7 @@ function renderRow({
   onDelete,
   onRetryOutbound,
   onRemoveOutbound,
+  showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
   onEditDraftChange,
@@ -156,6 +157,7 @@ function renderRow({
   onDelete?: (message: ChatRoomMessage) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
@@ -176,6 +178,7 @@ function renderRow({
       onDelete={onDelete}
       onRetryOutbound={onRetryOutbound}
       onRemoveOutbound={onRemoveOutbound}
+      showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
       onEditDraftChange={onEditDraftChange}
@@ -1836,7 +1839,18 @@ describe("ChatMessageRow outbound delivery", () => {
     expect(screen.queryByTestId("outbound-delivery-failed")).toBeNull();
   });
 
-  it("shows wall-clock time once confirmed (no checkmark)", () => {
+  it("shows a brief check in the timestamp slot right after confirm", () => {
+    renderRow({
+      currentUserId: "user-1",
+      message: userMessage({ id: "srv-1", content: "on the train" }),
+      showOutboundSentTick: true,
+    });
+
+    expect(screen.getByTestId("outbound-delivery-sent")).toBeTruthy();
+    expect(screen.getByLabelText("Outbound.sent")).toBeTruthy();
+  });
+
+  it("shows wall-clock time once the sent tick window ends", () => {
     renderRow({
       currentUserId: "user-1",
       message: userMessage({ id: "srv-1", content: "on the train" }),
