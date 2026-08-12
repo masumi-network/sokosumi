@@ -129,6 +129,8 @@ const X402_MAX_RESOURCE_URL_LENGTH = 2048;
 const X402_MAX_MAP_ENTRIES = 32;
 /** Key length allowed in a free-form `extensions` / `extra` map. */
 const X402_MAX_MAP_KEY_LENGTH = 128;
+/** `extra.name` / `extra.version` — an EIP-712 domain, never long. */
+const X402_MAX_EIP712_DOMAIN_VALUE_LENGTH = 128;
 
 /**
  * A free-form attacker-controlled map (`extensions`, and the unknown keys of
@@ -157,8 +159,8 @@ const x402ExtensionsSchema = z
  */
 const x402ExtraSchema = z
   .looseObject({
-    name: z.string().max(X402_MAX_MAP_KEY_LENGTH).optional(),
-    version: z.string().max(X402_MAX_MAP_KEY_LENGTH).optional(),
+    name: z.string().max(X402_MAX_EIP712_DOMAIN_VALUE_LENGTH).optional(),
+    version: z.string().max(X402_MAX_EIP712_DOMAIN_VALUE_LENGTH).optional(),
     assetTransferMethod: z
       .literal(X402_SUPPORTED_ASSET_TRANSFER_METHOD)
       .optional(),
