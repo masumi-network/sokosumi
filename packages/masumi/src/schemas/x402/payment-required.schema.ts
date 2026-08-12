@@ -1,3 +1,4 @@
+import { canonicalizeEx } from "json-canonicalize";
 import { err, ok, type Result } from "neverthrow";
 import { z } from "zod";
 
@@ -662,18 +663,61 @@ export function normalizeX402PaymentRequired(
  * caller does not deploy. Handing the node one entry makes its selection rule
  * irrelevant.
  *
- * NOT dead code: the pay route lives on branch `x402-5-pay` and is wired to
- * this helper there (it must call it with the entry
- * `verifyX402DemandAgainstAgentSources` returned). It ships here because the
- * schema owns the payload shape.
+ * `chosen` is VERIFIED against the payload rather than trusted. A helper
+ * whose whole job is fund-diversion defence must not take the caller's word
+ * for which entry the 402 offered: an unchecked `chosen` lets a caller bug —
+ * a stale entry, one carried across a replay, one rebuilt by hand — hand the
+ * node a `payTo` that never appeared in the payload Soko validated, which is
+ * precisely the outcome this function exists to prevent. Identity is the
+ * normal case; canonical-JSON equality covers a caller that round-tripped the
+ * entry through JSON. The entry actually forwarded is always the payload's
+ * own, never the argument, and the result is re-validated against the node
+ * shape before it is returned.
+ *
+ * NOT dead code: the pay route lands on branch `x402-5-pay` and must call
+ * this with the entry `verifyX402DemandAgainstAgentSources` returned. It
+ * ships here because the schema owns the payload shape.
  *
  * Pure: the input payload is not mutated.
  */
 export function narrowToChosenRequirement(
   paymentRequired: X402PaymentRequired,
   chosen: X402PaymentRequirements,
-): X402PaymentRequired {
-  return { ...paymentRequired, accepts: [chosen] };
+): Result<X402PaymentRequired, string> {
+  const chosenKey = canonicalKey(chosen);
+  const member = paymentRequired.accepts.find(
+    (entry) =>
+      entry === chosen ||
+      (chosenKey !== undefined && canonicalKey(entry) === chosenKey),
+  );
+  if (member === undefined) {
+    return err(
+      "The chosen x402 requirement is not one of the payload's accepts entries",
+    );
+  }
+
+  const narrowed = { ...paymentRequired, accepts: [member] };
+  const validated = x402PaymentRequiredSchema.safeParse(narrowed);
+  if (!validated.success) {
+    return err(
+      `Narrowed x402 payload failed validation: ${z.prettifyError(validated.error)}`,
+    );
+  }
+  return ok(validated.data);
+}
+
+/**
+ * RFC 8785 canonical JSON for a requirement entry, used only to compare two
+ * entries for value equality regardless of key order. `undefined` when the
+ * value cannot be canonicalized, which the caller treats as "not equal" —
+ * fail closed, and never a throw.
+ */
+function canonicalKey(value: X402PaymentRequirements): string | undefined {
+  try {
+    return canonicalizeEx(value, { filterUndefined: true });
+  } catch {
+    return undefined;
+  }
 }
 
 /**

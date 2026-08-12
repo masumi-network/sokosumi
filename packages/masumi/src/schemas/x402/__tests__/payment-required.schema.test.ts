@@ -929,11 +929,15 @@ describe("narrowToChosenRequirement", () => {
 
     const narrowed = narrowToChosenRequirement(multiEntry, chosen);
 
-    expect(narrowed.accepts).toEqual([chosen]);
+    expect(narrowed.isOk()).toBe(true);
+    expect(narrowed._unsafeUnwrap().accepts).toEqual([chosen]);
     expect(
-      narrowed.accepts.some(
-        (entry) => entry.payTo === "0x1111111111111111111111111111111111111111",
-      ),
+      narrowed
+        ._unsafeUnwrap()
+        .accepts.some(
+          (entry) =>
+            entry.payTo === "0x1111111111111111111111111111111111111111",
+        ),
     ).toBe(false);
   });
 
@@ -943,7 +947,10 @@ describe("narrowToChosenRequirement", () => {
       expect.unreachable("fixture must have a second entry");
     }
 
-    const narrowed = narrowToChosenRequirement(multiEntry, chosen);
+    const narrowed = narrowToChosenRequirement(
+      multiEntry,
+      chosen,
+    )._unsafeUnwrap();
 
     expect(narrowed).toEqual({ ...multiEntry, accepts: [chosen] });
     expect(narrowed.x402Version).toBe(multiEntry.x402Version);
@@ -961,7 +968,7 @@ describe("narrowToChosenRequirement", () => {
 
     expect(
       x402PaymentRequiredSchema.safeParse(
-        narrowToChosenRequirement(multiEntry, chosen),
+        narrowToChosenRequirement(multiEntry, chosen)._unsafeUnwrap(),
       ).success,
     ).toBe(true);
   });
@@ -975,5 +982,60 @@ describe("narrowToChosenRequirement", () => {
     narrowToChosenRequirement(multiEntry, chosen);
 
     expect(multiEntry.accepts).toHaveLength(2);
+  });
+
+  it("refuses a chosen entry that is not in accepts", () => {
+    // The helper's entire job is fund-diversion defence, so it must not take
+    // the caller's word for which entry the payload offered. An unverified
+    // `chosen` would let a caller bug hand the node a `payTo` that never
+    // appeared in the 402 Soko validated.
+    const foreign = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [
+        v2Entry({ payTo: "0x1111111111111111111111111111111111111111" }),
+      ],
+    })._unsafeUnwrap().accepts[0];
+    if (!foreign) {
+      expect.unreachable("fixture must have an entry");
+    }
+
+    const narrowed = narrowToChosenRequirement(multiEntry, foreign);
+
+    expect(narrowed.isErr()).toBe(true);
+    expect(narrowed._unsafeUnwrapErr()).toMatch(
+      /not one of the payload's accepts entries/,
+    );
+  });
+
+  it("refuses a chosen entry mutated after it was verified", () => {
+    const chosen = multiEntry.accepts[0];
+    if (!chosen) {
+      expect.unreachable("fixture must have a first entry");
+    }
+
+    const tampered = {
+      ...chosen,
+      payTo: "0x1111111111111111111111111111111111111111",
+    };
+
+    expect(narrowToChosenRequirement(multiEntry, tampered).isErr()).toBe(true);
+  });
+
+  it("accepts a value-equal entry that is not the same object", () => {
+    // A caller that round-trips the entry through JSON (a replay path, a
+    // queued job) still holds the entry the payload offered, in a different
+    // key order. Identity alone would refuse it.
+    const chosen = multiEntry.accepts[0];
+    if (!chosen) {
+      expect.unreachable("fixture must have a first entry");
+    }
+    const reordered = Object.fromEntries(
+      Object.entries(chosen).reverse(),
+    ) as typeof chosen;
+
+    const narrowed = narrowToChosenRequirement(multiEntry, reordered);
+
+    expect(narrowed.isOk()).toBe(true);
+    expect(narrowed._unsafeUnwrap().accepts).toEqual([chosen]);
   });
 });
