@@ -1210,12 +1210,20 @@ function MessageEditComposer({
 
 /**
  * Header (next to name): min width so clock → check → time does not nudge.
- * Continuation gutter is compact (`w-8`); icons only — no min-w.
+ * Continuation gutter matches the avatar rail (`w-8`); icons only — no min-w.
  */
 const OUTBOUND_HEADER_MARK_CLASS =
   "text-muted-foreground inline-flex min-w-11 items-center justify-start leading-none";
 const OUTBOUND_GUTTER_MARK_CLASS =
   "text-muted-foreground inline-flex items-center justify-center leading-none";
+
+/**
+ * Left rail shared by avatar and continuation hover-time so body text lines up.
+ * min/max lock the flex item: a wide wall-clock string must overflow the rail,
+ * not grow it and shove the message body right.
+ */
+const MESSAGE_LEFT_RAIL_CLASS =
+  "flex w-8 min-w-8 max-w-8 shrink-0 justify-center overflow-visible pt-0.5";
 
 /**
  * Timestamp slot: clock while pending; brief check on confirm (fades, then
@@ -1623,9 +1631,11 @@ export function ChatMessageRow({
       {...(showActions ? longPress : {})}
     >
       {isContinuation ? (
-        // Wider than avatar (w-8) so "12:34 PM" is not clipped; right-align
-        // toward the body so marks stay near the text column.
-        <div className="flex w-12 shrink-0 justify-end pe-0.5 pt-0.5">
+        // Same width as avatar rail so continuation body lines up with header body.
+        <div
+          className={MESSAGE_LEFT_RAIL_CLASS}
+          data-testid="message-continuation-time-rail"
+        >
           <MessageTimeOrOutboundStatus
             createdAt={message.createdAt}
             outboundStatus={outboundStatus}

@@ -246,6 +246,15 @@ describe("ChatMessageRow", () => {
     expect(screen.getByRole("time")).toHaveClass("whitespace-nowrap");
   });
 
+  it("locks continuation time rail to avatar width so body text stays aligned", () => {
+    renderRow({ isContinuation: true });
+
+    const rail = screen.getByTestId("message-continuation-time-rail");
+    // Same 2rem rail as size-8 avatar; min/max stop a long wall-clock from growing the column.
+    expect(rail).toHaveClass("w-8", "min-w-8", "max-w-8", "justify-center");
+    expect(rail).not.toHaveClass("w-12");
+  });
+
   it("shows reactor names in reaction tooltip in API order", () => {
     renderContinuation(
       userMessage({
