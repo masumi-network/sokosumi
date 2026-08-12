@@ -1,7 +1,11 @@
+import type { CreditCost } from "@sokosumi/database";
 import type { X402AvailableNetwork, X402Budget } from "@sokosumi/masumi";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LIMITS } from "@/config/constants";
+import { calculateCentsFromX402Amount } from "@/helpers/x402-pricing";
 import {
   X402_BUY_SIDE_READINESS_FAILURE_KEY,
   X402_BUY_SIDE_READINESS_KEY,
@@ -102,15 +106,20 @@ const READY_SOURCE = {
   caip2Network: "eip155:84532",
   asset: USDC_BASE_SEPOLIA,
   evmWalletId: "wallet_1",
+  decimals: 6,
 };
 
 const BASE_MAINNET_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
 
-function mainnetNetwork(): X402AvailableNetwork {
+function mainnetNetwork(
+  overrides: Partial<X402AvailableNetwork> = {},
+): X402AvailableNetwork {
   return availableNetwork({
     id: "x402net_2",
     caip2Id: "eip155:8453",
     isTestnet: false,
+    defaultAsset: BASE_MAINNET_USDC,
+    ...overrides,
   });
 }
 
@@ -229,11 +238,17 @@ describe("composeX402ReadySources", () => {
         caip2Network: "eip155:8453",
         asset: BASE_MAINNET_USDC,
         evmWalletId: "wallet_1",
+        decimals: 6,
       },
     ]);
   });
 
-  it("sorts the surviving pairs deterministically", () => {
+  it("drops a funded budget in an asset the node publishes no decimals for", () => {
+    // The node publishes decimals for its DEFAULT asset only, so a budget in
+    // any other asset has no trustworthy scale anywhere — the only other
+    // source is the agent's own registry entry, which is exactly the input
+    // this pair stops trusting. Pricing needs the scale (`cents = amount x
+    // centsPerUnit / 10^decimals`), so an asset without one is not payable.
     const usdt = "0xdac17f958d2ee523a2206206994597c13d831ec7";
     const result = composeX402ReadySources(
       [mainnetNetwork()],
@@ -241,10 +256,143 @@ describe("composeX402ReadySources", () => {
       "Mainnet",
     );
 
-    expect(result.map((source) => source.asset)).toEqual([
-      BASE_MAINNET_USDC,
-      usdt,
-    ]);
+    expect(result.map((source) => source.asset)).toEqual([BASE_MAINNET_USDC]);
+  });
+
+  it("carries the node's decimals onto the recorded pair", () => {
+    expect(
+      composeX402ReadySources(
+        [availableNetwork({ defaultAssetDecimals: 8 })],
+        [budget()],
+        "Preprod",
+      ),
+    ).toEqual([{ ...READY_SOURCE, decimals: 8 }]);
+  });
+
+  it("matches the node's default asset canonically, not by raw spelling", () => {
+    // The node may serve a checksummed address while the budget is lowercase
+    // (or the reverse). Both sides are canonicalized before comparing, or a
+    // spelling difference would silently unlist the one payable pair.
+    expect(
+      composeX402ReadySources(
+        [
+          availableNetwork({
+            defaultAsset: USDC_BASE_SEPOLIA.toUpperCase().replace("0X", "0x"),
+          }),
+        ],
+        [budget()],
+        "Preprod",
+      ),
+    ).toEqual([READY_SOURCE]);
+  });
+
+  it("drops the pair when the node reports no usable decimals", () => {
+    // Fail closed rather than guessing or falling back to the agent's
+    // registered value: `defaultAssetDecimals` is nullable in the node's spec
+    // ("null until an operator confirms them"), and a wrong scale mis-prices
+    // by 10^n.
+    for (const defaultAssetDecimals of [null, 6.5, -1, 256, Number.NaN]) {
+      expect(
+        composeX402ReadySources(
+          [availableNetwork({ defaultAssetDecimals })],
+          [budget()],
+          "Preprod",
+        ),
+      ).toEqual([]);
+    }
+    expect(
+      composeX402ReadySources(
+        [availableNetwork({ defaultAsset: null })],
+        [budget()],
+        "Preprod",
+      ),
+    ).toEqual([]);
+    expect(
+      composeX402ReadySources(
+        [availableNetwork({ defaultAsset: "USDC" })],
+        [budget()],
+        "Preprod",
+      ),
+    ).toEqual([]);
+  });
+
+  it("drops a network the node lists twice with disagreeing decimals", () => {
+    // Two entries for one chain is malformed. Picking either one is picking
+    // a charge scale at random — and one of the two is 10^n wrong.
+    expect(
+      composeX402ReadySources(
+        [availableNetwork(), availableNetwork({ defaultAssetDecimals: 18 })],
+        [budget()],
+        "Preprod",
+      ),
+    ).toEqual([]);
+    // Agreeing duplicates are one network, not a conflict.
+    expect(
+      composeX402ReadySources(
+        [availableNetwork(), availableNetwork({ id: "x402net_dup" })],
+        [budget()],
+        "Preprod",
+      ),
+    ).toEqual([READY_SOURCE]);
+  });
+
+  it("prices off the node's decimals, never the agent-registered ones", () => {
+    // The exploit this pair exists to close. `decimals` scales the charge
+    // INVERSELY, and the agent authors its own registry entry: registering
+    // USDC on Base Sepolia with decimals 18 (true value 6) makes a demand for
+    // 1 whole USDC price at the platform floor while Soko's managed wallet
+    // signs away a real USDC.
+    const [source] = composeX402ReadySources(
+      [availableNetwork()],
+      [budget()],
+      "Preprod",
+    );
+    if (!source) {
+      expect.unreachable("the funded pair must be recorded");
+    }
+
+    const creditCosts: CreditCost[] = [
+      {
+        id: "credit-cost-1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        unit: `eip155:84532/erc20:${USDC_BASE_SEPOLIA}`,
+        // 1 whole USDC = 1 credit = 10^10 cents.
+        centsPerUnit: 10_000_000_000n,
+      },
+    ];
+    const oneWholeUsdc = "1000000";
+    const AGENT_AUTHORED_DECIMALS = 18;
+
+    const trustedCents = calculateCentsFromX402Amount(
+      {
+        caip2Network: source.caip2Network,
+        asset: source.asset,
+        amount: oneWholeUsdc,
+        decimals: source.decimals,
+      },
+      creditCosts,
+    );
+    const exploitedCents = calculateCentsFromX402Amount(
+      {
+        caip2Network: source.caip2Network,
+        asset: source.asset,
+        amount: oneWholeUsdc,
+        decimals: AGENT_AUTHORED_DECIMALS,
+      },
+      creditCosts,
+    );
+
+    // The money first: 1 whole USDC must cost 1 credit.
+    expect(trustedCents).toBe(10_000_000_000n);
+    // What the agent's number would have charged instead — the platform
+    // floor, a 10^10x under-charge, repeatable on every call while the
+    // managed wallet signs away a real USDC each time.
+    expect(exploitedCents).toBe(
+      convertCreditsToCents(LIMITS.MIN_CHARGEABLE_CREDITS),
+    );
+    expect(source.decimals).toBe(6);
+    expect(source.decimals).not.toBe(AGENT_AUTHORED_DECIMALS);
   });
 
   it("ignores canSettle — buy-side readiness needs no facilitator", () => {

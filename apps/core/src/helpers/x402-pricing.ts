@@ -60,7 +60,15 @@ export interface X402AmountPricingInput {
   asset: string;
   /** Demanded amount in token base units (`^\d+$`, chain-native). */
   amount: string;
-  /** Asset decimals from the agent's registered payment source (USDC = 6). */
+  /**
+   * Base units per whole token for `asset` (USDC = 6).
+   *
+   * MUST come from `X402ReadySource.decimals` — the node's
+   * `defaultAssetDecimals` — and never from the agent's registered payment
+   * source. The agent authors its own registry entry, and this value divides
+   * the charge: registering 18 for a 6-decimals asset prices a real USDC at
+   * the platform floor.
+   */
   decimals: number;
 }
 

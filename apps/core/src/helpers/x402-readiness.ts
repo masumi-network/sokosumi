@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/masumi";
 
 import { getEnv } from "@/config/env";
+import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -23,9 +24,9 @@ export const X402_BUY_SIDE_READINESS_FAILURE_KEY =
 
 /**
  * One (network, asset) pair the payment node can pay on right now: the chain
- * is enabled for x402 and a budget in that asset has remaining spend.
- * Network and asset are canonical lowercase; `evmWalletId` is the node's
- * opaque wallet id, carried verbatim.
+ * is enabled for x402, the node publishes a usable scale for the asset, and a
+ * budget in it has remaining spend. Network and asset are canonical
+ * lowercase; `evmWalletId` is the node's opaque wallet id, carried verbatim.
  */
 export interface X402ReadySource {
   /** CAIP-2 EVM network id, e.g. `eip155:84532`. */
@@ -39,6 +40,20 @@ export interface X402ReadySource {
    * recorded the one with the most remaining spend.
    */
   evmWalletId: string;
+  /**
+   * Base units per whole token for `asset`, as the NODE publishes it
+   * (`defaultAssetDecimals` on `GET /x402/networks/available`) — never as the
+   * agent registered it.
+   *
+   * This is the one authoritative copy Soko has. The registry's `decimals`
+   * sits on the agent's own entry: an agent that registers USDC with
+   * `decimals: 18` (true value 6) divides its own charge by 10^12 while
+   * Soko's managed wallet signs away the real amount, and the demand still
+   * passes the ceiling check because that compares against the same
+   * agent-registered amount. Both the compose and the read fail closed when
+   * the node reports nothing usable — see {@link isUsableAssetDecimals}.
+   */
+  decimals: number;
 }
 
 /**
@@ -160,7 +175,16 @@ export const getX402ReadySources = async (
             // until the next sync rewrites the cache.
             "evmWalletId" in source &&
             typeof source.evmWalletId === "string" &&
-            source.evmWalletId.length > 0,
+            source.evmWalletId.length > 0 &&
+            // Same treatment for the node-published decimals, and for the same
+            // reason the other fields are re-validated here: the cache is not a
+            // trusted input. A row written before this field existed — or one
+            // carrying a non-integer or out-of-range value — has no usable
+            // scale, and pricing off a wrong scale is a 10^n mischarge. Drop
+            // the pair until the next sync rewrites the cache; NEVER fall back
+            // to the agent-registered decimals.
+            "decimals" in source &&
+            isUsableAssetDecimals(source.decimals),
         )
         // Emit the canonical pair rather than the row as stored.
         // EVM_ADDRESS_PATTERN accepts mixed case, so a legacy or hand-edited
@@ -178,6 +202,7 @@ export const getX402ReadySources = async (
           caip2Network: source.caip2Network.trim().toLowerCase(),
           asset: source.asset.trim().toLowerCase(),
           evmWalletId: source.evmWalletId,
+          decimals: source.decimals,
         }))
     );
   } catch {

@@ -7,6 +7,7 @@ import {
 
 import { paymentClient } from "@/clients/masumi-payment.client";
 import { getEnv } from "@/config/env";
+import { isUsableAssetDecimals } from "@/helpers/x402-pricing";
 import {
   isX402NetworkAllowed,
   X402_BUY_SIDE_READINESS_FAILURE_KEY,
@@ -15,11 +16,45 @@ import {
 } from "@/helpers/x402-readiness";
 import prisma from "@/lib/db/prisma";
 
+/** The one asset on a chain whose scale the node vouches for. */
+interface PricedNetworkAsset {
+  /** Canonical lowercase ERC-20 contract address. */
+  asset: string;
+  /** Base units per whole token, straight from the node. */
+  decimals: number;
+}
+
+/**
+ * The node's `defaultAsset` for a chain together with its
+ * `defaultAssetDecimals`, or `undefined` when the node vouches for neither.
+ *
+ * Both fields are required-but-NULLABLE in the pinned spec
+ * (`defaultAssetDecimals` is documented as "null until an operator confirms
+ * them"), so an absent scale is an ordinary node state, not a protocol
+ * violation — it just makes the chain unpayable until the operator fills it
+ * in. Returning `undefined` for a half-answer (asset without decimals, or the
+ * reverse) keeps the pair from being recorded at all.
+ */
+function toPricedNetworkAsset(
+  network: X402AvailableNetwork,
+): PricedNetworkAsset | undefined {
+  const asset = network.defaultAsset?.trim().toLowerCase();
+  if (
+    !asset ||
+    !EVM_ADDRESS_PATTERN.test(asset) ||
+    !isUsableAssetDecimals(network.defaultAssetDecimals)
+  ) {
+    return undefined;
+  }
+  return { asset, decimals: network.defaultAssetDecimals };
+}
+
 /**
  * Composes per-network x402 buy-side readiness from the node's
  * `GET /x402/networks/available` and `GET /x402/budgets` (ticket 011 Q5):
- * a (network, asset) pair is ready when the chain is enabled for x402 AND a
- * budget in that asset still has remaining spend. The budget rows are
+ * a (network, asset) pair is ready when the chain is enabled for x402, the
+ * node publishes a usable scale for that asset, AND a budget in it still has
+ * remaining spend. The budget rows are
  * already scoped to Soko's own API key by `getX402Budgets` (the node's
  * admin-gated list is otherwise unscoped, and `POST /x402/pay` only draws
  * on the calling key's budgets — a foreign key's budget must never mark a
@@ -29,6 +64,14 @@ import prisma from "@/lib/db/prisma";
  * deliberately ignored — outbound (buy) wallets do not require a
  * facilitator, and gating the buy side on inbound settlement would hide
  * payable agents for no reason.
+ *
+ * Each pair also records the node's `defaultAssetDecimals` as the asset's
+ * scale. That is the whole point of reading the networks response for more
+ * than `isEnabled`: `decimals` scales the charge INVERSELY, and the only
+ * other copy of it lives on the agent's own registry entry. Because the node
+ * vouches for its DEFAULT asset only, a budget in any other asset is dropped
+ * — unpriceable is unpayable (see the budget loop). One pair per chain is
+ * therefore the ceiling today.
  *
  * `environment` is a parameter rather than a `getEnv()` read so this stays
  * pure. It applies the per-environment EVM allowlist
@@ -45,19 +88,37 @@ export function composeX402ReadySources(
   budgets: readonly X402Budget[],
   environment: "Preprod" | "Mainnet",
 ): X402ReadySource[] {
-  const enabledNetworks = new Set<string>();
+  // Enabled chain -> the ONE asset the node publishes a scale for, or `null`
+  // when the node contradicted itself about that chain.
+  const enabledNetworks = new Map<string, PricedNetworkAsset | null>();
   for (const network of networks) {
     // Normalize BEFORE validating and keying, mirroring the Cardano
     // readiness client: everything downstream compares lowercase, so a
     // mixed-case id from the node must not be silently dropped as invalid.
     const caip2Id = network.caip2Id?.toLowerCase();
     if (
-      network.isEnabled &&
-      caip2Id &&
-      CAIP2_EVM_NETWORK_PATTERN.test(caip2Id) &&
-      isX402NetworkAllowed(caip2Id, environment)
+      !network.isEnabled ||
+      !caip2Id ||
+      !CAIP2_EVM_NETWORK_PATTERN.test(caip2Id) ||
+      !isX402NetworkAllowed(caip2Id, environment)
     ) {
-      enabledNetworks.add(caip2Id);
+      continue;
+    }
+    const pricedAsset = toPricedNetworkAsset(network) ?? null;
+    if (!enabledNetworks.has(caip2Id)) {
+      enabledNetworks.set(caip2Id, pricedAsset);
+      continue;
+    }
+    // One chain listed twice is malformed. Where the two entries agree it is
+    // a harmless repeat; where they disagree, picking either is picking a
+    // charge scale at random — and one of the two is 10^n wrong. Poison the
+    // chain instead.
+    const recorded = enabledNetworks.get(caip2Id);
+    if (
+      recorded?.asset !== pricedAsset?.asset ||
+      recorded?.decimals !== pricedAsset?.decimals
+    ) {
+      enabledNetworks.set(caip2Id, null);
     }
   }
 
@@ -75,9 +136,21 @@ export function composeX402ReadySources(
       !caip2Network ||
       !asset ||
       !evmWalletId ||
-      !enabledNetworks.has(caip2Network) ||
       !EVM_ADDRESS_PATTERN.test(asset)
     ) {
+      continue;
+    }
+    // Covers both "the chain is not enabled and allowed here" and "the node
+    // vouches for no scale on it". The node publishes `defaultAssetDecimals`
+    // for its DEFAULT asset only, so a budget in any OTHER asset has no
+    // trustworthy `decimals` anywhere — the only other copy is on the agent's
+    // own registry entry, which is exactly the input this field stops
+    // trusting. An asset that cannot be priced safely is not buy-side ready,
+    // so it drops. Today that costs nothing: each allowed chain lists exactly
+    // the one USDC contract Soko pays in. The day a second asset is wanted,
+    // the node has to publish ITS decimals — Soko must not guess them here.
+    const pricedAsset = enabledNetworks.get(caip2Network);
+    if (!pricedAsset || pricedAsset.asset !== asset) {
       continue;
     }
     if (!/^\d+$/.test(budget.remainingAmount)) {
@@ -102,12 +175,23 @@ export function composeX402ReadySources(
         evmWalletId.localeCompare(current.pair.evmWalletId) < 0)
     ) {
       readySources.set(key, {
-        pair: { caip2Network, asset, evmWalletId },
+        pair: {
+          caip2Network,
+          asset,
+          evmWalletId,
+          decimals: pricedAsset.decimals,
+        },
         remainingAmount,
       });
     }
   }
 
+  // At most one pair survives per allowed chain (only the node's default
+  // asset is priceable), and each environment allows one chain today, so this
+  // sort is a no-op right now. It stays because the allowlists are meant to
+  // grow: the serialized array IS the change-detection key, so an order that
+  // followed the node's budget order would flip the cache — and page — with
+  // no readiness change behind it.
   return Array.from(readySources.values())
     .map(({ pair }) => pair)
     .sort((left, right) => {
@@ -266,7 +350,10 @@ export async function syncX402BuySideReadiness(
     // only on the transition, so a lasting outage does not spam.
     if (readinessChanged) {
       Sentry.captureMessage(
-        "x402 buy-side readiness reports no payable (network, asset) pair; all x402 agents are hidden",
+        // The likeliest new cause is an operator one, not an outage: a chain
+        // whose `defaultAssetDecimals` is still null publishes no scale, and
+        // an unpriceable asset is deliberately not recorded ready.
+        "x402 buy-side readiness reports no payable (network, asset) pair; all x402 agents are hidden. Check that each enabled chain has a funded budget in its defaultAsset and a confirmed defaultAssetDecimals",
         "error",
       );
     }

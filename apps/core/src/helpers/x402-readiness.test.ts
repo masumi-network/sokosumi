@@ -30,6 +30,7 @@ const X402_READY_SOURCE = {
   caip2Network: "eip155:84532",
   asset: USDC_BASE_SEPOLIA,
   evmWalletId: "wallet_1",
+  decimals: 6,
 };
 
 describe("getX402ReadySources", () => {
@@ -111,6 +112,49 @@ describe("getX402ReadySources", () => {
     await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
   });
 
+  it("drops cached pairs whose decimals are missing or out of range", async () => {
+    // Decimals scale the charge INVERSELY, so an unusable value must never be
+    // guessed at or fall back to the agent-registered number. A row cached
+    // before the field existed is dropped like a walletless one: unusable
+    // until the next sync rewrites the cache.
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([
+        {
+          caip2Network: X402_READY_SOURCE.caip2Network,
+          asset: X402_READY_SOURCE.asset,
+          evmWalletId: X402_READY_SOURCE.evmWalletId,
+        },
+        { ...X402_READY_SOURCE, decimals: null },
+        { ...X402_READY_SOURCE, decimals: "6" },
+        { ...X402_READY_SOURCE, decimals: 6.5 },
+        { ...X402_READY_SOURCE, decimals: -1 },
+        { ...X402_READY_SOURCE, decimals: 256 },
+      ]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+  });
+
+  it("serves the cached decimals at the edges of the valid range", async () => {
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([
+        { ...X402_READY_SOURCE, decimals: 0 },
+        {
+          ...X402_READY_SOURCE,
+          evmWalletId: "wallet_2",
+          decimals: 255,
+        },
+      ]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([
+      { ...X402_READY_SOURCE, decimals: 0 },
+      { ...X402_READY_SOURCE, evmWalletId: "wallet_2", decimals: 255 },
+    ]);
+  });
+
   it("canonicalizes a mixed-case cached asset and drops cached extras", async () => {
     // EVM_ADDRESS_PATTERN accepts mixed case, so a legacy or hand-edited row
     // was VALIDATED in one spelling and RETURNED in another — the same
@@ -118,13 +162,14 @@ describe("getX402ReadySources", () => {
     // Everything downstream (`findX402ReadySource`, `buildCaip19AssetKey`,
     // and the pay call's `preferredAsset`) compares canonical lowercase, so
     // the read must emit it. Cached extras go for the same reason: only the
-    // three fields `X402ReadySource` declares are served.
+    // fields `X402ReadySource` declares are served.
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: JSON.stringify([
         {
           caip2Network: "eip155:84532",
           asset: USDC_BASE_SEPOLIA.toUpperCase().replace("0X", "0x"),
           evmWalletId: "wallet_1",
+          decimals: 6,
           remainingSpend: "999",
         },
       ]),
@@ -158,6 +203,7 @@ describe("getX402ReadySources", () => {
           caip2Network: "eip155:8453",
           asset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
           evmWalletId: "wallet_mainnet",
+          decimals: 6,
         },
         X402_READY_SOURCE,
       ]),
@@ -176,6 +222,7 @@ describe("getX402ReadySources", () => {
       caip2Network: "eip155:8453",
       asset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
       evmWalletId: "wallet_mainnet",
+      decimals: 6,
     };
     const { tx } = createSyncMetadataTransactionClient({
       cursorId: JSON.stringify([mainnetSource, X402_READY_SOURCE]),
