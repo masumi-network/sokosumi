@@ -77,6 +77,24 @@ async function OnboardingFlowLoader({ searchParams }: OnboardingPageProps) {
         Boolean(session.user.onboardingCompleted);
 
   if (isCompleted && !isPreview) {
+    // Core can mark complete while the BA cookie cache still has
+    // onboardingCompleted=false (complete action wrote Core then BA failed).
+    // Leaving without syncing would bounce: this page → landing, app shell →
+    // /onboarding again. Heal the session before redirect when possible.
+    if (
+      onboardingResult.status === "fulfilled" &&
+      onboardingResult.value.data.completed &&
+      !session.user.onboardingCompleted
+    ) {
+      try {
+        await userService.markOnboardingCompleteForMe();
+      } catch (error) {
+        console.error(
+          "Failed to sync onboardingCompleted session after Core complete",
+          error,
+        );
+      }
+    }
     redirect(DEFAULT_AUTHENTICATED_LANDING_PATH);
   }
 

@@ -11,6 +11,7 @@ import {
 } from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { getSession } from "@/lib/auth/auth.server";
+import { coreClient } from "@/lib/clients/core.client";
 import { userService } from "@/lib/services";
 import { SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME } from "@/lib/subscription-onboarding-gate-cookie";
 
@@ -59,6 +60,13 @@ export async function completeOnboarding(): Promise<
   ActionResultDto<{ redirectUrl: string }, ActionError>
 > {
   try {
+    // Complete through Core first so the DB flag is set by one owner.
+    //
+    // The Better Auth update below is still required: only that path refreshes
+    // the session cookie cache. A stale cache against a Core-true flag is a
+    // redirect loop — the page trusts Core, the app shell trusts the session.
+    await coreClient.completeMyOnboarding();
+
     await userService.markOnboardingCompleteForMe();
 
     const session = await getSession();

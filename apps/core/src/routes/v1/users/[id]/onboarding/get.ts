@@ -49,23 +49,23 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const onboarding = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
-        where: { id: resolvedUserId },
-        select: {
-          onboardingCompleted: true,
-        },
-      });
-
-      if (!user) {
-        throw internalServerError("Failed to retrieve user");
-      }
-
-      return {
-        completed: user.onboardingCompleted,
-      };
+    // Read-only GET: no interactive transaction (pool hold / P2028 risk).
+    const user = await prisma.user.findUnique({
+      where: { id: resolvedUserId },
+      select: {
+        onboardingCompleted: true,
+      },
     });
 
-    return ok(c, userOnboardingResponseSchema.parse(onboarding));
+    if (!user) {
+      throw internalServerError("Failed to retrieve user");
+    }
+
+    return ok(
+      c,
+      userOnboardingResponseSchema.parse({
+        completed: user.onboardingCompleted,
+      }),
+    );
   });
 }
