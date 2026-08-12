@@ -7,6 +7,7 @@ import {
   X402_MAX_TIMEOUT_SECONDS,
   X402_PAYMENT_IDENTIFIER_EXTENSION_KEY,
   x402PaymentRequiredSchema,
+  x402PaymentRequirementsSchema,
 } from "../payment-required.schema.js";
 
 const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -584,6 +585,65 @@ describe("normalizeX402PaymentRequired", () => {
     );
     const result = normalizeX402PaymentRequired(header);
     expect(result.isErr()).toBe(true);
+  });
+});
+
+describe("the exported node-shape schemas", () => {
+  // Both schemas are exported from `packages/masumi/src/schemas/index.ts` and
+  // documented as "the node's v2 paymentRequired shape" — exactly what a pay
+  // route or a replay path over a STORED payload reaches for. They must
+  // behave like validators: a bad payload is a failed Result, never a throw
+  // that turns a 422 into an unhandled 500.
+  function nodeShapeEntry(overrides: Record<string, unknown> = {}) {
+    return v2Entry({
+      asset: USDC_BASE_CANONICAL,
+      payTo: PAY_TO_CANONICAL,
+      ...overrides,
+    });
+  }
+
+  it("returns a failed result for a non-numeric amount instead of throwing", () => {
+    // zod 4 runs `.refine()` even after an earlier check on the same schema
+    // has failed, so an unguarded `BigInt(value)` inside the refine escapes
+    // `safeParse` as a SyntaxError.
+    for (const amount of ["abc", "12x", "", "1.5", "-1", "0x10", " 1"]) {
+      const parseRequirements = () =>
+        x402PaymentRequirementsSchema.safeParse(nodeShapeEntry({ amount }));
+      const parsePayload = () =>
+        x402PaymentRequiredSchema.safeParse({
+          x402Version: 2,
+          accepts: [nodeShapeEntry({ amount })],
+        });
+
+      expect(parseRequirements).not.toThrow();
+      expect(parsePayload).not.toThrow();
+      expect(parseRequirements().success).toBe(false);
+      expect(parsePayload().success).toBe(false);
+    }
+  });
+
+  it("rejects an over-wide amount without converting it to a BigInt", () => {
+    // Non-short-circuiting also made `.max(78)` useless: a 10 000 000-digit
+    // string still got a full (quadratic) BigInt conversion before the width
+    // check could matter. The refine is the ONLY check that can raise the
+    // bigint-maximum issue, so "exactly one issue, and it is the width one"
+    // is a deterministic proof that the conversion never ran.
+    const parsed = x402PaymentRequirementsSchema.safeParse(
+      nodeShapeEntry({ amount: "1".repeat(10_000_000) }),
+    );
+
+    expect(parsed.success).toBe(false);
+    const amountIssues = (parsed.error?.issues ?? []).filter(
+      (issue) => issue.path.join(".") === "amount",
+    );
+    expect(amountIssues).toHaveLength(1);
+    expect(amountIssues[0]?.code).toBe("too_big");
+  });
+
+  it("still accepts a well-formed node-shape entry", () => {
+    expect(
+      x402PaymentRequirementsSchema.safeParse(nodeShapeEntry()).success,
+    ).toBe(true);
   });
 });
 

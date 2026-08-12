@@ -171,11 +171,20 @@ const x402ExtraSchema = z
  * Atomic token base units, bounded both structurally (digit width) and
  * numerically (what the node can persist), so an absurd amount is a
  * pre-charge rejection rather than a post-charge node error.
+ *
+ * Both structural checks ABORT. zod 4 keeps running later checks on the same
+ * schema after an earlier one fails, so without this the `BigInt(value)` in
+ * the refine ran on values the regex had already rejected and threw a
+ * `SyntaxError` straight out of `safeParse` — turning a 422 into an unhandled
+ * 500 for any caller that validates a stored or untrusted payload with the
+ * exported schema. Aborting on width also makes `.max()` mean something: a
+ * 10 000 000-digit string is refused on length instead of getting a full
+ * (quadratic) BigInt conversion first.
  */
 const x402AmountSchema = z
   .string()
-  .regex(/^\d+$/)
-  .max(X402_MAX_AMOUNT_DIGITS)
+  .regex(/^\d+$/, { abort: true })
+  .max(X402_MAX_AMOUNT_DIGITS, { abort: true })
   .refine((value) => BigInt(value) <= X402_MAX_AMOUNT_BASE_UNITS, {
     message: `Amount exceeds the payment node's maximum of ${X402_MAX_AMOUNT_BASE_UNITS}`,
   });
