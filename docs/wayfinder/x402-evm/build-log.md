@@ -421,3 +421,63 @@ passed; core x402 + agent + deletion suites (12 files) 282 passed;
 - Nit deferred: normalizer prefers a top-level 402 `resource` over per-entry
   values instead of erroring on disagreement (pre-existing precedence; extend
   the fence only if a wild payload actually exhibits it).
+
+### Step-3 fourth review — trusted asset decimals + canonicalizer holes
+
+**Ready pairs now carry the NODE's `decimals`; the agent's copy is never
+priced off.** `X402ReadySource` is
+`{ caip2Network, asset, evmWalletId, decimals }` (the shape recorded above
+is superseded). `decimals` scales the charge inversely
+(`cents = ceil(amount x centsPerUnit / 10^decimals)`), and the only copy
+reaching `calculateCentsFromX402Amount` came from
+`registryPaymentSourcePricingSchema` — the agent's OWN registry entry,
+range-checked but never cross-checked. Registering USDC on Base with
+`decimals: 18` (true value 6) floored the charge at
+`MIN_CHARGEABLE_CREDITS` while the managed wallet signed away a real
+USDC; the demand still cleared the ceiling check, because that compares
+against the same agent-registered amount. `composeX402ReadySources` now
+reads `defaultAsset` + `defaultAssetDecimals` off
+`GET /x402/networks/available` (both required-but-nullable in the pinned
+spec) and records the node's scale, matching the budget's asset to the
+chain's default asset canonically. `getX402ReadySources` re-validates it
+on read like every other field (`isUsableAssetDecimals`, hoisted into
+`helpers/x402-pricing.ts` next to the formula that consumes it).
+
+Everything fails closed: null / non-integer / out-of-range decimals drop
+the pair; a chain listed twice with disagreeing scales drops entirely; a
+cached row predating the field drops until the next sync. **A funded
+budget in a NON-default asset also drops** — the node vouches for no
+scale on it, and the only other copy is the agent's, so unpriceable is
+unpayable. Nothing real is lost today (each allowed chain lists exactly
+the one USDC contract Soko pays in); a second asset needs the NODE to
+publish its decimals, not a Soko-side guess. Consequence: at most one
+pair per chain, so the compose-time sort is a no-op until an allowlist
+grows — kept, because the serialized array is the change-detection key.
+Mutation-tested: recording the agent-authored 18 instead fails the money
+assertion (`expected 1n to be 10000000000n`); restored green.
+
+**Steps 4/5 must consume it.** `helpers/x402-agent-listing.ts` and
+`helpers/x402-payment-verify.ts` still pass `amount.decimals` (the
+projected registry value) into pricing. They must take `decimals` from
+the matched `X402ReadySource` instead — `isX402SourceReady` becomes a
+`findX402ReadySource` call on the listing side — and keep the row's own
+`missing_decimals` / no-decimals rejections only as a registry sanity
+gate, never as the pricing input.
+
+**Canonical-JSON fences.** `canonicalJsonKey` swallows EVERY throw now,
+not just `NotCanonicalizableError`: a throwing enumerable getter escaped
+as a plain `Error`, which on the pay path is a 500 instead of the
+fail-closed "not equal" the caller is written for. Array holes serialize
+as `null` (an index loop, not `map`, which skips them) so a sparse array
+can no longer produce `[,1]`. The key-side `JSON.stringify` is now
+guarded by a test that a raw `"${key}":` makes red
+(`{ 'a":1,"b': 2 }` vs `{ a: 1, b: 2 }`) — the previous pair of
+assertions only exercised the value side and left the whole suite green
+under that mutation. `X402_MAX_ENCODED_PAYLOAD_LENGTH`'s doc now names
+its companion, the pay route's `bodyLimit`, since the v1 JSON-body
+dialect still has no total-size bound in the package (32 MB body: ~32 ms,
++9.4 MB heap through `stripPrototypePollutingKeys`).
+
+**Verification:** `pnpm --filter @sokosumi/masumi test` 17 files / 322
+passed; `pnpm --filter core test` 359 files / 3275 passed (6 skipped);
+`pnpm typecheck` all workspaces; `pnpm check` clean.
