@@ -2,8 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-
 import { Button } from "@/components/ui/button";
+import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
 import {
   applyConsentMode,
   type ConsentChoice,
@@ -21,6 +21,49 @@ export function openConsentPreferences() {
   window.dispatchEvent(new Event(OPEN_CONSENT_EVENT));
 }
 
+/** Desktop app chrome reserves a left sidebar; align to that column, not the viewport. */
+export function mainChromeLeftPx(
+  viewportWidth: number,
+  sidebarGapWidth: number | null,
+): number {
+  if (viewportWidth < MOBILE_BREAKPOINT) return 0;
+  return sidebarGapWidth ?? 0;
+}
+
+function useMainChromeLeftPx(): number {
+  const [leftPx, setLeftPx] = useState(0);
+
+  useEffect(() => {
+    let observer: ResizeObserver | undefined;
+
+    function measure() {
+      const gap = document.querySelector<HTMLElement>(
+        "[data-slot=sidebar-gap]",
+      );
+      setLeftPx(
+        mainChromeLeftPx(
+          window.innerWidth,
+          gap?.getBoundingClientRect().width ?? null,
+        ),
+      );
+    }
+
+    measure();
+    const gap = document.querySelector("[data-slot=sidebar-gap]");
+    if (gap) {
+      observer = new ResizeObserver(measure);
+      observer.observe(gap);
+    }
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+
+  return leftPx;
+}
+
 /**
  * Self-built cookie banner (no third-party CMP). Records the visitor's choice
  * in the shared `.sokosumi.com` cookie and flips Google Consent Mode v2
@@ -29,6 +72,7 @@ export function openConsentPreferences() {
  */
 export function CookieBanner() {
   const t = useTranslations("CookieConsent");
+  const chromeLeftPx = useMainChromeLeftPx();
   const [visible, setVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [analytics, setAnalytics] = useState(false);
@@ -62,9 +106,10 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-label={t("title")}
-      className="fixed inset-x-0 bottom-0 z-[100] flex justify-center p-3 sm:p-5"
+      className="fixed right-0 bottom-0 z-[100] p-3 transition-[left] duration-200 sm:p-5"
+      style={{ left: chromeLeftPx }}
     >
-      <div className="bg-background w-full max-w-2xl rounded-lg border p-5 shadow-2xl">
+      <div className="bg-background w-full rounded-lg border p-5 shadow-2xl">
         <p className="text-sm font-medium">{t("title")}</p>
         <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
           {t("body")}{" "}
