@@ -20,4 +20,18 @@ describe("PrivateCachedAppSidebar session contract", () => {
   it("takes sessionUser from the authenticated frame instead", () => {
     expect(source).toMatch(/sessionUser:\s*SessionUser/);
   });
+
+  it("does not block rooms chrome on pending invites, credits, or vendor-admin", () => {
+    expect(source).toMatch(/getPrivateCachedChatListChrome/);
+    expect(source).not.toMatch(/listPendingInvitations/);
+    expect(source).not.toMatch(/getCachedMyCredits/);
+    expect(source).not.toMatch(/getDeveloperVendorAdminAccess/);
+    expect(source).not.toMatch(/resolvePlanName/);
+  });
+
+  it("does not own private-cache directives; the shared loader does", () => {
+    expect(source).not.toMatch(/"use cache: private"/);
+    expect(source).not.toMatch(/\bcacheLife\b/);
+    expect(source).not.toMatch(/\bcacheTag\b/);
+  });
 });

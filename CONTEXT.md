@@ -20,6 +20,10 @@ _Avoid_: Notification (for this cue), banner (unless referring to a specific lay
 
 ### Header identity
 
+**App chrome**:
+The persistent sidebar and header on authenticated pages: nav, membership-visible rooms, Workspace switcher, and Notification Center.
+_Avoid_: Topbar, shell (unless meaning the loading frame)
+
 **Workspace switcher**:
 The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point.
 _Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar
