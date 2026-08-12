@@ -5,6 +5,7 @@ import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import {
   buildActivityStats,
+  featuredCoworkerRole,
   hasReportableActivity,
   resolveFeaturedCoworker,
   selectStripCoworkers,
@@ -65,6 +66,33 @@ describe("resolveFeaturedCoworker", () => {
 
   it("returns null when there are no coworkers at all", () => {
     expect(resolveFeaturedCoworker([])).toBeNull();
+  });
+});
+
+describe("featuredCoworkerRole", () => {
+  const elenaPitch = "Project Manager - you can give her any task";
+
+  it("uses product copy for Elena", () => {
+    const elena = buildCoworker({
+      id: "elena",
+      slug: "elena",
+      caption: "Strategy",
+    });
+    expect(featuredCoworkerRole(elena, elenaPitch)).toBe(elenaPitch);
+  });
+
+  it("uses caption for a non-Elena featured coworker", () => {
+    const hannah = buildCoworker({
+      id: "hannah",
+      slug: "hannah",
+      caption: "Research",
+    });
+    expect(featuredCoworkerRole(hannah, elenaPitch)).toBe("Research");
+  });
+
+  it("returns null when a non-Elena featured coworker has no caption", () => {
+    const hannah = buildCoworker({ id: "hannah", slug: "hannah" });
+    expect(featuredCoworkerRole(hannah, elenaPitch)).toBeNull();
   });
 });
 

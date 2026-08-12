@@ -147,7 +147,7 @@ function SectionHeader({
   secondaryAction?: ReactNode;
   dismissSheetOnNavigate?: boolean;
 }) {
-  // Create `+` visible on mobile (FAB opens onboarding); Browse stays.
+  // Create `+` visible on mobile → `?create=channel` / `?dm=new`; Browse stays.
   const createHref = href && label ? href : null;
   const mobileTrailingCount = (secondaryAction ? 1 : 0) + (createHref ? 1 : 0);
   const desktopTrailingCount = (secondaryAction ? 1 : 0) + (createHref ? 1 : 0);

@@ -7,6 +7,7 @@ import {
   type ReactNode,
   useContext,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -38,19 +39,24 @@ export function OpenCoworkerRoomProvider({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [openingId, setOpeningId] = useState<null | string>(null);
+  // Sync lock: isPending can lag one frame / drop after first await in
+  // startTransition(async …), so a second click must not re-enter.
+  const inFlightRef = useRef(false);
 
   const value = useMemo<OpenCoworkerRoomApi>(() => {
     function openCoworkerRoom(coworkerId: string) {
-      if (isPending) {
+      if (inFlightRef.current || isPending) {
         return;
       }
 
+      inFlightRef.current = true;
       setOpeningId(coworkerId);
       startTransition(async () => {
         const result = await ensureCoworkerDirectRoomAction(coworkerId);
 
         if (!result.ok || !result.value) {
           toast.error(result.ok ? t("cta.error") : result.error.message);
+          inFlightRef.current = false;
           setOpeningId(null);
           return;
         }
@@ -65,7 +71,7 @@ export function OpenCoworkerRoomProvider({
     }
 
     return {
-      isPending,
+      isPending: isPending || openingId !== null,
       openCoworkerRoom,
       openingId,
     };

@@ -7,6 +7,7 @@ import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 import { CoworkerStrip } from "./coworker-strip.client";
 import {
   buildActivityStats,
+  featuredCoworkerRole,
   hasReportableActivity,
   resolveFeaturedCoworker,
   selectStripCoworkers,
@@ -49,6 +50,9 @@ export async function ChatLanding({
   ]);
   const featured = resolveFeaturedCoworker(coworkers);
   const others = selectStripCoworkers(coworkers, featured, MAX_STRIP_COWORKERS);
+  const featuredRole = featured
+    ? featuredCoworkerRole(featured, t("role"))
+    : null;
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
   const hasAnyActivity = hasReportableActivity(summary);
 
@@ -86,9 +90,11 @@ export async function ChatLanding({
             <p className="mt-5 text-xl font-semibold tracking-[-0.01em]">
               {featured.name}
             </p>
-            <p className="text-muted-foreground mx-auto mt-2 max-w-[46ch] text-[0.9375rem] leading-[1.55] text-balance">
-              {t("role")}
-            </p>
+            {featuredRole ? (
+              <p className="text-muted-foreground mx-auto mt-2 max-w-[46ch] text-[0.9375rem] leading-[1.55] text-balance">
+                {featuredRole}
+              </p>
+            ) : null}
 
             <div className="mt-6">
               <StartChatButton

@@ -14,6 +14,10 @@ import type { StripCoworker } from "./coworker-strip.client";
  */
 const FEATURED_COWORKER_SLUG = "elena";
 
+export function isElenaCoworker(coworker: Pick<Coworker, "slug">): boolean {
+  return coworker.slug?.toLowerCase() === FEATURED_COWORKER_SLUG;
+}
+
 /**
  * Shared between the desktop landing and the mobile welcome so the two cannot
  * disagree about who is featured, which faces appear, or which stats show.
@@ -21,13 +25,26 @@ const FEATURED_COWORKER_SLUG = "elena";
 export function resolveFeaturedCoworker(
   coworkers: Coworker[],
 ): Coworker | null {
-  const featured = coworkers.find(
-    (coworker) => coworker.slug?.toLowerCase() === FEATURED_COWORKER_SLUG,
-  );
+  const featured = coworkers.find((coworker) => isElenaCoworker(coworker));
 
   // Elena is not guaranteed: `scope=available` is whitelist ∪ granted access,
   // and chat additionally needs a runnable endpoint. Lead with whoever is there.
   return featured ?? findDefaultCoworker(coworkers);
+}
+
+/**
+ * Pitch under the featured face. Elena keeps product-managed copy; anyone else
+ * (fallback when Elena is unavailable) uses their DB caption or nothing —
+ * never Elena's gendered "Project Manager" line.
+ */
+export function featuredCoworkerRole(
+  coworker: Coworker,
+  elenaRole: string,
+): string | null {
+  if (isElenaCoworker(coworker)) {
+    return elenaRole;
+  }
+  return coworker.caption ?? null;
 }
 
 export function toStripCoworker(coworker: Coworker): StripCoworker {

@@ -4851,18 +4851,6 @@
         "backToChats": "Volver a chats",
         "back": "Volver"
       },
-      "MobileCreateFab": {
-        "openMenu": "Crear",
-        "closeMenu": "Cerrar menú de creación",
-        "createChannel": {
-          "title": "Crear canal",
-          "subtitle": "Inicia un nuevo canal de stream"
-        },
-        "newDm": {
-          "title": "Nuevo mensaje directo",
-          "subtitle": "Escribe a una o más personas"
-        }
-      },
       "Actions": {
         "more": "Acciones del mensaje",
         "sectionTitle": "Gestionar canal",
