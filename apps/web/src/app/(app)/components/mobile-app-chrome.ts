@@ -95,7 +95,7 @@ export function resolveMobileAppBackTarget(
 
 /**
  * Fixed tab bar: chat shell (except rooms/drafts) + main list routes.
- * Drafts (`?dm=new`, `?create=channel`, `?welcome=1`) share `/chat`
+ * Drafts (`?dm=new`, `?create=channel`) share `/chat`
  * but hide the tab bar like rooms.
  */
 export function shouldShowMobileBottomNav(
@@ -133,13 +133,4 @@ export function shouldShowMobileBrandLeading(
     return false;
   }
   return MOBILE_TAB_LIST_PATH_SET.has(pathname);
-}
-
-/** Floating create FAB: Chats list only (not drafts / welcome / bare home). */
-export function shouldShowMobileCreateFab(
-  pathname: string | null | undefined,
-  searchParams?: SearchParamsLike,
-): boolean {
-  const surface = classifyChatChromeSurface(pathname, searchParams);
-  return surface === "chats";
 }
