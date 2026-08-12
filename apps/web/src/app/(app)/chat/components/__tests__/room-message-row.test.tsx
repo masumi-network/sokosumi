@@ -137,6 +137,8 @@ function renderRow({
   currentUserId,
   onStartEdit,
   onDelete,
+  onRetryOutbound,
+  onRemoveOutbound,
   isEditing = false,
   editDraft = "",
   onEditDraftChange,
@@ -152,6 +154,8 @@ function renderRow({
   currentUserId?: string;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRemoveOutbound?: (message: ChatRoomMessage) => void;
   isEditing?: boolean;
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
@@ -170,6 +174,8 @@ function renderRow({
       onQuote={onQuote}
       onStartEdit={onStartEdit}
       onDelete={onDelete}
+      onRetryOutbound={onRetryOutbound}
+      onRemoveOutbound={onRemoveOutbound}
       isEditing={isEditing}
       editDraft={editDraft}
       onEditDraftChange={onEditDraftChange}
@@ -1808,5 +1814,53 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(
       screen.queryByTestId("coworker-thought-trace"),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ChatMessageRow outbound delivery", () => {
+  it("shows Sending… for a pending local shell", () => {
+    renderRow({
+      message: userMessage({
+        id: "pending:turn-1",
+        content: "on the train",
+        metadata: {
+          client_message_id: "turn-1",
+          outbound_delivery_status: "pending",
+        },
+      }),
+    });
+
+    expect(screen.getByTestId("outbound-delivery-pending")).toHaveTextContent(
+      "Outbound.sending",
+    );
+    expect(screen.queryByTestId("outbound-delivery-failed")).toBeNull();
+  });
+
+  it("shows Retry and Remove for a failed send", async () => {
+    const user = userEvent.setup();
+    const onRetryOutbound = vi.fn();
+    const onRemoveOutbound = vi.fn();
+    const message = userMessage({
+      id: "pending:turn-1",
+      content: "on the train",
+      metadata: {
+        client_message_id: "turn-1",
+        outbound_delivery_status: "failed",
+      },
+    });
+
+    renderRow({
+      message,
+      onRetryOutbound,
+      onRemoveOutbound,
+    });
+
+    expect(screen.getByTestId("outbound-delivery-failed")).toHaveTextContent(
+      "Outbound.failed",
+    );
+    await user.click(screen.getByRole("button", { name: "Outbound.retry" }));
+    expect(onRetryOutbound).toHaveBeenCalledWith(message);
+    await user.click(screen.getByRole("button", { name: "Outbound.remove" }));
+    expect(onRemoveOutbound).toHaveBeenCalledWith(message);
   });
 });

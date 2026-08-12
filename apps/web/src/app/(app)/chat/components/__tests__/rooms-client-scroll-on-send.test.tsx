@@ -187,7 +187,7 @@ vi.mock("../room-session-composer", () => ({
 
 vi.mock("../room-message-row", () => ({
   ChatMessageRow: ({ message }: { message: ChatRoomMessage }) => (
-    <div>{message.content}</div>
+    <div data-testid={`message-${message.id}`}>{message.content}</div>
   ),
 }));
 
@@ -373,22 +373,36 @@ describe("RoomsClient scroll on own send", () => {
     vi.clearAllMocks();
   });
 
-  it("pins on successful classic channel send", async () => {
+  it("pins when classic channel pending shell is appended", async () => {
     const room = channelRoom();
-    sendRoomMessageAction.mockResolvedValue({
-      ok: true,
-      value: sentMessage(room.id),
-    });
+    let resolveSend: ((value: unknown) => void) | undefined;
+    sendRoomMessageAction.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
     renderRoomsClient(room);
 
     await act(async () => {
       screen.getByTestId("send-message").click();
       await Promise.resolve();
+    });
+
+    // Pin on pending shell, before server confirms.
+    expect(pinToBottomAfterOwnSend).toHaveBeenCalled();
+    expect(screen.getByText("hello")).toBeTruthy();
+
+    await act(async () => {
+      resolveSend?.({
+        ok: true,
+        value: sentMessage(room.id),
+      });
+      await Promise.resolve();
       await Promise.resolve();
     });
 
     expect(sendRoomMessageAction).toHaveBeenCalled();
-    expect(pinToBottomAfterOwnSend).toHaveBeenCalled();
   });
 
   it("pins when coworker stream send is accepted", async () => {

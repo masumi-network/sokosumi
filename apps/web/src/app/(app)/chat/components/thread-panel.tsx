@@ -53,6 +53,8 @@ export function ThreadPanel({
   openingDirectParticipantKey = null,
   onStartEdit,
   onDelete,
+  onRetryOutbound,
+  onRemoveOutbound,
   editSession = null,
   onEditDraftChange,
   onCancelEdit,
@@ -91,6 +93,8 @@ export function ThreadPanel({
   openingDirectParticipantKey?: string | null;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRemoveOutbound?: (message: ChatRoomMessage) => void;
   editSession?: { messageId: string; draft: string } | null;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
@@ -260,6 +264,8 @@ export function ThreadPanel({
                           }
                           onToggleReaction={onToggleReaction}
                           onQuote={onQuote ? handleQuote : undefined}
+                          onRetryOutbound={onRetryOutbound}
+                          onRemoveOutbound={onRemoveOutbound}
                           showThreadButton={false}
                           isContinuation={isMessageContinuation(
                             replies[index - 1],

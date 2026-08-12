@@ -31,6 +31,10 @@ import {
   jumboEmojiClassName,
 } from "@/app/chat/utils/jumbo-emoji";
 import {
+  isOutboundLocalMessage,
+  readOutboundDeliveryStatus,
+} from "@/app/chat/utils/outbound-room-message";
+import {
   type RoomMessageFilesSegment,
   segmentRoomMessageContent,
 } from "@/app/chat/utils/room-message-segments";
@@ -1201,6 +1205,8 @@ function MessageMetaFooter({
   onOpenThread,
   showThreadButton,
   isDeleted,
+  onRetryOutbound,
+  onRemoveOutbound,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -1208,6 +1214,8 @@ function MessageMetaFooter({
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   isDeleted: boolean;
+  onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRemoveOutbound?: (message: ChatRoomMessage) => void;
 }) {
   const t = useTranslations("App.Channels");
   /**
@@ -1216,10 +1224,45 @@ function MessageMetaFooter({
    * stuck mention would show multi-minute age).
    */
   const mentionThinkStartMsByIdRef = useRef(new Map<string, number>());
+  const outboundStatus = readOutboundDeliveryStatus(message);
 
   return (
     <>
-      {!isDeleted && message.reactions.length > 0 ? (
+      {outboundStatus === "pending" ? (
+        <p
+          className="text-muted-foreground pt-1 text-xs"
+          data-testid="outbound-delivery-pending"
+        >
+          {t("Outbound.sending")}
+        </p>
+      ) : null}
+      {outboundStatus === "failed" ? (
+        <div
+          className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs"
+          data-testid="outbound-delivery-failed"
+        >
+          <span>{t("Outbound.failed")}</span>
+          {onRetryOutbound ? (
+            <button
+              type="button"
+              className="text-primary hover:text-primary/80 font-medium"
+              onClick={() => onRetryOutbound(message)}
+            >
+              {t("Outbound.retry")}
+            </button>
+          ) : null}
+          {onRemoveOutbound ? (
+            <button
+              type="button"
+              className="text-primary hover:text-primary/80 font-medium"
+              onClick={() => onRemoveOutbound(message)}
+            >
+              {t("Outbound.remove")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {!isDeleted && outboundStatus == null && message.reactions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1">
           {message.reactions.map((reaction) => {
             const whoReactedLabel = formatWhoReactedLabel(reaction, t);
@@ -1264,7 +1307,9 @@ function MessageMetaFooter({
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
       ) : null}
-      {!isDeleted && message.mentions.some((m) => m.status !== "responded") ? (
+      {!isDeleted &&
+      outboundStatus == null &&
+      message.mentions.some((m) => m.status !== "responded") ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1.5">
           {message.mentions.map((mention) => {
             // Success = coworker reply in the transcript; no "replied" chrome.
@@ -1321,6 +1366,8 @@ export function ChatMessageRow({
   onQuote,
   onStartEdit,
   onDelete,
+  onRetryOutbound,
+  onRemoveOutbound,
   isEditing = false,
   editDraft = "",
   onEditDraftChange,
@@ -1346,6 +1393,8 @@ export function ChatMessageRow({
   onQuote?: (message: ChatRoomMessage) => void;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRemoveOutbound?: (message: ChatRoomMessage) => void;
   isEditing?: boolean;
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
@@ -1369,6 +1418,8 @@ export function ChatMessageRow({
     : false;
   const isDirectActionBusy = openingDirectParticipantKey != null;
   const isStreamOverlay = message.id.startsWith("stream:");
+  const isOutboundLocal = isOutboundLocalMessage(message);
+  const outboundStatus = readOutboundDeliveryStatus(message);
   const isDeleted = message.deletedAt != null;
   const thoughtView = useMemo(() => {
     if (message.sender.type !== "coworker" || isDeleted) {
@@ -1392,19 +1443,25 @@ export function ChatMessageRow({
       thoughtView.liveBeat != null &&
       message.content.trim().length === 0);
   const canQuote =
-    showQuoteButton && Boolean(onQuote) && !isStreamOverlay && !isDeleted;
+    showQuoteButton &&
+    Boolean(onQuote) &&
+    !isStreamOverlay &&
+    !isOutboundLocal &&
+    !isDeleted;
   const canEdit =
     Boolean(onStartEdit) &&
     Boolean(currentUserId) &&
     message.sender.type === "user" &&
     message.sender.user.id === currentUserId &&
     !isStreamOverlay &&
+    !isOutboundLocal &&
     !isDeleted;
   const canDelete =
     Boolean(onDelete) &&
     Boolean(currentUserId) &&
     !isDeleted &&
     !isStreamOverlay &&
+    !isOutboundLocal &&
     message.sender.type === "user" &&
     message.sender.user.id === currentUserId;
   const showEdited = !isDeleted && message.editedAt != null;
@@ -1414,7 +1471,8 @@ export function ChatMessageRow({
   const longPress = useLongPress(() => {
     setSheetOpen(true);
   });
-  const showActions = !isThinking && !isDeleted && !isEditing;
+  const showActions =
+    !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
 
   function requestDelete(_message: ChatRoomMessage) {
     setSheetOpen(false);
@@ -1510,7 +1568,12 @@ export function ChatMessageRow({
             ) : null}
           </div>
         )}
-        <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
+        <div
+          className={cn(
+            "text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm",
+            outboundStatus != null && "opacity-80",
+          )}
+        >
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
@@ -1587,8 +1650,10 @@ export function ChatMessageRow({
             coworkersById={coworkersById}
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
-            showThreadButton={showThreadButton}
+            showThreadButton={showThreadButton && !isOutboundLocal}
             isDeleted={isDeleted}
+            onRetryOutbound={onRetryOutbound}
+            onRemoveOutbound={onRemoveOutbound}
           />
         ) : null}
       </div>

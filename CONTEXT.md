@@ -70,6 +70,28 @@ _Avoid_: Wire content (implementation jargon), rendered HTML (that is display, n
 In a room message body, a plain hostname with optional path, query, or fragment and no URL scheme (e.g. `google.com`, `naturstein-koester.de/path?q=1`). Shown as a clickable link in the room after send; not converted while typing in the composer; not rewritten in storage.
 _Avoid_: Autolink (ambiguous with GFM scheme/`www` links), live link (composer does not convert bare domains while typing)
 
+### Chat outbound delivery
+
+**Outbound delivery status**:
+The sender-local lifecycle of a message they just sent in a room channel or thread: **pending** (not yet accepted by the server), **confirmed** (server accepted; durable for others), or **failed** (could not be delivered). Other participants only ever see confirmed messages. Distinct from Mention status (coworker @mention lifecycle on a user message).
+_Avoid_: Optimistic message (jargon), sending status (when meaning only the composer spinner), delivery receipt / read receipt (those are about other people, not this lifecycle)
+
+**Pending message**:
+A room message row shown only to the sender while outbound delivery status is pending. It is not yet a durable server message.
+_Avoid_: Temporary message, local-only draft (draft lives in the composer, not the transcript)
+
+**Failed send**:
+A room message row whose outbound delivery status is failed. The sender may retry or remove it; it is still not visible to other participants until a retry becomes confirmed.
+_Avoid_: Error toast (toasts may accompany failure but are not the domain object), undelivered draft
+
+**Client turn id**:
+Opaque identifier the sender client assigns to one outbound send and its retries so the server creates at most one durable room message for that turn in a room. Distinct from the server message id assigned only after the send is confirmed.
+_Avoid_: Message id (server id after confirm), request id (transport-level)
+
+**Send queue** (classic channel / thread):
+Per-composer single-flight ordering of outbound classic POSTs: at most one in-flight send per channel composer and per thread composer; further sends wait their turn. A failed send does not block the queue. Distinct from coworker stream send.
+_Avoid_: Global room lock (channel and thread do not share one queue)
+
 ### Chat coworker thought
 
 **Mention status**:

@@ -45,6 +45,15 @@ import {
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "@/app/chat/utils/merge-room-messages";
+import {
+  confirmOutboundMessage,
+  createPendingRoomMessage,
+  failOutboundMessage,
+  isOutboundLocalMessage,
+  markOutboundMessagePending,
+  readClientTurnId,
+  removeOutboundMessage,
+} from "@/app/chat/utils/outbound-room-message";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
@@ -73,6 +82,7 @@ import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import type {
   ChatRoom,
   ChatRoomMessage,
+  ChatRoomUserParticipant,
   Coworker,
   Member,
   Organization,
@@ -126,6 +136,17 @@ import {
   RoomShellLayout,
 } from "./room-shell-layout";
 import { ThreadPanel } from "./thread-panel";
+
+/** Classic POST job retained for single-flight queue + failed-send retry. */
+interface ClassicOutboundJob {
+  roomId: string;
+  content: string;
+  mentionedCoworkerIds: string[];
+  mentionedUserIds: string[];
+  quote?: { messageId: string };
+  clientMessageId: string;
+  parentMessageId?: string;
+}
 
 interface RoomsClientProps {
   /** Null in personal workspace when mounting Start New DM only. */
@@ -556,19 +577,22 @@ export function RoomsClient({
     setSyncedAttentionRoomId(selectedRoomId);
     setAttentionRefreshToken(0);
   }
-  const [isSending, startSendingTransition] = useTransition();
-  const [isSendingThreadReply, startSendingThreadReplyTransition] =
-    useTransition();
+  // Classic outbound uses pending shells + a queue; composer stays unlocked.
+  // Stream rooms still pass isCoworkerStreaming into isSending* props below.
   const [_isReacting, startReactionTransition] = useTransition();
   const [_isDeleting, startDeleteTransition] = useTransition();
   const [isLoadingOlder, startLoadingOlderTransition] = useTransition();
   const [isLoadingOlderThread, startLoadingOlderThreadTransition] =
     useTransition();
   const pendingReactionsRef = useRef<Set<string>>(new Set());
-  // Classic POST send: one in-flight clientMessageId per composer. Blocks
-  // double-submit before the server action settles; Core also dedups by id.
-  const classicSendInFlightRef = useRef<string | null>(null);
-  const classicThreadSendInFlightRef = useRef<string | null>(null);
+  // Classic POST: single-flight queue per composer (channel vs thread).
+  // Payload map keeps retry body; queue order is client turn ids.
+  const classicChannelQueueRef = useRef<string[]>([]);
+  const classicChannelRunningRef = useRef(false);
+  const classicChannelJobsRef = useRef(new Map<string, ClassicOutboundJob>());
+  const classicThreadQueueRef = useRef<string[]>([]);
+  const classicThreadRunningRef = useRef(false);
+  const classicThreadJobsRef = useRef(new Map<string, ClassicOutboundJob>());
   const selectedRoom = isNewDirectMessage
     ? null
     : (rooms.find((room) => room.id === selectedRoomId) ?? null);
@@ -1668,13 +1692,221 @@ export function RoomsClient({
     setPendingThreadQuote(pendingQuoteFromMessage(message));
   }
 
+  function resolveCurrentUserParticipant(): ChatRoomUserParticipant | null {
+    const fromRoom = selectedRoom?.userMembers.find(
+      (user) => user.id === currentUserId,
+    );
+    if (fromRoom) {
+      return fromRoom;
+    }
+    const fromOrg = organizationMembers.find(
+      (member) => member.user.id === currentUserId,
+    )?.user;
+    if (fromOrg) {
+      return {
+        id: fromOrg.id,
+        name: fromOrg.name,
+        email: fromOrg.email,
+        image: fromOrg.image,
+        presence: "online",
+      };
+    }
+    return null;
+  }
+
+  function enqueueClassicChannelJob(job: ClassicOutboundJob) {
+    classicChannelJobsRef.current.set(job.clientMessageId, job);
+    if (!classicChannelQueueRef.current.includes(job.clientMessageId)) {
+      classicChannelQueueRef.current.push(job.clientMessageId);
+    }
+    void drainClassicChannelQueue();
+  }
+
+  function enqueueClassicThreadJob(job: ClassicOutboundJob) {
+    classicThreadJobsRef.current.set(job.clientMessageId, job);
+    if (!classicThreadQueueRef.current.includes(job.clientMessageId)) {
+      classicThreadQueueRef.current.push(job.clientMessageId);
+    }
+    void drainClassicThreadQueue();
+  }
+
+  async function drainClassicChannelQueue() {
+    if (classicChannelRunningRef.current) {
+      return;
+    }
+    classicChannelRunningRef.current = true;
+    try {
+      while (classicChannelQueueRef.current.length > 0) {
+        const clientMessageId = classicChannelQueueRef.current[0];
+        if (!clientMessageId) {
+          break;
+        }
+        const job = classicChannelJobsRef.current.get(clientMessageId);
+        if (!job) {
+          classicChannelQueueRef.current.shift();
+          continue;
+        }
+        const result = await sendRoomMessageAction(
+          job.roomId,
+          job.content,
+          job.mentionedCoworkerIds,
+          {
+            mentionedUserIds: job.mentionedUserIds,
+            quote: job.quote,
+            clientMessageId: job.clientMessageId,
+          },
+        );
+        classicChannelQueueRef.current.shift();
+        if (!result.ok) {
+          // Shell only while this room is still open; otherwise toast (ADR-0004).
+          if (isStillSelectedRoom(job.roomId)) {
+            setMessagesState((current) =>
+              failOutboundMessage(current, clientMessageId),
+            );
+          } else {
+            toast.error(result.error.message);
+            classicChannelJobsRef.current.delete(clientMessageId);
+          }
+          continue;
+        }
+        classicChannelJobsRef.current.delete(clientMessageId);
+        if (isStillSelectedRoom(job.roomId)) {
+          setMessagesState((current) =>
+            confirmOutboundMessage(current, result.value),
+          );
+        }
+      }
+    } finally {
+      classicChannelRunningRef.current = false;
+      if (classicChannelQueueRef.current.length > 0) {
+        void drainClassicChannelQueue();
+      }
+    }
+  }
+
+  async function drainClassicThreadQueue() {
+    if (classicThreadRunningRef.current) {
+      return;
+    }
+    classicThreadRunningRef.current = true;
+    try {
+      while (classicThreadQueueRef.current.length > 0) {
+        const clientMessageId = classicThreadQueueRef.current[0];
+        if (!clientMessageId) {
+          break;
+        }
+        const job = classicThreadJobsRef.current.get(clientMessageId);
+        if (!job) {
+          classicThreadQueueRef.current.shift();
+          continue;
+        }
+        const result = await sendRoomMessageAction(
+          job.roomId,
+          job.content,
+          job.mentionedCoworkerIds,
+          {
+            mentionedUserIds: job.mentionedUserIds,
+            parentMessageId: job.parentMessageId,
+            quote: job.quote,
+            clientMessageId: job.clientMessageId,
+          },
+        );
+        classicThreadQueueRef.current.shift();
+        if (!result.ok) {
+          // Thread panel closed (or room left) → no failed shell; toast instead.
+          const shellVisible =
+            isStillSelectedRoom(job.roomId) &&
+            job.parentMessageId != null &&
+            threadParentMessageIdRef.current === job.parentMessageId;
+          if (shellVisible) {
+            setThreadMessages((current) =>
+              failOutboundMessage(current, clientMessageId),
+            );
+          } else {
+            toast.error(result.error.message);
+            classicThreadJobsRef.current.delete(clientMessageId);
+          }
+          continue;
+        }
+        classicThreadJobsRef.current.delete(clientMessageId);
+        if (
+          isStillSelectedRoom(job.roomId) &&
+          job.parentMessageId != null &&
+          threadParentMessageIdRef.current === job.parentMessageId
+        ) {
+          setThreadMessages((current) =>
+            confirmOutboundMessage(current, result.value),
+          );
+          updateParentThreadPreview(job.parentMessageId, result.value);
+        } else if (
+          isStillSelectedRoom(job.roomId) &&
+          job.parentMessageId != null
+        ) {
+          // Thread closed before confirm: still bump parent preview only.
+          updateParentThreadPreview(job.parentMessageId, result.value);
+        }
+      }
+    } finally {
+      classicThreadRunningRef.current = false;
+      if (classicThreadQueueRef.current.length > 0) {
+        void drainClassicThreadQueue();
+      }
+    }
+  }
+
+  const handleRetryOutbound = useCallback(
+    (message: ChatRoomMessage) => {
+      const clientTurnId = readClientTurnId(message);
+      if (!clientTurnId || !selectedRoom) {
+        return;
+      }
+      const isThread = message.parentMessageId != null;
+      const jobsRef = isThread ? classicThreadJobsRef : classicChannelJobsRef;
+      const job = jobsRef.current.get(clientTurnId);
+      if (!job) {
+        return;
+      }
+      if (isThread) {
+        setThreadMessages((current) =>
+          markOutboundMessagePending(current, clientTurnId),
+        );
+        enqueueClassicThreadJob(job);
+        return;
+      }
+      setMessagesState((current) =>
+        markOutboundMessagePending(current, clientTurnId),
+      );
+      enqueueClassicChannelJob(job);
+    },
+    [selectedRoom],
+  );
+
+  const handleRemoveOutbound = useCallback((message: ChatRoomMessage) => {
+    const clientTurnId = readClientTurnId(message);
+    if (!clientTurnId) {
+      return;
+    }
+    const isThread = message.parentMessageId != null;
+    if (isThread) {
+      classicThreadJobsRef.current.delete(clientTurnId);
+      classicThreadQueueRef.current = classicThreadQueueRef.current.filter(
+        (id) => id !== clientTurnId,
+      );
+      setThreadMessages((current) =>
+        removeOutboundMessage(current, clientTurnId),
+      );
+      return;
+    }
+    classicChannelJobsRef.current.delete(clientTurnId);
+    classicChannelQueueRef.current = classicChannelQueueRef.current.filter(
+      (id) => id !== clientTurnId,
+    );
+    setMessagesState((current) => removeOutboundMessage(current, clientTurnId));
+  }, []);
+
   const handleChannelBeforeSend = useCallback(
-    (clientMessageId: string) => {
-      if (!selectedRoom) return false;
-      if (shouldUseCoworkerRoomStream(selectedRoom)) return true;
-      if (classicSendInFlightRef.current) return false;
-      classicSendInFlightRef.current = clientMessageId;
-      return true;
+    (_clientMessageId: string) => {
+      return selectedRoom != null;
     },
     [selectedRoom],
   );
@@ -1696,53 +1928,59 @@ export function RoomsClient({
         return { ok: started };
       }
 
+      const senderUser = resolveCurrentUserParticipant();
+      if (!senderUser) {
+        return { ok: false };
+      }
+
       const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
         request.mentionedIds,
       );
 
-      return new Promise((resolve) => {
-        startSendingTransition(async () => {
-          try {
-            const result = await sendRoomMessageAction(
-              roomId,
-              request.content,
-              mentionedCoworkerIds,
-              {
-                mentionedUserIds,
-                quote: request.quote,
-                clientMessageId: request.clientMessageId,
-              },
-            );
-            if (!result.ok) {
-              toast.error(result.error.message);
-              // Room switch unmounts the session composer; skip restore.
-              resolve(
-                isStillSelectedRoom(roomId)
-                  ? {
-                      ok: false,
-                      message: result.error.message ?? undefined,
-                    }
-                  : { ok: true },
-              );
-              return;
+      const pendingQuoteForShell = pendingQuote;
+      const pending = createPendingRoomMessage({
+        clientTurnId: request.clientMessageId,
+        roomId,
+        content: request.content,
+        senderUser,
+        quote: pendingQuoteForShell
+          ? {
+              messageId: pendingQuoteForShell.messageId,
+              authorName: pendingQuoteForShell.authorName,
+              snippet: pendingQuoteForShell.snippet,
+              ...(pendingQuoteForShell.attachment
+                ? { attachment: pendingQuoteForShell.attachment }
+                : {}),
             }
-            if (isStillSelectedRoom(roomId)) {
-              setMessagesState((current) =>
-                appendMessage(current, result.value),
-              );
-              pinToBottomAfterOwnSend();
-            }
-            resolve({ ok: true });
-          } finally {
-            if (classicSendInFlightRef.current === request.clientMessageId) {
-              classicSendInFlightRef.current = null;
-            }
-          }
-        });
+          : request.quote
+            ? {
+                messageId: request.quote.messageId,
+                authorName: "",
+                snippet: "",
+              }
+            : null,
       });
+
+      setMessagesState((current) => appendMessage(current, pending));
+      pinToBottomAfterOwnSend();
+
+      enqueueClassicChannelJob({
+        roomId,
+        content: request.content,
+        mentionedCoworkerIds,
+        mentionedUserIds,
+        quote: request.quote,
+        clientMessageId: request.clientMessageId,
+      });
+
+      // Composer must not restore draft — failure lives on the pending shell.
+      return { ok: true };
     },
     [
+      currentUserId,
+      organizationMembers,
       partitionMentionIds,
+      pendingQuote,
       pinToBottomAfterOwnSend,
       selectedRoom,
       sendStreamMessage,
@@ -1750,12 +1988,8 @@ export function RoomsClient({
   );
 
   const handleThreadBeforeSend = useCallback(
-    (clientMessageId: string) => {
-      if (!selectedRoom || !threadParentMessage) return false;
-      if (shouldUseCoworkerRoomStream(selectedRoom)) return true;
-      if (classicThreadSendInFlightRef.current) return false;
-      classicThreadSendInFlightRef.current = clientMessageId;
-      return true;
+    (_clientMessageId: string) => {
+      return selectedRoom != null && threadParentMessage != null;
     },
     [selectedRoom, threadParentMessage],
   );
@@ -1774,54 +2008,63 @@ export function RoomsClient({
         return { ok: started };
       }
 
+      const senderUser = resolveCurrentUserParticipant();
+      if (!senderUser) {
+        return { ok: false };
+      }
+
       const { mentionedCoworkerIds, mentionedUserIds } = partitionMentionIds(
         request.mentionedIds,
       );
 
-      return new Promise((resolve) => {
-        startSendingThreadReplyTransition(async () => {
-          try {
-            const result = await sendRoomMessageAction(
-              roomId,
-              request.content,
-              mentionedCoworkerIds,
-              {
-                mentionedUserIds,
-                parentMessageId,
-                quote: request.quote,
-                clientMessageId: request.clientMessageId,
-              },
-            );
-            if (!result.ok) {
-              toast.error(result.error.message);
-              resolve(
-                isStillSelectedRoom(roomId)
-                  ? {
-                      ok: false,
-                      message: result.error.message ?? undefined,
-                    }
-                  : { ok: true },
-              );
-              return;
+      const pendingQuoteForShell = pendingThreadQuote;
+      const pending = createPendingRoomMessage({
+        clientTurnId: request.clientMessageId,
+        roomId,
+        content: request.content,
+        senderUser,
+        parentMessageId,
+        quote: pendingQuoteForShell
+          ? {
+              messageId: pendingQuoteForShell.messageId,
+              authorName: pendingQuoteForShell.authorName,
+              snippet: pendingQuoteForShell.snippet,
+              ...(pendingQuoteForShell.attachment
+                ? { attachment: pendingQuoteForShell.attachment }
+                : {}),
             }
-            if (isStillSelectedRoom(roomId)) {
-              setThreadMessages((current) =>
-                appendMessage(current, result.value),
-              );
-              updateParentThreadPreview(parentMessageId, result.value);
-            }
-            resolve({ ok: true });
-          } finally {
-            if (
-              classicThreadSendInFlightRef.current === request.clientMessageId
-            ) {
-              classicThreadSendInFlightRef.current = null;
-            }
-          }
-        });
+          : request.quote
+            ? {
+                messageId: request.quote.messageId,
+                authorName: "",
+                snippet: "",
+              }
+            : null,
       });
+
+      setThreadMessages((current) => appendMessage(current, pending));
+
+      enqueueClassicThreadJob({
+        roomId,
+        content: request.content,
+        mentionedCoworkerIds,
+        mentionedUserIds,
+        quote: request.quote,
+        clientMessageId: request.clientMessageId,
+        parentMessageId,
+      });
+
+      return { ok: true };
     },
-    [partitionMentionIds, selectedRoom, sendStreamMessage, threadParentMessage],
+    [
+      currentUserId,
+      organizationMembers,
+      partitionMentionIds,
+      pendingThreadQuote,
+      selectedRoom,
+      sendStreamMessage,
+      threadParentMessage,
+    ],
   );
 
   const roomHeaderChrome =
@@ -1908,6 +2151,7 @@ export function RoomsClient({
                   messageDayKey(previousMessage.createdAt) !==
                     messageDayKey(message.createdAt));
               const isStreamOverlay = message.id.startsWith("stream:");
+              const isOutboundLocal = isOutboundLocalMessage(message);
               return (
                 <div key={message.id} className="min-w-0">
                   {showDaySeparator ? (
@@ -1931,6 +2175,7 @@ export function RoomsClient({
                       openingDirectParticipantKey={openingDirectKey}
                       onToggleReaction={handleToggleReaction}
                       onOpenThread={
+                        !isOutboundLocal &&
                         shouldShowChatRoomThreadButton({
                           room: selectedRoom,
                           isStreamOverlay,
@@ -1938,9 +2183,15 @@ export function RoomsClient({
                           ? loadThreadMessages
                           : undefined
                       }
-                      onQuote={handleQuoteMessage}
-                      onStartEdit={handleStartEdit}
-                      onDelete={handleDeleteMessage}
+                      onQuote={isOutboundLocal ? undefined : handleQuoteMessage}
+                      onStartEdit={
+                        isOutboundLocal ? undefined : handleStartEdit
+                      }
+                      onDelete={
+                        isOutboundLocal ? undefined : handleDeleteMessage
+                      }
+                      onRetryOutbound={handleRetryOutbound}
+                      onRemoveOutbound={handleRemoveOutbound}
                       isEditing={editSession?.messageId === message.id}
                       editDraft={
                         editSession?.messageId === message.id
@@ -1953,10 +2204,13 @@ export function RoomsClient({
                       isSavingEdit={
                         isSavingEdit && editSession?.messageId === message.id
                       }
-                      showThreadButton={shouldShowChatRoomThreadButton({
-                        room: selectedRoom,
-                        isStreamOverlay,
-                      })}
+                      showThreadButton={
+                        !isOutboundLocal &&
+                        shouldShowChatRoomThreadButton({
+                          room: selectedRoom,
+                          isStreamOverlay,
+                        })
+                      }
                       isFirstOfDay={showDaySeparator}
                       isContinuation={
                         localCalendarReady &&
@@ -2031,7 +2285,7 @@ export function RoomsClient({
                       channel: selectedRoomDisplayName,
                     })
               }
-              isSending={isSending || isCoworkerStreaming}
+              isSending={isCoworkerStreaming}
               showMentionShortcut={shouldShowRoomMentionShortcut(selectedRoom)}
               allowAttachments={!isCoworkerStreamRoom}
               pendingQuote={pendingQuote}
@@ -2066,10 +2320,10 @@ export function RoomsClient({
                 onBeforeSendReply={handleThreadBeforeSend}
                 onSendReply={handleThreadSend}
                 isSendingReply={
-                  isSendingThreadReply ||
-                  (isCoworkerStreaming &&
-                    threadStreamOverlayMessages.length > 0)
+                  isCoworkerStreaming && threadStreamOverlayMessages.length > 0
                 }
+                onRetryOutbound={handleRetryOutbound}
+                onRemoveOutbound={handleRemoveOutbound}
                 onClose={() => {
                   threadLoadGenerationRef.current += 1;
                   setIsThreadLoading(false);

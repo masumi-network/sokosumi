@@ -4992,6 +4992,12 @@
         "failed": "{name} no pudo responder",
         "nameFallback": "Coworker"
       },
+      "Outbound": {
+        "sending": "Enviando…",
+        "failed": "No se pudo enviar",
+        "retry": "Reintentar",
+        "remove": "Eliminar"
+      },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
       "Draft": {
