@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Bot } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import {
@@ -418,6 +418,19 @@ export function OnboardingDialog({
   const { coworkers: apiCoworkers } = useCoworkersContext();
   const isRestrictedOrganizationGate =
     subscriptionOnly && subscriptionCheckoutMode === "restricted";
+
+  // Ref, not state: this must fire exactly once per mount. The dialog re-runs
+  // this effect on every dependency change, and a duplicated start event would
+  // quietly break the completion rate.
+  const hasFiredOnboardingStart = useRef(false);
+
+  useEffect(() => {
+    if (subscriptionOnly || hasFiredOnboardingStart.current) {
+      return;
+    }
+    hasFiredOnboardingStart.current = true;
+    fireGTMEvent.onboardingStart();
+  }, [subscriptionOnly]);
 
   useEffect(() => {
     if (!subscriptionOnly) {
