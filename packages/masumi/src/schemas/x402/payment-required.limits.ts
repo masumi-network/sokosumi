@@ -99,6 +99,25 @@ export const X402_MAX_MAP_KEY_LENGTH = 128;
  * 8 KiB.
  */
 export const X402_MAX_SERIALIZED_LENGTH = 8192;
+/**
+ * Longest base64 `PAYMENT-REQUIRED` header this module will decode.
+ *
+ * The one real asymmetry between the two dialects: a JSON body inherits
+ * whatever limit the route sets on the request body, while the header dialect
+ * decoded and `JSON.parse`d with no bound from here at all. Measured: a
+ * 66 667 028-character header decoded to ~50 MB and was parsed before any cap
+ * could apply — rejected in 48 ms, but at full peak allocation, and the
+ * resource server picks the size.
+ *
+ * 256 KiB rejects nothing the rest of this file would accept. The largest
+ * payload every other bound permits is `X402_MAX_ACCEPTS_ENTRIES` (20) x
+ * `X402_MAX_SERIALIZED_LENGTH` (8192) = 160 KiB of entries, plus a bounded
+ * `extensions` map, `error` and `resource` — about 172 KiB of JSON, which
+ * base64 inflates by 4/3 to roughly 229 KiB. It is also far above any real
+ * HTTP header, which servers commonly cap around 8–16 KiB.
+ */
+export const X402_MAX_ENCODED_PAYLOAD_LENGTH = 262_144;
+
 /** `extra.name` / `extra.version` — an EIP-712 domain, never long. */
 export const X402_MAX_EIP712_DOMAIN_VALUE_LENGTH = 128;
 

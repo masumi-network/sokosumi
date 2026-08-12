@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   X402_MAX_ACCEPTS_ENTRIES,
+  X402_MAX_ENCODED_PAYLOAD_LENGTH,
   X402_MAX_ERROR_LENGTH,
   X402_MAX_TIMEOUT_SECONDS,
 } from "../payment-required.limits.js";
@@ -930,6 +931,42 @@ describe("normalizeX402PaymentRequired", () => {
     const result = normalizeX402PaymentRequired("not-actually-base64-json");
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toMatch(/not base64-encoded JSON/);
+  });
+
+  it("caps the base64 header before it decodes and parses it", () => {
+    // The one real asymmetry between the two dialects: a JSON body inherits
+    // whatever limit the route sets on the request body, while the header
+    // dialect decoded and `JSON.parse`d with no bound from this module at
+    // all. Measured before this fix: a 66 667 028-character base64 header
+    // decoded to ~50 MB and was parsed — rejected in 48 ms, but at full peak
+    // allocation, and the resource server picks the size.
+    const oversized = "A".repeat(X402_MAX_ENCODED_PAYLOAD_LENGTH + 1);
+
+    const result = normalizeX402PaymentRequired(oversized);
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(
+      /x402 payment-required header is \d+ characters/,
+    );
+    expect(result._unsafeUnwrapErr().length).toBeLessThan(
+      X402_MAX_ERROR_LENGTH,
+    );
+  });
+
+  it("still decodes the largest header the schema would accept", () => {
+    // The cap must not refuse a header carrying a payload every other bound
+    // in this file allows: 20 entries at the serialized-size ceiling.
+    const body = {
+      x402Version: 2,
+      accepts: Array.from({ length: X402_MAX_ACCEPTS_ENTRIES }, (_v, index) =>
+        v2Entry({ outputSchema: { pad: "p".repeat(7800), index } }),
+      ),
+    };
+    const header = Buffer.from(JSON.stringify(body), "utf8").toString("base64");
+
+    expect(header.length).toBeGreaterThan(200_000);
+    expect(header.length).toBeLessThanOrEqual(X402_MAX_ENCODED_PAYLOAD_LENGTH);
+    expect(normalizeX402PaymentRequired(header).isOk()).toBe(true);
   });
 
   it("rejects an empty string payload", () => {

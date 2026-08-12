@@ -15,6 +15,7 @@ import {
   X402_MAX_AMOUNT_BASE_UNITS,
   X402_MAX_AMOUNT_DIGITS,
   X402_MAX_EIP712_DOMAIN_VALUE_LENGTH,
+  X402_MAX_ENCODED_PAYLOAD_LENGTH,
   X402_MAX_ERROR_LENGTH,
   X402_MAX_RAW_ADDRESS_LENGTH,
   X402_MAX_RAW_AMOUNT_LENGTH,
@@ -358,6 +359,16 @@ function normalizeAmount(
 }
 
 function decodeBase64PaymentRequired(value: string): Result<unknown, string> {
+  // Bound the ENCODED string before decoding it: `Buffer.from` allocates
+  // three bytes per four base64 characters and `JSON.parse` then allocates
+  // again, so checking the payload after decoding would be checking it after
+  // paying for it. Length is checked before `.trim()` because trimming a
+  // 50 MB string already copies it.
+  if (value.length > X402_MAX_ENCODED_PAYLOAD_LENGTH) {
+    return err(
+      `x402 payment-required header is ${value.length} characters, above the ${X402_MAX_ENCODED_PAYLOAD_LENGTH}-character limit`,
+    );
+  }
   const trimmed = value.trim();
   if (trimmed.length === 0) {
     return err("Empty x402 payment-required payload");
