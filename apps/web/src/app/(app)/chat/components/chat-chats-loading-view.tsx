@@ -1,23 +1,20 @@
-import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 
 /**
  * Sync Instant Nav shell for `/chat/chats` (no cookies/`connection()`/i18n).
  * Matches the non-beta mobile Chats page: OrganizationChatList only.
  * Personal Assistant is beta-gated and omitted here so non-beta users do not
  * flash PA chrome that never mounts.
+ *
+ * Grow with content so AppMobileChrome's in-flow tab-bar spacer clears the last
+ * row (no nested overflow-y-auto height lock). No create-FAB clearance — that
+ * FAB no longer mounts on this surface.
  */
 export function ChatChatsPageSkeleton(): React.ReactElement {
   return (
     <div
       data-testid="chat-chats-loading"
-      className={cn(
-        // Match live chats page: grow with content so tab-bar spacer clears
-        // the last row (no nested overflow-y-auto height lock).
-        "md:hidden -m-4 flex flex-1 flex-col bg-background p-4",
-        LIST_MOBILE_CREATE_FAB_CLEARANCE,
-      )}
+      className="bg-background md:hidden -m-4 flex flex-1 flex-col p-4"
     >
       <div className="mb-3 flex items-center justify-between">
         <Skeleton className="h-5 w-24" />

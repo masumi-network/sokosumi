@@ -1,8 +1,10 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { Prisma } from "@sokosumi/database";
 import type { RequestIdVariables } from "hono/request-id";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { CONCURRENCY_CONFLICT_KIND } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { defaultValidationHook } from "@/lib/hono";
 import type { AuthVariables } from "@/middleware/auth";
@@ -554,6 +556,55 @@ describe("PATCH /chats/rooms/{id}", () => {
       [removedUserId],
       "removed",
     );
+  });
+
+  it("runs roster rewrite under a serializable transaction", async () => {
+    const existing = channelRoom();
+    const updated = channelRoom();
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberCreateManyMock.mockResolvedValue({ count: 2 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+  });
+
+  it("returns 409 concurrency_conflict when serializable roster rewrite races (e.g. concurrent leave)", async () => {
+    prismaTransactionMock.mockRejectedValueOnce(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.kind).toBe(CONCURRENCY_CONFLICT_KIND);
+    expect(body.message).toMatch(/concurrently/i);
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    });
+    expect(publishChatMembershipRevokedToUsersMock).not.toHaveBeenCalled();
   });
 
   it("fails open mentions when coworkers are removed from the roster", async () => {

@@ -9,7 +9,6 @@ import {
 } from "react";
 
 import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
-import { takeRoomComposerPrefill } from "@/app/chat/onboarding/composer-prefill";
 import {
   type ComposeDraft,
   clearComposeDraft,
@@ -89,10 +88,7 @@ export function RoomSessionComposer({
   onBeforeSend,
   onSend,
 }: RoomSessionComposerProps) {
-  const [composerValue, setComposerValue] = useState(() => {
-    // Onboarding prefill — never auto-send (distinct from pending-room-message).
-    return takeRoomComposerPrefill(roomId) ?? "";
-  });
+  const [composerValue, setComposerValue] = useState("");
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);

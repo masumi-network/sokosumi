@@ -77,11 +77,11 @@ describe("chat-route-base", () => {
 
     it("returns draft for welcome compose on /chat", () => {
       expect(
-        classifyChatChromeSurface("/chat", new URLSearchParams("welcome=1")),
+        classifyChatChromeSurface("/chat", new URLSearchParams("dm=new")),
       ).toBe("draft");
       expect(
         classifyChatChromeSurface("/chat", {
-          get: (k) => (k === "welcome" ? "1" : null),
+          get: (k) => (k === "dm" ? "new" : null),
         }),
       ).toBe("draft");
     });

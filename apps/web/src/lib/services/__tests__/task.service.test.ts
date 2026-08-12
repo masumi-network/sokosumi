@@ -14,6 +14,7 @@ const coreClientMock = {
   getTaskById: vi.fn(),
   getTaskLinks: vi.fn(),
   getTasks: vi.fn(),
+  getTasksSummary: vi.fn(),
   patchTask: vi.fn(),
 };
 
@@ -385,5 +386,45 @@ describe("task.service", () => {
     );
     expect(created).toEqual(taskLink);
     expect(deleted).toEqual({ deleted: true });
+  });
+
+  it("returns the activity summary DTO untouched", async () => {
+    const summary = {
+      awaitingInput: 2,
+      basis: "lastVisit" as const,
+      completed: 4,
+      createdByOtherHumans: 3,
+      lastVisitAt: new Date("2026-08-10T09:00:00.000Z"),
+      since: new Date("2026-08-10T09:00:00.000Z"),
+      workedMinutes: 47,
+    };
+    coreClientMock.getTasksSummary.mockResolvedValue({ data: summary });
+
+    const { taskService } = await import("../task.service");
+    const result = await taskService.getActivitySummary({ scope: "workspace" });
+
+    expect(coreClientMock.getTasksSummary).toHaveBeenCalledWith({
+      scope: "workspace",
+    });
+    expect(result).toBe(summary);
+  });
+
+  // Null, not zeros: the landing hides chips rather than claiming idle activity.
+  it("returns null when the activity summary request fails", async () => {
+    coreClientMock.getTasksSummary.mockRejectedValue(new Error("core down"));
+
+    const { taskService } = await import("../task.service");
+
+    await expect(
+      taskService.getActivitySummary({ scope: "owned" }),
+    ).resolves.toBeNull();
+  });
+
+  it("returns null when the activity summary response carries no data", async () => {
+    coreClientMock.getTasksSummary.mockResolvedValue({ data: null });
+
+    const { taskService } = await import("../task.service");
+
+    await expect(taskService.getActivitySummary({})).resolves.toBeNull();
   });
 });
