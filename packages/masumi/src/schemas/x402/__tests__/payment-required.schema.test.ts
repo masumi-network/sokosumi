@@ -11,10 +11,10 @@ import {
   narrowToChosenRequirement,
   normalizeX402PaymentRequired,
   X402_PAYMENT_IDENTIFIER_EXTENSION_KEY,
-  X402_SUPPORTED_SCHEMES,
   x402PaymentRequiredSchema,
   x402PaymentRequirementsSchema,
 } from "../payment-required.schema.js";
+import { X402_SUPPORTED_SCHEMES } from "../payment-required.supported.js";
 
 const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const PAY_TO = "0x52E29e0d2Aa49bfBfC548C0A9F2196F4aa51f3ea";

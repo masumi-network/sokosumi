@@ -1,10 +1,7 @@
 import { err, ok, type Result } from "neverthrow";
 import { z } from "zod";
 
-import {
-  CAIP2_EVM_NETWORK_PATTERN,
-  EVM_ADDRESS_PATTERN,
-} from "../../utils/caip19.js";
+import { CAIP2_EVM_NETWORK_PATTERN } from "../../utils/caip19.js";
 import { canonicalJsonKey } from "./payment-required.canonical.js";
 import {
   BOUNDED_MAP_MESSAGE,
@@ -14,19 +11,21 @@ import {
   X402_MAX_ACCEPTS_ENTRIES,
   X402_MAX_AMOUNT_BASE_UNITS,
   X402_MAX_AMOUNT_DIGITS,
-  X402_MAX_EIP712_DOMAIN_VALUE_LENGTH,
   X402_MAX_ENCODED_PAYLOAD_LENGTH,
   X402_MAX_ERROR_LENGTH,
-  X402_MAX_RAW_ADDRESS_LENGTH,
-  X402_MAX_RAW_AMOUNT_LENGTH,
-  X402_MAX_RAW_NETWORK_LENGTH,
   X402_MAX_RESOURCE_URL_LENGTH,
   X402_MAX_TIMEOUT_SECONDS,
 } from "./payment-required.limits.js";
+import { stripPrototypePollutingKeys } from "./payment-required.sanitize.js";
 import {
-  isPrototypePollutingKey,
-  stripPrototypePollutingKeys,
-} from "./payment-required.sanitize.js";
+  X402_SUPPORTED_SCHEMES,
+  x402ExtensionsSchema,
+  x402ExtraSchema,
+} from "./payment-required.supported.js";
+import {
+  selectPayableRequirement,
+  wildPaymentRequiredSchema,
+} from "./payment-required.wild.js";
 
 /**
  * 402 "Payment Required" dialect normalization (PR1-SPEC §3, ticket 011 Q6).
@@ -45,34 +44,10 @@ import {
  * wild dialect from the coworker (JSON object or base64 transport) and
  * normalizes to the node's shape before forwarding. Unparseable input is a
  * loud error, never a guess.
- */
-
-/**
- * Plain v1 network names → CAIP-2, ONLY for the names research 001 documents.
- * An unknown name is an error: guessing a chain id would sign a payment on
- * the wrong network.
  *
- * A `Map`, not an object literal, because the lookup key is attacker-authored.
- * Indexing a literal walks `Object.prototype`, and `constructor` / `__proto__`
- * both survive the caller's `.toLowerCase()` and both return non-`undefined` —
- * so `normalizeNetwork` answered `ok(<function Object>)` / `ok(Object.
- * prototype)` and pushed a NON-STRING `network`. It failed closed at the
- * trailing re-validation, but with the wrong error, and only for as long as
- * that trailing `safeParse` stayed in place. A Map has no prototype chain to
- * walk, so the failure mode is gone by construction rather than by a guard
- * someone has to remember.
+ * The wild dialect shapes and the per-entry translation live in
+ * `payment-required.wild.ts`; this file owns what Soko may EMIT.
  */
-const V1_NETWORK_NAME_TO_CAIP2: ReadonlyMap<string, string> = new Map([
-  ["base", "eip155:8453"],
-  ["base-sepolia", "eip155:84532"],
-]);
-
-/**
- * The upstream x402 extension key a server advertises when it supports (or
- * requires) a client-supplied payment identifier
- * (`coinbase/x402` `specs/extensions/payment_identifier.md`).
- */
-export const X402_PAYMENT_IDENTIFIER_EXTENSION_KEY = "payment-identifier";
 
 /**
  * The `asset` / `payTo` spelling the normalizer EMITS: an ERC-20 address,
@@ -88,65 +63,6 @@ export const X402_PAYMENT_IDENTIFIER_EXTENSION_KEY = "payment-identifier";
  * address would simply fail at the node AFTER the credits were charged.
  */
 const CANONICAL_EVM_ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/;
-
-/**
- * The ONLY `extra.assetTransferMethod` Soko forwards.
- *
- * In x402 v2 exact-EVM the field selects the signing primitive the wallet
- * uses (`eip3009`, `permit2`, `erc7710`), so leaving it unvalidated lets
- * attacker-authored data pick how Soko's managed wallet signs. Independently
- * of what the node does with it, Soko's own settlement bookkeeping
- * (`extractEip3009Authorization`, apps/core) reads an EIP-3009
- * `{ nonce, validBefore }` authorization out of the signed payload, so any
- * other method silently empties the phased-settlement records the future
- * expiry reconciler depends on. Anything else is refused pre-charge.
- *
- * Exact spelling only: the field appears nowhere in the pinned node spec
- * (`packages/masumi/spec/payment.openapi.json` types `extra` as a free-form
- * `additionalProperties` map), so no live 402 in scope sends it at all and
- * strictness costs nothing today.
- */
-export const X402_SUPPORTED_ASSET_TRANSFER_METHOD = "eip3009";
-
-/**
- * The ONLY x402 `scheme` Soko forwards.
- *
- * Same argument as `X402_SUPPORTED_ASSET_TRANSFER_METHOD`, and it applies
- * verbatim: `extractEip3009Authorization` (apps/core) reads an EIP-3009
- * `{ nonce, validBefore }` authorization out of the signed payload, so a
- * scheme with different settlement semantics silently empties the
- * phased-settlement records the expiry reconciler depends on. `upto` and
- * `batch-settlement` are real alternatives, not hypotheticals —
- * `batch-settlement` adds `receiverAuthorizer`/`withdrawDelay` and changes
- * when funds actually move — and a 402 declaring one with
- * `extra.assetTransferMethod` simply omitted passed every other check.
- *
- * Exact spelling only, and strictness costs nothing today: every dialect in
- * scope (research 001 §2) and every Soko-side fence already assumes `exact`.
- * An allowlist rather than a literal so adding a second supported scheme is
- * one line here plus the settlement bookkeeping that earns it.
- */
-export const X402_SUPPORTED_SCHEMES = ["exact"] as const;
-
-const x402ExtensionsSchema = z
-  .record(z.string(), z.unknown())
-  .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });
-
-/**
- * `extra` stays LOOSE — it carries the EIP-712 domain (`name`, `version`) for
- * the signature plus scheme-specific keys (`batch-settlement` adds
- * `receiverAuthorizer`/`withdrawDelay`) — but the three keys that change how
- * the wallet signs are typed, and the transfer method is pinned.
- */
-const x402ExtraSchema = z
-  .looseObject({
-    name: z.string().max(X402_MAX_EIP712_DOMAIN_VALUE_LENGTH).optional(),
-    version: z.string().max(X402_MAX_EIP712_DOMAIN_VALUE_LENGTH).optional(),
-    assetTransferMethod: z
-      .literal(X402_SUPPORTED_ASSET_TRANSFER_METHOD)
-      .optional(),
-  })
-  .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });
 
 /**
  * Atomic token base units, bounded both structurally (digit width) and
@@ -201,8 +117,15 @@ const x402AmountSchema = z
  * `boundedMapCheck` was applied here. It is the same free-form
  * attacker-controlled map as `extensions`/`extra`, so it gets the same entry
  * count, key length and serialized size ceiling. Keys that collide
- * case-insensitively with a validated field are dropped in the normalization
- * loop (see `dropShadowKeys`).
+ * case-insensitively with a validated field are dropped while the entry is
+ * translated (see `dropShadowKeys` in `payment-required.wild.ts`).
+ *
+ * This schema is also the ONLY gate on what a selected wild entry may become:
+ * the translation step deliberately hands back untyped data, so every strict
+ * bound below — the scheme allowlist, the CAIP-2 and canonical-address
+ * patterns, the amount width, the timeout cap, the pinned
+ * `extra.assetTransferMethod` — is enforced here, on every entry, after
+ * selection.
  */
 export const x402PaymentRequirementsSchema = z
   .looseObject({
@@ -241,122 +164,11 @@ export type X402PaymentRequirements = z.infer<
 export type X402PaymentRequired = z.infer<typeof x402PaymentRequiredSchema>;
 
 /**
- * Lenient parse of one wild-dialect requirement entry (v1 or v2 fields).
- * LOOSE on purpose: keys beyond the recognized dialect fields are forwarded
- * rather than stripped — see x402PaymentRequirementsSchema for why that is
- * the safe direction, for why it is NOT about byte-identity, and for why
- * loose still gets the bounded-map ceiling.
+ * The upstream x402 extension key a server advertises when it supports (or
+ * requires) a client-supplied payment identifier
+ * (`coinbase/x402` `specs/extensions/payment_identifier.md`).
  */
-const wildRequirementSchema = z
-  .looseObject({
-    scheme: z.enum(X402_SUPPORTED_SCHEMES),
-    network: z.string().min(1).max(X402_MAX_RAW_NETWORK_LENGTH),
-    asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
-    // Both amount spellings stay loosely typed here: normalizeAmount owns
-    // unifying them and is the single place that reports WHY an amount was
-    // refused. Only the length is fenced, so neither spelling can reach an
-    // error message as a megabyte string.
-    amount: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
-    maxAmountRequired: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
-    payTo: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
-    maxTimeoutSeconds: z
-      .number()
-      .int()
-      .positive()
-      .max(X402_MAX_TIMEOUT_SECONDS),
-    extra: x402ExtraSchema.optional(),
-    /** v1 carries the resource URL per entry, as a plain string. */
-    resource: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional(),
-  })
-  .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });
-
-/** Lenient parse of a wild-dialect 402 body (either generation). */
-const wildPaymentRequiredSchema = z.object({
-  x402Version: z.number().int().positive(),
-  error: z.string().max(X402_MAX_ERROR_LENGTH).optional(),
-  resource: z
-    .union([
-      z.string().max(X402_MAX_RESOURCE_URL_LENGTH),
-      z.object({
-        url: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional(),
-      }),
-    ])
-    .optional(),
-  accepts: z.array(wildRequirementSchema).min(1).max(X402_MAX_ACCEPTS_ENTRIES),
-  extensions: x402ExtensionsSchema.optional(),
-});
-
-function normalizeNetwork(network: string): Result<string, string> {
-  const trimmed = network.trim().toLowerCase();
-  if (CAIP2_EVM_NETWORK_PATTERN.test(trimmed)) {
-    return ok(trimmed);
-  }
-  const mapped = V1_NETWORK_NAME_TO_CAIP2.get(trimmed);
-  if (mapped !== undefined) {
-    return ok(mapped);
-  }
-  return err(
-    `Unknown x402 network "${truncateEcho(network)}"; expected a CAIP-2 id (eip155:*) or one of: ${[...V1_NETWORK_NAME_TO_CAIP2.keys()].join(", ")}`,
-  );
-}
-
-/**
- * Canonicalizes an `asset` / `payTo` the same way every Soko-side check does
- * (`.trim().toLowerCase()`), and refuses anything that is not an ERC-20
- * address. Emitting the canonicalized value — rather than validating one
- * spelling and forwarding another — is what keeps the pre-charge check and
- * the forwarded payload talking about the same string.
- */
-function normalizeEvmAddress(
-  value: string,
-  field: "asset" | "payTo",
-): Result<string, string> {
-  const normalized = value.trim().toLowerCase();
-  if (!EVM_ADDRESS_PATTERN.test(normalized)) {
-    return err(`Invalid x402 ${field} address: ${truncateEcho(value)}`);
-  }
-  return ok(normalized);
-}
-
-function normalizeAmount(
-  entry: z.infer<typeof wildRequirementSchema>,
-): Result<string, string> {
-  const { amount, maxAmountRequired } = entry;
-  if (
-    amount !== undefined &&
-    maxAmountRequired !== undefined &&
-    amount !== maxAmountRequired
-  ) {
-    // Both spellings present but disagreeing is not a dialect — it is a
-    // malformed (or manipulated) 402. Never pick one.
-    return err(
-      `Conflicting x402 amounts: amount=${truncateEcho(amount)}, maxAmountRequired=${truncateEcho(maxAmountRequired)}`,
-    );
-  }
-  const value = amount ?? maxAmountRequired;
-  if (value === undefined) {
-    return err(
-      "x402 requirement is missing an amount (neither amount nor maxAmountRequired)",
-    );
-  }
-  if (value.length > X402_MAX_AMOUNT_DIGITS) {
-    // Truncate the echo: the whole point is that the value may be enormous.
-    return err(
-      `x402 amount is ${value.length} digits, above the ${X402_MAX_AMOUNT_DIGITS}-digit uint256 width`,
-    );
-  }
-  if (!/^\d+$/.test(value)) {
-    return err(`Invalid x402 amount: ${truncateEcho(value)}`);
-  }
-  if (BigInt(value) > X402_MAX_AMOUNT_BASE_UNITS) {
-    // The node persists base units in Postgres BIGINT columns, so a larger
-    // demand is refused there — after the credits are charged.
-    return err(
-      `x402 amount ${value} exceeds the payment node's maximum of ${X402_MAX_AMOUNT_BASE_UNITS}`,
-    );
-  }
-  return ok(value);
-}
+export const X402_PAYMENT_IDENTIFIER_EXTENSION_KEY = "payment-identifier";
 
 function decodeBase64PaymentRequired(value: string): Result<unknown, string> {
   // Bound the ENCODED string before decoding it: `Buffer.from` allocates
@@ -387,66 +199,45 @@ function decodeBase64PaymentRequired(value: string): Result<unknown, string> {
 }
 
 /**
- * Every key a dialect translation recognizes on a requirement entry, folded
- * to lowercase — i.e. exactly the fields destructured out of an entry before
- * the remainder is forwarded.
- */
-const X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE: ReadonlySet<string> = new Set([
-  "scheme",
-  "network",
-  "asset",
-  "amount",
-  "maxamountrequired",
-  "payto",
-  "maxtimeoutseconds",
-  "extra",
-  "resource",
-]);
-
-/**
- * Drops any forwarded key that collides case-insensitively with a recognized
- * field once trimmed — `PayTo`, `payto`, `Amount`, `MaxTimeoutSeconds`,
- * `"payTo "`, `" payTo"`, …
+ * Pools every resource URL the payload names — the top-level object or string
+ * AND every per-entry string — and refuses a payload that names more than one.
  *
- * These are SHADOW keys, and the risk is forwarding, not overwriting: `PayTo`
- * and `payTo` are distinct JS keys, and the exact-case fields are
- * destructured out before the remainder is spread, so no ordering of the
- * object literal below could ever let one win. What they do is survive
- * normalization and reach the node verbatim, so a hostile 402 ships a second
- * recipient spelling alongside the registry-approved one. `/x402/pay`'s
- * `accepts` item declares no `additionalProperties: false`, so unknown keys
- * are spec-legal and only the node's parser decides which spelling it reads —
- * a fail-open dependency on a node the caller does not deploy, and exactly
- * what `narrowToChosenRequirement` exists to remove. Non-colliding unknown
- * keys (`currency`, `description`, `outputSchema`) still pass through.
- *
- * The fold is `.trim().toLowerCase()`, which does NOT cover a key padded with
- * a non-whitespace invisible such as U+200B, and `extra` is deliberately not
- * filtered at all. Neither is a diversion risk: any key the node ACTUALLY
- * reads must be a byte-exact ASCII spelling, and the node reads `extra.name` /
- * `extra.version` as an EIP-712 domain rather than as a recipient. Filtering
- * `extra` would also cut against this file's own argument — forwarding a key
- * the node ignores costs nothing, while stripping one it turns out to read
- * cannot be undone after the charge — and `extra` is a map the node does read.
+ * v2 carries the resource as a top-level object; v1 as a per-entry string. A
+ * 402 naming DIFFERENT resources is not a dialect — it is a malformed (or
+ * manipulated) 402. Never pick one (same stance as the conflicting-amounts
+ * guard); a top-level url that disagrees with a per-entry one is caught too,
+ * not silently preferred.
  */
-function dropShadowKeys(
-  unknownKeys: Record<string, unknown>,
-): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(unknownKeys).filter(
-      ([key]) =>
-        // `Object.fromEntries` DOES materialize an own `__proto__` key, so
-        // this filter — not the sanitizer that already ran — is what stops
-        // this rebuild from re-creating one. Belt and braces on purpose: the
-        // two are independent, so neither is load-bearing alone.
-        !isPrototypePollutingKey(key) &&
-        // Trimmed as well as case-folded: `"payTo "` and `" payTo"` are
-        // distinct JS keys that a case-only check let through. Trimming
-        // decides only what COLLIDES — a non-colliding key is still emitted
-        // with its whitespace intact — and a legitimate key never has any.
-        !X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE.has(key.trim().toLowerCase()),
+function poolResourceUrl(
+  wild: z.infer<typeof wildPaymentRequiredSchema>,
+): Result<string | undefined, string> {
+  const topLevelResource =
+    typeof wild.resource === "object" ? wild.resource.url : wild.resource;
+  const resources = Array.from(
+    new Set(
+      [topLevelResource, ...wild.accepts.map((entry) => entry.resource)]
+        // An empty or whitespace-only url is a MISSING value, not a second
+        // name for the resource. Pooling it as a value produced
+        // `Conflicting x402 resource URLs: , https://…` and refused a 402
+        // that names exactly one resource. Trimming also stops surrounding
+        // whitespace inventing a conflict between two spellings of one url.
+        .map((value) => value?.trim())
+        .filter(
+          (value): value is string => value !== undefined && value.length > 0,
+        ),
     ),
   );
+  if (resources.length > 1) {
+    // Up to 21 pooled URLs at 2048 characters each, so the echo is truncated
+    // twice: per URL for the same reason the network and amount echoes are,
+    // and again as a whole because 21 URLs each inside the per-value cap
+    // still measured 1 890 characters — the per-value bound says nothing
+    // about an echo built out of many values.
+    return err(
+      `Conflicting x402 resource URLs: ${truncateDetail(resources.map(truncateEcho).join(", "))}`,
+    );
+  }
+  return ok(resources[0]);
 }
 
 /**
@@ -483,100 +274,27 @@ export function normalizeX402PaymentRequired(
     );
   }
 
-  const accepts: X402PaymentRequirements[] = [];
+  const accepts: Record<string, unknown>[] = [];
   for (const entry of wild.data.accepts) {
-    const network = normalizeNetwork(entry.network);
-    if (network.isErr()) {
-      return err(network.error);
+    const selected = selectPayableRequirement(entry);
+    if (selected.isErr()) {
+      return err(selected.error);
     }
-    const amount = normalizeAmount(entry);
-    if (amount.isErr()) {
-      return err(amount.error);
-    }
-    const asset = normalizeEvmAddress(entry.asset, "asset");
-    if (asset.isErr()) {
-      return err(asset.error);
-    }
-    const payTo = normalizeEvmAddress(entry.payTo, "payTo");
-    if (payTo.isErr()) {
-      return err(payTo.error);
-    }
-    // Split the recognized dialect fields from everything else so unknown
-    // keys (live Bazaar aliases like `currency`/`recipient`) are forwarded
-    // rather than stripped — see x402PaymentRequirementsSchema for why
-    // forwarding is the safe direction. Only keys a dialect translation
-    // consumes are dropped: `maxAmountRequired` (unified into `amount`) and
-    // the v1 per-entry `resource` (hoisted below).
-    const {
-      scheme: _scheme,
-      network: _network,
-      asset: _asset,
-      amount: _amount,
-      maxAmountRequired: _maxAmountRequired,
-      payTo: _payTo,
-      maxTimeoutSeconds: _maxTimeoutSeconds,
-      extra: _extra,
-      resource: _resource,
-      ...unknownKeys
-    } = entry;
-    // Shadow keys are FILTERED, not merely out-ordered: see dropShadowKeys.
-    // Key order here is NOT load-bearing — the recognized fields were just
-    // destructured out, so nothing in the spread can collide with them, and
-    // exact-case duplicates were already collapsed by JSON.parse (last
-    // occurrence wins) before the wild schema validated them.
-    accepts.push({
-      ...dropShadowKeys(unknownKeys),
-      scheme: entry.scheme,
-      network: network.value,
-      asset: asset.value,
-      amount: amount.value,
-      payTo: payTo.value,
-      maxTimeoutSeconds: entry.maxTimeoutSeconds,
-      ...(entry.extra !== undefined ? { extra: entry.extra } : {}),
-    });
+    accepts.push(selected.value);
   }
 
-  // v2 carries the resource as a top-level object; v1 as a per-entry string.
-  // A 402 naming DIFFERENT resources is not a dialect — it is a malformed
-  // (or manipulated) 402. Never pick one (same stance as the
-  // conflicting-amounts guard). ALL resource sources are pooled — the
-  // top-level object AND every per-entry string — so a top-level url that
-  // disagrees with a per-entry one is caught too, not silently preferred.
-  const topLevelResource =
-    typeof wild.data.resource === "object"
-      ? wild.data.resource.url
-      : wild.data.resource;
-  const resources = Array.from(
-    new Set(
-      [topLevelResource, ...wild.data.accepts.map((entry) => entry.resource)]
-        // An empty or whitespace-only url is a MISSING value, not a second
-        // name for the resource. Pooling it as a value produced
-        // `Conflicting x402 resource URLs: , https://…` and refused a 402
-        // that names exactly one resource. Trimming also stops surrounding
-        // whitespace inventing a conflict between two spellings of one url.
-        .map((value) => value?.trim())
-        .filter(
-          (value): value is string => value !== undefined && value.length > 0,
-        ),
-    ),
-  );
-  if (resources.length > 1) {
-    // Up to 21 pooled URLs at 2048 characters each, so the echo is truncated
-    // twice: per URL for the same reason the network and amount echoes are,
-    // and again as a whole because 21 URLs each inside the per-value cap
-    // still measured 1 890 characters — the per-value bound says nothing
-    // about an echo built out of many values.
-    return err(
-      `Conflicting x402 resource URLs: ${truncateDetail(resources.map(truncateEcho).join(", "))}`,
-    );
+  const resourceUrl = poolResourceUrl(wild.data);
+  if (resourceUrl.isErr()) {
+    return err(resourceUrl.error);
   }
-  const resourceUrl = resources[0];
 
-  const normalized: X402PaymentRequired = {
+  const normalized = {
     x402Version: wild.data.x402Version,
     accepts,
     ...(wild.data.error !== undefined ? { error: wild.data.error } : {}),
-    ...(resourceUrl !== undefined ? { resource: { url: resourceUrl } } : {}),
+    ...(resourceUrl.value !== undefined
+      ? { resource: { url: resourceUrl.value } }
+      : {}),
     ...(wild.data.extensions !== undefined
       ? { extensions: wild.data.extensions }
       : {}),
