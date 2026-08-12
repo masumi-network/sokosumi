@@ -1210,16 +1210,19 @@ function MessageEditComposer({
 
 /**
  * Header (next to name): min width so clock → check → time does not nudge.
- * Continuation gutter is compact (`w-8`); do not force min-w there.
+ * Continuation gutter is compact (`w-8`); icons only — no min-w.
  */
-const OUTBOUND_HEADER_TIME_SLOT_CLASS =
-  "inline-flex min-w-11 items-center justify-start leading-none";
-const OUTBOUND_GUTTER_TIME_SLOT_CLASS =
-  "inline-flex max-w-full items-center justify-center leading-none";
+const OUTBOUND_HEADER_MARK_CLASS =
+  "text-muted-foreground inline-flex min-w-11 items-center justify-start leading-none";
+const OUTBOUND_GUTTER_MARK_CLASS =
+  "text-muted-foreground inline-flex items-center justify-center leading-none";
 
 /**
  * Timestamp slot: clock while pending; brief check on confirm (fades, then
  * parent swaps to wall-clock); alert while failed; settled = real time.
+ *
+ * Settled wall-clock uses only the caller's className so color/size match
+ * pre-outbound message chrome (muted meta, not body foreground).
  */
 function MessageTimeOrOutboundStatus({
   createdAt,
@@ -1237,9 +1240,9 @@ function MessageTimeOrOutboundStatus({
 }) {
   const t = useTranslations("App.Channels");
   const [sentFading, setSentFading] = useState(false);
-  const slotClass = reserveHeaderWidth
-    ? OUTBOUND_HEADER_TIME_SLOT_CLASS
-    : OUTBOUND_GUTTER_TIME_SLOT_CLASS;
+  const markClass = reserveHeaderWidth
+    ? OUTBOUND_HEADER_MARK_CLASS
+    : OUTBOUND_GUTTER_MARK_CLASS;
   // Smaller icon in the narrow continuation gutter.
   const iconClass = reserveHeaderWidth ? "size-3" : "size-2.5";
 
@@ -1260,7 +1263,7 @@ function MessageTimeOrOutboundStatus({
   if (outboundStatus === "pending") {
     return (
       <span
-        className={cn(slotClass, "text-muted-foreground", className)}
+        className={cn(markClass, className)}
         role="img"
         data-testid="outbound-delivery-pending"
         title={t("Outbound.sending")}
@@ -1274,13 +1277,16 @@ function MessageTimeOrOutboundStatus({
   if (outboundStatus === "failed") {
     return (
       <span
-        className={cn(slotClass, "text-destructive", className)}
+        className={cn(markClass, "text-destructive", className)}
         role="img"
         data-testid="outbound-delivery-failed-icon"
         title={t("Outbound.failed")}
         aria-label={t("Outbound.failed")}
       >
-        <AlertCircle className={iconClass} aria-hidden />
+        <AlertCircle
+          className={cn(iconClass, "text-destructive")}
+          aria-hidden
+        />
       </span>
     );
   }
@@ -1288,7 +1294,7 @@ function MessageTimeOrOutboundStatus({
   if (showSentTick) {
     return (
       <span
-        className={cn(slotClass, "text-muted-foreground", className)}
+        className={cn(markClass, className)}
         role="img"
         data-testid="outbound-delivery-sent"
         title={t("Outbound.sent")}
@@ -1297,7 +1303,7 @@ function MessageTimeOrOutboundStatus({
         <Check
           className={cn(
             iconClass,
-            "transition-opacity duration-500 ease-out",
+            "text-muted-foreground transition-opacity duration-500 ease-out",
             sentFading ? "opacity-0" : "opacity-100",
           )}
           aria-hidden
@@ -1307,12 +1313,8 @@ function MessageTimeOrOutboundStatus({
     );
   }
 
-  return (
-    <MessageWallClockTime
-      value={createdAt}
-      className={cn(slotClass, className)}
-    />
-  );
+  // Settled: exact same chrome as before outbound delivery (caller owns color/size).
+  return <MessageWallClockTime value={createdAt} className={className} />;
 }
 
 function OutboundFailedActions({
