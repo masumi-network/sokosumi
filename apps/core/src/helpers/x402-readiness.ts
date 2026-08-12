@@ -142,23 +142,43 @@ export const getX402ReadySources = async (
     if (!Array.isArray(payload)) {
       return [];
     }
-    return payload.filter(
-      (source): source is X402ReadySource =>
-        typeof source === "object" &&
-        source !== null &&
-        "caip2Network" in source &&
-        typeof source.caip2Network === "string" &&
-        CAIP2_EVM_NETWORK_PATTERN.test(source.caip2Network) &&
-        isX402NetworkAllowed(source.caip2Network, environment) &&
-        "asset" in source &&
-        typeof source.asset === "string" &&
-        EVM_ADDRESS_PATTERN.test(source.asset) &&
-        // A pair without its backing wallet cannot be signed with — a row
-        // cached before the evmWalletId field existed is unusable and drops
-        // until the next sync rewrites the cache.
-        "evmWalletId" in source &&
-        typeof source.evmWalletId === "string" &&
-        source.evmWalletId.length > 0,
+    return (
+      payload
+        .filter(
+          (source): source is X402ReadySource =>
+            typeof source === "object" &&
+            source !== null &&
+            "caip2Network" in source &&
+            typeof source.caip2Network === "string" &&
+            CAIP2_EVM_NETWORK_PATTERN.test(source.caip2Network) &&
+            isX402NetworkAllowed(source.caip2Network, environment) &&
+            "asset" in source &&
+            typeof source.asset === "string" &&
+            EVM_ADDRESS_PATTERN.test(source.asset) &&
+            // A pair without its backing wallet cannot be signed with — a row
+            // cached before the evmWalletId field existed is unusable and drops
+            // until the next sync rewrites the cache.
+            "evmWalletId" in source &&
+            typeof source.evmWalletId === "string" &&
+            source.evmWalletId.length > 0,
+        )
+        // Emit the canonical pair rather than the row as stored.
+        // EVM_ADDRESS_PATTERN accepts mixed case, so a legacy or hand-edited
+        // row would be VALIDATED in one spelling and RETURNED in another —
+        // the same validate-one / forward-another split the 402 normalizer
+        // closed. Everything downstream compares canonical lowercase
+        // (`findX402ReadySource`, `buildCaip19AssetKey`, and the pay call's
+        // `preferredAsset`, where a mismatch would miss the node lookup AFTER
+        // the credits are charged). `composeX402ReadySources` writes lowercase
+        // today, so this only bites a legacy row — which is exactly why the
+        // read must not trust the cache. Extra cached properties are dropped
+        // for the same reason: only the fields `X402ReadySource` declares are
+        // served.
+        .map((source) => ({
+          caip2Network: source.caip2Network.trim().toLowerCase(),
+          asset: source.asset.trim().toLowerCase(),
+          evmWalletId: source.evmWalletId,
+        }))
     );
   } catch {
     return [];

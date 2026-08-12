@@ -111,6 +111,43 @@ describe("getX402ReadySources", () => {
     await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
   });
 
+  it("canonicalizes a mixed-case cached asset and drops cached extras", async () => {
+    // EVM_ADDRESS_PATTERN accepts mixed case, so a legacy or hand-edited row
+    // was VALIDATED in one spelling and RETURNED in another — the same
+    // validate-one / return-another split the 402 normalizer closed.
+    // Everything downstream (`findX402ReadySource`, `buildCaip19AssetKey`,
+    // and the pay call's `preferredAsset`) compares canonical lowercase, so
+    // the read must emit it. Cached extras go for the same reason: only the
+    // three fields `X402ReadySource` declares are served.
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([
+        {
+          caip2Network: "eip155:84532",
+          asset: USDC_BASE_SEPOLIA.toUpperCase().replace("0X", "0x"),
+          evmWalletId: "wallet_1",
+          remainingSpend: "999",
+        },
+      ]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+  });
+
+  it("still drops a row whose network is not canonical lowercase", async () => {
+    // CAIP2_EVM_NETWORK_PATTERN is case-SENSITIVE, unlike the address
+    // pattern, so a shouty network already failed closed. Canonicalizing the
+    // survivors must not turn that into an accepted row.
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([
+        { ...X402_READY_SOURCE, caip2Network: "EIP155:84532" },
+      ]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([]);
+  });
+
   it("drops cached pairs outside this environment's allowlist", async () => {
     // Defence in depth behind the compose-time filter: a cache written by an
     // older build (or by an instance pointed at the other environment) must
