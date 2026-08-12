@@ -622,7 +622,12 @@ export function OnboardingFlow({
           size="lg"
           className="h-11 px-6"
           disabled={isBusy}
-          onClick={goNext}
+          onClick={() => {
+            // Match the modal wizard finish: switch into the org before the
+            // plan step so preferred workspace and org-scoped checkout agree.
+            organizationFlow.activateWorkspace();
+            goNext();
+          }}
         >
           {t("Nav.next")}
           <ArrowRight className="size-4" />

@@ -61,13 +61,17 @@ export async function completeOnboarding(
   profile?: UserOnboardingRequest["profile"],
 ): Promise<ActionResultDto<{ redirectUrl: string }, ActionError>> {
   try {
-    if (profile && Object.keys(profile).length > 0) {
-      // Core owns the metadata write. It also flips `onboardingCompleted`, but
-      // the Better Auth update below is still required: only that path
-      // refreshes the session cookie cache, and a stale cookie would bounce
-      // the user straight back into onboarding.
-      await coreClient.completeMyOnboarding({ profile });
-    }
+    // Always complete through Core so DB `onboardingCompleted` is set even
+    // when there are no profile answers (free-upgrade gate / Stripe return).
+    // Skipping Core left the BA-only path as a second write source and made
+    // partial failure harder to reason about. Empty profile → no metadata
+    // patch; Core still flips the flag.
+    //
+    // BA update below is still required: only that path refreshes the session
+    // cookie cache. Stale cache + Core-true is a redirect loop (page trusts
+    // Core, app shell trusts session).
+    const hasProfile = profile !== undefined && Object.keys(profile).length > 0;
+    await coreClient.completeMyOnboarding(hasProfile ? { profile } : undefined);
 
     await userService.markOnboardingCompleteForMe();
 
