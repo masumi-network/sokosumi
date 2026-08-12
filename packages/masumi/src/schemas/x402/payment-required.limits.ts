@@ -131,6 +131,44 @@ export const X402_MAX_JSON_DEPTH = 64;
 export const X402_MAX_ECHOED_VALUE_LENGTH = 78;
 
 /**
+ * Longest DETAIL a rejection message may carry — a whole `z.prettifyError`
+ * dump, or a whole list of pooled resource URLs, rather than one field.
+ *
+ * `X402_MAX_ECHOED_VALUE_LENGTH` bounds one attacker-controlled VALUE, which
+ * left the two echoes that are built out of many of them unbounded. Measured:
+ * a 20-entry payload with every field wrong-typed produced 13 739 characters
+ * of `z.prettifyError` output, and 20 disagreeing resource URLs produced
+ * 1 890 — 13× and 2× the `X402_MAX_ERROR_LENGTH` this same file imposes on
+ * the 402's OWN `error` blurb, in a string that lands in the response body,
+ * the logs and Sentry on every rejected 402.
+ *
+ * 896 is `X402_MAX_ERROR_LENGTH` minus 128 characters of headroom for the
+ * fixed prefix each caller prepends (the longest is "Normalized x402 payload
+ * failed validation: ", 43 characters). The point of the headroom is the
+ * invariant it buys: EVERY rejection message this module produces fits the
+ * same 1024 characters a 402 is allowed to spend on its own error.
+ */
+export const X402_MAX_DETAIL_LENGTH = X402_MAX_ERROR_LENGTH - 128;
+
+/**
+ * Shortens a composed error DETAIL — zod's prettified issue list, a joined
+ * URL pool — to `X402_MAX_DETAIL_LENGTH`, suffix included, naming the true
+ * length instead of repeating it.
+ *
+ * Distinct from `truncateEcho`, which bounds a single field: applying an
+ * 78-character cap to an issue list would throw away the first issue's
+ * message, and applying no cap at all is what produced the 13 739-character
+ * error. Same code-point-boundary rule, for the same reason.
+ */
+export function truncateDetail(detail: string): string {
+  if (detail.length <= X402_MAX_DETAIL_LENGTH) {
+    return detail;
+  }
+  const suffix = `… (${detail.length} chars)`;
+  return `${sliceWholeCodePoints(detail, X402_MAX_DETAIL_LENGTH - suffix.length)}${suffix}`;
+}
+
+/**
  * Shortens an attacker-controlled value for an error message, naming the true
  * length instead of repeating it. Same stance as the digit-width rejection in
  * `normalizeAmount`: the whole point is that the value may be enormous.

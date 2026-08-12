@@ -2,12 +2,43 @@ import { describe, expect, it } from "vitest";
 
 import {
   boundedMapCheck,
+  truncateDetail,
   truncateEcho,
+  X402_MAX_DETAIL_LENGTH,
   X402_MAX_ECHOED_VALUE_LENGTH,
+  X402_MAX_ERROR_LENGTH,
   X402_MAX_MAP_ENTRIES,
   X402_MAX_MAP_KEY_LENGTH,
   X402_MAX_SERIALIZED_LENGTH,
 } from "../payment-required.limits.js";
+
+describe("truncateDetail", () => {
+  it("leaves a short detail exactly as it is", () => {
+    expect(truncateDetail("")).toBe("");
+    expect(truncateDetail("✖ Invalid input")).toBe("✖ Invalid input");
+  });
+
+  it("caps a long detail and names the true length", () => {
+    const detail = "x".repeat(50_000);
+
+    const truncated = truncateDetail(detail);
+
+    expect(truncated.length).toBeLessThanOrEqual(X402_MAX_DETAIL_LENGTH);
+    expect(truncated).toMatch(/… \(50000 chars\)$/);
+  });
+
+  it("leaves room for the longest prefix a caller prepends", () => {
+    // Every rejection message in this module is `<prefix>: <detail>`, and the
+    // whole thing lands in the response body, the logs and Sentry. The cap
+    // exists so that total always fits the same X402_MAX_ERROR_LENGTH the
+    // file imposes on the 402's own `error` blurb.
+    const longestPrefix = "Normalized x402 payload failed validation: ";
+
+    expect(
+      longestPrefix.length + truncateDetail("y".repeat(50_000)).length,
+    ).toBeLessThan(X402_MAX_ERROR_LENGTH);
+  });
+});
 
 describe("truncateEcho", () => {
   it("echoes a value at or under the cap in full", () => {

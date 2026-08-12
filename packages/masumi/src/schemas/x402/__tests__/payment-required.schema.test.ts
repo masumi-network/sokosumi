@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { X402_MAX_TIMEOUT_SECONDS } from "../payment-required.limits.js";
+import {
+  X402_MAX_ACCEPTS_ENTRIES,
+  X402_MAX_ERROR_LENGTH,
+  X402_MAX_TIMEOUT_SECONDS,
+} from "../payment-required.limits.js";
 import {
   isX402PaymentIdentifierAdvertised,
   narrowToChosenRequirement,
@@ -737,6 +741,60 @@ describe("normalizeX402PaymentRequired", () => {
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr().length).toBeLessThan(1024);
     }
+  });
+
+  it("bounds the zod-issue detail, the largest echo in the file", () => {
+    // Round 2 capped every hand-built echo and missed the zod one.
+    // `z.prettifyError` output is unbounded and lands in the response body,
+    // the logs and Sentry on every rejected 402. Measured before this fix:
+    // 12 009 characters from a 20-entry payload with eight wrong-typed
+    // fields per entry, and 13 739 with `maxAmountRequired` wrong too —
+    // 12–13× the X402_MAX_ERROR_LENGTH this same file imposes on the 402's
+    // own `error` blurb.
+    const wrongTyped = {
+      scheme: 1,
+      network: 2,
+      asset: 3,
+      amount: 4,
+      maxAmountRequired: 5,
+      payTo: 6,
+      maxTimeoutSeconds: "x",
+      extra: 7,
+      resource: 8,
+    };
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: Array.from({ length: X402_MAX_ACCEPTS_ENTRIES }, () => ({
+        ...wrongTyped,
+      })),
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(/Unparseable x402 402 payload/);
+    expect(result._unsafeUnwrapErr().length).toBeLessThan(
+      X402_MAX_ERROR_LENGTH,
+    );
+  });
+
+  it("bounds the conflicting-resource echo at the full entry count", () => {
+    // The round-2 test for this echo used TWO entries, so its `< 1024` bound
+    // did not generalize: measured 1 890 characters at 20 entries, because
+    // the echo is one truncated URL per pooled resource and there are up to
+    // 21 of them.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 1,
+      accepts: Array.from({ length: X402_MAX_ACCEPTS_ENTRIES }, (_v, index) =>
+        v1Entry({
+          resource: `https://a${index}.example.com/${"p".repeat(80)}`,
+        }),
+      ),
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(/Conflicting x402 resource URLs/);
+    expect(result._unsafeUnwrapErr().length).toBeLessThan(
+      X402_MAX_ERROR_LENGTH,
+    );
   });
 
   it("still echoes a short network name in full", () => {

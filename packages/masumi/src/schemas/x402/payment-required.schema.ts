@@ -9,6 +9,7 @@ import { canonicalJsonKey } from "./payment-required.canonical.js";
 import {
   BOUNDED_MAP_MESSAGE,
   boundedMapCheck,
+  truncateDetail,
   truncateEcho,
   X402_MAX_ACCEPTS_ENTRIES,
   X402_MAX_AMOUNT_BASE_UNITS,
@@ -452,7 +453,9 @@ export function normalizeX402PaymentRequired(
 
   const wild = wildPaymentRequiredSchema.safeParse(candidate);
   if (!wild.success) {
-    return err(`Unparseable x402 402 payload: ${z.prettifyError(wild.error)}`);
+    return err(
+      `Unparseable x402 402 payload: ${truncateDetail(z.prettifyError(wild.error))}`,
+    );
   }
 
   const accepts: X402PaymentRequirements[] = [];
@@ -536,7 +539,7 @@ export function normalizeX402PaymentRequired(
     // Up to 21 pooled URLs at 2048 characters each, so the echo is truncated
     // per URL for the same reason the network and amount echoes are.
     return err(
-      `Conflicting x402 resource URLs: ${resources.map(truncateEcho).join(", ")}`,
+      `Conflicting x402 resource URLs: ${truncateDetail(resources.map(truncateEcho).join(", "))}`,
     );
   }
   const resourceUrl = resources[0];
@@ -554,7 +557,7 @@ export function normalizeX402PaymentRequired(
   const validated = x402PaymentRequiredSchema.safeParse(normalized);
   if (!validated.success) {
     return err(
-      `Normalized x402 payload failed validation: ${z.prettifyError(validated.error)}`,
+      `Normalized x402 payload failed validation: ${truncateDetail(z.prettifyError(validated.error))}`,
     );
   }
   return ok(validated.data);
@@ -613,7 +616,7 @@ export function narrowToChosenRequirement(
   const validated = x402PaymentRequiredSchema.safeParse(narrowed);
   if (!validated.success) {
     return err(
-      `Narrowed x402 payload failed validation: ${z.prettifyError(validated.error)}`,
+      `Narrowed x402 payload failed validation: ${truncateDetail(z.prettifyError(validated.error))}`,
     );
   }
   return ok(validated.data);
