@@ -4,7 +4,6 @@ import { convertCentsToCredits } from "@sokosumi/utils";
 import {
   AGENT_PRICING_READ_TRANSACTION_OPTIONS,
   buildAvailableAgentWhereClause,
-  calculateAgentRating,
   calculateAverageExecutionTime,
   getAgentDescription,
   getAgentIcon,
@@ -14,6 +13,7 @@ import {
   getCreditCostsOrThrow,
 } from "@/helpers/agent";
 import { getAgentCost } from "@/helpers/agent-cost";
+import { calculateAgentRating } from "@/helpers/agent-rating";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";

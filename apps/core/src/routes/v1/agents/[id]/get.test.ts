@@ -39,7 +39,6 @@ vi.mock("@/helpers/agent", () => ({
   AGENT_PRICING_READ_TRANSACTION_OPTIONS: { isolationLevel: "RepeatableRead" },
   getCardanoV2ReadySources: () => Promise.resolve([]),
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
-  calculateAgentRating: calculateAgentRatingMock,
   calculateAverageExecutionTime: calculateAverageExecutionTimeMock,
   getAgentAuthorImage: getAgentAuthorImageMock,
   getAgentDescription: getAgentDescriptionMock,
@@ -47,6 +46,10 @@ vi.mock("@/helpers/agent", () => ({
   getAgentImage: getAgentImageMock,
   getAgentName: getAgentNameMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+}));
+
+vi.mock("@/helpers/agent-rating", () => ({
+  calculateAgentRating: calculateAgentRatingMock,
 }));
 
 vi.mock("@/helpers/agent-cost", () => ({

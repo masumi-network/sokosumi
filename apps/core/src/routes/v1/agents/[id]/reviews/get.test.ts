@@ -26,8 +26,11 @@ const {
 vi.mock("@/helpers/agent", () => ({
   getCardanoV2ReadySources: () => Promise.resolve([]),
   buildAvailableAgentWhereClause: buildAvailableAgentWhereClauseMock,
-  getAgentRatingDistribution: getAgentRatingDistributionMock,
   getCreditCostsOrThrow: getCreditCostsOrThrowMock,
+}));
+
+vi.mock("@/helpers/agent-rating", () => ({
+  getAgentRatingDistribution: getAgentRatingDistributionMock,
   getRecentAgentReviews: getRecentAgentReviewsMock,
 }));
 
