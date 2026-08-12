@@ -13,14 +13,6 @@
       "description": "Diese Seite ist nur auf Desktop-Geräten verfügbar. Bitte wechsle zu einem größeren Bildschirm.",
       "reload": "Neu laden"
     },
-    "CookieConsent": {
-      "title": "Wir verwenden Cookies",
-      "description": "Wir verwenden Cookies, um dir die bestmögliche Erfahrung auf unserer Website zu bieten. Weitere Informationen zur Cookie-Nutzung findest du in unserer ",
-      "cookiePolicy": "Cookie-Richtlinie",
-      "period": ".",
-      "accept": "Akzeptieren",
-      "reject": "Ablehnen"
-    },
     "EmergencyDialog": {
       "title": "Notfallwartung",
       "description": "Wir haben derzeit Probleme mit der Ausführung von Jobs, die durch technische Störungen bei einem unserer Drittanbieter verursacht werden. Keine Sorge – alles wird in Kürze wieder normal funktionieren.",

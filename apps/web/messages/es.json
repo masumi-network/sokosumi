@@ -13,14 +13,6 @@
       "description": "Esta página solo está disponible en dispositivos de escritorio. Por favor, cambia a una pantalla más grande.",
       "reload": "Recargar"
     },
-    "CookieConsent": {
-      "title": "Usamos cookies",
-      "description": "Usamos cookies para ofrecerte la mejor experiencia en nuestro sitio web. Para más información sobre cómo usamos las cookies, consulta nuestra ",
-      "cookiePolicy": "política de cookies",
-      "period": ".",
-      "accept": "Aceptar",
-      "reject": "Rechazar"
-    },
     "EmergencyDialog": {
       "title": "Mantenimiento de emergencia",
       "description": "Actualmente experimentamos problemas con la ejecución de jobs debido a fallos técnicos de uno de nuestros proveedores externos. No te preocupes, todo volverá a la normalidad pronto.",
