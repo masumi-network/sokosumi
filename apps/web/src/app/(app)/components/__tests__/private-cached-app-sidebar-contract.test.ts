@@ -28,4 +28,10 @@ describe("PrivateCachedAppSidebar session contract", () => {
     expect(source).not.toMatch(/getDeveloperVendorAdminAccess/);
     expect(source).not.toMatch(/resolvePlanName/);
   });
+
+  it("does not own private-cache directives; the shared loader does", () => {
+    expect(source).not.toMatch(/"use cache: private"/);
+    expect(source).not.toMatch(/\bcacheLife\b/);
+    expect(source).not.toMatch(/\bcacheTag\b/);
+  });
 });

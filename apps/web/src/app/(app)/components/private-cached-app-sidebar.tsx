@@ -1,14 +1,9 @@
 import type { SessionUser } from "@sokosumi/utils";
-import { cacheLife, cacheTag } from "next/cache";
 import { Suspense } from "react";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-import {
-  getPrivateCachedChatListChrome,
-  privateSidebarOrgTag,
-  privateSidebarUserTag,
-} from "./private-sidebar-cache";
+import { getPrivateCachedChatListChrome } from "./private-sidebar-cache";
 import Sidebar from "./sidebar";
 import SidebarDeferredAccount, {
   SidebarAccountChipFallback,
@@ -77,13 +72,6 @@ async function PrivateCachedSidebarRooms({
   userId,
   activeOrganizationId,
 }: PrivateCachedSidebarRoomsProps) {
-  "use cache: private";
-  cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
-  cacheTag(privateSidebarUserTag(userId));
-  if (activeOrganizationId) {
-    cacheTag(privateSidebarOrgTag(activeOrganizationId));
-  }
-
   // Shared private-cache slice with `/chat/chats` (SOK-779). Personal coworker
   // directs exist with no active org; Core returns those when organization
   // context is null. Guest rooms (any host org) are mixed into the list.
