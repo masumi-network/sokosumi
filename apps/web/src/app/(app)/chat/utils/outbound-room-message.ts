@@ -258,3 +258,46 @@ export function filterResolvedOutbound(
     return turnId == null || !confirmedTurnIds.has(turnId);
   });
 }
+
+/**
+ * Server message ids that just replaced a **pending** outbound shell
+ * (previous → next). Used to flash the sent check in the same turn as the
+ * shell swap so Ably-first confirm does not paint wall-clock before the tick
+ * (spinner → check → time, never spinner → time → check).
+ */
+export function listJustConfirmedOutboundMessageIds(
+  previous: readonly ChatRoomMessage[],
+  next: readonly ChatRoomMessage[],
+): string[] {
+  const pendingTurnIds = new Set<string>();
+  for (const message of previous) {
+    if (!isOutboundLocalMessage(message)) {
+      continue;
+    }
+    if (readOutboundDeliveryStatus(message) !== "pending") {
+      continue;
+    }
+    const turnId = readClientTurnId(message);
+    if (turnId != null) {
+      pendingTurnIds.add(turnId);
+    }
+  }
+  if (pendingTurnIds.size === 0) {
+    return [];
+  }
+
+  const confirmedIds: string[] = [];
+  const seen = new Set<string>();
+  for (const message of next) {
+    if (isOutboundLocalMessage(message)) {
+      continue;
+    }
+    const turnId = readClientTurnId(message);
+    if (turnId == null || !pendingTurnIds.has(turnId) || seen.has(message.id)) {
+      continue;
+    }
+    seen.add(message.id);
+    confirmedIds.push(message.id);
+  }
+  return confirmedIds;
+}

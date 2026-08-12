@@ -9,6 +9,7 @@ import {
   failOutboundMessage,
   filterResolvedOutbound,
   isOutboundLocalMessage,
+  listJustConfirmedOutboundMessageIds,
   markOutboundMessagePending,
   OUTBOUND_DELIVERY_STATUS_METADATA_KEY,
   outboundLocalMessageId,
@@ -185,6 +186,47 @@ describe("outbound room message", () => {
 
     const remaining = filterResolvedOutbound([pending, other], [confirmed]);
     expect(remaining.map((row) => readClientTurnId(row))).toEqual(["turn-2"]);
+  });
+
+  it("lists server ids that just replaced a pending shell", () => {
+    const pending = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "hello",
+      senderUser,
+    });
+    const peer = serverMessage("peer-1", "hi");
+    const confirmed = serverMessage("srv-1", "hello", "turn-1");
+    const previous = [peer, pending];
+    const next = confirmOutboundMessage(previous, confirmed, "turn-1");
+
+    expect(listJustConfirmedOutboundMessageIds(previous, next)).toEqual([
+      "srv-1",
+    ]);
+  });
+
+  it("does not list ids when a failed shell is removed without confirm", () => {
+    const failedShell = failOutboundMessage(
+      [
+        createPendingRoomMessage({
+          clientTurnId: "turn-1",
+          roomId: "room-1",
+          content: "hello",
+          senderUser,
+        }),
+      ],
+      "turn-1",
+    );
+    const next = removeOutboundMessage(failedShell, "turn-1");
+    expect(listJustConfirmedOutboundMessageIds(failedShell, next)).toEqual([]);
+  });
+
+  it("does not list ids when nothing pending resolved", () => {
+    const peer = serverMessage("peer-1", "hi");
+    const incoming = serverMessage("peer-2", "yo");
+    expect(
+      listJustConfirmedOutboundMessageIds([peer], [peer, incoming]),
+    ).toEqual([]);
   });
 
   it("reads client turn id from confirmed metadata", () => {

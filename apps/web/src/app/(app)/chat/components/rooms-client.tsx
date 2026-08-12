@@ -4,6 +4,8 @@ import { Hash, Loader2, MessageCircle } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  type Dispatch,
+  type SetStateAction,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -57,6 +59,7 @@ import {
   createPendingRoomMessage,
   failOutboundMessage,
   isOutboundLocalMessage,
+  listJustConfirmedOutboundMessageIds,
   markOutboundMessagePending,
   OUTBOUND_SENT_TICK_MS,
   readClientTurnId,
@@ -645,6 +648,27 @@ export function RoomsClient({
     outboundSentTickTimeoutsRef.current.set(messageId, timeoutId);
   }
 
+  /**
+   * Apply a message list update and flash sent ticks for any pending shell
+   * that became a server row in the same turn (Ably-first confirm path).
+   * Collect ids during the functional update (runs sync), then flash so React
+   * batches messages + ticks into one paint: spinner → check, not → time.
+   */
+  function applyMessagesFlashingOutboundConfirms(
+    setMessages: Dispatch<SetStateAction<ChatRoomMessage[]>>,
+    computeNext: (current: ChatRoomMessage[]) => ChatRoomMessage[],
+  ) {
+    let confirmedIds: string[] = [];
+    setMessages((current) => {
+      const next = computeNext(current);
+      confirmedIds = listJustConfirmedOutboundMessageIds(current, next);
+      return next;
+    });
+    for (const messageId of confirmedIds) {
+      flashOutboundSentTick(messageId);
+    }
+  }
+
   const selectedRoom = isNewDirectMessage
     ? null
     : (rooms.find((room) => room.id === selectedRoomId) ?? null);
@@ -863,7 +887,7 @@ export function RoomsClient({
         event.eventType,
       );
       if (route.mergeIntoRoomTimeline) {
-        setMessagesState((current) =>
+        applyMessagesFlashingOutboundConfirms(setMessagesState, (current) =>
           filterTopLevelChatRoomMessages(mergeRoomMessages(current, [message])),
         );
       }
@@ -878,7 +902,9 @@ export function RoomsClient({
       }
 
       if (route.mergeIntoOpenThread) {
-        setThreadMessages((current) => mergeRoomMessages(current, [message]));
+        applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) =>
+          mergeRoomMessages(current, [message]),
+        );
         // Look first, then room re-sync — mark-read effect can race if it
         // runs before look lands; open path uses the same order.
         // Use the ref (not openThreadParentId) so this []-deps handler stays
@@ -1838,10 +1864,11 @@ export function RoomsClient({
       onFailure: handleChannelOutboundFailure,
       onSuccess: (job, confirmed) => {
         if (isStillSelectedRoom(job.roomId)) {
-          setMessagesState((current) =>
+          // Flash first so tick state lands with the confirm swap (same batch).
+          flashOutboundSentTick(confirmed.id);
+          applyMessagesFlashingOutboundConfirms(setMessagesState, (current) =>
             confirmOutboundMessage(current, confirmed, job.clientMessageId),
           );
-          flashOutboundSentTick(confirmed.id);
         }
       },
     });
@@ -1880,10 +1907,10 @@ export function RoomsClient({
           job.parentMessageId != null &&
           threadParentMessageIdRef.current === job.parentMessageId
         ) {
-          setThreadMessages((current) =>
+          flashOutboundSentTick(confirmed.id);
+          applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) =>
             confirmOutboundMessage(current, confirmed, job.clientMessageId),
           );
-          flashOutboundSentTick(confirmed.id);
           updateParentThreadPreview(job.parentMessageId, confirmed);
         } else if (
           isStillSelectedRoom(job.roomId) &&
