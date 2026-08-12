@@ -109,6 +109,30 @@ describe("mergeRoomMessages", () => {
     expect(merged.map((row) => row.id)).toEqual(["srv-1"]);
   });
 
+  it("does not confirm by content alone when incoming omits client turn id", () => {
+    const pending = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "hello",
+      senderUser: {
+        id: "user-1",
+        name: "Ada",
+        email: "ada@example.com",
+        image: null,
+        presence: "offline",
+      },
+    });
+    const confirmedWithoutTurn = message(
+      "srv-1",
+      "2026-07-01T12:00:00.000Z",
+      "hello",
+    );
+
+    const merged = mergeRoomMessages([pending], [confirmedWithoutTurn]);
+
+    expect(merged.map((row) => row.id)).toEqual(["srv-1", pending.id]);
+  });
+
   it("keeps older loaded history when refreshing the latest page", () => {
     const older = message("m1", "2026-07-01T10:00:00.000Z");
     const mid = message("m2", "2026-07-01T11:00:00.000Z");

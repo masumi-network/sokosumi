@@ -44,6 +44,7 @@ import {
 import {
   type ClassicOutboundJob,
   type ClassicOutboundQueueRefs,
+  type ClassicOutboundSendResult,
   clearClassicOutboundQueue,
   drainClassicOutboundQueue,
   enqueueClassicOutboundJob,
@@ -1867,31 +1868,36 @@ export function RoomsClient({
     classicThreadJobsRef.current.delete(job.clientMessageId);
   }
 
+  async function sendClassicOutboundJob(
+    job: ClassicOutboundJob,
+  ): Promise<ClassicOutboundSendResult> {
+    const result = await sendRoomMessageAction(
+      job.roomId,
+      job.content,
+      job.mentionedCoworkerIds,
+      {
+        mentionedUserIds: job.mentionedUserIds,
+        parentMessageId: job.parentMessageId,
+        quote: job.quote,
+        clientMessageId: job.clientMessageId,
+      },
+    );
+    if (!result.ok) {
+      return {
+        ok: false,
+        error: {
+          message: result.error.message ?? t("Outbound.failed"),
+        },
+      };
+    }
+    return { ok: true, value: result.value };
+  }
+
   async function drainClassicChannelQueue() {
     await drainClassicOutboundQueue({
       refs: classicChannelRefs,
       unknownFailureMessage: t("Outbound.failed"),
-      send: async (job) => {
-        const result = await sendRoomMessageAction(
-          job.roomId,
-          job.content,
-          job.mentionedCoworkerIds,
-          {
-            mentionedUserIds: job.mentionedUserIds,
-            quote: job.quote,
-            clientMessageId: job.clientMessageId,
-          },
-        );
-        if (!result.ok) {
-          return {
-            ok: false,
-            error: {
-              message: result.error.message ?? t("Outbound.failed"),
-            },
-          };
-        }
-        return { ok: true, value: result.value };
-      },
+      send: sendClassicOutboundJob,
       onFailure: handleChannelOutboundFailure,
       onSuccess: (job, confirmed) => {
         if (isStillSelectedRoom(job.roomId)) {
@@ -1909,28 +1915,7 @@ export function RoomsClient({
     await drainClassicOutboundQueue({
       refs: classicThreadRefs,
       unknownFailureMessage: t("Outbound.failed"),
-      send: async (job) => {
-        const result = await sendRoomMessageAction(
-          job.roomId,
-          job.content,
-          job.mentionedCoworkerIds,
-          {
-            mentionedUserIds: job.mentionedUserIds,
-            parentMessageId: job.parentMessageId,
-            quote: job.quote,
-            clientMessageId: job.clientMessageId,
-          },
-        );
-        if (!result.ok) {
-          return {
-            ok: false,
-            error: {
-              message: result.error.message ?? t("Outbound.failed"),
-            },
-          };
-        }
-        return { ok: true, value: result.value };
-      },
+      send: sendClassicOutboundJob,
       onFailure: handleThreadOutboundFailure,
       onSuccess: (job, confirmed) => {
         if (
