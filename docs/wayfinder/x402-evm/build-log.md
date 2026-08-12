@@ -418,9 +418,6 @@ passed; core x402 + agent + deletion suites (12 files) 282 passed;
 - `apps/core/src/helpers/agent.ts` is 762 lines — still over the 750 ceiling.
   Step 4 touches listing: extract the availability/where-clause helpers (or
   the metadata-override getters) as part of its change, per the split rule.
-- Nit deferred: normalizer prefers a top-level 402 `resource` over per-entry
-  values instead of erroring on disagreement (pre-existing precedence; extend
-  the fence only if a wild payload actually exhibits it).
 
 ### Step-3 fourth review — trusted asset decimals + canonicalizer holes
 
@@ -481,3 +478,125 @@ dialect still has no total-size bound in the package (32 MB body: ~32 ms,
 **Verification:** `pnpm --filter @sokosumi/masumi test` 17 files / 322
 passed; `pnpm --filter core test` 359 files / 3275 passed (6 skipped);
 `pnpm typecheck` all workspaces; `pnpm check` clean.
+
+### Step-3 fifth review — `accepts` is a menu, not an all-or-nothing offer
+
+**One unsupported option no longer poisons a 402 that also carries a
+payable one.** `accepts` is a MENU and the client picks ONE, but every
+unsupported-option check was enforced payload-wide: `wildRequirementSchema`
+typed `scheme`, `extra.assetTransferMethod` and the `maxTimeoutSeconds`
+cap, so a single bad element failed `z.array(...)`, and the normalization
+loop `return err`ed on the first entry it could not translate. Measured
+before the fix — every payload below also carries the canonical payable
+entry from research 001 §2:
+
+```
+REFUSED  exact + batch-settlement          -> Invalid input: expected "exact"
+REFUSED  exact on Base + exact on Solana   -> Unknown x402 network "solana:5eykt4Us…"
+REFUSED  exact eip3009 + exact permit2     -> Invalid input: expected "eip3009"
+REFUSED  exact 3600s + exact 86400s        -> Too big: expected number to be <=3600
+REFUSED  exact + a 79-digit-amount entry   -> x402 amount is 79 digits
+OK       control: the payable entry alone
+```
+
+Not hypothetical: research 001 §2 records `batch-settlement` offered
+*alongside* `exact` by live Base-mainnet resources (`receiverAuthorizer`,
+`withdrawDelay: 86400`), and §3 records Permit2/ERC-7710 as standardized
+v2 exact/EVM fallbacks beside EIP-3009. Base mainnet `eip155:8453` is
+exactly what `X402_MAINNET_ALLOWED_CAIP2_NETWORKS` allows. The listing
+side composes payability from the registry plus readiness rather than
+from the live 402, so the agent stayed listed while every call 422'd —
+"listed ⇒ payable" broken against a real listing.
+
+**Selection is now per entry.** Those three fields are shape checks in the
+wild schema (`scheme` a bounded string, `assetTransferMethod` a bounded
+string, `maxTimeoutSeconds` an int without the cap); the VALUES are
+refused per entry in `selectPayableRequirement`, which `continue`s with a
+collected reason instead of failing the payload. The payload is refused
+only when NO entry survives, echoing every reason through
+`truncateDetail`: `No payable x402 requirement in accepts (N refused):
+[0] … | [1] …`. A field of the wrong TYPE is still a payload-wide parse
+failure — that is a malformed 402, not a menu option Soko does not
+support.
+
+**Nothing is guessed and no fence is weakened.** An unsupported option is
+not translated into a supported one, it is simply not selected.
+`x402PaymentRequirementsSchema` stays strict and is now the ONLY gate on
+an emitted entry — the scheme allowlist, the CAIP-2 and canonical-address
+patterns, the amount width, the timeout cap and the pinned
+`extra.assetTransferMethod` all re-run on every survivor (the translation
+step deliberately returns untyped data). The shadow-key filter, prototype
+sanitizer, length caps, echo truncation and the 20-entry cap are
+untouched, and `min(1)` becomes the structural nothing-payable backstop.
+Resource URLs are pooled over EVERY wild entry and evaluated BEFORE
+selection, so the cross-entry conflict fence keeps its meaning.
+
+**The downstream same-`(network, asset)` agreement fence is unaffected.**
+Removing a member from a group can only remove disagreements, so the only
+question is whether a skipped entry could have been one that *should*
+have refused the payload. It cannot: every skip reason either puts the
+entry in a different `(network, asset)` group (bad network, bad asset) —
+out of the fence's scope by definition — or makes it structurally
+unpayable (invalid `payTo`, unpersistable amount, unsupported scheme or
+transfer method, over-cap timeout), so it can never be the entry the node
+signs. A fully valid sibling that merely disagrees on `payTo`/`amount` is
+NOT skippable and still reaches the fence. And `narrowToChosenRequirement`
+forwards exactly one entry, so the node's own selection rule is
+irrelevant either way; even without it the node would see a strict subset
+of today's entries, all of them fully validated.
+
+**The sanitizer no longer rethrows.** Round 4 made `canonicalJsonKey`
+swallow every throw because a throwing enumerable getter escaped as a
+plain `Error`; the sibling recursive walker over the same
+attacker-authored value kept its narrow catch. `walk` reads `source[key]`,
+so any throwing property read escaped `stripPrototypePollutingKeys` and
+through it `normalizeX402PaymentRequired`, whose declared contract is
+`Result<X402PaymentRequired, string>` (measured: `canonicalJsonKey ->
+undefined`, the other two `-> THREW TypeError`). This walker runs FIRST
+and is the choke point that rebuilds the payload into plain data before
+zod sees it (`safeParse` throws on the same input). Same reachability
+round 4 accepted: `JSON.parse` output cannot carry a getter, so no live
+transport triggers it, but a caller handing the exported normalizer a
+hand-built payload can, and a throw there is an unhandled 500 where the
+contract is a fail-closed `err`. The message is FIXED rather than the
+thrown error's own, which is attacker-authored and unbounded.
+
+**`payment-required.schema.ts` split three ways** to stay under the
+750-line ceiling, by responsibility rather than line count:
+`payment-required.wild.ts` owns what Soko may READ (the lenient v1/v2
+dialect shapes, the per-field translations, `dropShadowKeys`,
+`selectPayableRequirement`); `payment-required.supported.ts` owns the
+option allowlists and the `extra`/`extensions` map shapes both sides need
+(so neither imports the other); the schema file keeps what Soko may EMIT.
+
+**Review premise that was wrong.** The cycle guard in
+`payment-required.canonical.ts` (and its twin in the sanitizer) is NOT
+unreachable behind the depth guard: `ancestors` holds the objects on the
+CURRENT path, so a self-referencing value trips it at depth 1 — verified
+by instrumenting the built module (`[reached the cycle guard at depth 1]`)
+and observable directly in the sanitizer, which answers `contains a
+circular reference` for a shallow cycle and `nested deeper than 64 levels`
+for a 100-long loop. It was merely indistinguishable by an `isErr`
+assertion, so deleting it left the suite green. Both halves are now pinned
+by message.
+
+**Also:** the top-level STRING arm of the wild `resource` union is covered
+(a normalizer reading only `resource.url` left all 92 tests green);
+`X402_MAX_ENCODED_PAYLOAD_LENGTH` is pinned two-sided like
+`X402_MAX_TIMEOUT_SECONDS` (raising it to 256 MB kept the suite green);
+the `dropShadowKeys` prototype-key comment is corrected — the sanitizer
+removes those keys before the wild schema parses, so `unknownKeys` can
+never hold one and the filter never fires (kept as belt and braces).
+
+**Mutation-tested.** Per-entry selection: `continue` → `return err` kills
+14; pooling resource URLs only over selectable entries kills 1; dropping
+the no-survivor guard kills 9 (and everything still fails closed, via
+`min(1)`); dropping the scheme / transfer-method / timeout check kills
+2 / 1 / 1. Sanitizer: restoring `throw error` kills 2; echoing the thrown
+error's own message kills 1; deleting the cycle guard now kills 1.
+Coverage additions: ignoring a top-level string `resource` kills 2;
+raising the encoded-payload cap kills 1. All restored green.
+
+**Verification:** `pnpm --filter @sokosumi/masumi test` 17 files / 342
+passed; `pnpm --filter core test` 357 files / 3275 passed (2 files / 6
+skipped); `pnpm typecheck` all workspaces; `pnpm check` clean.
