@@ -221,10 +221,10 @@ export const taskService = (() => {
 
   /**
    * Counts for the /chat landing. Never throws — the landing is a greeting, so
-   * a Core hiccup should cost the sentence, not the page — but it does return
-   * null rather than a zeroed summary, because the caller uses the result to
-   * decide whether to move the user's "last seen" marker. A failure that looked
-   * like "nothing happened" would advance the marker past activity nobody saw.
+   * a Core hiccup should cost the sentence, not the page. Returns null rather
+   * than a zeroed summary so the UI can hide chips instead of claiming "nothing
+   * happened". The window itself is session-derived in Core
+   * (`max(Session.updatedAt)`); this helper does not stamp anything.
    */
   async function getActivitySummary(params: {
     scope?: "owned" | "workspace";

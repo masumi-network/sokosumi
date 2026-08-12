@@ -13,6 +13,7 @@ import {
   toStripCoworker,
 } from "./landing-content";
 import { StartChatButton } from "./start-chat-button.client";
+import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
 
 /**
  * Enough to read as a team without the row wrapping on a laptop. Kept even so
@@ -74,7 +75,7 @@ export async function ChatLanding({
         </p>
 
         {featured ? (
-          <>
+          <OpenCoworkerRoomProvider>
             <div className="mt-12 w-full">
               <CoworkerStrip
                 featured={toStripCoworker(featured)}
@@ -95,7 +96,7 @@ export async function ChatLanding({
                 coworkerName={featured.name}
               />
             </div>
-          </>
+          </OpenCoworkerRoomProvider>
         ) : null}
       </div>
 
@@ -103,7 +104,7 @@ export async function ChatLanding({
         <div className="flex w-full shrink-0 flex-col items-center gap-4">
           <p className="text-muted-foreground/70 text-[0.8125rem]">
             {summary.basis === "lastVisit"
-              ? t("stats.sinceLastVisit", {
+              ? t("stats.sinceLastActivity", {
                   when: format.relativeTime(summary.since),
                 })
               : t("stats.recent")}

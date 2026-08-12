@@ -13,6 +13,7 @@ import {
   toStripCoworker,
 } from "./landing-content";
 import { StartChatButton } from "./start-chat-button.client";
+import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
 
 /**
  * Four teammates plus the 80px featured face fit a 390px viewport with room to
@@ -74,7 +75,7 @@ export async function ChatLandingMobile({
         </p>
 
         {featured ? (
-          <>
+          <OpenCoworkerRoomProvider>
             <div className="mt-8 w-full">
               <CoworkerStrip
                 featured={toStripCoworker(featured)}
@@ -97,7 +98,7 @@ export async function ChatLandingMobile({
                 coworkerName={featured.name}
               />
             </div>
-          </>
+          </OpenCoworkerRoomProvider>
         ) : null}
       </div>
 
@@ -105,7 +106,7 @@ export async function ChatLandingMobile({
         <div className="flex w-full shrink-0 flex-col items-center gap-2.5">
           <p className="text-muted-foreground/70 text-xs">
             {summary.basis === "lastVisit"
-              ? t("stats.sinceLastVisit", {
+              ? t("stats.sinceLastActivity", {
                   when: format.relativeTime(summary.since),
                 })
               : t("stats.recent")}

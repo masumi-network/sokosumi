@@ -34,7 +34,7 @@ const route = createRoute({
   method: "get",
   path: "/summary",
   description:
-    "Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window starts at the caller's most recent session activity (`max(Session.updatedAt)`), the same signal admin member last-seen uses. When that timestamp is missing or under 30 minutes old, a rolling 24h fallback is used (`basis: recent`) so a reload cannot blank the summary. Session users only.",
+    "Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window starts at the caller's most recent session activity (`max(Session.updatedAt)`), the same signal admin member last-seen uses. When that timestamp is missing or under 30 minutes old, a rolling 24h fallback is used (`basis: recent`) so a reload cannot blank the summary. Owner actors only (session user or orchestrator with user context) — not coworker tokens.",
   tags: ["Tasks"],
   request: { query },
   responses: {
@@ -43,10 +43,13 @@ const route = createRoute({
       "Task activity summary for the active workspace",
       {
         data: {
+          basis: "lastVisit",
+          lastVisitAt: "2026-08-10T09:00:00.000Z",
           since: "2026-08-10T09:00:00.000Z",
           completed: 4,
           awaitingInput: 2,
           createdByOtherHumans: 3,
+          workedMinutes: 47,
         },
         meta: {
           timestamp: "2026-08-11T12:00:00.000Z",
@@ -190,6 +193,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           WHERE t."archivedAt" IS NULL
             AND t."workspaceId" = ${workspaceContext.workspaceId}
             ${ownerFilter}
+            -- Skip tasks that cannot contribute a RUNNING span in/after the
+            -- window: still-running, recently written, or with a status event
+            -- inside the window. Avoids lateral work over the full archive.
+            AND (
+              t.status = ${TaskStatus.RUNNING}::"TaskStatus"
+              OR t."updatedAt" >= ${sinceDate}
+              OR EXISTS (
+                SELECT 1
+                FROM "taskEvent" e
+                WHERE e."taskId" = t.id
+                  AND e.status IS NOT NULL
+                  AND e."createdAt" >= ${sinceDate}
+              )
+            )
         ) s
         -- Overlap, not containment: a run that began before the window still
         -- did work inside it, and GREATEST clips the part that predates the

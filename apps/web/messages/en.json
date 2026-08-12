@@ -1566,7 +1566,7 @@
           "error": "Could not open the chat. Please try again."
         },
         "stats": {
-          "sinceLastVisit": "Since your last visit, {when}",
+          "sinceLastActivity": "Since you were last active, {when}",
           "completed": "{count, plural, one {# task completed} other {# tasks completed}}",
           "worked": "{minutes, plural, one {# minute worked} other {# minutes worked}}",
           "awaiting": "{count, plural, one {# task needs your input} other {# tasks need your input}}",

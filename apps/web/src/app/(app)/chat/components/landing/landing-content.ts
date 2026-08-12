@@ -48,10 +48,9 @@ export function toStripCoworker(coworker: Coworker): StripCoworker {
 /**
  * The teammates flanking the featured coworker.
  *
- * `max` is even on the desktop strip so the flanks balance and the featured
- * face stays optically centred; the odd one out is dropped rather than seated
- * on one side. The mobile row scrolls instead of centring, so it passes an odd
- * `max` happily.
+ * Both landings pass an even `max` (6 desktop / 4 mobile) so flanks balance and
+ * the featured face stays optically centred. `keepEven` (default true) drops
+ * the odd one out rather than seating it on one side.
  */
 export function selectStripCoworkers(
   coworkers: Coworker[],

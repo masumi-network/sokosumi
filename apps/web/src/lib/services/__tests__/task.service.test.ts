@@ -409,8 +409,7 @@ describe("task.service", () => {
     expect(result).toBe(summary);
   });
 
-  // Null, not a zeroed summary: the caller advances the user's "last seen"
-  // marker off this result, and zeros would read as "you missed nothing".
+  // Null, not zeros: the landing hides chips rather than claiming idle activity.
   it("returns null when the activity summary request fails", async () => {
     coreClientMock.getTasksSummary.mockRejectedValue(new Error("core down"));
 
