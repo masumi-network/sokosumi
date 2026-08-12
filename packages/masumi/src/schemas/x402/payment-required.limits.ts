@@ -109,6 +109,15 @@ export const X402_MAX_SERIALIZED_LENGTH = 8192;
  * could apply — rejected in 48 ms, but at full peak allocation, and the
  * resource server picks the size.
  *
+ * THIS BOUND COVERS THE BASE64 HEADER ONLY. Its companion for the v1
+ * JSON-body dialect is the Hono `bodyLimit` on the pay route,
+ * `POST /v1/tasks/{id}/x402-payments` in `apps/core` — nothing in this package
+ * bounds a parsed body's total size, and `stripPrototypePollutingKeys` walks
+ * one in full before any per-field cap in this file applies (measured: a
+ * 32 MB body costs ~32 ms and ~9.4 MB of heap). The two are one pair: raising
+ * or removing either without the other reopens the asymmetry this constant
+ * exists to close.
+ *
  * 256 KiB rejects nothing the rest of this file would accept. The largest
  * payload every other bound permits is `X402_MAX_ACCEPTS_ENTRIES` (20) x
  * `X402_MAX_SERIALIZED_LENGTH` (8192) = 160 KiB of entries, plus a bounded
