@@ -1575,6 +1575,9 @@ export function RoomsClient({
     }
     const roomId = selectedRoom.id;
     const generation = ++threadLoadGenerationRef.current;
+    // Reply list is wiped below — drop thread outbound jobs so a switch or
+    // reopen cannot keep orphan retries after the shells are gone (ADR: no outbox).
+    clearClassicOutboundQueue(classicThreadRefs);
     setThreadParentMessage(parentMessage);
     setThreadMessages([]);
     setThreadOlderNextCursor(null);
