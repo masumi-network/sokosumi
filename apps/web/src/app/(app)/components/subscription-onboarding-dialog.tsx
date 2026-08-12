@@ -11,7 +11,12 @@ import {
   resolveMinimumOrganizationSeats,
   resolveTargetOrganizationSeats,
 } from "@/components/billing/organization-seat-settings-fields";
-import type { PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
+import { toastSubscriptionActionError } from "@/components/billing/subscription-action-error-toast";
+import {
+  hasSelectablePaidPlan,
+  type PaidSubscriptionPlanView,
+  resolveInitialSelectedPlan,
+} from "@/components/billing/subscription-plan-utils";
 import { OnboardingPlanRadioGrid } from "@/components/onboarding/onboarding-plan-radio-grid";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +25,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CommonErrorCode } from "@/lib/actions";
 import { completeOnboarding } from "@/lib/actions/onboarding";
 import {
   upgradeOrganizationSubscription,
@@ -28,7 +32,6 @@ import {
 } from "@/lib/actions/subscription";
 import { markSubscriptionOnboardingGateSeenSafely } from "@/lib/onboarding/mark-subscription-onboarding-gate-seen.client";
 
-const DEFAULT_SELECTED_PLAN: PaidSubscriptionPlanName = "standard";
 const SUBSCRIPTION_ONBOARDING_LOGIN_STORAGE_KEY =
   "sokosumi.onboarding.subscription.lastLoginId";
 
@@ -73,17 +76,6 @@ function shouldOpenSubscriptionOnboarding(loginId?: null | string): boolean {
   }
 
   return readLastSubscriptionOnboardingLoginId() !== loginId;
-}
-
-function resolveInitialSelectedPlan(
-  paidPlans: PaidSubscriptionPlanView[],
-): PaidSubscriptionPlanName {
-  const selectablePlans = paidPlans.filter((plan) => !plan.isCurrent);
-  const preferredPlan = selectablePlans.find(
-    (plan) => plan.name === DEFAULT_SELECTED_PLAN,
-  );
-
-  return preferredPlan?.name ?? selectablePlans[0]?.name ?? "starter";
 }
 
 interface SubscriptionOnboardingDialogProps {
@@ -172,46 +164,6 @@ export function SubscriptionOnboardingDialog({
     setOpen(false);
   }
 
-  function handleSubscriptionActionError(
-    error: { code: string; message?: string | null },
-    options: {
-      badInputMessage: string;
-      generalMessage: string;
-      unauthenticatedActionLabel: string;
-      unauthenticatedMessage: string;
-      unauthorizedMessage?: string;
-    },
-  ) {
-    if (error.code === CommonErrorCode.UNAUTHENTICATED) {
-      toast.error(options.unauthenticatedMessage, {
-        action: {
-          label: options.unauthenticatedActionLabel,
-          onClick: () => {
-            router.push("/login");
-          },
-        },
-      });
-      return;
-    }
-
-    if (error.message) {
-      toast.error(error.message);
-      return;
-    }
-
-    switch (error.code) {
-      case CommonErrorCode.BAD_INPUT:
-        toast.error(options.badInputMessage);
-        break;
-      case CommonErrorCode.UNAUTHORIZED:
-        toast.error(options.unauthorizedMessage ?? options.generalMessage);
-        break;
-      default:
-        toast.error(options.generalMessage);
-        break;
-    }
-  }
-
   const handleComplete = async (eventName: string) => {
     track(eventName);
     setIsLoading(true);
@@ -268,12 +220,13 @@ export function SubscriptionOnboardingDialog({
           });
 
       if (!result.ok) {
-        handleSubscriptionActionError(
+        toastSubscriptionActionError(
           result.error,
           organizationId
             ? {
                 badInputMessage: tOrganizationSubscriptions("Errors.badInput"),
                 generalMessage: tOrganizationSubscriptions("Errors.general"),
+                onUnauthenticated: () => router.push("/login"),
                 unauthenticatedActionLabel: tOrganizationSubscriptions(
                   "Errors.unauthenticatedAction",
                 ),
@@ -287,6 +240,7 @@ export function SubscriptionOnboardingDialog({
             : {
                 badInputMessage: tSubscriptions("Errors.badInput"),
                 generalMessage: tSubscriptions("Errors.general"),
+                onUnauthenticated: () => router.push("/login"),
                 unauthenticatedActionLabel: tSubscriptions(
                   "Errors.unauthenticatedAction",
                 ),
@@ -371,7 +325,7 @@ export function SubscriptionOnboardingDialog({
               <Button
                 variant="primary"
                 onClick={() => void handleStartSubscription()}
-                disabled={isLoading}
+                disabled={isLoading || !hasSelectablePaidPlan(paidPlans)}
               >
                 {tDialog("navigation.subscribe")}
               </Button>

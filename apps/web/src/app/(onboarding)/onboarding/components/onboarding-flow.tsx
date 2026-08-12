@@ -14,7 +14,12 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import type { PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
+import { toastSubscriptionActionError } from "@/components/billing/subscription-action-error-toast";
+import {
+  hasSelectablePaidPlan,
+  type PaidSubscriptionPlanView,
+  resolveInitialSelectedPlan,
+} from "@/components/billing/subscription-plan-utils";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import {
   CREATE_ORGANIZATION_DETAILS_FORM_ID,
@@ -25,7 +30,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   acceptOrganizationInviteLink,
-  CommonErrorCode,
   resolveOrganizationInviteLinkPreview,
 } from "@/lib/actions";
 import { completeOnboarding } from "@/lib/actions/onboarding";
@@ -65,7 +69,6 @@ import {
 } from "./steps/team-steps";
 import { type OnboardingCoworker, WelcomeStep } from "./steps/welcome-step";
 
-const DEFAULT_SELECTED_PLAN: PaidSubscriptionPlanName = "standard";
 const SUBSCRIPTION_RETURN_PATH = "/tasks?onboarding_subscription=1";
 const INVITE_RESOLVE_DEBOUNCE_MS = 450;
 
@@ -75,17 +78,6 @@ interface OnboardingFlowProps {
   paidPlans: PaidSubscriptionPlanView[];
   userName: null | string;
   variant: OnboardingVariant;
-}
-
-function resolveInitialSelectedPlan(
-  paidPlans: PaidSubscriptionPlanView[],
-): PaidSubscriptionPlanName {
-  const selectablePlans = paidPlans.filter((plan) => !plan.isCurrent);
-  const preferredPlan = selectablePlans.find(
-    (plan) => plan.name === DEFAULT_SELECTED_PLAN,
-  );
-
-  return preferredPlan?.name ?? selectablePlans[0]?.name ?? "starter";
 }
 
 export function OnboardingFlow({
@@ -147,7 +139,7 @@ export function OnboardingFlow({
   );
 
   /** False when Core's catalog failed to load, leaving nothing to buy. */
-  const hasSelectablePlan = paidPlans.some((plan) => !plan.isCurrent);
+  const hasSelectablePlan = hasSelectablePaidPlan(paidPlans);
 
   // A branch change can shorten the sequence out from under the cursor (e.g.
   // switching from "team" back to "solo" on an earlier step).
@@ -342,21 +334,34 @@ export function OnboardingFlow({
           });
 
       if (!result.ok) {
-        if (result.error.code === CommonErrorCode.UNAUTHENTICATED) {
-          toast.error(tSubscriptions("Errors.unauthenticated"), {
-            action: {
-              label: tSubscriptions("Errors.unauthenticatedAction"),
-              onClick: () => router.push("/login"),
-            },
-          });
-          return;
-        }
-
-        toast.error(
-          result.error.message ??
-            (createdOrganization
-              ? tOrganizationSubscriptions("Errors.general")
-              : tSubscriptions("Errors.general")),
+        toastSubscriptionActionError(
+          result.error,
+          createdOrganization
+            ? {
+                badInputMessage: tOrganizationSubscriptions("Errors.badInput"),
+                generalMessage: tOrganizationSubscriptions("Errors.general"),
+                onUnauthenticated: () => router.push("/login"),
+                unauthenticatedActionLabel: tOrganizationSubscriptions(
+                  "Errors.unauthenticatedAction",
+                ),
+                unauthenticatedMessage: tOrganizationSubscriptions(
+                  "Errors.unauthenticated",
+                ),
+                unauthorizedMessage: tOrganizationSubscriptions(
+                  "Errors.unauthorized",
+                ),
+              }
+            : {
+                badInputMessage: tSubscriptions("Errors.badInput"),
+                generalMessage: tSubscriptions("Errors.general"),
+                onUnauthenticated: () => router.push("/login"),
+                unauthenticatedActionLabel: tSubscriptions(
+                  "Errors.unauthenticatedAction",
+                ),
+                unauthenticatedMessage: tSubscriptions(
+                  "Errors.unauthenticated",
+                ),
+              },
         );
         return;
       }

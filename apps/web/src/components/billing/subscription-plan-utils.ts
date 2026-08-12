@@ -17,6 +17,33 @@ export type PaidSubscriptionPlanView = Omit<SubscriptionPlanView, "name"> & {
   name: PaidSubscriptionPlanName;
 };
 
+/** Preferred default when present in the catalog and not the current plan. */
+export const DEFAULT_ONBOARDING_SELECTED_PLAN: PaidSubscriptionPlanName =
+  "standard";
+
+/**
+ * Initial plan selection for signup / free-upgrade onboarding surfaces.
+ * Prefers standard among non-current paid plans; falls back to the first
+ * selectable plan, then the literal "starter" when the catalog is empty.
+ */
+export function resolveInitialSelectedPlan(
+  paidPlans: PaidSubscriptionPlanView[],
+): PaidSubscriptionPlanName {
+  const selectablePlans = paidPlans.filter((plan) => !plan.isCurrent);
+  const preferredPlan = selectablePlans.find(
+    (plan) => plan.name === DEFAULT_ONBOARDING_SELECTED_PLAN,
+  );
+
+  return preferredPlan?.name ?? selectablePlans[0]?.name ?? "starter";
+}
+
+/** True when at least one paid plan can be purchased (not the current plan). */
+export function hasSelectablePaidPlan(
+  paidPlans: PaidSubscriptionPlanView[],
+): boolean {
+  return paidPlans.some((plan) => !plan.isCurrent);
+}
+
 export interface ActiveSubscription {
   periodEnd?: Date | string | null;
   plan?: string | null;
