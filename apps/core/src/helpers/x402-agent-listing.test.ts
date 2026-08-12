@@ -15,9 +15,26 @@ const EURC_ADDRESS = "0x808456652fdb597867f38412077a9182bf77359f";
 const PAY_TO = "0x1111111111111111111111111111111111111111";
 const OTHER_PAY_TO = "0x9999999999999999999999999999999999999999";
 
+/**
+ * The node's published scale for both test assets. Fixtures register the same
+ * number, so a test that means to exercise the registry/node split says so by
+ * passing a DIFFERENT registry `decimals`.
+ */
+const NODE_DECIMALS = 6;
+
 const READY_SOURCES: X402ReadySource[] = [
-  { caip2Network: BASE_SEPOLIA, asset: USDC_ADDRESS, evmWalletId: "wallet-1" },
-  { caip2Network: BASE_SEPOLIA, asset: EURC_ADDRESS, evmWalletId: "wallet-1" },
+  {
+    caip2Network: BASE_SEPOLIA,
+    asset: USDC_ADDRESS,
+    evmWalletId: "wallet-1",
+    decimals: NODE_DECIMALS,
+  },
+  {
+    caip2Network: BASE_SEPOLIA,
+    asset: EURC_ADDRESS,
+    evmWalletId: "wallet-1",
+    decimals: NODE_DECIMALS,
+  },
 ];
 
 function createCreditCost(
@@ -210,6 +227,7 @@ describe("buildX402AgentPaymentSources", () => {
           caip2Network: BASE_MAINNET,
           asset: USDC_ADDRESS,
           evmWalletId: "wallet-1",
+          decimals: NODE_DECIMALS,
         },
       ],
       network: "Preprod",
@@ -260,12 +278,79 @@ describe("buildX402AgentPaymentSources", () => {
             caip2Network: BASE_SEPOLIA,
             asset: "0x2222222222222222222222222222222222222222",
             evmWalletId: "wallet-1",
+            decimals: NODE_DECIMALS,
           },
         ],
       }),
     ).toEqual({
       status: "dropped",
       reason: "not_buy_side_ready",
+    });
+  });
+
+  it("prices off the node's decimals when the registry's disagree", () => {
+    // `decimals` divides the charge, so it is the one field an agent must not
+    // be able to author: registering 18 for a 6-decimals USDC prices a real
+    // dollar at MIN_CHARGEABLE_CREDITS while Soko's managed wallet signs the
+    // full demand away, and the ceiling check cannot catch it because it
+    // compares against the same agent-registered amount. The node's published
+    // scale is the only authoritative copy Soko has.
+    const result = buildX402AgentPaymentSources(
+      [
+        createSource({
+          amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 18 }],
+        }),
+      ],
+      CONTEXT,
+    );
+
+    // ceil(250000 * 2e10 / 1e6) = 5e9 cents = 0.5 credits. Priced off the
+    // registry's 18 this would floor at 1 cent (1e-10 credits) and advertise
+    // decimals: 18.
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [
+        {
+          caip2Network: BASE_SEPOLIA,
+          asset: USDC_ADDRESS,
+          decimals: NODE_DECIMALS,
+          payTo: PAY_TO,
+          amount: "250000",
+          credits: 0.5,
+        },
+      ],
+    });
+  });
+
+  it("advertises a node scale the registry never mentions", () => {
+    // Same split from the other side: the advertised scale tracks the ready
+    // pair, so a node value the fixtures never register still reaches both the
+    // charge and the response.
+    const result = buildX402AgentPaymentSources([createSource()], {
+      ...CONTEXT,
+      readySources: [
+        {
+          caip2Network: BASE_SEPOLIA,
+          asset: USDC_ADDRESS,
+          evmWalletId: "wallet-1",
+          decimals: 2,
+        },
+      ],
+    });
+
+    // ceil(250000 * 2e10 / 1e2) = 5e13 cents = 5000 credits.
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [
+        {
+          caip2Network: BASE_SEPOLIA,
+          asset: USDC_ADDRESS,
+          decimals: 2,
+          payTo: PAY_TO,
+          amount: "250000",
+          credits: 5000,
+        },
+      ],
     });
   });
 
@@ -488,24 +573,36 @@ describe("buildX402AgentPaymentSources", () => {
     });
   });
 
-  it("drops an agent whose duplicate amount rows disagree on decimals", () => {
-    // Same base-unit amount, different decimals — a different price per whole
-    // token, so the two rows are not interchangeable.
-    expect(
-      buildX402AgentPaymentSources(
-        [
-          createSource({
-            amounts: [
-              { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
-              { unit: USDC_ADDRESS, amount: 250000n, decimals: 8 },
-            ],
-          }),
-        ],
-        CONTEXT,
-      ),
-    ).toEqual({
-      status: "dropped",
-      reason: "conflicting_price",
+  it("collapses duplicate rows that disagree only on registry decimals", () => {
+    // Registry decimals are a sanity gate, never the price input, so two rows
+    // for one triple that differ ONLY there price identically off the node's
+    // scale — one advertised entry, and the pay side's first-match resolution
+    // agrees with either row. (Before the node's scale was trusted, the
+    // registry's 6-vs-8 made these two different prices for one triple.)
+    const result = buildX402AgentPaymentSources(
+      [
+        createSource({
+          amounts: [
+            { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
+            { unit: USDC_ADDRESS, amount: 250000n, decimals: 8 },
+          ],
+        }),
+      ],
+      CONTEXT,
+    );
+
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [
+        {
+          caip2Network: BASE_SEPOLIA,
+          asset: USDC_ADDRESS,
+          decimals: NODE_DECIMALS,
+          payTo: PAY_TO,
+          amount: "250000",
+          credits: 0.5,
+        },
+      ],
     });
   });
 

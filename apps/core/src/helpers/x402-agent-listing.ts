@@ -11,7 +11,7 @@ import type { X402AgentPaymentSource } from "@/schemas/x402-agent.schema";
 
 import { calculateCentsFromX402Amount } from "./x402-pricing";
 import type { X402ReadySource } from "./x402-readiness";
-import { isX402NetworkAllowed, isX402SourceReady } from "./x402-readiness";
+import { findX402ReadySource, isX402NetworkAllowed } from "./x402-readiness";
 
 export interface X402ListingGateContext {
   /** CreditCost table rows; CAIP-19 keyed rows price the x402 assets. */
@@ -96,8 +96,10 @@ export type X402AgentListingResult =
  *   verifies the 402's payTo against it),
  * - the scheme is x402 `exact` (see {@link X402_SUPPORTED_SCHEME}),
  * - the CAIP-2 network is in the per-environment allowlist,
- * - decimals are recorded (credits conversion is per whole token),
- * - the (network, asset) pair is buy-side ready on the payment node,
+ * - the amount row records decimals at all (a registry sanity gate — the scale
+ *   the charge actually uses comes from the ready pair, never from here),
+ * - the (network, asset) pair is buy-side ready on the payment node, which is
+ *   also where the advertised and charged `decimals` come from,
  * - the asset resolves to a positive CAIP-19 `CreditCost` row,
  * - no two amount rows advertise the same `(payTo, network, asset)` triple at
  *   different prices (see {@link toAdvertisedPriceKey}).
@@ -149,6 +151,11 @@ export function buildX402AgentPaymentSources(
     }
     const caip2Network = source.network.trim().toLowerCase();
     for (const amount of source.amounts) {
+      // Registry sanity ONLY — this value never reaches the charge or the
+      // advertised entry (see the ready pair's `decimals` below). A FIXED row
+      // that records no scale at all describes an amount nobody can interpret,
+      // which is a malformed registry entry rather than a priced one, so the
+      // agent still drops.
       if (amount.decimals === null) {
         return { status: "dropped", reason: "missing_decimals" };
       }
@@ -159,9 +166,24 @@ export function buildX402AgentPaymentSources(
       // separately is what let a padded unit pass every gate while deduping as
       // a second asset — advertising one triple at two prices.
       const asset = amount.unit.trim().toLowerCase();
-      if (!isX402SourceReady(caip2Network, asset, context.readySources)) {
+      const readySource = findX402ReadySource(
+        caip2Network,
+        asset,
+        context.readySources,
+      );
+      if (!readySource) {
         return { status: "dropped", reason: "not_buy_side_ready" };
       }
+      // The node's `defaultAssetDecimals` for this pair, NEVER the agent's
+      // `amount.decimals`. The scale divides the charge, so an agent that
+      // registers 18 for a 6-decimals USDC would advertise — and be charged —
+      // 10^12 too little while Soko's managed wallet signs away the real
+      // token, and the pay endpoint's ceiling check cannot catch it because it
+      // compares the demand against that same agent-registered amount. The
+      // ready pair is the only copy of this number Soko did not get from the
+      // agent, and it already failed closed on anything unusable
+      // (`getX402ReadySources` re-validates it with `isUsableAssetDecimals`).
+      const decimals = readySource.decimals;
       let cents: bigint;
       try {
         cents = calculateCentsFromX402Amount(
@@ -169,7 +191,7 @@ export function buildX402AgentPaymentSources(
             caip2Network,
             asset,
             amount: amount.amount.toString(),
-            decimals: amount.decimals,
+            decimals,
           },
           context.creditCosts,
         );
@@ -181,7 +203,7 @@ export function buildX402AgentPaymentSources(
       const advertised: X402AgentPaymentSource = {
         caip2Network,
         asset,
-        decimals: amount.decimals,
+        decimals,
         payTo,
         amount: amount.amount.toString(),
         credits: convertCentsToCredits(cents),
@@ -197,11 +219,18 @@ export function buildX402AgentPaymentSources(
           // exactly ONE amount row and rejects a demand above it, so which
           // price is real depends on unordered row identity — listed would
           // stop implying payable. Fail closed on the whole agent.
+          //
+          // Only `amount` can differ today: `decimals` now comes from the ready
+          // pair, which the triple's own (network, asset) selects, so two
+          // entries under one key always carry the same scale. The comparison
+          // stays because it guards the invariant rather than the current
+          // lookup — a scale that ever varied per row would be a second price.
           return { status: "dropped", reason: "conflicting_price" };
         }
         // Ingestion permits duplicate units within one source's fixed amounts
         // (agent-sync.projection zips decimals positionally). Rows that agree
-        // are one advertised price, not two.
+        // are one advertised price, not two — including rows whose REGISTRY
+        // decimals disagree, since that field no longer prices anything.
         continue;
       }
       advertisedByTriple.set(tripleKey, advertised);

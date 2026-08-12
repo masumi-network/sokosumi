@@ -78,12 +78,27 @@ function createApp(authContext: AuthVariables["authContext"]) {
   return app;
 }
 
+/**
+ * The node's published scale for the test assets, as the readiness cache
+ * carries it. Seeded pairs default to it — `getX402ReadySources` drops a pair
+ * whose `decimals` is missing or unusable — so a fixture only spells the field
+ * out when the point of the test is the node/registry split.
+ */
+const NODE_DECIMALS = 6;
+
 function seedReadiness(
-  pairs: { caip2Network: string; asset: string; evmWalletId: string }[],
+  pairs: {
+    caip2Network: string;
+    asset: string;
+    evmWalletId: string;
+    decimals?: number;
+  }[],
 ) {
   syncMetadataFindUniqueMock.mockResolvedValue({
     key: "x402-buy-side-readiness",
-    cursorId: JSON.stringify(pairs),
+    cursorId: JSON.stringify(
+      pairs.map((pair) => ({ decimals: NODE_DECIMALS, ...pair })),
+    ),
     lastSyncedAt: new Date(),
   });
 }
@@ -227,6 +242,46 @@ describe("GET /agents/x402", () => {
             credits: 0.5,
           },
         ],
+      },
+    ]);
+  });
+
+  it("advertises the cached node decimals over the agent's registered scale", async () => {
+    // End-to-end wiring of the money field: the readiness cache carries the
+    // node's `defaultAssetDecimals`, and that — not the agent's own registry
+    // entry — is what the listing prices and advertises. Registering 18 for a
+    // 6-decimals USDC would otherwise advertise 1e-10 credits for a real
+    // dollar the managed wallet then signs away.
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "FIXED",
+            scheme: "exact",
+            amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 18 }],
+          },
+        ],
+      }),
+    ]);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      data: { paymentSources: unknown[] }[];
+    };
+    expect(body.data[0]?.paymentSources).toEqual([
+      {
+        caip2Network: BASE_SEPOLIA,
+        asset: USDC_ADDRESS,
+        decimals: NODE_DECIMALS,
+        payTo: PAY_TO,
+        amount: "250000",
+        credits: 0.5,
       },
     ]);
   });
