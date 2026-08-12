@@ -20,16 +20,18 @@ function buildCoworker(overrides: Partial<Coworker> & { id: string }) {
   } as Coworker;
 }
 
+const RETURNING_VISIT_AT = new Date("2026-08-10T09:00:00.000Z");
+
 function buildSummary(
   overrides: Partial<TaskActivitySummary> = {},
 ): TaskActivitySummary {
   return {
     awaitingInput: 0,
-    basis: "recent",
+    basis: "lastVisit",
     completed: 0,
     createdByOtherHumans: 0,
-    lastVisitAt: null,
-    since: null,
+    lastVisitAt: RETURNING_VISIT_AT,
+    since: RETURNING_VISIT_AT,
     workedMinutes: 0,
     ...overrides,
   };
@@ -128,6 +130,22 @@ describe("buildActivityStats", () => {
   it("returns nothing when the summary could not be loaded", () => {
     expect(buildActivityStats(null, true, fakeTranslator)).toEqual([]);
   });
+
+  it("returns nothing on a first visit even when awaiting-input exists", () => {
+    // Spec: first visit is greeting-only — no "while you were away" chips.
+    const stats = buildActivityStats(
+      buildSummary({
+        awaitingInput: 3,
+        completed: 2,
+        lastVisitAt: null,
+        basis: "recent",
+        since: new Date("2026-08-10T09:00:00.000Z"),
+      }),
+      true,
+      fakeTranslator,
+    );
+    expect(stats).toEqual([]);
+  });
 });
 
 describe("hasReportableActivity", () => {
@@ -139,12 +157,28 @@ describe("hasReportableActivity", () => {
     expect(hasReportableActivity(buildSummary())).toBe(false);
   });
 
+  it("is false on a first visit even when metrics are non-zero", () => {
+    expect(
+      hasReportableActivity(
+        buildSummary({
+          awaitingInput: 1,
+          completed: 1,
+          lastVisitAt: null,
+          basis: "recent",
+        }),
+      ),
+    ).toBe(false);
+  });
+
   it.each([
     ["completed", { completed: 1 }],
     ["workedMinutes", { workedMinutes: 1 }],
     ["awaitingInput", { awaitingInput: 1 }],
     ["createdByOtherHumans", { createdByOtherHumans: 1 }],
-  ])("is true when %s is non-zero", (_label, overrides) => {
-    expect(hasReportableActivity(buildSummary(overrides))).toBe(true);
-  });
+  ])(
+    "is true when %s is non-zero for a returning visit",
+    (_label, overrides) => {
+      expect(hasReportableActivity(buildSummary(overrides))).toBe(true);
+    },
+  );
 });

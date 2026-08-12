@@ -1567,7 +1567,6 @@
         },
         "stats": {
           "sinceLastVisit": "Desde tu última visita, {when}",
-          "allTime": "Desde que te uniste a Sokosumi",
           "completed": "{count, plural, one {# tarea completada} other {# tareas completadas}}",
           "worked": "{minutes, plural, one {# minuto trabajado} other {# minutos trabajados}}",
           "awaiting": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",

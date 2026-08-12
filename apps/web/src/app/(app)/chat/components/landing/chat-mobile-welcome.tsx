@@ -103,7 +103,7 @@ export async function ChatMobileWelcome({
       {summary && hasAnyActivity && stats.length > 0 ? (
         <div className="flex w-full shrink-0 flex-col items-center gap-2.5">
           <p className="text-muted-foreground/70 text-xs">
-            {summary.basis === "lastVisit" && summary.since
+            {summary.basis === "lastVisit"
               ? t("stats.sinceLastVisit", {
                   when: format.relativeTime(summary.since),
                 })

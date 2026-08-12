@@ -4,6 +4,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { requireOwnerUserContext } from "@/middleware/auth";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
   requireUserRouteContext,
@@ -19,7 +20,7 @@ const route = createRoute({
   method: "post",
   path: "/last-seen",
   description:
-    "Record that the user just opened the app. The timestamp is server-generated — the previous value is what /chat reports against, so a client must not be able to choose it.",
+    "Record that the human owner just opened the app. The timestamp is server-generated — the previous value is what /chat reports against, so a client must not be able to choose it. Session/owner actors only (not coworker tokens).",
   tags: ["Users"],
   request: { params },
   responses: {
@@ -39,6 +40,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
+    // Same owner lock as GET /tasks/summary: a coworker token with user context
+    // must not rewrite the human's "opened the app" marker.
+    requireOwnerUserContext(c.var.authContext);
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 

@@ -1506,7 +1506,7 @@ export const postUsersByIdFiles = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * Record that the user just opened the app. The timestamp is server-generated — the previous value is what /chat reports against, so a client must not be able to choose it.
+ * Record that the human owner just opened the app. The timestamp is server-generated — the previous value is what /chat reports against, so a client must not be able to choose it. Session/owner actors only (not coworker tokens).
  */
 export const postUsersByIdLastSeen = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdLastSeenData, ThrowOnError>): RequestResult<PostUsersByIdLastSeenResponses, PostUsersByIdLastSeenErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdLastSeenResponses, PostUsersByIdLastSeenErrors, ThrowOnError>({
     responseTransformer: postUsersByIdLastSeenResponseTransformer,
@@ -2536,7 +2536,7 @@ export const postTasks = <ThrowOnError extends boolean = false>(options?: Option
 });
 
 /**
- * Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window is the caller's stored `lastSeenAt` (null on a first visit means all-time), read here rather than supplied by the client so a stale session cookie cannot skew it. Session users only.
+ * Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window is the caller's stored `lastSeenAt` when that visit is old enough to be meaningful; otherwise a rolling 24h fallback (`basis: recent`). On a first visit (`lastVisitAt` null) Core still returns the rolling window, but the web landing hides the chip row entirely. Session users only.
  */
 export const getTasksSummary = <ThrowOnError extends boolean = false>(options?: Options<GetTasksSummaryData, ThrowOnError>): RequestResult<GetTasksSummaryResponses, GetTasksSummaryErrors, ThrowOnError> => (options?.client ?? client).get<GetTasksSummaryResponses, GetTasksSummaryErrors, ThrowOnError>({
     responseTransformer: getTasksSummaryResponseTransformer,

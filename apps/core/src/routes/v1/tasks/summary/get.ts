@@ -34,7 +34,7 @@ const route = createRoute({
   method: "get",
   path: "/summary",
   description:
-    "Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window is the caller's stored `lastSeenAt` (null on a first visit means all-time), read here rather than supplied by the client so a stale session cookie cannot skew it. Session users only.",
+    "Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window is the caller's stored `lastSeenAt` when that visit is old enough to be meaningful; otherwise a rolling 24h fallback (`basis: recent`). On a first visit (`lastVisitAt` null) Core still returns the rolling window, but the web landing hides the chip row entirely. Session users only.",
   tags: ["Tasks"],
   request: { query },
   responses: {
@@ -73,10 +73,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       select: { lastSeenAt: true },
     });
 
-    // A visit recorded seconds ago produces a window nothing can fall into, so
-    // the page would go blank the moment the user reloaded or came back from a
-    // room. Fall back to a rolling day so there is always something true to
-    // show, and tell the client which window it got so the caption matches.
+    // Returning users only: a visit recorded seconds ago produces a window
+    // nothing can fall into, so the page would blank on reload. Fall back to a
+    // rolling day and report `basis: recent` so the caption matches.
+    // First visit (`lastSeenAt` null) also gets the rolling window for a
+    // consistent payload; the web landing hides chips until a real visit exists.
     const lastSeenAt = caller?.lastSeenAt ?? null;
     const elapsedMs = lastSeenAt ? Date.now() - lastSeenAt.getTime() : null;
     const useLastVisit =

@@ -1,19 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
 
-import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
-import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+
+import { useOpenCoworkerRoom } from "./use-open-coworker-room";
 
 export interface StripCoworker {
   id: string;
@@ -65,9 +62,7 @@ export function CoworkerStrip({
   size = "default",
 }: CoworkerStripProps) {
   const t = useTranslations("App.Chat.Landing");
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [openingId, setOpeningId] = useState<null | string>(null);
+  const { isPending, openCoworkerRoom, openingId } = useOpenCoworkerRoom();
   const scale = STRIP_SIZES[size];
 
   // Callers pass an even list, so the flanks match and the featured face lands
@@ -75,23 +70,6 @@ export function CoworkerStrip({
   const half = Math.floor(others.length / 2);
   const left = others.slice(0, half);
   const right = others.slice(half);
-
-  function handleOpen(coworker: StripCoworker) {
-    if (isPending) return;
-    setOpeningId(coworker.id);
-    startTransition(async () => {
-      const result = await ensureCoworkerDirectRoomAction(coworker.id);
-
-      if (!result.ok || !result.value) {
-        toast.error(result.ok ? t("cta.error") : result.error.message);
-        setOpeningId(null);
-        return;
-      }
-
-      notifyOrganizationChatRoomsChanged(result.value);
-      router.push(`/chat/rooms/${result.value.id}`);
-    });
-  }
 
   function renderCoworker(coworker: StripCoworker, isFeatured: boolean) {
     return (
@@ -111,7 +89,7 @@ export function CoworkerStrip({
               openingId === coworker.id && "opacity-50",
             )}
             disabled={isPending}
-            onClick={() => handleOpen(coworker)}
+            onClick={() => openCoworkerRoom(coworker.id)}
           >
             {coworker.imageUrl ? (
               <Image

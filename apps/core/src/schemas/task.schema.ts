@@ -327,9 +327,9 @@ export const TASK_AWAITING_INPUT_STATUSES = [
 
 export const taskSummaryResponseSchema = z
   .object({
-    since: dateTimeSchema.nullable().openapi({
+    since: dateTimeSchema.openapi({
       description:
-        "Start of the reporting window, echoed back. Null means the counts are all-time.",
+        "Start of the reporting window, echoed back. Always set: either the caller's previous visit or the start of the rolling 24h fallback when that visit is missing or too recent.",
       example: "2026-08-10T09:00:00.000Z",
     }),
     completed: z.number().int().nonnegative().openapi({
@@ -354,7 +354,7 @@ export const taskSummaryResponseSchema = z
     }),
     basis: z.enum(["lastVisit", "recent"]).openapi({
       description:
-        "Which window the counts cover: the caller's previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.",
+        "Which window the counts cover: the caller's previous visit (`lastVisit`), or a rolling 24h fallback (`recent`) when that visit is missing (first visit) or too recent to be interesting. The web landing still hides the chip row when `lastVisitAt` is null.",
       example: "lastVisit",
     }),
     workedMinutes: z.number().int().nonnegative().openapi({

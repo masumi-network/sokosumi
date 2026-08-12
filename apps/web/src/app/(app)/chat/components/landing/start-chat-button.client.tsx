@@ -1,15 +1,12 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
-import { toast } from "sonner";
 
-import { ensureCoworkerDirectRoomAction } from "@/app/chat/actions";
-import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+import { useOpenCoworkerRoom } from "./use-open-coworker-room";
 
 interface StartChatButtonProps {
   /** Mobile passes `w-full` so the CTA spans the column. */
@@ -30,31 +27,8 @@ export function StartChatButton({
   coworkerName,
 }: StartChatButtonProps) {
   const t = useTranslations("App.Chat.Landing");
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [isOpening, setIsOpening] = useState(false);
-
-  const isBusy = isPending || isOpening;
-
-  function handleClick() {
-    setIsOpening(true);
-    startTransition(async () => {
-      const result = await ensureCoworkerDirectRoomAction(coworkerId);
-
-      if (!result.ok || !result.value) {
-        toast.error(result.ok ? t("cta.error") : result.error.message);
-        setIsOpening(false);
-        return;
-      }
-
-      // Same order the rest of chat uses: tell the sidebar before navigating so
-      // the new room is already in the list when the route renders.
-      notifyOrganizationChatRoomsChanged(result.value);
-      router.push(`/chat/rooms/${result.value.id}`);
-      // Deliberately leave the spinner running — the route change unmounts
-      // this button, and resetting here would flash the idle label.
-    });
-  }
+  const { isPending, openCoworkerRoom, openingId } = useOpenCoworkerRoom();
+  const isBusy = isPending || openingId === coworkerId;
 
   return (
     <Button
@@ -63,7 +37,7 @@ export function StartChatButton({
       size="lg"
       className={cn("h-12 px-8 text-base", className)}
       disabled={isBusy}
-      onClick={handleClick}
+      onClick={() => openCoworkerRoom(coworkerId)}
     >
       {isBusy ? <Loader2 className="size-4 animate-spin" /> : null}
       {isBusy ? t("cta.opening") : t("cta.button", { name: coworkerName })}

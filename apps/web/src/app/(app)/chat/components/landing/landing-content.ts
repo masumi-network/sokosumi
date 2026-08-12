@@ -81,13 +81,16 @@ type StatsTranslator = (
  *
  * The teammates chip is included at zero inside an organization: "what my
  * teammates added" is a question the row should answer rather than omit.
+ *
+ * First visit (`lastVisitAt` null) always yields no chips — product wants a
+ * clean welcome, not "while you were away" before any visit was recorded.
  */
 export function buildActivityStats(
   summary: TaskActivitySummary | null,
   isOrganizationWorkspace: boolean,
   t: StatsTranslator,
 ): string[] {
-  if (!summary) {
+  if (!summary || summary.lastVisitAt === null) {
     return [];
   }
 
@@ -108,15 +111,19 @@ export function buildActivityStats(
 }
 
 /**
- * Whether the summary has anything worth a chip row at all. A brand-new
- * account has nothing to report, and a lone "0 tasks from your team" chip is
- * worse than no row.
+ * Whether the summary has anything worth a chip row at all.
+ *
+ * First visit (`lastVisitAt` null) never shows chips — even if awaiting-input
+ * tasks exist — so the welcome stays greeting-only. Returning visits need at
+ * least one non-zero metric; a lone "0 tasks from your team" chip is worse
+ * than no row.
  */
 export function hasReportableActivity(
   summary: TaskActivitySummary | null,
 ): boolean {
   return (
     summary !== null &&
+    summary.lastVisitAt !== null &&
     (summary.completed > 0 ||
       summary.workedMinutes > 0 ||
       summary.awaitingInput > 0 ||

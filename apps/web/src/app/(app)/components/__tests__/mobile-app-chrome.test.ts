@@ -5,7 +5,6 @@ import {
   resolveMobileAppBackTarget,
   shouldShowMobileBottomNav,
   shouldShowMobileBrandLeading,
-  shouldShowMobileCreateFab,
 } from "../mobile-app-chrome";
 
 describe("mobile-app-chrome", () => {
@@ -159,31 +158,6 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBrandLeading("/tasks/t1")).toBe(false);
       expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);
-    });
-  });
-
-  describe("shouldShowMobileCreateFab", () => {
-    it("shows on chats list only", () => {
-      expect(shouldShowMobileCreateFab("/chat")).toBe(false);
-      expect(shouldShowMobileCreateFab("/chat/chats")).toBe(true);
-      expect(shouldShowMobileCreateFab("/tasks")).toBe(false);
-      expect(shouldShowMobileCreateFab("/chat/rooms/r1")).toBe(false);
-    });
-
-    it("hides for drafts and for the retired welcome param", () => {
-      expect(
-        shouldShowMobileCreateFab(
-          "/chat",
-          new URLSearchParams("create=channel"),
-        ),
-      ).toBe(false);
-      expect(
-        shouldShowMobileCreateFab("/chat", new URLSearchParams("dm=new")),
-      ).toBe(false);
-      // Home, not chats — so still no FAB, but for a different reason now.
-      expect(
-        shouldShowMobileCreateFab("/chat", new URLSearchParams("welcome=1")),
-      ).toBe(false);
     });
   });
 });

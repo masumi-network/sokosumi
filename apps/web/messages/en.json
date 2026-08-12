@@ -1567,7 +1567,6 @@
         },
         "stats": {
           "sinceLastVisit": "Since your last visit, {when}",
-          "allTime": "Since you joined Sokosumi",
           "completed": "{count, plural, one {# task completed} other {# tasks completed}}",
           "worked": "{minutes, plural, one {# minute worked} other {# minutes worked}}",
           "awaiting": "{count, plural, one {# task needs your input} other {# tasks need your input}}",

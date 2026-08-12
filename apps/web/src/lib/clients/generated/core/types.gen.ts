@@ -3757,9 +3757,9 @@ export type TaskListItem = {
 
 export type TaskActivitySummary = {
     /**
-     * Start of the reporting window, echoed back. Null means the counts are all-time.
+     * Start of the reporting window, echoed back. Always set: either the caller's previous visit or the start of the rolling 24h fallback when that visit is missing or too recent.
      */
-    since: Date | null;
+    since: Date;
     /**
      * Tasks that reached COMPLETED within the window. Approximated by updatedAt because Task has no completedAt column.
      */
@@ -3777,7 +3777,7 @@ export type TaskActivitySummary = {
      */
     lastVisitAt: Date | null;
     /**
-     * Which window the counts cover: the caller's previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.
+     * Which window the counts cover: the caller's previous visit (`lastVisit`), or a rolling 24h fallback (`recent`) when that visit is missing (first visit) or too recent to be interesting. The web landing still hides the chip row when `lastVisitAt` is null.
      */
     basis: 'lastVisit' | 'recent';
     /**
@@ -10849,7 +10849,7 @@ export type PatchChatsRoomsByIdErrors = {
         };
     };
     /**
-     * Room already exists
+     * Conflict
      */
     409: {
         error: string;

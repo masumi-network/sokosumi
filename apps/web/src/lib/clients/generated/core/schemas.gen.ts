@@ -12934,13 +12934,10 @@ export const TaskActivitySummarySchema = {
     type: 'object',
     properties: {
         since: {
-            type: [
-                'string',
-                'null'
-            ],
+            type: 'string',
             format: 'date-time',
             example: '2026-08-10T09:00:00.000Z',
-            description: 'Start of the reporting window, echoed back. Null means the counts are all-time.'
+            description: 'Start of the reporting window, echoed back. Always set: either the caller\'s previous visit or the start of the rolling 24h fallback when that visit is missing or too recent.'
         },
         completed: {
             type: 'integer',
@@ -12975,7 +12972,7 @@ export const TaskActivitySummarySchema = {
                 'lastVisit',
                 'recent'
             ],
-            description: 'Which window the counts cover: the caller\'s previous visit, or a rolling 24h fallback used when that visit was too recent to be interesting.',
+            description: 'Which window the counts cover: the caller\'s previous visit (`lastVisit`), or a rolling 24h fallback (`recent`) when that visit is missing (first visit) or too recent to be interesting. The web landing still hides the chip row when `lastVisitAt` is null.',
             example: 'lastVisit'
         },
         workedMinutes: {
