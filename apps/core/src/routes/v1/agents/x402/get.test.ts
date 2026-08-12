@@ -503,6 +503,25 @@ describe("GET /agents/x402", () => {
     expect(debug).not.toHaveBeenCalled();
   });
 
+  it("stays quiet when the page holds no candidate agents at all", async () => {
+    // An empty page is not an anomaly — a coworker paging past the end, or a
+    // deployment with no X402 entries yet, hits it on every poll. Warning here
+    // would make client traffic drive warn volume, so nothing is logged.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    agentFindManyMock.mockResolvedValue([]);
+    agentCountMock.mockResolvedValue(0);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: unknown };
+    expect(body.data).toEqual([]);
+    expect(warn).not.toHaveBeenCalled();
+    expect(debug).not.toHaveBeenCalled();
+  });
+
   it("drops an agent advertising a payment scheme other than exact", async () => {
     // `scheme` is what the payer signs against. A priced, allowed, ready
     // source in an unknown scheme is not payable, so it must not be listed.
@@ -580,6 +599,7 @@ describe("GET /agents/x402", () => {
         evmWalletId: "wallet-1",
       },
     ]);
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
     const app = createApp(COWORKER_AGENT_CONTEXT);
 
     const response = await app.request("http://localhost/x402");
@@ -590,6 +610,14 @@ describe("GET /agents/x402", () => {
     expect(agentFindManyMock).toHaveBeenCalled();
     const body = (await response.json()) as { data: { id: string }[] };
     expect(body.data.map((agent) => agent.id)).toEqual(["agent_x402_1"]);
+    // Assert WHICH gate dropped it, not merely that it is absent. Readiness
+    // re-filters the seeded mainnet pair away under NETWORK=Preprod, so
+    // deleting the per-source network gate would still drop this agent — as
+    // not_buy_side_ready. Only the reason tells the gate under test apart from
+    // that independent second defence.
+    expect(debug).toHaveBeenCalledWith(
+      '[agents/x402] dropped unpayable agents: {"network_not_allowed":1}',
+    );
   });
 
   it("drops an agent whose (network, asset) pair is not buy-side ready", async () => {
