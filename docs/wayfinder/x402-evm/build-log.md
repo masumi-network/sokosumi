@@ -132,8 +132,8 @@ owned-task delete regardless of who was charged.
 
 - Scratch-DB migration validation as above (local Postgres was available).
 - `pnpm --filter @sokosumi/database test` — 36 files passed, 245 tests.
-- `pnpm --filter core test src/helpers/user-deletion-tasks.test.ts` — 11
-  passed (5 existing + 6 new/extended).
+- `pnpm --filter core test src/helpers/user-deletion-tasks.test.ts` — 15
+  passed (8 pre-existing + 7 new x402 cases).
 - `pnpm typecheck` — all workspaces clean.
 - `pnpm check` — 3118 files, no fixes.
 - `prisma format` fixed pre-existing alignment drift from the
@@ -160,3 +160,62 @@ owned-task delete regardless of who was charged.
 - Review fixes applied on x402-2-model: order assertion on the terminal
   sweep (RESTRICT means sweep-before-task-delete is load-bearing), and a
   third `refundTransaction` OR branch on the PENDING guard.
+
+### Confirmation-review fixes (migration convergence)
+
+Two latent migration defects, both reproduced against local Postgres 18.4
+before fixing and re-probed after:
+
+- **Nonce-replay unique had a NULL hole.** `payerAddress` is nullable and a
+  btree unique treats NULLs as distinct, while the partial predicate gates
+  only on `payloadNonce IS NOT NULL` — two rows with the same nonce and a NULL
+  payer inserted cleanly, which is the exact double-debit the index claims to
+  prevent. Closed with a CHECK making the pair all-or-nothing
+  (`task_x402_payment_nonce_payer_together_chk`), declared inline on the
+  CREATE and restated in a `DO $$` guard for the converge path. Prisma cannot
+  model CHECK constraints, so it is hand-written and documented on the
+  `@@unique` in `schema.prisma`. `NULLS NOT DISTINCT` was rejected: it fights
+  the `partialIndexes` generator and would show as permanent `migrate diff`
+  drift.
+- **The enum was the one object that did not restate its shape.** The
+  `DO $$ CREATE TYPE … EXCEPTION WHEN duplicate_object` guard swallows the
+  whole type on re-apply, so an amended member set never reaches a database
+  that applied an earlier shape of the file. Appended
+  `ALTER TYPE … ADD VALUE IF NOT EXISTS` for all four members. Verified by A/B
+  on a converged database: with the restatements a simulated
+  `EXPIRED_UNUSED` amendment lands (5 members), without them the database
+  silently stays on 4.
+
+`ALTER TYPE … ADD VALUE` is transaction-safe on PostgreSQL 12+ **only so long
+as the member being added is not used in the same transaction**, so these
+statements are safe whether or not the runner wraps the file in one. The
+proviso holds here because no statement in this file uses a member it adds — the sole
+enum literal is `DEFAULT 'PENDING'` in the CREATE TABLE, and on the fresh path
+the type is created in the same transaction (which makes all its members
+usable) while on every converge path 'PENDING' already exists. A future
+amendment must add a member here and use it in a *later* migration; using it
+in the same file raises `unsafe use of new value of enum type`. Confirmed
+empirically on Postgres 18.4, both the working case and the failing one.
+
+Validated on scratch local Postgres: `prisma migrate deploy` from zero; a hand
+re-apply of the amended file; and deploy-then-hand-apply from **all four**
+historical shapes of this file (`da9e9030f`, `d3a5ffee4`, `22bf84681`,
+`0cb68cdd2`) — all five resulting `pg_dump -s` outputs byte-identical.
+`prisma migrate diff` reports no x402 drift (only the pre-existing `chat_room`
+partial-unique artifacts). Constraint probes on the real migrated table: a
+nonce without a payer and a payer without a nonce are both rejected, two
+all-NULL PENDING rows still coexist, and a repeated `(network, asset, payer,
+nonce)` tuple still trips `task_x402_payment_nonce_replay_uidx`.
+
+Guarded by `packages/database/src/types/__tests__/x402-migration-convergence.test.ts`,
+which derives its expectations from `schema.prisma` — adding a fifth enum
+member or another nullable column to the replay tuple fails the suite until
+the migration converges on it.
+
+Verification for this step:
+
+- `pnpm --filter @sokosumi/database test` — 248 passed, 2 skipped (38 files).
+- `pnpm --filter core test` — 3211 passed, 6 skipped (355 files).
+- `pnpm typecheck` — all workspaces clean.
+- `pnpm check` — 3119 files, no fixes.
+- `prisma format` / `prisma validate` — no churn beyond the added comment.
