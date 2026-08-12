@@ -1821,8 +1821,9 @@ describe("ChatMessageRow coworker Thought", () => {
 });
 
 describe("ChatMessageRow outbound delivery", () => {
-  it("shows a trailing clock for a pending local shell", () => {
+  it("shows an inline clock for a pending local shell from the current user", () => {
     renderRow({
+      currentUserId: "user-1",
       message: userMessage({
         id: "pending:turn-1",
         content: "on the train",
@@ -1840,12 +1841,22 @@ describe("ChatMessageRow outbound delivery", () => {
 
   it("shows a fading sent tick when showOutboundSentTick is set", () => {
     renderRow({
+      currentUserId: "user-1",
       message: userMessage({ id: "srv-1", content: "on the train" }),
       showOutboundSentTick: true,
     });
 
     expect(screen.getByTestId("outbound-delivery-sent")).toBeTruthy();
     expect(screen.getByLabelText("Outbound.sent")).toBeTruthy();
+  });
+
+  it("keeps a reserved icon slot for own messages without active chrome", () => {
+    renderRow({
+      currentUserId: "user-1",
+      message: userMessage({ id: "srv-1", content: "already sent" }),
+    });
+
+    expect(screen.getByTestId("outbound-delivery-slot")).toBeTruthy();
   });
 
   it("shows Retry and Remove for a failed send", async () => {
@@ -1862,6 +1873,7 @@ describe("ChatMessageRow outbound delivery", () => {
     });
 
     renderRow({
+      currentUserId: "user-1",
       message,
       onRetryOutbound,
       onRemoveOutbound,

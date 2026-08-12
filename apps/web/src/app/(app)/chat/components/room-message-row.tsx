@@ -1207,22 +1207,22 @@ function MessageEditComposer({
   );
 }
 
+/** Fixed trailing slot so long text wraps clear of the icon and layout never jumps. */
+const OUTBOUND_ICON_SLOT_CLASS =
+  "pointer-events-none absolute end-0 bottom-0.5 flex size-3 items-center justify-center";
+
 /**
- * Trailing WhatsApp-style delivery chrome: clock while pending, single check
- * that fades after confirm, error + Retry/Remove on fail.
+ * Inline end-of-line delivery mark (clock / fading check). Renders inside a
+ * fixed-size slot so removing the visible icon does not reflow text.
  */
-function OutboundDeliveryChrome({
-  message,
+function OutboundDeliveryInlineIcon({
   status,
   showSentTick,
-  onRetryOutbound,
-  onRemoveOutbound,
+  messageId,
 }: {
-  message: ChatRoomMessage;
   status: "pending" | "failed" | null;
   showSentTick: boolean;
-  onRetryOutbound?: (message: ChatRoomMessage) => void;
-  onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  messageId: string;
 }) {
   const t = useTranslations("App.Channels");
   const [sentFading, setSentFading] = useState(false);
@@ -1233,88 +1233,120 @@ function OutboundDeliveryChrome({
       return;
     }
     setSentFading(false);
-    // Hold solid, then CSS-fade for the second half of OUTBOUND_SENT_TICK_MS.
     const fadeAt = window.setTimeout(() => {
       setSentFading(true);
     }, OUTBOUND_SENT_TICK_MS / 2);
     return () => {
       window.clearTimeout(fadeAt);
     };
-  }, [showSentTick, message.id]);
+  }, [showSentTick, messageId]);
 
   if (status === "pending") {
     return (
-      <div
-        className="flex justify-end pt-0.5"
+      <span
+        className={OUTBOUND_ICON_SLOT_CLASS}
         data-testid="outbound-delivery-pending"
       >
         <span
-          className="text-muted-foreground inline-flex items-center"
+          className="text-muted-foreground inline-flex"
           title={t("Outbound.sending")}
           aria-label={t("Outbound.sending")}
         >
-          <Clock className="size-3.5" aria-hidden />
+          <Clock className="size-2.5" aria-hidden />
         </span>
-      </div>
+      </span>
     );
   }
 
   if (status === "failed") {
     return (
-      <div
-        className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-2 gap-y-1 pt-0.5 text-xs"
-        data-testid="outbound-delivery-failed"
+      <span
+        className={OUTBOUND_ICON_SLOT_CLASS}
+        data-testid="outbound-delivery-failed-icon"
       >
         <span
-          className="text-destructive inline-flex items-center gap-1"
+          className="text-destructive inline-flex"
           title={t("Outbound.failed")}
+          aria-label={t("Outbound.failed")}
         >
-          <AlertCircle className="size-3.5 shrink-0" aria-hidden />
-          <span>{t("Outbound.failed")}</span>
+          <AlertCircle className="size-2.5" aria-hidden />
         </span>
-        {onRetryOutbound ? (
-          <button
-            type="button"
-            className="text-primary hover:text-primary/80 font-medium"
-            onClick={() => onRetryOutbound(message)}
-          >
-            {t("Outbound.retry")}
-          </button>
-        ) : null}
-        {onRemoveOutbound ? (
-          <button
-            type="button"
-            className="text-primary hover:text-primary/80 font-medium"
-            onClick={() => onRemoveOutbound(message)}
-          >
-            {t("Outbound.remove")}
-          </button>
-        ) : null}
-      </div>
+      </span>
     );
   }
 
   if (showSentTick) {
     return (
-      <div
-        className="flex justify-end pt-0.5"
+      <span
+        className={OUTBOUND_ICON_SLOT_CLASS}
         data-testid="outbound-delivery-sent"
       >
         <span
           className={cn(
-            "text-muted-foreground inline-flex items-center transition-opacity duration-500 ease-out",
+            "text-muted-foreground inline-flex transition-opacity duration-500 ease-out",
             sentFading ? "opacity-0" : "opacity-100",
           )}
           title={t("Outbound.sent")}
           aria-label={t("Outbound.sent")}
         >
-          <Check className="size-3.5" aria-hidden strokeWidth={2.5} />
+          <Check className="size-2.5" aria-hidden strokeWidth={2.5} />
         </span>
-      </div>
+      </span>
     );
   }
 
-  return null;
+  // Empty reserved slot for own messages (no reflow when tick fades out).
+  return (
+    <span
+      className={OUTBOUND_ICON_SLOT_CLASS}
+      aria-hidden
+      data-testid="outbound-delivery-slot"
+    />
+  );
+}
+
+function OutboundFailedActions({
+  message,
+  onRetryOutbound,
+  onRemoveOutbound,
+}: {
+  message: ChatRoomMessage;
+  onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRemoveOutbound?: (message: ChatRoomMessage) => void;
+}) {
+  const t = useTranslations("App.Channels");
+  return (
+    <div
+      className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-2 gap-y-1 pt-0.5 text-xs"
+      data-testid="outbound-delivery-failed"
+    >
+      <span
+        className="text-destructive inline-flex items-center gap-1"
+        title={t("Outbound.failed")}
+      >
+        <AlertCircle className="size-2.5 shrink-0" aria-hidden />
+        <span>{t("Outbound.failed")}</span>
+      </span>
+      {onRetryOutbound ? (
+        <button
+          type="button"
+          className="text-primary hover:text-primary/80 font-medium"
+          onClick={() => onRetryOutbound(message)}
+        >
+          {t("Outbound.retry")}
+        </button>
+      ) : null}
+      {onRemoveOutbound ? (
+        <button
+          type="button"
+          className="text-primary hover:text-primary/80 font-medium"
+          onClick={() => onRemoveOutbound(message)}
+        >
+          {t("Outbound.remove")}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function MessageMetaFooter({
@@ -1324,9 +1356,6 @@ function MessageMetaFooter({
   onOpenThread,
   showThreadButton,
   isDeleted,
-  onRetryOutbound,
-  onRemoveOutbound,
-  showOutboundSentTick = false,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -1334,9 +1363,6 @@ function MessageMetaFooter({
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   isDeleted: boolean;
-  onRetryOutbound?: (message: ChatRoomMessage) => void;
-  onRemoveOutbound?: (message: ChatRoomMessage) => void;
-  showOutboundSentTick?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   /**
@@ -1345,21 +1371,11 @@ function MessageMetaFooter({
    * stuck mention would show multi-minute age).
    */
   const mentionThinkStartMsByIdRef = useRef(new Map<string, number>());
-  const outboundStatus = readOutboundDeliveryStatus(message);
-  const showOutboundChrome = outboundStatus != null || showOutboundSentTick;
+  const isOutboundLocal = isOutboundLocalMessage(message);
 
   return (
     <>
-      {showOutboundChrome ? (
-        <OutboundDeliveryChrome
-          message={message}
-          status={outboundStatus}
-          showSentTick={showOutboundSentTick && outboundStatus == null}
-          onRetryOutbound={onRetryOutbound}
-          onRemoveOutbound={onRemoveOutbound}
-        />
-      ) : null}
-      {!isDeleted && outboundStatus == null && message.reactions.length > 0 ? (
+      {!isDeleted && !isOutboundLocal && message.reactions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1">
           {message.reactions.map((reaction) => {
             const whoReactedLabel = formatWhoReactedLabel(reaction, t);
@@ -1405,7 +1421,7 @@ function MessageMetaFooter({
         </button>
       ) : null}
       {!isDeleted &&
-      outboundStatus == null &&
+      !isOutboundLocal &&
       message.mentions.some((m) => m.status !== "responded") ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1.5">
           {message.mentions.map((mention) => {
@@ -1519,7 +1535,15 @@ export function ChatMessageRow({
   const isDirectActionBusy = openingDirectParticipantKey != null;
   const isStreamOverlay = message.id.startsWith("stream:");
   const isOutboundLocal = isOutboundLocalMessage(message);
+  const outboundStatus = readOutboundDeliveryStatus(message);
   const isDeleted = message.deletedAt != null;
+  const isOwnUserMessage =
+    Boolean(currentUserId) &&
+    message.sender.type === "user" &&
+    message.sender.user.id === currentUserId;
+  /** Always reserve icon width on own rows so fade-out never reflows text. */
+  const reserveOutboundIconSlot =
+    isOwnUserMessage && !isDeleted && !isStreamOverlay;
   const thoughtView = useMemo(() => {
     if (message.sender.type !== "coworker" || isDeleted) {
       return null;
@@ -1667,7 +1691,13 @@ export function ChatMessageRow({
             ) : null}
           </div>
         )}
-        <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
+        <div
+          className={cn(
+            "text-foreground relative min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm",
+            // End padding = icon slot width so last line leaves room for the mark.
+            reserveOutboundIconSlot && "pe-4",
+          )}
+        >
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
@@ -1737,7 +1767,21 @@ export function ChatMessageRow({
               )}
             </>
           )}
+          {reserveOutboundIconSlot ? (
+            <OutboundDeliveryInlineIcon
+              status={outboundStatus}
+              showSentTick={showOutboundSentTick}
+              messageId={message.id}
+            />
+          ) : null}
         </div>
+        {outboundStatus === "failed" && !isEditing ? (
+          <OutboundFailedActions
+            message={message}
+            onRetryOutbound={onRetryOutbound}
+            onRemoveOutbound={onRemoveOutbound}
+          />
+        ) : null}
         {!isEditing ? (
           <MessageMetaFooter
             message={message}
@@ -1746,9 +1790,6 @@ export function ChatMessageRow({
             onOpenThread={onOpenThread}
             showThreadButton={showThreadButton && !isOutboundLocal}
             isDeleted={isDeleted}
-            onRetryOutbound={onRetryOutbound}
-            onRemoveOutbound={onRemoveOutbound}
-            showOutboundSentTick={showOutboundSentTick}
           />
         ) : null}
       </div>
