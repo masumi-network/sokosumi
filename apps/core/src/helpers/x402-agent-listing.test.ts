@@ -157,6 +157,50 @@ describe("buildX402AgentPaymentSources", () => {
     });
   });
 
+  it("drops an agent whose payTo is whitespace only", () => {
+    // A recipient made of spaces records no recipient.
+    expect(
+      buildX402AgentPaymentSources([createSource({ payTo: "   " })], CONTEXT),
+    ).toEqual({
+      status: "dropped",
+      reason: "missing_pay_to",
+    });
+  });
+
+  it.each([
+    ["a non-address string", "not-an-address"],
+    ["a truncated address", "0x1111"],
+    ["an over-long address", `${PAY_TO}00`],
+    ["a non-hex address", "0xzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"],
+    ["a bare hex string with no 0x", PAY_TO.slice(2)],
+  ])("drops an agent whose source records %s as payTo", (_label, payTo) => {
+    // The pay side's payTo comes from an EVM_ADDRESS_PATTERN-validated 402, so
+    // a recipient that is not an EVM address can never be matched — listing it
+    // advertises a 402 the pay endpoint is guaranteed to reject.
+    expect(
+      buildX402AgentPaymentSources([createSource({ payTo })], CONTEXT),
+    ).toEqual({
+      status: "dropped",
+      reason: "malformed_pay_to",
+    });
+  });
+
+  it("accepts a mixed-case checksummed payTo in its registry spelling", () => {
+    // EVM_ADDRESS_PATTERN accepts mixed case, and the advertised value keeps
+    // the registry's checksummed spelling; only the dedupe key case-folds.
+    const checksummed = `0x${"aAbB".repeat(10)}`;
+
+    const result = buildX402AgentPaymentSources(
+      [createSource({ payTo: checksummed })],
+      CONTEXT,
+    );
+
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [expect.objectContaining({ payTo: checksummed })],
+    });
+  });
+
   it("drops an agent advertising a network outside the per-env allowlist", () => {
     // Base mainnet is not payable on Preprod even when priced and ready.
     const mainnetContext: X402ListingGateContext = {

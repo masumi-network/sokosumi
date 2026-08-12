@@ -4,6 +4,7 @@ import type {
   CreditCost,
 } from "@sokosumi/database";
 import { PricingType } from "@sokosumi/database";
+import { EVM_ADDRESS_PATTERN } from "@sokosumi/masumi";
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import type { X402AgentPaymentSource } from "@/schemas/x402-agent.schema";
@@ -58,6 +59,8 @@ export type X402ListingDropReason =
   | "pricing_not_fixed"
   /** A source records no `payTo` recipient. */
   | "missing_pay_to"
+  /** A source's `payTo` is not a well-formed EVM address. */
+  | "malformed_pay_to"
   /** A source advertises a scheme other than x402 `exact`. */
   | "unsupported_scheme"
   /** A source's CAIP-2 network is outside this environment's allowlist. */
@@ -89,7 +92,8 @@ export type X402AgentListingResult =
  *
  * - the source advertises a fixed price (`FIXED` with at least one amount —
  *   Free/Dynamic/unknown pricing has no chargeable price to verify against),
- * - `payTo` is present (the pay endpoint verifies the 402's payTo against it),
+ * - `payTo` is present and a well-formed EVM address (the pay endpoint
+ *   verifies the 402's payTo against it),
  * - the scheme is x402 `exact` (see {@link X402_SUPPORTED_SCHEME}),
  * - the CAIP-2 network is in the per-environment allowlist,
  * - decimals are recorded (credits conversion is per whole token),
@@ -118,8 +122,19 @@ export function buildX402AgentPaymentSources(
     if (source.pricingType !== PricingType.FIXED) {
       return { status: "dropped", reason: "pricing_not_fixed" };
     }
-    if (!source.payTo) {
+    const payTo = source.payTo?.trim() ?? "";
+    if (!payTo) {
       return { status: "dropped", reason: "missing_pay_to" };
+    }
+    // The pay endpoint's `payTo` comes out of an EVM_ADDRESS_PATTERN-validated
+    // 402, so a recipient that is not an EVM address can never be matched:
+    // listing it advertises a demand the pay endpoint is guaranteed to reject
+    // after the coworker already called the agent. The asset gets this check
+    // implicitly through `buildCaip19AssetKey`; `payTo` has no such consumer,
+    // so it is checked here. Mixed case is accepted — the registry serves
+    // checksummed addresses and only the dedupe key case-folds.
+    if (!EVM_ADDRESS_PATTERN.test(payTo)) {
+      return { status: "dropped", reason: "malformed_pay_to" };
     }
     if (source.scheme?.trim().toLowerCase() !== X402_SUPPORTED_SCHEME) {
       return { status: "dropped", reason: "unsupported_scheme" };
@@ -133,7 +148,6 @@ export function buildX402AgentPaymentSources(
       return { status: "dropped", reason: "no_amount_rows" };
     }
     const caip2Network = source.network.trim().toLowerCase();
-    const payTo = source.payTo.trim();
     for (const amount of source.amounts) {
       if (amount.decimals === null) {
         return { status: "dropped", reason: "missing_decimals" };
