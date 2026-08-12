@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -37,6 +38,44 @@ export function resolveCreditUsage(
     remaining: Math.max(subscriptionCredits.remaining, 0),
     total,
     used,
+  };
+}
+
+export interface AccountCreditsChrome {
+  creditsData: SidebarCreditsData | null;
+  currentPlan: string;
+  planForLabel: string | null;
+  buyCreditsPath: string;
+  currentTimestampMs: number;
+  subscriptionPeriodEndMs: number | null;
+  totalCredits: number | null;
+  extraCredits: number | null;
+  creditUsage: CreditUsage | null;
+}
+
+/** Shared header/sidebar mapping from a credits Core payload. */
+export function mapAccountCreditsChrome(
+  creditsResult: GetUsersByIdCreditsResponse | null,
+): AccountCreditsChrome {
+  const creditsData = creditsResult?.data.credits ?? null;
+  const currentPlan = creditsData?.subscription?.plan ?? "free";
+  const planForLabel = creditsData === null ? null : currentPlan;
+  const subscriptionPeriodEnd = creditsData?.subscription?.periodEnd ?? null;
+
+  return {
+    creditsData,
+    currentPlan,
+    planForLabel,
+    buyCreditsPath: resolveLowCreditsBillingPath(currentPlan),
+    currentTimestampMs: creditsResult?.meta?.timestamp
+      ? new Date(creditsResult.meta.timestamp).getTime()
+      : 0,
+    subscriptionPeriodEndMs: subscriptionPeriodEnd
+      ? new Date(subscriptionPeriodEnd).getTime()
+      : null,
+    totalCredits: creditsData?.total ?? null,
+    extraCredits: creditsData?.buffer ?? null,
+    creditUsage: resolveCreditUsage(creditsData),
   };
 }
 

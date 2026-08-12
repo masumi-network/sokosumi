@@ -1,10 +1,7 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
-import {
-  resolveAccountNotice,
-  resolveLowCreditsBillingPath,
-} from "@/app/components/account-notice-state";
-import { resolveCreditUsage } from "@/app/components/sidebar";
+import { resolveAccountNotice } from "@/app/components/account-notice-state";
+import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -45,21 +42,11 @@ export default async function SidebarDeferredAccount({
       getDeveloperVendorAdminAccess(),
     ]);
 
-  const creditsData = creditsResult?.data.credits ?? null;
-  const currentPlan = creditsData?.subscription?.plan ?? "free";
-  const planForLabel = creditsData === null ? null : currentPlan;
-  const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
-  const currentTimestampMs = creditsResult?.meta?.timestamp
-    ? new Date(creditsResult.meta.timestamp).getTime()
-    : 0;
-  const subscriptionPeriodEnd = creditsData?.subscription?.periodEnd ?? null;
-  const subscriptionPeriodEndMs = subscriptionPeriodEnd
-    ? new Date(subscriptionPeriodEnd).getTime()
-    : null;
-  const planName = await resolvePlanName(planForLabel);
+  const credits = mapAccountCreditsChrome(creditsResult);
+  const planName = await resolvePlanName(credits.planForLabel);
   const accountNotice = resolveAccountNotice({
-    credits: creditsData?.total ?? null,
-    currentPlan: creditsData === null ? null : currentPlan,
+    credits: credits.totalCredits,
+    currentPlan: credits.creditsData === null ? null : credits.currentPlan,
     email: sessionUser.email,
     emailVerified: sessionUser.emailVerified,
     threshold: lowCreditsThreshold,
@@ -71,14 +58,14 @@ export default async function SidebarDeferredAccount({
       <SidebarAccountChip
         sessionUser={sessionUser}
         planName={planName}
-        totalCredits={creditsData?.total ?? null}
-        extraCredits={creditsData?.buffer ?? null}
-        creditUsage={resolveCreditUsage(creditsData)}
-        subscriptionPeriodEndMs={subscriptionPeriodEndMs}
-        currentTimestampMs={currentTimestampMs}
+        totalCredits={credits.totalCredits}
+        extraCredits={credits.extraCredits}
+        creditUsage={credits.creditUsage}
+        subscriptionPeriodEndMs={credits.subscriptionPeriodEndMs}
+        currentTimestampMs={credits.currentTimestampMs}
         lowCreditsThreshold={lowCreditsThreshold}
         buyCreditsLabel={tPlan("getMoreCredits")}
-        buyCreditsPath={buyCreditsPath}
+        buyCreditsPath={credits.buyCreditsPath}
         adminSettingsChrome={{
           adminMenuEnabled,
           members: chatListChrome.members,

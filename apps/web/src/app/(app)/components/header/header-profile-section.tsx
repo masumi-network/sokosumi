@@ -1,12 +1,11 @@
 import type { Session } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
 import {
   getCachedMyCredits,
   getPrivateCachedChatListChrome,
 } from "@/app/components/private-sidebar-cache";
-import { resolveCreditUsage } from "@/app/components/sidebar";
+import { mapAccountCreditsChrome } from "@/app/components/sidebar";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { resolvePlanName } from "@/lib/utils/plan-label";
@@ -61,29 +60,19 @@ async function loadHeaderAccountSummary(
       getCachedMyCredits(),
     ]);
 
-  const creditsData = creditsResult?.data.credits ?? null;
-  const currentPlan = creditsData?.subscription?.plan ?? "free";
-  const planForLabel = creditsData === null ? null : currentPlan;
-  const buyCreditsPath = resolveLowCreditsBillingPath(currentPlan);
-  const currentTimestampMs = creditsResult?.meta?.timestamp
-    ? new Date(creditsResult.meta.timestamp).getTime()
-    : 0;
-  const subscriptionPeriodEnd = creditsData?.subscription?.periodEnd ?? null;
-  const subscriptionPeriodEndMs = subscriptionPeriodEnd
-    ? new Date(subscriptionPeriodEnd).getTime()
-    : null;
-  const planName = await resolvePlanName(planForLabel);
+  const credits = mapAccountCreditsChrome(creditsResult);
+  const planName = await resolvePlanName(credits.planForLabel);
 
   return {
     planName,
-    totalCredits: creditsData?.total ?? null,
-    extraCredits: creditsData?.buffer ?? null,
-    creditUsage: resolveCreditUsage(creditsData),
-    subscriptionPeriodEndMs,
-    currentTimestampMs,
+    totalCredits: credits.totalCredits,
+    extraCredits: credits.extraCredits,
+    creditUsage: credits.creditUsage,
+    subscriptionPeriodEndMs: credits.subscriptionPeriodEndMs,
+    currentTimestampMs: credits.currentTimestampMs,
     lowCreditsThreshold,
     buyCreditsLabel: tPlan("getMoreCredits"),
-    buyCreditsPath,
+    buyCreditsPath: credits.buyCreditsPath,
     adminMenuEnabled,
     showDeveloperVendors,
   };
