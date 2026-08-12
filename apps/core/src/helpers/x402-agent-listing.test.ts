@@ -553,6 +553,34 @@ describe("buildX402AgentPaymentSources", () => {
     });
   });
 
+  it("drops an agent whose mixed-case payTo repeats a triple at a second price", () => {
+    // One recipient in two spellings. The advertised value keeps each source's
+    // registry spelling, so only the dedupe KEY folds case — and without that
+    // fold both entries would be advertised, at 0.5 and 10 credits for the
+    // same (payTo, network, asset). The pay side matches payTo
+    // case-insensitively and resolves the triple to exactly one amount row, so
+    // the second advertisement would be a 402 it is guaranteed to reject
+    // ("demanded amount exceeds the agent's advertised price") after the
+    // coworker already called the agent.
+    const checksummed = `0x${"aAbB".repeat(10)}`;
+
+    expect(
+      buildX402AgentPaymentSources(
+        [
+          createSource({ payTo: checksummed }),
+          createSource({
+            payTo: checksummed.toLowerCase(),
+            amounts: [{ unit: USDC_ADDRESS, amount: 5000000n, decimals: 6 }],
+          }),
+        ],
+        CONTEXT,
+      ),
+    ).toEqual({
+      status: "dropped",
+      reason: "conflicting_price",
+    });
+  });
+
   it("drops an agent whose padded payTo repeats a triple at a second price", () => {
     // Same recipient, one source spelling it padded. The pay side compares
     // payTo case- and whitespace-insensitively, so these are one triple.
