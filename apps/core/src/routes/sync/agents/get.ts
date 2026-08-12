@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import type { Hono } from "hono";
 
 import { agentSyncService } from "@/services/agent-sync.service";
@@ -47,6 +48,13 @@ export default function mount(app: Hono) {
           "[sync/agents] x402 buy-side readiness sync failed; continuing registry sync:",
           error,
         );
+        // Report it too. Only paths that BYPASS the sync's own handled-failure
+        // alerting land here, so a swallowed throw would otherwise leave the
+        // stale cache serving "ready" with nothing louder than a log line —
+        // exactly the outage the handled path pages for.
+        Sentry.captureException(error, {
+          tags: { x402_readiness: "sync_threw" },
+        });
       }
       await agentSyncService.syncRegistryAgents(AGENTS_SYNC_METADATA_KEY, {
         abortSignal: context.abortSignal,
