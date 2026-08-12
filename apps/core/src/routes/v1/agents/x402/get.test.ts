@@ -40,6 +40,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 const BASE_SEPOLIA = "eip155:84532";
+const BASE_MAINNET = "eip155:8453";
 const USDC_ADDRESS = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
 const UNPRICED_ADDRESS = "0x2222222222222222222222222222222222222222";
 const PAY_TO = "0x1111111111111111111111111111111111111111";
@@ -328,14 +329,19 @@ describe("GET /agents/x402", () => {
   });
 
   it("drops an agent advertising a network outside the per-env allowlist", async () => {
-    // Base mainnet is disallowed on Preprod even when priced and ready.
+    // Seeding ONLY the mainnet pair would make this vacuous: readiness
+    // re-filters it away, the ready set empties, and the handler returns at
+    // the early-out without ever querying agents or running a gate. An
+    // allowed Base Sepolia pair alongside it keeps the request on the real
+    // path, so the mainnet agent has to be dropped by a gate.
     agentFindManyMock.mockResolvedValue([
+      createAgentRow(),
       createAgentRow({
         id: "agent_x402_mainnet",
         paymentSources: [
           {
             sourceIndex: 0,
-            network: "eip155:8453",
+            network: BASE_MAINNET,
             payTo: PAY_TO,
             pricingType: "FIXED",
             amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
@@ -344,11 +350,28 @@ describe("GET /agents/x402", () => {
       }),
     ]);
     creditCostFindManyMock.mockResolvedValue([
-      createCreditCostRow(`eip155:8453/erc20:${USDC_ADDRESS}`, 2n * 10n ** 10n),
+      createCreditCostRow(
+        `${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`,
+        2n * 10n ** 10n,
+      ),
+      // Priced on mainnet too, so pricing is not what drops it.
+      createCreditCostRow(
+        `${BASE_MAINNET}/erc20:${USDC_ADDRESS}`,
+        2n * 10n ** 10n,
+      ),
     ]);
     seedReadiness([
       {
-        caip2Network: "eip155:8453",
+        caip2Network: BASE_SEPOLIA,
+        asset: USDC_ADDRESS,
+        evmWalletId: "wallet-1",
+      },
+      // A mainnet pair sitting in the Preprod cache — written by an older
+      // build or an instance pointed at the other environment. Reading
+      // readiness must re-filter it, so it can never make a mainnet source
+      // look payable here.
+      {
+        caip2Network: BASE_MAINNET,
         asset: USDC_ADDRESS,
         evmWalletId: "wallet-1",
       },
@@ -358,8 +381,11 @@ describe("GET /agents/x402", () => {
     const response = await app.request("http://localhost/x402");
 
     expect(response.status).toBe(200);
-    const body = (await response.json()) as { data: unknown };
-    expect(body.data).toEqual([]);
+    // The catalog WAS queried and the per-agent gates ran: the Preprod agent
+    // survives, the mainnet one does not.
+    expect(agentFindManyMock).toHaveBeenCalled();
+    const body = (await response.json()) as { data: { id: string }[] };
+    expect(body.data.map((agent) => agent.id)).toEqual(["agent_x402_1"]);
   });
 
   it("drops an agent whose (network, asset) pair is not buy-side ready", async () => {
