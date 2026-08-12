@@ -20,7 +20,7 @@ import { StartChatButton } from "./start-chat-button.client";
  */
 const MAX_STRIP_COWORKERS = 4;
 
-interface ChatMobileWelcomeProps {
+interface ChatLandingMobileProps {
   coworkers: Coworker[];
   /** True only for an organization workspace, where other humans exist. */
   isOrganizationWorkspace: boolean;
@@ -30,19 +30,20 @@ interface ChatMobileWelcomeProps {
 }
 
 /**
- * The welcome, sized for a 390px column.
+ * Mobile composition of the `/chat` welcome (`chat-landing.mobile.tsx`).
  *
- * Owns `/chat` below `md`, the same page the desktop landing owns above it —
- * the room list stays its own surface at `/chat/chats`. Same three zones as
- * desktop (mark, centred pitch, stats), scaled down: 32px mark, an 80px
- * featured face flanked by four at 44px, and a full-width CTA.
+ * Pair of {@link ChatLanding} (`chat-landing.tsx`): same three zones (mark,
+ * centred pitch, stats) and the same `landing-content` decisions, scaled for
+ * a 390px column — 32px mark, an 80px featured face flanked by four at 44px,
+ * and a full-width CTA. Owns `/chat` below `md`; the room list stays at
+ * `/chat/chats`.
  */
-export async function ChatMobileWelcome({
+export async function ChatLandingMobile({
   coworkers,
   isOrganizationWorkspace,
   summary,
   userName,
-}: ChatMobileWelcomeProps) {
+}: ChatLandingMobileProps) {
   const [t, format] = await Promise.all([
     getTranslations("App.Chat.Landing"),
     getFormatter(),

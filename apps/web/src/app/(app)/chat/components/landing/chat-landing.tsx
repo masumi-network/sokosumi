@@ -29,6 +29,13 @@ interface ChatLandingProps {
   userName: null | string;
 }
 
+/**
+ * Desktop composition of the `/chat` welcome (`chat-landing.tsx`).
+ *
+ * Pair of {@link ChatLandingMobile} (`chat-landing.mobile.tsx`): same content
+ * decisions from `landing-content`, larger strip and type. Owns `/chat` at
+ * `md` and up.
+ */
 export async function ChatLanding({
   coworkers,
   isOrganizationWorkspace,

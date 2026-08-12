@@ -8,7 +8,7 @@ import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 import { ChatLanding } from "./components/landing/chat-landing";
-import { ChatMobileWelcome } from "./components/landing/chat-mobile-welcome";
+import { ChatLandingMobile } from "./components/landing/chat-landing.mobile";
 import { RoomsClient } from "./components/rooms-client";
 import { loadOrganizationMembers } from "./load-organization-members";
 import { firstSearchValue } from "./load-room-messages";
@@ -187,7 +187,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
         />
       </div>
       <div className="flex min-h-full w-full flex-col md:hidden">
-        <ChatMobileWelcome
+        <ChatLandingMobile
           coworkers={coworkers}
           isOrganizationWorkspace={activeOrganizationId !== null}
           summary={summary}
