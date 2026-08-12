@@ -1623,7 +1623,9 @@ export function ChatMessageRow({
       {...(showActions ? longPress : {})}
     >
       {isContinuation ? (
-        <div className="flex w-8 shrink-0 justify-center overflow-hidden pt-0.5">
+        // Wider than avatar (w-8) so "12:34 PM" is not clipped; right-align
+        // toward the body so marks stay near the text column.
+        <div className="flex w-12 shrink-0 justify-end pe-0.5 pt-0.5">
           <MessageTimeOrOutboundStatus
             createdAt={message.createdAt}
             outboundStatus={outboundStatus}
