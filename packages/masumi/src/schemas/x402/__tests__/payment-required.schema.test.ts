@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { X402_MAX_TIMEOUT_SECONDS } from "../payment-required.limits.js";
 import {
   isX402PaymentIdentifierAdvertised,
   narrowToChosenRequirement,
   normalizeX402PaymentRequired,
-  X402_MAX_TIMEOUT_SECONDS,
   X402_PAYMENT_IDENTIFIER_EXTENSION_KEY,
   X402_SUPPORTED_SCHEMES,
   x402PaymentRequiredSchema,

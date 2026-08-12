@@ -11,4 +11,5 @@ export * from "./input/input.schema.js";
 export * from "./input/validation.schema.js";
 
 // x402 schemas
+export * from "./x402/payment-required.limits.js";
 export * from "./x402/payment-required.schema.js";
