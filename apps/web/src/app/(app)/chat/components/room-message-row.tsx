@@ -14,6 +14,7 @@ import { useTranslations } from "next-intl";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
@@ -1207,13 +1208,16 @@ function MessageEditComposer({
   );
 }
 
-/** Fixed trailing slot so long text wraps clear of the icon and layout never jumps. */
+/**
+ * Fixed-size trailing slot next to the text block (not the full row).
+ * Opacity-only fade keeps width stable so the layout does not jump.
+ */
 const OUTBOUND_ICON_SLOT_CLASS =
-  "pointer-events-none absolute end-0 bottom-0.5 flex size-3 items-center justify-center";
+  "mb-0.5 flex size-3 shrink-0 items-center justify-center self-end";
 
 /**
- * Inline end-of-line delivery mark (clock / fading check). Renders inside a
- * fixed-size slot so removing the visible icon does not reflow text.
+ * Clock / fading check beside the message body (WhatsApp-style adjacency
+ * for short lines; bottom-aligned to multi-line blocks via parent flex).
  */
 function OutboundDeliveryInlineIcon({
   status,
@@ -1241,67 +1245,46 @@ function OutboundDeliveryInlineIcon({
     };
   }, [showSentTick, messageId]);
 
+  let mark: ReactNode = null;
+  let testId = "outbound-delivery-slot";
+  let label: string | undefined;
+
   if (status === "pending") {
-    return (
-      <span
-        className={OUTBOUND_ICON_SLOT_CLASS}
-        data-testid="outbound-delivery-pending"
-      >
-        <span
-          className="text-muted-foreground inline-flex"
-          title={t("Outbound.sending")}
-          aria-label={t("Outbound.sending")}
-        >
-          <Clock className="size-2.5" aria-hidden />
-        </span>
-      </span>
+    testId = "outbound-delivery-pending";
+    label = t("Outbound.sending");
+    mark = <Clock className="size-2.5" aria-hidden />;
+  } else if (status === "failed") {
+    testId = "outbound-delivery-failed-icon";
+    label = t("Outbound.failed");
+    mark = <AlertCircle className="text-destructive size-2.5" aria-hidden />;
+  } else if (showSentTick) {
+    testId = "outbound-delivery-sent";
+    label = t("Outbound.sent");
+    mark = (
+      <Check
+        className={cn(
+          "size-2.5 transition-opacity duration-500 ease-out",
+          sentFading ? "opacity-0" : "opacity-100",
+        )}
+        aria-hidden
+        strokeWidth={2.5}
+      />
     );
   }
 
-  if (status === "failed") {
-    return (
-      <span
-        className={OUTBOUND_ICON_SLOT_CLASS}
-        data-testid="outbound-delivery-failed-icon"
-      >
-        <span
-          className="text-destructive inline-flex"
-          title={t("Outbound.failed")}
-          aria-label={t("Outbound.failed")}
-        >
-          <AlertCircle className="size-2.5" aria-hidden />
-        </span>
-      </span>
-    );
-  }
-
-  if (showSentTick) {
-    return (
-      <span
-        className={OUTBOUND_ICON_SLOT_CLASS}
-        data-testid="outbound-delivery-sent"
-      >
-        <span
-          className={cn(
-            "text-muted-foreground inline-flex transition-opacity duration-500 ease-out",
-            sentFading ? "opacity-0" : "opacity-100",
-          )}
-          title={t("Outbound.sent")}
-          aria-label={t("Outbound.sent")}
-        >
-          <Check className="size-2.5" aria-hidden strokeWidth={2.5} />
-        </span>
-      </span>
-    );
-  }
-
-  // Empty reserved slot for own messages (no reflow when tick fades out).
   return (
     <span
-      className={OUTBOUND_ICON_SLOT_CLASS}
-      aria-hidden
-      data-testid="outbound-delivery-slot"
-    />
+      className={cn(
+        OUTBOUND_ICON_SLOT_CLASS,
+        status === "failed" ? "text-destructive" : "text-muted-foreground",
+      )}
+      data-testid={testId}
+      title={label}
+      aria-label={label}
+      aria-hidden={mark == null ? true : undefined}
+    >
+      {mark}
+    </span>
   );
 }
 
@@ -1317,7 +1300,7 @@ function OutboundFailedActions({
   const t = useTranslations("App.Channels");
   return (
     <div
-      className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-2 gap-y-1 pt-0.5 text-xs"
+      className="text-muted-foreground flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
       data-testid="outbound-delivery-failed"
     >
       <span
@@ -1693,80 +1676,86 @@ export function ChatMessageRow({
         )}
         <div
           className={cn(
-            "text-foreground relative min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm",
-            // End padding = icon slot width so last line leaves room for the mark.
-            reserveOutboundIconSlot && "pe-4",
+            "text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm",
+            // Shrink-wrap + end-align icon so short lines read as "text ⏱"
+            // next to the last chars, not pinned to the row’s far edge.
+            reserveOutboundIconSlot && "flex w-fit max-w-full items-end gap-1",
           )}
         >
-          {isDeleted ? (
-            <p className="text-muted-foreground italic">
-              {tChannels("Message.deleted")}
-            </p>
-          ) : (
-            <>
-              {quote ? (
-                <MessageQuoteBlock
-                  quote={quote}
-                  coworkersById={coworkersById}
-                  coworkersBySlug={coworkersBySlug}
-                  usersById={usersById}
-                  usersBySlug={usersBySlug}
-                />
-              ) : null}
-              {isEditing && onEditDraftChange && onCancelEdit && onSaveEdit ? (
-                <MessageEditComposer
-                  value={editDraft}
-                  originalContent={message.content}
-                  onChange={onEditDraftChange}
-                  onSave={onSaveEdit}
-                  onCancel={onCancelEdit}
-                  isSaving={isSavingEdit}
-                />
-              ) : thoughtView?.showThinkingFallback ||
-                thoughtView?.liveBeat != null ? (
-                <CoworkerLiveThought
-                  label={tChat("reasoning.thinking")}
-                  liveBeat={thoughtView.liveBeat}
-                  startedAtMs={new Date(message.createdAt).getTime()}
-                />
-              ) : (
-                <>
-                  {thoughtView?.disclosure ? (
-                    <div className="mb-1">
-                      <CoworkerThoughtTrace
-                        working={false}
-                        headerLabel={
-                          thoughtView.disclosure.durationSeconds != null
-                            ? tChat("reasoning.thoughtForDuration", {
-                                duration: formatThoughtDurationLabel(
-                                  thoughtView.disclosure.durationSeconds,
-                                ),
-                              })
-                            : tChat("reasoning.expandSteps")
-                        }
-                        bodyText={thoughtView.disclosure.text}
-                        defaultExpanded={false}
-                      />
-                    </div>
-                  ) : null}
-                  <ChannelMessageBody
-                    messageId={message.id}
-                    content={message.content}
+          <div className="min-w-0 max-w-full">
+            {isDeleted ? (
+              <p className="text-muted-foreground italic">
+                {tChannels("Message.deleted")}
+              </p>
+            ) : (
+              <>
+                {quote ? (
+                  <MessageQuoteBlock
+                    quote={quote}
                     coworkersById={coworkersById}
                     coworkersBySlug={coworkersBySlug}
                     usersById={usersById}
                     usersBySlug={usersBySlug}
                   />
-                  {isContinuation && showEdited ? (
-                    <span className="text-muted-foreground ml-1.5 text-xs">
-                      {tChannels("Edit.edited")}
-                    </span>
-                  ) : null}
-                  <MessageUnfurlList unfurls={message.unfurls} />
-                </>
-              )}
-            </>
-          )}
+                ) : null}
+                {isEditing &&
+                onEditDraftChange &&
+                onCancelEdit &&
+                onSaveEdit ? (
+                  <MessageEditComposer
+                    value={editDraft}
+                    originalContent={message.content}
+                    onChange={onEditDraftChange}
+                    onSave={onSaveEdit}
+                    onCancel={onCancelEdit}
+                    isSaving={isSavingEdit}
+                  />
+                ) : thoughtView?.showThinkingFallback ||
+                  thoughtView?.liveBeat != null ? (
+                  <CoworkerLiveThought
+                    label={tChat("reasoning.thinking")}
+                    liveBeat={thoughtView.liveBeat}
+                    startedAtMs={new Date(message.createdAt).getTime()}
+                  />
+                ) : (
+                  <>
+                    {thoughtView?.disclosure ? (
+                      <div className="mb-1">
+                        <CoworkerThoughtTrace
+                          working={false}
+                          headerLabel={
+                            thoughtView.disclosure.durationSeconds != null
+                              ? tChat("reasoning.thoughtForDuration", {
+                                  duration: formatThoughtDurationLabel(
+                                    thoughtView.disclosure.durationSeconds,
+                                  ),
+                                })
+                              : tChat("reasoning.expandSteps")
+                          }
+                          bodyText={thoughtView.disclosure.text}
+                          defaultExpanded={false}
+                        />
+                      </div>
+                    ) : null}
+                    <ChannelMessageBody
+                      messageId={message.id}
+                      content={message.content}
+                      coworkersById={coworkersById}
+                      coworkersBySlug={coworkersBySlug}
+                      usersById={usersById}
+                      usersBySlug={usersBySlug}
+                    />
+                    {isContinuation && showEdited ? (
+                      <span className="text-muted-foreground ml-1.5 text-xs">
+                        {tChannels("Edit.edited")}
+                      </span>
+                    ) : null}
+                    <MessageUnfurlList unfurls={message.unfurls} />
+                  </>
+                )}
+              </>
+            )}
+          </div>
           {reserveOutboundIconSlot ? (
             <OutboundDeliveryInlineIcon
               status={outboundStatus}
