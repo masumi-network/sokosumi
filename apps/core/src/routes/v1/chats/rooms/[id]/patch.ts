@@ -12,6 +12,7 @@ import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import { publishChatMembershipRevokedToUsers } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
   withGlobalHeaderParameters,
@@ -71,7 +72,7 @@ const route = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
-      409: jsonErrorResponse("Room already exists"),
+      409: jsonErrorResponse("Conflict"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -84,8 +85,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const body = c.req.valid("json");
 
     try {
+      // Serializable so a concurrent leave cannot commit under a stale roster
+      // snapshot that would re-create the leaver's membership (SSI → 409
+      // concurrency_conflict). Leave still uses FOR UPDATE on the room row.
       const { room, statusMessages, removedUserIds } =
-        await prisma.$transaction(async (tx) => {
+        await serializableTransaction(async (tx) => {
           const existing = await requireChatRoomUserAccess(
             id,
             userContext.userId,
@@ -391,7 +395,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             statusMessages: createdStatus,
             removedUserIds,
           };
-        });
+        }, "Chat room was modified concurrently; please retry.");
 
       // Status timeline and revoke are independent: membership is already
       // committed; a failed status publish must not skip cap revoke.
