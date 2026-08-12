@@ -25,15 +25,22 @@ export function isOutboundSentTickActive(
   ...keys: (string | null | undefined)[]
 ): boolean {
   const now = Date.now();
+  let active = false;
   for (const key of keys) {
     if (typeof key !== "string" || key.length === 0) {
       continue;
     }
-    if ((activeUntilByKey.get(key) ?? 0) > now) {
-      return true;
+    const until = activeUntilByKey.get(key) ?? 0;
+    if (until <= now) {
+      // Drop expired entries so long sessions do not grow unbounded.
+      if (until > 0) {
+        activeUntilByKey.delete(key);
+      }
+      continue;
     }
+    active = true;
   }
-  return false;
+  return active;
 }
 
 /** Test helper — clears all ticks. */

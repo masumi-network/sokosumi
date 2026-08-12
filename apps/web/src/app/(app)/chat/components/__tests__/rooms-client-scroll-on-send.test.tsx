@@ -186,9 +186,43 @@ vi.mock("../room-session-composer", () => ({
 }));
 
 vi.mock("../room-message-row", () => ({
-  ChatMessageRow: ({ message }: { message: ChatRoomMessage }) => (
-    <div data-testid={`message-${message.id}`}>{message.content}</div>
-  ),
+  ChatMessageRow: ({
+    message,
+    onRetryOutbound,
+    onRemoveOutbound,
+  }: {
+    message: ChatRoomMessage;
+    onRetryOutbound?: (message: ChatRoomMessage) => void;
+    onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  }) => {
+    const status = message.metadata?.outbound_delivery_status;
+    return (
+      <div
+        data-testid={`message-${message.id}`}
+        data-outbound-status={typeof status === "string" ? status : "confirmed"}
+      >
+        {message.content}
+        {status === "failed" ? (
+          <>
+            <button
+              type="button"
+              data-testid="retry-outbound"
+              onClick={() => onRetryOutbound?.(message)}
+            >
+              retry
+            </button>
+            <button
+              type="button"
+              data-testid="remove-outbound"
+              onClick={() => onRemoveOutbound?.(message)}
+            >
+              remove
+            </button>
+          </>
+        ) : null}
+      </div>
+    );
+  },
 }));
 
 vi.mock("../thread-panel", () => ({
@@ -440,5 +474,67 @@ describe("RoomsClient scroll on own send", () => {
 
     expect(scrollToBottomIfPinned).toHaveBeenCalled();
     expect(pinToBottomAfterOwnSend).not.toHaveBeenCalled();
+  });
+
+  it("marks classic channel shell failed and supports retry then remove", async () => {
+    const room = channelRoom();
+    sendRoomMessageAction
+      .mockResolvedValueOnce({
+        ok: false as const,
+        error: { message: "network down" },
+      })
+      .mockResolvedValueOnce({
+        ok: true as const,
+        value: sentMessage(room.id),
+      });
+
+    renderRoomsClient(room);
+
+    await act(async () => {
+      screen.getByTestId("send-message").click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const failedShell = screen.getByTestId("message-pending:client-msg-1");
+    expect(failedShell).toHaveAttribute("data-outbound-status", "failed");
+    expect(screen.getByTestId("retry-outbound")).toBeTruthy();
+
+    await act(async () => {
+      screen.getByTestId("retry-outbound").click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Retry reuses client turn id; confirm replaces pending shell with server id.
+    expect(screen.queryByTestId("message-pending:client-msg-1")).toBeNull();
+    expect(screen.getByTestId("message-msg-sent")).toBeTruthy();
+    expect(sendRoomMessageAction).toHaveBeenCalledTimes(2);
+  });
+
+  it("removes a failed classic channel shell without a second POST", async () => {
+    const room = channelRoom();
+    sendRoomMessageAction.mockResolvedValue({
+      ok: false as const,
+      error: { message: "network down" },
+    });
+
+    renderRoomsClient(room);
+
+    await act(async () => {
+      screen.getByTestId("send-message").click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.getByTestId("message-pending:client-msg-1")).toBeTruthy();
+
+    await act(async () => {
+      screen.getByTestId("remove-outbound").click();
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId("message-pending:client-msg-1")).toBeNull();
+    expect(sendRoomMessageAction).toHaveBeenCalledTimes(1);
   });
 });
