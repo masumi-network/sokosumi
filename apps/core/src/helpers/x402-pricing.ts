@@ -10,6 +10,31 @@ import { LIMITS } from "@/config/constants";
 import { unprocessableEntity } from "./error";
 
 /**
+ * Widest asset scale this module will price — an ERC-20 `decimals` is a
+ * `uint8`, so 255 is the type's own ceiling.
+ */
+export const X402_MAX_ASSET_DECIMALS = 255;
+
+/**
+ * Whether a value is a usable ERC-20 `decimals`: an integer in `0..255`.
+ *
+ * Owned here because `decimals` matters only to the formula below, and it
+ * scales the charge INVERSELY: a scale that is off by n prices the call 10^n
+ * wrong, in the direction that favours whoever supplied it. Every crossing
+ * into this module — the readiness cache on the way in, the demand on the way
+ * through — asks this one question, so an unusable value drops the pair or
+ * rejects the charge rather than being defaulted, rounded, or clamped.
+ */
+export function isUsableAssetDecimals(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value <= X402_MAX_ASSET_DECIMALS
+  );
+}
+
+/**
  * Converts an x402 base-unit amount into billable cents via its CAIP-19
  * `CreditCost` row (wayfinder ticket 004; PR1-SPEC §3.4).
  *
@@ -50,11 +75,7 @@ export function calculateCentsFromX402Amount(
   if (amount <= 0n) {
     throw unprocessableEntity("x402 amount must be positive");
   }
-  if (
-    !Number.isInteger(input.decimals) ||
-    input.decimals < 0 ||
-    input.decimals > 255
-  ) {
+  if (!isUsableAssetDecimals(input.decimals)) {
     throw unprocessableEntity(`Invalid asset decimals: ${input.decimals}`);
   }
 
