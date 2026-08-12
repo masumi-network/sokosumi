@@ -22,6 +22,16 @@ export function mergeRoomMessages(
 ): ChatRoomMessage[] {
   let working: ChatRoomMessage[] = [...existing];
   const remainingIncoming: ChatRoomMessage[] = [];
+  const outboundTurnIds = new Set<string>();
+  for (const row of working) {
+    if (!isOutboundLocalMessage(row)) {
+      continue;
+    }
+    const rowTurnId = readClientTurnId(row);
+    if (rowTurnId != null) {
+      outboundTurnIds.add(rowTurnId);
+    }
+  }
 
   for (const message of incoming) {
     if (isOutboundLocalMessage(message)) {
@@ -29,14 +39,9 @@ export function mergeRoomMessages(
       continue;
     }
     const turnId = readClientTurnId(message);
-    if (
-      turnId != null &&
-      working.some(
-        (row) =>
-          isOutboundLocalMessage(row) && readClientTurnId(row) === turnId,
-      )
-    ) {
-      working = confirmOutboundMessage(working, message);
+    if (turnId != null && outboundTurnIds.has(turnId)) {
+      working = confirmOutboundMessage(working, message, turnId);
+      outboundTurnIds.delete(turnId);
       continue;
     }
     remainingIncoming.push(message);

@@ -111,6 +111,33 @@ describe("outbound room message", () => {
     expect(readClientTurnId(next[0]!)).toBe("turn-1");
   });
 
+  it("appends the confirmed row when no pending shell matches", () => {
+    const peer = serverMessage("peer-1", "hi");
+    const confirmed = serverMessage("srv-1", "hello", "turn-1");
+
+    const next = confirmOutboundMessage([peer], confirmed, "turn-1");
+
+    expect(next.map((row) => row.id)).toEqual(["peer-1", "srv-1"]);
+  });
+
+  it("keeps one row when the pending shell and the confirmed row both exist", () => {
+    const pending = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "hello",
+      senderUser,
+    });
+    const confirmed = serverMessage("srv-1", "hello", "turn-1");
+
+    const next = confirmOutboundMessage(
+      [pending, confirmed],
+      confirmed,
+      "turn-1",
+    );
+
+    expect(next.map((row) => row.id)).toEqual(["srv-1"]);
+  });
+
   it("marks failed and can return to pending on retry", () => {
     const pending = createPendingRoomMessage({
       clientTurnId: "turn-1",

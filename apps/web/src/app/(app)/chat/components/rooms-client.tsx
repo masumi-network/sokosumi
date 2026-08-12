@@ -1971,6 +1971,7 @@ export function RoomsClient({
 
       const senderUser = resolveCurrentUserParticipant();
       if (!senderUser) {
+        toast.error(t("Outbound.failed"));
         return { ok: false };
       }
 
@@ -2052,6 +2053,7 @@ export function RoomsClient({
 
       const senderUser = resolveCurrentUserParticipant();
       if (!senderUser) {
+        toast.error(t("Outbound.failed"));
         return { ok: false };
       }
 

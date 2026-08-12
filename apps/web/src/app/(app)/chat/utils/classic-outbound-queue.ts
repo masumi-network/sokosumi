@@ -1,6 +1,9 @@
-import type { MutableRefObject } from "react";
-
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+
+/** Framework-neutral mutable box (React refs satisfy this shape). */
+export interface MutableContainer<T> {
+  current: T;
+}
 
 /** Classic POST job retained for single-flight queue + failed-send retry. */
 export interface ClassicOutboundJob {
@@ -18,9 +21,9 @@ export type ClassicOutboundSendResult =
   | { ok: false; error: { message: string } };
 
 export interface ClassicOutboundQueueRefs {
-  queueRef: MutableRefObject<string[]>;
-  jobsRef: MutableRefObject<Map<string, ClassicOutboundJob>>;
-  runningRef: MutableRefObject<boolean>;
+  queueRef: MutableContainer<string[]>;
+  jobsRef: MutableContainer<Map<string, ClassicOutboundJob>>;
+  runningRef: MutableContainer<boolean>;
 }
 
 /**

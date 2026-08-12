@@ -1252,6 +1252,7 @@ function MessageTimeOrOutboundStatus({
           "text-muted-foreground",
           className,
         )}
+        role="img"
         data-testid="outbound-delivery-pending"
         title={t("Outbound.sending")}
         aria-label={t("Outbound.sending")}
@@ -1265,6 +1266,7 @@ function MessageTimeOrOutboundStatus({
     return (
       <span
         className={cn(OUTBOUND_TIME_SLOT_CLASS, "text-destructive", className)}
+        role="img"
         data-testid="outbound-delivery-failed-icon"
         title={t("Outbound.failed")}
         aria-label={t("Outbound.failed")}
@@ -1282,6 +1284,7 @@ function MessageTimeOrOutboundStatus({
           "text-muted-foreground",
           className,
         )}
+        role="img"
         data-testid="outbound-delivery-sent"
         title={t("Outbound.sent")}
         aria-label={t("Outbound.sent")}

@@ -169,9 +169,10 @@ export function confirmOutboundMessage(
   return next;
 }
 
-export function failOutboundMessage(
+function setOutboundDeliveryStatus(
   messages: readonly ChatRoomMessage[],
   clientTurnId: string,
+  status: OutboundDeliveryStatus,
 ): ChatRoomMessage[] {
   const pendingId = outboundLocalMessageId(clientTurnId);
   return messages.map((message) => {
@@ -183,30 +184,24 @@ export function failOutboundMessage(
       metadata: {
         ...(message.metadata ?? {}),
         [CLIENT_MESSAGE_ID_METADATA_KEY]: clientTurnId,
-        [OUTBOUND_DELIVERY_STATUS_METADATA_KEY]: "failed",
+        [OUTBOUND_DELIVERY_STATUS_METADATA_KEY]: status,
       },
     };
   });
+}
+
+export function failOutboundMessage(
+  messages: readonly ChatRoomMessage[],
+  clientTurnId: string,
+): ChatRoomMessage[] {
+  return setOutboundDeliveryStatus(messages, clientTurnId, "failed");
 }
 
 export function markOutboundMessagePending(
   messages: readonly ChatRoomMessage[],
   clientTurnId: string,
 ): ChatRoomMessage[] {
-  const pendingId = outboundLocalMessageId(clientTurnId);
-  return messages.map((message) => {
-    if (message.id !== pendingId) {
-      return message;
-    }
-    return {
-      ...message,
-      metadata: {
-        ...(message.metadata ?? {}),
-        [CLIENT_MESSAGE_ID_METADATA_KEY]: clientTurnId,
-        [OUTBOUND_DELIVERY_STATUS_METADATA_KEY]: "pending",
-      },
-    };
-  });
+  return setOutboundDeliveryStatus(messages, clientTurnId, "pending");
 }
 
 export function removeOutboundMessage(

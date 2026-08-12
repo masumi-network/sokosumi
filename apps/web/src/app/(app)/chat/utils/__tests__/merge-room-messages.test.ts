@@ -76,7 +76,8 @@ describe("mergeRoomMessages", () => {
         image: null,
         presence: "offline",
       },
-      createdAt: new Date("2026-07-01T12:00:00.000Z"),
+      // Earlier than peer so sticky-end (not timestamp sort) keeps pending last.
+      createdAt: new Date("2026-07-01T10:30:00.000Z"),
     });
     const peerEarlier = message("peer-1", "2026-07-01T11:00:00.000Z", "peer");
 
