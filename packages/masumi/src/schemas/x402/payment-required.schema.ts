@@ -1,4 +1,3 @@
-import { canonicalizeEx } from "json-canonicalize";
 import { err, ok, type Result } from "neverthrow";
 import { z } from "zod";
 
@@ -6,6 +5,7 @@ import {
   CAIP2_EVM_NETWORK_PATTERN,
   EVM_ADDRESS_PATTERN,
 } from "../../utils/caip19.js";
+import { canonicalJsonKey } from "./payment-required.canonical.js";
 import {
   BOUNDED_MAP_MESSAGE,
   boundedMapCheck,
@@ -567,11 +567,11 @@ export function narrowToChosenRequirement(
   paymentRequired: X402PaymentRequired,
   chosen: X402PaymentRequirements,
 ): Result<X402PaymentRequired, string> {
-  const chosenKey = canonicalKey(chosen);
+  const chosenKey = canonicalJsonKey(chosen);
   const member = paymentRequired.accepts.find(
     (entry) =>
       entry === chosen ||
-      (chosenKey !== undefined && canonicalKey(entry) === chosenKey),
+      (chosenKey !== undefined && canonicalJsonKey(entry) === chosenKey),
   );
   if (member === undefined) {
     return err(
@@ -587,20 +587,6 @@ export function narrowToChosenRequirement(
     );
   }
   return ok(validated.data);
-}
-
-/**
- * RFC 8785 canonical JSON for a requirement entry, used only to compare two
- * entries for value equality regardless of key order. `undefined` when the
- * value cannot be canonicalized, which the caller treats as "not equal" —
- * fail closed, and never a throw.
- */
-function canonicalKey(value: X402PaymentRequirements): string | undefined {
-  try {
-    return canonicalizeEx(value, { filterUndefined: true });
-  } catch {
-    return undefined;
-  }
 }
 
 /**

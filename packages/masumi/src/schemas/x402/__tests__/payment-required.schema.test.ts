@@ -33,6 +33,25 @@ function v2Entry(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * Rebuilds a JSON value with every object's keys in reverse order, at every
+ * depth — what a caller that round-tripped the entry through a different JSON
+ * encoder holds. Canonical-JSON equality must see through it.
+ */
+function deepReorder(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(deepReorder);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .reverse()
+        .map(([key, nested]) => [key, deepReorder(nested)]),
+    );
+  }
+  return value;
+}
+
 function v1Entry(overrides: Record<string, unknown> = {}) {
   return {
     scheme: "exact",
@@ -1037,5 +1056,43 @@ describe("narrowToChosenRequirement", () => {
 
     expect(narrowed.isOk()).toBe(true);
     expect(narrowed._unsafeUnwrap().accepts).toEqual([chosen]);
+  });
+
+  it("matches a reordered entry that carries a toJSON key", () => {
+    // `toJSON` is a spec-legal unknown key on an `accepts` entry — it does not
+    // collide case-insensitively with a validated field, so `dropShadowKeys`
+    // passes it and the loose entry schema keeps it. It need not be callable:
+    // the string "x" is enough.
+    //
+    // A serializer that short-circuits on `object.toJSON != null` then falls
+    // back to plain `JSON.stringify`, which emits INSERTION order rather than
+    // sorted order — so the round-tripped entry canonicalizes differently from
+    // the payload's own and membership fails. The 402 fails closed, but a
+    // resource server chooses when to trigger it, which makes the agent
+    // unpayable on any path that round-trips the chosen entry (a replay, a
+    // queued job). Measured before this fix: reordered round-trip match
+    // `false` with `toJSON`, `true` without.
+    for (const overrides of [
+      { toJSON: "x" },
+      { extra: { toJSON: "x", name: "USD Coin", version: "2" } },
+      { outputSchema: { toJSON: "x", type: "object" } },
+    ]) {
+      const payload = normalizeX402PaymentRequired({
+        x402Version: 2,
+        accepts: [v2Entry(overrides)],
+      })._unsafeUnwrap();
+      const chosen = payload.accepts[0];
+      if (!chosen) {
+        expect.unreachable("fixture must have an entry");
+      }
+
+      const narrowed = narrowToChosenRequirement(
+        payload,
+        deepReorder(chosen) as typeof chosen,
+      );
+
+      expect(narrowed.isOk()).toBe(true);
+      expect(narrowed._unsafeUnwrap().accepts).toEqual([chosen]);
+    }
   });
 });
