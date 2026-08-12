@@ -8,11 +8,23 @@ import { OUTBOUND_SENT_TICK_MS } from "./outbound-room-message";
  */
 const activeUntilByKey = new Map<string, number>();
 
+function sweepExpiredOutboundSentTicks(nowMs: number): void {
+  for (const [key, activeUntil] of activeUntilByKey) {
+    if (activeUntil <= nowMs) {
+      activeUntilByKey.delete(key);
+    }
+  }
+}
+
 export function markOutboundSentTick(
   keys: string | readonly (string | null | undefined)[],
   durationMs: number = OUTBOUND_SENT_TICK_MS,
 ): void {
-  const until = Date.now() + durationMs;
+  const nowMs = Date.now();
+  // Writes are rare (one per confirmed send). Sweep so keys never read
+  // again (leave room / close tab after confirm) cannot grow the Map.
+  sweepExpiredOutboundSentTicks(nowMs);
+  const until = nowMs + durationMs;
   const list = typeof keys === "string" ? [keys] : keys;
   for (const key of list) {
     if (typeof key === "string" && key.length > 0) {
@@ -32,7 +44,6 @@ export function isOutboundSentTickActive(
     }
     const until = activeUntilByKey.get(key) ?? 0;
     if (until <= now) {
-      // Drop expired entries so long sessions do not grow unbounded.
       if (until > 0) {
         activeUntilByKey.delete(key);
       }

@@ -42,6 +42,7 @@ import {
   OUTBOUND_PENDING_SPINNER_DELAY_MS,
   OUTBOUND_SENT_TICK_MS,
   type OutboundDeliveryStatus,
+  outboundPendingAgeMs,
   readClientTurnId,
   readOutboundDeliveryStatus,
   shouldShowOutboundPendingSpinner,
@@ -1321,10 +1322,8 @@ function MessageTimeOrOutboundStatus({
       return;
     }
     setShowPendingSpinner(false);
-    const createdMs = new Date(createdAt).getTime();
-    const remainingMs = Number.isFinite(createdMs)
-      ? OUTBOUND_PENDING_SPINNER_DELAY_MS - (Date.now() - createdMs)
-      : OUTBOUND_PENDING_SPINNER_DELAY_MS;
+    const remainingMs =
+      OUTBOUND_PENDING_SPINNER_DELAY_MS - outboundPendingAgeMs(createdAt);
     const timeoutId = window.setTimeout(
       () => {
         setShowPendingSpinner(true);

@@ -6,10 +6,8 @@
 import { act, render, screen } from "@testing-library/react";
 import { type ReactNode, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-
+import { ChatMessageRow } from "@/app/chat/components/room-message-row";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
-
-import { ChatMessageRow } from "../../components/room-message-row";
 import {
   confirmOutboundMessage,
   createPendingRoomMessage,

@@ -32,4 +32,17 @@ describe("outbound-sent-tick registry", () => {
     expect(isOutboundSentTickActive("turn-1")).toBe(true);
     expect(isOutboundSentTickActive("other")).toBe(false);
   });
+
+  it("sweeps unread expired keys on the next mark", () => {
+    vi.useFakeTimers();
+    const now = new Date("2026-07-01T12:00:00.000Z");
+    vi.setSystemTime(now);
+    markOutboundSentTick("stale", 1000);
+
+    vi.setSystemTime(new Date(now.getTime() + 1001));
+    markOutboundSentTick("fresh", 60_000);
+
+    expect(isOutboundSentTickActive("stale")).toBe(false);
+    expect(isOutboundSentTickActive("fresh")).toBe(true);
+  });
 });

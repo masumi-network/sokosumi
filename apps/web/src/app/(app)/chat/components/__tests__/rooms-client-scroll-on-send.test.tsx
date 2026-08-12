@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -490,25 +490,21 @@ describe("RoomsClient scroll on own send", () => {
 
     renderRoomsClient(room);
 
-    await act(async () => {
-      screen.getByTestId("send-message").click();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    screen.getByTestId("send-message").click();
 
-    const failedShell = screen.getByTestId("message-pending:client-msg-1");
+    const failedShell = await screen.findByTestId(
+      "message-pending:client-msg-1",
+    );
     expect(failedShell).toHaveAttribute("data-outbound-status", "failed");
     expect(screen.getByTestId("retry-outbound")).toBeTruthy();
 
-    await act(async () => {
-      screen.getByTestId("retry-outbound").click();
-      await Promise.resolve();
-      await Promise.resolve();
-    });
+    screen.getByTestId("retry-outbound").click();
 
     // Retry reuses client turn id; confirm replaces pending shell with server id.
-    expect(screen.queryByTestId("message-pending:client-msg-1")).toBeNull();
-    expect(screen.getByTestId("message-msg-sent")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByTestId("message-pending:client-msg-1")).toBeNull();
+    });
+    expect(await screen.findByTestId("message-msg-sent")).toBeTruthy();
     expect(sendRoomMessageAction).toHaveBeenCalledTimes(2);
   });
 
@@ -521,20 +517,17 @@ describe("RoomsClient scroll on own send", () => {
 
     renderRoomsClient(room);
 
-    await act(async () => {
-      screen.getByTestId("send-message").click();
-      await Promise.resolve();
-      await Promise.resolve();
+    screen.getByTestId("send-message").click();
+
+    expect(
+      await screen.findByTestId("message-pending:client-msg-1"),
+    ).toBeTruthy();
+
+    screen.getByTestId("remove-outbound").click();
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("message-pending:client-msg-1")).toBeNull();
     });
-
-    expect(screen.getByTestId("message-pending:client-msg-1")).toBeTruthy();
-
-    await act(async () => {
-      screen.getByTestId("remove-outbound").click();
-      await Promise.resolve();
-    });
-
-    expect(screen.queryByTestId("message-pending:client-msg-1")).toBeNull();
     expect(sendRoomMessageAction).toHaveBeenCalledTimes(1);
   });
 });

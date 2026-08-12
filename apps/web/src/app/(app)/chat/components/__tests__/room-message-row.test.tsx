@@ -2,12 +2,11 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-
+import { OUTBOUND_PENDING_SPINNER_DELAY_MS } from "@/app/chat/utils/outbound-room-message";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
 } from "@/lib/clients/generated/core";
-
 import { ChatMessageRow } from "../room-message-row";
 
 vi.mock("next-intl", () => ({
@@ -250,23 +249,35 @@ describe("ChatMessageRow", () => {
   });
 
   it("omits wall-clock in the continuation rail while pending before spinner delay", () => {
-    renderRow({
-      isContinuation: true,
-      currentUserId: "user-1",
-      message: userMessage({
-        id: "pending:turn-1",
-        content: "on the train",
-        createdAt: new Date(),
-        metadata: {
-          client_message_id: "turn-1",
-          outbound_delivery_status: "pending",
-        },
-      }),
-    });
+    vi.useFakeTimers();
+    try {
+      const createdAt = new Date();
+      renderRow({
+        isContinuation: true,
+        currentUserId: "user-1",
+        message: userMessage({
+          id: "pending:turn-1",
+          content: "on the train",
+          createdAt,
+          metadata: {
+            client_message_id: "turn-1",
+            outbound_delivery_status: "pending",
+          },
+        }),
+      });
 
-    expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
-    expect(screen.queryByRole("time")).not.toBeInTheDocument();
-    expect(screen.getByTestId("message-continuation-rail")).toBeInTheDocument();
+      expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+      expect(screen.queryByRole("time")).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId("message-continuation-rail"),
+      ).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(OUTBOUND_PENDING_SPINNER_DELAY_MS - 1);
+      });
+      expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows reactor names in reaction tooltip in API order", () => {
@@ -1845,22 +1856,32 @@ describe("ChatMessageRow coworker Thought", () => {
 
 describe("ChatMessageRow outbound delivery", () => {
   it("keeps wall-clock time while pending before the spinner delay", () => {
-    renderRow({
-      currentUserId: "user-1",
-      message: userMessage({
-        id: "pending:turn-1",
-        content: "on the train",
-        createdAt: new Date(),
-        metadata: {
-          client_message_id: "turn-1",
-          outbound_delivery_status: "pending",
-        },
-      }),
-    });
+    vi.useFakeTimers();
+    try {
+      const createdAt = new Date();
+      renderRow({
+        currentUserId: "user-1",
+        message: userMessage({
+          id: "pending:turn-1",
+          content: "on the train",
+          createdAt,
+          metadata: {
+            client_message_id: "turn-1",
+            outbound_delivery_status: "pending",
+          },
+        }),
+      });
 
-    expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
-    expect(screen.getByRole("time")).toBeInTheDocument();
-    expect(screen.queryByTestId("outbound-delivery-failed")).toBeNull();
+      expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+      expect(screen.getByRole("time")).toBeInTheDocument();
+      expect(screen.queryByTestId("outbound-delivery-failed")).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(OUTBOUND_PENDING_SPINNER_DELAY_MS - 1);
+      });
+      expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows a quiet spinner after the pending delay elapses", () => {
