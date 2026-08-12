@@ -562,7 +562,10 @@ export function normalizeX402PaymentRequired(
   );
   if (resources.length > 1) {
     // Up to 21 pooled URLs at 2048 characters each, so the echo is truncated
-    // per URL for the same reason the network and amount echoes are.
+    // twice: per URL for the same reason the network and amount echoes are,
+    // and again as a whole because 21 URLs each inside the per-value cap
+    // still measured 1 890 characters — the per-value bound says nothing
+    // about an echo built out of many values.
     return err(
       `Conflicting x402 resource URLs: ${truncateDetail(resources.map(truncateEcho).join(", "))}`,
     );
