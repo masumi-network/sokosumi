@@ -329,6 +329,121 @@ describe("buildX402AgentPaymentSources", () => {
     });
   });
 
+  it("advertises a whitespace-padded registry asset in canonical trimmed form", () => {
+    // `normalizeMasumiPaymentUnit` lowercases but does not trim, so a padded
+    // unit survives ingestion. Every consumer of the advertised asset — the
+    // readiness lookup, the CAIP-19 key, and the pay side's 402 matcher —
+    // compares canonically trimmed lowercase, so a padded spelling would be
+    // listed and then never match a demand.
+    const result = buildX402AgentPaymentSources(
+      [
+        createSource({
+          amounts: [
+            {
+              unit: ` ${USDC_ADDRESS.toUpperCase()} `,
+              amount: 250000n,
+              decimals: 6,
+            },
+          ],
+        }),
+      ],
+      CONTEXT,
+    );
+
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [
+        expect.objectContaining({
+          caip2Network: BASE_SEPOLIA,
+          asset: USDC_ADDRESS,
+        }),
+      ],
+    });
+  });
+
+  it("advertises a whitespace-padded registry payTo in canonical trimmed form", () => {
+    const result = buildX402AgentPaymentSources(
+      [createSource({ payTo: ` ${PAY_TO} ` })],
+      CONTEXT,
+    );
+
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [expect.objectContaining({ payTo: PAY_TO })],
+    });
+  });
+
+  it("collapses a padded duplicate amount row into one advertised entry", () => {
+    // Padding is not a second asset: the two rows say the same thing.
+    const result = buildX402AgentPaymentSources(
+      [
+        createSource({
+          amounts: [
+            { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
+            { unit: ` ${USDC_ADDRESS}`, amount: 250000n, decimals: 6 },
+          ],
+        }),
+      ],
+      CONTEXT,
+    );
+
+    expect(result).toEqual({
+      status: "listed",
+      paymentSources: [
+        {
+          caip2Network: BASE_SEPOLIA,
+          asset: USDC_ADDRESS,
+          decimals: 6,
+          payTo: PAY_TO,
+          amount: "250000",
+          credits: 0.5,
+        },
+      ],
+    });
+  });
+
+  it("drops an agent whose padded duplicate unit carries a second price", () => {
+    // Both rows pass readiness and pricing (those lookups trim), so an
+    // untrimmed dedupe key would advertise the SAME effective triple at 0.5
+    // and 10 credits — exactly the state conflicting_price exists to forbid.
+    expect(
+      buildX402AgentPaymentSources(
+        [
+          createSource({
+            amounts: [
+              { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
+              { unit: ` ${USDC_ADDRESS}`, amount: 5000000n, decimals: 6 },
+            ],
+          }),
+        ],
+        CONTEXT,
+      ),
+    ).toEqual({
+      status: "dropped",
+      reason: "conflicting_price",
+    });
+  });
+
+  it("drops an agent whose padded payTo repeats a triple at a second price", () => {
+    // Same recipient, one source spelling it padded. The pay side compares
+    // payTo case- and whitespace-insensitively, so these are one triple.
+    expect(
+      buildX402AgentPaymentSources(
+        [
+          createSource(),
+          createSource({
+            payTo: ` ${PAY_TO} `,
+            amounts: [{ unit: USDC_ADDRESS, amount: 5000000n, decimals: 6 }],
+          }),
+        ],
+        CONTEXT,
+      ),
+    ).toEqual({
+      status: "dropped",
+      reason: "conflicting_price",
+    });
+  });
+
   it("drops an agent whose duplicate amount rows disagree on decimals", () => {
     // Same base-unit amount, different decimals — a different price per whole
     // token, so the two rows are not interchangeable.

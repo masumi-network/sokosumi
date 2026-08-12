@@ -133,6 +133,7 @@ export function buildX402AgentPaymentSources(
       return { status: "dropped", reason: "no_amount_rows" };
     }
     const caip2Network = source.network.trim().toLowerCase();
+    const payTo = source.payTo.trim();
     for (const amount of source.amounts) {
       if (amount.decimals === null) {
         return { status: "dropped", reason: "missing_decimals" };
@@ -158,9 +159,16 @@ export function buildX402AgentPaymentSources(
       }
       const advertised: X402AgentPaymentSource = {
         caip2Network,
-        asset: amount.unit.toLowerCase(),
+        // Canonicalized HERE, once, so the advertised value and the dedupe key
+        // below are the same string. Ingestion keeps whatever the registry
+        // wrote (`normalizeMasumiPaymentUnit` lowercases but never trims),
+        // while every consumer — `findX402ReadySource`, `buildCaip19AssetKey`,
+        // and the pay side's 402 matcher — compares trimmed lowercase. A
+        // padded spelling left here would pass every gate, dedupe as a second
+        // asset, and then match no 402 demand.
+        asset: amount.unit.trim().toLowerCase(),
         decimals: amount.decimals,
-        payTo: source.payTo,
+        payTo,
         amount: amount.amount.toString(),
         credits: convertCentsToCredits(cents),
       };
@@ -198,13 +206,20 @@ export function buildX402AgentPaymentSources(
 
 /**
  * Identity of an advertised price: the `(payTo, network, asset)` triple a 402
- * demand is matched on. Case-folded — the registry serves mixed-case EVM
- * addresses and the pay side compares them case-insensitively, so two
- * spellings of one recipient are one recipient here too.
+ * demand is matched on. All three fields arrive canonical (trimmed, and
+ * lowercase for network and asset), so the key only case-folds `payTo` — the
+ * one field advertised in its registry spelling, because the registry serves
+ * mixed-case checksummed EVM addresses and the pay side compares them
+ * case-insensitively. Two spellings of one recipient are one recipient here.
+ *
+ * Canonicalizing at the assignment above rather than in this key is what keeps
+ * the gates and the dedupe in agreement: a key that normalized more than the
+ * advertised value would hide a padded asset that no 402 can ever match, and a
+ * key that normalized less would let one triple be advertised twice.
  */
 function toAdvertisedPriceKey(advertised: X402AgentPaymentSource): string {
   return [
-    advertised.payTo.trim().toLowerCase(),
+    advertised.payTo.toLowerCase(),
     advertised.caip2Network,
     advertised.asset,
   ].join("|");
