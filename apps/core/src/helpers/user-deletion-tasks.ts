@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import {
   TaskPaymentClaimStatus,
   TaskX402PaymentStatus,
@@ -24,7 +25,9 @@ type PrismaClient = ReturnType<typeof createPrismaClient>;
  *   them within a bounded window, so no operator page) and are also reported
  *   by `evaluateUserDeletion`. Every non-PENDING x402 payment is removed
  *   because its RESTRICT task and transaction relations would otherwise
- *   block both the owned-task delete and the user cascade.
+ *   block both the owned-task delete and the user cascade. A swept payment
+ *   whose charge belongs to another user pages Sentry — it means Task.ownerId
+ *   was not the billing owner.
  * - Chat rooms this user created re-point `createdByUserId` to another remaining
  *   human member. Rooms with no other human member are deleted so Restrict does
  *   not 500 an allowed wipe.
@@ -74,6 +77,45 @@ export async function prepareTasksForUserDeletion(
         message:
           "Wait for pending task payments to settle before deleting your account.",
       });
+    }
+
+    // The sweep below deletes on `task.ownerId` regardless of who was
+    // charged. Task.ownerId is documented as always the billing owner, so a
+    // row swept through the task-owner (or refund) branch whose charge belongs
+    // to someone else should be unreachable — but nothing enforces that. If it
+    // ever happens, one user's account deletion silently destroys a different,
+    // live user's payment record: the charge Transaction survives, while the
+    // chain leg, nonce, agent and network are lost. Narrowing the sweep is not
+    // the fix (the task-owner branch is load-bearing for the RESTRICT on
+    // taskId), so make the invariant break visible instead.
+    const foreignChargePayment = await tx.taskX402Payment.findFirst({
+      where: {
+        status: { not: TaskX402PaymentStatus.PENDING },
+        transaction: { userId: { not: userId } },
+        // Only the non-charge branches can reach a foreign charge; the
+        // `transaction: { userId }` branch is this user's own by definition.
+        OR: [{ refundTransaction: { userId } }, { task: { ownerId: userId } }],
+      },
+      select: {
+        id: true,
+        taskId: true,
+        transaction: { select: { userId: true } },
+      },
+    });
+    if (foreignChargePayment) {
+      Sentry.captureMessage(
+        "Account deletion is removing a task x402 payment charged to another user",
+        {
+          level: "error",
+          tags: { error_type: "user_deletion_x402_payment_foreign_charge" },
+          extra: {
+            userId,
+            taskX402PaymentId: foreignChargePayment.id,
+            taskId: foreignChargePayment.taskId,
+            chargedUserId: foreignChargePayment.transaction.userId,
+          },
+        },
+      );
     }
 
     // Non-pending x402 payments hold RESTRICT relations on the task, the

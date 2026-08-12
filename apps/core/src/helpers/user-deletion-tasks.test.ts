@@ -236,6 +236,143 @@ describe("prepareTasksForUserDeletion", () => {
     expect(sweepArgs.where.status).not.toHaveProperty("in");
   });
 
+  /**
+   * The x402 `findFirst` is called twice with different predicates: the
+   * PENDING blocker guard, then the foreign-charge detector that runs over the
+   * rows the sweep is about to delete. Discriminate on `status` the way the
+   * real query would.
+   */
+  function mockX402Lookups(options: {
+    pending?: { id: string } | null;
+    foreignCharge?: {
+      id: string;
+      taskId: string;
+      transaction: { userId: string };
+    } | null;
+  }) {
+    taskX402PaymentFindFirstMock.mockImplementation(
+      async ({ where }: { where: Record<string, unknown> }) => {
+        if (where.status === TaskX402PaymentStatus.PENDING) {
+          return options.pending ?? null;
+        }
+        return options.foreignCharge ?? null;
+      },
+    );
+  }
+
+  it("pages when the sweep would remove a payment charged to another user", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+    mockX402Lookups({
+      foreignCharge: {
+        id: "x402_foreign",
+        taskId: "tsk_owned",
+        transaction: { userId: "user_charged" },
+      },
+    });
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    // The detector must look at exactly the rows the sweep deletes whose
+    // charge is someone else's: reachable only through the refund or
+    // task-owner branch, never the charge branch.
+    expect(taskX402PaymentFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        status: { not: TaskX402PaymentStatus.PENDING },
+        transaction: { userId: { not: "user_delete" } },
+        OR: [
+          { refundTransaction: { userId: "user_delete" } },
+          { task: { ownerId: "user_delete" } },
+        ],
+      },
+      select: {
+        id: true,
+        taskId: true,
+        transaction: { select: { userId: true } },
+      },
+    });
+    // Task.ownerId is documented as always the billing owner, so this should
+    // be unreachable. If it ever fires, a live third party's payment record is
+    // being destroyed by someone else's account deletion — silent today.
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      "Account deletion is removing a task x402 payment charged to another user",
+      expect.objectContaining({
+        level: "error",
+        tags: expect.objectContaining({
+          error_type: "user_deletion_x402_payment_foreign_charge",
+        }),
+        extra: expect.objectContaining({
+          userId: "user_delete",
+          taskX402PaymentId: "x402_foreign",
+          taskId: "tsk_owned",
+          chargedUserId: "user_charged",
+        }),
+      }),
+    );
+  });
+
+  it("still sweeps the foreign-charge row it paged about", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+    mockX402Lookups({
+      foreignCharge: {
+        id: "x402_foreign",
+        taskId: "tsk_owned",
+        transaction: { userId: "user_charged" },
+      },
+    });
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    // Narrowing the OR to hide the row is not the fix: the task-owner branch
+    // is load-bearing for the RESTRICT on taskId, so dropping it would fail
+    // the owned-task delete with a raw FK 500. Make it visible, not silent.
+    expect(taskX402PaymentDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        status: { not: TaskX402PaymentStatus.PENDING },
+        OR: [
+          { transaction: { userId: "user_delete" } },
+          { refundTransaction: { userId: "user_delete" } },
+          { task: { ownerId: "user_delete" } },
+        ],
+      },
+    });
+    expect(taskDeleteManyMock).toHaveBeenCalled();
+
+    // Two lookups: the PENDING blocker guard, then the foreign-charge
+    // detector. The detector reads rows the sweep deletes, so it is only
+    // meaningful before it.
+    expect(taskX402PaymentFindFirstMock).toHaveBeenCalledTimes(2);
+    const detectCallOrder =
+      taskX402PaymentFindFirstMock.mock.invocationCallOrder[1];
+    const sweepCallOrder =
+      taskX402PaymentDeleteManyMock.mock.invocationCallOrder[0];
+    expect(detectCallOrder).toBeLessThan(sweepCallOrder);
+  });
+
+  it("does not page when every swept payment is charged to the deleted user", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+    mockX402Lookups({ foreignCharge: null });
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    // The detector still has to run — silence must come from finding nothing,
+    // not from skipping the check.
+    expect(taskX402PaymentFindFirstMock).toHaveBeenCalledTimes(2);
+    expect(taskX402PaymentDeleteManyMock).toHaveBeenCalled();
+    expect(captureMessageMock).not.toHaveBeenCalled();
+  });
+
   it("clears coworker-creator RESTRICT refs for foreign-owned tasks", async () => {
     coworkerAssignmentFindManyMock.mockResolvedValue([{ coworkerId: "cow_1" }]);
     taskFindManyMock.mockResolvedValue([
