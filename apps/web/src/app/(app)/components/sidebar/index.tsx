@@ -1,5 +1,4 @@
-import type { SessionUser } from "@sokosumi/utils";
-import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
+import type { ReactNode } from "react";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -7,19 +6,13 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import type {
-  ChatRoom,
-  ChatRoomInvitation,
-  GetUsersByIdCreditsResponse,
-  MemberWithOrganization,
-} from "@/lib/clients/generated/core";
+import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
 import type { CreditUsage } from "@/lib/types/credit";
 
 import AnnouncementCards from "./components/announcement-cards";
 import CustomTrigger from "./components/custom-trigger";
 import MenuItems from "./components/menu-items";
 import PersonalAssistantNav from "./components/personal-assistant-nav.client";
-import { SidebarAccountChip } from "./components/sidebar-account-chip.client";
 import SidebarLogo from "./components/sidebar-logo.client";
 
 export type SidebarCreditsData = GetUsersByIdCreditsResponse["data"]["credits"];
@@ -48,51 +41,15 @@ export function resolveCreditUsage(
 }
 
 interface SidebarProps {
-  activeOrganizationId: string | null;
-  adminMenuEnabled: boolean;
-  archivedChatRooms: ChatRoom[];
-  archivedChatRoomsNextCursor: string | null;
-  buyCreditsLabel: string;
-  buyCreditsPath: string;
-  canDeleteArchivedRooms: boolean;
-  chatRooms: ChatRoom[];
-  chatRoomsNextCursor: string | null;
-  pendingChatRoomInvitations: ChatRoomInvitation[];
-  creditsData: SidebarCreditsData | null;
-  creditUsage: CreditUsage | null;
-  currentTimestampMs: number;
-  currentUserId: string;
+  accountFooter: ReactNode;
+  chatList: ReactNode;
   hermesMenuEnabled: boolean;
-  lowCreditsThreshold: number;
-  members: MemberWithOrganization[];
-  planName: string | null;
-  sessionUser: SessionUser;
-  showDeveloperVendors: boolean;
-  subscriptionPeriodEndMs: number | null;
 }
 
 export default function Sidebar({
-  activeOrganizationId,
-  adminMenuEnabled,
-  archivedChatRooms,
-  archivedChatRoomsNextCursor,
-  buyCreditsLabel,
-  buyCreditsPath,
-  canDeleteArchivedRooms,
-  chatRooms,
-  chatRoomsNextCursor,
-  pendingChatRoomInvitations,
-  creditsData,
-  creditUsage,
-  currentTimestampMs,
-  currentUserId,
+  accountFooter,
+  chatList,
   hermesMenuEnabled,
-  lowCreditsThreshold,
-  members,
-  planName,
-  sessionUser,
-  showDeveloperVendors,
-  subscriptionPeriodEndMs,
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
@@ -113,17 +70,7 @@ export default function Sidebar({
           {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
           <MenuItems />
           <SidebarSeparator />
-          <OrganizationChatList
-            key={activeOrganizationId ?? "personal"}
-            rooms={chatRooms}
-            roomsNextCursor={chatRoomsNextCursor}
-            archivedRooms={archivedChatRooms}
-            archivedRoomsNextCursor={archivedChatRoomsNextCursor}
-            pendingInvitations={pendingChatRoomInvitations}
-            currentUserId={currentUserId}
-            organizationId={activeOrganizationId}
-            canDeleteArchivedRooms={canDeleteArchivedRooms}
-          />
+          {chatList}
         </div>
       </SidebarContent>
       <SidebarFooter className="mt-auto shrink-0 px-0">
@@ -132,24 +79,7 @@ export default function Sidebar({
             8px there, matching the 8px this adds on the sides. The inset only
             grows on phones, where the home indicator sits in that 8px. */}
         <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-          <SidebarAccountChip
-            sessionUser={sessionUser}
-            planName={planName}
-            totalCredits={creditsData?.total ?? null}
-            extraCredits={creditsData?.buffer ?? null}
-            creditUsage={creditUsage}
-            subscriptionPeriodEndMs={subscriptionPeriodEndMs}
-            currentTimestampMs={currentTimestampMs}
-            lowCreditsThreshold={lowCreditsThreshold}
-            buyCreditsLabel={buyCreditsLabel}
-            buyCreditsPath={buyCreditsPath}
-            adminSettingsChrome={{
-              adminMenuEnabled,
-              members,
-              activeOrganizationId,
-              showDeveloperVendors,
-            }}
-          />
+          {accountFooter}
         </div>
       </SidebarFooter>
     </ShadcnSidebar>

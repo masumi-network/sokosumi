@@ -2,14 +2,16 @@ import type { Session } from "@sokosumi/utils";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
-import { getCachedMyCredits } from "@/app/components/private-sidebar-cache";
+import {
+  getCachedMyCredits,
+  getPrivateCachedChatListChrome,
+} from "@/app/components/private-sidebar-cache";
 import { resolveCreditUsage } from "@/app/components/sidebar";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
 import { getEnvPublicConfig } from "@/config/env.public";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
-import { userService } from "@/lib/services";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
+import { HeaderNotificationBell } from "./header-notification-bell.client";
 import HeaderProfileSectionClient, {
   type HeaderAccountSummary,
 } from "./header-profile-section.client";
@@ -36,12 +38,15 @@ export default function HeaderProfileSection({
   adminMenuEnabled,
 }: HeaderProfileSectionProps) {
   return (
-    <Suspense fallback={<HeaderProfileSectionSkeleton />}>
-      <HeaderProfileSectionInner
-        session={session}
-        adminMenuEnabled={adminMenuEnabled}
-      />
-    </Suspense>
+    <div className="flex h-8 items-center gap-1.5 md:h-auto">
+      <Suspense fallback={<HeaderProfileSectionSkeleton />}>
+        <HeaderProfileSectionInner
+          session={session}
+          adminMenuEnabled={adminMenuEnabled}
+        />
+      </Suspense>
+      <HeaderNotificationBell />
+    </div>
   );
 }
 
@@ -92,12 +97,14 @@ async function HeaderProfileSectionInner({
 }: HeaderProfileSectionProps) {
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
-  // Start account-summary work immediately, but only await members here so
-  // desktop workspace switch + notification bell are not blocked by credits.
+  // Start account-summary work immediately, but only await last-known members
+  // here so desktop workspace switch + notification bell are not blocked by
+  // credits. Shared private-cache slice with sidebar / chats (SOK-779).
   const accountSummaryPromise = loadHeaderAccountSummary(adminMenuEnabled);
-  const members = await userService
-    .getMyMembersWithOrganizations()
-    .catch(() => [] as MemberWithOrganization[]);
+  const { members } = await getPrivateCachedChatListChrome({
+    userId: session.user.id,
+    activeOrganizationId,
+  });
 
   return (
     <HeaderProfileSectionClient
