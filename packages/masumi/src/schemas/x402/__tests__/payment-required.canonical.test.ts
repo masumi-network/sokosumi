@@ -41,6 +41,15 @@ describe("canonicalJsonKey", () => {
       canonicalJsonKey({ a: "1", x: "" }),
     );
     expect(canonicalJsonKey({ a: '"' })).toBe('{"a":"\\""}');
+    // Guards the KEY side specifically. Both pairs above differ even with the
+    // key emitted raw (`"${key}":`), because the quoting still lands
+    // differently — so they do not hold the escaping in place. These two do:
+    // an unescaped key spells `{"a":1,"b":2}` for BOTH objects, so the fence
+    // would call two different values the same value.
+    expect(canonicalJsonKey({ 'a":1,"b': 2 })).not.toBe(
+      canonicalJsonKey({ a: 1, b: 2 }),
+    );
+    expect(canonicalJsonKey({ 'a":1,"b': 2 })).toBe('{"a\\":1,\\"b":2}');
   });
 
   it("preserves array order and distinguishes an array from an object", () => {
