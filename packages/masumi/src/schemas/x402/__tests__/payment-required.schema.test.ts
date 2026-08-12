@@ -360,6 +360,29 @@ describe("normalizeX402PaymentRequired", () => {
     );
   });
 
+  it("rejects an inherited Object.prototype key as a network name", () => {
+    // `V1_NETWORK_NAME_TO_CAIP2[trimmed]` walks the prototype chain of an
+    // object literal. Only `constructor` and `__proto__` survive the
+    // preceding `.toLowerCase()`, and both return non-undefined, so
+    // `normalizeNetwork` returned `ok(<function Object>)` / `ok(Object.
+    // prototype)` and pushed a NON-STRING `network`. Measured before this
+    // fix, it still failed closed at the trailing re-validation — but with
+    // the wrong error ("expected string, received function"), breaking the
+    // file's fail-loud-never-guess contract, and it became a real bug the
+    // moment `normalizeNetwork` was reused without that trailing safeParse.
+    for (const network of ["constructor", "__proto__", "toString", "valueOf"]) {
+      const result = normalizeX402PaymentRequired({
+        x402Version: 1,
+        accepts: [v1Entry({ network })],
+      });
+
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBe(
+        `Unknown x402 network "${network}"; expected a CAIP-2 id (eip155:*) or one of: base, base-sepolia`,
+      );
+    }
+  });
+
   it("rejects non-EVM CAIP-2 namespaces", () => {
     const result = normalizeX402PaymentRequired({
       x402Version: 2,

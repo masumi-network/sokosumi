@@ -49,11 +49,21 @@ import {
  * Plain v1 network names → CAIP-2, ONLY for the names research 001 documents.
  * An unknown name is an error: guessing a chain id would sign a payment on
  * the wrong network.
+ *
+ * A `Map`, not an object literal, because the lookup key is attacker-authored.
+ * Indexing a literal walks `Object.prototype`, and `constructor` / `__proto__`
+ * both survive the caller's `.toLowerCase()` and both return non-`undefined` —
+ * so `normalizeNetwork` answered `ok(<function Object>)` / `ok(Object.
+ * prototype)` and pushed a NON-STRING `network`. It failed closed at the
+ * trailing re-validation, but with the wrong error, and only for as long as
+ * that trailing `safeParse` stayed in place. A Map has no prototype chain to
+ * walk, so the failure mode is gone by construction rather than by a guard
+ * someone has to remember.
  */
-const V1_NETWORK_NAME_TO_CAIP2: Readonly<Record<string, string>> = {
-  base: "eip155:8453",
-  "base-sepolia": "eip155:84532",
-};
+const V1_NETWORK_NAME_TO_CAIP2: ReadonlyMap<string, string> = new Map([
+  ["base", "eip155:8453"],
+  ["base-sepolia", "eip155:84532"],
+]);
 
 /**
  * The upstream x402 extension key a server advertises when it supports (or
@@ -279,12 +289,12 @@ function normalizeNetwork(network: string): Result<string, string> {
   if (CAIP2_EVM_NETWORK_PATTERN.test(trimmed)) {
     return ok(trimmed);
   }
-  const mapped = V1_NETWORK_NAME_TO_CAIP2[trimmed];
+  const mapped = V1_NETWORK_NAME_TO_CAIP2.get(trimmed);
   if (mapped !== undefined) {
     return ok(mapped);
   }
   return err(
-    `Unknown x402 network "${truncateEcho(network)}"; expected a CAIP-2 id (eip155:*) or one of: ${Object.keys(V1_NETWORK_NAME_TO_CAIP2).join(", ")}`,
+    `Unknown x402 network "${truncateEcho(network)}"; expected a CAIP-2 id (eip155:*) or one of: ${[...V1_NETWORK_NAME_TO_CAIP2.keys()].join(", ")}`,
   );
 }
 
