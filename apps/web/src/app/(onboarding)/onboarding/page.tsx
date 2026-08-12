@@ -13,6 +13,7 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { canUseNextImageSrc } from "@/config/next-image";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
+import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 

@@ -65,20 +65,15 @@ describe("completeOnboarding", () => {
     markOnboardingCompleteForMeMock.mockResolvedValue(undefined);
   });
 
-  it("always calls Core complete, then BA session sync, with profile when provided", async () => {
+  it("calls Core complete, then BA session sync", async () => {
     const { completeOnboarding } = await import("../action");
 
-    const profile = {
-      companySize: "11-50" as const,
-      companyType: "agency" as const,
-      role: "founder" as const,
-      workStyle: "team" as const,
-    };
-
-    const result = await completeOnboarding(profile);
+    const result = await completeOnboarding();
 
     expect(result.ok).toBe(true);
-    expect(completeMyOnboardingMock).toHaveBeenCalledWith({ profile });
+    // Core owns the flag; the BA call exists only to refresh the session
+    // cookie cache, and a stale cache against a Core-true flag loops.
+    expect(completeMyOnboardingMock).toHaveBeenCalledWith();
     expect(markOnboardingCompleteForMeMock).toHaveBeenCalledTimes(1);
     expect(cookiesSetMock).toHaveBeenCalled();
     expect(revalidatePathMock).toHaveBeenCalledWith("/");
@@ -87,28 +82,11 @@ describe("completeOnboarding", () => {
     }
   });
 
-  it("still calls Core complete with no body when profile is empty or omitted", async () => {
-    const { completeOnboarding } = await import("../action");
-
-    const emptyResult = await completeOnboarding({});
-    expect(emptyResult.ok).toBe(true);
-    expect(completeMyOnboardingMock).toHaveBeenCalledWith(undefined);
-    expect(markOnboardingCompleteForMeMock).toHaveBeenCalledTimes(1);
-
-    completeMyOnboardingMock.mockClear();
-    markOnboardingCompleteForMeMock.mockClear();
-
-    const omittedResult = await completeOnboarding();
-    expect(omittedResult.ok).toBe(true);
-    expect(completeMyOnboardingMock).toHaveBeenCalledWith(undefined);
-    expect(markOnboardingCompleteForMeMock).toHaveBeenCalledTimes(1);
-  });
-
   it("surfaces an error when Core complete fails before BA sync", async () => {
     completeMyOnboardingMock.mockRejectedValue(new Error("core down"));
 
     const { completeOnboarding } = await import("../action");
-    const result = await completeOnboarding({ role: "founder" });
+    const result = await completeOnboarding();
 
     expect(result.ok).toBe(false);
     expect(markOnboardingCompleteForMeMock).not.toHaveBeenCalled();
@@ -125,7 +103,7 @@ describe("completeOnboarding", () => {
     const { completeOnboarding } = await import("../action");
     const result = await completeOnboarding();
 
-    expect(completeMyOnboardingMock).toHaveBeenCalledWith(undefined);
+    expect(completeMyOnboardingMock).toHaveBeenCalledWith();
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.message).toBe("session sync failed");
