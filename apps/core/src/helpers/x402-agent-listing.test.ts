@@ -11,10 +11,13 @@ import type { X402ReadySource } from "./x402-readiness";
 const BASE_SEPOLIA = "eip155:84532";
 const BASE_MAINNET = "eip155:8453";
 const USDC_ADDRESS = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
+const EURC_ADDRESS = "0x808456652fdb597867f38412077a9182bf77359f";
 const PAY_TO = "0x1111111111111111111111111111111111111111";
+const OTHER_PAY_TO = "0x9999999999999999999999999999999999999999";
 
 const READY_SOURCES: X402ReadySource[] = [
   { caip2Network: BASE_SEPOLIA, asset: USDC_ADDRESS, evmWalletId: "wallet-1" },
+  { caip2Network: BASE_SEPOLIA, asset: EURC_ADDRESS, evmWalletId: "wallet-1" },
 ];
 
 function createCreditCost(
@@ -33,6 +36,7 @@ function createCreditCost(
 
 const PRICED_CREDIT_COSTS = [
   createCreditCost(`${BASE_SEPOLIA}/erc20:${USDC_ADDRESS}`),
+  createCreditCost(`${BASE_SEPOLIA}/erc20:${EURC_ADDRESS}`),
 ];
 
 function createSource(
@@ -184,6 +188,130 @@ describe("buildX402AgentPaymentSources", () => {
         ],
       }),
     ).toBeNull();
+  });
+
+  it("lists each distinct asset a single source prices", () => {
+    // Dedupe keys on (payTo, network, asset) — two DIFFERENT assets under one
+    // source are two genuine advertised entries, not duplicates.
+    const result = buildX402AgentPaymentSources(
+      [
+        createSource({
+          amounts: [
+            { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
+            { unit: EURC_ADDRESS, amount: 500000n, decimals: 6 },
+          ],
+        }),
+      ],
+      CONTEXT,
+    );
+
+    expect(result).toEqual([
+      expect.objectContaining({ asset: USDC_ADDRESS, amount: "250000" }),
+      expect.objectContaining({ asset: EURC_ADDRESS, amount: "500000" }),
+    ]);
+  });
+
+  it("collapses an identical duplicate amount row into one advertised entry", () => {
+    // Ingestion permits duplicate units within one source's fixed amounts. Two
+    // rows saying the same thing are one advertised price, and the pay side's
+    // first-match resolution agrees with either row.
+    const result = buildX402AgentPaymentSources(
+      [
+        createSource({
+          amounts: [
+            { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
+            { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
+          ],
+        }),
+      ],
+      CONTEXT,
+    );
+
+    expect(result).toEqual([
+      {
+        caip2Network: BASE_SEPOLIA,
+        asset: USDC_ADDRESS,
+        decimals: 6,
+        payTo: PAY_TO,
+        amount: "250000",
+        credits: 0.5,
+      },
+    ]);
+  });
+
+  it("drops an agent whose source prices one asset at two different amounts", () => {
+    // The pay side resolves (payTo, network, asset) to exactly ONE amount row
+    // by first match in unordered heap order. Advertising both 0.5 and 10
+    // credits for the same triple makes listed ⇒ payable a coin flip, so the
+    // conflict hides the agent instead.
+    expect(
+      buildX402AgentPaymentSources(
+        [
+          createSource({
+            amounts: [
+              { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
+              { unit: USDC_ADDRESS, amount: 5000000n, decimals: 6 },
+            ],
+          }),
+        ],
+        CONTEXT,
+      ),
+    ).toBeNull();
+  });
+
+  it("drops an agent whose duplicate amount rows disagree on decimals", () => {
+    // Same base-unit amount, different decimals — a different price per whole
+    // token, so the two rows are not interchangeable.
+    expect(
+      buildX402AgentPaymentSources(
+        [
+          createSource({
+            amounts: [
+              { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
+              { unit: USDC_ADDRESS, amount: 250000n, decimals: 8 },
+            ],
+          }),
+        ],
+        CONTEXT,
+      ),
+    ).toBeNull();
+  });
+
+  it("drops an agent whose two sources price the same triple differently", () => {
+    // Dedupe spans the agent, not one source: the pay side scans sources in
+    // order and stops at the first with a matching asset, so a conflicting
+    // second source is the same coin flip.
+    expect(
+      buildX402AgentPaymentSources(
+        [
+          createSource(),
+          createSource({
+            amounts: [{ unit: USDC_ADDRESS, amount: 5000000n, decimals: 6 }],
+          }),
+        ],
+        CONTEXT,
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps the same asset priced under two different payTo recipients", () => {
+    // Different recipients are different triples — each is independently
+    // payable, so neither collapses nor conflicts.
+    const result = buildX402AgentPaymentSources(
+      [
+        createSource(),
+        createSource({
+          payTo: OTHER_PAY_TO,
+          amounts: [{ unit: USDC_ADDRESS, amount: 5000000n, decimals: 6 }],
+        }),
+      ],
+      CONTEXT,
+    );
+
+    expect(result).toEqual([
+      expect.objectContaining({ payTo: PAY_TO, amount: "250000" }),
+      expect.objectContaining({ payTo: OTHER_PAY_TO, amount: "5000000" }),
+    ]);
   });
 
   it("drops the whole agent when one of several sources fails a gate", () => {

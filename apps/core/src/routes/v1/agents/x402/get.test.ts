@@ -240,6 +240,21 @@ describe("GET /agents/x402", () => {
     );
   });
 
+  it("orders amount rows deterministically so row identity is stable", async () => {
+    // Unordered, the relation comes back in Postgres heap order and the
+    // listing's "first row for this asset" can disagree with the pay
+    // endpoint's — the same triple resolving to two different prices.
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    const query = agentFindManyMock.mock.calls[0]?.[0];
+    expect(query.include.paymentSources.include.amounts).toEqual({
+      orderBy: [{ unit: "asc" }, { id: "asc" }],
+    });
+  });
+
   it("hides the entire listing when buy-side readiness has never been recorded", async () => {
     syncMetadataFindUniqueMock.mockResolvedValue(null);
     const app = createApp(COWORKER_AGENT_CONTEXT);

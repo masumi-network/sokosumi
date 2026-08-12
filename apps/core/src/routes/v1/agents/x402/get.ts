@@ -78,7 +78,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       include: {
         ...agentMetadataOverrideScalarsInclude,
         paymentSources: {
-          include: { amounts: true },
+          // Both relations are explicitly ordered: unordered, Prisma returns
+          // Postgres heap order, and "the first amount row for this asset"
+          // would be a different row here than at pay time.
+          include: { amounts: { orderBy: [{ unit: "asc" }, { id: "asc" }] } },
           orderBy: { sourceIndex: "asc" },
         },
       },

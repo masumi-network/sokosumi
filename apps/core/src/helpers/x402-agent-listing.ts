@@ -44,7 +44,9 @@ export type X402AgentPaymentSourceRow = Pick<
  * - the CAIP-2 network is in the per-environment allowlist,
  * - decimals are recorded (credits conversion is per whole token),
  * - the (network, asset) pair is buy-side ready on the payment node,
- * - the asset resolves to a positive CAIP-19 `CreditCost` row.
+ * - the asset resolves to a positive CAIP-19 `CreditCost` row,
+ * - no two amount rows advertise the same `(payTo, network, asset)` triple at
+ *   different prices (see {@link toAdvertisedPriceKey}).
  */
 export function buildX402AgentPaymentSources(
   paymentSources: readonly X402AgentPaymentSourceRow[],
@@ -55,6 +57,12 @@ export function buildX402AgentPaymentSources(
     return null;
   }
 
+  // Advertised entries keyed by (payTo, network, asset) — the triple the pay
+  // endpoint resolves a 402's demand against. Deduped agent-wide, not per
+  // source: the pay side scans sources in order and stops at the first with a
+  // matching asset, so a second source repeating the triple is the same
+  // ambiguity as a repeat inside one source.
+  const advertisedByTriple = new Map<string, X402AgentPaymentSource>();
   const listed: X402AgentPaymentSource[] = [];
   for (const source of paymentSources) {
     if (source.pricingType !== PricingType.FIXED) {
@@ -95,16 +103,50 @@ export function buildX402AgentPaymentSources(
         // the exact set of pre-charge rejections the pay endpoint enforces.
         return null;
       }
-      listed.push({
+      const advertised: X402AgentPaymentSource = {
         caip2Network,
         asset: amount.unit.toLowerCase(),
         decimals: amount.decimals,
         payTo: source.payTo,
         amount: amount.amount.toString(),
         credits: convertCentsToCredits(cents),
-      });
+      };
+      const tripleKey = toAdvertisedPriceKey(advertised);
+      const alreadyAdvertised = advertisedByTriple.get(tripleKey);
+      if (alreadyAdvertised) {
+        if (
+          alreadyAdvertised.amount !== advertised.amount ||
+          alreadyAdvertised.decimals !== advertised.decimals
+        ) {
+          // Two prices for one triple. The pay endpoint resolves the triple to
+          // exactly ONE amount row and rejects a demand above it, so which
+          // price is real depends on unordered row identity — listed would
+          // stop implying payable. Fail closed on the whole agent.
+          return null;
+        }
+        // Ingestion permits duplicate units within one source's fixed amounts
+        // (agent-sync.projection zips decimals positionally). Rows that agree
+        // are one advertised price, not two.
+        continue;
+      }
+      advertisedByTriple.set(tripleKey, advertised);
+      listed.push(advertised);
     }
   }
 
   return listed;
+}
+
+/**
+ * Identity of an advertised price: the `(payTo, network, asset)` triple a 402
+ * demand is matched on. Case-folded — the registry serves mixed-case EVM
+ * addresses and the pay side compares them case-insensitively, so two
+ * spellings of one recipient are one recipient here too.
+ */
+function toAdvertisedPriceKey(advertised: X402AgentPaymentSource): string {
+  return [
+    advertised.payTo.trim().toLowerCase(),
+    advertised.caip2Network,
+    advertised.asset,
+  ].join("|");
 }
