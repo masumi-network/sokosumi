@@ -8,7 +8,10 @@ import { Inter } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Suspense } from "react";
 
+import { AnalyticsUserId } from "@/components/analytics/analytics-user-id";
 import { ClientAnalytics } from "@/components/analytics/client-analytics";
+import { ConsentModeInit } from "@/components/analytics/consent-mode-init";
+import { CookieBanner } from "@/components/analytics/cookie-banner";
 import { DeploymentRefreshHandler } from "@/components/deployment-refresh-handler";
 import { DynamicTypeRootCap } from "@/components/dynamic-type-root-cap";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
@@ -57,6 +60,9 @@ export default function RootLayout({
 }>) {
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
   const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
+  // Consent gates BOTH Google tags. Keying the banner off gtmId alone meant a
+  // GA-only deploy loaded Analytics with no consent init and no way to refuse.
+  const analyticsEnabled = Boolean(gtmId || gaId);
 
   return (
     <html
@@ -67,6 +73,8 @@ export default function RootLayout({
       <head>
         <ApplePwaHead />
       </head>
+      {/* Consent Mode (denied by default) MUST be set before GTM loads. */}
+      {analyticsEnabled && <ConsentModeInit />}
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       {gaId && <GoogleAnalytics gaId={gaId} />}
       <body className="bg-background min-h-svh max-w-dvw antialiased">
@@ -74,11 +82,15 @@ export default function RootLayout({
         <NuqsAdapter>
           <ThemeProvider>
             <Suspense fallback={<div className="bg-background min-h-svh" />}>
-              <RootIntlTree>{children}</RootIntlTree>
+              <RootIntlTree>
+                {children}
+                {analyticsEnabled && <CookieBanner />}
+              </RootIntlTree>
             </Suspense>
           </ThemeProvider>
         </NuqsAdapter>
         <ClientAnalytics />
+        {analyticsEnabled && <AnalyticsUserId />}
         <DeploymentRefreshHandler />
       </body>
     </html>

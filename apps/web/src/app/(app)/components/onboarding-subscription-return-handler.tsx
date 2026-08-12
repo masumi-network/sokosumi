@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import { completeOnboarding } from "@/lib/actions/onboarding";
+import { fireGTMEvent } from "@/lib/gtm-events";
 
 export function OnboardingSubscriptionReturnHandler() {
   const router = useRouter();
@@ -45,6 +46,7 @@ export function OnboardingSubscriptionReturnHandler() {
           return;
         }
 
+        fireGTMEvent.onboardingComplete();
         router.replace(result.value.redirectUrl ?? "/tasks");
       } catch {
         hasHandledRef.current = false;

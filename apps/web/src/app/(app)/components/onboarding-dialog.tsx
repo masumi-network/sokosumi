@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, Bot } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import {
@@ -37,6 +37,7 @@ import {
   upgradeOrganizationSubscription,
   upgradePersonalSubscription,
 } from "@/lib/actions/subscription";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import { markSubscriptionOnboardingGateSeenSafely } from "@/lib/onboarding/mark-subscription-onboarding-gate-seen.client";
 
 const INTRO_STEP_COUNT = 5;
@@ -418,6 +419,19 @@ export function OnboardingDialog({
   const isRestrictedOrganizationGate =
     subscriptionOnly && subscriptionCheckoutMode === "restricted";
 
+  // Ref, not state: this must fire exactly once per mount. The dialog re-runs
+  // this effect on every dependency change, and a duplicated start event would
+  // quietly break the completion rate.
+  const hasFiredOnboardingStart = useRef(false);
+
+  useEffect(() => {
+    if (subscriptionOnly || hasFiredOnboardingStart.current) {
+      return;
+    }
+    hasFiredOnboardingStart.current = true;
+    fireGTMEvent.onboardingStart();
+  }, [subscriptionOnly]);
+
   useEffect(() => {
     if (!subscriptionOnly) {
       setOpen(true);
@@ -484,12 +498,16 @@ export function OnboardingDialog({
     },
   ];
 
-  const handleComplete = async (eventName: string) => {
+  const handleComplete = async (eventName: string, skipped = false) => {
     track(eventName);
     setIsLoading(true);
     try {
       const result = await completeOnboarding();
       if (result.ok) {
+        // Skipping still completes onboarding server-side, but it is not an
+        // activation signal — counting it would inflate the funnel step that
+        // is supposed to measure people who actually went through it.
+        if (!skipped) fireGTMEvent.onboardingComplete();
         const redirectUrl = result.value.redirectUrl ?? "/agents";
         setOpen(false);
         router.push(redirectUrl);
@@ -826,7 +844,7 @@ export function OnboardingDialog({
                   handleSubscriptionOnlySkip();
                   return;
                 }
-                void handleComplete("Onboarding skipped");
+                void handleComplete("Onboarding skipped", true);
               }}
               onFinish={() => void handleStartSubscription()}
             />

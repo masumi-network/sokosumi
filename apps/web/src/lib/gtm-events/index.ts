@@ -93,4 +93,37 @@ export const fireGTMEvent = {
       agent_price: credits.toString(),
     });
   },
+
+  /**
+   * A user started a direct-message conversation with a coworker (fires on the
+   * first message they send in a room this session).
+   */
+  messageStart(roomId: string) {
+    fireEvent({
+      event: "message_start",
+      room_id: roomId,
+    });
+  },
+
+  /**
+   * A user was shown the onboarding flow. Fires once per mount, so
+   * `onboarding_start` → `onboarding_complete` is a usable funnel rather than
+   * a bare completion count with no denominator.
+   *
+   * Not fired for the subscription-only gate: that is a separate upgrade
+   * prompt, and counting it here would inflate the denominator with people who
+   * were never in onboarding.
+   */
+  onboardingStart() {
+    fireEvent({
+      event: "onboarding_start",
+    });
+  },
+
+  /** A user finished onboarding. */
+  onboardingComplete() {
+    fireEvent({
+      event: "onboarding_complete",
+    });
+  },
 };

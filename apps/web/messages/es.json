@@ -13,14 +13,6 @@
       "description": "Esta página solo está disponible en dispositivos de escritorio. Por favor, cambia a una pantalla más grande.",
       "reload": "Recargar"
     },
-    "CookieConsent": {
-      "title": "Usamos cookies",
-      "description": "Usamos cookies para ofrecerte la mejor experiencia en nuestro sitio web. Para más información sobre cómo usamos las cookies, consulta nuestra ",
-      "cookiePolicy": "política de cookies",
-      "period": ".",
-      "accept": "Aceptar",
-      "reject": "Rechazar"
-    },
     "EmergencyDialog": {
       "title": "Mantenimiento de emergencia",
       "description": "Actualmente experimentamos problemas con la ejecución de jobs debido a fallos técnicos de uno de nuestros proveedores externos. No te preocupes, todo volverá a la normalidad pronto.",
@@ -5490,5 +5482,21 @@
     "coworkerAccess": {
       "pending": "{coworkerName} solicitó acceso anticipado de coworker a tu espacio de trabajo"
     }
+  },
+  "CookieConsent": {
+    "title": "Usamos cookies",
+    "body": "Las cookies necesarias mantienen Sokosumi en funcionamiento. Con tu permiso, también usamos cookies de análisis y marketing para mejorar el producto.",
+    "policyLink": "Política de cookies",
+    "acceptAll": "Aceptar todo",
+    "rejectAll": "Rechazar las no esenciales",
+    "manage": "Gestionar preferencias",
+    "save": "Guardar opciones",
+    "necessaryTitle": "Estrictamente necesarias",
+    "necessaryBody": "Necesarias para que el producto funcione — seguridad y recordar esta elección. Siempre activas.",
+    "analyticsTitle": "Análisis",
+    "analyticsBody": "Medición de uso con Google Analytics. Mientras tienes la sesión iniciada, un identificador seudónimo de cuenta vincula tus visitas, nunca tu nombre ni tu correo electrónico.",
+    "marketingTitle": "Marketing",
+    "marketingBody": "Nos permite medir campañas publicitarias y llegar a personas a las que Sokosumi podría resultar útil.",
+    "settings": "Configuración de cookies"
   }
 }

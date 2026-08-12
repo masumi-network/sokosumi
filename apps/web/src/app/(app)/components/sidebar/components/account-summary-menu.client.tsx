@@ -6,6 +6,7 @@ import { Coins, LogOut, Settings, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactElement, useRef, useState } from "react";
+import { openConsentPreferences } from "@/components/analytics/cookie-banner";
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -128,6 +129,11 @@ export function AccountSummaryMenu({
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
+  function handleOpenConsent() {
+    onRequestClose();
+    openConsentPreferences();
+  }
+
   // PopoverContent stays mounted across root ↔ drill swaps; short viewports
   // often leave scrollTop mid-summary, hiding the incoming panel header.
   function handleNavigatePanel(next: AccountPopoverPanel) {
@@ -154,6 +160,7 @@ export function AccountSummaryMenu({
           onNavigatePanel={handleNavigatePanel}
           onNavigateRoute={handleNavigateRoute}
           onOpenExternal={handleOpenExternal}
+          onOpenConsent={handleOpenConsent}
         />
       ) : (
         <div className="space-y-3 text-left">

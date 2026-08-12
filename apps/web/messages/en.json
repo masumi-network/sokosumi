@@ -13,14 +13,6 @@
       "description": "This page is only supported on Desktop devices. Please switch to large screen.",
       "reload": "Reload"
     },
-    "CookieConsent": {
-      "title": "We use cookies",
-      "description": "We use cookies to ensure you get the best experience on our website. For more information on how we use cookies, please see our ",
-      "cookiePolicy": "cookie policy",
-      "period": ".",
-      "accept": "Accept",
-      "reject": "Reject"
-    },
     "EmergencyDialog": {
       "title": "Emergency maintenance",
       "description": "We currently encounter issues with the execution of jobs due to technical issues with one of our third party providers. Don't worry everything will be back to normal in a bit.",
@@ -5490,5 +5482,21 @@
     "coworkerAccess": {
       "pending": "{coworkerName} requested coworker early access to your workspace"
     }
+  },
+  "CookieConsent": {
+    "title": "We use cookies",
+    "body": "Necessary cookies keep Sokosumi working. With your OK we also use analytics and marketing cookies to improve the product.",
+    "policyLink": "Cookie Policy",
+    "acceptAll": "Accept all",
+    "rejectAll": "Reject non-essential",
+    "manage": "Manage preferences",
+    "save": "Save choices",
+    "necessaryTitle": "Strictly necessary",
+    "necessaryBody": "Required for the product to work — security, and remembering this choice. Always on.",
+    "analyticsTitle": "Analytics",
+    "analyticsBody": "Usage measurement with Google Analytics. While you are signed in, a pseudonymous account ID links your visits — never your name or email.",
+    "marketingTitle": "Marketing",
+    "marketingBody": "Lets us measure ad campaigns and reach people who might find Sokosumi useful.",
+    "settings": "Cookie settings"
   }
 }
