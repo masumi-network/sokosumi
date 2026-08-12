@@ -15,7 +15,7 @@ export function TaskDetailHeader({
 }: TaskDetailHeaderProps) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-end md:justify-between">
         <BackToTasksButton label={backLabel} />
 
         {actions}
