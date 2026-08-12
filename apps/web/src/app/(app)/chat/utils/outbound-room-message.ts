@@ -7,9 +7,6 @@ import type {
 /** Local-only row id: `pending:{clientTurnId}`. Never a server message id. */
 export const OUTBOUND_LOCAL_ID_PREFIX = "pending:" as const;
 
-/** How long the post-confirm single tick stays before unmount (includes fade). */
-export const OUTBOUND_SENT_TICK_MS = 2000;
-
 /** Core + local metadata key for the client turn id. */
 export const CLIENT_MESSAGE_ID_METADATA_KEY = "client_message_id" as const;
 

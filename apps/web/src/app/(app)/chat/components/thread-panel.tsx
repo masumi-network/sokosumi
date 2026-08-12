@@ -55,7 +55,6 @@ export function ThreadPanel({
   onDelete,
   onRetryOutbound,
   onRemoveOutbound,
-  outboundSentTickIds,
   editSession = null,
   onEditDraftChange,
   onCancelEdit,
@@ -96,7 +95,6 @@ export function ThreadPanel({
   onDelete?: (message: ChatRoomMessage) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
-  outboundSentTickIds?: ReadonlySet<string>;
   editSession?: { messageId: string; draft: string } | null;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
@@ -268,9 +266,6 @@ export function ThreadPanel({
                           onQuote={onQuote ? handleQuote : undefined}
                           onRetryOutbound={onRetryOutbound}
                           onRemoveOutbound={onRemoveOutbound}
-                          showOutboundSentTick={outboundSentTickIds?.has(
-                            reply.id,
-                          )}
                           showThreadButton={false}
                           isContinuation={isMessageContinuation(
                             replies[index - 1],

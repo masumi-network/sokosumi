@@ -139,7 +139,6 @@ function renderRow({
   onDelete,
   onRetryOutbound,
   onRemoveOutbound,
-  showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
   onEditDraftChange,
@@ -157,7 +156,6 @@ function renderRow({
   onDelete?: (message: ChatRoomMessage) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
-  showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
@@ -178,7 +176,6 @@ function renderRow({
       onDelete={onDelete}
       onRetryOutbound={onRetryOutbound}
       onRemoveOutbound={onRemoveOutbound}
-      showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
       onEditDraftChange={onEditDraftChange}
@@ -1821,7 +1818,7 @@ describe("ChatMessageRow coworker Thought", () => {
 });
 
 describe("ChatMessageRow outbound delivery", () => {
-  it("shows an inline clock for a pending local shell from the current user", () => {
+  it("shows a clock in the timestamp slot while pending", () => {
     renderRow({
       currentUserId: "user-1",
       message: userMessage({
@@ -1839,24 +1836,15 @@ describe("ChatMessageRow outbound delivery", () => {
     expect(screen.queryByTestId("outbound-delivery-failed")).toBeNull();
   });
 
-  it("shows a fading sent tick when showOutboundSentTick is set", () => {
+  it("shows wall-clock time once confirmed (no checkmark)", () => {
     renderRow({
       currentUserId: "user-1",
       message: userMessage({ id: "srv-1", content: "on the train" }),
-      showOutboundSentTick: true,
     });
 
-    expect(screen.getByTestId("outbound-delivery-sent")).toBeTruthy();
-    expect(screen.getByLabelText("Outbound.sent")).toBeTruthy();
-  });
-
-  it("keeps a reserved icon slot for own messages without active chrome", () => {
-    renderRow({
-      currentUserId: "user-1",
-      message: userMessage({ id: "srv-1", content: "already sent" }),
-    });
-
-    expect(screen.getByTestId("outbound-delivery-slot")).toBeTruthy();
+    expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+    expect(screen.queryByTestId("outbound-delivery-sent")).toBeNull();
+    expect(screen.getByText("on the train")).toBeTruthy();
   });
 
   it("shows Retry and Remove for a failed send", async () => {
@@ -1879,6 +1867,7 @@ describe("ChatMessageRow outbound delivery", () => {
       onRemoveOutbound,
     });
 
+    expect(screen.getByTestId("outbound-delivery-failed-icon")).toBeTruthy();
     expect(screen.getByTestId("outbound-delivery-failed")).toHaveTextContent(
       "Outbound.failed",
     );

@@ -51,7 +51,6 @@ import {
   failOutboundMessage,
   isOutboundLocalMessage,
   markOutboundMessagePending,
-  OUTBOUND_SENT_TICK_MS,
   readClientTurnId,
   removeOutboundMessage,
 } from "@/app/chat/utils/outbound-room-message";
@@ -594,35 +593,6 @@ export function RoomsClient({
   const classicThreadQueueRef = useRef<string[]>([]);
   const classicThreadRunningRef = useRef(false);
   const classicThreadJobsRef = useRef(new Map<string, ClassicOutboundJob>());
-  /** Server message ids briefly showing a fading single check after confirm. */
-  const [outboundSentTickIds, setOutboundSentTickIds] = useState<
-    ReadonlySet<string>
-  >(() => new Set());
-  const outboundSentTickTimeoutsRef = useRef(new Map<string, number>());
-
-  function flashOutboundSentTick(messageId: string) {
-    const existing = outboundSentTickTimeoutsRef.current.get(messageId);
-    if (existing != null) {
-      window.clearTimeout(existing);
-    }
-    setOutboundSentTickIds((prev) => {
-      const next = new Set(prev);
-      next.add(messageId);
-      return next;
-    });
-    const timeoutId = window.setTimeout(() => {
-      outboundSentTickTimeoutsRef.current.delete(messageId);
-      setOutboundSentTickIds((prev) => {
-        if (!prev.has(messageId)) {
-          return prev;
-        }
-        const next = new Set(prev);
-        next.delete(messageId);
-        return next;
-      });
-    }, OUTBOUND_SENT_TICK_MS);
-    outboundSentTickTimeoutsRef.current.set(messageId, timeoutId);
-  }
   const selectedRoom = isNewDirectMessage
     ? null
     : (rooms.find((room) => room.id === selectedRoomId) ?? null);
@@ -1804,7 +1774,6 @@ export function RoomsClient({
           setMessagesState((current) =>
             confirmOutboundMessage(current, result.value),
           );
-          flashOutboundSentTick(result.value.id);
         }
       }
     } finally {
@@ -1868,7 +1837,6 @@ export function RoomsClient({
           setThreadMessages((current) =>
             confirmOutboundMessage(current, result.value),
           );
-          flashOutboundSentTick(result.value.id);
           updateParentThreadPreview(job.parentMessageId, result.value);
         } else if (
           isStillSelectedRoom(job.roomId) &&
@@ -2224,7 +2192,6 @@ export function RoomsClient({
                       }
                       onRetryOutbound={handleRetryOutbound}
                       onRemoveOutbound={handleRemoveOutbound}
-                      showOutboundSentTick={outboundSentTickIds.has(message.id)}
                       isEditing={editSession?.messageId === message.id}
                       editDraft={
                         editSession?.messageId === message.id
@@ -2357,7 +2324,6 @@ export function RoomsClient({
                 }
                 onRetryOutbound={handleRetryOutbound}
                 onRemoveOutbound={handleRemoveOutbound}
-                outboundSentTickIds={outboundSentTickIds}
                 onClose={() => {
                   threadLoadGenerationRef.current += 1;
                   setIsThreadLoading(false);
