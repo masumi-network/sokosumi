@@ -606,10 +606,16 @@ export function normalizeX402PaymentRequired(
       : wild.data.resource;
   const resources = Array.from(
     new Set(
-      [
-        topLevelResource,
-        ...wild.data.accepts.map((entry) => entry.resource),
-      ].filter((value): value is string => value !== undefined),
+      [topLevelResource, ...wild.data.accepts.map((entry) => entry.resource)]
+        // An empty or whitespace-only url is a MISSING value, not a second
+        // name for the resource. Pooling it as a value produced
+        // `Conflicting x402 resource URLs: , https://…` and refused a 402
+        // that names exactly one resource. Trimming also stops surrounding
+        // whitespace inventing a conflict between two spellings of one url.
+        .map((value) => value?.trim())
+        .filter(
+          (value): value is string => value !== undefined && value.length > 0,
+        ),
     ),
   );
   if (resources.length > 1) {

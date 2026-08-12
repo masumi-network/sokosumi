@@ -688,6 +688,48 @@ describe("normalizeX402PaymentRequired", () => {
     expect(result._unsafeUnwrapErr()).toMatch(/Conflicting x402 resource URLs/);
   });
 
+  it("treats an empty resource url as absent, not as a conflict", () => {
+    // `resource: { url: "" }` is a MISSING value, not a second name for the
+    // resource. Pooling it produced `Conflicting x402 resource URLs: ,
+    // https://…` and refused a 402 that named exactly one resource.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      resource: { url: "" },
+      accepts: [v1Entry({ resource: "https://agent.example.com/api" })],
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().resource).toEqual({
+      url: "https://agent.example.com/api",
+    });
+  });
+
+  it("treats a whitespace-only per-entry resource as absent", () => {
+    const result = normalizeX402PaymentRequired({
+      x402Version: 1,
+      accepts: [
+        v1Entry({ resource: "   " }),
+        v1Entry({ network: "base", resource: "https://agent.example.com/api" }),
+      ],
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().resource).toEqual({
+      url: "https://agent.example.com/api",
+    });
+  });
+
+  it("omits the resource entirely when every url is empty", () => {
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      resource: { url: "" },
+      accepts: [v2Entry()],
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().resource).toBeUndefined();
+  });
+
   it("accepts agreeing per-entry resource URLs across entries", () => {
     const result = normalizeX402PaymentRequired({
       x402Version: 1,
