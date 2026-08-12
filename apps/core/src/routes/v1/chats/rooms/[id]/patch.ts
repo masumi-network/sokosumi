@@ -72,9 +72,7 @@ const route = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
-      409: jsonErrorResponse(
-        "Conflict (slug taken or concurrent membership change)",
-      ),
+      409: jsonErrorResponse("Conflict"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
