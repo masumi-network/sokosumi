@@ -22,9 +22,9 @@ type PrismaClient = ReturnType<typeof createPrismaClient>;
  *   transaction relations do not block user cascade.
  * - Pending x402 payments block deletion the same way (the reconciler clears
  *   them within a bounded window, so no operator page) and are also reported
- *   by `evaluateUserDeletion`. Terminal x402 payments are removed because
- *   their RESTRICT task and transaction relations would otherwise block both
- *   the owned-task delete and the user cascade.
+ *   by `evaluateUserDeletion`. Every non-PENDING x402 payment is removed
+ *   because its RESTRICT task and transaction relations would otherwise
+ *   block both the owned-task delete and the user cascade.
  * - Chat rooms this user created re-point `createdByUserId` to another remaining
  *   human member. Rooms with no other human member are deleted so Restrict does
  *   not 500 an allowed wipe.
@@ -76,19 +76,21 @@ export async function prepareTasksForUserDeletion(
       });
     }
 
-    // Terminal x402 payments hold RESTRICT relations on the task, the charge
-    // transaction, and any refund transaction; every branch must be swept or
-    // the owned-task delete / user cascade fails. Operator attribution
-    // survives in the FK-free task_x402_payment_action rows.
+    // Non-pending x402 payments hold RESTRICT relations on the task, the
+    // charge transaction, and any refund transaction; every branch must be
+    // swept or the owned-task delete / user cascade fails. Operator
+    // attribution survives in the FK-free task_x402_payment_action rows.
+    //
+    // Negating PENDING rather than listing the terminal statuses is
+    // deliberate: the guard above already rejects PENDING, so everything
+    // reaching here must be swept, and this predicate stays exhaustive as
+    // the enum grows. An enumeration would silently miss a new status (the
+    // planned EXPIRED_UNUSED, say) — it would match neither branch, survive
+    // the sweep, and then fail the RESTRICT taskId FK on the task delete
+    // below with a raw 500 instead of a clean deletion.
     await tx.taskX402Payment.deleteMany({
       where: {
-        status: {
-          in: [
-            TaskX402PaymentStatus.VERIFIED,
-            TaskX402PaymentStatus.FAILED,
-            TaskX402PaymentStatus.REFUNDED,
-          ],
-        },
+        status: { not: TaskX402PaymentStatus.PENDING },
         OR: [
           { transaction: { userId } },
           { refundTransaction: { userId } },

@@ -194,13 +194,7 @@ describe("prepareTasksForUserDeletion", () => {
     // the owned-task delete / user cascade fails on the FK.
     expect(taskX402PaymentDeleteManyMock).toHaveBeenCalledWith({
       where: {
-        status: {
-          in: [
-            TaskX402PaymentStatus.VERIFIED,
-            TaskX402PaymentStatus.FAILED,
-            TaskX402PaymentStatus.REFUNDED,
-          ],
-        },
+        status: { not: TaskX402PaymentStatus.PENDING },
         OR: [
           { transaction: { userId: "user_delete" } },
           { refundTransaction: { userId: "user_delete" } },
@@ -215,6 +209,31 @@ describe("prepareTasksForUserDeletion", () => {
       taskX402PaymentDeleteManyMock.mock.invocationCallOrder[0];
     const taskDeleteCallOrder = taskDeleteManyMock.mock.invocationCallOrder[0];
     expect(x402SweepCallOrder).toBeLessThan(taskDeleteCallOrder);
+  });
+
+  it("sweeps every non-pending x402 status instead of enumerating them", async () => {
+    coworkerAssignmentFindManyMock.mockResolvedValue([]);
+    taskFindManyMock.mockResolvedValue([]);
+    taskDeleteManyMock.mockResolvedValue({ count: 0 });
+
+    await prepareTasksForUserDeletion("user_delete", {
+      $transaction: transactionMock,
+    } as never);
+
+    // Asserting the predicate shape, not a fixture row: the enum has no
+    // fifth member today, so a future status (e.g. EXPIRED_UNUSED) cannot be
+    // exercised here. An enumerated `in: [...]` would match neither this
+    // sweep nor the PENDING guard above it, leaving the row behind — and
+    // taskId is RESTRICT, so the task.deleteMany below would then fail with
+    // a raw FK error and 500 the account deletion. Negating PENDING keeps
+    // the sweep exhaustive by construction as the enum grows.
+    const [sweepArgs] = taskX402PaymentDeleteManyMock.mock.calls[0] as [
+      { where: { status: unknown } },
+    ];
+    expect(sweepArgs.where.status).toEqual({
+      not: TaskX402PaymentStatus.PENDING,
+    });
+    expect(sweepArgs.where.status).not.toHaveProperty("in");
   });
 
   it("clears coworker-creator RESTRICT refs for foreign-owned tasks", async () => {

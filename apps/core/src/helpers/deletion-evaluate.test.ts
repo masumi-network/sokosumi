@@ -158,6 +158,7 @@ describe("evaluateUserDeletion", () => {
         status: TaskX402PaymentStatus.PENDING,
         OR: [
           { transaction: { userId: "user_delete" } },
+          { refundTransaction: { userId: "user_delete" } },
           { task: { ownerId: "user_delete" } },
         ],
       },
