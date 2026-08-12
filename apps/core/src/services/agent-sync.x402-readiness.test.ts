@@ -104,11 +104,30 @@ const READY_SOURCE = {
   evmWalletId: "wallet_1",
 };
 
+const BASE_MAINNET_USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
+
+function mainnetNetwork(): X402AvailableNetwork {
+  return availableNetwork({
+    id: "x402net_2",
+    caip2Id: "eip155:8453",
+    isTestnet: false,
+  });
+}
+
+function mainnetBudget(overrides: Partial<X402Budget> = {}): X402Budget {
+  return budget({
+    id: "x402budget_mainnet",
+    caip2Network: "eip155:8453",
+    asset: BASE_MAINNET_USDC,
+    ...overrides,
+  });
+}
+
 describe("composeX402ReadySources", () => {
   it("pairs an enabled network with a funded budget", () => {
-    expect(composeX402ReadySources([availableNetwork()], [budget()])).toEqual([
-      READY_SOURCE,
-    ]);
+    expect(
+      composeX402ReadySources([availableNetwork()], [budget()], "Preprod"),
+    ).toEqual([READY_SOURCE]);
   });
 
   it("drops budgets on disabled or unknown networks", () => {
@@ -116,12 +135,14 @@ describe("composeX402ReadySources", () => {
       composeX402ReadySources(
         [availableNetwork({ isEnabled: false })],
         [budget()],
+        "Preprod",
       ),
     ).toEqual([]);
     expect(
       composeX402ReadySources(
         [availableNetwork()],
         [budget({ caip2Network: "eip155:8453" })],
+        "Preprod",
       ),
     ).toEqual([]);
   });
@@ -139,6 +160,7 @@ describe("composeX402ReadySources", () => {
           // pair must not be recorded ready.
           budget({ evmWalletId: "" }),
         ],
+        "Preprod",
       ),
     ).toEqual([]);
   });
@@ -155,6 +177,7 @@ describe("composeX402ReadySources", () => {
         }),
         budget({ id: "b3", evmWalletId: "wallet_1", remainingAmount: "100" }),
       ],
+      "Preprod",
     );
 
     expect(result).toEqual([{ ...READY_SOURCE, evmWalletId: "wallet_large" }]);
@@ -167,42 +190,60 @@ describe("composeX402ReadySources", () => {
         budget({ id: "b1", evmWalletId: "wallet_b", remainingAmount: "100" }),
         budget({ id: "b2", evmWalletId: "wallet_a", remainingAmount: "100" }),
       ],
+      "Preprod",
     );
 
     expect(result).toEqual([{ ...READY_SOURCE, evmWalletId: "wallet_a" }]);
   });
 
-  it("normalizes casing, dedupes, and sorts deterministically", () => {
-    const baseMainnetUsdc = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
+  it("drops a mainnet pair on Preprod even when the node offers it", () => {
+    // Environment separation must not rest on the node honouring
+    // `query: { isTestnet }`. A node that ignores or misreads that filter
+    // would otherwise put a Base MAINNET pair — real funds — into the
+    // Preprod readiness cache.
     const result = composeX402ReadySources(
-      [
-        availableNetwork({ caip2Id: "EIP155:84532" }),
-        availableNetwork({
-          id: "x402net_2",
-          caip2Id: "eip155:8453",
-          isTestnet: false,
-        }),
-      ],
+      [availableNetwork({ caip2Id: "EIP155:84532" }), mainnetNetwork()],
       [
         budget({
           asset: USDC_BASE_SEPOLIA.toUpperCase().replace("0X", "0x"),
         }),
         budget({ id: "x402budget_2" }),
-        budget({
-          id: "x402budget_3",
-          caip2Network: "eip155:8453",
-          asset: baseMainnetUsdc,
-        }),
+        mainnetBudget(),
       ],
+      "Preprod",
+    );
+
+    // Casing normalized, duplicates collapsed, mainnet gone.
+    expect(result).toEqual([READY_SOURCE]);
+  });
+
+  it("drops a testnet pair on Mainnet and keeps the mainnet one", () => {
+    const result = composeX402ReadySources(
+      [availableNetwork(), mainnetNetwork()],
+      [budget(), mainnetBudget()],
+      "Mainnet",
     );
 
     expect(result).toEqual([
       {
         caip2Network: "eip155:8453",
-        asset: baseMainnetUsdc,
+        asset: BASE_MAINNET_USDC,
         evmWalletId: "wallet_1",
       },
-      READY_SOURCE,
+    ]);
+  });
+
+  it("sorts the surviving pairs deterministically", () => {
+    const usdt = "0xdac17f958d2ee523a2206206994597c13d831ec7";
+    const result = composeX402ReadySources(
+      [mainnetNetwork()],
+      [mainnetBudget({ id: "x402budget_usdt", asset: usdt }), mainnetBudget()],
+      "Mainnet",
+    );
+
+    expect(result.map((source) => source.asset)).toEqual([
+      BASE_MAINNET_USDC,
+      usdt,
     ]);
   });
 
@@ -211,6 +252,7 @@ describe("composeX402ReadySources", () => {
       composeX402ReadySources(
         [availableNetwork({ canSettle: false })],
         [budget()],
+        "Preprod",
       ),
     ).toEqual([READY_SOURCE]);
   });
@@ -246,6 +288,26 @@ describe("syncX402BuySideReadiness", () => {
     expect(syncMetadataDeleteManyMock).toHaveBeenCalledWith({
       where: { key: X402_BUY_SIDE_READINESS_FAILURE_KEY },
     });
+  });
+
+  it("never caches a pair outside this environment's allowlist", async () => {
+    // End to end through the sync: NETWORK is Preprod (mocked above), so a
+    // node reporting Base mainnet as available and funded must leave no
+    // mainnet pair in the cache.
+    getX402AvailableNetworksMock.mockResolvedValue(
+      ok([availableNetwork(), mainnetNetwork()]),
+    );
+    getX402BudgetsMock.mockResolvedValue(ok([budget(), mainnetBudget()]));
+
+    await syncX402BuySideReadiness();
+
+    expect(syncMetadataUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          cursorId: JSON.stringify([READY_SOURCE]),
+        }),
+      }),
+    );
   });
 
   it("reports no change when the cache holds the same pair set", async () => {

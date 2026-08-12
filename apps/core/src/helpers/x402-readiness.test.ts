@@ -15,6 +15,7 @@ const { getEnvMock } = vi.hoisted(() => ({
   // reads getEnv().DATABASE_URL at module load, before any hook runs.
   getEnvMock: vi.fn().mockReturnValue({
     DATABASE_URL: "https://example.com/database",
+    NETWORK: "Preprod",
   }),
 }));
 
@@ -108,6 +109,43 @@ describe("getX402ReadySources", () => {
     });
 
     await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+  });
+
+  it("drops cached pairs outside this environment's allowlist", async () => {
+    // Defence in depth behind the compose-time filter: a cache written by an
+    // older build (or by an instance pointed at the other environment) must
+    // not serve a Base MAINNET pair to a Preprod deployment.
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([
+        {
+          caip2Network: "eip155:8453",
+          asset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+          evmWalletId: "wallet_mainnet",
+        },
+        X402_READY_SOURCE,
+      ]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([X402_READY_SOURCE]);
+  });
+
+  it("serves the mainnet pair and drops the testnet one on Mainnet", async () => {
+    getEnvMock.mockReturnValueOnce({
+      DATABASE_URL: "https://example.com/database",
+      NETWORK: "Mainnet",
+    });
+    const mainnetSource = {
+      caip2Network: "eip155:8453",
+      asset: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+      evmWalletId: "wallet_mainnet",
+    };
+    const { tx } = createSyncMetadataTransactionClient({
+      cursorId: JSON.stringify([mainnetSource, X402_READY_SOURCE]),
+      lastSyncedAt: new Date(),
+    });
+
+    await expect(getX402ReadySources(tx)).resolves.toEqual([mainnetSource]);
   });
 });
 

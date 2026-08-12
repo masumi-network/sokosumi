@@ -6,7 +6,9 @@ import {
 } from "@sokosumi/masumi";
 
 import { paymentClient } from "@/clients/masumi-payment.client";
+import { getEnv } from "@/config/env";
 import {
+  isX402NetworkAllowed,
   X402_BUY_SIDE_READINESS_FAILURE_KEY,
   X402_BUY_SIDE_READINESS_KEY,
   type X402ReadySource,
@@ -27,10 +29,21 @@ import prisma from "@/lib/db/prisma";
  * deliberately ignored — outbound (buy) wallets do not require a
  * facilitator, and gating the buy side on inbound settlement would hide
  * payable agents for no reason.
+ *
+ * `environment` is a parameter rather than a `getEnv()` read so this stays
+ * pure. It applies the per-environment EVM allowlist
+ * (`isX402NetworkAllowed`): Preprod may record testnet chains only,
+ * production mainnet chains only. Without it, environment separation would
+ * rest entirely on the node honouring `GET /x402/networks/available`'s
+ * `query: { isTestnet }` — a node that ignores or misreads that filter would
+ * put a real-funds mainnet pair into the Preprod cache. The pay path enforces
+ * the same allowlist again in `verifyX402DemandAgainstAgentSources`; this is
+ * listing correctness plus defence in depth.
  */
 export function composeX402ReadySources(
   networks: readonly X402AvailableNetwork[],
   budgets: readonly X402Budget[],
+  environment: "Preprod" | "Mainnet",
 ): X402ReadySource[] {
   const enabledNetworks = new Set<string>();
   for (const network of networks) {
@@ -41,7 +54,8 @@ export function composeX402ReadySources(
     if (
       network.isEnabled &&
       caip2Id &&
-      CAIP2_EVM_NETWORK_PATTERN.test(caip2Id)
+      CAIP2_EVM_NETWORK_PATTERN.test(caip2Id) &&
+      isX402NetworkAllowed(caip2Id, environment)
     ) {
       enabledNetworks.add(caip2Id);
     }
@@ -197,6 +211,7 @@ export async function syncX402BuySideReadiness(
   const readySources = composeX402ReadySources(
     networksResult.value,
     budgetsResult.value,
+    getEnv().NETWORK,
   );
   const serializedReadySources = JSON.stringify(readySources);
   let readinessChanged: boolean;

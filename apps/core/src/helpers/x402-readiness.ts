@@ -4,6 +4,7 @@ import {
   EVM_ADDRESS_PATTERN,
 } from "@sokosumi/masumi";
 
+import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -118,6 +119,12 @@ export function isX402SourceReady(
  * Read straight from the row on every call — a primary-key lookup; a
  * process-local memo would only add staleness while letting instances
  * disagree with each other.
+ *
+ * The per-environment allowlist is applied again here, behind the
+ * compose-time filter in `composeX402ReadySources`: a row written by an older
+ * build — or by an instance pointed at the other environment — must not serve
+ * a mainnet pair to a Preprod deployment. Re-filtering on read costs an array
+ * pass and removes the cache as a trusted input.
  */
 export const getX402ReadySources = async (
   tx: Prisma.TransactionClient = prisma,
@@ -129,6 +136,7 @@ export const getX402ReadySources = async (
     return [];
   }
 
+  const environment = getEnv().NETWORK;
   try {
     const payload: unknown = JSON.parse(readiness.cursorId);
     if (!Array.isArray(payload)) {
@@ -141,6 +149,7 @@ export const getX402ReadySources = async (
         "caip2Network" in source &&
         typeof source.caip2Network === "string" &&
         CAIP2_EVM_NETWORK_PATTERN.test(source.caip2Network) &&
+        isX402NetworkAllowed(source.caip2Network, environment) &&
         "asset" in source &&
         typeof source.asset === "string" &&
         EVM_ADDRESS_PATTERN.test(source.asset) &&
