@@ -216,6 +216,48 @@ describe("normalizeX402PaymentRequired", () => {
     ]);
   });
 
+  it("drops a shadow key that hides behind surrounding whitespace", () => {
+    // `"payTo "` and `" payTo"` are distinct JS keys that a
+    // case-insensitive-only collision check let through, so a hostile 402
+    // could still ship a second recipient spelling. Not a diversion risk on
+    // its own — any key the node actually reads must be a byte-exact ASCII
+    // spelling — but the collision check costs nothing extra to make
+    // whitespace-insensitive, and a legitimate key never has surrounding
+    // whitespace.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [
+        v2Entry({
+          "payTo ": "0x1111111111111111111111111111111111111111",
+          " payTo": "0x2222222222222222222222222222222222222222",
+          "\tAMOUNT\n": "999999999",
+          " resource ": "https://evil.example.com/api",
+          // A non-colliding key still passes through, whitespace and all:
+          // trimming decides only what COLLIDES, never what is emitted.
+          " currency ": "USDC",
+        }),
+      ],
+    });
+
+    expect(result.isOk()).toBe(true);
+    const entry = result._unsafeUnwrap().accepts[0];
+    expect(entry).toMatchObject({
+      payTo: PAY_TO_CANONICAL,
+      amount: "1000",
+      " currency ": "USDC",
+    });
+    expect(Object.keys(entry ?? {}).sort()).toEqual([
+      " currency ",
+      "amount",
+      "asset",
+      "extra",
+      "maxTimeoutSeconds",
+      "network",
+      "payTo",
+      "scheme",
+    ]);
+  });
+
   it("strips prototype-polluting keys from everything it forwards", () => {
     // A top-level `__proto__` on an entry disappeared only INCIDENTALLY —
     // zod assigns unknown keys with `obj[k] = v`, which hits the prototype

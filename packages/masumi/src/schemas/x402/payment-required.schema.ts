@@ -405,7 +405,8 @@ const X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE: ReadonlySet<string> = new Set([
 
 /**
  * Drops any forwarded key that collides case-insensitively with a recognized
- * field — `PayTo`, `payto`, `Amount`, `MaxTimeoutSeconds`, …
+ * field once trimmed — `PayTo`, `payto`, `Amount`, `MaxTimeoutSeconds`,
+ * `"payTo "`, `" payTo"`, …
  *
  * These are SHADOW keys, and the risk is forwarding, not overwriting: `PayTo`
  * and `payTo` are distinct JS keys, and the exact-case fields are
@@ -418,6 +419,15 @@ const X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE: ReadonlySet<string> = new Set([
  * a fail-open dependency on a node the caller does not deploy, and exactly
  * what `narrowToChosenRequirement` exists to remove. Non-colliding unknown
  * keys (`currency`, `description`, `outputSchema`) still pass through.
+ *
+ * The fold is `.trim().toLowerCase()`, which does NOT cover a key padded with
+ * a non-whitespace invisible such as U+200B, and `extra` is deliberately not
+ * filtered at all. Neither is a diversion risk: any key the node ACTUALLY
+ * reads must be a byte-exact ASCII spelling, and the node reads `extra.name` /
+ * `extra.version` as an EIP-712 domain rather than as a recipient. Filtering
+ * `extra` would also cut against this file's own argument — forwarding a key
+ * the node ignores costs nothing, while stripping one it turns out to read
+ * cannot be undone after the charge — and `extra` is a map the node does read.
  */
 function dropShadowKeys(
   unknownKeys: Record<string, unknown>,
@@ -430,7 +440,11 @@ function dropShadowKeys(
         // this rebuild from re-creating one. Belt and braces on purpose: the
         // two are independent, so neither is load-bearing alone.
         !isPrototypePollutingKey(key) &&
-        !X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE.has(key.toLowerCase()),
+        // Trimmed as well as case-folded: `"payTo "` and `" payTo"` are
+        // distinct JS keys that a case-only check let through. Trimming
+        // decides only what COLLIDES — a non-colliding key is still emitted
+        // with its whitespace intact — and a legitimate key never has any.
+        !X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE.has(key.trim().toLowerCase()),
     ),
   );
 }
