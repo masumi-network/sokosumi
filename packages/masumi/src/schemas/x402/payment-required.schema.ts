@@ -21,6 +21,10 @@ import {
   X402_MAX_RESOURCE_URL_LENGTH,
   X402_MAX_TIMEOUT_SECONDS,
 } from "./payment-required.limits.js";
+import {
+  isPrototypePollutingKey,
+  stripPrototypePollutingKeys,
+} from "./payment-required.sanitize.js";
 
 /**
  * 402 "Payment Required" dialect normalization (PR1-SPEC §3, ticket 011 Q6).
@@ -398,7 +402,13 @@ function dropShadowKeys(
 ): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(unknownKeys).filter(
-      ([key]) => !X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE.has(key.toLowerCase()),
+      ([key]) =>
+        // `Object.fromEntries` DOES materialize an own `__proto__` key, so
+        // this filter — not the sanitizer that already ran — is what stops
+        // this rebuild from re-creating one. Belt and braces on purpose: the
+        // two are independent, so neither is load-bearing alone.
+        !isPrototypePollutingKey(key) &&
+        !X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE.has(key.toLowerCase()),
     ),
   );
 }
@@ -419,6 +429,16 @@ export function normalizeX402PaymentRequired(
     }
     candidate = decoded.value;
   }
+
+  // Strip the prototype-polluting keys BEFORE anything reads the payload, so
+  // no later step can forward one and none of them can reach a setter while
+  // the payload is being rebuilt. See payment-required.sanitize.ts for why
+  // the node — not Soko — is what this protects.
+  const sanitized = stripPrototypePollutingKeys(candidate);
+  if (sanitized.isErr()) {
+    return err(sanitized.error);
+  }
+  candidate = sanitized.value;
 
   const wild = wildPaymentRequiredSchema.safeParse(candidate);
   if (!wild.success) {

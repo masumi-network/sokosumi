@@ -211,6 +211,76 @@ describe("normalizeX402PaymentRequired", () => {
     ]);
   });
 
+  it("strips prototype-polluting keys from everything it forwards", () => {
+    // A top-level `__proto__` on an entry disappeared only INCIDENTALLY —
+    // zod assigns unknown keys with `obj[k] = v`, which hits the prototype
+    // setter — and `constructor` survived even there. One level deeper
+    // nothing touched them at all. Measured forwarded bodies before this fix:
+    //   {"outputSchema":{"__proto__":{"polluted":3}}}
+    //   {"extra":{"name":"n","deep":{"__proto__":{"isAdmin":true}}}}
+    //   {"extensions":{"payment-identifier":{"__proto__":{"isAdmin":true},…}}}
+    // masumi-payment-service is Node/TS, so any deep-merge or recursive
+    // `Object.assign` over that subtree makes Soko the relay for a
+    // prototype-pollution payload against a service the caller does not
+    // deploy — the same fail-open-on-the-node's-parser reasoning that
+    // justifies `dropShadowKeys`.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [
+        v2Entry({
+          ...JSON.parse('{"__proto__":{"polluted":1}}'),
+          constructor: { polluted: 2 },
+          prototype: { polluted: 3 },
+          outputSchema: JSON.parse('{"__proto__":{"polluted":4},"type":"o"}'),
+          extra: JSON.parse(
+            '{"name":"n","deep":{"__proto__":{"isAdmin":true},"keep":1}}',
+          ),
+        }),
+      ],
+      extensions: JSON.parse(
+        '{"payment-identifier":{"__proto__":{"isAdmin":true},"info":{"required":true}}}',
+      ),
+    });
+
+    expect(result.isOk()).toBe(true);
+    const normalized = result._unsafeUnwrap();
+    const forwarded = JSON.stringify(normalized);
+    expect(forwarded).not.toContain("__proto__");
+    expect(forwarded).not.toContain("constructor");
+    expect(forwarded).not.toContain("prototype");
+    expect(forwarded).not.toContain("polluted");
+    expect(forwarded).not.toContain("isAdmin");
+    // Only the dangerous keys go: every legitimate sibling still ships.
+    expect(normalized.accepts[0]).toMatchObject({
+      payTo: PAY_TO_CANONICAL,
+      outputSchema: { type: "o" },
+      extra: { name: "n", deep: { keep: 1 } },
+    });
+    expect(isX402PaymentIdentifierAdvertised(normalized)).toBe(true);
+    expect(normalized.extensions).toEqual({
+      [X402_PAYMENT_IDENTIFIER_EXTENSION_KEY]: { info: { required: true } },
+    });
+  });
+
+  it("rejects a payload nested deeper than the sanitizer can walk", () => {
+    // A recursive walk over attacker-authored data needs a depth bound, or a
+    // `{"a":{"a":{"a":…` body becomes a RangeError thrown out of a function
+    // that must only ever return a Result.
+    let deep: unknown = "leaf";
+    for (let index = 0; index < 200; index += 1) {
+      deep = { deep };
+    }
+
+    const call = () =>
+      normalizeX402PaymentRequired({
+        x402Version: 2,
+        accepts: [v2Entry({ outputSchema: deep })],
+      });
+
+    expect(call).not.toThrow();
+    expect(call().isErr()).toBe(true);
+  });
+
   it("rejects an asset or payTo that is not an EVM address", () => {
     // `payTo` is the recipient that gets signed into the EIP-3009
     // authorization and `asset` selects the token contract. Accepting a

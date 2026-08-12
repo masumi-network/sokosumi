@@ -103,6 +103,22 @@ export const X402_MAX_SERIALIZED_LENGTH = 8192;
 export const X402_MAX_EIP712_DOMAIN_VALUE_LENGTH = 128;
 
 /**
+ * Deepest nesting a 402 value may have, for the two walks that recurse over
+ * it: the prototype-key sanitizer and the canonical-JSON comparison.
+ *
+ * A recursive walk over attacker-authored data needs a depth bound, or a
+ * `{"a":{"a":{"a":…` payload becomes a `RangeError` thrown out of a function
+ * whose contract is that it only ever returns. The size caps do not supply
+ * one on their own: they are applied by the schema, i.e. AFTER the sanitizer
+ * has already had to walk the value.
+ *
+ * 64 rejects nothing legitimate. The deepest field a live 402 carries is an
+ * `outputSchema` JSON schema, a handful of levels at most, and no other field
+ * nests at all.
+ */
+export const X402_MAX_JSON_DEPTH = 64;
+
+/**
  * Longest attacker-controlled value any error message repeats back. 78 is a
  * full-width uint256 amount — the widest value worth reading in full.
  *

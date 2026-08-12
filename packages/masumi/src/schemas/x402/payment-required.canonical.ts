@@ -26,17 +26,7 @@
  * never do.
  */
 
-/**
- * Maximum nesting depth a comparable value may have.
- *
- * A recursive serializer over attacker-authored data needs a depth bound or a
- * `{"a":{"a":{"a":…` payload becomes a `RangeError` thrown out of a function
- * whose whole contract is that it never throws. 64 rejects nothing legitimate:
- * the deepest field a live 402 carries is an `outputSchema` JSON schema, a
- * handful of levels at most, and the callers already cap a requirement entry
- * at `X402_MAX_SERIALIZED_LENGTH` serialized characters.
- */
-const MAX_CANONICAL_DEPTH = 64;
+import { X402_MAX_JSON_DEPTH } from "./payment-required.limits.js";
 
 /** Signals a value outside the JSON data model; never escapes this module. */
 class NotCanonicalizableError extends Error {}
@@ -49,7 +39,7 @@ class NotCanonicalizableError extends Error {}
  *
  * Returns `undefined` — never throws — when the value is outside the JSON data
  * model (a cycle, a function, a `BigInt`, a symbol, `NaN`/`Infinity`) or
- * nested past `MAX_CANONICAL_DEPTH`. The caller treats that as "not equal",
+ * nested past `X402_MAX_JSON_DEPTH`. The caller treats that as "not equal",
  * which is the fail-closed direction for a fund-diversion fence.
  *
  * Keys and string values BOTH go through `JSON.stringify`, so neither can
@@ -102,7 +92,7 @@ function serializeObject(
   depth: number,
   ancestors: Set<object>,
 ): string {
-  if (depth >= MAX_CANONICAL_DEPTH) {
+  if (depth >= X402_MAX_JSON_DEPTH) {
     throw new NotCanonicalizableError("nested too deep");
   }
   if (ancestors.has(value)) {
