@@ -1,10 +1,4 @@
 import { z } from "@hono/zod-openapi";
-import {
-  ONBOARDING_COMPANY_SIZES,
-  ONBOARDING_COMPANY_TYPES,
-  ONBOARDING_ROLES,
-  ONBOARDING_WORK_STYLES,
-} from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
 import { subscriptionSchema } from "@/schemas/subscription.schema";
@@ -132,52 +126,12 @@ export const userPreferencesResponseSchema = z.object({
   }),
 });
 
-const userOnboardingProfileShape = {
-  companySize: z.enum(ONBOARDING_COMPANY_SIZES).nullable().openapi({
-    description: "Headcount bucket the user picked for their company",
-    example: "11-50",
+export const userOnboardingResponseSchema = z.object({
+  completed: z.boolean().openapi({
+    description: "Whether the user has completed onboarding",
+    example: true,
   }),
-  companyType: z.enum(ONBOARDING_COMPANY_TYPES).nullable().openapi({
-    description: "Kind of company the user picked",
-    example: "agency",
-  }),
-  role: z.enum(ONBOARDING_ROLES).nullable().openapi({
-    description: "Role the user picked for themselves",
-    example: "founder",
-  }),
-  workStyle: z.enum(ONBOARDING_WORK_STYLES).nullable().openapi({
-    description: "Whether the user works alone or with a team",
-    example: "team",
-  }),
-};
-
-export const userOnboardingProfileSchema = z
-  .object(userOnboardingProfileShape)
-  .openapi("UserOnboardingProfile");
-
-/**
- * Every answer is optional: the flow persists what it has when the user
- * finishes, and skipped questions must not clear previously stored answers.
- */
-export const userOnboardingRequestSchema = z
-  .object({
-    profile: z.object(userOnboardingProfileShape).partial().optional().openapi({
-      description: "Answers collected by the signup onboarding flow",
-    }),
-  })
-  .openapi("UserOnboardingRequest");
-
-export const userOnboardingResponseSchema = z
-  .object({
-    completed: z.boolean().openapi({
-      description: "Whether the user has completed onboarding",
-      example: true,
-    }),
-    profile: userOnboardingProfileSchema.openapi({
-      description: "Answers stored from the signup onboarding flow",
-    }),
-  })
-  .openapi("UserOnboarding");
+});
 
 export const utmAttributionRequestSchema = z
   .object({

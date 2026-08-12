@@ -11,8 +11,6 @@ import {
 } from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { getSession } from "@/lib/auth/auth.server";
-import { coreClient } from "@/lib/clients/core.client";
-import type { UserOnboardingRequest } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 import { SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME } from "@/lib/subscription-onboarding-gate-cookie";
 
@@ -57,18 +55,10 @@ export async function clearSubscriptionOnboardingGateSessionCookie(): Promise<vo
   cookieStore.delete(SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME);
 }
 
-export async function completeOnboarding(
-  profile?: UserOnboardingRequest["profile"],
-): Promise<ActionResultDto<{ redirectUrl: string }, ActionError>> {
+export async function completeOnboarding(): Promise<
+  ActionResultDto<{ redirectUrl: string }, ActionError>
+> {
   try {
-    if (profile && Object.keys(profile).length > 0) {
-      // Core owns the metadata write. It also flips `onboardingCompleted`, but
-      // the Better Auth update below is still required: only that path
-      // refreshes the session cookie cache, and a stale cookie would bounce
-      // the user straight back into onboarding.
-      await coreClient.completeMyOnboarding({ profile });
-    }
-
     await userService.markOnboardingCompleteForMe();
 
     const session = await getSession();

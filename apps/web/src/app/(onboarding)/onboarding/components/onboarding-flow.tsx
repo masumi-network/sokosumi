@@ -1,12 +1,6 @@
 "use client";
 
-import type {
-  OnboardingCompanySize,
-  OnboardingCompanyType,
-  OnboardingRole,
-  OnboardingWorkStyle,
-  PaidSubscriptionPlanName,
-} from "@sokosumi/utils";
+import type { PaidSubscriptionPlanName } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -39,11 +33,9 @@ import {
   OnboardingPreviewToolbar,
 } from "./onboarding-preview-toolbar";
 import {
-  EMPTY_ONBOARDING_ANSWERS,
-  type OnboardingAnswers,
   type OnboardingStepId,
   type OnboardingTeamPath,
-  type OnboardingVariant,
+  type OnboardingWorkStyle,
   resolveOnboardingSteps,
 } from "./onboarding-steps";
 import {
@@ -51,11 +43,6 @@ import {
   PlanStep,
   resolveInitialOnboardingSeats,
 } from "./steps/plan-step";
-import {
-  CompanySizeStep,
-  CompanyTypeStep,
-  RoleStep,
-} from "./steps/profile-steps";
 import {
   InviteLinkJoinButton,
   type InviteLinkPreviewState,
@@ -74,7 +61,6 @@ interface OnboardingFlowProps {
   isPreview: boolean;
   paidPlans: PaidSubscriptionPlanView[];
   userName: null | string;
-  variant: OnboardingVariant;
 }
 
 function resolveInitialSelectedPlan(
@@ -93,7 +79,6 @@ export function OnboardingFlow({
   isPreview,
   paidPlans,
   userName,
-  variant: initialVariant,
 }: OnboardingFlowProps) {
   const t = useTranslations("Onboarding.Flow");
   const tErrors = useTranslations("Onboarding.Actions.Errors");
@@ -103,10 +88,7 @@ export function OnboardingFlow({
   );
   const router = useRouter();
 
-  const [variant, setVariant] = useState<OnboardingVariant>(initialVariant);
-  const [answers, setAnswers] = useState<OnboardingAnswers>(
-    EMPTY_ONBOARDING_ANSWERS,
-  );
+  const [workStyle, setWorkStyle] = useState<null | OnboardingWorkStyle>(null);
   const [teamPath, setTeamPath] = useState<null | OnboardingTeamPath>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [isFinishing, setIsFinishing] = useState(false);
@@ -138,12 +120,11 @@ export function OnboardingFlow({
   const steps = useMemo(
     () =>
       resolveOnboardingSteps({
-        answers,
         hasJoinedOrganization,
         teamPath,
-        variant,
+        workStyle,
       }),
-    [answers, hasJoinedOrganization, teamPath, variant],
+    [hasJoinedOrganization, teamPath, workStyle],
   );
 
   /** False when Core's catalog failed to load, leaving nothing to buy. */
@@ -165,10 +146,6 @@ export function OnboardingFlow({
         : null,
     [organizationFlow.organizationId, organizationFlow.organizationName],
   );
-
-  const applyAnswer = useCallback((patch: Partial<OnboardingAnswers>) => {
-    setAnswers((current) => ({ ...current, ...patch }));
-  }, []);
 
   /* ── Invite link resolution ── */
 
@@ -250,22 +227,11 @@ export function OnboardingFlow({
 
   const finishOnboarding = useCallback(
     async (eventName: string): Promise<boolean> => {
-      track(eventName, {
-        companySize: answers.companySize ?? "",
-        companyType: answers.companyType ?? "",
-        role: answers.role ?? "",
-        workStyle: answers.workStyle ?? "",
-      });
+      // Solo/team is a branch decision, not a stored profile: it is reported
+      // as an analytics property and nothing persists it.
+      track(eventName, { workStyle: workStyle ?? "" });
 
-      // Only send what was actually answered. Core treats an explicit null as
-      // "clear this field", so posting every key would wipe a stored answer
-      // whenever a branch skips the question that produced it.
-      const result = await completeOnboarding({
-        ...(answers.companySize ? { companySize: answers.companySize } : {}),
-        ...(answers.companyType ? { companyType: answers.companyType } : {}),
-        ...(answers.role ? { role: answers.role } : {}),
-        ...(answers.workStyle ? { workStyle: answers.workStyle } : {}),
-      });
+      const result = await completeOnboarding();
 
       if (!result.ok) {
         toast.error(result.error.message ?? tErrors("failedToComplete"));
@@ -274,7 +240,7 @@ export function OnboardingFlow({
 
       return true;
     },
-    [answers, tErrors],
+    [tErrors, workStyle],
   );
 
   const handleFinish = useCallback(
@@ -323,7 +289,7 @@ export function OnboardingFlow({
     setIsFinishing(true);
     try {
       // Complete first: the user has answered everything, and abandoning
-      // Stripe must not drop their answers or trap them back in the flow.
+      // Stripe must not trap them back in the flow.
       const completed = await finishOnboarding("Onboarding plan selected");
       if (!completed) {
         return;
@@ -404,27 +370,20 @@ export function OnboardingFlow({
 
   const canAdvance = useMemo(() => {
     switch (currentStep) {
-      case "companyType":
-        return answers.companyType !== null;
-      case "companySize":
-        return answers.companySize !== null;
-      case "role":
-        return answers.role !== null;
       case "workStyle":
-        return answers.workStyle !== null;
+        return workStyle !== null;
       case "teamChoice":
         return teamPath !== null;
       default:
         return true;
     }
-  }, [answers, currentStep, teamPath]);
+  }, [currentStep, teamPath, workStyle]);
 
   /* ── Preview overrides ── */
 
   const applyPreviewState = useCallback(
     (preview: OnboardingPreviewState) => {
-      setVariant(preview.variant);
-      setAnswers(preview.answers);
+      setWorkStyle(preview.workStyle);
       setTeamPath(preview.teamPath);
       setHasJoinedOrganization(preview.hasJoinedOrganization);
       setInvitePreview(preview.invitePreview);
@@ -434,10 +393,9 @@ export function OnboardingFlow({
       setIsInvitePreviewSeeded(Boolean(preview.invitePreview));
 
       const nextSteps = resolveOnboardingSteps({
-        answers: preview.answers,
         hasJoinedOrganization: preview.hasJoinedOrganization,
         teamPath: preview.teamPath,
-        variant: preview.variant,
+        workStyle: preview.workStyle,
       });
       const nextIndex = nextSteps.indexOf(preview.stepId);
       setStepIndex(nextIndex === -1 ? 0 : nextIndex);
@@ -455,38 +413,11 @@ export function OnboardingFlow({
     switch (currentStep) {
       case "welcome":
         return <WelcomeStep coworkers={coworkers} userName={userName} />;
-      case "companyType":
-        return (
-          <CompanyTypeStep
-            companyType={answers.companyType}
-            onCompanyTypeChange={(companyType: OnboardingCompanyType) =>
-              applyAnswer({ companyType })
-            }
-          />
-        );
-      case "companySize":
-        return (
-          <CompanySizeStep
-            companySize={answers.companySize}
-            onCompanySizeChange={(companySize: OnboardingCompanySize) =>
-              applyAnswer({ companySize })
-            }
-          />
-        );
-      case "role":
-        return (
-          <RoleStep
-            onRoleChange={(role: OnboardingRole) => applyAnswer({ role })}
-            role={answers.role}
-          />
-        );
       case "workStyle":
         return (
           <WorkStyleStep
-            onWorkStyleChange={(workStyle: OnboardingWorkStyle) =>
-              applyAnswer({ workStyle })
-            }
-            workStyle={answers.workStyle}
+            onWorkStyleChange={setWorkStyle}
+            workStyle={workStyle}
           />
         );
       case "teamChoice":
@@ -732,7 +663,6 @@ export function OnboardingFlow({
 
       {isPreview ? (
         <OnboardingPreviewToolbar
-          answers={answers}
           createOrganizationStep={organizationFlow.step}
           hasJoinedOrganization={hasJoinedOrganization}
           inviteValue={inviteValue}
@@ -740,7 +670,7 @@ export function OnboardingFlow({
           onApply={applyPreviewState}
           stepId={currentStep}
           teamPath={teamPath}
-          variant={variant}
+          workStyle={workStyle}
         />
       ) : null}
     </div>

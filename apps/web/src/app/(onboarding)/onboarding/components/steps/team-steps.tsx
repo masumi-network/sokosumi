@@ -1,6 +1,5 @@
 "use client";
 
-import type { OnboardingWorkStyle } from "@sokosumi/utils";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { AlertCircle, Building2, Check, Link2, Loader2 } from "lucide-react";
 import Image from "next/image";
@@ -12,7 +11,10 @@ import { Input } from "@/components/ui/input";
 import { canUseNextImageSrc } from "@/config/next-image";
 import { cn } from "@/lib/utils";
 
-import type { OnboardingTeamPath } from "../onboarding-steps";
+import type {
+  OnboardingTeamPath,
+  OnboardingWorkStyle,
+} from "../onboarding-steps";
 import { StepShell } from "../step-shell";
 
 interface ChoiceCardProps {

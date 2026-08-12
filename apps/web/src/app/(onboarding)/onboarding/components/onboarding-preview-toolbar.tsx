@@ -7,35 +7,25 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import type {
-  OnboardingAnswers,
   OnboardingStepId,
   OnboardingTeamPath,
-  OnboardingVariant,
+  OnboardingWorkStyle,
 } from "./onboarding-steps";
 import type { InviteLinkPreviewState } from "./steps/team-steps";
 
 export interface OnboardingPreviewState {
-  answers: OnboardingAnswers;
   createOrganizationStep: number;
   hasJoinedOrganization: boolean;
   invitePreview: InviteLinkPreviewState | null;
   inviteValue: string;
   stepId: OnboardingStepId;
   teamPath: null | OnboardingTeamPath;
-  variant: OnboardingVariant;
+  workStyle: null | OnboardingWorkStyle;
 }
 
 interface OnboardingPreviewToolbarProps extends OnboardingPreviewState {
   onApply: (state: OnboardingPreviewState) => void;
 }
-
-/** Answers good enough to unlock every downstream branch. */
-const SAMPLE_ANSWERS: OnboardingAnswers = {
-  companySize: "11-50",
-  companyType: "agency",
-  role: "founder",
-  workStyle: "team",
-};
 
 const SAMPLE_INVITE_PREVIEW: InviteLinkPreviewState = {
   logo: null,
@@ -56,7 +46,7 @@ interface PreviewScenario {
 /**
  * Every screen the flow can render, as a flat jump list.
  *
- * Branches are reached by seeding the answers that lead to them rather than by
+ * Branches are reached by seeding the state that leads to them rather than by
  * clicking through, so a screen deep in the team path is one click away.
  */
 const SCENARIOS: PreviewScenario[] = [
@@ -64,235 +54,148 @@ const SCENARIOS: PreviewScenario[] = [
     key: "welcome",
     label: "1 · Welcome",
     state: {
-      answers: { ...SAMPLE_ANSWERS, workStyle: null },
       hasJoinedOrganization: false,
       invitePreview: null,
       inviteValue: "",
       stepId: "welcome",
       teamPath: null,
-      variant: "full",
-    },
-  },
-  {
-    key: "companyType",
-    label: "2 · Company type",
-    state: {
-      answers: {
-        companySize: null,
-        companyType: null,
-        role: null,
-        workStyle: null,
-      },
-      hasJoinedOrganization: false,
-      invitePreview: null,
-      inviteValue: "",
-      stepId: "companyType",
-      teamPath: null,
-      variant: "full",
-    },
-  },
-  {
-    key: "companySize",
-    label: "3 · Company size",
-    state: {
-      answers: { ...SAMPLE_ANSWERS, companySize: null, workStyle: null },
-      hasJoinedOrganization: false,
-      invitePreview: null,
-      inviteValue: "",
-      stepId: "companySize",
-      teamPath: null,
-      variant: "full",
-    },
-  },
-  {
-    key: "role",
-    label: "4 · Role",
-    state: {
-      answers: { ...SAMPLE_ANSWERS, role: null, workStyle: null },
-      hasJoinedOrganization: false,
-      invitePreview: null,
-      inviteValue: "",
-      stepId: "role",
-      teamPath: null,
-      variant: "full",
+      workStyle: null,
     },
   },
   {
     key: "workStyle",
-    label: "5 · Solo or team",
+    label: "2 · Solo or team",
     state: {
-      answers: { ...SAMPLE_ANSWERS, workStyle: null },
       hasJoinedOrganization: false,
       invitePreview: null,
       inviteValue: "",
       stepId: "workStyle",
       teamPath: null,
-      variant: "full",
+      workStyle: null,
     },
   },
   {
     key: "teamChoice",
-    label: "6 · Link or new team",
+    label: "3 · Link or new team",
     state: {
-      answers: SAMPLE_ANSWERS,
       hasJoinedOrganization: false,
       invitePreview: null,
       inviteValue: "",
       stepId: "teamChoice",
       teamPath: null,
-      variant: "full",
+      workStyle: "team",
     },
   },
   {
-    key: "inviteLink-empty",
-    label: "7a · Paste link (empty)",
+    key: "invite-empty",
+    label: "4a · Paste link (empty)",
     state: {
-      answers: SAMPLE_ANSWERS,
       hasJoinedOrganization: false,
       invitePreview: null,
       inviteValue: "",
       stepId: "inviteLink",
       teamPath: "invite",
-      variant: "full",
+      workStyle: "team",
     },
   },
   {
-    key: "inviteLink-resolved",
-    label: "7b · Paste link (resolved)",
+    key: "invite-resolved",
+    label: "4b · Paste link (resolved)",
     state: {
-      answers: SAMPLE_ANSWERS,
       hasJoinedOrganization: false,
       invitePreview: SAMPLE_INVITE_PREVIEW,
       inviteValue: SAMPLE_INVITE_URL,
       stepId: "inviteLink",
       teamPath: "invite",
-      variant: "full",
+      workStyle: "team",
     },
   },
   {
-    key: "inviteLink-joined",
-    label: "7c · Joined team",
+    key: "invite-joined",
+    label: "4c · Joined team",
     state: {
-      answers: SAMPLE_ANSWERS,
       hasJoinedOrganization: true,
       invitePreview: SAMPLE_INVITE_PREVIEW,
       inviteValue: SAMPLE_INVITE_URL,
       stepId: "inviteLink",
       teamPath: "invite",
-      variant: "full",
+      workStyle: "team",
     },
   },
   {
     key: "createOrg-details",
-    label: "8a · New team · details",
+    label: "5a · New team · details",
     state: {
-      answers: SAMPLE_ANSWERS,
       createOrganizationStep: 0,
       hasJoinedOrganization: false,
       invitePreview: null,
       inviteValue: "",
       stepId: "createOrganization",
       teamPath: "create",
-      variant: "full",
+      workStyle: "team",
     },
   },
   {
     key: "createOrg-logo",
-    label: "8b · New team · logo",
+    label: "5b · New team · logo",
     state: {
-      answers: SAMPLE_ANSWERS,
       createOrganizationStep: 1,
       hasJoinedOrganization: false,
       invitePreview: null,
       inviteValue: "",
       stepId: "createOrganization",
       teamPath: "create",
-      variant: "full",
+      workStyle: "team",
     },
   },
   {
     key: "createOrg-brand",
-    label: "8c · New team · brand",
+    label: "5c · New team · brand",
     state: {
-      answers: SAMPLE_ANSWERS,
       createOrganizationStep: 2,
       hasJoinedOrganization: false,
       invitePreview: null,
       inviteValue: "",
       stepId: "createOrganization",
       teamPath: "create",
-      variant: "full",
+      workStyle: "team",
     },
   },
   {
     key: "createOrg-invite",
-    label: "8d · New team · invite",
+    label: "5d · New team · invite",
     state: {
-      answers: SAMPLE_ANSWERS,
       createOrganizationStep: 3,
       hasJoinedOrganization: false,
       invitePreview: null,
       inviteValue: "",
       stepId: "createOrganization",
       teamPath: "create",
-      variant: "full",
+      workStyle: "team",
     },
   },
   {
-    key: "plan-org",
-    label: "9a · Plans (team)",
+    key: "plan-team",
+    label: "6a · Plans (team)",
     state: {
-      answers: SAMPLE_ANSWERS,
       hasJoinedOrganization: false,
       invitePreview: null,
       inviteValue: "",
       stepId: "plan",
       teamPath: "create",
-      variant: "full",
+      workStyle: "team",
     },
   },
   {
     key: "plan-solo",
-    label: "9b · Plans (solo)",
+    label: "6b · Plans (solo)",
     state: {
-      answers: { ...SAMPLE_ANSWERS, workStyle: "solo" },
       hasJoinedOrganization: false,
       invitePreview: null,
       inviteValue: "",
       stepId: "plan",
       teamPath: null,
-      variant: "full",
-    },
-  },
-  {
-    key: "joined-welcome",
-    label: "10a · Invited · welcome",
-    state: {
-      answers: {
-        companySize: null,
-        companyType: null,
-        role: null,
-        workStyle: null,
-      },
-      hasJoinedOrganization: true,
-      invitePreview: null,
-      inviteValue: "",
-      stepId: "welcome",
-      teamPath: null,
-      variant: "joined",
-    },
-  },
-  {
-    key: "joined-role",
-    label: "10b · Invited · role (last)",
-    state: {
-      answers: { ...SAMPLE_ANSWERS, role: null, workStyle: null },
-      hasJoinedOrganization: true,
-      invitePreview: null,
-      inviteValue: "",
-      stepId: "role",
-      teamPath: null,
-      variant: "joined",
+      workStyle: "solo",
     },
   },
 ];
@@ -308,14 +211,12 @@ export function OnboardingPreviewToolbar({
   createOrganizationStep,
   onApply,
   stepId,
-  variant,
   ...rest
 }: OnboardingPreviewToolbarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const activeScenario = SCENARIOS.find((scenario) => {
     if (scenario.state.stepId !== stepId) return false;
-    if (scenario.state.variant !== variant) return false;
     if (stepId === "createOrganization") {
       return scenario.state.createOrganizationStep === createOrganizationStep;
     }

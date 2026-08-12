@@ -1,95 +1,54 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  EMPTY_ONBOARDING_ANSWERS,
-  isOnboardingAnswerComplete,
-  type OnboardingAnswers,
   type ResolveOnboardingStepsInput,
   resolveOnboardingSteps,
 } from "../onboarding-steps";
 
-const ANSWERED: OnboardingAnswers = {
-  companySize: "11-50",
-  companyType: "agency",
-  role: "founder",
-  workStyle: "team",
-};
-
-function steps(overrides: Partial<ResolveOnboardingStepsInput> = {}) {
+function resolve(overrides: Partial<ResolveOnboardingStepsInput> = {}) {
   return resolveOnboardingSteps({
-    answers: ANSWERED,
     hasJoinedOrganization: false,
     teamPath: null,
-    variant: "full",
+    workStyle: null,
     ...overrides,
   });
 }
 
 describe("resolveOnboardingSteps", () => {
-  it("asks only who the user is when they arrived through an invite", () => {
-    expect(steps({ variant: "joined" })).toEqual([
-      "welcome",
-      "companyType",
-      "companySize",
-      "role",
-    ]);
+  it("asks only the one question before an answer exists", () => {
+    expect(resolve()).toEqual(["welcome", "workStyle"]);
   });
 
-  it("keeps the joined variant short even once answers exist", () => {
-    expect(steps({ teamPath: "create", variant: "joined" })).not.toContain(
-      "plan",
-    );
-  });
-
-  it("stops at the work-style question until it is answered", () => {
-    expect(steps({ answers: { ...ANSWERED, workStyle: null } })).toEqual([
+  it("sends a solo user straight to plans", () => {
+    expect(resolve({ workStyle: "solo" })).toEqual([
       "welcome",
-      "companyType",
-      "companySize",
-      "role",
-      "workStyle",
-    ]);
-  });
-
-  it("sends a solo user straight to the plan picker", () => {
-    const result = steps({ answers: { ...ANSWERED, workStyle: "solo" } });
-
-    expect(result).toEqual([
-      "welcome",
-      "companyType",
-      "companySize",
-      "role",
       "workStyle",
       "plan",
     ]);
-    expect(result).not.toContain("teamChoice");
-    expect(result).not.toContain("createOrganization");
   });
 
-  it("adds the team fork once the user says they work with a team", () => {
-    expect(steps()).toEqual([
+  it("waits for the team route before growing further", () => {
+    // "team" alone is not enough — the next screen is the fork itself, and
+    // padding the rail past it would overstate how much is left.
+    expect(resolve({ workStyle: "team" })).toEqual([
       "welcome",
-      "companyType",
-      "companySize",
-      "role",
       "workStyle",
       "teamChoice",
     ]);
   });
 
-  it("skips the plan picker when redeeming an invite link", () => {
-    const result = steps({ teamPath: "invite" });
-
-    expect(result.at(-1)).toBe("inviteLink");
-    expect(result).not.toContain("plan");
+  it("ends at the invite screen, because joining inherits billing", () => {
+    expect(resolve({ teamPath: "invite", workStyle: "team" })).toEqual([
+      "welcome",
+      "workStyle",
+      "teamChoice",
+      "inviteLink",
+    ]);
   });
 
-  it("offers plans after the user creates their own organization", () => {
-    expect(steps({ teamPath: "create" })).toEqual([
+  it("offers plans after creating a team", () => {
+    expect(resolve({ teamPath: "create", workStyle: "team" })).toEqual([
       "welcome",
-      "companyType",
-      "companySize",
-      "role",
       "workStyle",
       "teamChoice",
       "createOrganization",
@@ -97,44 +56,23 @@ describe("resolveOnboardingSteps", () => {
     ]);
   });
 
-  it("drops the plan picker once an organization has been joined", () => {
-    // Guards the preview toolbar's joined scenarios, which can pair
-    // teamPath=create with an already-joined organization.
+  it("drops the plan step once an invite has actually been redeemed", () => {
     expect(
-      steps({ hasJoinedOrganization: true, teamPath: "create" }),
-    ).not.toContain("plan");
+      resolve({
+        hasJoinedOrganization: true,
+        teamPath: "create",
+        workStyle: "team",
+      }),
+    ).toEqual(["welcome", "workStyle", "teamChoice", "createOrganization"]);
   });
 
-  it("never returns an empty sequence", () => {
-    expect(steps({ answers: EMPTY_ONBOARDING_ANSWERS }).length).toBeGreaterThan(
-      0,
-    );
-  });
-});
+  it("shortens when the user switches back from team to solo", () => {
+    // The regression behind the stale-index bug: the sequence can get shorter
+    // under a cursor that was already past the new end.
+    const team = resolve({ teamPath: "create", workStyle: "team" });
+    const solo = resolve({ teamPath: "create", workStyle: "solo" });
 
-describe("isOnboardingAnswerComplete", () => {
-  it("requires every question in the full variant", () => {
-    expect(isOnboardingAnswerComplete(ANSWERED, "full")).toBe(true);
-    expect(
-      isOnboardingAnswerComplete({ ...ANSWERED, workStyle: null }, "full"),
-    ).toBe(false);
-    expect(
-      isOnboardingAnswerComplete({ ...ANSWERED, role: null }, "full"),
-    ).toBe(false);
-  });
-
-  it("does not require a work style in the joined variant", () => {
-    expect(
-      isOnboardingAnswerComplete({ ...ANSWERED, workStyle: null }, "joined"),
-    ).toBe(true);
-  });
-
-  it("rejects an empty answer set", () => {
-    expect(isOnboardingAnswerComplete(EMPTY_ONBOARDING_ANSWERS, "full")).toBe(
-      false,
-    );
-    expect(isOnboardingAnswerComplete(EMPTY_ONBOARDING_ANSWERS, "joined")).toBe(
-      false,
-    );
+    expect(solo.length).toBeLessThan(team.length);
+    expect(solo).toEqual(["welcome", "workStyle", "plan"]);
   });
 });

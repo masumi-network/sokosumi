@@ -1300,47 +1300,9 @@
       "Welcome": {
         "title": "Te damos la bienvenida a Sokosumi",
         "titleNamed": "Hola, {name}",
-        "subtitle": "Unas preguntas rápidas y tus compañeros podrán empezar.",
+        "subtitle": "Una pregunta rápida y tus compañeros podrán empezar.",
         "avatarAlt": "Avatar de {name}",
         "coworkersSummary": "Conoce a {names}"
-      },
-      "CompanyType": {
-        "title": "¿Qué tipo de empresa es?",
-        "options": {
-          "agency": "Agencia o consultoría",
-          "ecommerce": "E-commerce o retail",
-          "saas": "SaaS o software",
-          "media": "Medios o editorial",
-          "finance": "Finanzas o seguros",
-          "healthcare": "Salud",
-          "education": "Educación",
-          "nonprofit": "Sin ánimo de lucro",
-          "other": "Otra cosa"
-        }
-      },
-      "CompanySize": {
-        "title": "¿Qué tamaño tiene el equipo?",
-        "options": {
-          "solo": "Solo yo",
-          "2-10": "2-10",
-          "11-50": "11-50",
-          "51-200": "51-200",
-          "201-1000": "201-1000",
-          "1000+": "1000+"
-        }
-      },
-      "Role": {
-        "title": "¿A qué te dedicas allí?",
-        "options": {
-          "founder": "Fundación o dirección",
-          "marketing": "Marketing",
-          "sales": "Ventas",
-          "product": "Producto",
-          "engineering": "Ingeniería",
-          "operations": "Operaciones",
-          "agency-lead": "Dirección de agencia",
-          "other": "Otra cosa"
-        }
       },
       "WorkStyle": {
         "title": "¿Vas a trabajar en solitario o en equipo?",

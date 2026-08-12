@@ -13,13 +13,11 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { canUseNextImageSrc } from "@/config/next-image";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
-import { userService } from "@/lib/services";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 import { OnboardingFlow } from "./components/onboarding-flow";
 import { OnboardingStepSkeleton } from "./components/onboarding-loading-view";
-import type { OnboardingVariant } from "./components/onboarding-steps";
 import type { OnboardingCoworker } from "./components/steps/welcome-step";
 
 /** Faces shown on the welcome screen; more than three crowds the row. */
@@ -63,10 +61,9 @@ async function OnboardingFlowLoader({ searchParams }: OnboardingPageProps) {
     preview === "1" &&
     getEnvPublicConfig().NEXT_PUBLIC_VERCEL_ENV !== "production";
 
-  const [onboardingResult, members, catalogResult, coworkersResult] =
+  const [onboardingResult, catalogResult, coworkersResult] =
     await Promise.allSettled([
       coreClient.getMyOnboarding(),
-      userService.getMyMembersWithOrganizations(),
       coreClient.getSubscriptionCatalog(),
       coworkerService.listCoworkers("chat"),
     ]);
@@ -82,21 +79,6 @@ async function OnboardingFlowLoader({ searchParams }: OnboardingPageProps) {
   if (isCompleted && !isPreview) {
     redirect(DEFAULT_AUTHENTICATED_LANDING_PATH);
   }
-
-  if (members.status === "rejected") {
-    // Worth logging loudly: an empty list reads as "no organization", which
-    // sends an already-invited user down the long flow including the team fork
-    // and plan picker. Silent failure makes that branch hard to diagnose.
-    console.error(
-      "Failed to load organization memberships for onboarding",
-      members.reason,
-    );
-  }
-
-  const organizationMemberships =
-    members.status === "fulfilled" ? members.value : [];
-  const variant: OnboardingVariant =
-    organizationMemberships.length > 0 ? "joined" : "full";
 
   let paidPlans: PaidSubscriptionPlanView[] = [];
   if (catalogResult.status === "fulfilled") {
@@ -141,7 +123,6 @@ async function OnboardingFlowLoader({ searchParams }: OnboardingPageProps) {
       isPreview={isPreview}
       paidPlans={paidPlans}
       userName={session.user.name?.split(" ")[0] ?? null}
-      variant={variant}
     />
   );
 }

@@ -79,7 +79,6 @@ import type {
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
   SetHermesSecretRequest,
-  UserOnboardingRequest,
 } from "@/lib/clients/generated/core";
 import {
   addAdminOrganizationMember as coreAddAdminOrganizationMember,
@@ -296,7 +295,6 @@ import {
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
   postUsersByIdFiles as corePostUsersByIdFiles,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
-  postUsersByIdOnboarding as corePostUsersByIdOnboarding,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
   postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
@@ -3052,19 +3050,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function completeMyOnboarding(body?: UserOnboardingRequest) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostUsersByIdOnboarding({
-          client,
-          path: { id: CURRENT_USER_PATH_ID },
-          ...(body ? { body } : {}),
-        }),
-      "Failed to complete onboarding",
-    );
-  }
-
   /**
    * Returns the current user's membership in `organizationId`, or `null` when
    * the user is not a member (Core responds 404 in that case).
@@ -4201,7 +4186,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
     getMyOnboarding,
-    completeMyOnboarding,
     getMyOrganizationCredits,
     getMyOrganizations,
     createMyStripeCustomer,
