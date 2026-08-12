@@ -63,10 +63,6 @@ model User {
   // Onboarding
   onboardingCompleted Boolean @default(false)
 
-  // Last time the user opened the app shell. Drives the "while you were gone"
-  // summary on /chat; null until the first visit.
-  lastSeenAt DateTime?
-
   // Vendor membership and coworker assignments
   vendorMembers       VendorMember[]
   coworkerAssignments CoworkerAssignment[]

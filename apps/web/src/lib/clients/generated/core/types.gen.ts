@@ -3757,7 +3757,7 @@ export type TaskListItem = {
 
 export type TaskActivitySummary = {
     /**
-     * Start of the reporting window, echoed back. Always set: either the caller's previous visit or the start of the rolling 24h fallback when that visit is missing or too recent.
+     * Start of the reporting window, echoed back. Always set: either the caller's last session activity or the start of the rolling 24h fallback when that activity is missing or too recent.
      */
     since: Date;
     /**
@@ -3773,11 +3773,11 @@ export type TaskActivitySummary = {
      */
     createdByOtherHumans: number;
     /**
-     * The caller's stored lastSeenAt, unmodified. Null before their first recorded visit.
+     * Caller's most recent session activity (`max(Session.updatedAt)`), unmodified. Null only if the user has no sessions. Same signal as admin member last-seen.
      */
     lastVisitAt: Date | null;
     /**
-     * Which window the counts cover: the caller's previous visit (`lastVisit`), or a rolling 24h fallback (`recent`) when that visit is missing (first visit) or too recent to be interesting. The web landing still hides the chip row when `lastVisitAt` is null.
+     * Which window the counts cover: since the caller's last session activity (`lastVisit`), or a rolling 24h fallback (`recent`) when that activity is missing or too recent to be interesting.
      */
     basis: 'lastVisit' | 'recent';
     /**
@@ -19546,100 +19546,6 @@ export type PostUsersByIdFilesResponses = {
 };
 
 export type PostUsersByIdFilesResponse = PostUsersByIdFilesResponses[keyof PostUsersByIdFilesResponses];
-
-export type PostUsersByIdLastSeenData = {
-    body?: never;
-    path: {
-        /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
-         */
-        id: string;
-    };
-    query?: never;
-    url: '/users/{id}/last-seen';
-};
-
-export type PostUsersByIdLastSeenErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Internal Server Error
-     */
-    500: {
-        error: string;
-        message: string;
-        kind?: string;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostUsersByIdLastSeenError = PostUsersByIdLastSeenErrors[keyof PostUsersByIdLastSeenErrors];
-
-export type PostUsersByIdLastSeenResponses = {
-    /**
-     * Visit recorded
-     */
-    200: {
-        data: {
-            /**
-             * The freshly recorded visit timestamp
-             */
-            lastSeenAt: Date;
-        };
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostUsersByIdLastSeenResponse = PostUsersByIdLastSeenResponses[keyof PostUsersByIdLastSeenResponses];
 
 export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;

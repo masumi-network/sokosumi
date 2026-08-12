@@ -131,8 +131,9 @@ describe("buildActivityStats", () => {
     expect(buildActivityStats(null, true, fakeTranslator)).toEqual([]);
   });
 
-  it("returns nothing on a first visit even when awaiting-input exists", () => {
-    // Spec: first visit is greeting-only — no "while you were away" chips.
+  it("still lists metrics when lastVisitAt is null (no sessions)", () => {
+    // Window is session-derived; null lastVisitAt only means no sessions, not
+    // "hide chips". Chips follow non-zero metrics only.
     const stats = buildActivityStats(
       buildSummary({
         awaitingInput: 3,
@@ -141,10 +142,13 @@ describe("buildActivityStats", () => {
         basis: "recent",
         since: new Date("2026-08-10T09:00:00.000Z"),
       }),
-      true,
+      false,
       fakeTranslator,
     );
-    expect(stats).toEqual([]);
+    expect(stats).toEqual([
+      'stats.completed:{"count":2}',
+      'stats.awaiting:{"count":3}',
+    ]);
   });
 });
 
@@ -157,28 +161,12 @@ describe("hasReportableActivity", () => {
     expect(hasReportableActivity(buildSummary())).toBe(false);
   });
 
-  it("is false on a first visit even when metrics are non-zero", () => {
-    expect(
-      hasReportableActivity(
-        buildSummary({
-          awaitingInput: 1,
-          completed: 1,
-          lastVisitAt: null,
-          basis: "recent",
-        }),
-      ),
-    ).toBe(false);
-  });
-
   it.each([
     ["completed", { completed: 1 }],
     ["workedMinutes", { workedMinutes: 1 }],
     ["awaitingInput", { awaitingInput: 1 }],
     ["createdByOtherHumans", { createdByOtherHumans: 1 }],
-  ])(
-    "is true when %s is non-zero for a returning visit",
-    (_label, overrides) => {
-      expect(hasReportableActivity(buildSummary(overrides))).toBe(true);
-    },
-  );
+  ])("is true when %s is non-zero", (_label, overrides) => {
+    expect(hasReportableActivity(buildSummary(overrides))).toBe(true);
+  });
 });

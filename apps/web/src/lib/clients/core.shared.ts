@@ -295,7 +295,6 @@ import {
   postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
   postUsersByIdFiles as corePostUsersByIdFiles,
-  postUsersByIdLastSeen as corePostUsersByIdLastSeen,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
@@ -988,20 +987,6 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch task summary",
-    );
-  }
-
-  async function markUserLastSeen() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostUsersByIdLastSeen({
-          client,
-          // Self-scoped: Core resolves `me` from the authenticated caller, so
-          // there is no id worth passing and no session to look up first.
-          path: { id: CURRENT_USER_PATH_ID },
-        }),
-      "Failed to record last seen",
     );
   }
 
@@ -4284,7 +4269,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTaskWorkspace,
     getTasks,
     getTasksSummary,
-    markUserLastSeen,
     patchTask,
     putJobShare,
     putTaskSchedule,

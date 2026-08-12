@@ -13,13 +13,6 @@ import { RoomsClient } from "./components/rooms-client";
 import { loadOrganizationMembers } from "./load-organization-members";
 import { firstSearchValue } from "./load-room-messages";
 
-/**
- * How stale the recorded visit must be before a page view counts as a new one.
- * Long enough that reloading, or bouncing back from a room, keeps showing the
- * same "while you were gone" summary.
- */
-const LAST_SEEN_REFRESH_MS = 30 * 60 * 1000;
-
 interface ChatPageProps {
   searchParams: Promise<{
     create?: string | string[];
@@ -144,8 +137,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const [coworkerRows, summary] = await Promise.all([
     coworkerService.listCoworkers("chat"),
-    // Core reads the window from the stored lastSeenAt itself — a session
-    // cookie can lag the column and would silently zero the counts.
+    // Window is session-derived in Core (`max(Session.updatedAt)`). No stamp.
     taskService.getActivitySummary({
       // In an org the greeting talks about the team, so count the whole
       // workspace rather than only the caller's own tasks.
@@ -153,25 +145,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     }),
   ]);
   const coworkers = coworkerRows.map(mapDbCoworkerToChatCoworker);
-
-  // After reading the window, not before, or the user always sees zero — and
-  // only once the previous visit is genuinely old. Stamping on every load meant
-  // a reload moved the window to "a second ago" and blanked the summary the
-  // user had just been shown.
-  // Guard on the stored column, not on `since`: Core clamps `since` to a 24h
-  // fallback whenever the last visit was recent, so comparing against it was
-  // always true and the stamp fired on every render.
-  // A null summary means Core never answered, so we do not know what the user
-  // missed — moving the marker there would silently discard it.
-  const shouldAdvanceLastSeen =
-    summary !== null &&
-    (summary.lastVisitAt === null ||
-      Date.now() - summary.lastVisitAt.getTime() >= LAST_SEEN_REFRESH_MS);
-  // Safe to stamp during the render: every breakpoint shows a welcome here, so
-  // reaching this line means the summary is on screen.
-  if (shouldAdvanceLastSeen) {
-    await userService.markLastSeenForMe();
-  }
 
   return (
     <>

@@ -329,7 +329,7 @@ export const taskSummaryResponseSchema = z
   .object({
     since: dateTimeSchema.openapi({
       description:
-        "Start of the reporting window, echoed back. Always set: either the caller's previous visit or the start of the rolling 24h fallback when that visit is missing or too recent.",
+        "Start of the reporting window, echoed back. Always set: either the caller's last session activity or the start of the rolling 24h fallback when that activity is missing or too recent.",
       example: "2026-08-10T09:00:00.000Z",
     }),
     completed: z.number().int().nonnegative().openapi({
@@ -349,12 +349,12 @@ export const taskSummaryResponseSchema = z
     }),
     lastVisitAt: dateTimeSchema.nullable().openapi({
       description:
-        "The caller's stored lastSeenAt, unmodified. Null before their first recorded visit.",
+        "Caller's most recent session activity (`max(Session.updatedAt)`), unmodified. Null only if the user has no sessions. Same signal as admin member last-seen.",
       example: "2026-08-10T09:00:00.000Z",
     }),
     basis: z.enum(["lastVisit", "recent"]).openapi({
       description:
-        "Which window the counts cover: the caller's previous visit (`lastVisit`), or a rolling 24h fallback (`recent`) when that visit is missing (first visit) or too recent to be interesting. The web landing still hides the chip row when `lastVisitAt` is null.",
+        "Which window the counts cover: since the caller's last session activity (`lastVisit`), or a rolling 24h fallback (`recent`) when that activity is missing or too recent to be interesting.",
       example: "lastVisit",
     }),
     workedMinutes: z.number().int().nonnegative().openapi({

@@ -13,10 +13,10 @@ import {
   taskSummaryResponseSchema,
 } from "@/schemas/task.schema";
 
-/** Below this, "since your last visit" covers nothing worth reporting. */
+/** Below this, "since your last activity" covers nothing worth reporting. */
 const MIN_MEANINGFUL_WINDOW_MS = 30 * 60 * 1000;
 
-/** Rolling fallback window when the last visit was only moments ago. */
+/** Rolling fallback window when the last session activity was only moments ago. */
 const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const query = z.object({
@@ -34,7 +34,7 @@ const route = createRoute({
   method: "get",
   path: "/summary",
   description:
-    "Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window is the caller's stored `lastSeenAt` when that visit is old enough to be meaningful; otherwise a rolling 24h fallback (`basis: recent`). On a first visit (`lastVisitAt` null) Core still returns the rolling window, but the web landing hides the chip row entirely. Session users only.",
+    "Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window starts at the caller's most recent session activity (`max(Session.updatedAt)`), the same signal admin member last-seen uses. When that timestamp is missing or under 30 minutes old, a rolling 24h fallback is used (`basis: recent`) so a reload cannot blank the summary. Session users only.",
   tags: ["Tasks"],
   request: { query },
   responses: {
@@ -68,32 +68,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { scope } = c.req.valid("query");
 
-    const caller = await prisma.user.findUnique({
-      where: { id: userContext.userId },
-      select: { lastSeenAt: true },
+    // Same derivation as org-member last-seen: most recent Session.updatedAt.
+    // Not every click — Better Auth refreshes the row on a throttle / cache —
+    // but it is durable product activity without a separate stamp column.
+    const lastSession = await prisma.session.aggregate({
+      where: { userId: userContext.userId },
+      _max: { updatedAt: true },
     });
+    const lastActivityAt = lastSession._max.updatedAt ?? null;
 
-    // Returning users only: a visit recorded seconds ago produces a window
-    // nothing can fall into, so the page would blank on reload. Fall back to a
-    // rolling day and report `basis: recent` so the caption matches.
-    // First visit (`lastSeenAt` null) also gets the rolling window for a
-    // consistent payload; the web landing hides chips until a real visit exists.
-    const lastSeenAt = caller?.lastSeenAt ?? null;
-    const elapsedMs = lastSeenAt ? Date.now() - lastSeenAt.getTime() : null;
-    const useLastVisit =
-      lastSeenAt !== null &&
+    // Activity recorded seconds ago produces a window nothing can fall into, so
+    // the page would blank on reload. Fall back to a rolling day and report
+    // `basis: recent` so the caption matches.
+    const elapsedMs = lastActivityAt
+      ? Date.now() - lastActivityAt.getTime()
+      : null;
+    const useLastActivity =
+      lastActivityAt !== null &&
       elapsedMs !== null &&
       elapsedMs >= MIN_MEANINGFUL_WINDOW_MS;
-    const basis = useLastVisit ? "lastVisit" : "recent";
-    const sinceDate = useLastVisit
-      ? lastSeenAt
+    const basis = useLastActivity ? "lastVisit" : "recent";
+    const sinceDate = useLastActivity
+      ? lastActivityAt
       : new Date(Date.now() - RECENT_WINDOW_MS);
     const workspaceWhere = {
       archivedAt: null,
       workspaceId: workspaceContext.workspaceId,
     };
     const ownerWhere = scope === "owned" ? { ownerId: userContext.userId } : {};
-    const withinWindow = sinceDate ? { updatedAt: { gte: sinceDate } } : {};
+    const withinWindow = { updatedAt: { gte: sinceDate } };
 
     // Time in progress, reconstructed from status-transition events: each
     // RUNNING event is paired with whatever event superseded it. There is no
@@ -137,7 +140,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 ...ownerWhere,
                 creatorUserId: { not: userContext.userId },
                 NOT: { creatorUserId: null },
-                ...(sinceDate ? { createdAt: { gte: sinceDate } } : {}),
+                createdAt: { gte: sinceDate },
               },
             })
           : Promise.resolve(0),
@@ -203,8 +206,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       taskSummaryResponseSchema.parse({
         basis,
-        // dateTimeSchema serialises Date itself.
-        lastVisitAt: lastSeenAt,
+        // Echo the session-derived activity cursor (null only if no sessions).
+        lastVisitAt: lastActivityAt,
         since: sinceDate,
         completed,
         awaitingInput,
