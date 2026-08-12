@@ -112,45 +112,20 @@ export const userService = (() => {
   );
 
   /**
-   * Determines whether the onboarding flow should be shown for the current user.
+   * Whether the signup onboarding page should run for this session.
    *
-   * Logic:
-   * - If the user's `onboardingCompleted` is already true → returns false
-   * - If the user is a member of any organization → sets `onboardingCompleted` and returns false
-   * - Otherwise → returns true (show onboarding)
+   * Membership is not a substitute for completion: invite-join and mid-flow
+   * create-organization both leave `onboardingCompleted` false while the user
+   * already has a team. Auto-completing on membership used to skip the joined
+   * profile steps and the plan step after org creation. Completing the flag is
+   * owned by `completeOnboarding` / `markOnboardingCompleteForMe` only.
    */
   async function showOnboarding(session: Session): Promise<boolean> {
-    if (!session) {
+    if (!session?.user) {
       return false;
     }
 
-    const user = session.user;
-    if (!user) {
-      return false;
-    }
-
-    if (user.onboardingCompleted) {
-      return false;
-    }
-
-    try {
-      const members = await getMyMembersWithOrganizations();
-
-      if (members.length > 0) {
-        // Mark onboarding complete via Core Better Auth HTTP so the session
-        // cookie cache stays in sync — same approach as
-        // markOnboardingCompleteForMe below.
-        await updateCurrentUserViaCore({ onboardingCompleted: true });
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Failed to check/update onboarding status", error);
-      // Return true (show onboarding) on error as a safe default - better to show
-      // onboarding than to silently skip it due to a transient error
-      return true;
-    }
+    return !session.user.onboardingCompleted;
   }
 
   /**

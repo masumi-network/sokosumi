@@ -217,50 +217,32 @@ describe("user.service", () => {
       } as Session);
 
       expect(getMyMembersWithOrganizationsMock).not.toHaveBeenCalled();
+      expect(updateCurrentUserViaCoreMock).not.toHaveBeenCalled();
       expect(result).toBe(false);
     });
 
-    it("marks onboarding complete via Core Better Auth HTTP and returns false when the user has a membership", async () => {
-      getSessionMock.mockResolvedValue(session);
-      getMyMembersWithOrganizationsMock.mockResolvedValue({
-        data: [{ id: "member-1", organizationId: "org-1", role: "member" }],
-      });
-      updateCurrentUserViaCoreMock.mockResolvedValue({});
-
+    it("returns true when onboarding is incomplete, even if the user already has a membership", async () => {
+      // Invite-join and create-organization both produce memberships before the
+      // profile/plan steps finish. Membership must not auto-complete.
       const { userService } = await import("../user.service");
       const result = await userService.showOnboarding(session);
 
-      expect(updateCurrentUserViaCoreMock).toHaveBeenCalledWith({
-        onboardingCompleted: true,
-      });
-      expect(result).toBe(false);
-    });
-
-    it("returns true (show onboarding) when the user has no memberships", async () => {
-      getSessionMock.mockResolvedValue(session);
-      getMyMembersWithOrganizationsMock.mockResolvedValue({ data: [] });
-
-      const { userService } = await import("../user.service");
-      const result = await userService.showOnboarding(session);
-
+      expect(getMyMembersWithOrganizationsMock).not.toHaveBeenCalled();
       expect(updateCurrentUserViaCoreMock).not.toHaveBeenCalled();
       expect(result).toBe(true);
     });
 
-    it("returns true as a safe default when the membership check fails", async () => {
-      getSessionMock.mockResolvedValue(session);
-      getMyMembersWithOrganizationsMock.mockRejectedValue(
-        new Error("Core unavailable"),
-      );
-      const consoleErrorSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-
+    it("returns false when there is no session or user", async () => {
       const { userService } = await import("../user.service");
-      const result = await userService.showOnboarding(session);
 
-      expect(result).toBe(true);
-      consoleErrorSpy.mockRestore();
+      expect(await userService.showOnboarding(null as unknown as Session)).toBe(
+        false,
+      );
+      expect(
+        await userService.showOnboarding({
+          session: { id: "session-1" },
+        } as Session),
+      ).toBe(false);
     });
   });
 });
