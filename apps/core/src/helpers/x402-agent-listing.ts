@@ -152,7 +152,14 @@ export function buildX402AgentPaymentSources(
       if (amount.decimals === null) {
         return { status: "dropped", reason: "missing_decimals" };
       }
-      if (!isX402SourceReady(caip2Network, amount.unit, context.readySources)) {
+      // One canonical spelling per amount row, hoisted like `caip2Network`
+      // above and used by the gates AND the advertised entry alike. Ingestion
+      // keeps whatever the registry wrote (`normalizeMasumiPaymentUnit`
+      // lowercases but never trims), and each consumer canonicalizing
+      // separately is what let a padded unit pass every gate while deduping as
+      // a second asset — advertising one triple at two prices.
+      const asset = amount.unit.trim().toLowerCase();
+      if (!isX402SourceReady(caip2Network, asset, context.readySources)) {
         return { status: "dropped", reason: "not_buy_side_ready" };
       }
       let cents: bigint;
@@ -160,7 +167,7 @@ export function buildX402AgentPaymentSources(
         cents = calculateCentsFromX402Amount(
           {
             caip2Network,
-            asset: amount.unit,
+            asset,
             amount: amount.amount.toString(),
             decimals: amount.decimals,
           },
@@ -173,14 +180,7 @@ export function buildX402AgentPaymentSources(
       }
       const advertised: X402AgentPaymentSource = {
         caip2Network,
-        // Canonicalized HERE, once, so the advertised value and the dedupe key
-        // below are the same string. Ingestion keeps whatever the registry
-        // wrote (`normalizeMasumiPaymentUnit` lowercases but never trims),
-        // while every consumer — `findX402ReadySource`, `buildCaip19AssetKey`,
-        // and the pay side's 402 matcher — compares trimmed lowercase. A
-        // padded spelling left here would pass every gate, dedupe as a second
-        // asset, and then match no 402 demand.
-        asset: amount.unit.trim().toLowerCase(),
+        asset,
         decimals: amount.decimals,
         payTo,
         amount: amount.amount.toString(),
