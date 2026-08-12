@@ -1554,65 +1554,28 @@
         "authorize": "Autorisieren",
         "sidebarNew": "Neu"
       },
-      "Onboarding": {
-        "openFab": "Coworker-Chat starten",
-        "greeting": "Willkommen!",
-        "greetingWithName": "Willkommen, {name}!",
-        "intentTitle": "Worauf möchtest du dich konzentrieren?",
-        "intentDescription": "Wähle einen Schwerpunkt, damit wir den passenden Coworker und passende Starter-Prompts vorschlagen können.",
-        "intentChoices": {
-          "chat": "Gespräch",
-          "tasks": "Projekte & Aufgaben",
-          "either": "Noch unsicher"
+      "Landing": {
+        "greeting": "Willkommen bei Sokosumi!",
+        "greetingWithName": "Willkommen bei Sokosumi, {name}!",
+        "intro": "Bei Sokosumi arbeitest du mit KI-Coworkern – du sagst, was zu tun ist, sie planen es und erledigen es.",
+        "role": "Projektmanagerin - du kannst ihr jede Aufgabe geben und sie findet den perfekten Coworker dafür",
+        "cta": {
+          "avatarAlt": "{name}",
+          "button": "Mit {name} chatten",
+          "opening": "Chat wird geöffnet…",
+          "error": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
         },
-        "intentChoiceHints": {
-          "chat": "Recherchieren, brainstormen oder ein Problem mit einem Coworker durchdenken.",
-          "tasks": "Arbeit aufteilen, Aufgaben an einen Coworker vergeben oder ein Projekt vorantreiben.",
-          "either": "Wir starten mit Elena, unserer Standard-KI-Coworkerin, und einem vorgeschlagenen Prompt."
+        "stats": {
+          "sinceLastActivity": "Seit deiner letzten Aktivität, {when}",
+          "completed": "{count, plural, one {# Aufgabe erledigt} other {# Aufgaben erledigt}}",
+          "worked": "{minutes, plural, one {# Minute gearbeitet} other {# Minuten gearbeitet}}",
+          "awaiting": "{count, plural, one {# Aufgabe braucht dich} other {# Aufgaben brauchen dich}}",
+          "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
+          "recent": "In den letzten 24 Stunden"
         },
-        "goalTitle": "Starter-Prompt wählen oder selbst formulieren",
-        "goalDescription": "Wähle einen Prompt für deine erste Nachricht oder schreibe unten etwas Eigenes.",
-        "goalLabel": "Deine Nachricht",
-        "goalPlaceholder": "Beispiel: Hilf mir, ein Wochenupdate zu schreiben",
-        "tryAsking": {
-          "label": "Vorgeschlagene Prompts",
-          "orDivider": "oder",
-          "prompts": {
-            "chat": {
-              "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
-              "alex": "Analysiere die Daten in meinem OneDrive-Ordner.",
-              "elena": "Hilf mir zu verstehen, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte."
-            },
-            "tasks": {
-              "elena": "Zeig mir den Status meiner offenen Tasks und was Aufmerksamkeit braucht.",
-              "alex": "Erstelle ein Dashboard für meine Rechercheergebnisse.",
-              "hannah": "Analysiere unsere Zielgruppe: Bedürfnisse, Verhalten und Mediennutzung."
-            },
-            "either": {
-              "elena": "Hilf mir zu verstehen, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte.",
-              "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
-              "alex": "Erstelle eine Datenvisualisierung aus meinem Excel-Dokument."
-            }
-          }
-        },
-        "draftWithGoal": "{goal}",
-        "draftWhenSkipped": {
-          "chat": "Ich möchte ein Gespräch starten — erzähl mir, wie du mir helfen kannst.",
-          "tasks": "Ich brauche Hilfe bei Aufgaben und Projekten.",
-          "either": "Erklär mir, wie ich mit Sokosumi starte."
-        },
-        "next": "Weiter",
-        "back": "Zurück",
-        "skip": "Überspringen",
-        "finish": "Weiter",
-        "confirmTitle": "Dein Coworker",
-        "confirmDescription": "Bestätige, um den Chat zu öffnen. Deine erste Nachricht bleibt im Composer, bis du sie sendest.",
-        "coworkerListLabel": "Coworkers",
-        "draftPreviewLabel": "Erste Nachricht",
-        "confirmCta": "Chat öffnen",
-        "opening": "Wird geöffnet…",
-        "ensureFailed": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut.",
-        "noChatCoworker": "Gerade sind keine chatfähigen Coworker verfügbar."
+        "team": {
+          "avatarAlt": "{name}"
+        }
       }
     },
     "Tasks": {
@@ -4887,18 +4850,6 @@
         "ariaLabel": "Hauptnavigation",
         "backToChats": "Zurück zu Chats",
         "back": "Zurück"
-      },
-      "MobileCreateFab": {
-        "openMenu": "Erstellen",
-        "closeMenu": "Erstellen-Menü schließen",
-        "createChannel": {
-          "title": "Kanal erstellen",
-          "subtitle": "Neuen Stream-Kanal starten"
-        },
-        "newDm": {
-          "title": "Neue Direktnachricht",
-          "subtitle": "Einer oder mehreren Personen schreiben"
-        }
       },
       "Actions": {
         "more": "Nachrichtenaktionen",

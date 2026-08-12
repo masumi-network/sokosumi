@@ -1,5 +1,4 @@
 import { connection } from "next/server";
-import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { getPrivateCachedChatListChrome } from "@/app/components/private-sidebar-cache";
 import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
@@ -8,7 +7,6 @@ import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-import { cn } from "@/lib/utils";
 
 /**
  * Mobile Chats tab: Personal Assistant (beta-gated) above Channels + DMs
@@ -54,12 +52,7 @@ export default async function ChatChatsPage() {
         main's scroll; padding on a nested overflow flex child does not clear
         the fixed bottom nav (last DM was clipped).
       */}
-      <div
-        className={cn(
-          "md:hidden -m-4 flex flex-1 flex-col bg-background",
-          LIST_MOBILE_CREATE_FAB_CLEARANCE,
-        )}
-      >
+      <div className="bg-background md:hidden -m-4 flex flex-1 flex-col">
         <PersonalAssistantNav enabled={hermesMenuEnabled} />
         {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
         <OrganizationChatList

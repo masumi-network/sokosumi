@@ -5,7 +5,6 @@ import {
   resolveMobileAppBackTarget,
   shouldShowMobileBottomNav,
   shouldShowMobileBrandLeading,
-  shouldShowMobileCreateFab,
 } from "../mobile-app-chrome";
 
 describe("mobile-app-chrome", () => {
@@ -95,6 +94,11 @@ describe("mobile-app-chrome", () => {
     it("shows on chat shell except rooms and drafts", () => {
       expect(shouldShowMobileBottomNav("/chat")).toBe(true);
       expect(shouldShowMobileBottomNav("/chat/chats")).toBe(true);
+      // `welcome=1` used to open the questionnaire, which hid the nav. The
+      // param is retired, so a stale link must now behave like bare home.
+      expect(
+        shouldShowMobileBottomNav("/chat", new URLSearchParams("welcome=1")),
+      ).toBe(true);
       expect(shouldShowMobileBottomNav("/chat/rooms/r1")).toBe(false);
       expect(
         shouldShowMobileBottomNav("/chat", new URLSearchParams("dm=new")),
@@ -104,9 +108,6 @@ describe("mobile-app-chrome", () => {
           "/chat",
           new URLSearchParams("create=channel"),
         ),
-      ).toBe(false);
-      expect(
-        shouldShowMobileBottomNav("/chat", new URLSearchParams("welcome=1")),
       ).toBe(false);
     });
 
@@ -133,6 +134,10 @@ describe("mobile-app-chrome", () => {
     it("shows brand on chats and every bottom-nav tab root", () => {
       expect(shouldShowMobileBrandLeading("/chat")).toBe(true);
       expect(shouldShowMobileBrandLeading("/chat/chats")).toBe(true);
+      // Retired param: falls through to home, so the brand stays.
+      expect(
+        shouldShowMobileBrandLeading("/chat", new URLSearchParams("welcome=1")),
+      ).toBe(true);
       expect(shouldShowMobileBrandLeading("/tasks")).toBe(true);
       expect(shouldShowMobileBrandLeading("/agents")).toBe(true);
       expect(shouldShowMobileBrandLeading("/projects")).toBe(true);
@@ -150,36 +155,9 @@ describe("mobile-app-chrome", () => {
       expect(
         shouldShowMobileBrandLeading("/chat", new URLSearchParams("dm=new")),
       ).toBe(false);
-      expect(
-        shouldShowMobileBrandLeading("/chat", new URLSearchParams("welcome=1")),
-      ).toBe(false);
       expect(shouldShowMobileBrandLeading("/tasks/t1")).toBe(false);
       expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);
-    });
-  });
-
-  describe("shouldShowMobileCreateFab", () => {
-    it("shows on chats list only", () => {
-      expect(shouldShowMobileCreateFab("/chat")).toBe(false);
-      expect(shouldShowMobileCreateFab("/chat/chats")).toBe(true);
-      expect(shouldShowMobileCreateFab("/tasks")).toBe(false);
-      expect(shouldShowMobileCreateFab("/chat/rooms/r1")).toBe(false);
-    });
-
-    it("hides for drafts and welcome compose", () => {
-      expect(
-        shouldShowMobileCreateFab(
-          "/chat",
-          new URLSearchParams("create=channel"),
-        ),
-      ).toBe(false);
-      expect(
-        shouldShowMobileCreateFab("/chat", new URLSearchParams("dm=new")),
-      ).toBe(false);
-      expect(
-        shouldShowMobileCreateFab("/chat", new URLSearchParams("welcome=1")),
-      ).toBe(false);
     });
   });
 });

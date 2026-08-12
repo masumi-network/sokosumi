@@ -30,3 +30,11 @@ export function createPrismaClient(databaseUrl: string): PrismaClient {
   });
   return new PrismaClient({ adapter });
 }
+
+/**
+ * Client-side Prisma namespace, re-exported for parameterised raw SQL.
+ *
+ * The package root re-exports the *browser* namespace, which deliberately has
+ * no `sql`/`empty` tag — importing that in a raw query fails at type-check.
+ */
+export { Prisma as PrismaRaw } from "./generated/prisma/client.js";

@@ -22,14 +22,17 @@ describe("chatMobileHeightShellClass", () => {
     ).toBe(CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS);
   });
 
-  it("uses no-tab-bar shell for welcome compose", () => {
+  // `welcome=1` used to open the questionnaire and hide the tab bar with it.
+  // The landing replaced that flow, so a stray link carrying the old param must
+  // fall through to plain home chrome rather than lose the tab bar.
+  it("keeps tab-bar shell for the retired welcome param", () => {
     expect(
       chatMobileHeightShellClass(
         "/chat",
         false,
         new URLSearchParams("welcome=1"),
       ),
-    ).toBe(CHAT_MOBILE_HEIGHT_SHELL_NO_TAB_BAR_CLASS);
+    ).toBe(CHAT_MOBILE_HEIGHT_SHELL_CLASS);
   });
 
   it("uses no-tab-bar shell for create-channel draft", () => {

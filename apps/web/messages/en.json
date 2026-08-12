@@ -1554,65 +1554,28 @@
         "networkErrorAfterRetry": "We couldn't reach the server after a few attempts. Please check your connection and try again.",
         "sidebarNew": "New"
       },
-      "Onboarding": {
-        "openFab": "Start coworker chat",
-        "greeting": "Welcome!",
-        "greetingWithName": "Welcome, {name}!",
-        "intentTitle": "What would you like to focus on?",
-        "intentDescription": "Choose a focus so we can recommend the right coworker and starter prompts.",
-        "intentChoices": {
-          "chat": "Conversation",
-          "tasks": "Projects & tasks",
-          "either": "Not sure yet"
+      "Landing": {
+        "greeting": "Welcome to Sokosumi!",
+        "greetingWithName": "Welcome to Sokosumi, {name}!",
+        "intro": "Sokosumi is where you work with AI coworkers — you say what needs doing, they plan it and get it done.",
+        "role": "Project Manager - you can give her any task and she will find the perfect coworker for it",
+        "cta": {
+          "avatarAlt": "{name}",
+          "button": "Chat with {name}",
+          "opening": "Opening chat…",
+          "error": "Could not open the chat. Please try again."
         },
-        "intentChoiceHints": {
-          "chat": "Research, brainstorm, or work through a problem with a coworker.",
-          "tasks": "Break down work, assign tasks to a coworker, or advance a project.",
-          "either": "We'll start with Elena, our default AI coworker, and a suggested prompt."
+        "stats": {
+          "sinceLastActivity": "Since you were last active, {when}",
+          "completed": "{count, plural, one {# task completed} other {# tasks completed}}",
+          "worked": "{minutes, plural, one {# minute worked} other {# minutes worked}}",
+          "awaiting": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
+          "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
+          "recent": "In the last 24 hours"
         },
-        "goalTitle": "Choose a starter prompt or write your own",
-        "goalDescription": "Select a prompt to fill in your first message, or write your own below.",
-        "goalLabel": "Your message",
-        "goalPlaceholder": "Example: Help me draft a weekly update",
-        "tryAsking": {
-          "label": "Suggested prompts",
-          "orDivider": "or",
-          "prompts": {
-            "chat": {
-              "hannah": "Research our competitors and compare us with them.",
-              "alex": "Analyze the data in my OneDrive folder.",
-              "elena": "Help me understand how Sokosumi fits my business and where I should start."
-            },
-            "tasks": {
-              "elena": "Show me the status of my open tasks and what needs attention.",
-              "alex": "Build a dashboard for my research results.",
-              "hannah": "Analyze our target audience: needs, behaviors, and media habits."
-            },
-            "either": {
-              "elena": "Help me understand how Sokosumi fits my business and where I should start.",
-              "hannah": "Research our competitors and compare us with them.",
-              "alex": "Create a data visualization from my Excel spreadsheet."
-            }
-          }
-        },
-        "draftWithGoal": "{goal}",
-        "draftWhenSkipped": {
-          "chat": "I'd like to start a conversation — tell me how you can help.",
-          "tasks": "I'd like help with tasks and projects.",
-          "either": "Explain how to get started with Sokosumi."
-        },
-        "next": "Next",
-        "back": "Back",
-        "skip": "Skip",
-        "finish": "Continue",
-        "confirmTitle": "Meet your coworker",
-        "confirmDescription": "Confirm to open a chat. Your first message stays in the composer until you send it.",
-        "coworkerListLabel": "Coworkers",
-        "draftPreviewLabel": "First message",
-        "confirmCta": "Open chat",
-        "opening": "Opening…",
-        "ensureFailed": "Could not open that chat. Please try again.",
-        "noChatCoworker": "No chat-capable coworkers available right now."
+        "team": {
+          "avatarAlt": "{name}"
+        }
       }
     },
     "Tasks": {
@@ -4887,18 +4850,6 @@
         "ariaLabel": "Main navigation",
         "backToChats": "Back to chats",
         "back": "Back"
-      },
-      "MobileCreateFab": {
-        "openMenu": "Create",
-        "closeMenu": "Close create menu",
-        "createChannel": {
-          "title": "Create channel",
-          "subtitle": "Start a new stream channel"
-        },
-        "newDm": {
-          "title": "New direct message",
-          "subtitle": "Message one or more people"
-        }
       },
       "Actions": {
         "more": "Message actions",

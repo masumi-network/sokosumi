@@ -3755,6 +3755,37 @@ export type TaskListItem = {
     commentsCount: number;
 };
 
+export type TaskActivitySummary = {
+    /**
+     * Start of the reporting window, echoed back. Always set: either the caller's last session activity or the start of the rolling 24h fallback when that activity is missing or too recent.
+     */
+    since: Date;
+    /**
+     * Tasks that reached COMPLETED within the window. Approximated by updatedAt because Task has no completedAt column.
+     */
+    completed: number;
+    /**
+     * Tasks currently blocked on the user. Point-in-time, so it ignores the window.
+     */
+    awaitingInput: number;
+    /**
+     * Tasks created within the window by a different human in the same workspace, narrowed by `scope` like the other counters. Always 0 in a personal workspace.
+     */
+    createdByOtherHumans: number;
+    /**
+     * Caller's most recent session activity (`max(Session.updatedAt)`), unmodified. Null only if the user has no sessions. Same signal as admin member last-seen.
+     */
+    lastVisitAt: Date | null;
+    /**
+     * Which window the counts cover: since the caller's last session activity (`lastVisit`), or a rolling 24h fallback (`recent`) when that activity is missing or too recent to be interesting.
+     */
+    basis: 'lastVisit' | 'recent';
+    /**
+     * Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.
+     */
+    workedMinutes: number;
+};
+
 export const UserWritableTaskLinkRelation = {
     RELATED: 'related',
     BLOCKS: 'blocks',
@@ -10818,7 +10849,7 @@ export type PatchChatsRoomsByIdErrors = {
         };
     };
     /**
-     * Room already exists
+     * Conflict
      */
     409: {
         error: string;
@@ -28666,6 +28697,81 @@ export type PostTasksResponses = {
 };
 
 export type PostTasksResponse = PostTasksResponses[keyof PostTasksResponses];
+
+export type GetTasksSummaryData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * `owned` counts only the caller's own tasks; `workspace` counts every task in the active workspace.
+         */
+        scope?: 'owned' | 'workspace';
+    };
+    url: '/tasks/summary';
+};
+
+export type GetTasksSummaryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksSummaryError = GetTasksSummaryErrors[keyof GetTasksSummaryErrors];
+
+export type GetTasksSummaryResponses = {
+    /**
+     * Task activity summary for the active workspace
+     */
+    200: {
+        data: TaskActivitySummary;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksSummaryResponse = GetTasksSummaryResponses[keyof GetTasksSummaryResponses];
 
 export type GetTasksByIdLinksData = {
     body?: never;

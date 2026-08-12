@@ -310,3 +310,57 @@ export const taskWorkspaceSchema = z
     }),
   })
   .openapi("TaskWorkspace");
+
+/**
+ * Statuses that block on the human rather than on the coworker.
+ *
+ * Mirrors the web taskboard's `input-required` column so the /chat summary and
+ * the board never disagree about what "waiting on you" means.
+ */
+export const TASK_AWAITING_INPUT_STATUSES = [
+  "GRANT_PENDING",
+  "INPUT_REQUIRED",
+  "APPROVAL_REQUIRED",
+  "AUTHENTICATION_REQUIRED",
+  "OUT_OF_CREDITS",
+] as const;
+
+export const taskSummaryResponseSchema = z
+  .object({
+    since: dateTimeSchema.openapi({
+      description:
+        "Start of the reporting window, echoed back. Always set: either the caller's last session activity or the start of the rolling 24h fallback when that activity is missing or too recent.",
+      example: "2026-08-10T09:00:00.000Z",
+    }),
+    completed: z.number().int().nonnegative().openapi({
+      description:
+        "Tasks that reached COMPLETED within the window. Approximated by updatedAt because Task has no completedAt column.",
+      example: 4,
+    }),
+    awaitingInput: z.number().int().nonnegative().openapi({
+      description:
+        "Tasks currently blocked on the user. Point-in-time, so it ignores the window.",
+      example: 2,
+    }),
+    createdByOtherHumans: z.number().int().nonnegative().openapi({
+      description:
+        "Tasks created within the window by a different human in the same workspace, narrowed by `scope` like the other counters. Always 0 in a personal workspace.",
+      example: 3,
+    }),
+    lastVisitAt: dateTimeSchema.nullable().openapi({
+      description:
+        "Caller's most recent session activity (`max(Session.updatedAt)`), unmodified. Null only if the user has no sessions. Same signal as admin member last-seen.",
+      example: "2026-08-10T09:00:00.000Z",
+    }),
+    basis: z.enum(["lastVisit", "recent"]).openapi({
+      description:
+        "Which window the counts cover: since the caller's last session activity (`lastVisit`), or a rolling 24h fallback (`recent`) when that activity is missing or too recent to be interesting.",
+      example: "lastVisit",
+    }),
+    workedMinutes: z.number().int().nonnegative().openapi({
+      description:
+        "Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.",
+      example: 47,
+    }),
+  })
+  .openapi("TaskActivitySummary");

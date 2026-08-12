@@ -4,6 +4,7 @@ import { coreClient } from "@/lib/clients/core.client";
 import type {
   JobSummary,
   Task,
+  TaskActivitySummary,
   TaskEvent,
   TaskLink,
   TaskLinkDeleted,
@@ -218,7 +219,30 @@ export const taskService = (() => {
     return result.data;
   }
 
+  /**
+   * Counts for the /chat landing. Never throws — the landing is a greeting, so
+   * a Core hiccup should cost the sentence, not the page. Returns null rather
+   * than a zeroed summary so the UI can hide chips instead of claiming "nothing
+   * happened". The window itself is session-derived in Core
+   * (`max(Session.updatedAt)`); this helper does not stamp anything.
+   */
+  async function getActivitySummary(params: {
+    scope?: "owned" | "workspace";
+  }): Promise<TaskActivitySummary | null> {
+    try {
+      const result = await coreClient.getTasksSummary({
+        scope: params.scope ?? "owned",
+      });
+
+      return result.data ?? null;
+    } catch (error) {
+      console.error("Failed to load task activity summary", error);
+      return null;
+    }
+  }
+
   return {
+    getActivitySummary,
     listJobs,
     listTasks,
     getTaskById,

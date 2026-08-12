@@ -30,6 +30,7 @@ import type {
   GetProjectsStatsData,
   GetShareByTokenError,
   GetTasksData,
+  GetTasksSummaryData,
   HermesApproveConfirmationRequest,
   HermesFinalizeIntegrationRequest,
   HermesInitiateIntegrationRequest,
@@ -190,6 +191,7 @@ import {
   getTasksById as coreGetTasksById,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
+  getTasksSummary as coreGetTasksSummary,
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCoworkerAccess as coreGetUsersByIdCoworkerAccess,
@@ -972,6 +974,19 @@ export function createCoreClient(getClient: GetCoreClient) {
             transformTaskListResponseEnvelope(data),
         }),
       "Failed to fetch tasks",
+    );
+  }
+
+  async function getTasksSummary(query?: GetTasksSummaryData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksSummary({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch task summary",
     );
   }
 
@@ -4253,6 +4268,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTaskLinks,
     getTaskWorkspace,
     getTasks,
+    getTasksSummary,
     patchTask,
     putJobShare,
     putTaskSchedule,
