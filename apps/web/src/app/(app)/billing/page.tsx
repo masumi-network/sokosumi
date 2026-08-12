@@ -17,6 +17,7 @@ import {
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
 import { SubscriptionSuccessModal } from "@/components/billing/subscription-success-modal";
+import { TransactionHistorySection } from "@/components/billing/transaction-history-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -35,6 +36,7 @@ const PLAN_ORDER = [
 interface BillingPageProps {
   searchParams: Promise<{
     cancel?: string;
+    historyCursor?: string;
     session_id?: string;
     status?: string;
     tab?: string;
@@ -48,10 +50,15 @@ function parseStatus(status: string | undefined): "cancel" | "success" | null {
   return null;
 }
 
-type BillingTab = "subscription" | "credits" | "coupon";
+type BillingTab = "subscription" | "credits" | "history" | "coupon";
 
 function parseBillingTab(tab: string | undefined): BillingTab {
-  if (tab === "credits" || tab === "coupon" || tab === "subscription") {
+  if (
+    tab === "credits" ||
+    tab === "history" ||
+    tab === "coupon" ||
+    tab === "subscription"
+  ) {
     return tab;
   }
 
@@ -76,6 +83,12 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   ]);
   const activeTab = parseBillingTab(query.tab);
   const billingPortalReturnPath = `/billing?tab=${activeTab}`;
+  const historyContent = (
+    <TransactionHistorySection
+      cursor={activeTab === "history" ? query.historyCursor : undefined}
+      returnPath="/billing?tab=history"
+    />
+  );
   const coworkersPromise = getFeaturedCoworkers();
   const subscriptionStatus = parseStatus(query.status);
   const subscriptionSuccessDescription = tPurchaseSuccess(
@@ -231,9 +244,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             tabLabels={{
               coupon: t("tabs.coupon"),
               credits: t("tabs.credits"),
+              history: t("tabs.history"),
               subscription: t("tabs.subscription"),
             }}
             showCreditsTab
+            historyContent={historyContent}
             subscriptionContent={
               <OrganizationSubscriptionSection
                 assignedSeatCount={seatCounts.assignedCount}
@@ -346,9 +361,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           tabLabels={{
             coupon: t("tabs.coupon"),
             credits: t("tabs.credits"),
+            history: t("tabs.history"),
             subscription: t("tabs.subscription"),
           }}
           showCreditsTab
+          historyContent={historyContent}
           subscriptionContent={
             <PersonalSubscriptionSection
               cancelAtPeriodEnd={

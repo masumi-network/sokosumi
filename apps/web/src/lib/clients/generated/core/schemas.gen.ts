@@ -13354,6 +13354,77 @@ export const SiteIconResultSchema = {
     ]
 } as const;
 
+export const TransactionHistoryListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/TransactionHistoryItem'
+    }
+} as const;
+
+export const TransactionHistoryItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Transaction ID',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the transaction was recorded'
+        },
+        credits: {
+            type: 'number',
+            description: 'Signed credit amount. Positive is a credit grant/top-up, negative is a spend.',
+            example: -5
+        },
+        source: {
+            $ref: '#/components/schemas/TransactionSource'
+        },
+        jobId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Associated job ID, when this transaction is a job purchase or refund. Null otherwise.',
+            example: 'cmi4gmksz000104l8wps8p8fp'
+        },
+        agentId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Agent ID for the associated job, for deep-linking. Null when jobId is null.',
+            example: 'agent_123'
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'credits',
+        'source',
+        'jobId',
+        'agentId'
+    ]
+} as const;
+
+export const TransactionSourceSchema = {
+    type: 'string',
+    enum: [
+        'job_purchase',
+        'job_refund',
+        'task_usage',
+        'coworker_usage',
+        'orchestrator_usage',
+        'credit_grant',
+        'other'
+    ],
+    description: 'Coarse origin of the transaction',
+    example: 'job_purchase'
+} as const;
+
 export const CreditPriceOptionSchema = {
     type: 'object',
     properties: {

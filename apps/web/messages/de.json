@@ -3664,6 +3664,7 @@
       "tabs": {
         "subscription": "Abonnement",
         "credits": "Credits",
+        "history": "Verlauf",
         "coupon": "Gutschein"
       },
       "billingPortalDescription": "Rechnungsadresse, Steuer-ID, Zahlungsmethoden, Rechnungs-E-Mail und Abonnements in Stripe verwalten.",
@@ -3687,6 +3688,26 @@
         "purchasedSeatsValue": "{seats, plural, =1 {# Seat} other {# Seats}}",
         "contactDescription": "Kontaktiere unser Team zu deinem Enterprise-Vertrag, Verlängerungen oder Billing-Fragen.",
         "contactUsCta": "Kontakt aufnehmen"
+      },
+      "History": {
+        "title": "Transaktionsverlauf",
+        "empty": "Noch keine Transaktionen",
+        "loadMore": "Mehr laden",
+        "creditsValue": "{credits, plural, =0 {0 Credits} =1 {# Credit} =-1 {# Credit} other {# Credits}}",
+        "columns": {
+          "date": "Datum",
+          "type": "Typ",
+          "credits": "Credits"
+        },
+        "sources": {
+          "jobPurchase": "Job-Kauf",
+          "jobRefund": "Job-Erstattung",
+          "taskUsage": "Aufgaben-Nutzung",
+          "coworkerUsage": "Coworker-Nutzung",
+          "orchestratorUsage": "Orchestrator-Nutzung",
+          "creditGrant": "Credit-Gutschrift",
+          "other": "Sonstiges"
+        }
       },
       "Errors": {
         "unauthenticated": "Bitte melde dich an, um fortzufahren",

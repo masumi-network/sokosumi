@@ -30,6 +30,7 @@ import type {
   GetProjectsStatsData,
   GetShareByTokenError,
   GetTasksData,
+  GetTransactionsData,
   HermesApproveConfirmationRequest,
   HermesFinalizeIntegrationRequest,
   HermesInitiateIntegrationRequest,
@@ -191,6 +192,7 @@ import {
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getToolsSiteIcon as coreGetToolsSiteIcon,
+  getTransactions as coreGetTransactions,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCoworkerAccess as coreGetUsersByIdCoworkerAccess,
   getUsersByIdCredits as coreGetUsersByIdCredits,
@@ -1000,6 +1002,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch notifications",
+    );
+  }
+
+  async function getTransactions(query?: GetTransactionsData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTransactions({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch transaction history",
     );
   }
 
@@ -4092,6 +4107,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getHistory,
     getNotifications,
     getNotificationsUnreadCount,
+    getTransactions,
     updateChatRoom,
     updateChatRoomMessage,
     patchNotificationRead,

@@ -3906,6 +3906,50 @@ export type SiteIconResult = {
     url: string | null;
 };
 
+export type TransactionHistoryList = Array<TransactionHistoryItem>;
+
+export type TransactionHistoryItem = {
+    /**
+     * Transaction ID
+     */
+    id: string;
+    /**
+     * When the transaction was recorded
+     */
+    createdAt: Date;
+    /**
+     * Signed credit amount. Positive is a credit grant/top-up, negative is a spend.
+     */
+    credits: number;
+    source: TransactionSource;
+    /**
+     * Associated job ID, when this transaction is a job purchase or refund. Null otherwise.
+     */
+    jobId: string | null;
+    /**
+     * Agent ID for the associated job, for deep-linking. Null when jobId is null.
+     */
+    agentId: string | null;
+};
+
+/**
+ * Coarse origin of the transaction
+ */
+export const TransactionSource = {
+    JOB_PURCHASE: 'job_purchase',
+    JOB_REFUND: 'job_refund',
+    TASK_USAGE: 'task_usage',
+    COWORKER_USAGE: 'coworker_usage',
+    ORCHESTRATOR_USAGE: 'orchestrator_usage',
+    CREDIT_GRANT: 'credit_grant',
+    OTHER: 'other'
+} as const;
+
+/**
+ * Coarse origin of the transaction
+ */
+export type TransactionSource = typeof TransactionSource[keyof typeof TransactionSource];
+
 export type CreditPriceOption = {
     id: string;
     amountPerCredit: number;
@@ -31380,6 +31424,99 @@ export type GetToolsSiteIconResponses = {
 };
 
 export type GetToolsSiteIconResponse = GetToolsSiteIconResponses[keyof GetToolsSiteIconResponses];
+
+export type GetTransactionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as an orchestrator service token. Selects which user workspace the request runs in. Must be set if X-Context-Organization-Id is present. Coworker API keys are rejected on this operation even with context headers.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as an orchestrator service token. Requires X-Context-User-Id; the user must be a member of this organization. Coworker API keys are rejected on this operation even with context headers.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/transactions';
+};
+
+export type GetTransactionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTransactionsError = GetTransactionsErrors[keyof GetTransactionsErrors];
+
+export type GetTransactionsResponses = {
+    /**
+     * Retrieve transaction history
+     */
+    200: {
+        data: TransactionHistoryList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTransactionsResponse = GetTransactionsResponses[keyof GetTransactionsResponses];
 
 export type ListCreditPricesData = {
     body?: never;

@@ -5,16 +5,18 @@ import { type ReactNode, useEffect, useMemo } from "react";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type BillingTabValue = "subscription" | "credits" | "coupon";
+type BillingTabValue = "subscription" | "credits" | "history" | "coupon";
 
 interface BillingTabsProps {
   couponContent: ReactNode;
   creditsContent?: ReactNode;
+  historyContent: ReactNode;
   showCreditsTab: boolean;
   subscriptionContent: ReactNode;
   tabLabels: {
     coupon: string;
     credits: string;
+    history: string;
     subscription: string;
   };
 }
@@ -22,6 +24,7 @@ interface BillingTabsProps {
 export function BillingTabs({
   couponContent,
   creditsContent,
+  historyContent,
   showCreditsTab,
   subscriptionContent,
   tabLabels,
@@ -33,8 +36,8 @@ export function BillingTabs({
   const enabledTabs = useMemo<BillingTabValue[]>(
     () =>
       showCreditsTab
-        ? ["subscription", "credits", "coupon"]
-        : ["subscription", "coupon"],
+        ? ["subscription", "credits", "history", "coupon"]
+        : ["subscription", "history", "coupon"],
     [showCreditsTab],
   );
 
@@ -72,6 +75,12 @@ export function BillingTabs({
           </TabsTrigger>
         ) : null}
         <TabsTrigger
+          value="history"
+          className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
+        >
+          {tabLabels.history}
+        </TabsTrigger>
+        <TabsTrigger
           value="coupon"
           className="text-muted-foreground hover:text-foreground data-[state=active]:bg-background dark:data-[state=active]:bg-background data-[state=active]:text-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors data-[state=active]:shadow-sm"
         >
@@ -83,6 +92,7 @@ export function BillingTabs({
       {showCreditsTab ? (
         <TabsContent value="credits">{creditsContent}</TabsContent>
       ) : null}
+      <TabsContent value="history">{historyContent}</TabsContent>
       <TabsContent value="coupon">{couponContent}</TabsContent>
     </Tabs>
   );

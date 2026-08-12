@@ -3695,6 +3695,7 @@
       "tabs": {
         "subscription": "Subscription",
         "credits": "Credits",
+        "history": "History",
         "coupon": "Coupon"
       },
       "billingPortalDescription": "Update billing address, tax ID, payment methods, invoice email, and subscriptions in Stripe.",
@@ -3721,6 +3722,26 @@
         "purchasedSeatsValue": "{seats, plural, =1 {# seat} other {# seats}}",
         "contactDescription": "Get in touch with our team about your enterprise contract, renewals, or billing questions.",
         "contactUsCta": "Contact us"
+      },
+      "History": {
+        "title": "Transaction history",
+        "empty": "No transactions yet",
+        "loadMore": "Load more",
+        "creditsValue": "{credits, plural, =0 {0 credits} =1 {# credit} =-1 {# credit} other {# credits}}",
+        "columns": {
+          "date": "Date",
+          "type": "Type",
+          "credits": "Credits"
+        },
+        "sources": {
+          "jobPurchase": "Job purchase",
+          "jobRefund": "Job refund",
+          "taskUsage": "Task usage",
+          "coworkerUsage": "Coworker usage",
+          "orchestratorUsage": "Orchestrator usage",
+          "creditGrant": "Credit grant",
+          "other": "Other"
+        }
       },
       "Errors": {
         "unauthenticated": "Please sign in to continue",

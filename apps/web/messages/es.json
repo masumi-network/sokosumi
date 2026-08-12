@@ -3664,6 +3664,7 @@
       "tabs": {
         "subscription": "Suscripción",
         "credits": "Credits",
+        "history": "Historial",
         "coupon": "Cupón"
       },
       "billingPortalDescription": "Actualiza dirección de facturación, identificación fiscal, métodos de pago, email de facturación y suscripciones en Stripe.",
@@ -3687,6 +3688,26 @@
         "purchasedSeatsValue": "{seats, plural, =1 {# Seat} other {# Seats}}",
         "contactDescription": "Ponte en contacto con nuestro equipo sobre tu contrato Enterprise, renovaciones o preguntas de Billing.",
         "contactUsCta": "Contáctanos"
+      },
+      "History": {
+        "title": "Historial de transacciones",
+        "empty": "Todavía no hay transacciones",
+        "loadMore": "Cargar más",
+        "creditsValue": "{credits, plural, =0 {0 Credits} =1 {# Credit} =-1 {# Credit} other {# Credits}}",
+        "columns": {
+          "date": "Fecha",
+          "type": "Tipo",
+          "credits": "Credits"
+        },
+        "sources": {
+          "jobPurchase": "Compra de job",
+          "jobRefund": "Reembolso de job",
+          "taskUsage": "Uso de tarea",
+          "coworkerUsage": "Uso de coworker",
+          "orchestratorUsage": "Uso de orchestrator",
+          "creditGrant": "Concesión de Credits",
+          "other": "Otro"
+        }
       },
       "Errors": {
         "unauthenticated": "Por favor, inicia sesión para continuar",

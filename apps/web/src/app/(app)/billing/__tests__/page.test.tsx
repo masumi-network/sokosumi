@@ -127,6 +127,7 @@ vi.mock("@/components/billing/billing-tabs", () => ({
   BillingTabs: (props: {
     couponContent: React.ReactNode;
     creditsContent?: React.ReactNode;
+    historyContent: React.ReactNode;
     showCreditsTab: boolean;
     subscriptionContent: React.ReactNode;
   }) => {
@@ -135,10 +136,17 @@ vi.mock("@/components/billing/billing-tabs", () => ({
       <div data-testid="billing-tabs">
         {props.subscriptionContent}
         {props.creditsContent}
+        {props.historyContent}
         {props.couponContent}
       </div>
     );
   },
+}));
+
+vi.mock("@/components/billing/transaction-history-section", () => ({
+  TransactionHistorySection: () => (
+    <div data-testid="transaction-history-section" />
+  ),
 }));
 
 vi.mock("@/components/billing/coupon-section", () => ({
