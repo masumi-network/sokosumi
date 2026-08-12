@@ -1274,10 +1274,10 @@ function OutboundPendingSpinner({ className }: { className?: string }) {
 
 /**
  * Timestamp slot for classic outbound:
- * - Pending before delay: wall-clock (fast path — most sends never show chrome)
+ * - Pending before delay: wall-clock on header (fast path); empty in continuation gutter
  * - Pending after delay: quiet spinner (bad-network path)
  * - Confirm after spinner: brief check → wall-clock (parent `showSentTick`)
- * - Confirm before delay: wall-clock only (no check)
+ * - Confirm before delay: wall-clock only (no check) on header
  * - Failed: alert immediately
  *
  * Settled wall-clock uses only the caller's className so color/size match
@@ -1290,12 +1290,18 @@ function MessageTimeOrOutboundStatus({
   className,
   /** Header row next to name (true) vs continuation left gutter (false). */
   reserveHeaderWidth = true,
+  /**
+   * Continuation gutter: never paint wall-clock (group header time is enough).
+   * Only spinner / fail / sent-check marks.
+   */
+  omitWallClock = false,
 }: {
   createdAt: Date | string;
   outboundStatus: OutboundDeliveryStatus | null;
   showSentTick?: boolean;
   className?: string;
   reserveHeaderWidth?: boolean;
+  omitWallClock?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const [sentFading, setSentFading] = useState(false);
@@ -1351,7 +1357,10 @@ function MessageTimeOrOutboundStatus({
 
   if (outboundStatus === "pending") {
     if (!showPendingSpinner) {
-      // Fast path: look like a normal message until the delay elapses.
+      // Fast path: header keeps wall-clock; continuation gutter stays empty.
+      if (omitWallClock) {
+        return null;
+      }
       return <MessageWallClockTime value={createdAt} className={className} />;
     }
     return (
@@ -1406,7 +1415,10 @@ function MessageTimeOrOutboundStatus({
     );
   }
 
-  // Settled: exact same chrome as before outbound delivery (caller owns color/size).
+  // Settled (or omit wall-clock on continuation gutter).
+  if (omitWallClock) {
+    return null;
+  }
   return <MessageWallClockTime value={createdAt} className={className} />;
 }
 
@@ -1729,12 +1741,14 @@ export function ChatMessageRow({
             outboundStatus == null && !showDeliveryTick ? true : undefined
           }
         >
+          {/* Never wall-clock in the gutter (group header time is enough). */}
           {outboundStatus != null || showDeliveryTick ? (
             <MessageTimeOrOutboundStatus
               createdAt={message.createdAt}
               outboundStatus={outboundStatus}
               showSentTick={showDeliveryTick}
               reserveHeaderWidth={false}
+              omitWallClock
               className="text-muted-foreground leading-none"
             />
           ) : null}

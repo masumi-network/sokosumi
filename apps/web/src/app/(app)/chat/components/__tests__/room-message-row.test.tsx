@@ -249,7 +249,7 @@ describe("ChatMessageRow", () => {
     expect(rail).toHaveClass("w-8", "min-w-8", "max-w-8");
   });
 
-  it("shows wall-clock in the continuation rail until pending spinner delay", () => {
+  it("omits wall-clock in the continuation rail while pending before spinner delay", () => {
     renderRow({
       isContinuation: true,
       currentUserId: "user-1",
@@ -265,7 +265,8 @@ describe("ChatMessageRow", () => {
     });
 
     expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
-    expect(screen.getByRole("time")).toBeInTheDocument();
+    expect(screen.queryByRole("time")).not.toBeInTheDocument();
+    expect(screen.getByTestId("message-continuation-rail")).toBeInTheDocument();
   });
 
   it("shows reactor names in reaction tooltip in API order", () => {
