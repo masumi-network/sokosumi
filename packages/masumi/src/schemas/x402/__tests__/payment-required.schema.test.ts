@@ -2,12 +2,21 @@ import { describe, expect, it } from "vitest";
 
 import {
   isX402PaymentIdentifierAdvertised,
+  narrowToChosenRequirement,
   normalizeX402PaymentRequired,
+  X402_MAX_TIMEOUT_SECONDS,
   X402_PAYMENT_IDENTIFIER_EXTENSION_KEY,
+  x402PaymentRequiredSchema,
 } from "../payment-required.schema.js";
 
 const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const PAY_TO = "0x52E29e0d2Aa49bfBfC548C0A9F2196F4aa51f3ea";
+// Every Soko-side check canonicalizes with `.trim().toLowerCase()` before
+// comparing, so the normalizer must emit what those checks will compare —
+// otherwise the mismatch lands as a post-charge failure instead of a
+// pre-charge rejection.
+const USDC_BASE_CANONICAL = USDC_BASE.toLowerCase();
+const PAY_TO_CANONICAL = PAY_TO.toLowerCase();
 
 function v2Entry(overrides: Record<string, unknown> = {}) {
   return {
@@ -57,8 +66,8 @@ describe("normalizeX402PaymentRequired", () => {
           scheme: "exact",
           network: "eip155:8453",
           amount: "1000",
-          asset: USDC_BASE,
-          payTo: PAY_TO,
+          asset: USDC_BASE_CANONICAL,
+          payTo: PAY_TO_CANONICAL,
           maxTimeoutSeconds: 3600,
           extra: { name: "USD Coin", version: "2" },
         },
@@ -82,10 +91,10 @@ describe("normalizeX402PaymentRequired", () => {
         scheme: "exact",
         network: "eip155:84532",
         amount: "2500",
-        asset: USDC_BASE,
-        payTo: PAY_TO,
+        asset: USDC_BASE_CANONICAL,
+        payTo: PAY_TO_CANONICAL,
         maxTimeoutSeconds: 60,
-        // Unrecognized entry fields survive verbatim; only the dialect
+        // Unrecognized entry fields are forwarded; only the dialect
         // translations (maxAmountRequired→amount, per-entry resource) are
         // consumed.
         description: "An API call",
@@ -99,9 +108,12 @@ describe("normalizeX402PaymentRequired", () => {
   });
 
   it("carries unknown alias fields through normalization verbatim", () => {
-    // Live Bazaar entries carry aliases like `currency`/`recipient`; the
-    // chosen entry must be echoable byte-for-byte (research 001 §3) — a
-    // strict server re-402s a stripped echo AFTER the charge.
+    // Live Bazaar entries carry aliases like `currency`/`recipient`. They are
+    // forwarded, not stripped: the node ignores what it does not model, so
+    // forwarding costs nothing, while stripping a key the node turns out to
+    // propagate cannot be undone AFTER the charge (see the schema comment —
+    // this is NOT a byte-identity guarantee, which normalization already
+    // breaks by rewriting `network` and canonicalizing the addresses).
     const result = normalizeX402PaymentRequired({
       x402Version: 2,
       accepts: [
@@ -119,6 +131,70 @@ describe("normalizeX402PaymentRequired", () => {
       currency: "USDC",
       recipient: PAY_TO,
       outputSchema: { type: "object" },
+    });
+  });
+
+  it("never lets a shadow key override a validated field", () => {
+    // Unknown keys are spread FIRST and the validated fields written after,
+    // so a case-shifted duplicate cannot overwrite what Soko checked. This
+    // is the property that makes forwarding unknown keys safe.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [
+        v2Entry({
+          PayTo: "0x1111111111111111111111111111111111111111",
+          payto: "0x2222222222222222222222222222222222222222",
+          Amount: "999999999",
+          Network: "eip155:1",
+        }),
+      ],
+    });
+
+    expect(result.isOk()).toBe(true);
+    const entry = result._unsafeUnwrap().accepts[0];
+    expect(entry).toMatchObject({
+      payTo: PAY_TO_CANONICAL,
+      amount: "1000",
+      network: "eip155:8453",
+      asset: USDC_BASE_CANONICAL,
+    });
+  });
+
+  it("rejects an asset or payTo that is not an EVM address", () => {
+    // `payTo` is the recipient that gets signed into the EIP-3009
+    // authorization and `asset` selects the token contract. Accepting a
+    // non-address here does not divert funds by itself, but it defers the
+    // failure past the credit charge and bakes in a validate-one-value /
+    // forward-another split.
+    for (const overrides of [
+      { payTo: "not-an-address" },
+      { asset: "USDC" },
+      { payTo: `${PAY_TO}00` },
+      { asset: "0x" },
+    ]) {
+      const result = normalizeX402PaymentRequired({
+        x402Version: 2,
+        accepts: [v2Entry(overrides)],
+      });
+      expect(result.isErr()).toBe(true);
+    }
+  });
+
+  it("emits the trimmed, lowercased asset and payTo it validated", () => {
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [
+        v2Entry({
+          asset: `  ${USDC_BASE.toUpperCase().replace("0X", "0x")}  `,
+          payTo: `  ${PAY_TO.toUpperCase().replace("0X", "0x")}`,
+        }),
+      ],
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().accepts[0]).toMatchObject({
+      asset: USDC_BASE_CANONICAL,
+      payTo: PAY_TO_CANONICAL,
     });
   });
 
@@ -213,6 +289,175 @@ describe("normalizeX402PaymentRequired", () => {
     });
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toMatch(/Invalid x402 amount: 1.5/);
+  });
+
+  it("rejects a maxTimeoutSeconds above the cap in either dialect", () => {
+    // maxTimeoutSeconds is the ONLY input to the signed authorization's
+    // expiry (`validBefore = now + maxTimeoutSeconds`), and the X-PAYMENT
+    // header is a bearer instrument until then. zod's `.int()` only bounds to
+    // the safe-integer range, so without an explicit cap an attacker's 402
+    // buys a never-expiring authorization against a wallet Soko keeps funded.
+    for (const maxTimeoutSeconds of [
+      Number.MAX_SAFE_INTEGER,
+      X402_MAX_TIMEOUT_SECONDS + 1,
+    ]) {
+      expect(
+        normalizeX402PaymentRequired({
+          x402Version: 2,
+          accepts: [v2Entry({ maxTimeoutSeconds })],
+        }).isErr(),
+      ).toBe(true);
+      expect(
+        normalizeX402PaymentRequired({
+          x402Version: 1,
+          accepts: [v1Entry({ maxTimeoutSeconds })],
+        }).isErr(),
+      ).toBe(true);
+    }
+  });
+
+  it("accepts the widest maxTimeoutSeconds observed in the wild", () => {
+    // research 001 §2 records 60–3600 s in live Bazaar listings, so the cap
+    // must not turn a legitimate 402 into a pre-charge 422.
+    expect(X402_MAX_TIMEOUT_SECONDS).toBe(3600);
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [v2Entry({ maxTimeoutSeconds: X402_MAX_TIMEOUT_SECONDS })],
+    });
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().accepts[0]?.maxTimeoutSeconds).toBe(3600);
+  });
+
+  it("rejects an extra.assetTransferMethod other than eip3009", () => {
+    // `extra.assetTransferMethod` selects which signing primitive the managed
+    // wallet uses. Soko's own settlement bookkeeping
+    // (`extractEip3009Authorization`) reads an EIP-3009 authorization tuple
+    // out of the signed payload, so any other method silently breaks the
+    // phased-settlement records regardless of what the node does with it.
+    for (const assetTransferMethod of ["permit2", "erc7710", "EIP3009", ""]) {
+      const result = normalizeX402PaymentRequired({
+        x402Version: 2,
+        accepts: [
+          v2Entry({
+            extra: {
+              name: "USD Coin",
+              version: "2",
+              ...{ assetTransferMethod },
+            },
+          }),
+        ],
+      });
+      expect(result.isErr()).toBe(true);
+    }
+  });
+
+  it("accepts an entry that names eip3009, or names no method at all", () => {
+    expect(
+      normalizeX402PaymentRequired({
+        x402Version: 2,
+        accepts: [
+          v2Entry({
+            extra: {
+              name: "USD Coin",
+              version: "2",
+              assetTransferMethod: "eip3009",
+            },
+          }),
+        ],
+      }).isOk(),
+    ).toBe(true);
+    expect(
+      normalizeX402PaymentRequired({
+        x402Version: 2,
+        accepts: [v2Entry()],
+      }).isOk(),
+    ).toBe(true);
+  });
+
+  it("rejects a non-string extra.name or extra.version", () => {
+    // Both form the EIP-712 domain the authorization is signed under.
+    for (const extra of [
+      { name: 123, version: "2" },
+      { name: "USD Coin", version: { major: 2 } },
+    ]) {
+      expect(
+        normalizeX402PaymentRequired({
+          x402Version: 2,
+          accepts: [v2Entry({ extra })],
+        }).isErr(),
+      ).toBe(true);
+    }
+  });
+
+  it("rejects an amount wider than uint256 or above the node's bigint max", () => {
+    // A 100 000-digit amount normalizes cleanly today and only fails at the
+    // node's POSTGRES_BIGINT_MAX check — i.e. AFTER the credit charge.
+    for (const amount of [
+      "1".repeat(100_000),
+      "1".repeat(79),
+      // 2^63, one past what the node can persist.
+      "9223372036854775808",
+    ]) {
+      expect(
+        normalizeX402PaymentRequired({
+          x402Version: 2,
+          accepts: [v2Entry({ amount })],
+        }).isErr(),
+      ).toBe(true);
+    }
+
+    expect(
+      normalizeX402PaymentRequired({
+        x402Version: 2,
+        accepts: [v2Entry({ amount: "9223372036854775807" })],
+      }).isOk(),
+    ).toBe(true);
+  });
+
+  it("rejects oversized attacker-controlled strings pre-charge", () => {
+    const oversized = [
+      { x402Version: 2, accepts: [v2Entry({ scheme: "e".repeat(33) })] },
+      {
+        x402Version: 2,
+        error: "x".repeat(1025),
+        accepts: [v2Entry()],
+      },
+      {
+        x402Version: 2,
+        resource: { url: `https://a.example.com/${"p".repeat(2049)}` },
+        accepts: [v2Entry()],
+      },
+      {
+        x402Version: 1,
+        accepts: [
+          v1Entry({ resource: `https://a.example.com/${"p".repeat(2049)}` }),
+        ],
+      },
+      {
+        x402Version: 2,
+        accepts: [v2Entry()],
+        extensions: Object.fromEntries(
+          Array.from({ length: 33 }, (_value, index) => [`ext-${index}`, {}]),
+        ),
+      },
+      {
+        x402Version: 2,
+        accepts: [
+          v2Entry({
+            extra: Object.fromEntries(
+              Array.from({ length: 33 }, (_value, index) => [
+                `key-${index}`,
+                "value",
+              ]),
+            ),
+          }),
+        ],
+      },
+    ];
+
+    for (const payload of oversized) {
+      expect(normalizeX402PaymentRequired(payload).isErr()).toBe(true);
+    }
   });
 
   it("rejects an empty accepts array", () => {
@@ -343,5 +588,97 @@ describe("isX402PaymentIdentifierAdvertised", () => {
         extensions: { [X402_PAYMENT_IDENTIFIER_EXTENSION_KEY]: "yes" },
       }),
     ).toBe(false);
+  });
+
+  it("is false for an array value", () => {
+    // `typeof [] === "object"`, so an array would otherwise read as an
+    // advertised extension and let the pay route stamp a paymentIdentifier
+    // the server never advertised — which the node answers with a 400.
+    for (const extension of [[], [{ info: { required: true } }]]) {
+      expect(
+        isX402PaymentIdentifierAdvertised({
+          extensions: { [X402_PAYMENT_IDENTIFIER_EXTENSION_KEY]: extension },
+        }),
+      ).toBe(false);
+    }
+  });
+});
+
+describe("narrowToChosenRequirement", () => {
+  const multiEntry = normalizeX402PaymentRequired({
+    x402Version: 2,
+    error: "Payment required",
+    resource: { url: "https://agent.example.com/api" },
+    accepts: [
+      v2Entry(),
+      // Same chain, DIFFERENT asset: this is the entry that slips past
+      // verifyX402DemandAgainstAgentSources (which only fences same-(network,
+      // asset) entries) and is filtered node-side only if the node honours
+      // preferredAsset.
+      v2Entry({
+        asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+        payTo: "0x1111111111111111111111111111111111111111",
+        amount: "999999",
+      }),
+    ],
+    extensions: {
+      [X402_PAYMENT_IDENTIFIER_EXTENSION_KEY]: { info: { required: true } },
+    },
+  })._unsafeUnwrap();
+
+  it("drops every entry except the chosen one", () => {
+    const chosen = multiEntry.accepts[0];
+    if (!chosen) {
+      expect.unreachable("fixture must have a first entry");
+    }
+
+    const narrowed = narrowToChosenRequirement(multiEntry, chosen);
+
+    expect(narrowed.accepts).toEqual([chosen]);
+    expect(
+      narrowed.accepts.some(
+        (entry) => entry.payTo === "0x1111111111111111111111111111111111111111",
+      ),
+    ).toBe(false);
+  });
+
+  it("changes nothing else about the payload", () => {
+    const chosen = multiEntry.accepts[1];
+    if (!chosen) {
+      expect.unreachable("fixture must have a second entry");
+    }
+
+    const narrowed = narrowToChosenRequirement(multiEntry, chosen);
+
+    expect(narrowed).toEqual({ ...multiEntry, accepts: [chosen] });
+    expect(narrowed.x402Version).toBe(multiEntry.x402Version);
+    expect(narrowed.error).toBe(multiEntry.error);
+    expect(narrowed.resource).toEqual(multiEntry.resource);
+    expect(narrowed.extensions).toEqual(multiEntry.extensions);
+    expect(isX402PaymentIdentifierAdvertised(narrowed)).toBe(true);
+  });
+
+  it("returns a payload the node schema still accepts", () => {
+    const chosen = multiEntry.accepts[0];
+    if (!chosen) {
+      expect.unreachable("fixture must have a first entry");
+    }
+
+    expect(
+      x402PaymentRequiredSchema.safeParse(
+        narrowToChosenRequirement(multiEntry, chosen),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("does not mutate the payload it narrows", () => {
+    const chosen = multiEntry.accepts[0];
+    if (!chosen) {
+      expect.unreachable("fixture must have a first entry");
+    }
+
+    narrowToChosenRequirement(multiEntry, chosen);
+
+    expect(multiEntry.accepts).toHaveLength(2);
   });
 });

@@ -1,7 +1,10 @@
 import { err, ok, type Result } from "neverthrow";
 import { z } from "zod";
 
-import { CAIP2_EVM_NETWORK_PATTERN } from "../../utils/caip19.js";
+import {
+  CAIP2_EVM_NETWORK_PATTERN,
+  EVM_ADDRESS_PATTERN,
+} from "../../utils/caip19.js";
 
 /**
  * 402 "Payment Required" dialect normalization (PR1-SPEC §3, ticket 011 Q6).
@@ -40,34 +43,191 @@ const V1_NETWORK_NAME_TO_CAIP2: Readonly<Record<string, string>> = {
 export const X402_PAYMENT_IDENTIFIER_EXTENSION_KEY = "payment-identifier";
 
 /**
+ * Hard ceiling on an entry's `maxTimeoutSeconds`.
+ *
+ * `maxTimeoutSeconds` is the ONLY input to the signed authorization's expiry:
+ * the x402 exact-EVM client signs `validAfter = now − 600 s` and
+ * `validBefore = now + maxTimeoutSeconds` (research 001 §4, verified against
+ * `coinbase/x402` `schemes/exact/evm/client.ts`). The `X-PAYMENT` header the
+ * node hands back is a BEARER instrument until `validBefore`: whoever holds
+ * it can settle it against Soko's managed wallet. zod's `.int()` only bounds
+ * to the safe-integer range, so an unbounded field lets an attacker-authored
+ * 402 mint an authorization valid for ~285 million years — collected, never
+ * settled, and settleable forever, with no expiry for a reconciler to wait
+ * on.
+ *
+ * 3600 s is the tightest cap that rejects nothing legitimate: research 001 §2
+ * records 60–3600 s across live Bazaar listings. It is far below the 86400 s
+ * ceiling the payment node itself declares on the inbound
+ * `paymentPayload.accepted.maxTimeoutSeconds`
+ * (`packages/masumi/spec/payment.openapi.json`), which is the only
+ * node-declared bound that exists — the buy-side `/x402/pay`
+ * `paymentRequired.accepts` item declares no maximum at all.
+ */
+export const X402_MAX_TIMEOUT_SECONDS = 3600;
+
+/**
+ * The `asset` / `payTo` spelling the normalizer EMITS: an ERC-20 address,
+ * canonically lowercase.
+ *
+ * Every Soko-side check canonicalizes with `.trim().toLowerCase()` before
+ * comparing (`buildCaip19AssetKey`, `findX402ReadySource`,
+ * `verifyX402DemandAgainstAgentSources`), so the forwarded entry must carry
+ * the value those checks compared — otherwise Soko validates one string and
+ * forwards a different one, and the future `payTo`-vs-registry comparison
+ * inherits the split. Case folding cannot turn one address into another, so
+ * this is a fail-fast/consistency fence, not a diversion fix: an unvalidated
+ * address would simply fail at the node AFTER the credits were charged.
+ */
+const CANONICAL_EVM_ADDRESS_PATTERN = /^0x[0-9a-f]{40}$/;
+
+/**
+ * Upper bound on the RAW `asset` / `payTo` string a wild 402 may carry,
+ * before trimming. 42 characters plus room for surrounding whitespace — the
+ * value is address-validated straight after, so this only stops a
+ * multi-megabyte string from reaching the regex.
+ */
+const X402_MAX_RAW_ADDRESS_LENGTH = 64;
+
+/**
+ * The ONLY `extra.assetTransferMethod` Soko forwards.
+ *
+ * In x402 v2 exact-EVM the field selects the signing primitive the wallet
+ * uses (`eip3009`, `permit2`, `erc7710`), so leaving it unvalidated lets
+ * attacker-authored data pick how Soko's managed wallet signs. Independently
+ * of what the node does with it, Soko's own settlement bookkeeping
+ * (`extractEip3009Authorization`, apps/core) reads an EIP-3009
+ * `{ nonce, validBefore }` authorization out of the signed payload, so any
+ * other method silently empties the phased-settlement records the future
+ * expiry reconciler depends on. Anything else is refused pre-charge.
+ *
+ * Exact spelling only: the field appears nowhere in the pinned node spec
+ * (`packages/masumi/spec/payment.openapi.json` types `extra` as a free-form
+ * `additionalProperties` map), so no live 402 in scope sends it at all and
+ * strictness costs nothing today.
+ */
+export const X402_SUPPORTED_ASSET_TRANSFER_METHOD = "eip3009";
+
+/** uint256 in decimal is at most 78 digits — a cheap structural bound. */
+const X402_MAX_AMOUNT_DIGITS = 78;
+
+/**
+ * The largest amount the payment node can persist: its attempt/budget rows
+ * store base units in Postgres `BIGINT` columns (2^63−1). A larger demand is
+ * refused node-side AFTER Soko has charged credits, so it is bounded here
+ * instead.
+ */
+const X402_MAX_AMOUNT_BASE_UNITS = 9223372036854775807n;
+
+/** `exact`, `upto`, `batch-settlement` — no real scheme name is near this. */
+const X402_MAX_SCHEME_LENGTH = 32;
+/** The 402's human-readable error blurb; logged, never parsed. */
+const X402_MAX_ERROR_LENGTH = 1024;
+/** Practical URL ceiling, matching the common 2048-char limit. */
+const X402_MAX_RESOURCE_URL_LENGTH = 2048;
+/** Entries allowed in a free-form `extensions` / `extra` map. */
+const X402_MAX_MAP_ENTRIES = 32;
+/** Key length allowed in a free-form `extensions` / `extra` map. */
+const X402_MAX_MAP_KEY_LENGTH = 128;
+
+/**
+ * A free-form attacker-controlled map (`extensions`, and the unknown keys of
+ * `extra`), bounded in entry count and key length so a 402 cannot ship an
+ * unbounded blob into the node's request body.
+ */
+function boundedMapCheck(value: Record<string, unknown>): boolean {
+  const keys = Object.keys(value);
+  return (
+    keys.length <= X402_MAX_MAP_ENTRIES &&
+    keys.every((key) => key.length <= X402_MAX_MAP_KEY_LENGTH)
+  );
+}
+
+const BOUNDED_MAP_MESSAGE = `Too many entries or too long a key (max ${X402_MAX_MAP_ENTRIES} entries, ${X402_MAX_MAP_KEY_LENGTH}-char keys)`;
+
+const x402ExtensionsSchema = z
+  .record(z.string(), z.unknown())
+  .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });
+
+/**
+ * `extra` stays LOOSE — it carries the EIP-712 domain (`name`, `version`) for
+ * the signature plus scheme-specific keys (`batch-settlement` adds
+ * `receiverAuthorizer`/`withdrawDelay`) — but the three keys that change how
+ * the wallet signs are typed, and the transfer method is pinned.
+ */
+const x402ExtraSchema = z
+  .looseObject({
+    name: z.string().max(X402_MAX_MAP_KEY_LENGTH).optional(),
+    version: z.string().max(X402_MAX_MAP_KEY_LENGTH).optional(),
+    assetTransferMethod: z
+      .literal(X402_SUPPORTED_ASSET_TRANSFER_METHOD)
+      .optional(),
+  })
+  .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });
+
+/**
+ * Atomic token base units, bounded both structurally (digit width) and
+ * numerically (what the node can persist), so an absurd amount is a
+ * pre-charge rejection rather than a post-charge node error.
+ */
+const x402AmountSchema = z
+  .string()
+  .regex(/^\d+$/)
+  .max(X402_MAX_AMOUNT_DIGITS)
+  .refine((value) => BigInt(value) <= X402_MAX_AMOUNT_BASE_UNITS, {
+    message: `Amount exceeds the payment node's maximum of ${X402_MAX_AMOUNT_BASE_UNITS}`,
+  });
+
+/**
  * One v2-shaped payment requirement, exactly as `POST /x402/pay` wants it.
- * Deliberately LOOSE: unknown keys pass through untouched, because the
- * chosen entry must survive byte-for-byte into the signed payload's
- * `accepted` echo (research 001 §3) — live Bazaar entries carry aliases
- * like `currency`/`recipient`, and a strict server re-402s a stripped echo
- * AFTER the charge. The node's spec has no `additionalProperties: false`,
- * so forwarding them is valid.
+ *
+ * Deliberately LOOSE — unknown keys pass through untouched — but NOT for the
+ * reason this comment used to give. It claimed the chosen entry survives
+ * "byte-for-byte" into the signed payload's `accepted` echo. It does not, on
+ * two counts:
+ *
+ * - Normalization itself breaks byte-identity: it rewrites `network` (v1
+ *   name → CAIP-2, shouty → lowercase), canonicalizes `asset`/`payTo`, and
+ *   drops the v1 per-entry `resource`.
+ * - The node's own model of the echo has no room for extra keys. Its
+ *   `paymentPayload.accepted` shape (`packages/masumi/spec/payment.openapi.json`,
+ *   `/x402/verify` and `/x402/settle`) enumerates exactly `scheme`,
+ *   `network`, `asset`, `amount`, `payTo`, `maxTimeoutSeconds` and `extra` —
+ *   `currency`/`recipient`/`description`/`mimeType`/`outputSchema` have
+ *   nowhere to land, and the node's buy-side request parser strips them.
+ *
+ * What the looseness actually buys is the only asymmetry that matters:
+ * forwarding an ignored key costs nothing, while stripping a key the node
+ * turns out to propagate cannot be undone AFTER the credits are charged and
+ * a settleable header exists (a strict resource server re-402s, and the
+ * bearer authorization is still spendable). The extra surface is bounded —
+ * unknown keys are never read by Soko, never reach a signing input, and the
+ * node validates its own shape — so the safe direction is to pass them on.
+ * Every field Soko acts on is validated here and written LAST (see the
+ * normalization loop).
  */
 export const x402PaymentRequirementsSchema = z.looseObject({
-  scheme: z.string().min(1),
+  scheme: z.string().min(1).max(X402_MAX_SCHEME_LENGTH),
   network: z.string().regex(CAIP2_EVM_NETWORK_PATTERN),
-  asset: z.string().min(1),
+  asset: z.string().regex(CANONICAL_EVM_ADDRESS_PATTERN),
   /** Atomic token base units. */
-  amount: z.string().regex(/^\d+$/),
-  payTo: z.string().min(1),
-  maxTimeoutSeconds: z.number().int().positive(),
-  extra: z.record(z.string(), z.unknown()).optional(),
+  amount: x402AmountSchema,
+  payTo: z.string().regex(CANONICAL_EVM_ADDRESS_PATTERN),
+  maxTimeoutSeconds: z.number().int().positive().max(X402_MAX_TIMEOUT_SECONDS),
+  extra: x402ExtraSchema.optional(),
 });
 
 /** The node's v2 `paymentRequired` shape (`POST /x402/pay` request field). */
 export const x402PaymentRequiredSchema = z.object({
   x402Version: z.number().int().positive(),
-  error: z.string().optional(),
-  resource: z.object({ url: z.string().optional() }).optional(),
+  error: z.string().max(X402_MAX_ERROR_LENGTH).optional(),
+  resource: z
+    .object({ url: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional() })
+    .optional(),
   // The node caps `accepts` at 20 entries (`maxItems: 20`); mirroring the
   // bound here fails an oversized 402 BEFORE any credits are charged.
   accepts: z.array(x402PaymentRequirementsSchema).min(1).max(20),
-  extensions: z.record(z.string(), z.unknown()).optional(),
+  extensions: x402ExtensionsSchema.optional(),
 });
 
 export type X402PaymentRequirements = z.infer<
@@ -77,31 +237,39 @@ export type X402PaymentRequired = z.infer<typeof x402PaymentRequiredSchema>;
 
 /**
  * Lenient parse of one wild-dialect requirement entry (v1 or v2 fields).
- * LOOSE on purpose: every key beyond the recognized dialect fields must
- * survive normalization verbatim (see x402PaymentRequirementsSchema).
+ * LOOSE on purpose: keys beyond the recognized dialect fields are forwarded
+ * rather than stripped — see x402PaymentRequirementsSchema for why that is
+ * the safe direction, and for why it is NOT about byte-identity.
  */
 const wildRequirementSchema = z.looseObject({
-  scheme: z.string().min(1),
+  scheme: z.string().min(1).max(X402_MAX_SCHEME_LENGTH),
   network: z.string().min(1),
-  asset: z.string().min(1),
+  asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
+  // Both amount spellings stay untyped here: normalizeAmount owns unifying
+  // them and is the single place that reports WHY an amount was refused.
   amount: z.string().optional(),
   maxAmountRequired: z.string().optional(),
-  payTo: z.string().min(1),
-  maxTimeoutSeconds: z.number().int().positive(),
-  extra: z.record(z.string(), z.unknown()).optional(),
+  payTo: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
+  maxTimeoutSeconds: z.number().int().positive().max(X402_MAX_TIMEOUT_SECONDS),
+  extra: x402ExtraSchema.optional(),
   /** v1 carries the resource URL per entry, as a plain string. */
-  resource: z.string().optional(),
+  resource: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional(),
 });
 
 /** Lenient parse of a wild-dialect 402 body (either generation). */
 const wildPaymentRequiredSchema = z.object({
   x402Version: z.number().int().positive(),
-  error: z.string().optional(),
+  error: z.string().max(X402_MAX_ERROR_LENGTH).optional(),
   resource: z
-    .union([z.string(), z.object({ url: z.string().optional() })])
+    .union([
+      z.string().max(X402_MAX_RESOURCE_URL_LENGTH),
+      z.object({
+        url: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional(),
+      }),
+    ])
     .optional(),
   accepts: z.array(wildRequirementSchema).min(1).max(20),
-  extensions: z.record(z.string(), z.unknown()).optional(),
+  extensions: x402ExtensionsSchema.optional(),
 });
 
 function normalizeNetwork(network: string): Result<string, string> {
@@ -116,6 +284,24 @@ function normalizeNetwork(network: string): Result<string, string> {
   return err(
     `Unknown x402 network "${network}"; expected a CAIP-2 id (eip155:*) or one of: ${Object.keys(V1_NETWORK_NAME_TO_CAIP2).join(", ")}`,
   );
+}
+
+/**
+ * Canonicalizes an `asset` / `payTo` the same way every Soko-side check does
+ * (`.trim().toLowerCase()`), and refuses anything that is not an ERC-20
+ * address. Emitting the canonicalized value — rather than validating one
+ * spelling and forwarding another — is what keeps the pre-charge check and
+ * the forwarded payload talking about the same string.
+ */
+function normalizeEvmAddress(
+  value: string,
+  field: "asset" | "payTo",
+): Result<string, string> {
+  const normalized = value.trim().toLowerCase();
+  if (!EVM_ADDRESS_PATTERN.test(normalized)) {
+    return err(`Invalid x402 ${field} address: ${value}`);
+  }
+  return ok(normalized);
 }
 
 function normalizeAmount(
@@ -139,8 +325,21 @@ function normalizeAmount(
       "x402 requirement is missing an amount (neither amount nor maxAmountRequired)",
     );
   }
+  if (value.length > X402_MAX_AMOUNT_DIGITS) {
+    // Truncate the echo: the whole point is that the value may be enormous.
+    return err(
+      `x402 amount is ${value.length} digits, above the ${X402_MAX_AMOUNT_DIGITS}-digit uint256 width`,
+    );
+  }
   if (!/^\d+$/.test(value)) {
     return err(`Invalid x402 amount: ${value}`);
+  }
+  if (BigInt(value) > X402_MAX_AMOUNT_BASE_UNITS) {
+    // The node persists base units in Postgres BIGINT columns, so a larger
+    // demand is refused there — after the credits are charged.
+    return err(
+      `x402 amount ${value} exceeds the payment node's maximum of ${X402_MAX_AMOUNT_BASE_UNITS}`,
+    );
   }
   return ok(value);
 }
@@ -195,13 +394,20 @@ export function normalizeX402PaymentRequired(
     if (amount.isErr()) {
       return err(amount.error);
     }
+    const asset = normalizeEvmAddress(entry.asset, "asset");
+    if (asset.isErr()) {
+      return err(asset.error);
+    }
+    const payTo = normalizeEvmAddress(entry.payTo, "payTo");
+    if (payTo.isErr()) {
+      return err(payTo.error);
+    }
     // Split the recognized dialect fields from everything else so unknown
-    // keys (live Bazaar aliases like `currency`/`recipient`) pass through
-    // VERBATIM — the chosen entry must survive byte-for-byte into the
-    // signed payload's `accepted` echo (research 001 §3); a strict server
-    // re-402s a stripped echo AFTER the charge. Only keys a dialect
-    // translation consumes are dropped: `maxAmountRequired` (unified into
-    // `amount`) and the v1 per-entry `resource` (hoisted below).
+    // keys (live Bazaar aliases like `currency`/`recipient`) are forwarded
+    // rather than stripped — see x402PaymentRequirementsSchema for why
+    // forwarding is the safe direction. Only keys a dialect translation
+    // consumes are dropped: `maxAmountRequired` (unified into `amount`) and
+    // the v1 per-entry `resource` (hoisted below).
     const {
       scheme: _scheme,
       network: _network,
@@ -214,13 +420,21 @@ export function normalizeX402PaymentRequired(
       resource: _resource,
       ...unknownKeys
     } = entry;
+    // KEY ORDER IS LOAD-BEARING: the unknown-key spread comes FIRST and the
+    // validated fields are written after it. JS object literals let a later
+    // key win, so this ordering is what stops an attacker-authored shadow
+    // key — `PayTo`, `payto`, `Amount`, a duplicate `network` — from
+    // overwriting the value Soko validated. Reordering these lines would
+    // hand the node an unverified recipient. (Only exact-case duplicates are
+    // impossible here: JSON.parse already collapsed those, keeping the LAST
+    // occurrence, which the wild schema then validated.)
     accepts.push({
       ...unknownKeys,
       scheme: entry.scheme,
       network: network.value,
-      asset: entry.asset,
+      asset: asset.value,
       amount: amount.value,
-      payTo: entry.payTo,
+      payTo: payTo.value,
       maxTimeoutSeconds: entry.maxTimeoutSeconds,
       ...(entry.extra !== undefined ? { extra: entry.extra } : {}),
     });
@@ -269,6 +483,36 @@ export function normalizeX402PaymentRequired(
 }
 
 /**
+ * Rebuilds the forwarded 402 with a SINGLE `accepts` entry — the one Soko
+ * verified against the agent's registered payment sources.
+ *
+ * Fund-diversion defence in depth, not a live-exploit fix. `POST /x402/pay`
+ * receives the whole `paymentRequired` payload and the NODE decides which
+ * entry it signs; nothing node-side constrains `payTo`. Two Soko-side fences
+ * already narrow that: `verifyX402DemandAgainstAgentSources` refuses a 402
+ * whose same-`(network, asset)` entries disagree on `payTo`/`amount`, and the
+ * pay call sends `preferredNetwork` + `preferredAsset`. The residual gap is
+ * an entry for a DIFFERENT asset on the same chain: it never meets the
+ * same-pair fence, so it is filtered only if the node honours
+ * `preferredAsset` — a fail-open-on-version-skew dependency on a node the
+ * caller does not deploy. Handing the node one entry makes its selection rule
+ * irrelevant.
+ *
+ * NOT dead code: the pay route lives on branch `x402-5-pay` and is wired to
+ * this helper there (it must call it with the entry
+ * `verifyX402DemandAgainstAgentSources` returned). It ships here because the
+ * schema owns the payload shape.
+ *
+ * Pure: the input payload is not mutated.
+ */
+export function narrowToChosenRequirement(
+  paymentRequired: X402PaymentRequired,
+  chosen: X402PaymentRequirements,
+): X402PaymentRequired {
+  return { ...paymentRequired, accepts: [chosen] };
+}
+
+/**
  * Whether the 402 advertises the payment-identifier extension. The node
  * 400s a `paymentIdentifier` sent against a 402 that does not advertise it
  * (ticket 011 Q2), so the pay route must gate on this before stamping task
@@ -279,5 +523,13 @@ export function isX402PaymentIdentifierAdvertised(
 ): boolean {
   const extension =
     paymentRequired.extensions?.[X402_PAYMENT_IDENTIFIER_EXTENSION_KEY];
-  return typeof extension === "object" && extension !== null;
+  // `typeof [] === "object"`, so an array must be excluded explicitly — the
+  // upstream extension is an object (`{ info: { required } , schema }`), and
+  // reading an array as "advertised" would stamp a paymentIdentifier the
+  // server never advertised, which the node answers with a 400.
+  return (
+    typeof extension === "object" &&
+    extension !== null &&
+    !Array.isArray(extension)
+  );
 }
