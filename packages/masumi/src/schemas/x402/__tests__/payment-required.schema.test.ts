@@ -6,6 +6,7 @@ import {
   normalizeX402PaymentRequired,
   X402_MAX_TIMEOUT_SECONDS,
   X402_PAYMENT_IDENTIFIER_EXTENSION_KEY,
+  X402_SUPPORTED_SCHEMES,
   x402PaymentRequiredSchema,
   x402PaymentRequirementsSchema,
 } from "../payment-required.schema.js";
@@ -357,6 +358,43 @@ describe("normalizeX402PaymentRequired", () => {
     });
     expect(result.isOk()).toBe(true);
     expect(result._unsafeUnwrap().accepts[0]?.maxTimeoutSeconds).toBe(3600);
+  });
+
+  it("rejects a scheme outside the allowlist", () => {
+    // Exactly the argument that pins `extra.assetTransferMethod`: Soko's own
+    // settlement bookkeeping (`extractEip3009Authorization`) reads an
+    // EIP-3009 `{ nonce, validBefore }` tuple out of the signed payload, so a
+    // scheme with different settlement semantics silently empties the
+    // phased-settlement records. `upto` and `batch-settlement` are real
+    // alternatives — `batch-settlement` adds `receiverAuthorizer` /
+    // `withdrawDelay` — and a 402 declaring one with `assetTransferMethod`
+    // omitted passed every other check.
+    for (const scheme of ["upto", "batch-settlement", "Exact", "EXACT"]) {
+      expect(
+        normalizeX402PaymentRequired({
+          x402Version: 2,
+          accepts: [v2Entry({ scheme })],
+        }).isErr(),
+      ).toBe(true);
+      expect(
+        normalizeX402PaymentRequired({
+          x402Version: 1,
+          accepts: [v1Entry({ scheme })],
+        }).isErr(),
+      ).toBe(true);
+    }
+  });
+
+  it("accepts every scheme on the allowlist", () => {
+    expect(X402_SUPPORTED_SCHEMES).toEqual(["exact"]);
+    for (const scheme of X402_SUPPORTED_SCHEMES) {
+      expect(
+        normalizeX402PaymentRequired({
+          x402Version: 2,
+          accepts: [v2Entry({ scheme })],
+        }).isOk(),
+      ).toBe(true);
+    }
   });
 
   it("rejects an extra.assetTransferMethod other than eip3009", () => {

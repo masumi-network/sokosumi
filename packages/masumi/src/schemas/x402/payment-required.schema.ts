@@ -108,6 +108,26 @@ const X402_MAX_RAW_ADDRESS_LENGTH = 64;
  */
 export const X402_SUPPORTED_ASSET_TRANSFER_METHOD = "eip3009";
 
+/**
+ * The ONLY x402 `scheme` Soko forwards.
+ *
+ * Same argument as `X402_SUPPORTED_ASSET_TRANSFER_METHOD`, and it applies
+ * verbatim: `extractEip3009Authorization` (apps/core) reads an EIP-3009
+ * `{ nonce, validBefore }` authorization out of the signed payload, so a
+ * scheme with different settlement semantics silently empties the
+ * phased-settlement records the expiry reconciler depends on. `upto` and
+ * `batch-settlement` are real alternatives, not hypotheticals —
+ * `batch-settlement` adds `receiverAuthorizer`/`withdrawDelay` and changes
+ * when funds actually move — and a 402 declaring one with
+ * `extra.assetTransferMethod` simply omitted passed every other check.
+ *
+ * Exact spelling only, and strictness costs nothing today: every dialect in
+ * scope (research 001 §2) and every Soko-side fence already assumes `exact`.
+ * An allowlist rather than a literal so adding a second supported scheme is
+ * one line here plus the settlement bookkeeping that earns it.
+ */
+export const X402_SUPPORTED_SCHEMES = ["exact"] as const;
+
 /** uint256 in decimal is at most 78 digits — a cheap structural bound. */
 const X402_MAX_AMOUNT_DIGITS = 78;
 
@@ -136,8 +156,6 @@ const X402_MAX_RAW_NETWORK_LENGTH = 64;
  */
 const X402_MAX_RAW_AMOUNT_LENGTH = 256;
 
-/** `exact`, `upto`, `batch-settlement` — no real scheme name is near this. */
-const X402_MAX_SCHEME_LENGTH = 32;
 /** The 402's human-readable error blurb; logged, never parsed. */
 const X402_MAX_ERROR_LENGTH = 1024;
 /** Practical URL ceiling, matching the common 2048-char limit. */
@@ -289,7 +307,7 @@ const x402AmountSchema = z
  */
 export const x402PaymentRequirementsSchema = z
   .looseObject({
-    scheme: z.string().min(1).max(X402_MAX_SCHEME_LENGTH),
+    scheme: z.enum(X402_SUPPORTED_SCHEMES),
     network: z.string().regex(CAIP2_EVM_NETWORK_PATTERN),
     asset: z.string().regex(CANONICAL_EVM_ADDRESS_PATTERN),
     /** Atomic token base units. */
@@ -331,7 +349,7 @@ export type X402PaymentRequired = z.infer<typeof x402PaymentRequiredSchema>;
  */
 const wildRequirementSchema = z
   .looseObject({
-    scheme: z.string().min(1).max(X402_MAX_SCHEME_LENGTH),
+    scheme: z.enum(X402_SUPPORTED_SCHEMES),
     network: z.string().min(1).max(X402_MAX_RAW_NETWORK_LENGTH),
     asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
     // Both amount spellings stay loosely typed here: normalizeAmount owns
