@@ -1208,9 +1208,14 @@ function MessageEditComposer({
   );
 }
 
-/** Shared width so clock / check / wall-clock time do not nudge the name. */
-const OUTBOUND_TIME_SLOT_CLASS =
+/**
+ * Header (next to name): min width so clock → check → time does not nudge.
+ * Continuation gutter is compact (`w-8`); do not force min-w there.
+ */
+const OUTBOUND_HEADER_TIME_SLOT_CLASS =
   "inline-flex min-w-11 items-center justify-start leading-none";
+const OUTBOUND_GUTTER_TIME_SLOT_CLASS =
+  "inline-flex max-w-full items-center justify-center leading-none";
 
 /**
  * Timestamp slot: clock while pending; brief check on confirm (fades, then
@@ -1221,14 +1226,22 @@ function MessageTimeOrOutboundStatus({
   outboundStatus,
   showSentTick = false,
   className,
+  /** Header row next to name (true) vs continuation left gutter (false). */
+  reserveHeaderWidth = true,
 }: {
   createdAt: Date | string;
   outboundStatus: OutboundDeliveryStatus | null;
   showSentTick?: boolean;
   className?: string;
+  reserveHeaderWidth?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   const [sentFading, setSentFading] = useState(false);
+  const slotClass = reserveHeaderWidth
+    ? OUTBOUND_HEADER_TIME_SLOT_CLASS
+    : OUTBOUND_GUTTER_TIME_SLOT_CLASS;
+  // Smaller icon in the narrow continuation gutter.
+  const iconClass = reserveHeaderWidth ? "size-3" : "size-2.5";
 
   useEffect(() => {
     if (!showSentTick) {
@@ -1247,17 +1260,13 @@ function MessageTimeOrOutboundStatus({
   if (outboundStatus === "pending") {
     return (
       <span
-        className={cn(
-          OUTBOUND_TIME_SLOT_CLASS,
-          "text-muted-foreground",
-          className,
-        )}
+        className={cn(slotClass, "text-muted-foreground", className)}
         role="img"
         data-testid="outbound-delivery-pending"
         title={t("Outbound.sending")}
         aria-label={t("Outbound.sending")}
       >
-        <Clock className="size-3" aria-hidden />
+        <Clock className={iconClass} aria-hidden />
       </span>
     );
   }
@@ -1265,13 +1274,13 @@ function MessageTimeOrOutboundStatus({
   if (outboundStatus === "failed") {
     return (
       <span
-        className={cn(OUTBOUND_TIME_SLOT_CLASS, "text-destructive", className)}
+        className={cn(slotClass, "text-destructive", className)}
         role="img"
         data-testid="outbound-delivery-failed-icon"
         title={t("Outbound.failed")}
         aria-label={t("Outbound.failed")}
       >
-        <AlertCircle className="size-3" aria-hidden />
+        <AlertCircle className={iconClass} aria-hidden />
       </span>
     );
   }
@@ -1279,11 +1288,7 @@ function MessageTimeOrOutboundStatus({
   if (showSentTick) {
     return (
       <span
-        className={cn(
-          OUTBOUND_TIME_SLOT_CLASS,
-          "text-muted-foreground",
-          className,
-        )}
+        className={cn(slotClass, "text-muted-foreground", className)}
         role="img"
         data-testid="outbound-delivery-sent"
         title={t("Outbound.sent")}
@@ -1291,7 +1296,8 @@ function MessageTimeOrOutboundStatus({
       >
         <Check
           className={cn(
-            "size-3 transition-opacity duration-500 ease-out",
+            iconClass,
+            "transition-opacity duration-500 ease-out",
             sentFading ? "opacity-0" : "opacity-100",
           )}
           aria-hidden
@@ -1304,7 +1310,7 @@ function MessageTimeOrOutboundStatus({
   return (
     <MessageWallClockTime
       value={createdAt}
-      className={cn(OUTBOUND_TIME_SLOT_CLASS, className)}
+      className={cn(slotClass, className)}
     />
   );
 }
@@ -1615,13 +1621,15 @@ export function ChatMessageRow({
       {...(showActions ? longPress : {})}
     >
       {isContinuation ? (
-        <div className="flex w-8 shrink-0 justify-center pt-0.5">
+        <div className="flex w-8 shrink-0 justify-center overflow-hidden pt-0.5">
           <MessageTimeOrOutboundStatus
             createdAt={message.createdAt}
             outboundStatus={outboundStatus}
             showSentTick={showOutboundSentTick}
+            reserveHeaderWidth={false}
             className={cn(
-              "whitespace-nowrap text-xs leading-4 tabular-nums",
+              // Match pre-outbound gutter: meta-scale, not body-scale.
+              "text-muted-foreground whitespace-nowrap text-[0.625rem] leading-4 tabular-nums",
               // Pending/failed/sent-tick stay visible; settled time only on hover.
               outboundStatus == null &&
                 !showOutboundSentTick &&
@@ -1683,6 +1691,7 @@ export function ChatMessageRow({
               createdAt={message.createdAt}
               outboundStatus={outboundStatus}
               showSentTick={showOutboundSentTick}
+              reserveHeaderWidth
               className="text-muted-foreground text-xs leading-none"
             />
             {showEdited ? (
