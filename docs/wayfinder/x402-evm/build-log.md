@@ -762,3 +762,57 @@ plus new direct getter coverage.
   route Zod (max ~200) before it reaches the btree unique;
   `agent-sync.service.ts` is 974 lines — over the ceiling, do not append,
   extract when touched.
+
+### Step-4 review — the listing consumes the node's decimals
+
+**The listing now prices off `X402ReadySource.decimals`, not the registry's.**
+This is the step-4 half of the step-3 fourth-review handoff.
+`buildX402AgentPaymentSources` swapped `isX402SourceReady` for
+`findX402ReadySource` and takes both the charged and the advertised
+`decimals` from the returned pair. The row's own `decimals` stays a
+registry sanity gate (`missing_decimals` — a FIXED row recording no scale
+is malformed) but never reaches `calculateCentsFromX402Amount` or the
+response. Before: an agent registering `decimals: 18` for 6-decimals USDC
+advertised `credits: 1e-10` for 250000 base units — a real dollar at the
+`MIN_CHARGEABLE_CREDITS` floor. After: 0.5 credits.
+
+Consequence for the dedupe: `conflicting_price` compares
+`advertised.decimals`, which the triple's own (network, asset) now selects,
+so two entries under one key always carry the same scale and only `amount`
+can differ. Duplicate rows disagreeing ONLY on registry decimals therefore
+collapse into one entry instead of dropping the agent — correct, since they
+price identically. The comparison stays as an invariant guard; the test that
+asserted the old drop was rewritten to assert the collapse.
+
+Also fixed: `get.test.ts`'s `seedReadiness` wrote pairs with no `decimals`,
+which `getX402ReadySources` (parent branch) drops — 11 route tests were red
+on the branch tip for that reason alone, independent of typecheck.
+
+**Two vacuous tests pinned** (both green under deletion of the code they
+nominally guard):
+
+- `toAdvertisedPriceKey`'s `payTo.toLowerCase()`. New two-source test:
+  checksummed `0xAbCd…` at 250000 vs the same address lowercased at 5000000
+  → `conflicting_price`. Without the fold both advertise (0.5 AND 10 credits
+  for one recipient) and the pay side's case-insensitive match resolves to
+  the 250000 row, killing the 10-credit advertisement after the coworker
+  already called the agent.
+- The per-source `amounts.length === 0` gate, masked by the tail guard's
+  identical `no_amount_rows` reason. New test: source 0 empty + source 1
+  priced → dropped. Without the gate the empty source is skipped and the
+  agent is LISTED — per-agent fail-closed degraded to per-source skip. Third
+  test in this file with that masking shape.
+- The tail guard at the end of the loop is genuinely unreachable (deleting it
+  kills nothing, as its comment says). Kept as defence: the response schema
+  requires ≥1 advertised source, so an empty list must drop, not 500.
+
+**Mutation results:** registry decimals restored as the pricing input → 4
+tests red (`credits: 1e-10, decimals: 18` vs `0.5, 6`), including the route
+test; `missing_decimals` gate deleted → 1 red; ready-pair drop deleted → 1
+red; `payTo` fold deleted → 1 red; per-source amount gate deleted → 1 red.
+All restored green.
+
+**Verification:** `pnpm --filter core test` 361 files / 3350 passed (6
+skipped); `pnpm typecheck` all workspaces; `pnpm check` clean. Listing
+helper 269 lines — under the 750 ceiling (its 717-line test is exempt, but
+the route test is at 715 and should be split by concern before it grows).
