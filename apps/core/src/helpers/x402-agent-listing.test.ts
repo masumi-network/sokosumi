@@ -46,6 +46,7 @@ function createSource(
     network: BASE_SEPOLIA,
     payTo: PAY_TO,
     pricingType: PricingType.FIXED,
+    scheme: "exact",
     amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
     ...overrides,
   };
@@ -106,6 +107,27 @@ describe("buildX402AgentPaymentSources", () => {
     expect(
       buildX402AgentPaymentSources([createSource({ pricingType })], CONTEXT),
     ).toBeNull();
+  });
+
+  it.each([
+    ["a non-exact scheme", "upto"],
+    ["an unrecorded scheme", null],
+    ["an empty scheme", "  "],
+  ])("drops an agent whose source advertises %s", (_label, scheme) => {
+    // `scheme` decides what the payer signs. Only x402 `exact` is understood
+    // here, and an unrecorded one is unknown, not assumed.
+    expect(
+      buildX402AgentPaymentSources([createSource({ scheme })], CONTEXT),
+    ).toBeNull();
+  });
+
+  it("accepts the exact scheme in any registry spelling", () => {
+    const result = buildX402AgentPaymentSources(
+      [createSource({ scheme: " Exact " })],
+      CONTEXT,
+    );
+
+    expect(result).toHaveLength(1);
   });
 
   it("drops an agent whose source has no payTo", () => {

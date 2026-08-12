@@ -23,10 +23,27 @@ export interface X402ListingGateContext {
 
 export type X402AgentPaymentSourceRow = Pick<
   AgentPaymentSource,
-  "network" | "payTo" | "pricingType"
+  "network" | "payTo" | "pricingType" | "scheme"
 > & {
   amounts: Pick<AgentPaymentSourceAmount, "unit" | "amount" | "decimals">[];
 };
+
+/**
+ * The only x402 payment scheme Sokosumi can pay. `scheme` is the field that
+ * decides WHAT the payer signs, and the registry mirrors it verbatim into a
+ * nullable column (`AgentPaymentSource.scheme`) — a Bazaar entry writes
+ * `"exact"`, a Cardano or pre-x402 entry writes null. Anything else is a
+ * signing contract this build does not implement, so it must not be listed as
+ * payable; matched case-insensitively because the value is registry text.
+ *
+ * The sibling registry columns `chain` and `paymentSourceType` are
+ * deliberately NOT gated: both are free-form registry text with no fixed
+ * vocabulary for EVM rails (a Bazaar entry writes `chain: "Base"` and a null
+ * `paymentSourceType`), so any predicate over them would be a guess. The
+ * chain a payment settles on is pinned by the CAIP-2 `network` allowlist,
+ * which is authoritative and checked below.
+ */
+const X402_SUPPORTED_SCHEME = "exact";
 
 /**
  * Maps an x402 agent's registered payment sources to the listing response, or
@@ -41,6 +58,7 @@ export type X402AgentPaymentSourceRow = Pick<
  * - the source advertises a fixed price (`FIXED` with at least one amount —
  *   Free/Dynamic/unknown pricing has no chargeable price to verify against),
  * - `payTo` is present (the pay endpoint verifies the 402's payTo against it),
+ * - the scheme is x402 `exact` (see {@link X402_SUPPORTED_SCHEME}),
  * - the CAIP-2 network is in the per-environment allowlist,
  * - decimals are recorded (credits conversion is per whole token),
  * - the (network, asset) pair is buy-side ready on the payment node,
@@ -69,6 +87,9 @@ export function buildX402AgentPaymentSources(
       return null;
     }
     if (!source.payTo) {
+      return null;
+    }
+    if (source.scheme?.trim().toLowerCase() !== X402_SUPPORTED_SCHEME) {
       return null;
     }
     if (!isX402NetworkAllowed(source.network, context.network)) {

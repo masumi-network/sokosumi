@@ -121,6 +121,7 @@ function createAgentRow(overrides: AgentRowOverrides = {}) {
         network: BASE_SEPOLIA,
         payTo: PAY_TO,
         pricingType: "FIXED",
+        scheme: "exact",
         amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
       },
     ],
@@ -302,6 +303,7 @@ describe("GET /agents/x402", () => {
             network: BASE_SEPOLIA,
             payTo: PAY_TO,
             pricingType: "FIXED",
+            scheme: "exact",
             amounts: [{ unit: UNPRICED_ADDRESS, amount: 250000n, decimals: 6 }],
           },
         ],
@@ -328,6 +330,34 @@ describe("GET /agents/x402", () => {
     expect(body.data.map((agent) => agent.id)).toEqual(["agent_x402_1"]);
   });
 
+  it("drops an agent advertising a payment scheme other than exact", async () => {
+    // `scheme` is what the payer signs against. A priced, allowed, ready
+    // source in an unknown scheme is not payable, so it must not be listed.
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow(),
+      createAgentRow({
+        id: "agent_x402_upto",
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "FIXED",
+            scheme: "upto",
+            amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
+          },
+        ],
+      }),
+    ]);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: { id: string }[] };
+    expect(body.data.map((agent) => agent.id)).toEqual(["agent_x402_1"]);
+  });
+
   it("drops an agent advertising a network outside the per-env allowlist", async () => {
     // Seeding ONLY the mainnet pair would make this vacuous: readiness
     // re-filters it away, the ready set empties, and the handler returns at
@@ -344,6 +374,7 @@ describe("GET /agents/x402", () => {
             network: BASE_MAINNET,
             payTo: PAY_TO,
             pricingType: "FIXED",
+            scheme: "exact",
             amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
           },
         ],
