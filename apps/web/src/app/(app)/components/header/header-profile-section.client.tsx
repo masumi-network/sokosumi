@@ -9,7 +9,6 @@ import type { CreditUsage } from "@/lib/types/credit";
 import { cn } from "@/lib/utils";
 
 import { HeaderAccountControl } from "./header-account-control.client";
-import { HeaderNotificationBell } from "./header-notification-bell.client";
 import HeaderWorkspaceSwitch from "./header-workspace-switch.client";
 
 export interface HeaderAccountSummary {
@@ -117,7 +116,6 @@ export default function HeaderProfileSectionClient({
         isPending={isPending}
         onSelectWorkspace={handleSelectWorkspace}
       />
-      <HeaderNotificationBell />
       <Suspense fallback={<HeaderAccountControlSkeleton />}>
         <HeaderAccountControlSlot
           sessionUser={sessionUser}

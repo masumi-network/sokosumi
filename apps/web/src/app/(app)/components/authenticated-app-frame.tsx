@@ -19,7 +19,6 @@ import {
   APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
   APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
 } from "./app-shell-safe-area";
-import { AppSidebarFallback } from "./app-sidebar-fallback";
 import Header from "./header";
 import { LoginAccountNoticeToast } from "./login-account-notice-toast.client";
 import { NoticeDialogProvider } from "./notice-dialog-context";
@@ -58,13 +57,11 @@ export default async function AuthenticatedAppFrame({
                 activeOrganizationId={activeOrganizationId}
               >
                 <BreadcrumbOverrideProvider>
-                  <Suspense fallback={<AppSidebarFallback />}>
-                    <PrivateCachedAppSidebar
-                      sessionUser={session.user}
-                      activeOrganizationId={activeOrganizationId}
-                      adminMenuEnabled={adminMenuEnabled}
-                    />
-                  </Suspense>
+                  <PrivateCachedAppSidebar
+                    sessionUser={session.user}
+                    activeOrganizationId={activeOrganizationId}
+                    adminMenuEnabled={adminMenuEnabled}
+                  />
                   <Suspense fallback={null}>
                     <AppShellOverlays session={session} />
                   </Suspense>

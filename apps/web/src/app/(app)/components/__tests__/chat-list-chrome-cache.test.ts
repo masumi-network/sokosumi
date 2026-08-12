@@ -116,6 +116,63 @@ describe("chat list chrome single-source composition contract", () => {
     );
   });
 
+  it("header workspace switcher reads members from getPrivateCachedChatListChrome", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { dirname, join } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+
+    const headerProfile = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        "../header/header-profile-section.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(headerProfile).toMatch(/getPrivateCachedChatListChrome/);
+    expect(headerProfile).not.toMatch(
+      /userService\s*\.\s*getMyMembersWithOrganizations\s*\(/,
+    );
+
+    const deferredAccount = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        "../sidebar-deferred-account.tsx",
+      ),
+      "utf8",
+    );
+    expect(deferredAccount).toMatch(/getPrivateCachedChatListChrome/);
+    expect(deferredAccount).not.toMatch(
+      /userService\s*\.\s*getMyMembersWithOrganizations\s*\(/,
+    );
+  });
+
+  it("header Notification Center sits outside the members Suspense", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { dirname, join } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+
+    const headerProfile = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        "../header/header-profile-section.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(headerProfile).toMatch(/HeaderNotificationBell/);
+    expect(headerProfile).toMatch(
+      /<Suspense[\s\S]*HeaderProfileSectionInner[\s\S]*<\/Suspense>\s*<HeaderNotificationBell/,
+    );
+
+    const fallback = headerProfile.slice(
+      headerProfile.indexOf("function HeaderProfileSectionSkeleton"),
+      headerProfile.indexOf("export default function HeaderProfileSection"),
+    );
+    expect(fallback).toMatch(/size-4/);
+    expect(fallback).not.toMatch(/size-8/);
+  });
+
   it("private cache loader tags user/org like sidebar chrome", async () => {
     const { readFileSync } = await import("node:fs");
     const { dirname, join } = await import("node:path");

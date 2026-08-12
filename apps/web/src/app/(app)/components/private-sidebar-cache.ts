@@ -40,7 +40,8 @@ export interface PrivateCachedChatListChrome {
  * Fail-soft: service errors become empty pages/arrays (same as pre-SOK-779
  * sidebar/page). When used under private cache those empties are shared until
  * revalidate or `invalidatePrivateSidebarChrome` — intentional chrome tradeoff,
- * not a hard fail that would blank the whole layout.
+ * not a hard fail that would blank the whole layout. Empty members with an
+ * active org also skeletons the Workspace switcher until that cache goes stale.
  */
 export async function loadChatListChromeData(
   activeOrganizationId: string | null,
