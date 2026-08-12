@@ -134,10 +134,16 @@ describe("normalizeX402PaymentRequired", () => {
     });
   });
 
-  it("never lets a shadow key override a validated field", () => {
-    // Unknown keys are spread FIRST and the validated fields written after,
-    // so a case-shifted duplicate cannot overwrite what Soko checked. This
-    // is the property that makes forwarding unknown keys safe.
+  it("drops shadow keys that collide case-insensitively with a validated field", () => {
+    // `PayTo` and `payTo` are DISTINCT JS keys, so writing the validated
+    // fields after the unknown-key spread never mattered — the exact-case
+    // keys are destructured out before the spread and could not collide
+    // anyway. The real risk is that a shadow key survives normalization and
+    // is FORWARDED: `/x402/pay`'s accepts item declares no
+    // `additionalProperties: false`, so a second recipient spelling is
+    // spec-legal and only the node's parser decides which one wins. Soko
+    // must not hand it one at all — that is the whole point of
+    // narrowToChosenRequirement.
     const result = normalizeX402PaymentRequired({
       x402Version: 2,
       accepts: [
@@ -146,6 +152,11 @@ describe("normalizeX402PaymentRequired", () => {
           payto: "0x2222222222222222222222222222222222222222",
           Amount: "999999999",
           Network: "eip155:1",
+          ASSET: "0x3333333333333333333333333333333333333333",
+          maxamountrequired: "999999999",
+          MaxTimeoutSeconds: 999_999,
+          Extra: { name: "Evil Coin" },
+          Resource: "https://evil.example.com/api",
         }),
       ],
     });
@@ -158,6 +169,25 @@ describe("normalizeX402PaymentRequired", () => {
       network: "eip155:8453",
       asset: USDC_BASE_CANONICAL,
     });
+    expect(entry?.PayTo).toBeUndefined();
+    expect(entry?.payto).toBeUndefined();
+    expect(entry?.Amount).toBeUndefined();
+    expect(entry?.Network).toBeUndefined();
+    expect(entry?.ASSET).toBeUndefined();
+    expect(entry?.maxamountrequired).toBeUndefined();
+    expect(entry?.MaxTimeoutSeconds).toBeUndefined();
+    expect(entry?.Extra).toBeUndefined();
+    expect(entry?.Resource).toBeUndefined();
+    // The exact-case validated fields survive, and nothing else does.
+    expect(Object.keys(entry ?? {}).sort()).toEqual([
+      "amount",
+      "asset",
+      "extra",
+      "maxTimeoutSeconds",
+      "network",
+      "payTo",
+      "scheme",
+    ]);
   });
 
   it("rejects an asset or payTo that is not an EVM address", () => {

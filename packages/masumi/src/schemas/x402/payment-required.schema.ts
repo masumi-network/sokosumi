@@ -365,6 +365,49 @@ function decodeBase64PaymentRequired(value: string): Result<unknown, string> {
 }
 
 /**
+ * Every key a dialect translation recognizes on a requirement entry, folded
+ * to lowercase — i.e. exactly the fields destructured out of an entry before
+ * the remainder is forwarded.
+ */
+const X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE: ReadonlySet<string> = new Set([
+  "scheme",
+  "network",
+  "asset",
+  "amount",
+  "maxamountrequired",
+  "payto",
+  "maxtimeoutseconds",
+  "extra",
+  "resource",
+]);
+
+/**
+ * Drops any forwarded key that collides case-insensitively with a recognized
+ * field — `PayTo`, `payto`, `Amount`, `MaxTimeoutSeconds`, …
+ *
+ * These are SHADOW keys, and the risk is forwarding, not overwriting: `PayTo`
+ * and `payTo` are distinct JS keys, and the exact-case fields are
+ * destructured out before the remainder is spread, so no ordering of the
+ * object literal below could ever let one win. What they do is survive
+ * normalization and reach the node verbatim, so a hostile 402 ships a second
+ * recipient spelling alongside the registry-approved one. `/x402/pay`'s
+ * `accepts` item declares no `additionalProperties: false`, so unknown keys
+ * are spec-legal and only the node's parser decides which spelling it reads —
+ * a fail-open dependency on a node the caller does not deploy, and exactly
+ * what `narrowToChosenRequirement` exists to remove. Non-colliding unknown
+ * keys (`currency`, `description`, `outputSchema`) still pass through.
+ */
+function dropShadowKeys(
+  unknownKeys: Record<string, unknown>,
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(unknownKeys).filter(
+      ([key]) => !X402_RECOGNIZED_ENTRY_KEYS_LOWERCASE.has(key.toLowerCase()),
+    ),
+  );
+}
+
+/**
  * Normalizes either wild 402 dialect to the node's v2 `paymentRequired`
  * shape. Accepts a parsed JSON body (v1 or v2) or the base64 string of the
  * v2 `PAYMENT-REQUIRED` header transport. Fails loud on anything else.
@@ -422,16 +465,13 @@ export function normalizeX402PaymentRequired(
       resource: _resource,
       ...unknownKeys
     } = entry;
-    // KEY ORDER IS LOAD-BEARING: the unknown-key spread comes FIRST and the
-    // validated fields are written after it. JS object literals let a later
-    // key win, so this ordering is what stops an attacker-authored shadow
-    // key — `PayTo`, `payto`, `Amount`, a duplicate `network` — from
-    // overwriting the value Soko validated. Reordering these lines would
-    // hand the node an unverified recipient. (Only exact-case duplicates are
-    // impossible here: JSON.parse already collapsed those, keeping the LAST
-    // occurrence, which the wild schema then validated.)
+    // Shadow keys are FILTERED, not merely out-ordered: see dropShadowKeys.
+    // Key order here is NOT load-bearing — the recognized fields were just
+    // destructured out, so nothing in the spread can collide with them, and
+    // exact-case duplicates were already collapsed by JSON.parse (last
+    // occurrence wins) before the wild schema validated them.
     accepts.push({
-      ...unknownKeys,
+      ...dropShadowKeys(unknownKeys),
       scheme: entry.scheme,
       network: network.value,
       asset: asset.value,
