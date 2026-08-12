@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
+import { SokosumiIcon } from "@/components/masumi-logos";
 import {
   CREATE_ORGANIZATION_DETAILS_FORM_ID,
   CREATE_ORGANIZATION_SUCCESS_STEP,
@@ -674,6 +675,15 @@ export function OnboardingFlow({
           a centered flex child that outgrows its container gets clipped at the
           top with no way to scroll back up. */}
       <div className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 py-6 sm:px-10">
+        {/* Outside the keyed step container so it does not re-animate on every
+            answer — a mark that flickers each step reads as a page reload. */}
+        <SokosumiIcon
+          animated={false}
+          className="text-foreground shrink-0"
+          height={32}
+          width={32}
+        />
+
         <div
           key={`${currentStep}-${organizationFlow.step}`}
           className={cn(

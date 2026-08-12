@@ -3,10 +3,14 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
-import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
+import {
+  getCoworkerImageUrl,
+  mapDbCoworkerToChatCoworker,
+} from "@/app/chat/utils/coworker-utils";
 import { toPaidSubscriptionPlanViews } from "@/components/billing/subscription-catalog-plans";
 import type { PaidSubscriptionPlanView } from "@/components/billing/subscription-plan-utils";
 import { getEnvPublicConfig } from "@/config/env.public";
+import { canUseNextImageSrc } from "@/config/next-image";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import { userService } from "@/lib/services";
@@ -102,9 +106,25 @@ async function OnboardingFlowLoader({ searchParams }: OnboardingPageProps) {
   const coworkers: OnboardingCoworker[] =
     coworkersResult.status === "fulfilled"
       ? coworkersResult.value
-          .flatMap((coworker) => {
-            const avatarUrl = getCoworkerImageUrl(coworker.id, coworker.image);
-            return avatarUrl ? [{ avatarUrl, name: coworker.name }] : [];
+          .map(mapDbCoworkerToChatCoworker)
+          .map((coworker) => {
+            // Keyed by SLUG: the static fallback map is slug-keyed, so passing
+            // the id silently yields null and drops the coworker entirely.
+            // `avatar` is the IPFS/HTTP-resolved URL; the raw `image` can be an
+            // `ipfs://` URI that no browser will load.
+            const avatarUrl = getCoworkerImageUrl(
+              coworker.slug ?? "",
+              coworker.avatar,
+            );
+
+            return {
+              // Vendors host avatars wherever they like, and next/image throws
+              // on an unconfigured hostname — which would take down the first
+              // page a new account ever sees. Fall back to initials.
+              avatarUrl:
+                avatarUrl && canUseNextImageSrc(avatarUrl) ? avatarUrl : null,
+              name: coworker.name,
+            };
           })
           .slice(0, WELCOME_COWORKER_LIMIT)
       : [];
