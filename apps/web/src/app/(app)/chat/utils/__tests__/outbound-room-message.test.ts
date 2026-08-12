@@ -60,6 +60,7 @@ describe("outbound room message", () => {
       content: "hello train",
       senderUser,
       createdAt: new Date("2026-08-12T12:00:01.000Z"),
+      mentionedCoworkerIds: ["cow-1"],
     });
 
     expect(pending.id).toBe(outboundLocalMessageId("turn-1"));
@@ -68,6 +69,14 @@ describe("outbound room message", () => {
     expect(readOutboundDeliveryStatus(pending)).toBe("pending");
     expect(pending.content).toBe("hello train");
     expect(pending.sender).toEqual({ type: "user", user: senderUser });
+    expect(pending.mentions).toEqual([
+      {
+        id: "pending-mention:turn-1:cow-1",
+        coworkerId: "cow-1",
+        status: "pending",
+        responseMessageId: null,
+      },
+    ]);
   });
 
   it("confirms a pending shell in place without duplicating", () => {

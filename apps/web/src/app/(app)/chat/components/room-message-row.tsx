@@ -1417,9 +1417,7 @@ function MessageMetaFooter({
           {t("Thread.replyCount", { count: message.threadReplyCount })}
         </button>
       ) : null}
-      {!isDeleted &&
-      !isOutboundLocal &&
-      message.mentions.some((m) => m.status !== "responded") ? (
+      {!isDeleted && message.mentions.some((m) => m.status !== "responded") ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1.5">
           {message.mentions.map((mention) => {
             // Success = coworker reply in the transcript; no "replied" chrome.
@@ -1620,7 +1618,7 @@ export function ChatMessageRow({
             outboundStatus={outboundStatus}
             showSentTick={showOutboundSentTick}
             className={cn(
-              "whitespace-nowrap text-[0.625rem] leading-4 tabular-nums",
+              "whitespace-nowrap text-xs leading-4 tabular-nums",
               // Pending/failed/sent-tick stay visible; settled time only on hover.
               outboundStatus == null &&
                 !showOutboundSentTick &&

@@ -39,6 +39,13 @@ import {
   isTopLevelChatRoomMessage,
   routeRealtimeChatRoomMessage,
 } from "@/app/chat/utils/chat-room-message-scope";
+import {
+  type ClassicOutboundJob,
+  type ClassicOutboundQueueRefs,
+  clearClassicOutboundQueue,
+  drainClassicOutboundQueue,
+  enqueueClassicOutboundJob,
+} from "@/app/chat/utils/classic-outbound-queue";
 import { composeDraftKey } from "@/app/chat/utils/compose-draft-storage";
 import { formatDaySeparator } from "@/app/chat/utils/date-utils";
 import {
@@ -137,17 +144,6 @@ import {
   RoomShellLayout,
 } from "./room-shell-layout";
 import { ThreadPanel } from "./thread-panel";
-
-/** Classic POST job retained for single-flight queue + failed-send retry. */
-interface ClassicOutboundJob {
-  roomId: string;
-  content: string;
-  mentionedCoworkerIds: string[];
-  mentionedUserIds: string[];
-  quote?: { messageId: string };
-  clientMessageId: string;
-  parentMessageId?: string;
-}
 
 interface RoomsClientProps {
   /** Null in personal workspace when mounting Start New DM only. */
@@ -587,13 +583,21 @@ export function RoomsClient({
     useTransition();
   const pendingReactionsRef = useRef<Set<string>>(new Set());
   // Classic POST: single-flight queue per composer (channel vs thread).
-  // Payload map keeps retry body; queue order is client turn ids.
-  const classicChannelQueueRef = useRef<string[]>([]);
-  const classicChannelRunningRef = useRef(false);
-  const classicChannelJobsRef = useRef(new Map<string, ClassicOutboundJob>());
-  const classicThreadQueueRef = useRef<string[]>([]);
-  const classicThreadRunningRef = useRef(false);
-  const classicThreadJobsRef = useRef(new Map<string, ClassicOutboundJob>());
+  const classicChannelRefs = useRef<ClassicOutboundQueueRefs>({
+    queueRef: { current: [] },
+    jobsRef: { current: new Map() },
+    runningRef: { current: false },
+  }).current;
+  const classicThreadRefs = useRef<ClassicOutboundQueueRefs>({
+    queueRef: { current: [] },
+    jobsRef: { current: new Map() },
+    runningRef: { current: false },
+  }).current;
+  // Stable ref handles for enqueue from callbacks (same object every render).
+  const classicChannelQueueRef = classicChannelRefs.queueRef;
+  const classicChannelJobsRef = classicChannelRefs.jobsRef;
+  const classicThreadQueueRef = classicThreadRefs.queueRef;
+  const classicThreadJobsRef = classicThreadRefs.jobsRef;
   /** Server message ids briefly showing a check in the timestamp slot. */
   const [outboundSentTickIds, setOutboundSentTickIds] = useState<
     ReadonlySet<string>
@@ -603,11 +607,19 @@ export function RoomsClient({
   // Drop classic outbound jobs when leaving a room — shells are wiped and
   // Retry UI is gone (ADR-0004: no outbox across navigation).
   useEffect(() => {
-    classicChannelQueueRef.current = [];
-    classicChannelJobsRef.current.clear();
-    classicThreadQueueRef.current = [];
-    classicThreadJobsRef.current.clear();
-  }, [selectedRoomId]);
+    clearClassicOutboundQueue(classicChannelRefs);
+    clearClassicOutboundQueue(classicThreadRefs);
+  }, [selectedRoomId, classicChannelRefs, classicThreadRefs]);
+
+  useEffect(() => {
+    const timeouts = outboundSentTickTimeoutsRef.current;
+    return () => {
+      for (const timeoutId of timeouts.values()) {
+        window.clearTimeout(timeoutId);
+      }
+      timeouts.clear();
+    };
+  }, []);
 
   function flashOutboundSentTick(messageId: string) {
     const existing = outboundSentTickTimeoutsRef.current.get(messageId);
@@ -1755,180 +1767,132 @@ export function RoomsClient({
   }
 
   function enqueueClassicChannelJob(job: ClassicOutboundJob) {
-    classicChannelJobsRef.current.set(job.clientMessageId, job);
-    if (!classicChannelQueueRef.current.includes(job.clientMessageId)) {
-      classicChannelQueueRef.current.push(job.clientMessageId);
-    }
-    void drainClassicChannelQueue();
+    enqueueClassicOutboundJob(classicChannelRefs, job, () => {
+      void drainClassicChannelQueue();
+    });
   }
 
   function enqueueClassicThreadJob(job: ClassicOutboundJob) {
-    classicThreadJobsRef.current.set(job.clientMessageId, job);
-    if (!classicThreadQueueRef.current.includes(job.clientMessageId)) {
-      classicThreadQueueRef.current.push(job.clientMessageId);
+    enqueueClassicOutboundJob(classicThreadRefs, job, () => {
+      void drainClassicThreadQueue();
+    });
+  }
+
+  function handleChannelOutboundFailure(
+    job: ClassicOutboundJob,
+    errorMessage: string,
+  ) {
+    if (isStillSelectedRoom(job.roomId)) {
+      setMessagesState((current) =>
+        failOutboundMessage(current, job.clientMessageId),
+      );
+      return;
     }
-    void drainClassicThreadQueue();
+    toast.error(errorMessage);
+    classicChannelJobsRef.current.delete(job.clientMessageId);
+  }
+
+  function handleThreadOutboundFailure(
+    job: ClassicOutboundJob,
+    errorMessage: string,
+  ) {
+    const shellVisible =
+      isStillSelectedRoom(job.roomId) &&
+      job.parentMessageId != null &&
+      threadParentMessageIdRef.current === job.parentMessageId;
+    if (shellVisible) {
+      setThreadMessages((current) =>
+        failOutboundMessage(current, job.clientMessageId),
+      );
+      return;
+    }
+    toast.error(errorMessage);
+    classicThreadJobsRef.current.delete(job.clientMessageId);
   }
 
   async function drainClassicChannelQueue() {
-    if (classicChannelRunningRef.current) {
-      return;
-    }
-    classicChannelRunningRef.current = true;
-    try {
-      while (classicChannelQueueRef.current.length > 0) {
-        const clientMessageId = classicChannelQueueRef.current[0];
-        if (!clientMessageId) {
-          break;
-        }
-        const job = classicChannelJobsRef.current.get(clientMessageId);
-        if (!job) {
-          classicChannelQueueRef.current.shift();
-          continue;
-        }
-        // Always dequeue this head once we start it — throws must not re-loop.
-        classicChannelQueueRef.current.shift();
-        try {
-          const result = await sendRoomMessageAction(
-            job.roomId,
-            job.content,
-            job.mentionedCoworkerIds,
-            {
-              mentionedUserIds: job.mentionedUserIds,
-              quote: job.quote,
-              clientMessageId: job.clientMessageId,
+    await drainClassicOutboundQueue({
+      refs: classicChannelRefs,
+      unknownFailureMessage: t("Outbound.failed"),
+      send: async (job) => {
+        const result = await sendRoomMessageAction(
+          job.roomId,
+          job.content,
+          job.mentionedCoworkerIds,
+          {
+            mentionedUserIds: job.mentionedUserIds,
+            quote: job.quote,
+            clientMessageId: job.clientMessageId,
+          },
+        );
+        if (!result.ok) {
+          return {
+            ok: false,
+            error: {
+              message: result.error.message ?? t("Outbound.failed"),
             },
-          );
-          if (!result.ok) {
-            // Shell only while this room is still open; otherwise toast (ADR-0004).
-            if (isStillSelectedRoom(job.roomId)) {
-              setMessagesState((current) =>
-                failOutboundMessage(current, clientMessageId),
-              );
-            } else {
-              toast.error(result.error.message);
-              classicChannelJobsRef.current.delete(clientMessageId);
-            }
-            continue;
-          }
-          classicChannelJobsRef.current.delete(clientMessageId);
-          if (isStillSelectedRoom(job.roomId)) {
-            setMessagesState((current) =>
-              confirmOutboundMessage(
-                current,
-                result.value,
-                job.clientMessageId,
-              ),
-            );
-            flashOutboundSentTick(result.value.id);
-          }
-        } catch {
-          if (isStillSelectedRoom(job.roomId)) {
-            setMessagesState((current) =>
-              failOutboundMessage(current, clientMessageId),
-            );
-          } else {
-            toast.error(t("Outbound.failed"));
-            classicChannelJobsRef.current.delete(clientMessageId);
-          }
+          };
         }
-      }
-    } finally {
-      classicChannelRunningRef.current = false;
-      if (classicChannelQueueRef.current.length > 0) {
-        void drainClassicChannelQueue();
-      }
-    }
+        return { ok: true, value: result.value };
+      },
+      onFailure: handleChannelOutboundFailure,
+      onSuccess: (job, confirmed) => {
+        if (isStillSelectedRoom(job.roomId)) {
+          setMessagesState((current) =>
+            confirmOutboundMessage(current, confirmed, job.clientMessageId),
+          );
+          flashOutboundSentTick(confirmed.id);
+        }
+      },
+    });
   }
 
   async function drainClassicThreadQueue() {
-    if (classicThreadRunningRef.current) {
-      return;
-    }
-    classicThreadRunningRef.current = true;
-    try {
-      while (classicThreadQueueRef.current.length > 0) {
-        const clientMessageId = classicThreadQueueRef.current[0];
-        if (!clientMessageId) {
-          break;
-        }
-        const job = classicThreadJobsRef.current.get(clientMessageId);
-        if (!job) {
-          classicThreadQueueRef.current.shift();
-          continue;
-        }
-        classicThreadQueueRef.current.shift();
-        try {
-          const result = await sendRoomMessageAction(
-            job.roomId,
-            job.content,
-            job.mentionedCoworkerIds,
-            {
-              mentionedUserIds: job.mentionedUserIds,
-              parentMessageId: job.parentMessageId,
-              quote: job.quote,
-              clientMessageId: job.clientMessageId,
+    await drainClassicOutboundQueue({
+      refs: classicThreadRefs,
+      unknownFailureMessage: t("Outbound.failed"),
+      send: async (job) => {
+        const result = await sendRoomMessageAction(
+          job.roomId,
+          job.content,
+          job.mentionedCoworkerIds,
+          {
+            mentionedUserIds: job.mentionedUserIds,
+            parentMessageId: job.parentMessageId,
+            quote: job.quote,
+            clientMessageId: job.clientMessageId,
+          },
+        );
+        if (!result.ok) {
+          return {
+            ok: false,
+            error: {
+              message: result.error.message ?? t("Outbound.failed"),
             },
-          );
-          if (!result.ok) {
-            // Thread panel closed (or room left) → no failed shell; toast instead.
-            const shellVisible =
-              isStillSelectedRoom(job.roomId) &&
-              job.parentMessageId != null &&
-              threadParentMessageIdRef.current === job.parentMessageId;
-            if (shellVisible) {
-              setThreadMessages((current) =>
-                failOutboundMessage(current, clientMessageId),
-              );
-            } else {
-              toast.error(result.error.message);
-              classicThreadJobsRef.current.delete(clientMessageId);
-            }
-            continue;
-          }
-          classicThreadJobsRef.current.delete(clientMessageId);
-          if (
-            isStillSelectedRoom(job.roomId) &&
-            job.parentMessageId != null &&
-            threadParentMessageIdRef.current === job.parentMessageId
-          ) {
-            setThreadMessages((current) =>
-              confirmOutboundMessage(
-                current,
-                result.value,
-                job.clientMessageId,
-              ),
-            );
-            flashOutboundSentTick(result.value.id);
-            updateParentThreadPreview(job.parentMessageId, result.value);
-          } else if (
-            isStillSelectedRoom(job.roomId) &&
-            job.parentMessageId != null
-          ) {
-            // Thread closed before confirm: still bump parent preview only.
-            updateParentThreadPreview(job.parentMessageId, result.value);
-          }
-        } catch {
-          const shellVisible =
-            isStillSelectedRoom(job.roomId) &&
-            job.parentMessageId != null &&
-            threadParentMessageIdRef.current === job.parentMessageId;
-          if (shellVisible) {
-            setThreadMessages((current) =>
-              failOutboundMessage(current, clientMessageId),
-            );
-          } else {
-            toast.error(t("Outbound.failed"));
-            classicThreadJobsRef.current.delete(clientMessageId);
-          }
+          };
         }
-      }
-    } finally {
-      classicThreadRunningRef.current = false;
-      if (classicThreadQueueRef.current.length > 0) {
-        void drainClassicThreadQueue();
-      }
-    }
+        return { ok: true, value: result.value };
+      },
+      onFailure: handleThreadOutboundFailure,
+      onSuccess: (job, confirmed) => {
+        if (
+          isStillSelectedRoom(job.roomId) &&
+          job.parentMessageId != null &&
+          threadParentMessageIdRef.current === job.parentMessageId
+        ) {
+          setThreadMessages((current) =>
+            confirmOutboundMessage(current, confirmed, job.clientMessageId),
+          );
+          flashOutboundSentTick(confirmed.id);
+          updateParentThreadPreview(job.parentMessageId, confirmed);
+        } else if (
+          isStillSelectedRoom(job.roomId) &&
+          job.parentMessageId != null
+        ) {
+          updateParentThreadPreview(job.parentMessageId, confirmed);
+        }
+      },
+    });
   }
 
   const handleRetryOutbound = useCallback(
@@ -2020,6 +1984,7 @@ export function RoomsClient({
         roomId,
         content: request.content,
         senderUser,
+        mentionedCoworkerIds,
         quote: pendingQuoteForShell
           ? {
               messageId: pendingQuoteForShell.messageId,
@@ -2101,6 +2066,7 @@ export function RoomsClient({
         content: request.content,
         senderUser,
         parentMessageId,
+        mentionedCoworkerIds,
         quote: pendingQuoteForShell
           ? {
               messageId: pendingQuoteForShell.messageId,
@@ -2410,8 +2376,7 @@ export function RoomsClient({
                   setThreadMessages([]);
                   setThreadOlderNextCursor(null);
                   setPendingThreadQuote(null);
-                  classicThreadQueueRef.current = [];
-                  classicThreadJobsRef.current.clear();
+                  clearClassicOutboundQueue(classicThreadRefs);
                 }}
                 onToggleReaction={handleToggleReaction}
                 onQuote={handleQuoteThreadMessage}

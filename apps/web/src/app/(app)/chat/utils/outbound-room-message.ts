@@ -1,8 +1,10 @@
 import type {
   ChatRoomMessage,
+  ChatRoomMessageMention,
   ChatRoomMessageQuote,
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
+import { ChatRoomMentionStatus } from "@/lib/clients/generated/core";
 
 /** Local-only row id: `pending:{clientTurnId}`. Never a server message id. */
 export const OUTBOUND_LOCAL_ID_PREFIX = "pending:" as const;
@@ -64,6 +66,21 @@ export interface CreatePendingRoomMessageParams {
   parentMessageId?: string | null;
   quote?: ChatRoomMessageQuote;
   createdAt?: Date;
+  /** Coworker ids mentioned on this send — shown as pending chips until confirm. */
+  mentionedCoworkerIds?: readonly string[];
+}
+
+/** Build provisional coworker mention rows for a pending shell (no blink on confirm). */
+export function buildPendingCoworkerMentions(
+  clientTurnId: string,
+  mentionedCoworkerIds: readonly string[],
+): ChatRoomMessageMention[] {
+  return mentionedCoworkerIds.map((coworkerId) => ({
+    id: `pending-mention:${clientTurnId}:${coworkerId}`,
+    coworkerId,
+    status: ChatRoomMentionStatus.PENDING,
+    responseMessageId: null,
+  }));
 }
 
 export function createPendingRoomMessage(
@@ -82,7 +99,10 @@ export function createPendingRoomMessage(
       type: "user",
       user: params.senderUser,
     },
-    mentions: [],
+    mentions: buildPendingCoworkerMentions(
+      clientTurnId,
+      params.mentionedCoworkerIds ?? [],
+    ),
     reactions: [],
     threadReplyCount: 0,
     threadLastReplyAt: null,
