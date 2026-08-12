@@ -1,8 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import EmptyState from "@/app/personal-assistant/components/empty-state";
@@ -20,7 +28,6 @@ import LoadingState from "@/app/personal-assistant/components/loading-state";
 import OnboardingProgress from "@/app/personal-assistant/components/onboarding-progress";
 import OnboardingScreen from "@/app/personal-assistant/components/onboarding-screen";
 import ProvisioningState from "@/app/personal-assistant/components/provisioning-state";
-import RunningState from "@/app/personal-assistant/components/running-state";
 import {
   SubscriptionRequiredDialog,
   type SubscriptionWallPlan,
@@ -42,6 +49,15 @@ import type {
   HermesPersistedMessage,
   HermesPersonality,
 } from "@/lib/hermes/types";
+
+/**
+ * Running chat + settings/skills panels — heavy; keep off first-paint entry.
+ * No `loading` option here: seed-aware fallback is the parent Suspense so the
+ * orb does not flash the default "personal-assistant" seed during chunk load.
+ */
+const RunningState = dynamic(
+  () => import("@/app/personal-assistant/components/running-state"),
+);
 
 export type { HermesOrganizationOption };
 
@@ -364,13 +380,13 @@ export default function HermesExperience({
       }
       // Any successful instance fetch resets the fail-open counter.
       backgroundFailureCountRef.current = 0;
-      if (!instanceResult.data) {
+      if (!instanceResult.value) {
         if (background) return;
         setUiState("idle");
         clearInstanceSnapshot();
         return;
       }
-      const next = uiStateForServerStatus(instanceResult.data.status);
+      const next = uiStateForServerStatus(instanceResult.value.status);
       // Forward-only guard for background refreshes — same shape as the
       // provisioning/onboarding polling loop's `isForwardTransition` check.
       // Without this, a stale orchestrator read could yank the user from
@@ -389,9 +405,9 @@ export default function HermesExperience({
       const messagesResult = await listHermesMessagesAction({});
       if (isCancelled?.()) return;
       if (messagesResult.ok) {
-        setInitialMessages(messagesResult.data);
+        setInitialMessages(messagesResult.value);
       }
-      applyInstanceSnapshot(instanceResult.data);
+      applyInstanceSnapshot(instanceResult.value);
     },
     [t, applyInstanceSnapshot, clearInstanceSnapshot],
   );
@@ -446,8 +462,8 @@ export default function HermesExperience({
         timer = setTimeout(() => void tick(), POLL_INTERVAL_MS);
         return;
       }
-      if (result.data) {
-        const next = uiStateForServerStatus(result.data.status);
+      if (result.value) {
+        const next = uiStateForServerStatus(result.value.status);
         // Ignore stale polls that would walk the state backwards (e.g. a poll
         // racing the orchestrator's status flip right after we POST /onboard).
         if (!isForwardTransition(uiState, next)) {
@@ -463,14 +479,14 @@ export default function HermesExperience({
             // so the chat opens with the welcome already rendered.
             const messagesResult = await listHermesMessagesAction({});
             if (cancelled) return;
-            if (messagesResult.ok) setInitialMessages(messagesResult.data);
+            if (messagesResult.ok) setInitialMessages(messagesResult.value);
           }
           if (cancelled) return;
-          applyInstanceSnapshot(result.data);
+          applyInstanceSnapshot(result.value);
           setUiState(next);
           return;
         }
-        applyInstanceSnapshot(result.data);
+        applyInstanceSnapshot(result.value);
         if (next !== uiState) setUiState(next);
       } else {
         // Provision call succeeded but the instance disappeared — treat as error.
@@ -581,11 +597,11 @@ export default function HermesExperience({
       setErrorMessage(result.error.message ?? t("provisionFailed"));
       return;
     }
-    applyInstanceSnapshot(result.data);
-    const nextUi = uiStateForServerStatus(result.data.status);
+    applyInstanceSnapshot(result.value);
+    const nextUi = uiStateForServerStatus(result.value.status);
     if (nextUi === "running") {
       const messagesResult = await listHermesMessagesAction({});
-      if (messagesResult.ok) setInitialMessages(messagesResult.data);
+      if (messagesResult.ok) setInitialMessages(messagesResult.value);
     }
     // Immediately reflect server-side status — if it already came back as
     // "running" the polling effect will just no-op.
@@ -772,21 +788,23 @@ export default function HermesExperience({
   }
   return (
     <>
-      <RunningState
-        userName={userName ?? null}
-        userImageUrl={userImageUrl ?? null}
-        avatarSeed={effectiveOrbSeed}
-        orbBaseSeed={orbBaseSeed}
-        instance={instance}
-        previewMode={previewMode}
-        initialMessages={initialMessages}
-        organizations={effectiveOrganizations}
-        activeOrganizationId={effectiveActiveOrgId}
-        hasActiveSubscription={hasActiveSubscription}
-        onRequireSubscription={() => setSubscriptionWallOpen(true)}
-        onDestroy={handleDestroy}
-        onRefresh={() => refetchHermes({ background: true })}
-      />
+      <Suspense fallback={<LoadingState seed={effectiveOrbSeed} />}>
+        <RunningState
+          userName={userName ?? null}
+          userImageUrl={userImageUrl ?? null}
+          avatarSeed={effectiveOrbSeed}
+          orbBaseSeed={orbBaseSeed}
+          instance={instance}
+          previewMode={previewMode}
+          initialMessages={initialMessages}
+          organizations={effectiveOrganizations}
+          activeOrganizationId={effectiveActiveOrgId}
+          hasActiveSubscription={hasActiveSubscription}
+          onRequireSubscription={() => setSubscriptionWallOpen(true)}
+          onDestroy={handleDestroy}
+          onRefresh={() => refetchHermes({ background: true })}
+        />
+      </Suspense>
       {subscriptionWall}
     </>
   );

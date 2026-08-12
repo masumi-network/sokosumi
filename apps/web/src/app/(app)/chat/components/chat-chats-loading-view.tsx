@@ -1,4 +1,4 @@
-import { CHAT_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/chat/components/chat-mobile-create-fab-actions";
+import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -13,8 +13,10 @@ export function ChatChatsPageSkeleton(): React.ReactElement {
     <div
       data-testid="chat-chats-loading"
       className={cn(
-        "md:hidden -m-4 min-h-0 flex-1 overflow-y-auto p-4",
-        CHAT_MOBILE_CREATE_FAB_CLEARANCE,
+        // Match live chats page: grow with content so tab-bar spacer clears
+        // the last row (no nested overflow-y-auto height lock).
+        "md:hidden -m-4 flex flex-1 flex-col bg-background p-4",
+        LIST_MOBILE_CREATE_FAB_CLEARANCE,
       )}
     >
       <div className="mb-3 flex items-center justify-between">

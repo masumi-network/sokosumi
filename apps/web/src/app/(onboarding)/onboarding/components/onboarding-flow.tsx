@@ -203,18 +203,18 @@ export function OnboardingFlow({
             return;
           }
 
-          if (result.data.status !== "valid" || !result.data.organization) {
+          if (result.value.status !== "valid" || !result.value.organization) {
             setInvitePreview(null);
             setInviteToken(null);
-            setInviteError(t(`InviteLink.Errors.${result.data.status}`));
+            setInviteError(t(`InviteLink.Errors.${result.value.status}`));
             return;
           }
 
           setInvitePreview({
-            logo: result.data.organization.logo,
-            name: result.data.organization.name,
+            logo: result.value.organization.logo,
+            name: result.value.organization.name,
           });
-          setInviteToken(result.data.token);
+          setInviteToken(result.value.token);
           setInviteError(null);
         } finally {
           if (isActive) {
@@ -354,8 +354,8 @@ export function OnboardingFlow({
         return;
       }
 
-      if (result.data.mode === "redirect") {
-        window.location.href = result.data.url;
+      if (result.value.mode === "redirect") {
+        window.location.href = result.value.url;
         return;
       }
 

@@ -99,15 +99,15 @@ describe("SubscriptionOnboardingDialog", () => {
     markSubscriptionOnboardingGateSessionSeenMock.mockResolvedValue(undefined);
     window.localStorage.clear();
     completeOnboardingMock.mockResolvedValue({
-      data: { redirectUrl: "/tasks" },
+      value: { redirectUrl: "/tasks" },
       ok: true,
     });
     upgradeOrganizationSubscriptionMock.mockResolvedValue({
-      data: { mode: "complete" },
+      value: { mode: "complete" },
       ok: true,
     });
     upgradePersonalSubscriptionMock.mockResolvedValue({
-      data: { mode: "complete" },
+      value: { mode: "complete" },
       ok: true,
     });
   });

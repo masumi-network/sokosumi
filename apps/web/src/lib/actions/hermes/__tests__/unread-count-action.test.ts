@@ -73,7 +73,7 @@ describe("getHermesUnreadCountAction", () => {
 
     expect(result).toEqual({
       ok: true,
-      data: {
+      value: {
         count: 2,
         avatarSeed: "orb-1",
         assistantName: "Ada",

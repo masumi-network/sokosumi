@@ -66,7 +66,7 @@ export function DesignMdUploadTrigger({
         }
 
         options.onSuccess(file);
-        onSaved?.(result.data);
+        onSaved?.(result.value);
         setFiles([]);
         toast.success(t("uploadSuccess"));
       } catch (error) {

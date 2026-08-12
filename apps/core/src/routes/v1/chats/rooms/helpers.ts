@@ -1,9 +1,5 @@
 import { MemberRole, NotificationKind, type Prisma } from "@sokosumi/database";
-import {
-  buildRoomQuoteSnippetParts,
-  CHAT_PRESENCE_AFK_WINDOW_MS,
-  CHAT_PRESENCE_ONLINE_WINDOW_MS,
-} from "@sokosumi/utils";
+import { buildRoomQuoteSnippetParts } from "@sokosumi/utils";
 
 import {
   buildCoworkerNonEmptyBaseUrlWhere,
@@ -29,14 +25,6 @@ export const chatRoomUserSelect = {
   name: true,
   email: true,
   image: true,
-  sessions: {
-    select: {
-      expiresAt: true,
-      updatedAt: true,
-    },
-    orderBy: { updatedAt: "desc" },
-    take: 1,
-  },
 } as const satisfies Prisma.UserSelect;
 
 export const chatRoomCoworkerSelect = {
@@ -109,29 +97,17 @@ type ChatRoomMessageWithSender = Prisma.ChatRoomMessageGetPayload<{
   include: typeof chatRoomMessageInclude;
 }>;
 
+/**
+ * REST placeholder for human presence (ADR-0003).
+ * Live Online/AFK comes from Ably Presence on the client. Self stays online on
+ * personalized REST so the viewer never flashes offline before Ably hydrates.
+ */
 function resolveUserPresence(
-  user: Pick<ChatRoomWithMembers["userMembers"][number]["user"], "id"> & {
-    sessions: Array<{ expiresAt: Date; updatedAt: Date }>;
-  },
+  user: Pick<ChatRoomWithMembers["userMembers"][number]["user"], "id">,
   currentUserId?: string,
 ): ChatRoomPresence {
   if (user.id === currentUserId) {
     return "online";
-  }
-
-  const activeSession = user.sessions.find(
-    (session) => session.expiresAt.getTime() > Date.now(),
-  );
-  if (!activeSession) {
-    return "offline";
-  }
-
-  const idleMs = Date.now() - activeSession.updatedAt.getTime();
-  if (idleMs <= CHAT_PRESENCE_ONLINE_WINDOW_MS) {
-    return "online";
-  }
-  if (idleMs <= CHAT_PRESENCE_AFK_WINDOW_MS) {
-    return "afk";
   }
   return "offline";
 }
@@ -530,6 +506,27 @@ export interface MapChatRoomAttentionOptions {
   pinnedAt?: Date | null;
   mutedAt?: Date | null;
   markedUnread?: boolean;
+  /** Override caller's room access; otherwise derived from membership row. */
+  myAccess?: "member" | "guest";
+  /** Host org display name when batch-loaded (Task 5+); null for directs. */
+  organizationName?: string | null;
+}
+
+function resolveMyAccess(
+  room: ChatRoomWithMembers,
+  currentUserId: string | undefined,
+  override: "member" | "guest" | undefined,
+): "member" | "guest" {
+  if (override) {
+    return override;
+  }
+  if (!currentUserId) {
+    return "member";
+  }
+  const membership = room.userMembers.find(
+    (member) => member.userId === currentUserId,
+  );
+  return membership?.access === "guest" ? "guest" : "member";
 }
 
 export function mapChatRoom(
@@ -544,11 +541,14 @@ export function mapChatRoom(
     pinnedAt = null,
     mutedAt = null,
     markedUnread = false,
+    myAccess: myAccessOverride,
+    organizationName = null,
   } = attention;
 
   return {
     id: room.id,
     organizationId: room.organizationId,
+    organizationName,
     name: room.name,
     slug: room.slug,
     kind: room.kind as "channel" | "direct",
@@ -566,12 +566,15 @@ export function mapChatRoom(
     pinnedAt,
     mutedAt,
     markedUnread,
-    userMembers: room.userMembers.map(({ user }) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      image: user.image ?? null,
-      presence: resolveUserPresence(user, currentUserId),
+    myAccess: resolveMyAccess(room, currentUserId, myAccessOverride),
+    userMembers: room.userMembers.map((member) => ({
+      id: member.user.id,
+      name: member.user.name,
+      email: member.user.email,
+      image: member.user.image ?? null,
+      presence: resolveUserPresence(member.user, currentUserId),
+      access:
+        member.access === "guest" ? ("guest" as const) : ("member" as const),
     })),
     coworkerMembers: room.coworkerMembers.map(({ coworker }) => ({
       id: coworker.id,
@@ -587,11 +590,17 @@ export function mapChatRoom(
 function mapChatRoomDiscoverability(
   kind: string,
   discoverability: string | null,
-): "public" | "private" | null {
+): "public" | "private" | "external" | null {
   if (kind === "direct") {
     return null;
   }
-  return discoverability === "public" ? "public" : "private";
+  if (discoverability === "public") {
+    return "public";
+  }
+  if (discoverability === "external") {
+    return "external";
+  }
+  return "private";
 }
 
 export interface ChatRoomSidebarFlags {
@@ -1004,6 +1013,29 @@ async function assertRoomOrganizationAccess(
   });
 }
 
+/**
+ * Guests hold room membership without host-org `Member`. Skip the org gate for
+ * `access=guest`; every other access (including default/legacy `member`) keeps it.
+ */
+async function assertRoomOrganizationAccessUnlessGuest(
+  organizationId: string | null,
+  userId: string,
+  membershipAccess: string | null | undefined,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  if (membershipAccess === "guest") {
+    return;
+  }
+  await assertRoomOrganizationAccess(organizationId, userId, tx);
+}
+
+export function membershipAccessForUser(
+  userMembers: ReadonlyArray<{ userId: string; access?: string | null }>,
+  userId: string,
+): string | null | undefined {
+  return userMembers.find((member) => member.userId === userId)?.access;
+}
+
 export function slugifyRoomName(name: string): string {
   const slug = name
     .trim()
@@ -1104,9 +1136,8 @@ export async function buildUniqueRoomSlug(
 }
 
 /**
- * Organization owner/admin elevation for channel lifecycle, settings, and
- * private-channel discover/self-join. Room creator is provenance only — never
- * authorizes.
+ * Organization owner/admin elevation for channel lifecycle and settings.
+ * Room creator is provenance only — never authorizes.
  */
 export function isOrganizationOwnerOrAdmin(role: string): boolean {
   return role === MemberRole.OWNER || role === MemberRole.ADMIN;
@@ -1147,9 +1178,9 @@ export function chatRoomPatchTouchesSettings(body: {
 }
 
 /**
- * Split PATCH gates: settings (name/topic/discoverability) need OWNER/ADMIN;
- * roster rewrite is allowed for any active channel member (membership already
- * proven by the access helper). Fail settings before any writes.
+ * Split PATCH gates (after caller proven access=member, not guest):
+ * settings (name/topic/discoverability) need OWNER/ADMIN; roster rewrite is
+ * allowed for any host-org room member. Fail settings before any writes.
  */
 export function assertChatRoomPatchAuth(options: {
   role: string;
@@ -1191,20 +1222,25 @@ export async function requireChatRoomUserAccess(
     throw notFound("Room not found");
   }
 
-  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+  await assertRoomOrganizationAccessUnlessGuest(
+    room.organizationId,
+    userId,
+    membershipAccessForUser(room.userMembers, userId),
+    tx,
+  );
 
   return room;
 }
 
 /**
  * Whether a channel's discoverability allows self-join for this caller.
- * Public: any org member. Private: organization owner/admin only.
+ * Public/external: any org member. Private: organization owner/admin only.
  */
 export function isJoinableChannelDiscoverability(
   discoverability: string | null,
   elevated: boolean,
 ): boolean {
-  if (discoverability === "public") {
+  if (discoverability === "public" || discoverability === "external") {
     return true;
   }
   return elevated && discoverability === "private";
@@ -1212,20 +1248,22 @@ export function isJoinableChannelDiscoverability(
 
 /**
  * Prisma discoverability filter for browse/self-join listing.
- * Plain members: public only. Owner/admin: public + private.
+ * Plain members: public + external. Owner/admin: public + private + external.
  * Mutable `in` array (not `as const`) — Prisma rejects readonly tuples.
  */
-export function buildDiscoverabilityFilter(
-  elevated: boolean,
-): "public" | { in: string[] } {
-  return elevated ? { in: ["public", "private"] } : "public";
+export function buildDiscoverabilityFilter(elevated: boolean): {
+  in: string[];
+} {
+  return elevated
+    ? { in: ["public", "private", "external"] }
+    : { in: ["public", "external"] };
 }
 
 /**
  * Active org channel the caller may self-join. Does not require membership.
- * Public channels: any org member. Private channels: organization owner/admin
- * only. Unknown, wrong-org, direct, archived, or private for a plain member →
- * 404.
+ * Public/external: any org member. Private: organization owner/admin only.
+ * Host-org membership is still required (guests never self-join).
+ * Unknown, wrong-org, direct, archived, or private-for-plain-member → 404.
  */
 export async function requireJoinableOrgChannel(
   roomId: string,
@@ -1282,7 +1320,12 @@ export async function requireArchivedChatRoomUserAccess(
     throw notFound("Room not found");
   }
 
-  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+  await assertRoomOrganizationAccessUnlessGuest(
+    room.organizationId,
+    userId,
+    membershipAccessForUser(room.userMembers, userId),
+    tx,
+  );
 
   return room;
 }
@@ -1300,6 +1343,7 @@ const chatRoomWriteSelect = {
   userMembers: {
     select: {
       userId: true,
+      access: true,
       user: {
         select: {
           name: true,
@@ -1346,7 +1390,12 @@ export async function requireChatRoomUserWriteAccess(
     throw notFound("Room not found");
   }
 
-  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+  await assertRoomOrganizationAccessUnlessGuest(
+    room.organizationId,
+    userId,
+    membershipAccessForUser(room.userMembers, userId),
+    tx,
+  );
 
   return room;
 }
@@ -1395,6 +1444,11 @@ export async function requireChatRoomUserMembership(
     select: {
       id: true,
       organizationId: true,
+      userMembers: {
+        where: { userId },
+        select: { access: true },
+        take: 1,
+      },
     },
   });
 
@@ -1402,7 +1456,38 @@ export async function requireChatRoomUserMembership(
     throw notFound("Room not found");
   }
 
-  await assertRoomOrganizationAccess(room.organizationId, userId, tx);
+  await assertRoomOrganizationAccessUnlessGuest(
+    room.organizationId,
+    userId,
+    room.userMembers?.[0]?.access,
+    tx,
+  );
+
+  return {
+    id: room.id,
+    organizationId: room.organizationId,
+  };
+}
+
+/**
+ * Host-org room member (`access=member`) on an external channel may invite
+ * guests. Guests and non-external rooms are rejected.
+ */
+export async function requireRoomMemberCanInviteGuests(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<ChatRoomWithMembers> {
+  const room = await requireChatRoomUserAccess(roomId, userId, tx);
+
+  if (room.kind !== "channel" || room.discoverability !== "external") {
+    throw notFound("Room not found");
+  }
+
+  const access = membershipAccessForUser(room.userMembers, userId);
+  if (access === "guest") {
+    throw forbidden("Only host organization members can invite guests.");
+  }
 
   return room;
 }

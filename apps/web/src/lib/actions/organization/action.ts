@@ -1,9 +1,14 @@
 "use server";
 
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { err, ok } from "neverthrow";
 import * as z from "zod";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
 import { getEnvSecrets } from "@/config/env.secrets";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { MemberRole } from "@/lib/clients/generated/core";
@@ -17,7 +22,6 @@ import {
   organizationService,
 } from "@/lib/services/organization.service";
 import { userService } from "@/lib/services/user.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -25,25 +29,29 @@ import {
 
 export async function generateOrganizationSlug(
   data: OrganizationInformationFormSchemaType,
-): Promise<Result<string, ActionError>> {
+): Promise<ActionResultDto<string, ActionError>> {
   try {
     const parsedResult = organizationInformationFormSchema().safeParse(data);
     if (!parsedResult.success) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+        }),
+      );
     }
 
     const slug = await organizationService.generateOrganizationSlugFromName(
       parsedResult.data.name,
     );
 
-    return Ok(slug);
+    return toActionResult(ok(slug));
   } catch (error) {
     console.error("Error generating organization slug", error);
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      }),
+    );
   }
 }
 
@@ -80,33 +88,39 @@ function parseBulkInviteEmails(rawEmails: string): string[] | null {
 
 export const inviteOrganizationMembersBulk = withSession<
   InviteOrganizationMembersBulkParameters,
-  Result<{ results: BulkInviteResultRow[] }, ActionError>
+  ActionResultDto<{ results: BulkInviteResultRow[] }, ActionError>
 >(async ({ organizationId, rawEmails }) => {
   const parsedResult = bulkInviteEmailsSchema.safeParse({
     organizationId,
     rawEmails,
   });
   if (!parsedResult.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsedResult.error.issues[0]?.message,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsedResult.error.issues[0]?.message,
+      }),
+    );
   }
 
   const emails = parseBulkInviteEmails(parsedResult.data.rawEmails);
   if (!emails || emails.length === 0) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: "Enter at least one valid email address",
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Enter at least one valid email address",
+      }),
+    );
   }
 
   const invitationLimit = getEnvSecrets().ORG_INVITATION_LIMIT;
   if (emails.length > invitationLimit) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: `You can invite up to ${invitationLimit} members at a time`,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: `You can invite up to ${invitationLimit} members at a time`,
+      }),
+    );
   }
 
   try {
@@ -115,31 +129,39 @@ export const inviteOrganizationMembersBulk = withSession<
     );
 
     if (!member) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: "You are not a member of this organization",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.UNAUTHORIZED,
+          message: "You are not a member of this organization",
+        }),
+      );
     }
 
     if (!isOrganizationOwnerOrAdmin(member.role)) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: "Only organization owners and admins can invite members",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.UNAUTHORIZED,
+          message: "Only organization owners and admins can invite members",
+        }),
+      );
     }
 
-    return Ok(
-      await organizationService.inviteMultipleMembers(
-        parsedResult.data.organizationId,
-        emails,
-        MemberRole.MEMBER,
+    return toActionResult(
+      ok(
+        await organizationService.inviteMultipleMembers(
+          parsedResult.data.organizationId,
+          emails,
+          MemberRole.MEMBER,
+        ),
       ),
     );
   } catch (error) {
     console.error("Failed to bulk invite organization members", error);
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      }),
+    );
   }
 });
 
@@ -153,17 +175,19 @@ interface UpdatePreferredOrganizationParameters extends AuthenticatedRequest {
 
 export const updatePreferredOrganization = withSession<
   UpdatePreferredOrganizationParameters,
-  Result<{ organizationId: string | null }, ActionError>
+  ActionResultDto<{ organizationId: string | null }, ActionError>
 >(async ({ organizationId, session }) => {
   const parsedResult = updatePreferredOrganizationSchema.safeParse({
     organizationId,
   });
 
   if (!parsedResult.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsedResult.error.issues[0]?.message,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsedResult.error.issues[0]?.message,
+      }),
+    );
   }
 
   const previousOrganizationId = session.session.activeOrganizationId ?? null;
@@ -179,18 +203,22 @@ export const updatePreferredOrganization = withSession<
       previousOrganizationId,
     });
 
-    return Ok({
-      organizationId: data.organizationId,
-    });
+    return toActionResult(
+      ok({
+        organizationId: data.organizationId,
+      }),
+    );
   } catch (error) {
     if (
       error instanceof CoreApiRequestError &&
       error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED
     ) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: "You are not a member of this organization",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.UNAUTHORIZED,
+          message: "You are not a member of this organization",
+        }),
+      );
     }
 
     throw error;

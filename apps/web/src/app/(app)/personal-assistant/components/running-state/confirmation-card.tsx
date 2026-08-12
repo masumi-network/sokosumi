@@ -252,11 +252,11 @@ export function ConfirmationCard({
       toast.error(result.error.message ?? t("approveFailed"));
       return;
     }
-    const { status } = result.data;
+    const { status } = result.value;
     const resolutionOrgId = workspaceSelection?.organizationId;
 
     if (status === "errored") {
-      toast.error(result.data.error ?? t("erroredAfterApproval"));
+      toast.error(result.value.error ?? t("erroredAfterApproval"));
       return;
     }
     if (status === "approved") {
@@ -318,10 +318,10 @@ export function ConfirmationCard({
       toast.error(result.error.message ?? t("rejectFailed"));
       return;
     }
-    const { status } = result.data;
+    const { status } = result.value;
 
     if (status === "errored") {
-      toast.error(result.data.error ?? t("rejectFailed"));
+      toast.error(result.value.error ?? t("rejectFailed"));
       return;
     }
     if (status === "rejected") {

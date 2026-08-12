@@ -74,10 +74,10 @@ export function TaskList({ initialPage }: TaskListProps) {
         return;
       }
       setTasks((current) =>
-        cursor ? [...current, ...result.data.tasks] : result.data.tasks,
+        cursor ? [...current, ...result.value.tasks] : result.value.tasks,
       );
-      setTotal(result.data.total);
-      setNextCursor(result.data.nextCursor);
+      setTotal(result.value.total);
+      setNextCursor(result.value.nextCursor);
     });
   }
 

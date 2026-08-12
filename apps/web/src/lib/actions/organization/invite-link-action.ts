@@ -1,6 +1,11 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import * as z from "zod";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
@@ -9,7 +14,6 @@ import type {
   OrganizationInviteLink,
   ResolveOrganizationInviteLink,
 } from "@/lib/clients/generated/core";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import { parseOrganizationInviteToken } from "@/lib/utils/invite-link-token";
 import {
   type AuthenticatedRequest,
@@ -52,7 +56,7 @@ interface CreateOrganizationInviteLinkParameters extends AuthenticatedRequest {
 
 export const createOrganizationInviteLink = withSession<
   CreateOrganizationInviteLinkParameters,
-  Result<OrganizationInviteLink, ActionError>
+  ActionResultDto<OrganizationInviteLink, ActionError>
 >(async ({ organizationId, expiresInDays, maxUses }) => {
   const parsed = createInviteLinkSchema.safeParse({
     organizationId,
@@ -60,10 +64,12 @@ export const createOrganizationInviteLink = withSession<
     maxUses,
   });
   if (!parsed.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsed.error.issues[0]?.message,
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsed.error.issues[0]?.message,
+      }),
+    );
   }
 
   try {
@@ -78,10 +84,10 @@ export const createOrganizationInviteLink = withSession<
           : {}),
       },
     );
-    return Ok(data);
+    return toActionResult(ok(data));
   } catch (error) {
     console.error("Failed to create organization invite link", error);
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -92,18 +98,18 @@ interface RevokeOrganizationInviteLinkParameters extends AuthenticatedRequest {
 
 export const revokeOrganizationInviteLink = withSession<
   RevokeOrganizationInviteLinkParameters,
-  Result<null, ActionError>
+  ActionResultDto<null, ActionError>
 >(async ({ organizationId, token }) => {
   if (!organizationId || !token) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
     await coreClient.revokeOrganizationInviteLink(organizationId, token);
-    return Ok(null);
+    return toActionResult(ok(null));
   } catch (error) {
     console.error("Failed to revoke organization invite link", error);
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -125,19 +131,19 @@ export interface OrganizationInviteLinkPreview
  */
 export const resolveOrganizationInviteLinkPreview = withSession<
   ResolveOrganizationInviteLinkPreviewParameters,
-  Result<OrganizationInviteLinkPreview, ActionError>
+  ActionResultDto<OrganizationInviteLinkPreview, ActionError>
 >(async ({ tokenOrUrl }) => {
   const token = parseOrganizationInviteToken(tokenOrUrl);
   if (!token) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
     const { data } = await coreClient.resolveOrganizationInviteLink(token);
-    return Ok({ ...data, token });
+    return toActionResult(ok({ ...data, token }));
   } catch (error) {
     console.error("Failed to resolve organization invite link", error);
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });
 
@@ -147,17 +153,17 @@ interface AcceptOrganizationInviteLinkParameters extends AuthenticatedRequest {
 
 export const acceptOrganizationInviteLink = withSession<
   AcceptOrganizationInviteLinkParameters,
-  Result<AcceptOrganizationInviteLink, ActionError>
+  ActionResultDto<AcceptOrganizationInviteLink, ActionError>
 >(async ({ token }) => {
   if (!token) {
-    return Err({ code: CommonErrorCode.BAD_INPUT });
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
   }
 
   try {
     const { data } = await coreClient.acceptOrganizationInviteLink(token);
-    return Ok(data);
+    return toActionResult(ok(data));
   } catch (error) {
     console.error("Failed to accept organization invite link", error);
-    return Err(toActionError(error));
+    return toActionResult(err(toActionError(error)));
   }
 });

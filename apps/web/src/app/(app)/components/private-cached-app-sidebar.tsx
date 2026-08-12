@@ -9,15 +9,12 @@ import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-ven
 import { getEnvPublicConfig } from "@/config/env.public";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
-import {
-  type ChatRoomsPage,
-  chatRoomService,
-  userService,
-} from "@/lib/services";
+import { chatRoomService } from "@/lib/services";
 import { resolvePlanName } from "@/lib/utils/plan-label";
 
 import {
   getCachedMyCredits,
+  getPrivateCachedChatListChrome,
   privateSidebarOrgTag,
   privateSidebarUserTag,
 } from "./private-sidebar-cache";
@@ -29,11 +26,6 @@ interface PrivateCachedAppSidebarProps {
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
 }
-
-const EMPTY_ROOMS_PAGE: ChatRoomsPage = {
-  rooms: [],
-  nextCursor: null,
-};
 
 /**
  * Session-aware sidebar chrome for Instant Navigations.
@@ -58,39 +50,40 @@ export default async function PrivateCachedAppSidebar({
   const lowCreditsThreshold =
     getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD;
 
-  const membersPromise = userService
-    .getMyMembersWithOrganizations()
-    .catch(() => []);
+  // Membership-visible rooms + archived + members: shared private-cache slice
+  // with `/chat/chats` so cold composition does not double-hit Core (SOK-779).
   // Personal coworker directs exist with no active org; Core returns those when
-  // organization context is null. Named channels still need an org (empty list then).
-  const chatRoomsPromise = chatRoomService
-    .listRooms()
-    .catch(() => EMPTY_ROOMS_PAGE);
-  const archivedChatRoomsPromise = activeOrganizationId
-    ? chatRoomService.listArchivedRooms().catch(() => EMPTY_ROOMS_PAGE)
-    : Promise.resolve(EMPTY_ROOMS_PAGE);
+  // organization context is null. Guest rooms (any host org) are mixed into the
+  // list. Pending invites stay sidebar-only (invitee External section).
+  const chatListChromePromise = getPrivateCachedChatListChrome({
+    userId: sessionUser.id,
+    activeOrganizationId,
+  });
+  const pendingInvitationsPromise = chatRoomService
+    .listPendingInvitations()
+    .catch(() => []);
   const creditsPromise = getCachedMyCredits();
 
   const [
     tPlan,
-    members,
-    chatRoomsPage,
-    archivedChatRoomsPage,
+    chatListChrome,
+    pendingChatRoomInvitations,
     { showVendors: showDeveloperVendors },
     creditsResult,
   ] = await Promise.all([
     tPlanPromise,
-    membersPromise,
-    chatRoomsPromise,
-    archivedChatRoomsPromise,
+    chatListChromePromise,
+    pendingInvitationsPromise,
     getDeveloperVendorAdminAccess(),
     creditsPromise,
   ]);
 
-  const chatRooms = chatRoomsPage.rooms;
-  const chatRoomsNextCursor = chatRoomsPage.nextCursor;
-  const archivedChatRooms = archivedChatRoomsPage.rooms;
-  const archivedChatRoomsNextCursor = archivedChatRoomsPage.nextCursor;
+  const { members } = chatListChrome;
+  const chatRooms = chatListChrome.chatRoomsPage.rooms;
+  const chatRoomsNextCursor = chatListChrome.chatRoomsPage.nextCursor;
+  const archivedChatRooms = chatListChrome.archivedChatRoomsPage.rooms;
+  const archivedChatRoomsNextCursor =
+    chatListChrome.archivedChatRoomsPage.nextCursor;
 
   const creditsData = creditsResult?.data.credits ?? null;
   const currentPlan = creditsData?.subscription?.plan ?? "free";
@@ -136,6 +129,7 @@ export default async function PrivateCachedAppSidebar({
         canDeleteArchivedRooms={canDeleteArchivedRooms}
         chatRooms={chatRooms}
         chatRoomsNextCursor={chatRoomsNextCursor}
+        pendingChatRoomInvitations={pendingChatRoomInvitations}
         creditsData={creditsData}
         creditUsage={resolveCreditUsage(creditsData)}
         currentTimestampMs={currentTimestampMs}

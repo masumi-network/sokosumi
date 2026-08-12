@@ -15,7 +15,7 @@ export async function searchOrganizationsClient(
   if (!result.ok) {
     throw new Error(result.error.message ?? "Failed to search organizations");
   }
-  return result.data;
+  return result.value;
 }
 
 export async function searchUsersClient(
@@ -25,5 +25,5 @@ export async function searchUsersClient(
   if (!result.ok) {
     throw new Error(result.error.message ?? "Failed to search users");
   }
-  return result.data;
+  return result.value;
 }

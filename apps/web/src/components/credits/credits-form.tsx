@@ -166,7 +166,7 @@ export default function CreditsForm({
 
       if (result.ok) {
         fireGTMEvent.beginCheckout();
-        window.location.href = result.data.url;
+        window.location.href = result.value.url;
       } else {
         switch (result.error.code) {
           case CommonErrorCode.UNAUTHENTICATED:

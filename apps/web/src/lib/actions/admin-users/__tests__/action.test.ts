@@ -59,7 +59,7 @@ describe("listAdminUsersAction", () => {
       cursor: undefined,
       limit: 20,
     });
-    expect(result).toEqual({ ok: true, data: page });
+    expect(result).toEqual({ ok: true, value: page });
   });
 
   it("rejects a non-admin session with UNAUTHORIZED", async () => {

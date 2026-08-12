@@ -1,7 +1,12 @@
 "use server";
 
+import { err, ok, type Result } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { validateCoworkerDisplayActionInput } from "@/lib/actions/coworkers/apply-display-action-input";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
@@ -18,7 +23,6 @@ import {
 } from "@/lib/services/admin-coworker.service";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
 import { type UpdateCoworkerDisplayResult } from "@/lib/services/coworker-display.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -51,7 +55,7 @@ interface UpdateAdminCoworkerDisplayParameters extends AuthenticatedRequest {
 
 export const updateAdminCoworkerDisplayAction = withSession<
   UpdateAdminCoworkerDisplayParameters,
-  Result<UpdateCoworkerDisplayResult, ActionError>
+  ActionResultDto<UpdateCoworkerDisplayResult, ActionError>
 >(async ({ session, id, patchBody, imageIntent, imageFile }) => {
   try {
     assertAdminSession(session);
@@ -63,7 +67,7 @@ export const updateAdminCoworkerDisplayAction = withSession<
       imageFile,
     });
     if (validatedInput.isErr()) {
-      return Err(validatedInput.error);
+      return toActionResult(err(validatedInput.error));
     }
 
     const result = await adminCoworkerService.updateDisplay(
@@ -71,9 +75,9 @@ export const updateAdminCoworkerDisplayAction = withSession<
     );
 
     revalidateAdminCoworkerRoutes(validatedInput.value.id);
-    return Ok(result);
+    return toActionResult(ok(result));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -83,6 +87,10 @@ interface UpdateAdminCoworkerControlsParameters extends AuthenticatedRequest {
   priority?: number;
 }
 
+/**
+ * In-process validation only — returns neverthrow Result.
+ * Map to ActionResultDto at the server-action boundary via toActionResult.
+ */
 function sanitizeControlsPatchBody(
   input: Pick<
     UpdateAdminCoworkerControlsParameters,
@@ -97,7 +105,7 @@ function sanitizeControlsPatchBody(
       (capability) => !ADMIN_COWORKER_CAPABILITIES.includes(capability),
     );
     if (invalidCapability) {
-      return Err({
+      return err({
         code: CommonErrorCode.BAD_INPUT,
         message: `Invalid capability: ${invalidCapability}`,
       });
@@ -107,7 +115,7 @@ function sanitizeControlsPatchBody(
 
   if (input.priority !== undefined) {
     if (!Number.isInteger(input.priority)) {
-      return Err({
+      return err({
         code: CommonErrorCode.BAD_INPUT,
         message: "Priority must be an integer",
       });
@@ -116,18 +124,18 @@ function sanitizeControlsPatchBody(
   }
 
   if (Object.keys(patchBody).length === 0) {
-    return Err({
+    return err({
       code: CommonErrorCode.BAD_INPUT,
       message: "No coworker control changes to save",
     });
   }
 
-  return Ok(patchBody);
+  return ok(patchBody);
 }
 
 export const updateAdminCoworkerControlsAction = withSession<
   UpdateAdminCoworkerControlsParameters,
-  Result<
+  ActionResultDto<
     {
       coworker: Awaited<ReturnType<typeof adminCoworkerService.updateControls>>;
     },
@@ -141,19 +149,19 @@ export const updateAdminCoworkerControlsAction = withSession<
       capabilities,
       priority,
     });
-    if (!sanitizeResult.ok) {
-      return sanitizeResult;
+    if (sanitizeResult.isErr()) {
+      return toActionResult(err(sanitizeResult.error));
     }
 
     const coworker = await adminCoworkerService.updateControls(
       id,
-      sanitizeResult.data,
+      sanitizeResult.value,
     );
 
     revalidateAdminCoworkerRoutes(id);
-    return Ok({ coworker });
+    return toActionResult(ok({ coworker }));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -164,7 +172,7 @@ interface UpdateAdminCoworkerWhitelistParameters extends AuthenticatedRequest {
 
 export const updateAdminCoworkerWhitelistAction = withSession<
   UpdateAdminCoworkerWhitelistParameters,
-  Result<
+  ActionResultDto<
     {
       coworker: Awaited<
         ReturnType<typeof adminCoworkerService.updateWhitelist>
@@ -182,9 +190,9 @@ export const updateAdminCoworkerWhitelistAction = withSession<
     );
 
     revalidateAdminCoworkerRoutes(id);
-    return Ok({ coworker });
+    return toActionResult(ok({ coworker }));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -194,7 +202,7 @@ interface ArchiveAdminCoworkerParameters extends AuthenticatedRequest {
 
 export const archiveAdminCoworkerAction = withSession<
   ArchiveAdminCoworkerParameters,
-  Result<
+  ActionResultDto<
     {
       coworker: Awaited<
         ReturnType<typeof adminCoworkerService.archiveCoworker>
@@ -209,9 +217,9 @@ export const archiveAdminCoworkerAction = withSession<
     const coworker = await adminCoworkerService.archiveCoworker(id);
 
     revalidateAdminCoworkerRoutes(id);
-    return Ok({ coworker });
+    return toActionResult(ok({ coworker }));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -221,7 +229,7 @@ interface UnarchiveAdminCoworkerParameters extends AuthenticatedRequest {
 
 export const unarchiveAdminCoworkerAction = withSession<
   UnarchiveAdminCoworkerParameters,
-  Result<
+  ActionResultDto<
     {
       coworker: Awaited<
         ReturnType<typeof adminCoworkerService.unarchiveCoworker>
@@ -236,9 +244,9 @@ export const unarchiveAdminCoworkerAction = withSession<
     const coworker = await adminCoworkerService.unarchiveCoworker(id);
 
     revalidateAdminCoworkerRoutes(id);
-    return Ok({ coworker });
+    return toActionResult(ok({ coworker }));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
@@ -277,7 +285,7 @@ function toAccessTargetBody(parsed: {
 
 export const grantAdminCoworkerEarlyAccessAction = withSession<
   GrantAdminCoworkerEarlyAccessParameters,
-  Result<{ accessId: string; status: string }, ActionError>
+  ActionResultDto<{ accessId: string; status: string }, ActionError>
 >(async ({ session, coworkerId, targetType, targetId }) => {
   try {
     assertAdminSession(session);
@@ -288,7 +296,7 @@ export const grantAdminCoworkerEarlyAccessAction = withSession<
       targetId,
     });
     if (!parsed.success) {
-      return Err({ code: CommonErrorCode.BAD_INPUT });
+      return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
     }
 
     const access = await coworkerAccessService.createForCoworker(
@@ -297,16 +305,16 @@ export const grantAdminCoworkerEarlyAccessAction = withSession<
     );
 
     revalidateAdminCoworkerRoutes(parsed.data.coworkerId);
-    return Ok({ accessId: access.id, status: access.status });
+    return toActionResult(ok({ accessId: access.id, status: access.status }));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });
 
 /** Revoke GRANTED access for a list row (by workspace id). */
 export const revokeAdminCoworkerEarlyAccessAction = withSession<
   RevokeAdminCoworkerEarlyAccessParameters,
-  Result<{ accessId: string; status: string }, ActionError>
+  ActionResultDto<{ accessId: string; status: string }, ActionError>
 >(async ({ session, coworkerId, workspaceId }) => {
   try {
     assertAdminSession(session);
@@ -316,7 +324,7 @@ export const revokeAdminCoworkerEarlyAccessAction = withSession<
       workspaceId,
     });
     if (!parsed.success) {
-      return Err({ code: CommonErrorCode.BAD_INPUT });
+      return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
     }
 
     const access = await coworkerAccessService.forceRevokeForCoworker(
@@ -325,8 +333,8 @@ export const revokeAdminCoworkerEarlyAccessAction = withSession<
     );
 
     revalidateAdminCoworkerRoutes(parsed.data.coworkerId);
-    return Ok({ accessId: access.id, status: access.status });
+    return toActionResult(ok({ accessId: access.id, status: access.status }));
   } catch (error) {
-    return Err(mapCoreError(error));
+    return toActionResult(err(mapCoreError(error)));
   }
 });

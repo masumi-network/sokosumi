@@ -1,17 +1,23 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
+import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { loadMoreProjects } from "@/app/projects/actions";
+import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
 import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
+import { cn } from "@/lib/utils";
 
 import { AddProjectButton } from "./add-project-button";
 import {
   CreateProjectModal,
   CreateProjectModalProvider,
+  useCreateProjectModal,
 } from "./create-project-modal";
 import { ProjectListItem } from "./project-list-item";
 
@@ -50,6 +56,18 @@ interface ProjectsViewProps {
   initialCreateProjectOpen: boolean;
   createProjectModalResetKey: string;
   labels: ProjectsViewLabels;
+}
+
+function ProjectsMobileCreateFabSlot() {
+  const { handleOpen } = useCreateProjectModal();
+  const t = useTranslations("App.Projects");
+
+  return (
+    <ListMobileCreateFab
+      ariaLabel={t("createProjectFab")}
+      onOpen={handleOpen}
+    />
+  );
 }
 
 export function ProjectsView({
@@ -93,13 +111,20 @@ export function ProjectsView({
       key={createProjectModalResetKey}
       initialOpen={initialCreateProjectOpen}
     >
-      <div className="flex flex-col gap-5">
-        <div className="flex justify-end">
+      <div
+        className={cn("flex flex-col gap-5", LIST_MOBILE_CREATE_FAB_CLEARANCE)}
+      >
+        <div className="hidden justify-end md:flex">
           <AddProjectButton label={labels.newProject} className="self-start" />
         </div>
 
         {hasLoadedProjects ? (
-          <div className="bg-muted/30 border-border/50 overflow-hidden rounded-xl border">
+          <div
+            className={cn(
+              "bg-muted/30 border-border/50 -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
+              PROJECTS_LIST_CARD_MIN_H_CLASS,
+            )}
+          >
             <div className="divide-border/50 divide-y px-2">
               {items.map((project) => (
                 <ProjectListItem
@@ -134,6 +159,7 @@ export function ProjectsView({
           </div>
         ) : null}
       </div>
+      <ProjectsMobileCreateFabSlot />
       <CreateProjectModal />
     </CreateProjectModalProvider>
   );
@@ -145,7 +171,12 @@ function ProjectsEmptyState({
   labels: ProjectsViewLabels["empty"];
 }) {
   return (
-    <div className="bg-muted/30 border-border/50 flex min-h-[320px] flex-col items-center justify-center rounded-xl border px-6 py-12 text-center">
+    <div
+      className={cn(
+        "bg-muted/30 border-border/50 flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center",
+        PROJECTS_LIST_CARD_MIN_H_CLASS,
+      )}
+    >
       <div className="max-w-sm">
         <h2 className="text-foreground text-lg font-semibold">
           {labels.title}

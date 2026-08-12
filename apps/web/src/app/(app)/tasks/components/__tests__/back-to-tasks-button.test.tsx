@@ -8,6 +8,7 @@ const routerPrefetchMock = vi.fn();
 const routerPushMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/tasks/task-1",
   useRouter: () => ({
     prefetch: routerPrefetchMock,
     push: routerPushMock,

@@ -17,6 +17,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -49,7 +50,6 @@ import {
   type NormalizedMention,
 } from "@/components/ui/mention-textarea";
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomUserParticipant,
@@ -67,6 +67,7 @@ import {
   formatRoomMarkdownMentions,
   type PendingRoomQuote,
   partitionRoomMentionSuggestions,
+  ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
 } from "./room-helpers";
 
@@ -195,7 +196,7 @@ function PendingQuotePreview({
           ) : null}
           {quote.snippet.trim() ? (
             <div className="text-muted-foreground line-clamp-4 min-w-0 flex-1 text-xs leading-5">
-              <Markdown className="prose-p:my-0 prose-p:leading-5 prose-ul:my-0 prose-ol:my-0 prose-pre:my-0">
+              <Markdown className={ROOM_QUOTE_MARKDOWN_CLASSNAME}>
                 {formatRoomMarkdownMentions({
                   content: quote.snippet,
                   coworkersById,
@@ -296,8 +297,10 @@ export function RoomComposer({
     ? onSelectedKeysChange
     : undefined;
 
-  // Stored pref wins; else desktop open / mobile closed (SOK-681). No resize re-apply.
-  useMountEffect(() => {
+  // Stored pref wins; else desktop open / mobile closed (SOK-681).
+  // useLayoutEffect: apply before paint so Instant → real composer does not
+  // grow a second time when the format strip opens after first paint.
+  useLayoutEffect(() => {
     setFormatToolbarOpen(
       resolveFormatToolbarOpenOnMount({
         stored: getFormatToolbarOpenPreference(),
@@ -305,9 +308,10 @@ export function RoomComposer({
         mobileBreakpoint: MOBILE_BREAKPOINT,
       }),
     );
-  });
+  }, []);
 
-  useMountEffect(() => {
+  // Re-run when focusOnMount flips true (e.g. progressive history ready).
+  useEffect(() => {
     if (!focusOnMount) {
       return;
     }
@@ -315,7 +319,7 @@ export function RoomComposer({
       editorRef.current?.focus();
     });
     return () => cancelAnimationFrame(frame);
-  });
+  }, [focusOnMount]);
 
   // After paint so the format strip / quote chip have height before scroll.
   useEffect(() => {

@@ -104,6 +104,7 @@ describe("GET /chats/rooms/{id}/stream/messages", () => {
     roomFindFirstMock.mockResolvedValue({
       id: ROOM_ID,
       organizationId: "org_1",
+      userMembers: [{ access: "member" }],
     });
     chatRoomMessageFindManyMock.mockResolvedValue([]);
 
@@ -123,6 +124,7 @@ describe("GET /chats/rooms/{id}/stream/messages", () => {
     roomFindFirstMock.mockResolvedValue({
       id: ROOM_ID,
       organizationId: "org_1",
+      userMembers: [{ access: "member" }],
     });
     chatRoomMessageCountMock.mockResolvedValue(2);
     // findMany is newest-first; handler reverses to reading order.
@@ -177,6 +179,7 @@ describe("GET /chats/rooms/{id}/stream/messages", () => {
     roomFindFirstMock.mockResolvedValue({
       id: ROOM_ID,
       organizationId: "org_1",
+      userMembers: [{ access: "member" }],
     });
     chatRoomMessageCountMock.mockResolvedValue(3);
     chatRoomMessageFindManyMock.mockResolvedValue([

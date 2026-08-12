@@ -1,10 +1,14 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 
 export interface AgentRatingError {
   code:
@@ -51,31 +55,37 @@ export async function createAgentRating(
   agentId: string,
   rating: number,
   comment?: string,
-): Promise<Result<void, AgentRatingError>> {
+): Promise<ActionResultDto<void, AgentRatingError>> {
   try {
     // Validate session
     const session = await getSession();
     if (!session) {
-      return Err({
-        code: "UNAUTHORIZED",
-        message: "You must be logged in to rate an agent",
-      });
+      return toActionResult(
+        err({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in to rate an agent",
+        }),
+      );
     }
 
     // Validate rating
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      return Err({
-        code: "INVALID_RATING",
-        message: "Rating must be an integer between 1 and 5",
-      });
+      return toActionResult(
+        err({
+          code: "INVALID_RATING",
+          message: "Rating must be an integer between 1 and 5",
+        }),
+      );
     }
 
     // Validate comment length
     if (comment && comment.length > 1000) {
-      return Err({
-        code: "INVALID_INPUT",
-        message: "Comment must be 1000 characters or less",
-      });
+      return toActionResult(
+        err({
+          code: "INVALID_INPUT",
+          message: "Comment must be 1000 characters or less",
+        }),
+      );
     }
 
     // Core enforces the eligibility gate (a finished job with the agent) and
@@ -89,15 +99,17 @@ export async function createAgentRating(
     revalidatePath(`/agents/${agentId}`, "layout");
     revalidatePath("/agents");
 
-    return Ok(undefined);
+    return toActionResult(ok(undefined));
   } catch (error) {
     if (error instanceof CoreApiRequestError) {
-      return Err(mapCoreErrorToRatingError(error));
+      return toActionResult(err(mapCoreErrorToRatingError(error)));
     }
     console.error("Error creating agent rating:", error);
-    return Err({
-      code: "UNKNOWN",
-      message: "An unexpected error occurred while submitting your rating",
-    });
+    return toActionResult(
+      err({
+        code: "UNKNOWN",
+        message: "An unexpected error occurred while submitting your rating",
+      }),
+    );
   }
 }

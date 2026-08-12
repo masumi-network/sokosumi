@@ -5,6 +5,7 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CHAT_API_PATH } from "@/app/chat/utils/chat-route-base";
+import { reasoningStepsForMetadata } from "@/app/chat/utils/coworker-thought";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import { clearPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import type {
@@ -21,6 +22,31 @@ const autoStreamStartedRoomIds = new Set<string>();
 
 /** Empty coworker shell shown while resume SSE is active but messages empty. */
 export const RESUME_PENDING_STREAM_MESSAGE_ID = "stream:resume-pending";
+
+/**
+ * First-seen wall clock for a stream overlay message id. Reuses the stored
+ * value so elapsed timers do not reset when the overlay useMemo reruns on
+ * each stream chunk.
+ */
+export function assignStableOverlayCreatedAtMs(
+  map: Map<string, number>,
+  key: string,
+  indexHint: number,
+  nowMs: number = Date.now(),
+): number {
+  const existing = map.get(key);
+  if (existing != null) {
+    return existing;
+  }
+  let ms = nowMs + indexHint;
+  for (const value of map.values()) {
+    if (value >= ms) {
+      ms = value + 1;
+    }
+  }
+  map.set(key, ms);
+  return ms;
+}
 
 function streamParentStorageKey(roomId: string): string {
   return `sokosumi:room-stream-parent:${roomId}`;
@@ -121,6 +147,14 @@ function uiMessageToTransientRoomMessage({
   parentMessageId: string | null;
 }): ChatRoomMessage {
   const content = extractMessageContent(message);
+  const reasoningSteps =
+    message.role === "assistant"
+      ? reasoningStepsForMetadata(message.parts)
+      : undefined;
+  const assistantMetadata: Record<string, unknown> = {
+    streaming: true,
+    ...(reasoningSteps ? { reasoning: reasoningSteps } : {}),
+  };
 
   if (message.role === "user") {
     return {
@@ -157,7 +191,7 @@ function uiMessageToTransientRoomMessage({
     reactions: [],
     threadReplyCount: 0,
     threadLastReplyAt: null,
-    metadata: { streaming: true },
+    metadata: assistantMetadata,
     quote: null,
     membership: null,
     unfurls: null,
@@ -213,11 +247,12 @@ export interface UseCoworkerDirectRoomStreamResult {
   /**
    * Stream a top-level turn, or a thread reply when `parentMessageId` is set.
    * Optional `quote` snapshots another same-room message on the user persist.
+   * Returns true when the turn actually started (enabled + room + non-empty text).
    */
   sendStreamMessage: (
     text: string,
     options?: CoworkerStreamSendOptions,
-  ) => void;
+  ) => boolean;
   /** Consume a one-shot draft pending message for this room (Strict Mode safe). */
   consumePendingStreamMessage: (text: string) => void;
 }
@@ -239,15 +274,27 @@ export function useCoworkerDirectRoomStream({
   const [streamParentMessageId, setStreamParentMessageId] = useState<
     string | null
   >(null);
+  /**
+   * First-seen wall clock per useChat message id so overlay `createdAt` (and
+   * thus live elapsed timers) do not reset on every stream chunk recompute.
+   */
+  const overlayCreatedAtByMessageIdRef = useRef(new Map<string, number>());
 
   // Restore thread parent for mid-stream resume (sessionStorage survives remount).
   useEffect(() => {
     if (!roomId) {
       setStreamParentMessageId(null);
+      overlayCreatedAtByMessageIdRef.current.clear();
       return;
     }
     setStreamParentMessageId(readStoredStreamParentMessageId(roomId));
   }, [roomId]);
+
+  useEffect(() => {
+    if (!enabled) {
+      overlayCreatedAtByMessageIdRef.current.clear();
+    }
+  }, [enabled]);
 
   const transport = useMemo(
     () =>
@@ -355,7 +402,13 @@ export function useCoworkerDirectRoomStream({
     if (!enabled || !roomId) {
       return [];
     }
-    const baseMs = Date.now();
+    const createdAtById = overlayCreatedAtByMessageIdRef.current;
+    function stableCreatedAt(key: string, indexHint: number): Date {
+      return new Date(
+        assignStableOverlayCreatedAtMs(createdAtById, key, indexHint),
+      );
+    }
+
     // Resume gap: only `streaming` (active SSE) before first chunk — not
     // `submitted` (idle enter / 204 would flash Thinking…).
     if (messages.length === 0) {
@@ -371,14 +424,33 @@ export function useCoworkerDirectRoomStream({
           createResumePendingCoworkerShell({
             roomId,
             coworker,
-            createdAt: new Date(baseMs),
+            createdAt: stableCreatedAt(RESUME_PENDING_STREAM_MESSAGE_ID, 0),
             parentMessageId: streamParentMessageId,
           }),
         ];
       }
       return [];
     }
-    // Index-offset createdAt keeps useChat order when clocks share a ms.
+
+    // Drop keys for messages no longer in the live stream (turn finished / replaced).
+    const liveIds = new Set(
+      messages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m) => m.id),
+    );
+    for (const key of [...createdAtById.keys()]) {
+      if (key === RESUME_PENDING_STREAM_MESSAGE_ID) {
+        if (liveIds.size > 0) {
+          createdAtById.delete(key);
+        }
+        continue;
+      }
+      if (!liveIds.has(key)) {
+        createdAtById.delete(key);
+      }
+    }
+
+    // Stable createdAt keeps elapsed timers from resetting on each chunk.
     // Keep empty assistant shells so the coworker avatar/name show while tokens
     // arrive (merge appends overlay in array order — user stays first).
     return messages
@@ -391,7 +463,7 @@ export function useCoworkerDirectRoomStream({
           roomId,
           currentUser,
           coworker,
-          createdAt: new Date(baseMs + index),
+          createdAt: stableCreatedAt(message.id, index),
           parentMessageId: streamParentMessageId,
         }),
       );
@@ -406,10 +478,10 @@ export function useCoworkerDirectRoomStream({
   ]);
 
   const sendStreamMessage = useCallback(
-    (text: string, options?: CoworkerStreamSendOptions) => {
+    (text: string, options?: CoworkerStreamSendOptions): boolean => {
       const trimmed = text.trim();
       if (!enabled || !roomId || !trimmed) {
-        return;
+        return false;
       }
       const parentMessageId = options?.parentMessageId?.trim() || null;
       // Shared useChat instance — clear leftover turns so a failed settle cannot
@@ -421,6 +493,7 @@ export function useCoworkerDirectRoomStream({
         { text: trimmed },
         buildCoworkerStreamSendMessageOptions(options),
       );
+      return true;
     },
     [enabled, roomId, sendMessage, setMessages],
   );
@@ -437,8 +510,12 @@ export function useCoworkerDirectRoomStream({
       if (!trimmed) {
         return;
       }
+      // Mark before send so Strict Mode double-invoke cannot double-start.
+      // Roll back if the stream hook declined the turn.
       autoStreamStartedRoomIds.add(roomId);
-      sendStreamMessage(trimmed);
+      if (!sendStreamMessage(trimmed)) {
+        autoStreamStartedRoomIds.delete(roomId);
+      }
     },
     [roomId, sendStreamMessage],
   );

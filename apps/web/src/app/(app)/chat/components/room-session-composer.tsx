@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
+import { takeRoomComposerPrefill } from "@/app/chat/onboarding/composer-prefill";
 import {
   type ComposeDraft,
   clearComposeDraft,
@@ -59,6 +60,11 @@ interface RoomSessionComposerProps {
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   onChromeResize?: () => void;
+  /**
+   * Autofocus editor. Progressive room open keeps this false while history is
+   * pending so Instant→shell does not open the OSK / jump selection early.
+   */
+  focusOnMount?: boolean;
   ref?: Ref<RoomComposerHandle>;
   /** Claim in-flight lock with clientMessageId; return false to abort clear. */
   onBeforeSend?: (clientMessageId: string) => boolean;
@@ -78,11 +84,15 @@ export function RoomSessionComposer({
   showMentionShortcut,
   allowAttachments,
   onChromeResize,
+  focusOnMount = true,
   ref,
   onBeforeSend,
   onSend,
 }: RoomSessionComposerProps) {
-  const [composerValue, setComposerValue] = useState("");
+  const [composerValue, setComposerValue] = useState(() => {
+    // Onboarding prefill — never auto-send (distinct from pending-room-message).
+    return takeRoomComposerPrefill(roomId) ?? "";
+  });
   const [composerAttachments, setComposerAttachments] = useState<
     RoomComposerAttachment[]
   >([]);
@@ -104,14 +114,17 @@ export function RoomSessionComposer({
     key: draftKey,
     draft: composeDraft,
     onHydrate: (draft) => {
-      setComposerValue(draft.text);
-      setComposerAttachments(
-        draft.attachments.map((attachment) => ({
-          url: attachment.url,
-          fileName: attachment.fileName,
-          mediaType: attachment.mediaType ?? null,
-        })),
-      );
+      // Prefer persisted compose draft when non-empty; keep mount prefill otherwise.
+      if (draft.text || draft.attachments.length > 0) {
+        setComposerValue(draft.text);
+        setComposerAttachments(
+          draft.attachments.map((attachment) => ({
+            url: attachment.url,
+            fileName: attachment.fileName,
+            mediaType: attachment.mediaType ?? null,
+          })),
+        );
+      }
     },
   });
 
@@ -190,7 +203,7 @@ export function RoomSessionComposer({
       pendingQuote={pendingQuote}
       onClearPendingQuote={onClearPendingQuote}
       onChromeResize={onChromeResize}
-      focusOnMount
+      focusOnMount={focusOnMount}
     />
   );
 }

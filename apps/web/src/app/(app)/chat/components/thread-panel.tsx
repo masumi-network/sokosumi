@@ -109,7 +109,7 @@ export function ThreadPanel({
     scrollerRef,
     contentRef,
     contentMinHeight,
-    scrollToBottom,
+    pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
   } = useStickToBottom({
     resetKey: parentMessage.id,
@@ -127,12 +127,7 @@ export function ThreadPanel({
   ): Promise<RoomSessionSendResult> {
     const result = await onSendReply(request);
     if (result.ok) {
-      // Own send always reveals the new reply, even if typing/composer resize
-      // cleared the sticky flag. Re-pin so ResizeObserver follows late layout.
-      scrollToBottom();
-      requestAnimationFrame(() => {
-        scrollToBottom();
-      });
+      pinToBottomAfterOwnSend();
     }
     return result;
   }

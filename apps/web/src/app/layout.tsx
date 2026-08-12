@@ -14,6 +14,7 @@ import { DynamicTypeRootCap } from "@/components/dynamic-type-root-cap";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { ThemeProvider } from "@/contexts/theme-context";
+import { APP_VIEWPORT_BASE } from "@/lib/app-viewport";
 
 import { RootIntlTree } from "./components/root-intl-tree";
 
@@ -25,15 +26,12 @@ const inter = Inter({
 });
 
 /**
- * `viewport-fit=cover` so iOS `env(safe-area-inset-*)` is non-zero (PWA /
- * notched devices). App, auth, and share chrome must pad those insets —
- * see `app-shell-safe-area.ts`. Required on root (not chat-only) so hub
- * routes like `/tasks` and `/history` keep the same bottom-nav inset.
+ * Root viewport. Safe-area padding for notched / PWA chrome lives in app
+ * shells (`app-shell-safe-area.ts`). Scale lock + fit cover: `APP_VIEWPORT_BASE`.
+ * Chat layout spreads the same base and adds `interactiveWidget`.
  */
 export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
+  ...APP_VIEWPORT_BASE,
 };
 
 export function generateMetadata(): Metadata {

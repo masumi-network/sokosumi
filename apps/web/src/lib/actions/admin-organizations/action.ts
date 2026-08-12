@@ -1,5 +1,11 @@
 "use server";
 
+import { err, ok } from "neverthrow";
+
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
@@ -10,7 +16,6 @@ import {
   type ListAdminOrganizationMembersParams,
   type ListAdminOrganizationsParams,
 } from "@/lib/services/admin-organization.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -37,19 +42,21 @@ interface ListAdminOrganizationsRequest
 
 export const listAdminOrganizationsAction = withSession<
   ListAdminOrganizationsRequest,
-  Result<AdminOrganizationOverviewPage, ActionError>
+  ActionResultDto<AdminOrganizationOverviewPage, ActionError>
 >(async ({ session, query, cursor, limit }) => {
   try {
     assertAdminSession(session);
-    return Ok(
-      await adminOrganizationService.listOrganizations({
-        query,
-        cursor,
-        limit,
-      }),
+    return toActionResult(
+      ok(
+        await adminOrganizationService.listOrganizations({
+          query,
+          cursor,
+          limit,
+        }),
+      ),
     );
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });
 
@@ -61,17 +68,19 @@ interface ListAdminOrganizationMembersRequest
 
 export const listAdminOrganizationMembersAction = withSession<
   ListAdminOrganizationMembersRequest,
-  Result<AdminOrganizationMemberOverviewPage, ActionError>
+  ActionResultDto<AdminOrganizationMemberOverviewPage, ActionError>
 >(async ({ session, slug, cursor, limit }) => {
   try {
     assertAdminSession(session);
-    return Ok(
-      await adminOrganizationService.listOrganizationMembers(slug, {
-        cursor,
-        limit,
-      }),
+    return toActionResult(
+      ok(
+        await adminOrganizationService.listOrganizationMembers(slug, {
+          cursor,
+          limit,
+        }),
+      ),
     );
   } catch (error) {
-    return Err(mapError(error));
+    return toActionResult(err(mapError(error)));
   }
 });

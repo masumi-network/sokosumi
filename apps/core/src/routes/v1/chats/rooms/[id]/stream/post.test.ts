@@ -643,16 +643,11 @@ describe("POST /chats/rooms/{id}/stream", () => {
     expect(response.status).toBe(200);
 
     const streamCall = streamTextMock.mock.calls[0]![0] as {
-      onChunk: (args: { chunk: { type: string } }) => void;
       onFinish: (finishEvent: {
         text: string;
         reasoning?: unknown[];
       }) => Promise<void>;
     };
-
-    streamCall.onChunk({ chunk: { type: "reasoning-start" } });
-    streamCall.onChunk({ chunk: { type: "reasoning-delta" } });
-    streamCall.onChunk({ chunk: { type: "reasoning-end" } });
 
     await streamCall.onFinish({
       text: "Assistant reply",

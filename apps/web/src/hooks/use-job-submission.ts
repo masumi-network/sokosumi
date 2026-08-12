@@ -50,9 +50,6 @@ export function useJobSubmission({
       setLoading(true);
 
       try {
-        let result:
-          | { ok: true; data: { jobId: string } }
-          | { ok: false; error: { code: string } };
         const uploadFiles = async (
           inputData: ReturnType<typeof prepareInputValues>,
         ) => {
@@ -72,7 +69,7 @@ export function useJobSubmission({
         const didUploadFiles = await uploadFiles(transformedInputData);
         if (!didUploadFiles) return;
 
-        result = await startJob({
+        const result = await startJob({
           input: {
             agentId: agentId,
             maxAcceptedCents,
@@ -88,10 +85,10 @@ export function useJobSubmission({
           track("Agent hired", {
             agentId: agentId,
             credits: credits,
-            jobId: result.data.jobId,
+            jobId: result.value.jobId,
           });
           onSuccess();
-          router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
+          router.push(`/agents/${agentId}/jobs/${result.value.jobId}`);
         } else {
           switch (result.error.code) {
             case CommonErrorCode.UNAUTHENTICATED:

@@ -18,6 +18,7 @@ import {
 import { ChannelProvider, useChannel } from "ably/react";
 import { CircleHelp, Plus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
@@ -30,6 +31,8 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
+import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
+import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
   loadJobsTabData,
   loadMoreJobs,
@@ -128,12 +131,21 @@ function HeaderAddButton({ label }: { label: string }) {
     <Button
       size="sm"
       onClick={handleOpen}
-      className="gap-1.5"
+      className="hidden gap-1.5 md:inline-flex"
       data-tasks-add-task-header-anchor
     >
       <Plus className="size-4" aria-hidden />
       <span className="hidden sm:inline">{label}</span>
     </Button>
+  );
+}
+
+function TasksMobileCreateFabSlot() {
+  const { handleOpen } = useCreateTaskModal();
+  const t = useTranslations("App.Tasks");
+
+  return (
+    <ListMobileCreateFab ariaLabel={t("createTaskFab")} onOpen={handleOpen} />
   );
 }
 
@@ -1194,7 +1206,10 @@ export function TasksView({
     <Tabs
       value={activeTab}
       onValueChange={(value: string) => setActiveTab(value as TasksTabValue)}
-      className="flex h-full min-h-0 flex-1 flex-col gap-5"
+      className={cn(
+        "flex h-full min-h-0 flex-1 flex-col gap-5",
+        activeTab === "tasks" && LIST_MOBILE_CREATE_FAB_CLEARANCE,
+      )}
     >
       <div className="flex flex-row items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -1440,6 +1455,7 @@ export function TasksView({
         </LazyAblyProvider>
       ) : null}
       {tabsContent}
+      {activeTab === "tasks" ? <TasksMobileCreateFabSlot /> : null}
       {shouldShowEmptyStateOverlay ? (
         <TasksEmptyStateOverlay
           labels={labels.emptyState}

@@ -16,6 +16,7 @@ import {
   denyMyVendorGrant,
   revokeMyVendorGrant,
 } from "@/lib/actions/account/vendor-grant-action";
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors";
 import {
   approveOrganizationVendorGrant,
@@ -23,7 +24,6 @@ import {
   denyOrganizationVendorGrant,
   revokeOrganizationVendorGrant,
 } from "@/lib/actions/organization";
-import type { Result } from "@/lib/ts-res";
 import {
   isGrantDeniedOrRevoked,
   isGrantGranted,
@@ -169,7 +169,7 @@ function VendorCardActions({
 
   async function approveGrant(
     grantId: string,
-  ): Promise<Result<{ grantId: string }, ActionError>> {
+  ): Promise<ActionResultDto<{ grantId: string }, ActionError>> {
     if (mode === "organization") {
       const id = requireOrganizationId();
       if (!id) {
@@ -185,7 +185,7 @@ function VendorCardActions({
 
   async function denyGrant(
     grantId: string,
-  ): Promise<Result<{ grantId: string }, ActionError>> {
+  ): Promise<ActionResultDto<{ grantId: string }, ActionError>> {
     if (mode === "organization") {
       const id = requireOrganizationId();
       if (!id) {
@@ -201,7 +201,7 @@ function VendorCardActions({
 
   async function revokeGrant(
     grantId: string,
-  ): Promise<Result<{ grantId: string }, ActionError>> {
+  ): Promise<ActionResultDto<{ grantId: string }, ActionError>> {
     if (mode === "organization") {
       const id = requireOrganizationId();
       if (!id) {
@@ -216,7 +216,7 @@ function VendorCardActions({
   }
 
   async function createGrant(): Promise<
-    Result<{ grantId: string }, ActionError>
+    ActionResultDto<{ grantId: string }, ActionError>
   > {
     if (mode === "organization") {
       const id = requireOrganizationId();
@@ -233,7 +233,7 @@ function VendorCardActions({
 
   async function runAction(
     action: VendorCardAction,
-    step: () => Promise<Result<unknown, ActionError>>,
+    step: () => Promise<ActionResultDto<unknown, ActionError>>,
     successKey:
       | "approveSuccess"
       | "denySuccess"

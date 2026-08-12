@@ -36,7 +36,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/members/me",
     description:
-      "Self-join an active channel in the active organization. Public channels are joinable by any org member; private channels by organization owners and admins only. Idempotent when already a member. Unknown, wrong-org, direct, archived, or private-for-plain-member rooms return 404 (or 400 when the locked row is no longer joinable).",
+      "Self-join an active channel in the active organization. Public and external channels are joinable by any org member; private channels by organization owners and admins only. Idempotent when already a member. If the caller is already a guest and is now a host-org member, upgrades access to member. Unknown, wrong-org, direct, archived, or private-for-plain-member rooms return 404 (or 400 when the locked row is no longer joinable). External-channel guests join via room invitation, not this endpoint.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -102,18 +102,31 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userId: userContext.userId,
           },
         },
-        select: { id: true },
+        select: { id: true, access: true },
       });
 
       let createdStatus = [] as Awaited<
         ReturnType<typeof recordChannelMembershipStatus>
       >;
 
-      if (!alreadyMember) {
+      if (alreadyMember?.access === "guest") {
+        // Guest later joined the host org and is self-joining as a real member.
+        // Upgrade in place; no second join status (they were already in the room).
+        await tx.chatRoomUserMember.update({
+          where: {
+            roomId_userId: {
+              roomId: existing.id,
+              userId: userContext.userId,
+            },
+          },
+          data: { access: "member" },
+        });
+      } else if (!alreadyMember) {
         await tx.chatRoomUserMember.create({
           data: {
             roomId: existing.id,
             userId: userContext.userId,
+            access: "member",
           },
         });
         await tx.chatRoomReadState.createMany({

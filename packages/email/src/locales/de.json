@@ -38,6 +38,17 @@
       "footer": "Wenn du diese E-Mail nicht angefordert hast, kannst du sie sicher ignorieren."
     }
   },
+  "chat": {
+    "invitation": {
+      "subject": "Sokosumi - Channel-Einladung",
+      "title": "Tritt {channelName} bei {organizationName} bei",
+      "greeting": "Hallo",
+      "message": "{invitorUsername} hat dich eingeladen, dem Channel {channelName} von {organizationName} auf Sokosumi beizutreten. Klicke auf den Button unten, um die Einladung anzunehmen.",
+      "button": "Einladung annehmen",
+      "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
+      "footer": "Wenn du diese Einladung nicht angefordert hast, kannst du diese E-Mail ignorieren."
+    }
+  },
   "jobs": {
     "finalStatus": {
       "subject": "Sokosumi - {agentName}-Job {status}",

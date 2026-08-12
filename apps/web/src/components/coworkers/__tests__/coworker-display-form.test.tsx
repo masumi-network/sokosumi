@@ -78,7 +78,7 @@ describe("CoworkerDisplayForm", () => {
     const user = userEvent.setup();
     const updateAction = vi.fn().mockResolvedValue({
       ok: true,
-      data: {
+      value: {
         coworker: mockCoreCoworker({ name: "Ops Agent Updated" }),
         imageError: "blob down",
       },
@@ -135,7 +135,7 @@ describe("CoworkerDisplayForm", () => {
 
     resolveAction?.({
       ok: true,
-      data: {
+      value: {
         coworker: mockCoreCoworker({ name: "Ops Agent Renamed" }),
       },
     });

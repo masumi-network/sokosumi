@@ -34,7 +34,7 @@ export default function LoadingState({
         <AuroraOrb
           seed={seed}
           size={96}
-          animate
+          animate={false}
           className="size-20 md:size-24"
           alt={tCommon("hermesAvatarAlt")}
         />

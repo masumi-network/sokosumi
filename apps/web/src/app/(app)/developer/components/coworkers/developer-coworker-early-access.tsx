@@ -72,7 +72,7 @@ export function DeveloperCoworkerEarlyAccess({
       setOrganizationSlug("");
       setEmail("");
       toast.success(
-        result.data.status === "PENDING" ? t("pendingSuccess") : t("success"),
+        result.value.status === "PENDING" ? t("pendingSuccess") : t("success"),
       );
       router.refresh();
     } finally {

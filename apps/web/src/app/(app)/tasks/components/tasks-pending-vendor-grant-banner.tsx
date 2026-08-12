@@ -1,13 +1,16 @@
 "use client";
 
+import { err, ok } from "neverthrow";
 import { useTranslations } from "next-intl";
-
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { VendorGrantApprovalActions } from "@/components/vendor-grants/vendor-grant-approval-actions";
 import { createMyVendorGrant } from "@/lib/actions/account/vendor-grant-action";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors";
 import { createOrganizationVendorGrant } from "@/lib/actions/organization/vendor-grant-action";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 
 interface TasksPendingVendorGrantBannerProps {
   canApprove: boolean;
@@ -46,7 +49,7 @@ export function TasksPendingVendorGrantBanner({
 
   async function grantVendorAccess(
     vendorId: string,
-  ): Promise<Result<{ grantId: string }, ActionError>> {
+  ): Promise<ActionResultDto<{ grantId: string }, ActionError>> {
     if (organizationId) {
       return createOrganizationVendorGrant({
         organizationId,
@@ -57,7 +60,7 @@ export function TasksPendingVendorGrantBanner({
   }
 
   async function approveAllPendingGrants(): Promise<
-    Result<unknown, ActionError>
+    ActionResultDto<unknown, ActionError>
   > {
     let approved = 0;
 
@@ -65,13 +68,15 @@ export function TasksPendingVendorGrantBanner({
       const result = await grantVendorAccess(vendorId);
       if (!result.ok) {
         if (approved > 0) {
-          return Err({
-            code: "vendor_grant_partial_approve",
-            message: t("approvePartialError", {
-              approved,
-              total: pendingVendorIds.length,
+          return toActionResult(
+            err({
+              code: "vendor_grant_partial_approve",
+              message: t("approvePartialError", {
+                approved,
+                total: pendingVendorIds.length,
+              }),
             }),
-          });
+          );
         }
 
         return result;
@@ -80,7 +85,7 @@ export function TasksPendingVendorGrantBanner({
       approved += 1;
     }
 
-    return Ok(undefined);
+    return toActionResult(ok(undefined));
   }
 
   return (

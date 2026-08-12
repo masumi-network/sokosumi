@@ -45,7 +45,7 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/discoverable",
     description:
-      "List active channels in the active organization that the caller is not already a member of. Public channels are listed for every org member; private channels only for organization owners and admins. Requires an active organization. Optional `q` filters by name or slug.",
+      "List active channels in the active organization that the caller is not already a member of. Public and external channels are listed for every org member; private channels only for organization owners and admins. Requires an active organization. Optional `q` filters by name or slug.",
     tags: ["Chat Rooms"],
     request: {
       query: querySchema,
@@ -63,6 +63,18 @@ const route = withGlobalHeaderParameters(
     },
   }),
 );
+
+function mapDiscoverability(
+  value: string | null,
+): "public" | "private" | "external" {
+  if (value === "private") {
+    return "private";
+  }
+  if (value === "external") {
+    return "external";
+  }
+  return "public";
+}
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
@@ -140,8 +152,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name: room.name,
           slug: room.slug,
           topic: room.topic,
-          discoverability:
-            room.discoverability === "private" ? "private" : "public",
+          discoverability: mapDiscoverability(room.discoverability),
           memberCount: room._count.userMembers,
           createdByUserId: room.createdByUserId,
           createdAt: room.createdAt,

@@ -1,7 +1,12 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { assertAdminSession } from "@/lib/auth/admin-access";
@@ -9,7 +14,6 @@ import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
 import type { Vendor } from "@/lib/clients/generated/core";
 import { adminVendorService } from "@/lib/services/admin-vendor.service";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -74,23 +78,25 @@ interface CreateAdminVendorParameters extends AuthenticatedRequest {
 
 export const createAdminVendorAction = withSession<
   CreateAdminVendorParameters,
-  Result<Vendor, ActionError>
+  ActionResultDto<Vendor, ActionError>
 >(async ({ input, session }) => {
   try {
     assertAdminSession(session);
     const parsed = createVendorSchema.safeParse(input);
     if (!parsed.success) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Invalid vendor input",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid vendor input",
+        }),
+      );
     }
 
     const vendor = await adminVendorService.createVendor(parsed.data);
     revalidateAdminVendorRoutes(vendor.id);
-    return Ok(vendor);
+    return toActionResult(ok(vendor));
   } catch (error) {
-    return Err(toAdminActionError(error));
+    return toActionResult(err(toAdminActionError(error)));
   }
 });
 
@@ -100,26 +106,30 @@ interface PatchAdminVendorParameters extends AuthenticatedRequest {
 
 export const patchAdminVendorAction = withSession<
   PatchAdminVendorParameters,
-  Result<Vendor, ActionError>
+  ActionResultDto<Vendor, ActionError>
 >(async ({ input, session }) => {
   try {
     assertAdminSession(session);
     const parsed = patchVendorSchema.safeParse(input);
     if (!parsed.success) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: "Invalid vendor profile input",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid vendor profile input",
+        }),
+      );
     }
 
     const existing = await adminVendorService.getVendorById(
       parsed.data.vendorId,
     );
     if (!existing) {
-      return Err({
-        code: CommonErrorCode.NOT_FOUND,
-        message: "Vendor not found",
-      });
+      return toActionResult(
+        err({
+          code: CommonErrorCode.NOT_FOUND,
+          message: "Vendor not found",
+        }),
+      );
     }
 
     const vendor = await adminVendorService.patchVendor(
@@ -136,8 +146,8 @@ export const patchAdminVendorAction = withSession<
     );
 
     revalidateAdminVendorRoutes(vendor.id);
-    return Ok(vendor);
+    return toActionResult(ok(vendor));
   } catch (error) {
-    return Err(toAdminActionError(error));
+    return toActionResult(err(toAdminActionError(error)));
   }
 });

@@ -230,7 +230,7 @@ describe("InvoiceForm billing preview", () => {
     vi.clearAllMocks();
     getBillingMock.mockResolvedValue({
       ok: true,
-      data: completeBillingDetails,
+      value: completeBillingDetails,
     });
   });
 
@@ -254,7 +254,7 @@ describe("InvoiceForm billing preview", () => {
   it("disables submit when billing address has no country", async () => {
     getBillingMock.mockResolvedValue({
       ok: true,
-      data: incompleteBillingDetails,
+      value: incompleteBillingDetails,
     });
     const user = userEvent.setup();
     render(<InvoiceForm prices={prices} />);
@@ -313,11 +313,11 @@ describe("InvoiceForm billing preview", () => {
   it("ignores stale billing responses when the recipient changes quickly", async () => {
     const firstLoad = createDeferred<{
       ok: true;
-      data: StripeCustomerBillingDetails;
+      value: StripeCustomerBillingDetails;
     }>();
     const secondLoad = createDeferred<{
       ok: true;
-      data: StripeCustomerBillingDetails;
+      value: StripeCustomerBillingDetails;
     }>();
 
     getBillingMock
@@ -332,7 +332,7 @@ describe("InvoiceForm billing preview", () => {
 
     secondLoad.resolve({
       ok: true,
-      data: {
+      value: {
         ...completeBillingDetails,
         address: {
           line1: "Beta Street 2",
@@ -349,7 +349,7 @@ describe("InvoiceForm billing preview", () => {
 
     firstLoad.resolve({
       ok: true,
-      data: {
+      value: {
         ...completeBillingDetails,
         address: {
           line1: "Stale Acme Street 1",
@@ -372,11 +372,11 @@ describe("InvoiceForm billing preview", () => {
     getBillingMock
       .mockResolvedValueOnce({
         ok: true,
-        data: incompleteBillingDetails,
+        value: incompleteBillingDetails,
       })
       .mockResolvedValueOnce({
         ok: true,
-        data: completeBillingDetails,
+        value: completeBillingDetails,
       });
 
     const user = userEvent.setup();

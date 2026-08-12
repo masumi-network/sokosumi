@@ -33,6 +33,7 @@ export function ShareButton({ url, className, disabled }: ShareButtonProps) {
       onClick={handleShare}
       className={cn(className)}
       disabled={disabled}
+      aria-label={t("share")}
     >
       <Share />
     </Button>

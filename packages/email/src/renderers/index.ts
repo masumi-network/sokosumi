@@ -1,4 +1,5 @@
 export {
+  renderChatRoomInvitationEmail,
   renderMagicLinkEmail,
   renderOrganizationInvitationEmail,
   renderResetPasswordEmail,

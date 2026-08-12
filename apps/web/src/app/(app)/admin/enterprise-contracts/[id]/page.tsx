@@ -46,7 +46,7 @@ export default async function EnterpriseContractDetailPage({
         <Button variant="outline" asChild>
           <Link href="/admin/enterprise-contracts">Back to list</Link>
         </Button>
-        <ContractDetail contract={result.data} />
+        <ContractDetail contract={result.value} />
       </div>
     </div>
   );

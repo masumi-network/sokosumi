@@ -173,13 +173,6 @@ describe("filterCoworkersForComposeKind", () => {
         capabilities: ["chat"],
         canChat: false,
       }),
-      baseCoworker({
-        id: "8",
-        slug: "not-whitelisted",
-        name: "Not whitelisted",
-        capabilities: ["chat"],
-        canChat: false,
-      }),
     ];
 
     expect(
@@ -212,6 +205,11 @@ describe("filterCoworkersForComposeKind", () => {
         capabilities: ["chat"],
       }),
     ).toBe(false);
+  });
+
+  it("keeps early-access (non-whitelisted) runnable chat coworkers pickable", () => {
+    // Core scope=available already filtered whitelist ∪ GRANTED; web must
+    // not re-require isWhitelisted or pilot coworkers (e.g. Noodles) vanish.
     expect(
       coworkerCanChat({
         archivedAt: null,
@@ -219,6 +217,6 @@ describe("filterCoworkersForComposeKind", () => {
         baseURL: "https://responses.example.com/v1",
         capabilities: ["chat"],
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 });

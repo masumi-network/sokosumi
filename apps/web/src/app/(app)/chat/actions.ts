@@ -1,12 +1,22 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { actionErrorMessage } from "@/app/chat/action-error-message";
 import { directCreateShapeError } from "@/app/chat/utils/direct-create-shape";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { getSession } from "@/lib/auth/auth.server";
 import type {
+  AcceptChatRoomGuestInviteLink,
   ChatRoom,
+  ChatRoomGuestInviteLink,
+  ChatRoomInvitation,
   ChatRoomMessage,
   ChatRoomThread,
   ChatRoomThreadReadState,
@@ -15,11 +25,30 @@ import type {
 } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
 
-export type RoomActionResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; message: string };
+/** Chat action wire shape — ActionResultDto (neverthrow at boundary). */
+export type RoomActionResult<T> = ActionResultDto<T, ActionError>;
 
-type ChannelDiscoverability = "public" | "private";
+function roomOk<T>(value: T): RoomActionResult<T> {
+  return toActionResult(ok(value));
+}
+
+function roomFail(
+  message: string,
+  code: CommonErrorCode = CommonErrorCode.BAD_INPUT,
+): RoomActionResult<never> {
+  return toActionResult(err({ code, message }));
+}
+
+function roomCatch(error: unknown, fallback: string): RoomActionResult<never> {
+  return toActionResult(
+    err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      message: actionErrorMessage(error, fallback),
+    }),
+  );
+}
+
+type ChannelDiscoverability = "public" | "private" | "external";
 
 interface CreateChannelInput {
   name: string;
@@ -70,7 +99,7 @@ function cleanIds(value: string[] | null | undefined): string[] {
 function cleanDiscoverability(
   value: ChannelDiscoverability | null | undefined,
 ): ChannelDiscoverability | undefined {
-  if (value === "public" || value === "private") {
+  if (value === "public" || value === "private" || value === "external") {
     return value;
   }
   return undefined;
@@ -92,12 +121,12 @@ export async function createChannelAction(
 ): Promise<RoomActionResult<ChatRoom>> {
   const activeOrganization = await userService.getActiveOrganization();
   if (!activeOrganization) {
-    return { ok: false, message: "Select an organization first." };
+    return roomFail("Select an organization first.");
   }
 
   const name = cleanString(input.name);
   if (!name) {
-    return { ok: false, message: "Channel name is required." };
+    return roomFail("Channel name is required.");
   }
 
   try {
@@ -111,12 +140,9 @@ export async function createChannelAction(
     });
     await invalidateSidebarChatList();
     revalidatePath("/chat");
-    return { ok: true, data: room };
+    return roomOk(room);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not create channel."),
-    };
+    return roomCatch(error, "Could not create channel.");
   }
 }
 
@@ -136,7 +162,7 @@ export async function createDirectRoomAction(
 
   const shapeError = directCreateShapeError(memberUserIds, coworkerIds);
   if (shapeError) {
-    return { ok: false, message: shapeError };
+    return roomFail(shapeError);
   }
 
   // Human directs (1:1 or group) need an org (teammate roster). Coworker 1:1
@@ -144,7 +170,7 @@ export async function createDirectRoomAction(
   if (memberUserIds.length >= 1) {
     const activeOrganization = await userService.getActiveOrganization();
     if (!activeOrganization) {
-      return { ok: false, message: "Select an organization first." };
+      return roomFail("Select an organization first.");
     }
   }
 
@@ -156,12 +182,9 @@ export async function createDirectRoomAction(
     });
     await invalidateSidebarChatList();
     revalidatePath("/chat");
-    return { ok: true, data: room };
+    return roomOk(room);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not start direct message."),
-    };
+    return roomCatch(error, "Could not start direct message.");
   }
 }
 
@@ -174,7 +197,7 @@ export async function ensureCoworkerDirectRoomAction(
 ): Promise<RoomActionResult<ChatRoom | null>> {
   const cleanCoworkerId = cleanString(coworkerId);
   if (!cleanCoworkerId) {
-    return { ok: false, message: "Coworker is required." };
+    return roomFail("Coworker is required.");
   }
 
   try {
@@ -184,15 +207,9 @@ export async function ensureCoworkerDirectRoomAction(
       coworkerIds: [cleanCoworkerId],
     });
     await invalidateSidebarChatList();
-    return { ok: true, data: room };
+    return roomOk(room);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(
-        error,
-        "Could not ensure coworker direct room.",
-      ),
-    };
+    return roomCatch(error, "Could not ensure coworker direct room.");
   }
 }
 
@@ -201,19 +218,19 @@ export async function sendNewDirectMessageAction(
 ): Promise<RoomActionResult<SendNewDirectMessageResult>> {
   const activeOrganization = await userService.getActiveOrganization();
   if (!activeOrganization) {
-    return { ok: false, message: "Select an organization first." };
+    return roomFail("Select an organization first.");
   }
 
   const memberUserIds = cleanIds(input.memberUserIds);
   const coworkerIds = cleanIds(input.coworkerIds);
   const shapeError = directCreateShapeError(memberUserIds, coworkerIds);
   if (shapeError) {
-    return { ok: false, message: shapeError };
+    return roomFail(shapeError);
   }
 
   const cleanContent = cleanString(input.content);
   if (!cleanContent) {
-    return { ok: false, message: "Message is required." };
+    return roomFail("Message is required.");
   }
 
   try {
@@ -229,12 +246,9 @@ export async function sendNewDirectMessageAction(
     });
     await invalidateSidebarChatList();
     revalidatePath("/chat");
-    return { ok: true, data: { room, message } };
+    return roomOk({ room, message });
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not start direct message."),
-    };
+    return roomCatch(error, "Could not start direct message.");
   }
 }
 
@@ -260,12 +274,9 @@ export async function updateRoomAction(
     const room = await chatRoomService.updateRoom(roomId, body);
     await invalidateSidebarChatList();
     revalidatePath("/chat");
-    return { ok: true, data: room };
+    return roomOk(room);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not update channel."),
-    };
+    return roomCatch(error, "Could not update channel.");
   }
 }
 
@@ -278,12 +289,9 @@ export async function archiveRoomAction(
     // room list has to be rebuilt rather than patched client side.
     await invalidateSidebarChatList();
     revalidatePath("/chat");
-    return { ok: true, data: { id: archived.id } };
+    return roomOk({ id: archived.id });
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not archive channel."),
-    };
+    return roomCatch(error, "Could not archive channel.");
   }
 }
 
@@ -294,12 +302,9 @@ export async function restoreRoomAction(
     const restored = await chatRoomService.restoreRoom(roomId);
     await invalidateSidebarChatList();
     revalidatePath("/chat");
-    return { ok: true, data: restored };
+    return roomOk(restored);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not restore channel."),
-    };
+    return roomCatch(error, "Could not restore channel.");
   }
 }
 
@@ -310,12 +315,9 @@ export async function deleteRoomAction(
     await chatRoomService.deleteRoom(roomId);
     await invalidateSidebarChatList();
     revalidatePath("/chat");
-    return { ok: true, data: { id: roomId } };
+    return roomOk({ id: roomId });
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not delete channel."),
-    };
+    return roomCatch(error, "Could not delete channel.");
   }
 }
 
@@ -326,12 +328,9 @@ export async function leaveRoomAction(
     const left = await chatRoomService.leaveRoom(roomId);
     await invalidateSidebarChatList();
     revalidatePath("/chat");
-    return { ok: true, data: { id: left.id } };
+    return roomOk({ id: left.id });
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not leave channel."),
-    };
+    return roomCatch(error, "Could not leave channel.");
   }
 }
 
@@ -340,19 +339,16 @@ export async function joinRoomAction(
 ): Promise<RoomActionResult<ChatRoom>> {
   const cleanRoomId = cleanString(roomId);
   if (!cleanRoomId) {
-    return { ok: false, message: "Channel is required." };
+    return roomFail("Channel is required.");
   }
 
   try {
     const room = await chatRoomService.joinRoom(cleanRoomId);
     await invalidateSidebarChatList();
     revalidatePath("/chat");
-    return { ok: true, data: room };
+    return roomOk(room);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not join channel."),
-    };
+    return roomCatch(error, "Could not join channel.");
   }
 }
 
@@ -361,19 +357,236 @@ export async function listDiscoverableChannelsAction(options?: {
 }): Promise<RoomActionResult<DiscoverableChatRoom[]>> {
   const activeOrganization = await userService.getActiveOrganization();
   if (!activeOrganization) {
-    return { ok: false, message: "Select an organization first." };
+    return roomFail("Select an organization first.");
   }
 
   try {
     const rooms = await chatRoomService.listDiscoverableChannels({
       q: options?.q,
     });
-    return { ok: true, data: rooms };
+    return roomOk(rooms);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not load channels."),
-    };
+    return roomCatch(error, "Could not load channels.");
+  }
+}
+
+/** Pending room invitations for the signed-in invitee (External sidebar). */
+export async function listPendingChatRoomInvitationsAction(): Promise<
+  RoomActionResult<ChatRoomInvitation[]>
+> {
+  try {
+    const invitations = await chatRoomService.listPendingInvitations();
+    return roomOk(invitations);
+  } catch (error) {
+    return roomCatch(error, "Could not load invitations.");
+  }
+}
+
+export async function acceptChatRoomInvitationAction(
+  invitationId: string,
+): Promise<RoomActionResult<ChatRoomInvitation>> {
+  const cleanId = cleanString(invitationId);
+  if (!cleanId) {
+    return roomFail("Invitation is required.");
+  }
+
+  try {
+    const invitation = await chatRoomService.acceptInvitation(cleanId);
+    await invalidateSidebarChatList();
+    revalidatePath("/chat");
+    return roomOk(invitation);
+  } catch (error) {
+    return roomCatch(error, "Could not accept invitation.");
+  }
+}
+
+export async function declineChatRoomInvitationAction(
+  invitationId: string,
+): Promise<RoomActionResult<ChatRoomInvitation>> {
+  const cleanId = cleanString(invitationId);
+  if (!cleanId) {
+    return roomFail("Invitation is required.");
+  }
+
+  try {
+    const invitation = await chatRoomService.declineInvitation(cleanId);
+    await invalidateSidebarChatList();
+    revalidatePath("/chat");
+    return roomOk(invitation);
+  } catch (error) {
+    return roomCatch(error, "Could not decline invitation.");
+  }
+}
+
+/** Host: list pending guest invitations for an external channel. */
+export async function listRoomInvitationsAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoomInvitation[]>> {
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+
+  try {
+    const invitations = await chatRoomService.listRoomInvitations(cleanRoomId);
+    return roomOk(invitations);
+  } catch (error) {
+    return roomCatch(error, "Could not load invitations.");
+  }
+}
+
+/** Host: invite an external guest by email. */
+export async function createRoomInvitationAction(
+  roomId: string,
+  email: string,
+): Promise<RoomActionResult<ChatRoomInvitation>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanEmail = cleanString(email).toLowerCase();
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+  if (!cleanEmail) {
+    return roomFail("Email is required.");
+  }
+
+  try {
+    const invitation = await chatRoomService.createRoomInvitation(
+      cleanRoomId,
+      cleanEmail,
+    );
+    return roomOk(invitation);
+  } catch (error) {
+    return roomCatch(error, "Could not send invitation.");
+  }
+}
+
+/** Host: revoke a pending guest invitation. */
+export async function revokeRoomInvitationAction(
+  roomId: string,
+  invitationId: string,
+): Promise<RoomActionResult<null>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanInvitationId = cleanString(invitationId);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+  if (!cleanInvitationId) {
+    return roomFail("Invitation is required.");
+  }
+
+  try {
+    await chatRoomService.revokeRoomInvitation(cleanRoomId, cleanInvitationId);
+    return roomOk(null);
+  } catch (error) {
+    return roomCatch(error, "Could not revoke invitation.");
+  }
+}
+
+/** Host: list shareable guest invite links for an external channel. */
+export async function listRoomGuestInviteLinksAction(
+  roomId: string,
+): Promise<RoomActionResult<ChatRoomGuestInviteLink[]>> {
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+
+  try {
+    const links = await chatRoomService.listRoomGuestInviteLinks(cleanRoomId);
+    return roomOk(links);
+  } catch (error) {
+    return roomCatch(error, "Could not load invite links.");
+  }
+}
+
+/** Host: create a shareable guest invite link. */
+export async function createRoomGuestInviteLinkAction(
+  roomId: string,
+  options?: {
+    /** Days until expiry; null = no expiry; omit for Core default (7). */
+    expiresInDays?: number | null;
+    /** Cap on joins; null/omit = unlimited. */
+    maxUses?: number | null;
+  },
+): Promise<RoomActionResult<ChatRoomGuestInviteLink>> {
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+
+  try {
+    const link = await chatRoomService.createRoomGuestInviteLink(cleanRoomId, {
+      expiresInDays: options?.expiresInDays,
+      maxUses: options?.maxUses,
+    });
+    return roomOk(link);
+  } catch (error) {
+    return roomCatch(error, "Could not create invite link.");
+  }
+}
+
+/** Host: revoke a shareable guest invite link. */
+export async function revokeRoomGuestInviteLinkAction(
+  roomId: string,
+  token: string,
+): Promise<RoomActionResult<null>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanToken = cleanString(token);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+  if (!cleanToken) {
+    return roomFail("Invite link is required.");
+  }
+
+  try {
+    await chatRoomService.revokeRoomGuestInviteLink(cleanRoomId, cleanToken);
+    return roomOk(null);
+  } catch (error) {
+    return roomCatch(error, "Could not revoke invite link.");
+  }
+}
+
+/** Accept a shareable guest invite link as the signed-in user. */
+export async function acceptRoomGuestInviteLinkAction(
+  token: string,
+): Promise<RoomActionResult<AcceptChatRoomGuestInviteLink>> {
+  const cleanToken = cleanString(token);
+  if (!cleanToken) {
+    return roomFail("Invite link is required.");
+  }
+
+  try {
+    const result = await chatRoomService.acceptRoomGuestInviteLink(cleanToken);
+    await invalidateSidebarChatList();
+    revalidatePath("/chat");
+    return roomOk(result);
+  } catch (error) {
+    return roomCatch(error, "Could not join channel.");
+  }
+}
+
+/** Host: remove a guest from an external channel. */
+export async function removeRoomGuestAction(
+  roomId: string,
+  userId: string,
+): Promise<RoomActionResult<null>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanUserId = cleanString(userId);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+  if (!cleanUserId) {
+    return roomFail("User is required.");
+  }
+
+  try {
+    await chatRoomService.removeMember(cleanRoomId, cleanUserId);
+    await invalidateSidebarChatList();
+    revalidatePath("/chat");
+    return roomOk(null);
+  } catch (error) {
+    return roomCatch(error, "Could not remove guest.");
   }
 }
 
@@ -395,7 +608,7 @@ export async function sendRoomMessageAction(
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
   if (!cleanContent) {
-    return { ok: false, message: "Message is required." };
+    return roomFail("Message is required.");
   }
 
   try {
@@ -415,12 +628,9 @@ export async function sendRoomMessageAction(
     });
     // No revalidatePath: client appends/merges the returned message. Revalidating
     // would re-fetch only the latest page and wipe client-loaded older history.
-    return { ok: true, data: message };
+    return roomOk(message);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not send message."),
-    };
+    return roomCatch(error, "Could not send message.");
   }
 }
 
@@ -437,12 +647,9 @@ export async function listRoomMessagesAction(
     const page = await chatRoomService.listMessages(roomId, {
       cursor: options?.cursor,
     });
-    return { ok: true, data: page };
+    return roomOk(page);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not load messages."),
-    };
+    return roomCatch(error, "Could not load messages.");
   }
 }
 
@@ -462,12 +669,9 @@ export async function listThreadMessagesAction(
       parentMessageId,
       { cursor: options?.cursor },
     );
-    return { ok: true, data: page };
+    return roomOk(page);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not load thread."),
-    };
+    return roomCatch(error, "Could not load thread.");
   }
 }
 
@@ -476,12 +680,9 @@ export async function listUnreadThreadsAction(
 ): Promise<RoomActionResult<ChatRoomThread[]>> {
   try {
     const items = await chatRoomService.listUnreadThreads(roomId);
-    return { ok: true, data: items };
+    return roomOk(items);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not load unread threads."),
-    };
+    return roomCatch(error, "Could not load unread threads.");
   }
 }
 
@@ -491,12 +692,9 @@ export async function markThreadReadAction(
 ): Promise<RoomActionResult<ChatRoomThreadReadState>> {
   try {
     const state = await chatRoomService.markThreadRead(roomId, parentMessageId);
-    return { ok: true, data: state };
+    return roomOk(state);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not mark thread looked."),
-    };
+    return roomCatch(error, "Could not mark thread looked.");
   }
 }
 
@@ -505,15 +703,9 @@ export async function markAllUnreadThreadsReadAction(
 ): Promise<RoomActionResult<ChatRoomThreadsMarkAll>> {
   try {
     const result = await chatRoomService.markAllUnreadThreadsRead(roomId);
-    return { ok: true, data: result };
+    return roomOk(result);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(
-        error,
-        "Could not mark unread threads as read.",
-      ),
-    };
+    return roomCatch(error, "Could not mark unread threads as read.");
   }
 }
 
@@ -524,7 +716,7 @@ export async function toggleMessageReactionAction(
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanEmoji = cleanString(emoji);
   if (!cleanEmoji) {
-    return { ok: false, message: "Reaction is required." };
+    return roomFail("Reaction is required.");
   }
 
   try {
@@ -535,12 +727,9 @@ export async function toggleMessageReactionAction(
     );
     // No revalidatePath: the updated message is returned and merged client
     // side, so a full RSC re-render of /chat would only duplicate work.
-    return { ok: true, data: message };
+    return roomOk(message);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not update reaction."),
-    };
+    return roomCatch(error, "Could not update reaction.");
   }
 }
 
@@ -550,12 +739,9 @@ export async function deleteRoomMessageAction(
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   try {
     const message = await chatRoomService.deleteMessage(roomId, messageId);
-    return { ok: true, data: message };
+    return roomOk(message);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not delete message."),
-    };
+    return roomCatch(error, "Could not delete message.");
   }
 }
 
@@ -566,7 +752,7 @@ export async function editRoomMessageAction(
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
   if (!cleanContent) {
-    return { ok: false, message: "Message is required." };
+    return roomFail("Message is required.");
   }
 
   try {
@@ -577,11 +763,8 @@ export async function editRoomMessageAction(
     );
     // No revalidatePath: the updated message is returned and merged client
     // side, so a full RSC re-render of /chat would only duplicate work.
-    return { ok: true, data: message };
+    return roomOk(message);
   } catch (error) {
-    return {
-      ok: false,
-      message: actionErrorMessage(error, "Could not edit message."),
-    };
+    return roomCatch(error, "Could not edit message.");
   }
 }

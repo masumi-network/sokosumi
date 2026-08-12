@@ -87,7 +87,7 @@ describe("subscription actions", () => {
     });
 
     expect(result).toEqual({
-      data: { seats: 9 },
+      value: { seats: 9 },
       ok: true,
     });
     expect(updateOrganizationSubscriptionSeatsMock).toHaveBeenCalledWith(

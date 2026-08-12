@@ -48,9 +48,9 @@ export function VendorAdminDetail({ vendor }: VendorAdminDetailProps) {
         toast.success(t("profile.saveSuccess"));
         setCurrentVendor((previous) => ({
           ...previous,
-          name: result.data.name,
-          logos: result.data.logos,
-          updatedAt: result.data.updatedAt,
+          name: result.value.name,
+          logos: result.value.logos,
+          updatedAt: result.value.updatedAt,
         }));
         return true;
       } finally {

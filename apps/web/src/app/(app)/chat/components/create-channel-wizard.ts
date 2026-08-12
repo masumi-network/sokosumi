@@ -1,6 +1,6 @@
 export const CHANNEL_NAME_MAX = 80;
 
-export type Discoverability = "public" | "private";
+export type Discoverability = "public" | "private" | "external";
 export type AddPeopleMode = "all" | "specific";
 
 export type CreateChannelWizard =

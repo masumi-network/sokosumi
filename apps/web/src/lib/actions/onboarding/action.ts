@@ -1,16 +1,20 @@
 "use server";
 
+import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { getEnvPublicConfig } from "@/config/env.public";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { getSession } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
 import type { UserOnboardingRequest } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services";
 import { SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME } from "@/lib/subscription-onboarding-gate-cookie";
-import { Err, Ok, type Result } from "@/lib/ts-res";
 
 const SUBSCRIPTION_ONBOARDING_GATE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 400;
 
@@ -55,7 +59,7 @@ export async function clearSubscriptionOnboardingGateSessionCookie(): Promise<vo
 
 export async function completeOnboarding(
   profile?: UserOnboardingRequest["profile"],
-): Promise<Result<{ redirectUrl: string }, ActionError>> {
+): Promise<ActionResultDto<{ redirectUrl: string }, ActionError>> {
   try {
     if (profile && Object.keys(profile).length > 0) {
       // Core owns the metadata write. It also flips `onboardingCompleted`, but
@@ -73,13 +77,15 @@ export async function completeOnboarding(
     }
 
     revalidatePath("/");
-    return Ok({ redirectUrl: "/tasks" });
+    return toActionResult(ok({ redirectUrl: "/tasks" }));
   } catch (error) {
     console.error("Error completing onboarding:", error);
     const t = await getTranslations("Onboarding.Actions.Errors");
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      message: error instanceof Error ? error.message : t("failedToComplete"),
-    });
+    return toActionResult(
+      err({
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        message: error instanceof Error ? error.message : t("failedToComplete"),
+      }),
+    );
   }
 }

@@ -43,7 +43,7 @@ vi.mock("../rotating-messages", () => ({
 function progressResult(status: string) {
   return {
     ok: true,
-    data: { status, steps: [], etaSeconds: null },
+    value: { status, steps: [], etaSeconds: null },
   };
 }
 
@@ -110,7 +110,7 @@ describe("OnboardingProgress", () => {
     // must not surface as "Almost done…" during a 1–2 min machine boot.
     getProgressMock.mockResolvedValue({
       ok: true,
-      data: { status: "onboarding", steps: [], etaSeconds: 0 },
+      value: { status: "onboarding", steps: [], etaSeconds: 0 },
     });
 
     render(
@@ -129,7 +129,7 @@ describe("OnboardingProgress", () => {
   it("renders the polled steps verbatim — dynamic subset, orchestrator labels, coarse ETA", async () => {
     getProgressMock.mockResolvedValue({
       ok: true,
-      data: {
+      value: {
         status: "onboarding",
         // A realistic dynamic subset: no integration/sokosumi steps, the
         // inbox step skipped with its alternate label, orchestrator ids
@@ -174,7 +174,7 @@ describe("OnboardingProgress", () => {
     getProgressMock
       .mockResolvedValueOnce({
         ok: true,
-        data: {
+        value: {
           status: "onboarding",
           steps: [
             { id: "memory", label: "Saving your details", status: "running" },
@@ -186,7 +186,7 @@ describe("OnboardingProgress", () => {
       // both the rows AND the last real ETA must survive them.
       .mockResolvedValue({
         ok: true,
-        data: { status: "onboarding", steps: [], etaSeconds: 0 },
+        value: { status: "onboarding", steps: [], etaSeconds: 0 },
       });
 
     render(
@@ -215,7 +215,7 @@ describe("OnboardingProgress", () => {
   it("hands the ETA off to the settling copy when etaSeconds is ≤ 30s", async () => {
     getProgressMock.mockResolvedValue({
       ok: true,
-      data: {
+      value: {
         status: "onboarding",
         steps: [
           {

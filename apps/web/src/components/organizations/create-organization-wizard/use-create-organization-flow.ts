@@ -193,14 +193,14 @@ export function useCreateOrganizationFlow() {
           url,
           organizationId: orgId,
         });
-        if (result.ok && result.data.url) {
+        if (result.ok && result.value.url) {
           const previousLogo = logoUrlRef.current;
-          setLogoUrl(result.data.url);
+          setLogoUrl(result.value.url);
           await authClient.organization.update({
             organizationId: orgId,
-            data: { logo: result.data.url },
+            data: { logo: result.value.url },
           });
-          if (previousLogo && previousLogo !== result.data.url) {
+          if (previousLogo && previousLogo !== result.value.url) {
             void cleanupOrganizationLogoBestEffort(orgId, previousLogo);
           }
         }
@@ -297,7 +297,7 @@ export function useCreateOrganizationFlow() {
 
       const metadata = buildOrganizationMetadataWithUrl(null, url);
       const created = await authClient.organization.create({
-        slug: slugResult.data,
+        slug: slugResult.value,
         name: values.name,
         ...(metadata && { metadata }),
       });
@@ -375,7 +375,7 @@ export function useCreateOrganizationFlow() {
         organizationId,
       });
       if (result.ok) {
-        setInviteLink(result.data.url);
+        setInviteLink(result.value.url);
       } else {
         setLinkFailed(true);
         toast.error(t("Invite.linkError"));
@@ -463,10 +463,10 @@ export function useCreateOrganizationFlow() {
         toast.error(result.error.message ?? t("Invite.emailError"));
         return;
       }
-      const sent = result.data.results.filter(
+      const sent = result.value.results.filter(
         (row) => row.status === "sent",
       ).length;
-      const failed = result.data.results.length - sent;
+      const failed = result.value.results.length - sent;
       toast.success(t("Invite.inviteSummary", { sent, failed }));
       setEmails("");
     } catch (error) {

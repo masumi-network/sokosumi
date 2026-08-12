@@ -65,7 +65,7 @@ describe("DesignMdAdHocDialog", () => {
     const user = userEvent.setup();
     startDesignMdGenerationMock.mockResolvedValue({
       ok: true,
-      data: {
+      value: {
         kind: "completed",
         data: { url: "https://blob.example/adhoc.md", extractionId: "1" },
       },
@@ -87,7 +87,7 @@ describe("DesignMdAdHocDialog", () => {
     const onGenerated = vi.fn();
     startDesignMdGenerationMock.mockResolvedValue({
       ok: true,
-      data: {
+      value: {
         kind: "completed",
         data: { url: "https://blob.example/adhoc.md", extractionId: "1" },
       },
@@ -115,15 +115,15 @@ describe("DesignMdAdHocDialog", () => {
     const onGenerated = vi.fn();
     startDesignMdGenerationMock.mockResolvedValue({
       ok: true,
-      data: { kind: "queued", jobId: "job-1", jobToken: "token-1" },
+      value: { kind: "queued", jobId: "job-1", jobToken: "token-1" },
     });
     pollDesignMdGenerationMock.mockResolvedValue({
       ok: true,
-      data: { status: "done", extractionId: 1, designMd: "# Brand" },
+      value: { status: "done", extractionId: 1, designMd: "# Brand" },
     });
     finalizeDesignMdGenerationMock.mockResolvedValue({
       ok: true,
-      data: { url: "https://blob.example/adhoc.md", extractionId: "1" },
+      value: { url: "https://blob.example/adhoc.md", extractionId: "1" },
     });
     renderDialog(onGenerated);
 
