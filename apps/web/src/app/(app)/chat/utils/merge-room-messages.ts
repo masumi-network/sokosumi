@@ -1,22 +1,70 @@
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
+import {
+  confirmOutboundMessage,
+  filterResolvedOutbound,
+  isOutboundLocalMessage,
+  partitionOutboundForMerge,
+  readClientTurnId,
+} from "./outbound-room-message";
+
 /**
  * Merge room message pages by id. Incoming rows win (fresh reactions /
  * mention status). Result is sorted oldest → newest for reading order.
+ *
+ * Local outbound pending/failed shells stay after the confirmed block so
+ * peer merges do not reorder a frozen pending row (ADR-0004). Incoming rows
+ * that carry the same client turn id confirm a pending shell in place first.
  */
 export function mergeRoomMessages(
   existing: readonly ChatRoomMessage[],
   incoming: readonly ChatRoomMessage[],
 ): ChatRoomMessage[] {
+  let working: ChatRoomMessage[] = [...existing];
+  const remainingIncoming: ChatRoomMessage[] = [];
+  const outboundTurnIds = new Set<string>();
+  for (const row of working) {
+    if (!isOutboundLocalMessage(row)) {
+      continue;
+    }
+    const rowTurnId = readClientTurnId(row);
+    if (rowTurnId != null) {
+      outboundTurnIds.add(rowTurnId);
+    }
+  }
+
+  for (const message of incoming) {
+    if (isOutboundLocalMessage(message)) {
+      remainingIncoming.push(message);
+      continue;
+    }
+    const turnId = readClientTurnId(message);
+    if (turnId != null && outboundTurnIds.has(turnId)) {
+      working = confirmOutboundMessage(working, message, turnId);
+      outboundTurnIds.delete(turnId);
+      continue;
+    }
+    remainingIncoming.push(message);
+  }
+
+  const { confirmed, outbound } = partitionOutboundForMerge(working);
+  const unresolvedOutbound = filterResolvedOutbound(
+    outbound,
+    remainingIncoming,
+  );
+
   const byId = new Map<string, ChatRoomMessage>();
-  for (const message of existing) {
+  for (const message of confirmed) {
     byId.set(message.id, message);
   }
-  for (const message of incoming) {
+  for (const message of remainingIncoming) {
+    if (isOutboundLocalMessage(message)) {
+      continue;
+    }
     byId.set(message.id, message);
   }
 
-  return Array.from(byId.values()).toSorted((left, right) => {
+  const mergedConfirmed = Array.from(byId.values()).toSorted((left, right) => {
     const timeDelta =
       new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
     if (timeDelta !== 0) {
@@ -37,6 +85,12 @@ export function mergeRoomMessages(
 
     return left.id.localeCompare(right.id);
   });
+
+  if (unresolvedOutbound.length === 0) {
+    return mergedConfirmed;
+  }
+
+  return [...mergedConfirmed, ...unresolvedOutbound];
 }
 
 function streamSenderSortRank(message: ChatRoomMessage): number {

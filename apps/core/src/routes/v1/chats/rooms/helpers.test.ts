@@ -603,6 +603,36 @@ describe("mapChatRoomMessage quote", () => {
     expect(mapped.metadata).toEqual({ quote, client_message_id: "c1" });
   });
 
+  it("keeps client_message_id in metadata for Ably create payloads", () => {
+    const mapped = mapChatRoomMessage({
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      senderUserId: "user_123",
+      senderCoworkerId: null,
+      content: "hello",
+      createdAt: new Date("2025-01-02T00:00:00.000Z"),
+      deletedAt: null,
+      editedAt: null,
+      metadata: { client_message_id: "turn-1" },
+      clientMessageId: "turn-1",
+      responsesApiResponseId: null,
+      senderUser: {
+        id: "user_123",
+        name: "Patrick",
+        email: "patrick@example.com",
+        image: null,
+      },
+      senderCoworker: null,
+      mentionsAsSource: [],
+      reactions: [],
+      replies: [],
+      _count: { replies: 0 },
+    });
+
+    expect(mapped.metadata).toEqual({ client_message_id: "turn-1" });
+  });
+
   it("soft-parses legacy quotes without attachment", () => {
     const quote = {
       messageId: "550e8400-e29b-41d4-a716-446655440004",

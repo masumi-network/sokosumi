@@ -2,12 +2,11 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-
+import { OUTBOUND_PENDING_SPINNER_DELAY_MS } from "@/app/chat/utils/outbound-room-message";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
 } from "@/lib/clients/generated/core";
-
 import { ChatMessageRow } from "../room-message-row";
 
 vi.mock("next-intl", () => ({
@@ -137,6 +136,9 @@ function renderRow({
   currentUserId,
   onStartEdit,
   onDelete,
+  onRetryOutbound,
+  onRemoveOutbound,
+  showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
   onEditDraftChange,
@@ -152,6 +154,9 @@ function renderRow({
   currentUserId?: string;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
@@ -170,6 +175,9 @@ function renderRow({
       onQuote={onQuote}
       onStartEdit={onStartEdit}
       onDelete={onDelete}
+      onRetryOutbound={onRetryOutbound}
+      onRemoveOutbound={onRemoveOutbound}
+      showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
       onEditDraftChange={onEditDraftChange}
@@ -231,10 +239,45 @@ describe("ChatMessageRow", () => {
     expect(screen.getByRole("article", { name: "Ada" })).toBeInTheDocument();
   });
 
-  it("keeps continuation timestamps on one line", () => {
+  it("omits wall-clock time on continuation rows (group header time is enough)", () => {
     renderRow({ isContinuation: true });
 
-    expect(screen.getByRole("time")).toHaveClass("whitespace-nowrap");
+    expect(screen.queryByRole("time")).not.toBeInTheDocument();
+    const rail = screen.getByTestId("message-continuation-rail");
+    // Same 2rem rail as size-8 avatar keeps body text aligned.
+    expect(rail).toHaveClass("w-8", "min-w-8", "max-w-8");
+  });
+
+  it("omits wall-clock in the continuation rail while pending before spinner delay", () => {
+    vi.useFakeTimers();
+    try {
+      const createdAt = new Date();
+      renderRow({
+        isContinuation: true,
+        currentUserId: "user-1",
+        message: userMessage({
+          id: "pending:turn-1",
+          content: "on the train",
+          createdAt,
+          metadata: {
+            client_message_id: "turn-1",
+            outbound_delivery_status: "pending",
+          },
+        }),
+      });
+
+      expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+      expect(screen.queryByRole("time")).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId("message-continuation-rail"),
+      ).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(OUTBOUND_PENDING_SPINNER_DELAY_MS - 1);
+      });
+      expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows reactor names in reaction tooltip in API order", () => {
@@ -1808,5 +1851,121 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(
       screen.queryByTestId("coworker-thought-trace"),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ChatMessageRow outbound delivery", () => {
+  it("keeps wall-clock time while pending before the spinner delay", () => {
+    vi.useFakeTimers();
+    try {
+      const createdAt = new Date();
+      renderRow({
+        currentUserId: "user-1",
+        message: userMessage({
+          id: "pending:turn-1",
+          content: "on the train",
+          createdAt,
+          metadata: {
+            client_message_id: "turn-1",
+            outbound_delivery_status: "pending",
+          },
+        }),
+      });
+
+      expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+      expect(screen.getByRole("time")).toBeInTheDocument();
+      expect(screen.queryByTestId("outbound-delivery-failed")).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(OUTBOUND_PENDING_SPINNER_DELAY_MS - 1);
+      });
+      expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows a quiet spinner after the pending delay elapses", () => {
+    vi.useFakeTimers();
+    try {
+      const createdAt = new Date();
+      renderRow({
+        currentUserId: "user-1",
+        message: userMessage({
+          id: "pending:turn-1",
+          content: "on the train",
+          createdAt,
+          metadata: {
+            client_message_id: "turn-1",
+            outbound_delivery_status: "pending",
+          },
+        }),
+      });
+
+      expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(screen.getByTestId("outbound-delivery-pending")).toBeTruthy();
+      expect(
+        screen.getByTestId("outbound-delivery-pending-spinner"),
+      ).toBeTruthy();
+      expect(screen.getByLabelText("Outbound.sending")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows a brief check in the timestamp slot right after confirm", () => {
+    renderRow({
+      currentUserId: "user-1",
+      message: userMessage({ id: "srv-1", content: "on the train" }),
+      showOutboundSentTick: true,
+    });
+
+    expect(screen.getByTestId("outbound-delivery-sent")).toBeTruthy();
+    expect(screen.getByLabelText("Outbound.sent")).toBeTruthy();
+  });
+
+  it("shows wall-clock time once the sent tick window ends", () => {
+    renderRow({
+      currentUserId: "user-1",
+      message: userMessage({ id: "srv-1", content: "on the train" }),
+    });
+
+    expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+    expect(screen.queryByTestId("outbound-delivery-sent")).toBeNull();
+    expect(screen.getByText("on the train")).toBeTruthy();
+  });
+
+  it("shows Retry and Remove for a failed send", async () => {
+    const user = userEvent.setup();
+    const onRetryOutbound = vi.fn();
+    const onRemoveOutbound = vi.fn();
+    const message = userMessage({
+      id: "pending:turn-1",
+      content: "on the train",
+      metadata: {
+        client_message_id: "turn-1",
+        outbound_delivery_status: "failed",
+      },
+    });
+
+    renderRow({
+      currentUserId: "user-1",
+      message,
+      onRetryOutbound,
+      onRemoveOutbound,
+    });
+
+    expect(screen.getByTestId("outbound-delivery-failed-icon")).toBeTruthy();
+    expect(screen.getByTestId("outbound-delivery-failed")).toHaveTextContent(
+      "Outbound.failed",
+    );
+    await user.click(screen.getByRole("button", { name: "Outbound.retry" }));
+    expect(onRetryOutbound).toHaveBeenCalledWith(message);
+    await user.click(screen.getByRole("button", { name: "Outbound.remove" }));
+    expect(onRemoveOutbound).toHaveBeenCalledWith(message);
   });
 });
