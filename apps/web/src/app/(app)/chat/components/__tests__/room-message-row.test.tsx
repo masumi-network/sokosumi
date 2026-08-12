@@ -139,6 +139,7 @@ function renderRow({
   onDelete,
   onRetryOutbound,
   onRemoveOutbound,
+  showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
   onEditDraftChange,
@@ -156,6 +157,7 @@ function renderRow({
   onDelete?: (message: ChatRoomMessage) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
@@ -176,6 +178,7 @@ function renderRow({
       onDelete={onDelete}
       onRetryOutbound={onRetryOutbound}
       onRemoveOutbound={onRemoveOutbound}
+      showOutboundSentTick={showOutboundSentTick}
       isEditing={isEditing}
       editDraft={editDraft}
       onEditDraftChange={onEditDraftChange}
@@ -1818,7 +1821,7 @@ describe("ChatMessageRow coworker Thought", () => {
 });
 
 describe("ChatMessageRow outbound delivery", () => {
-  it("shows Sending… for a pending local shell", () => {
+  it("shows a trailing clock for a pending local shell", () => {
     renderRow({
       message: userMessage({
         id: "pending:turn-1",
@@ -1830,10 +1833,19 @@ describe("ChatMessageRow outbound delivery", () => {
       }),
     });
 
-    expect(screen.getByTestId("outbound-delivery-pending")).toHaveTextContent(
-      "Outbound.sending",
-    );
+    expect(screen.getByTestId("outbound-delivery-pending")).toBeTruthy();
+    expect(screen.getByLabelText("Outbound.sending")).toBeTruthy();
     expect(screen.queryByTestId("outbound-delivery-failed")).toBeNull();
+  });
+
+  it("shows a fading sent tick when showOutboundSentTick is set", () => {
+    renderRow({
+      message: userMessage({ id: "srv-1", content: "on the train" }),
+      showOutboundSentTick: true,
+    });
+
+    expect(screen.getByTestId("outbound-delivery-sent")).toBeTruthy();
+    expect(screen.getByLabelText("Outbound.sent")).toBeTruthy();
   });
 
   it("shows Retry and Remove for a failed send", async () => {

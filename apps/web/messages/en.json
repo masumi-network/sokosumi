@@ -4993,7 +4993,8 @@
         "nameFallback": "Coworker"
       },
       "Outbound": {
-        "sending": "Sending…",
+        "sending": "Sending",
+        "sent": "Sent",
         "failed": "Failed to send",
         "retry": "Retry",
         "remove": "Remove"

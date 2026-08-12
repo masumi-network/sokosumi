@@ -1,7 +1,15 @@
 "use client";
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import { MessageCircle, Pencil, Quote, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  Clock,
+  MessageCircle,
+  Pencil,
+  Quote,
+  Trash2,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
@@ -32,6 +40,7 @@ import {
 } from "@/app/chat/utils/jumbo-emoji";
 import {
   isOutboundLocalMessage,
+  OUTBOUND_SENT_TICK_MS,
   readOutboundDeliveryStatus,
 } from "@/app/chat/utils/outbound-room-message";
 import {
@@ -1198,6 +1207,116 @@ function MessageEditComposer({
   );
 }
 
+/**
+ * Trailing WhatsApp-style delivery chrome: clock while pending, single check
+ * that fades after confirm, error + Retry/Remove on fail.
+ */
+function OutboundDeliveryChrome({
+  message,
+  status,
+  showSentTick,
+  onRetryOutbound,
+  onRemoveOutbound,
+}: {
+  message: ChatRoomMessage;
+  status: "pending" | "failed" | null;
+  showSentTick: boolean;
+  onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRemoveOutbound?: (message: ChatRoomMessage) => void;
+}) {
+  const t = useTranslations("App.Channels");
+  const [sentFading, setSentFading] = useState(false);
+
+  useEffect(() => {
+    if (!showSentTick) {
+      setSentFading(false);
+      return;
+    }
+    setSentFading(false);
+    // Hold solid, then CSS-fade for the second half of OUTBOUND_SENT_TICK_MS.
+    const fadeAt = window.setTimeout(() => {
+      setSentFading(true);
+    }, OUTBOUND_SENT_TICK_MS / 2);
+    return () => {
+      window.clearTimeout(fadeAt);
+    };
+  }, [showSentTick, message.id]);
+
+  if (status === "pending") {
+    return (
+      <div
+        className="flex justify-end pt-0.5"
+        data-testid="outbound-delivery-pending"
+      >
+        <span
+          className="text-muted-foreground inline-flex items-center"
+          title={t("Outbound.sending")}
+          aria-label={t("Outbound.sending")}
+        >
+          <Clock className="size-3.5" aria-hidden />
+        </span>
+      </div>
+    );
+  }
+
+  if (status === "failed") {
+    return (
+      <div
+        className="text-muted-foreground flex flex-wrap items-center justify-end gap-x-2 gap-y-1 pt-0.5 text-xs"
+        data-testid="outbound-delivery-failed"
+      >
+        <span
+          className="text-destructive inline-flex items-center gap-1"
+          title={t("Outbound.failed")}
+        >
+          <AlertCircle className="size-3.5 shrink-0" aria-hidden />
+          <span>{t("Outbound.failed")}</span>
+        </span>
+        {onRetryOutbound ? (
+          <button
+            type="button"
+            className="text-primary hover:text-primary/80 font-medium"
+            onClick={() => onRetryOutbound(message)}
+          >
+            {t("Outbound.retry")}
+          </button>
+        ) : null}
+        {onRemoveOutbound ? (
+          <button
+            type="button"
+            className="text-primary hover:text-primary/80 font-medium"
+            onClick={() => onRemoveOutbound(message)}
+          >
+            {t("Outbound.remove")}
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (showSentTick) {
+    return (
+      <div
+        className="flex justify-end pt-0.5"
+        data-testid="outbound-delivery-sent"
+      >
+        <span
+          className={cn(
+            "text-muted-foreground inline-flex items-center transition-opacity duration-500 ease-out",
+            sentFading ? "opacity-0" : "opacity-100",
+          )}
+          title={t("Outbound.sent")}
+          aria-label={t("Outbound.sent")}
+        >
+          <Check className="size-3.5" aria-hidden strokeWidth={2.5} />
+        </span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function MessageMetaFooter({
   message,
   coworkersById,
@@ -1207,6 +1326,7 @@ function MessageMetaFooter({
   isDeleted,
   onRetryOutbound,
   onRemoveOutbound,
+  showOutboundSentTick = false,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -1216,6 +1336,7 @@ function MessageMetaFooter({
   isDeleted: boolean;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  showOutboundSentTick?: boolean;
 }) {
   const t = useTranslations("App.Channels");
   /**
@@ -1225,42 +1346,18 @@ function MessageMetaFooter({
    */
   const mentionThinkStartMsByIdRef = useRef(new Map<string, number>());
   const outboundStatus = readOutboundDeliveryStatus(message);
+  const showOutboundChrome = outboundStatus != null || showOutboundSentTick;
 
   return (
     <>
-      {outboundStatus === "pending" ? (
-        <p
-          className="text-muted-foreground pt-1 text-xs"
-          data-testid="outbound-delivery-pending"
-        >
-          {t("Outbound.sending")}
-        </p>
-      ) : null}
-      {outboundStatus === "failed" ? (
-        <div
-          className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 pt-1 text-xs"
-          data-testid="outbound-delivery-failed"
-        >
-          <span>{t("Outbound.failed")}</span>
-          {onRetryOutbound ? (
-            <button
-              type="button"
-              className="text-primary hover:text-primary/80 font-medium"
-              onClick={() => onRetryOutbound(message)}
-            >
-              {t("Outbound.retry")}
-            </button>
-          ) : null}
-          {onRemoveOutbound ? (
-            <button
-              type="button"
-              className="text-primary hover:text-primary/80 font-medium"
-              onClick={() => onRemoveOutbound(message)}
-            >
-              {t("Outbound.remove")}
-            </button>
-          ) : null}
-        </div>
+      {showOutboundChrome ? (
+        <OutboundDeliveryChrome
+          message={message}
+          status={outboundStatus}
+          showSentTick={showOutboundSentTick && outboundStatus == null}
+          onRetryOutbound={onRetryOutbound}
+          onRemoveOutbound={onRemoveOutbound}
+        />
       ) : null}
       {!isDeleted && outboundStatus == null && message.reactions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1368,6 +1465,7 @@ export function ChatMessageRow({
   onDelete,
   onRetryOutbound,
   onRemoveOutbound,
+  showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
   onEditDraftChange,
@@ -1395,6 +1493,8 @@ export function ChatMessageRow({
   onDelete?: (message: ChatRoomMessage) => void;
   onRetryOutbound?: (message: ChatRoomMessage) => void;
   onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  /** Brief single check after confirm (fades out). */
+  showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
@@ -1419,7 +1519,6 @@ export function ChatMessageRow({
   const isDirectActionBusy = openingDirectParticipantKey != null;
   const isStreamOverlay = message.id.startsWith("stream:");
   const isOutboundLocal = isOutboundLocalMessage(message);
-  const outboundStatus = readOutboundDeliveryStatus(message);
   const isDeleted = message.deletedAt != null;
   const thoughtView = useMemo(() => {
     if (message.sender.type !== "coworker" || isDeleted) {
@@ -1568,12 +1667,7 @@ export function ChatMessageRow({
             ) : null}
           </div>
         )}
-        <div
-          className={cn(
-            "text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm",
-            outboundStatus != null && "opacity-80",
-          )}
-        >
+        <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
@@ -1654,6 +1748,7 @@ export function ChatMessageRow({
             isDeleted={isDeleted}
             onRetryOutbound={onRetryOutbound}
             onRemoveOutbound={onRemoveOutbound}
+            showOutboundSentTick={showOutboundSentTick}
           />
         ) : null}
       </div>
