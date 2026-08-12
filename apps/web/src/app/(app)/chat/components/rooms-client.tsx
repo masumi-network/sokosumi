@@ -600,6 +600,15 @@ export function RoomsClient({
   >(() => new Set());
   const outboundSentTickTimeoutsRef = useRef(new Map<string, number>());
 
+  // Drop classic outbound jobs when leaving a room — shells are wiped and
+  // Retry UI is gone (ADR-0004: no outbox across navigation).
+  useEffect(() => {
+    classicChannelQueueRef.current = [];
+    classicChannelJobsRef.current.clear();
+    classicThreadQueueRef.current = [];
+    classicThreadJobsRef.current.clear();
+  }, [selectedRoomId]);
+
   function flashOutboundSentTick(messageId: string) {
     const existing = outboundSentTickTimeoutsRef.current.get(messageId);
     if (existing != null) {
@@ -1777,35 +1786,51 @@ export function RoomsClient({
           classicChannelQueueRef.current.shift();
           continue;
         }
-        const result = await sendRoomMessageAction(
-          job.roomId,
-          job.content,
-          job.mentionedCoworkerIds,
-          {
-            mentionedUserIds: job.mentionedUserIds,
-            quote: job.quote,
-            clientMessageId: job.clientMessageId,
-          },
-        );
+        // Always dequeue this head once we start it — throws must not re-loop.
         classicChannelQueueRef.current.shift();
-        if (!result.ok) {
-          // Shell only while this room is still open; otherwise toast (ADR-0004).
+        try {
+          const result = await sendRoomMessageAction(
+            job.roomId,
+            job.content,
+            job.mentionedCoworkerIds,
+            {
+              mentionedUserIds: job.mentionedUserIds,
+              quote: job.quote,
+              clientMessageId: job.clientMessageId,
+            },
+          );
+          if (!result.ok) {
+            // Shell only while this room is still open; otherwise toast (ADR-0004).
+            if (isStillSelectedRoom(job.roomId)) {
+              setMessagesState((current) =>
+                failOutboundMessage(current, clientMessageId),
+              );
+            } else {
+              toast.error(result.error.message);
+              classicChannelJobsRef.current.delete(clientMessageId);
+            }
+            continue;
+          }
+          classicChannelJobsRef.current.delete(clientMessageId);
+          if (isStillSelectedRoom(job.roomId)) {
+            setMessagesState((current) =>
+              confirmOutboundMessage(
+                current,
+                result.value,
+                job.clientMessageId,
+              ),
+            );
+            flashOutboundSentTick(result.value.id);
+          }
+        } catch {
           if (isStillSelectedRoom(job.roomId)) {
             setMessagesState((current) =>
               failOutboundMessage(current, clientMessageId),
             );
           } else {
-            toast.error(result.error.message);
+            toast.error(t("Outbound.failed"));
             classicChannelJobsRef.current.delete(clientMessageId);
           }
-          continue;
-        }
-        classicChannelJobsRef.current.delete(clientMessageId);
-        if (isStillSelectedRoom(job.roomId)) {
-          setMessagesState((current) =>
-            confirmOutboundMessage(current, result.value),
-          );
-          flashOutboundSentTick(result.value.id);
         }
       }
     } finally {
@@ -1832,20 +1857,58 @@ export function RoomsClient({
           classicThreadQueueRef.current.shift();
           continue;
         }
-        const result = await sendRoomMessageAction(
-          job.roomId,
-          job.content,
-          job.mentionedCoworkerIds,
-          {
-            mentionedUserIds: job.mentionedUserIds,
-            parentMessageId: job.parentMessageId,
-            quote: job.quote,
-            clientMessageId: job.clientMessageId,
-          },
-        );
         classicThreadQueueRef.current.shift();
-        if (!result.ok) {
-          // Thread panel closed (or room left) → no failed shell; toast instead.
+        try {
+          const result = await sendRoomMessageAction(
+            job.roomId,
+            job.content,
+            job.mentionedCoworkerIds,
+            {
+              mentionedUserIds: job.mentionedUserIds,
+              parentMessageId: job.parentMessageId,
+              quote: job.quote,
+              clientMessageId: job.clientMessageId,
+            },
+          );
+          if (!result.ok) {
+            // Thread panel closed (or room left) → no failed shell; toast instead.
+            const shellVisible =
+              isStillSelectedRoom(job.roomId) &&
+              job.parentMessageId != null &&
+              threadParentMessageIdRef.current === job.parentMessageId;
+            if (shellVisible) {
+              setThreadMessages((current) =>
+                failOutboundMessage(current, clientMessageId),
+              );
+            } else {
+              toast.error(result.error.message);
+              classicThreadJobsRef.current.delete(clientMessageId);
+            }
+            continue;
+          }
+          classicThreadJobsRef.current.delete(clientMessageId);
+          if (
+            isStillSelectedRoom(job.roomId) &&
+            job.parentMessageId != null &&
+            threadParentMessageIdRef.current === job.parentMessageId
+          ) {
+            setThreadMessages((current) =>
+              confirmOutboundMessage(
+                current,
+                result.value,
+                job.clientMessageId,
+              ),
+            );
+            flashOutboundSentTick(result.value.id);
+            updateParentThreadPreview(job.parentMessageId, result.value);
+          } else if (
+            isStillSelectedRoom(job.roomId) &&
+            job.parentMessageId != null
+          ) {
+            // Thread closed before confirm: still bump parent preview only.
+            updateParentThreadPreview(job.parentMessageId, result.value);
+          }
+        } catch {
           const shellVisible =
             isStillSelectedRoom(job.roomId) &&
             job.parentMessageId != null &&
@@ -1855,28 +1918,9 @@ export function RoomsClient({
               failOutboundMessage(current, clientMessageId),
             );
           } else {
-            toast.error(result.error.message);
+            toast.error(t("Outbound.failed"));
             classicThreadJobsRef.current.delete(clientMessageId);
           }
-          continue;
-        }
-        classicThreadJobsRef.current.delete(clientMessageId);
-        if (
-          isStillSelectedRoom(job.roomId) &&
-          job.parentMessageId != null &&
-          threadParentMessageIdRef.current === job.parentMessageId
-        ) {
-          setThreadMessages((current) =>
-            confirmOutboundMessage(current, result.value),
-          );
-          flashOutboundSentTick(result.value.id);
-          updateParentThreadPreview(job.parentMessageId, result.value);
-        } else if (
-          isStillSelectedRoom(job.roomId) &&
-          job.parentMessageId != null
-        ) {
-          // Thread closed before confirm: still bump parent preview only.
-          updateParentThreadPreview(job.parentMessageId, result.value);
         }
       }
     } finally {
@@ -2366,6 +2410,8 @@ export function RoomsClient({
                   setThreadMessages([]);
                   setThreadOlderNextCursor(null);
                   setPendingThreadQuote(null);
+                  classicThreadQueueRef.current = [];
+                  classicThreadJobsRef.current.clear();
                 }}
                 onToggleReaction={handleToggleReaction}
                 onQuote={handleQuoteThreadMessage}

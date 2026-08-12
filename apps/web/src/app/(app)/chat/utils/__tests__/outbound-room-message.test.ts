@@ -87,6 +87,21 @@ describe("outbound room message", () => {
     expect(isOutboundLocalMessage(next[1]!)).toBe(false);
   });
 
+  it("confirms by known client turn id when response metadata omits it", () => {
+    const pending = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "hello",
+      senderUser,
+    });
+    const confirmed = serverMessage("srv-1", "hello");
+
+    const next = confirmOutboundMessage([pending], confirmed, "turn-1");
+
+    expect(next.map((row) => row.id)).toEqual(["srv-1"]);
+    expect(readClientTurnId(next[0]!)).toBe("turn-1");
+  });
+
   it("marks failed and can return to pending on retry", () => {
     const pending = createPendingRoomMessage({
       clientTurnId: "turn-1",

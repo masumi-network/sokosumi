@@ -96,27 +96,46 @@ export function createPendingRoomMessage(
   };
 }
 
-/** Replace a pending shell with the confirmed server message at the same index. */
+/**
+ * Replace a pending shell with the confirmed server message at the same index.
+ * Prefer `knownClientTurnId` from the local job — do not rely only on response
+ * metadata (DTO may omit client_message_id).
+ */
 export function confirmOutboundMessage(
   messages: readonly ChatRoomMessage[],
   confirmed: ChatRoomMessage,
+  knownClientTurnId?: string,
 ): ChatRoomMessage[] {
-  const turnId = readClientTurnId(confirmed);
+  const turnId =
+    (typeof knownClientTurnId === "string" && knownClientTurnId.trim()
+      ? knownClientTurnId.trim()
+      : null) ?? readClientTurnId(confirmed);
   const pendingId = turnId ? outboundLocalMessageId(turnId) : null;
+  // Stamp turn id when Core/metadata omitted it so later Ably merge still dedupes.
+  const confirmedRow: ChatRoomMessage =
+    turnId != null && readClientTurnId(confirmed) == null
+      ? {
+          ...confirmed,
+          metadata: {
+            ...(confirmed.metadata ?? {}),
+            [CLIENT_MESSAGE_ID_METADATA_KEY]: turnId,
+          },
+        }
+      : confirmed;
 
   let replaced = false;
   const next: ChatRoomMessage[] = [];
   for (const message of messages) {
     if (pendingId != null && message.id === pendingId) {
       if (!replaced) {
-        next.push(confirmed);
+        next.push(confirmedRow);
         replaced = true;
       }
       continue;
     }
-    if (message.id === confirmed.id) {
+    if (message.id === confirmedRow.id) {
       if (!replaced) {
-        next.push(confirmed);
+        next.push(confirmedRow);
         replaced = true;
       }
       continue;
@@ -125,7 +144,7 @@ export function confirmOutboundMessage(
   }
 
   if (!replaced) {
-    next.push(confirmed);
+    next.push(confirmedRow);
   }
   return next;
 }
