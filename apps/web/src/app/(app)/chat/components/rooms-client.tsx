@@ -65,6 +65,7 @@ import {
   readClientTurnId,
   removeOutboundMessage,
 } from "@/app/chat/utils/outbound-room-message";
+import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomReadAttentionMarker } from "@/app/chat/utils/room-read-attention-marker";
@@ -624,7 +625,13 @@ export function RoomsClient({
     };
   }, []);
 
-  function flashOutboundSentTick(messageId: string) {
+  function flashOutboundSentTick(
+    messageId: string,
+    clientTurnId?: string | null,
+  ) {
+    // Sync registry first — first settled paint must see the check even if
+    // the React tick setState commits a frame later (or not at all yet).
+    markOutboundSentTick([messageId, clientTurnId]);
     const existing = outboundSentTickTimeoutsRef.current.get(messageId);
     if (existing != null) {
       window.clearTimeout(existing);
@@ -649,10 +656,9 @@ export function RoomsClient({
   }
 
   /**
-   * Apply a message list update and flash sent ticks for any pending shell
-   * that became a server row in the same turn (Ably-first confirm path).
-   * Collect ids during the functional update (runs sync), then flash so React
-   * batches messages + ticks into one paint: spinner → check, not → time.
+   * Apply a message list update and arm sent ticks for any pending→server
+   * swap. Marks the sync registry *inside* the messages updater so the
+   * first paint after confirm cannot show wall-clock before the check.
    */
   function applyMessagesFlashingOutboundConfirms(
     setMessages: Dispatch<SetStateAction<ChatRoomMessage[]>>,
@@ -662,9 +668,17 @@ export function RoomsClient({
     setMessages((current) => {
       const next = computeNext(current);
       confirmedIds = listJustConfirmedOutboundMessageIds(current, next);
+      for (const messageId of confirmedIds) {
+        const row = next.find((message) => message.id === messageId);
+        markOutboundSentTick([
+          messageId,
+          row != null ? readClientTurnId(row) : null,
+        ]);
+      }
       return next;
     });
     for (const messageId of confirmedIds) {
+      // Re-arms timeout + React state; map already marked inside the updater.
       flashOutboundSentTick(messageId);
     }
   }
@@ -1865,7 +1879,7 @@ export function RoomsClient({
       onSuccess: (job, confirmed) => {
         if (isStillSelectedRoom(job.roomId)) {
           // Flash first so tick state lands with the confirm swap (same batch).
-          flashOutboundSentTick(confirmed.id);
+          flashOutboundSentTick(confirmed.id, job.clientMessageId);
           applyMessagesFlashingOutboundConfirms(setMessagesState, (current) =>
             confirmOutboundMessage(current, confirmed, job.clientMessageId),
           );
@@ -1907,7 +1921,7 @@ export function RoomsClient({
           job.parentMessageId != null &&
           threadParentMessageIdRef.current === job.parentMessageId
         ) {
-          flashOutboundSentTick(confirmed.id);
+          flashOutboundSentTick(confirmed.id, job.clientMessageId);
           applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) =>
             confirmOutboundMessage(current, confirmed, job.clientMessageId),
           );
@@ -2225,7 +2239,12 @@ export function RoomsClient({
               const isStreamOverlay = message.id.startsWith("stream:");
               const isOutboundLocal = isOutboundLocalMessage(message);
               return (
-                <div key={message.id} className="min-w-0">
+                <div
+                  // Prefer client turn id so pending→confirmed keeps one row
+                  // instance (delivery chrome can transition without remount).
+                  key={readClientTurnId(message) ?? message.id}
+                  className="min-w-0"
+                >
                   {showDaySeparator ? (
                     <DaySeparator
                       date={new Date(message.createdAt)}

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
+import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import type {
@@ -253,7 +254,7 @@ export function ThreadPanel({
                         <MembershipStatusRow key={reply.id} message={reply} />
                       ) : (
                         <ChatMessageRow
-                          key={reply.id}
+                          key={readClientTurnId(reply) ?? reply.id}
                           message={reply}
                           coworkersById={coworkersById}
                           coworkersBySlug={coworkersBySlug}

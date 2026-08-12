@@ -41,8 +41,10 @@ import {
   isOutboundLocalMessage,
   OUTBOUND_SENT_TICK_MS,
   type OutboundDeliveryStatus,
+  readClientTurnId,
   readOutboundDeliveryStatus,
 } from "@/app/chat/utils/outbound-room-message";
+import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
 import {
   type RoomMessageFilesSegment,
   segmentRoomMessageContent,
@@ -1593,6 +1595,10 @@ export function ChatMessageRow({
   const isStreamOverlay = message.id.startsWith("stream:");
   const isOutboundLocal = isOutboundLocalMessage(message);
   const outboundStatus = readOutboundDeliveryStatus(message);
+  const clientTurnId = readClientTurnId(message);
+  // Sync registry covers the first settled paint when React tick state lags.
+  const showDeliveryTick =
+    showOutboundSentTick || isOutboundSentTickActive(message.id, clientTurnId);
   const isDeleted = message.deletedAt != null;
   const thoughtView = useMemo(() => {
     if (message.sender.type !== "coworker" || isDeleted) {
@@ -1680,14 +1686,14 @@ export function ChatMessageRow({
           className={MESSAGE_LEFT_RAIL_CLASS}
           data-testid="message-continuation-rail"
           aria-hidden={
-            outboundStatus == null && !showOutboundSentTick ? true : undefined
+            outboundStatus == null && !showDeliveryTick ? true : undefined
           }
         >
-          {outboundStatus != null || showOutboundSentTick ? (
+          {outboundStatus != null || showDeliveryTick ? (
             <MessageTimeOrOutboundStatus
               createdAt={message.createdAt}
               outboundStatus={outboundStatus}
-              showSentTick={showOutboundSentTick}
+              showSentTick={showDeliveryTick}
               reserveHeaderWidth={false}
               className="text-muted-foreground leading-none"
             />
@@ -1746,7 +1752,7 @@ export function ChatMessageRow({
             <MessageTimeOrOutboundStatus
               createdAt={message.createdAt}
               outboundStatus={outboundStatus}
-              showSentTick={showOutboundSentTick}
+              showSentTick={showDeliveryTick}
               reserveHeaderWidth
               className="text-muted-foreground text-xs leading-none"
             />
