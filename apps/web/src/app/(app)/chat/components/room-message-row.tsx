@@ -1218,9 +1218,9 @@ const OUTBOUND_GUTTER_MARK_CLASS =
   "text-muted-foreground inline-flex items-center justify-center leading-none";
 
 /**
- * Left rail shared by avatar and continuation hover-time so body text lines up.
- * min/max lock the flex item: a wide wall-clock string must overflow the rail,
- * not grow it and shove the message body right.
+ * Left rail shared by avatar and continuation spacer so body text lines up.
+ * Continuations omit wall-clock time (header of the 5‑min group is enough);
+ * only outbound delivery marks may appear here.
  */
 const MESSAGE_LEFT_RAIL_CLASS =
   "flex w-8 min-w-8 max-w-8 shrink-0 justify-center overflow-visible pt-0.5";
@@ -1534,7 +1534,7 @@ export function ChatMessageRow({
   isSavingEdit?: boolean;
   showThreadButton?: boolean;
   showQuoteButton?: boolean;
-  /** Slack-style continuation: omit avatar / name / primary timestamp. */
+  /** Slack-style continuation: omit avatar / name / wall-clock (group header time is enough). */
   isContinuation?: boolean;
   /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
   isFirstOfDay?: boolean;
@@ -1632,24 +1632,23 @@ export function ChatMessageRow({
     >
       {isContinuation ? (
         // Same width as avatar rail so continuation body lines up with header body.
+        // No wall-clock: group header time covers the 5‑min burst.
         <div
           className={MESSAGE_LEFT_RAIL_CLASS}
-          data-testid="message-continuation-time-rail"
+          data-testid="message-continuation-rail"
+          aria-hidden={
+            outboundStatus == null && !showOutboundSentTick ? true : undefined
+          }
         >
-          <MessageTimeOrOutboundStatus
-            createdAt={message.createdAt}
-            outboundStatus={outboundStatus}
-            showSentTick={showOutboundSentTick}
-            reserveHeaderWidth={false}
-            className={cn(
-              // Match pre-outbound gutter: meta-scale, not body-scale.
-              "text-muted-foreground whitespace-nowrap text-[0.625rem] leading-4 tabular-nums",
-              // Pending/failed/sent-tick stay visible; settled time only on hover.
-              outboundStatus == null &&
-                !showOutboundSentTick &&
-                "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100",
-            )}
-          />
+          {outboundStatus != null || showOutboundSentTick ? (
+            <MessageTimeOrOutboundStatus
+              createdAt={message.createdAt}
+              outboundStatus={outboundStatus}
+              showSentTick={showOutboundSentTick}
+              reserveHeaderWidth={false}
+              className="text-muted-foreground leading-none"
+            />
+          ) : null}
         </div>
       ) : (
         <ChatParticipantHoverCard

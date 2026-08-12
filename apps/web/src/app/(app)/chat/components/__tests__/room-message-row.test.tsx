@@ -240,19 +240,31 @@ describe("ChatMessageRow", () => {
     expect(screen.getByRole("article", { name: "Ada" })).toBeInTheDocument();
   });
 
-  it("keeps continuation timestamps on one line", () => {
+  it("omits wall-clock time on continuation rows (group header time is enough)", () => {
     renderRow({ isContinuation: true });
 
-    expect(screen.getByRole("time")).toHaveClass("whitespace-nowrap");
+    expect(screen.queryByRole("time")).not.toBeInTheDocument();
+    const rail = screen.getByTestId("message-continuation-rail");
+    // Same 2rem rail as size-8 avatar keeps body text aligned.
+    expect(rail).toHaveClass("w-8", "min-w-8", "max-w-8");
   });
 
-  it("locks continuation time rail to avatar width so body text stays aligned", () => {
-    renderRow({ isContinuation: true });
+  it("still shows outbound delivery marks in the continuation rail", () => {
+    renderRow({
+      isContinuation: true,
+      currentUserId: "user-1",
+      message: userMessage({
+        id: "pending:turn-1",
+        content: "on the train",
+        metadata: {
+          client_message_id: "turn-1",
+          outbound_delivery_status: "pending",
+        },
+      }),
+    });
 
-    const rail = screen.getByTestId("message-continuation-time-rail");
-    // Same 2rem rail as size-8 avatar; min/max stop a long wall-clock from growing the column.
-    expect(rail).toHaveClass("w-8", "min-w-8", "max-w-8", "justify-center");
-    expect(rail).not.toHaveClass("w-12");
+    expect(screen.getByTestId("outbound-delivery-pending")).toBeTruthy();
+    expect(screen.queryByRole("time")).not.toBeInTheDocument();
   });
 
   it("shows reactor names in reaction tooltip in API order", () => {
