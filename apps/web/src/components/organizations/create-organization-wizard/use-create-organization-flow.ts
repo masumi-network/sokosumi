@@ -437,8 +437,14 @@ export function useCreateOrganizationFlow() {
     const previousLogo = logoUrl;
     setLogoUrl("");
     setPendingLogoFiles([]);
-    void persistLogo(null, previousLogo);
-  }, [logoUrl, persistLogo]);
+    // Optimistic, so a rejected write has to put the logo back — otherwise the
+    // UI says removed while the server still serves it, with nothing said.
+    void persistLogo(null, previousLogo).catch((error) => {
+      console.error("Failed to remove organization logo", error);
+      setLogoUrl(previousLogo);
+      toast.error(t("Logo.uploadError"));
+    });
+  }, [logoUrl, persistLogo, t]);
 
   const handleCopyLink = useCallback(async () => {
     if (!inviteLink) return;

@@ -87,6 +87,16 @@ async function OnboardingFlowLoader({ searchParams }: OnboardingPageProps) {
     redirect(DEFAULT_AUTHENTICATED_LANDING_PATH);
   }
 
+  if (members.status === "rejected") {
+    // Worth logging loudly: an empty list reads as "no organization", which
+    // sends an already-invited user down the long flow including the team fork
+    // and plan picker. Silent failure makes that branch hard to diagnose.
+    console.error(
+      "Failed to load organization memberships for onboarding",
+      members.reason,
+    );
+  }
+
   const organizationMemberships =
     members.status === "fulfilled" ? members.value : [];
   const variant: OnboardingVariant =

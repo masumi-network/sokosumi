@@ -194,7 +194,8 @@ export function CreateOrganizationLogoStep({ flow }: StepProps) {
     previewAlt: t("Logo.previewAlt"),
     remove: t("Logo.remove"),
     replace: t("Logo.replace"),
-    upload: t("Logo.replace"),
+    // Shown when there is no logo yet — "Replace logo" would be a lie there.
+    upload: t("Logo.upload"),
     uploadError: t("Logo.uploadError"),
   };
 

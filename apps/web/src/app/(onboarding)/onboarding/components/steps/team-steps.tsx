@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { canUseNextImageSrc } from "@/config/next-image";
 import { cn } from "@/lib/utils";
 
 import type { OnboardingTeamPath } from "../onboarding-steps";
@@ -153,6 +154,12 @@ export function InviteLinkStep({
 }: InviteLinkStepProps) {
   const t = useTranslations("Onboarding.Flow.InviteLink");
 
+  const resolvedLogo = preview?.logo
+    ? resolveIpfsOrHttpUrl(preview.logo)
+    : null;
+  const previewLogoUrl =
+    resolvedLogo && canUseNextImageSrc(resolvedLogo) ? resolvedLogo : null;
+
   return (
     <StepShell
       subtitle={hasJoined ? undefined : t("subtitle")}
@@ -204,9 +211,12 @@ export function InviteLinkStep({
             )}
           >
             <div className="bg-muted relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border">
-              {preview.logo ? (
+              {/* An organization logo can point anywhere, including an IPFS
+                  gateway. next/image throws on an unconfigured hostname, which
+                  would break this step outright, so fall back to the icon. */}
+              {previewLogoUrl ? (
                 <Image
-                  src={resolveIpfsOrHttpUrl(preview.logo)}
+                  src={previewLogoUrl}
                   alt={preview.name}
                   width={56}
                   height={56}

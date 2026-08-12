@@ -146,6 +146,9 @@ export function OnboardingFlow({
     [answers, hasJoinedOrganization, teamPath, variant],
   );
 
+  /** False when Core's catalog failed to load, leaving nothing to buy. */
+  const hasSelectablePlan = paidPlans.some((plan) => !plan.isCurrent);
+
   // A branch change can shorten the sequence out from under the cursor (e.g.
   // switching from "team" back to "solo" on an earlier step).
   const safeStepIndex = Math.min(stepIndex, steps.length - 1);
@@ -254,11 +257,14 @@ export function OnboardingFlow({
         workStyle: answers.workStyle ?? "",
       });
 
+      // Only send what was actually answered. Core treats an explicit null as
+      // "clear this field", so posting every key would wipe a stored answer
+      // whenever a branch skips the question that produced it.
       const result = await completeOnboarding({
-        companySize: answers.companySize,
-        companyType: answers.companyType,
-        role: answers.role,
-        workStyle: answers.workStyle,
+        ...(answers.companySize ? { companySize: answers.companySize } : {}),
+        ...(answers.companyType ? { companyType: answers.companyType } : {}),
+        ...(answers.role ? { role: answers.role } : {}),
+        ...(answers.workStyle ? { workStyle: answers.workStyle } : {}),
       });
 
       if (!result.ok) {
@@ -382,13 +388,19 @@ export function OnboardingFlow({
 
   const isLastStep = safeStepIndex === steps.length - 1;
 
+  // Clamp the stored index, not just the derived one. A branch change can
+  // shorten `steps` while `stepIndex` still points past the new end; leaving
+  // the raw value stale means the first few Back presses move a cursor the
+  // user cannot see and nothing happens on screen.
   const goNext = useCallback(() => {
-    setStepIndex((current) => current + 1);
-  }, []);
+    setStepIndex((current) => Math.min(current, steps.length - 1) + 1);
+  }, [steps.length]);
 
   const goBack = useCallback(() => {
-    setStepIndex((current) => Math.max(0, current - 1));
-  }, []);
+    setStepIndex((current) =>
+      Math.max(0, Math.min(current, steps.length - 1) - 1),
+    );
+  }, [steps.length]);
 
   const canAdvance = useMemo(() => {
     switch (currentStep) {
@@ -536,7 +548,10 @@ export function OnboardingFlow({
           variant="primary"
           size="lg"
           className="h-11 px-6"
-          disabled={isFinishing}
+          // An empty catalog (Core rejected `getSubscriptionCatalog`) renders an
+          // empty list while `selectedPlan` still holds its literal default —
+          // subscribing here would buy a plan the user was never shown.
+          disabled={isFinishing || !hasSelectablePlan}
           onClick={() => void handleSubscribe()}
         >
           {isFinishing && <Loader2 className="size-4 animate-spin" />}

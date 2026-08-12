@@ -7,7 +7,7 @@ import {
 } from "@sokosumi/utils";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
@@ -62,6 +62,7 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
+    409: jsonErrorResponse("Conflict"),
   },
 });
 
@@ -71,9 +72,11 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
     const profile = c.req.valid("json")?.profile;
 
-    const onboarding = await prisma.$transaction(async (tx) => {
-      // Read-modify-write inside the transaction so the merge cannot drop a
-      // concurrently written metadata field (e.g. a DESIGN.md pointer).
+    const onboarding = await serializableTransaction(async (tx) => {
+      // Read-modify-write on a JSON column. READ COMMITTED lets a concurrent
+      // metadata writer (the DESIGN.md route is the other one) interleave
+      // between this read and the update, and the later commit silently wins.
+      // Serializable turns that into a 409 the caller can retry.
       const existing = await tx.user.findUnique({
         where: { id: resolvedUserId },
         select: { metadata: true },
@@ -104,7 +107,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         completed: updatedUser.onboardingCompleted,
         profile: getUserOnboardingProfile(updatedUser.metadata),
       };
-    });
+    }, "Onboarding was updated concurrently. Please retry.");
 
     return ok(c, userOnboardingResponseSchema.parse(onboarding));
   });
