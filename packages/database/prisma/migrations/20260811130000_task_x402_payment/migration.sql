@@ -114,6 +114,13 @@ END $$;
 -- CASCADE would let that erase the financial audit trail, and a RESTRICT would
 -- make account deletion fail — so the ids are stored as plain values that
 -- outlive both, which is the normal shape for an audit log.
+--
+-- The denormalized columns are not decoration: paymentId points at a row that
+-- account deletion hard-deletes, so without them the surviving action row is
+-- an unresolvable pointer to a dead uuid. Plain columns, never foreign keys —
+-- an FK to task/Agent/User/payment would either cascade the audit row away or
+-- block account deletion, which is the whole thing this table avoids.
+-- Nullable so the append-only table tolerates rows written before this change.
 CREATE TABLE IF NOT EXISTS "task_x402_payment_action" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -121,9 +128,28 @@ CREATE TABLE IF NOT EXISTS "task_x402_payment_action" (
     "action" TEXT NOT NULL,
     "operatorId" TEXT NOT NULL,
     "reason" TEXT NOT NULL,
+    "cents" BIGINT,
+    "amount" TEXT,
+    "asset" TEXT,
+    "caip2Network" TEXT,
+    "taskId" TEXT,
+    "agentId" TEXT,
+    "chargedUserId" TEXT,
 
     CONSTRAINT "task_x402_payment_action_pkey" PRIMARY KEY ("id")
 );
+
+-- AlterTable
+-- A database that already applied the pre-denormalization version of the
+-- CREATE TABLE above skips it entirely (IF NOT EXISTS), so add the columns
+-- separately too. Both paths converge on the same shape.
+ALTER TABLE "task_x402_payment_action" ADD COLUMN IF NOT EXISTS "cents" BIGINT;
+ALTER TABLE "task_x402_payment_action" ADD COLUMN IF NOT EXISTS "amount" TEXT;
+ALTER TABLE "task_x402_payment_action" ADD COLUMN IF NOT EXISTS "asset" TEXT;
+ALTER TABLE "task_x402_payment_action" ADD COLUMN IF NOT EXISTS "caip2Network" TEXT;
+ALTER TABLE "task_x402_payment_action" ADD COLUMN IF NOT EXISTS "taskId" TEXT;
+ALTER TABLE "task_x402_payment_action" ADD COLUMN IF NOT EXISTS "agentId" TEXT;
+ALTER TABLE "task_x402_payment_action" ADD COLUMN IF NOT EXISTS "chargedUserId" TEXT;
 
 -- CreateIndex
 CREATE INDEX IF NOT EXISTS "task_x402_payment_action_paymentId_createdAt_idx" ON "task_x402_payment_action"("paymentId", "createdAt");

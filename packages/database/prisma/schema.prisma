@@ -1984,6 +1984,14 @@ model TaskX402Payment {
 /// audit trail while a restrict would block account deletion. Storing plain
 /// ids lets the record outlive both, which is the normal shape for an audit
 /// log.
+///
+/// Because `paymentId` can point at a hard-deleted row, writers MUST populate
+/// the denormalized facts below at write time. Without them the surviving
+/// action row is an unresolvable pointer — no amount, no asset, no network, no
+/// task, no subject user — which is worthless as evidence for exactly the case
+/// (an operator refunding real on-chain money) the log exists to record. They
+/// are nullable only so the append-only table tolerates the rows written
+/// before this change; new writes must fill every one they know.
 model TaskX402PaymentAction {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -1998,6 +2006,30 @@ model TaskX402PaymentAction {
   operatorId String
 
   reason String
+
+  // Denormalized snapshot of the payment at action time. Plain columns, never
+  // relations: an FK here would defeat the point, either cascading the audit
+  // row away with the payment/task/agent/user or blocking account deletion.
+
+  /// Credit magnitude of the payment's debit, in cents — the money the
+  /// operator moved. Copied from the charge Transaction, whose sign convention
+  /// (negative = spend) does not survive here: store the magnitude.
+  cents BigInt?
+
+  /// On-chain leg, copied verbatim from TaskX402Payment: base-unit amount,
+  /// asset, and CAIP-2 network. Same types as the source columns.
+  amount       String?
+  asset        String?
+  caip2Network String?
+
+  /// Correlation keys, copied from TaskX402Payment — Task.id and Agent.id as
+  /// plain values, not relations.
+  taskId  String?
+  agentId String?
+
+  /// User.id charged by the payment (the charge Transaction's userId) — the
+  /// subject of the refund, which the operator is not.
+  chargedUserId String?
 
   @@index([paymentId, createdAt])
   @@index([operatorId, createdAt])
