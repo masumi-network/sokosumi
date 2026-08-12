@@ -303,7 +303,7 @@ export function messageSenderKey(message: ChatRoomMessage): string | null {
 
 /**
  * True when `current` should render as a Slack-style continuation of `previous`
- * (omit avatar / name / primary timestamp).
+ * (omit avatar / name / wall-clock; group header time covers the burst).
  */
 export function isMessageContinuation(
   previous: ChatRoomMessage | undefined,

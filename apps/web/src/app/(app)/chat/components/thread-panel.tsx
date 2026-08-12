@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
+import { readClientTurnId } from "@/app/chat/utils/outbound-room-message";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea";
 import type {
@@ -53,6 +54,9 @@ export function ThreadPanel({
   openingDirectParticipantKey = null,
   onStartEdit,
   onDelete,
+  onRetryOutbound,
+  onRemoveOutbound,
+  outboundSentTickIds,
   editSession = null,
   onEditDraftChange,
   onCancelEdit,
@@ -91,6 +95,9 @@ export function ThreadPanel({
   openingDirectParticipantKey?: string | null;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  outboundSentTickIds?: ReadonlySet<string>;
   editSession?: { messageId: string; draft: string } | null;
   onEditDraftChange?: (value: string) => void;
   onCancelEdit?: () => void;
@@ -247,7 +254,7 @@ export function ThreadPanel({
                         <MembershipStatusRow key={reply.id} message={reply} />
                       ) : (
                         <ChatMessageRow
-                          key={reply.id}
+                          key={readClientTurnId(reply) ?? reply.id}
                           message={reply}
                           coworkersById={coworkersById}
                           coworkersBySlug={coworkersBySlug}
@@ -260,6 +267,11 @@ export function ThreadPanel({
                           }
                           onToggleReaction={onToggleReaction}
                           onQuote={onQuote ? handleQuote : undefined}
+                          onRetryOutbound={onRetryOutbound}
+                          onRemoveOutbound={onRemoveOutbound}
+                          showOutboundSentTick={outboundSentTickIds?.has(
+                            reply.id,
+                          )}
                           showThreadButton={false}
                           isContinuation={isMessageContinuation(
                             replies[index - 1],

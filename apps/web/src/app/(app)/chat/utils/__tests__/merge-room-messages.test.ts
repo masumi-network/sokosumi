@@ -6,6 +6,10 @@ import {
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "../merge-room-messages";
+import {
+  CLIENT_MESSAGE_ID_METADATA_KEY,
+  createPendingRoomMessage,
+} from "../outbound-room-message";
 
 function message(id: string, createdAt: string, content = id): ChatRoomMessage {
   return {
@@ -59,6 +63,76 @@ function coworkerMessage(
 }
 
 describe("mergeRoomMessages", () => {
+  it("keeps pending shells after confirmed rows when peers merge", () => {
+    const older = message("m1", "2026-07-01T10:00:00.000Z");
+    const pending = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "pending",
+      senderUser: {
+        id: "user-1",
+        name: "Ada",
+        email: "ada@example.com",
+        image: null,
+        presence: "offline",
+      },
+      // Earlier than peer so sticky-end (not timestamp sort) keeps pending last.
+      createdAt: new Date("2026-07-01T10:30:00.000Z"),
+    });
+    const peerEarlier = message("peer-1", "2026-07-01T11:00:00.000Z", "peer");
+
+    const merged = mergeRoomMessages([older, pending], [peerEarlier]);
+
+    expect(merged.map((row) => row.id)).toEqual(["m1", "peer-1", pending.id]);
+  });
+
+  it("confirms a pending shell from incoming client turn id without double row", () => {
+    const pending = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "hello",
+      senderUser: {
+        id: "user-1",
+        name: "Ada",
+        email: "ada@example.com",
+        image: null,
+        presence: "offline",
+      },
+    });
+    const confirmed = {
+      ...message("srv-1", "2026-07-01T12:00:00.000Z", "hello"),
+      metadata: { [CLIENT_MESSAGE_ID_METADATA_KEY]: "turn-1" },
+    };
+
+    const merged = mergeRoomMessages([pending], [confirmed]);
+
+    expect(merged.map((row) => row.id)).toEqual(["srv-1"]);
+  });
+
+  it("does not confirm by content alone when incoming omits client turn id", () => {
+    const pending = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "hello",
+      senderUser: {
+        id: "user-1",
+        name: "Ada",
+        email: "ada@example.com",
+        image: null,
+        presence: "offline",
+      },
+    });
+    const confirmedWithoutTurn = message(
+      "srv-1",
+      "2026-07-01T12:00:00.000Z",
+      "hello",
+    );
+
+    const merged = mergeRoomMessages([pending], [confirmedWithoutTurn]);
+
+    expect(merged.map((row) => row.id)).toEqual(["srv-1", pending.id]);
+  });
+
   it("keeps older loaded history when refreshing the latest page", () => {
     const older = message("m1", "2026-07-01T10:00:00.000Z");
     const mid = message("m2", "2026-07-01T11:00:00.000Z");

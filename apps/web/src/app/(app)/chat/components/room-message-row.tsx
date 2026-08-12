@@ -1,7 +1,14 @@
 "use client";
 
 import { getExtensionFromUrl } from "@sokosumi/utils";
-import { MessageCircle, Pencil, Quote, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  MessageCircle,
+  Pencil,
+  Quote,
+  Trash2,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   type KeyboardEvent as ReactKeyboardEvent,
@@ -30,6 +37,17 @@ import {
   getJumboEmojiCount,
   jumboEmojiClassName,
 } from "@/app/chat/utils/jumbo-emoji";
+import {
+  isOutboundLocalMessage,
+  OUTBOUND_PENDING_SPINNER_DELAY_MS,
+  OUTBOUND_SENT_TICK_MS,
+  type OutboundDeliveryStatus,
+  outboundPendingAgeMs,
+  readClientTurnId,
+  readOutboundDeliveryStatus,
+  shouldShowOutboundPendingSpinner,
+} from "@/app/chat/utils/outbound-room-message";
+import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
 import {
   type RoomMessageFilesSegment,
   segmentRoomMessageContent,
@@ -1194,6 +1212,250 @@ function MessageEditComposer({
   );
 }
 
+/**
+ * Header (next to name): min width so spinner → check → time does not nudge.
+ * Continuation gutter matches the avatar rail (`w-8`); icons only — no min-w.
+ */
+const OUTBOUND_HEADER_MARK_CLASS =
+  "text-muted-foreground inline-flex min-w-11 items-center justify-start leading-none";
+const OUTBOUND_GUTTER_MARK_CLASS =
+  "text-muted-foreground inline-flex items-center justify-center leading-none";
+
+/**
+ * Left rail shared by avatar and continuation spacer so body text lines up.
+ * Continuations omit wall-clock time (header of the 5‑min group is enough);
+ * only outbound delivery marks may appear here.
+ */
+const MESSAGE_LEFT_RAIL_CLASS =
+  "flex w-8 min-w-8 max-w-8 shrink-0 justify-center overflow-visible pt-0.5";
+
+/**
+ * Quiet dual-arc ring for classic outbound pending. Slow spin; static under
+ * prefers-reduced-motion. Not the coworker Drive grid / thinking orb.
+ */
+function OutboundPendingSpinner({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+      className={cn(
+        "text-muted-foreground/70 animate-outbound-pending-spin motion-reduce:animate-none",
+        className,
+      )}
+      data-testid="outbound-delivery-pending-spinner"
+    >
+      {/* Faint track — stays put under reduced motion so the mark still reads. */}
+      <circle
+        cx="8"
+        cy="8"
+        r="5.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        opacity={0.28}
+      />
+      {/* Leading arc */}
+      <path
+        d="M8 2.5a5.5 5.5 0 0 1 4.76 2.75"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      {/* Trailing arc (opposite, softer) */}
+      <path
+        d="M8 13.5a5.5 5.5 0 0 1-4.76-2.75"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity={0.45}
+      />
+    </svg>
+  );
+}
+
+/**
+ * Timestamp slot for classic outbound:
+ * - Header (`reserveHeaderWidth`): pending before delay = wall-clock; after =
+ *   spinner; confirm may show check; settled = wall-clock.
+ * - Gutter (`!reserveHeaderWidth`): marks only (spinner / fail / check) — never
+ *   wall-clock (group header time is enough on continuation rows).
+ * - Failed: alert immediately in both places.
+ *
+ * Settled wall-clock uses only the caller's className so color/size match
+ * pre-outbound message chrome (muted meta, not body foreground).
+ */
+function MessageTimeOrOutboundStatus({
+  createdAt,
+  outboundStatus,
+  showSentTick = false,
+  className,
+  /** Header next to name (true) vs continuation left gutter (false). */
+  reserveHeaderWidth = true,
+}: {
+  createdAt: Date | string;
+  outboundStatus: OutboundDeliveryStatus | null;
+  showSentTick?: boolean;
+  className?: string;
+  reserveHeaderWidth?: boolean;
+}) {
+  const t = useTranslations("App.Channels");
+  const [sentFading, setSentFading] = useState(false);
+  const [showPendingSpinner, setShowPendingSpinner] = useState(() =>
+    outboundStatus === "pending"
+      ? shouldShowOutboundPendingSpinner(createdAt)
+      : false,
+  );
+  const isGutter = !reserveHeaderWidth;
+  const markClass = reserveHeaderWidth
+    ? OUTBOUND_HEADER_MARK_CLASS
+    : OUTBOUND_GUTTER_MARK_CLASS;
+  // Smaller icon in the narrow continuation gutter.
+  const iconClass = reserveHeaderWidth ? "size-3" : "size-2.5";
+
+  useEffect(() => {
+    if (outboundStatus !== "pending") {
+      setShowPendingSpinner(false);
+      return;
+    }
+    if (shouldShowOutboundPendingSpinner(createdAt)) {
+      setShowPendingSpinner(true);
+      return;
+    }
+    setShowPendingSpinner(false);
+    const remainingMs =
+      OUTBOUND_PENDING_SPINNER_DELAY_MS - outboundPendingAgeMs(createdAt);
+    const timeoutId = window.setTimeout(
+      () => {
+        setShowPendingSpinner(true);
+      },
+      Math.max(0, remainingMs),
+    );
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [outboundStatus, createdAt]);
+
+  useEffect(() => {
+    if (!showSentTick) {
+      setSentFading(false);
+      return;
+    }
+    setSentFading(false);
+    const fadeAt = window.setTimeout(() => {
+      setSentFading(true);
+    }, OUTBOUND_SENT_TICK_MS / 2);
+    return () => {
+      window.clearTimeout(fadeAt);
+    };
+  }, [showSentTick, createdAt]);
+
+  if (outboundStatus === "pending") {
+    if (!showPendingSpinner) {
+      // Fast path: header keeps wall-clock; gutter stays empty.
+      if (isGutter) {
+        return null;
+      }
+      return <MessageWallClockTime value={createdAt} className={className} />;
+    }
+    return (
+      <span
+        className={cn(markClass, className)}
+        role="img"
+        data-testid="outbound-delivery-pending"
+        title={t("Outbound.sending")}
+        aria-label={t("Outbound.sending")}
+      >
+        <OutboundPendingSpinner className={iconClass} />
+      </span>
+    );
+  }
+
+  if (outboundStatus === "failed") {
+    return (
+      <span
+        className={cn(markClass, "text-destructive", className)}
+        role="img"
+        data-testid="outbound-delivery-failed-icon"
+        title={t("Outbound.failed")}
+        aria-label={t("Outbound.failed")}
+      >
+        <AlertCircle
+          className={cn(iconClass, "text-destructive")}
+          aria-hidden
+        />
+      </span>
+    );
+  }
+
+  if (showSentTick) {
+    return (
+      <span
+        className={cn(markClass, className)}
+        role="img"
+        data-testid="outbound-delivery-sent"
+        title={t("Outbound.sent")}
+        aria-label={t("Outbound.sent")}
+      >
+        <Check
+          className={cn(
+            iconClass,
+            "text-muted-foreground transition-opacity duration-500 ease-out",
+            sentFading ? "opacity-0" : "opacity-100",
+          )}
+          aria-hidden
+          strokeWidth={2.5}
+        />
+      </span>
+    );
+  }
+
+  // Settled: wall-clock only on the header; gutter stays empty.
+  if (isGutter) {
+    return null;
+  }
+  return <MessageWallClockTime value={createdAt} className={className} />;
+}
+
+function OutboundFailedActions({
+  message,
+  onRetryOutbound,
+  onRemoveOutbound,
+}: {
+  message: ChatRoomMessage;
+  onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRemoveOutbound?: (message: ChatRoomMessage) => void;
+}) {
+  const t = useTranslations("App.Channels");
+  return (
+    <div
+      className="text-muted-foreground flex w-fit max-w-full flex-wrap items-center gap-x-2 gap-y-1 pt-0.5 text-xs"
+      data-testid="outbound-delivery-failed"
+    >
+      <span className="text-destructive" title={t("Outbound.failed")}>
+        {t("Outbound.failed")}
+      </span>
+      {onRetryOutbound ? (
+        <button
+          type="button"
+          className="text-primary hover:text-primary/80 font-medium"
+          onClick={() => onRetryOutbound(message)}
+        >
+          {t("Outbound.retry")}
+        </button>
+      ) : null}
+      {onRemoveOutbound ? (
+        <button
+          type="button"
+          className="text-primary hover:text-primary/80 font-medium"
+          onClick={() => onRemoveOutbound(message)}
+        >
+          {t("Outbound.remove")}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function MessageMetaFooter({
   message,
   coworkersById,
@@ -1216,10 +1478,11 @@ function MessageMetaFooter({
    * stuck mention would show multi-minute age).
    */
   const mentionThinkStartMsByIdRef = useRef(new Map<string, number>());
+  const isOutboundLocal = isOutboundLocalMessage(message);
 
   return (
     <>
-      {!isDeleted && message.reactions.length > 0 ? (
+      {!isDeleted && !isOutboundLocal && message.reactions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5 pt-1">
           {message.reactions.map((reaction) => {
             const whoReactedLabel = formatWhoReactedLabel(reaction, t);
@@ -1321,6 +1584,9 @@ export function ChatMessageRow({
   onQuote,
   onStartEdit,
   onDelete,
+  onRetryOutbound,
+  onRemoveOutbound,
+  showOutboundSentTick = false,
   isEditing = false,
   editDraft = "",
   onEditDraftChange,
@@ -1346,6 +1612,10 @@ export function ChatMessageRow({
   onQuote?: (message: ChatRoomMessage) => void;
   onStartEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
+  onRetryOutbound?: (message: ChatRoomMessage) => void;
+  onRemoveOutbound?: (message: ChatRoomMessage) => void;
+  /** Brief check in the timestamp slot after confirm (fades, then wall-clock). */
+  showOutboundSentTick?: boolean;
   isEditing?: boolean;
   editDraft?: string;
   onEditDraftChange?: (value: string) => void;
@@ -1355,7 +1625,7 @@ export function ChatMessageRow({
   isSavingEdit?: boolean;
   showThreadButton?: boolean;
   showQuoteButton?: boolean;
-  /** Slack-style continuation: omit avatar / name / primary timestamp. */
+  /** Slack-style continuation: omit avatar / name / wall-clock (group header time is enough). */
   isContinuation?: boolean;
   /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
   isFirstOfDay?: boolean;
@@ -1369,6 +1639,12 @@ export function ChatMessageRow({
     : false;
   const isDirectActionBusy = openingDirectParticipantKey != null;
   const isStreamOverlay = message.id.startsWith("stream:");
+  const isOutboundLocal = isOutboundLocalMessage(message);
+  const outboundStatus = readOutboundDeliveryStatus(message);
+  const clientTurnId = readClientTurnId(message);
+  // Sync registry covers the first settled paint when React tick state lags.
+  const showDeliveryTick =
+    showOutboundSentTick || isOutboundSentTickActive(message.id, clientTurnId);
   const isDeleted = message.deletedAt != null;
   const thoughtView = useMemo(() => {
     if (message.sender.type !== "coworker" || isDeleted) {
@@ -1392,19 +1668,25 @@ export function ChatMessageRow({
       thoughtView.liveBeat != null &&
       message.content.trim().length === 0);
   const canQuote =
-    showQuoteButton && Boolean(onQuote) && !isStreamOverlay && !isDeleted;
+    showQuoteButton &&
+    Boolean(onQuote) &&
+    !isStreamOverlay &&
+    !isOutboundLocal &&
+    !isDeleted;
   const canEdit =
     Boolean(onStartEdit) &&
     Boolean(currentUserId) &&
     message.sender.type === "user" &&
     message.sender.user.id === currentUserId &&
     !isStreamOverlay &&
+    !isOutboundLocal &&
     !isDeleted;
   const canDelete =
     Boolean(onDelete) &&
     Boolean(currentUserId) &&
     !isDeleted &&
     !isStreamOverlay &&
+    !isOutboundLocal &&
     message.sender.type === "user" &&
     message.sender.user.id === currentUserId;
   const showEdited = !isDeleted && message.editedAt != null;
@@ -1414,7 +1696,8 @@ export function ChatMessageRow({
   const longPress = useLongPress(() => {
     setSheetOpen(true);
   });
-  const showActions = !isThinking && !isDeleted && !isEditing;
+  const showActions =
+    !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
 
   function requestDelete(_message: ChatRoomMessage) {
     setSheetOpen(false);
@@ -1443,11 +1726,25 @@ export function ChatMessageRow({
       {...(showActions ? longPress : {})}
     >
       {isContinuation ? (
-        <div className="flex w-8 shrink-0 justify-center pt-0.5">
-          <MessageWallClockTime
-            value={message.createdAt}
-            className="text-muted-foreground whitespace-nowrap text-[0.625rem] leading-4 tabular-nums opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
-          />
+        // Same width as avatar rail so continuation body lines up with header body.
+        // No wall-clock: group header time covers the 5‑min burst.
+        <div
+          className={MESSAGE_LEFT_RAIL_CLASS}
+          data-testid="message-continuation-rail"
+          aria-hidden={
+            outboundStatus == null && !showDeliveryTick ? true : undefined
+          }
+        >
+          {/* Gutter: marks only (reserveHeaderWidth=false → no wall-clock). */}
+          {outboundStatus != null || showDeliveryTick ? (
+            <MessageTimeOrOutboundStatus
+              createdAt={message.createdAt}
+              outboundStatus={outboundStatus}
+              showSentTick={showDeliveryTick}
+              reserveHeaderWidth={false}
+              className="text-muted-foreground leading-none"
+            />
+          ) : null}
         </div>
       ) : (
         <ChatParticipantHoverCard
@@ -1499,8 +1796,11 @@ export function ChatMessageRow({
                 {sender.name}
               </span>
             </ChatParticipantHoverCard>
-            <MessageWallClockTime
-              value={message.createdAt}
+            <MessageTimeOrOutboundStatus
+              createdAt={message.createdAt}
+              outboundStatus={outboundStatus}
+              showSentTick={showDeliveryTick}
+              reserveHeaderWidth
               className="text-muted-foreground text-xs leading-none"
             />
             {showEdited ? (
@@ -1581,13 +1881,20 @@ export function ChatMessageRow({
             </>
           )}
         </div>
+        {outboundStatus === "failed" && !isEditing ? (
+          <OutboundFailedActions
+            message={message}
+            onRetryOutbound={onRetryOutbound}
+            onRemoveOutbound={onRemoveOutbound}
+          />
+        ) : null}
         {!isEditing ? (
           <MessageMetaFooter
             message={message}
             coworkersById={coworkersById}
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
-            showThreadButton={showThreadButton}
+            showThreadButton={showThreadButton && !isOutboundLocal}
             isDeleted={isDeleted}
           />
         ) : null}

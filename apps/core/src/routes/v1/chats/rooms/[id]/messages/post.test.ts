@@ -89,6 +89,8 @@ vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtime: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const PARENT_MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440001";
 const MESSAGE_ID = "550e8400-e29b-41d4-a716-446655440002";
@@ -821,7 +823,10 @@ describe("POST /chats/rooms/{id}/messages", () => {
       roomFindFirstMock.mockResolvedValue(roomWithMembers());
       messageFindUniqueMock.mockResolvedValue(null);
       messageCreateMock.mockResolvedValue(
-        createdMessage({ senderUserId: USER_ID }),
+        createdMessage({
+          senderUserId: USER_ID,
+          metadata: { client_message_id: CLIENT_MESSAGE_ID },
+        }),
       );
 
       const app = createApp(userAuthContext);
@@ -844,6 +849,14 @@ describe("POST /chats/rooms/{id}/messages", () => {
             }),
           }),
         }),
+      );
+      expect(publishChatRoomMessageRealtime).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            client_message_id: CLIENT_MESSAGE_ID,
+          }),
+        }),
+        "create",
       );
     });
 
