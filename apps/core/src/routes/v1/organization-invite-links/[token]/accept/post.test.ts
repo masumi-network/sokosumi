@@ -97,6 +97,15 @@ vi.mock("@/services/organization-subscription-auth.service", () => ({
     syncSeatsMock(...args),
 }));
 
+const { upgradeGuestChatRoomMembershipsToMemberMock } = vi.hoisted(() => ({
+  upgradeGuestChatRoomMembershipsToMemberMock: vi.fn().mockResolvedValue(0),
+}));
+
+vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
+  upgradeGuestChatRoomMembershipsToMember:
+    upgradeGuestChatRoomMembershipsToMemberMock,
+}));
+
 const NOW = Date.now();
 
 function liveLink(overrides: Record<string, unknown> = {}) {
@@ -141,6 +150,7 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     getMemberMock.mockResolvedValue(null);
     tryConsumeInviteLinkMock.mockResolvedValue(true);
     createMemberMock.mockResolvedValue(undefined);
+    upgradeGuestChatRoomMembershipsToMemberMock.mockResolvedValue(0);
   });
 
   it("rejects an unauthenticated caller with 401", async () => {
@@ -201,6 +211,11 @@ describe("POST /organization-invite-links/{token}/accept", () => {
     );
     expect(tryConsumeInviteLinkMock).toHaveBeenCalledTimes(1);
     expect(syncSeatsMock).toHaveBeenCalledWith("org_1");
+    expect(upgradeGuestChatRoomMembershipsToMemberMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_1",
+      expect.anything(),
+    );
   });
 
   it("does not consume a use or sync seats when already a member", async () => {

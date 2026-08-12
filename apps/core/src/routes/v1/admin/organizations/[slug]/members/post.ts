@@ -6,6 +6,7 @@ import {
 } from "@sokosumi/database/repositories";
 
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
+import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -77,12 +78,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const role = body.role as MemberRole;
 
     const member = await prisma.$transaction(async (tx) => {
-      return memberRepository.createMember(
+      const created = await memberRepository.createMember(
         body.userId,
         organization.id,
         role,
         tx,
       );
+      await upgradeGuestChatRoomMembershipsToMember(
+        body.userId,
+        organization.id,
+        tx,
+      );
+      return created;
     });
 
     await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);

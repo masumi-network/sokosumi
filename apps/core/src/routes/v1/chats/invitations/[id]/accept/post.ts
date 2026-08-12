@@ -1,0 +1,326 @@
+import { createRoute, z } from "@hono/zod-openapi";
+
+import {
+  mapChatRoomInvitationFromRecord,
+  normalizeInvitationEmail,
+} from "@/helpers/chat-room-invitation";
+import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
+import { badRequest, notFound } from "@/helpers/error";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { ok } from "@/helpers/response";
+import prisma from "@/lib/db/prisma";
+import {
+  type OpenAPIHonoWithAuth,
+  withGlobalHeaderParameters,
+} from "@/lib/hono";
+import { requireUserAuthContext } from "@/middleware/auth";
+import { CHAT_ROOM_ACCESS } from "@/schemas/chat-room.schema";
+import {
+  CHAT_ROOM_INVITATION_STATUS,
+  chatRoomInvitationSchema,
+} from "@/schemas/chat-room-invitation.schema";
+
+import { recordChannelMembershipStatus } from "../../../rooms/membership-status";
+
+const paramsSchema = z.object({
+  id: z
+    .string()
+    .uuid()
+    .openapi({
+      param: { name: "id", in: "path" },
+      example: "550e8400-e29b-41d4-a716-446655440010",
+    }),
+});
+
+const route = withGlobalHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/{id}/accept",
+    description:
+      "Accept a pending room invitation. Creates `ChatRoomUserMember` with `access=guest` and a read state (no org Member / seat). Caller email must match the invitee. Rejects when the caller is already a host-org member. Idempotent when already a guest on the room.",
+    tags: ["Chat Rooms"],
+    request: {
+      params: paramsSchema,
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        chatRoomInvitationSchema,
+        "Invitation accepted; guest membership ensured",
+      ),
+      400: jsonErrorResponse("Invalid request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Invitation not found"),
+      500: jsonErrorResponse("Internal Server Error"),
+    },
+  }),
+);
+
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const userContext = requireUserAuthContext(c.var.authContext);
+    const { id } = c.req.valid("param");
+    const now = new Date();
+
+    const { invitation, statusMessages } = await prisma.$transaction(
+      async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: userContext.userId },
+          select: { email: true, name: true },
+        });
+        if (!user) {
+          throw notFound("User not found");
+        }
+        const email = normalizeInvitationEmail(user.email);
+
+        // Lock invitation before status decisions so revoke/decline cannot
+        // commit after a stale pending read and still lose to accept.
+        await tx.$queryRaw`
+          SELECT "id" FROM "chat_room_guest_invitation"
+          WHERE "id" = ${id}::uuid
+          FOR UPDATE
+        `;
+
+        const row = await tx.chatRoomGuestInvitation.findUnique({
+          where: { id },
+          include: {
+            inviter: { select: { id: true, name: true } },
+            room: {
+              select: {
+                id: true,
+                name: true,
+                kind: true,
+                discoverability: true,
+                archivedAt: true,
+                organizationId: true,
+                organization: { select: { id: true, name: true } },
+              },
+            },
+          },
+        });
+
+        if (!row || normalizeInvitationEmail(row.email) !== email) {
+          throw notFound("Invitation not found");
+        }
+
+        const room = row.room;
+        if (!room.organizationId) {
+          throw notFound("Invitation not found");
+        }
+
+        const existingMembership = await tx.chatRoomUserMember.findUnique({
+          where: {
+            roomId_userId: {
+              roomId: room.id,
+              userId: userContext.userId,
+            },
+          },
+          select: { access: true },
+        });
+
+        // Idempotent: already guest on the room — ensure invitation accepted.
+        // Still reject expired pending rows so a second invite cannot flip to
+        // accepted after expiresAt.
+        if (existingMembership?.access === CHAT_ROOM_ACCESS.GUEST) {
+          let status = row.status;
+          if (status === CHAT_ROOM_INVITATION_STATUS.PENDING) {
+            if (row.expiresAt <= now) {
+              await tx.chatRoomGuestInvitation.updateMany({
+                where: {
+                  id: row.id,
+                  status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+                },
+                data: { status: CHAT_ROOM_INVITATION_STATUS.EXPIRED },
+              });
+              throw badRequest("Invitation has expired.");
+            }
+            const accepted = await tx.chatRoomGuestInvitation.updateMany({
+              where: {
+                id: row.id,
+                status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+                expiresAt: { gt: now },
+              },
+              data: {
+                status: CHAT_ROOM_INVITATION_STATUS.ACCEPTED,
+                acceptedAt: now,
+                acceptedByUserId: userContext.userId,
+              },
+            });
+            if (accepted.count > 0) {
+              status = CHAT_ROOM_INVITATION_STATUS.ACCEPTED;
+            }
+          }
+          return {
+            invitation: mapChatRoomInvitationFromRecord(
+              row,
+              {
+                id: room.id,
+                name: room.name,
+                organizationId: room.organizationId,
+                organizationName: room.organization?.name,
+              },
+              { status },
+            ),
+            statusMessages: [] as Awaited<
+              ReturnType<typeof recordChannelMembershipStatus>
+            >,
+          };
+        }
+
+        if (existingMembership) {
+          throw badRequest("Already a member of this room.");
+        }
+
+        // Leave / host-remove after accept does not revive membership via the
+        // same invitation. Host must send a new invite.
+        if (row.status !== CHAT_ROOM_INVITATION_STATUS.PENDING) {
+          throw badRequest("Invitation is no longer pending.");
+        }
+
+        if (row.expiresAt <= now) {
+          await tx.chatRoomGuestInvitation.updateMany({
+            where: {
+              id: row.id,
+              status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+            },
+            data: { status: CHAT_ROOM_INVITATION_STATUS.EXPIRED },
+          });
+          throw badRequest("Invitation has expired.");
+        }
+
+        // Lock room before guest membership so convert-off-external cannot race
+        // past the discoverability check and leave guests on non-external rooms.
+        await tx.$queryRaw`
+          SELECT "id" FROM "chat_room"
+          WHERE "id" = ${room.id}::uuid
+          FOR UPDATE
+        `;
+        const lockedRoom = await tx.chatRoom.findUnique({
+          where: { id: room.id },
+          select: {
+            archivedAt: true,
+            kind: true,
+            discoverability: true,
+          },
+        });
+        if (
+          !lockedRoom ||
+          lockedRoom.archivedAt !== null ||
+          lockedRoom.kind !== "channel" ||
+          lockedRoom.discoverability !== "external"
+        ) {
+          throw badRequest(
+            "Room is no longer available for guest invitations.",
+          );
+        }
+
+        const hostMember = await tx.member.findUnique({
+          where: {
+            userId_organizationId: {
+              userId: userContext.userId,
+              organizationId: room.organizationId,
+            },
+          },
+          select: { id: true },
+        });
+        if (hostMember) {
+          throw badRequest(
+            "User is already an organization member; they can join the channel directly.",
+          );
+        }
+
+        // Create-only: never update an existing row to guest. A concurrent
+        // self-join as host member must not be demoted by accept's upsert.
+        // Unique races re-read membership and surface the correct error.
+        try {
+          await tx.chatRoomUserMember.create({
+            data: {
+              roomId: room.id,
+              userId: userContext.userId,
+              access: CHAT_ROOM_ACCESS.GUEST,
+            },
+          });
+        } catch (error) {
+          if (!isPrismaUniqueViolation(error)) {
+            throw error;
+          }
+          const raced = await tx.chatRoomUserMember.findUnique({
+            where: {
+              roomId_userId: {
+                roomId: room.id,
+                userId: userContext.userId,
+              },
+            },
+            select: { access: true },
+          });
+          if (raced?.access !== CHAT_ROOM_ACCESS.GUEST) {
+            // Concurrent self-join as host member (or other non-guest) must not
+            // be demoted; surface as already a member.
+            throw badRequest("Already a member of this room.");
+          }
+          // Concurrent double-accept as guest: fall through to mark accepted.
+        }
+        await tx.chatRoomReadState.createMany({
+          data: [{ roomId: room.id, userId: userContext.userId }],
+          skipDuplicates: true,
+        });
+
+        // Conditional transition: if revoke/decline won under another txn that
+        // committed after our lock wait, do not leave guest membership.
+        // Throwing rolls back the upsert + read-state writes above.
+        const accepted = await tx.chatRoomGuestInvitation.updateMany({
+          where: {
+            id: row.id,
+            status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+            expiresAt: { gt: now },
+          },
+          data: {
+            status: CHAT_ROOM_INVITATION_STATUS.ACCEPTED,
+            acceptedAt: now,
+            acceptedByUserId: userContext.userId,
+          },
+        });
+        if (accepted.count === 0) {
+          throw badRequest("Invitation is no longer pending.");
+        }
+
+        const actorName = user.name?.trim() || "Someone";
+        const statusMessages = await recordChannelMembershipStatus(tx, {
+          roomId: room.id,
+          roomKind: room.kind,
+          changes: [
+            {
+              action: "joined",
+              subject: {
+                type: "user",
+                id: userContext.userId,
+                name: actorName,
+              },
+            },
+          ],
+        });
+
+        return {
+          invitation: mapChatRoomInvitationFromRecord(
+            row,
+            {
+              id: room.id,
+              name: room.name,
+              organizationId: room.organizationId,
+              organizationName: room.organization?.name,
+            },
+            { status: CHAT_ROOM_INVITATION_STATUS.ACCEPTED },
+          ),
+          statusMessages,
+        };
+      },
+    );
+
+    for (const message of statusMessages) {
+      await publishChatRoomMessageRealtime(message, "create");
+    }
+
+    return ok(c, invitation);
+  });
+}

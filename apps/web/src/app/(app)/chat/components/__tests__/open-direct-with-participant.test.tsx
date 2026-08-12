@@ -108,7 +108,7 @@ describe("openDirectWithParticipant", () => {
     const onError = vi.fn();
     createDirectRoomActionMock.mockResolvedValue({
       ok: true,
-      data: directRoom,
+      value: directRoom,
     });
 
     const result = await openDirectWithParticipant({
@@ -135,7 +135,7 @@ describe("openDirectWithParticipant", () => {
     const push = vi.fn();
     ensureCoworkerDirectRoomActionMock.mockResolvedValue({
       ok: true,
-      data: directRoom,
+      value: directRoom,
     });
 
     await openDirectWithParticipant({
@@ -160,7 +160,7 @@ describe("openDirectWithParticipant", () => {
     const push = vi.fn();
     createDirectRoomActionMock.mockResolvedValue({
       ok: true,
-      data: directRoom,
+      value: directRoom,
     });
 
     await openDirectWithParticipant({
@@ -181,7 +181,7 @@ describe("openDirectWithParticipant", () => {
     const onError = vi.fn();
     createDirectRoomActionMock.mockResolvedValue({
       ok: false,
-      message: "Could not create direct.",
+      error: { code: "BAD_INPUT", message: "Could not create direct." },
     });
 
     const result = await openDirectWithParticipant({
@@ -202,7 +202,7 @@ describe("openDirectWithParticipant", () => {
     const onError = vi.fn();
     ensureCoworkerDirectRoomActionMock.mockResolvedValue({
       ok: true,
-      data: null,
+      value: null,
     });
 
     const result = await openDirectWithParticipant({

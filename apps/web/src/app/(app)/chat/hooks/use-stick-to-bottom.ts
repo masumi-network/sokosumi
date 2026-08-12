@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 /**
  * Within this distance of the bottom, content resizes still pin the viewport.
@@ -42,6 +48,17 @@ export function useStickToBottom({
     el.scrollTop = el.scrollHeight;
     stickToBottomRef.current = true;
   }, []);
+
+  /**
+   * Own send: always reveal the new bubble, even if typing/composer resize
+   * cleared the sticky flag. Immediate + rAF so late layout still pins.
+   */
+  const pinToBottomAfterOwnSend = useCallback(() => {
+    scrollToBottom();
+    requestAnimationFrame(() => {
+      scrollToBottom();
+    });
+  }, [scrollToBottom]);
 
   const scrollToBottomIfPinned = useCallback(() => {
     if (!stickToBottomRef.current) {
@@ -93,7 +110,9 @@ export function useStickToBottom({
     return () => observer.disconnect();
   }, [nearBottomPx, resetKey]);
 
-  useEffect(() => {
+  // Layout effect: avoid one painted frame with wrong min-height (skeleton
+  // / short transcript jumped when useEffect ran after paint).
+  useLayoutEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller || typeof ResizeObserver === "undefined") {
       return;
@@ -138,6 +157,7 @@ export function useStickToBottom({
     contentRef,
     contentMinHeight,
     scrollToBottom,
+    pinToBottomAfterOwnSend,
     scrollToBottomIfPinned,
   };
 }

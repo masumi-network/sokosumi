@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import {
+  expireStalePendingInvitations,
+  livePendingInvitationWhere,
+} from "@/helpers/chat-room-invitation";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -13,7 +17,10 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { leftChatRoomSchema } from "@/schemas/chat-room.schema";
 
-import { requireChatRoomUserAccess } from "../../../helpers";
+import {
+  membershipAccessForUser,
+  requireChatRoomUserAccess,
+} from "../../../helpers";
 import { recordChannelMembershipStatus } from "../../../membership-status";
 
 const paramsSchema = z.object({
@@ -103,6 +110,49 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw badRequest(
           "You are the last member of this room. Ask an organization owner or admin to archive it.",
         );
+      }
+
+      // Last host (access=member) leaving while guests / pending invites remain
+      // would orphan guest lifecycle with no host to manage the room.
+      const callerAccess = membershipAccessForUser(
+        existing.userMembers,
+        userContext.userId,
+      );
+      if (callerAccess !== "guest") {
+        const remainingHostMembers = await tx.chatRoomUserMember.count({
+          where: {
+            roomId: existing.id,
+            userId: { not: userContext.userId },
+            access: "member",
+          },
+        });
+        if (remainingHostMembers === 0) {
+          const remainingGuests = await tx.chatRoomUserMember.count({
+            where: {
+              roomId: existing.id,
+              userId: { not: userContext.userId },
+              access: "guest",
+            },
+          });
+          const now = new Date();
+          if (remainingGuests === 0) {
+            await expireStalePendingInvitations(tx, {
+              roomId: existing.id,
+              now,
+            });
+          }
+          const pendingInviteCount =
+            remainingGuests > 0
+              ? 0
+              : await tx.chatRoomGuestInvitation.count({
+                  where: livePendingInvitationWhere(existing.id, now),
+                });
+          if (remainingGuests > 0 || pendingInviteCount > 0) {
+            throw badRequest(
+              "You are the last host member of this room. Archive the room or remove guests and pending invitations before leaving.",
+            );
+          }
+        }
       }
 
       const actor = await tx.user.findUnique({

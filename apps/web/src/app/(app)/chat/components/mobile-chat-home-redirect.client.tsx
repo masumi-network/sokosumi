@@ -8,7 +8,7 @@ import { useIsMobileMedia } from "@/hooks/use-mobile";
 
 /**
  * Mobile `<md` bare `/chat` (surface home) → `/chat/chats`.
- * Desktop keeps ChatWelcomeClient on `/chat`.
+ * Desktop keeps ChatOnboardingHost on `/chat`.
  *
  * While the media query is unresolved or mobile, show the chats skeleton so
  * the Instant Nav / streamed landing is not a blank main area.

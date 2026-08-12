@@ -43,6 +43,7 @@
       }
     },
     "ShareButton": {
+      "share": "Teilen",
       "linkCopied": "Link in Zwischenablage kopiert",
       "copyError": "Link konnte nicht kopiert werden"
     },
@@ -1531,9 +1532,8 @@
           "thinking": "Denkt nach...",
           "searchingFiles": "Dateien werden durchsucht...",
           "callingTools": "Tools werden aufgerufen...",
-          "thoughtForSeconds": "Gedacht für {seconds}s",
-          "expandSteps": "Überlegungsschritte anzeigen",
-          "collapseSteps": "Überlegungsschritte ausblenden"
+          "thoughtForDuration": "Gedacht für {duration}",
+          "expandSteps": "Überlegung anzeigen"
         },
         "chatErrorTitle": "Chat-Fehler",
         "errorFallbackDescription": "Bei der Chat-Oberfläche ist ein Problem aufgetreten. Bitte lade die Seite neu oder kontaktiere den Support, falls das Problem weiterhin besteht.",
@@ -1553,6 +1553,66 @@
         "noResponseConnectionLost": "Die Verbindung wurde unterbrochen. Bitte lade die Seite neu und versuche es erneut.",
         "authorize": "Autorisieren",
         "sidebarNew": "Neu"
+      },
+      "Onboarding": {
+        "openFab": "Coworker-Chat starten",
+        "greeting": "Willkommen!",
+        "greetingWithName": "Willkommen, {name}!",
+        "intentTitle": "Worauf möchtest du dich konzentrieren?",
+        "intentDescription": "Wähle einen Schwerpunkt, damit wir den passenden Coworker und passende Starter-Prompts vorschlagen können.",
+        "intentChoices": {
+          "chat": "Gespräch",
+          "tasks": "Projekte & Aufgaben",
+          "either": "Noch unsicher"
+        },
+        "intentChoiceHints": {
+          "chat": "Recherchieren, brainstormen oder ein Problem mit einem Coworker durchdenken.",
+          "tasks": "Arbeit aufteilen, Aufgaben an einen Coworker vergeben oder ein Projekt vorantreiben.",
+          "either": "Wir starten mit Elena, unserer Standard-KI-Coworkerin, und einem vorgeschlagenen Prompt."
+        },
+        "goalTitle": "Starter-Prompt wählen oder selbst formulieren",
+        "goalDescription": "Wähle einen Prompt für deine erste Nachricht oder schreibe unten etwas Eigenes.",
+        "goalLabel": "Deine Nachricht",
+        "goalPlaceholder": "Beispiel: Hilf mir, ein Wochenupdate zu schreiben",
+        "tryAsking": {
+          "label": "Vorgeschlagene Prompts",
+          "orDivider": "oder",
+          "prompts": {
+            "chat": {
+              "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
+              "alex": "Analysiere die Daten in meinem OneDrive-Ordner.",
+              "elena": "Hilf mir zu verstehen, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte."
+            },
+            "tasks": {
+              "elena": "Zeig mir den Status meiner offenen Tasks und was Aufmerksamkeit braucht.",
+              "alex": "Erstelle ein Dashboard für meine Rechercheergebnisse.",
+              "hannah": "Analysiere unsere Zielgruppe: Bedürfnisse, Verhalten und Mediennutzung."
+            },
+            "either": {
+              "elena": "Hilf mir zu verstehen, wie Sokosumi zu meinem Unternehmen passt und wo ich anfangen sollte.",
+              "hannah": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
+              "alex": "Erstelle eine Datenvisualisierung aus meinem Excel-Dokument."
+            }
+          }
+        },
+        "draftWithGoal": "{goal}",
+        "draftWhenSkipped": {
+          "chat": "Ich möchte ein Gespräch starten — erzähl mir, wie du mir helfen kannst.",
+          "tasks": "Ich brauche Hilfe bei Aufgaben und Projekten.",
+          "either": "Erklär mir, wie ich mit Sokosumi starte."
+        },
+        "next": "Weiter",
+        "back": "Zurück",
+        "skip": "Überspringen",
+        "finish": "Weiter",
+        "confirmTitle": "Dein Coworker",
+        "confirmDescription": "Bestätige, um den Chat zu öffnen. Deine erste Nachricht bleibt im Composer, bis du sie sendest.",
+        "coworkerListLabel": "Coworkers",
+        "draftPreviewLabel": "Erste Nachricht",
+        "confirmCta": "Chat öffnen",
+        "opening": "Wird geöffnet…",
+        "ensureFailed": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut.",
+        "noChatCoworker": "Gerade sind keine chatfähigen Coworker verfügbar."
       }
     },
     "Tasks": {
@@ -1591,6 +1651,7 @@
         "loadMore": "Mehr laden",
         "showGuide": "Show guide"
       },
+      "createTaskFab": "Aufgabe erstellen",
       "Errors": {
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
@@ -2019,6 +2080,7 @@
     },
     "Projects": {
       "title": "Projekte",
+      "createProjectFab": "Projekt erstellen",
       "empty": {
         "title": "Noch keine Projekte",
         "description": "Erstelle ein Projekt, um zusammengehörige Tasks und Jobs zu bündeln.",
@@ -4927,8 +4989,7 @@
       "MentionStatus": {
         "pending": "Rufe {name}",
         "sent": "{name} denkt nach",
-        "responded": "{name} hat geantwortet",
-        "failed": "{name} fehlgeschlagen",
+        "failed": "{name} konnte nicht antworten",
         "nameFallback": "Coworker"
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
@@ -5071,7 +5132,9 @@
         "public": "Öffentlich",
         "private": "Privat",
         "publicHelp": "Alle in der Organisation können diesen Kanal finden und beitreten.",
-        "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen. Organisationsinhaber und Admins können ihn trotzdem finden und beitreten."
+        "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen. Organisationsinhaber und Admins können ihn trotzdem finden und beitreten.",
+        "external": "Extern",
+        "externalHelp": "Alle in der Organisation können den Kanal finden und beitreten. Externe treten nur per E-Mail-Einladung als Gäste bei — ohne Organisationsmitgliedschaft."
       },
       "CreateWizard": {
         "title": "Kanal erstellen",
@@ -5107,6 +5170,133 @@
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
         "left": "{name} hat den Channel verlassen"
+      },
+      "External": {
+        "title": "Extern",
+        "empty": "Noch keine externen Kanäle.",
+        "accept": "Annehmen",
+        "decline": "Ablehnen",
+        "acceptSuccess": "Du bist {name} beigetreten.",
+        "declineSuccess": "Einladung abgelehnt.",
+        "acceptError": "Einladung konnte nicht angenommen werden.",
+        "declineError": "Einladung konnte nicht abgelehnt werden.",
+        "pendingAria": "Einladung zu {name} von {organization}",
+        "hostOrganization": "{organization}"
+      },
+      "GuestInvite": {
+        "title": "Gäste einladen",
+        "description": "Gäste treten nur diesem Kanal bei und werden keine Organisationsmitglieder.",
+        "emailLabel": "E-Mail",
+        "emailPlaceholder": "gast@example.com",
+        "send": "Einladung senden",
+        "invalidEmail": "Gib eine gültige E-Mail-Adresse ein.",
+        "inviteSuccess": "Einladung an {email} gesendet.",
+        "guestsTitle": "Gäste",
+        "guestsEmpty": "Noch keine Gäste.",
+        "removeGuest": "Gast entfernen",
+        "removeGuestAria": "Gast {name} entfernen",
+        "removeGuestSuccess": "{name} aus dem Kanal entfernt.",
+        "pendingTitle": "Ausstehende Einladungen",
+        "empty": "Keine ausstehenden Einladungen.",
+        "loading": "Einladungen werden geladen…",
+        "loadError": "Einladungen konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "revoke": "Einladung widerrufen",
+        "revokeAria": "Einladung für {email} widerrufen",
+        "revokeSuccess": "Einladung widerrufen.",
+        "linksTitle": "Teilbarer Link",
+        "linksDescription": "Erstelle einen Link, den jede angemeldete Person außerhalb deiner Organisation öffnen kann, um als Gast beizutreten. Keine E-Mail im Voraus nötig.",
+        "linksEmpty": "Noch keine teilbaren Links.",
+        "createLink": "Link erstellen",
+        "copyLink": "Link kopieren",
+        "copyLinkAria": "Einladungslink kopieren",
+        "linkCopySuccess": "Link kopiert.",
+        "linkCopyError": "Link konnte nicht kopiert werden.",
+        "linkCreateSuccess": "Einladungslink erstellt.",
+        "linkCreateCopySuccess": "Einladungslink erstellt und kopiert.",
+        "revokeLink": "Link widerrufen",
+        "revokeLinkAria": "Einladungslink widerrufen",
+        "linkRevokeSuccess": "Einladungslink widerrufen.",
+        "emailTitle": "Per E-Mail einladen",
+        "emailDescription": "Sende eine persönliche Einladung an eine bekannte E-Mail-Adresse. Die Person muss mit diesem Konto annehmen.",
+        "linkExpiryLabel": "Gültigkeit",
+        "linkExpiryDays": "{days, plural, one {# Tag} other {# Tage}}",
+        "linkExpiryNever": "Kein Ablauf",
+        "linkExpiryInvalid": "Bitte eine gültige Gültigkeit wählen.",
+        "linkMaxUsesLabel": "Max. Nutzungen",
+        "linkMaxUsesUnlimited": "Unbegrenzt",
+        "linkMaxUsesCount": "{count, plural, one {# Nutzung} other {# Nutzungen}}",
+        "linkMaxUsesInvalid": "Bitte eine gültige Nutzungshöchstzahl wählen.",
+        "linkMetaExpires": "Läuft ab am {date}",
+        "linkMetaNoExpiry": "Kein Ablauf",
+        "linkMetaUses": "{used} / {max} Nutzungen",
+        "linkMetaUsesUnlimited": "{used} Nutzungen · unbegrenzt"
+      },
+      "ChatInvite": {
+        "title": "Kanaleinladung",
+        "description": "Du wurdest eingeladen, einem Kanal als Gast beizutreten.",
+        "hasInvitedYouToJoin": "hat dich eingeladen beizutreten",
+        "organizationLabel": "Host-Organisation: {organizationName}",
+        "guestNote": "Mit der Annahme trittst du nur diesem Kanal bei. Du wirst kein Mitglied der Host-Organisation.",
+        "acceptedTitle": "Du bist #{roomName} beigetreten",
+        "acceptedDescription": "Du findest den Kanal jederzeit unter Extern im Chat. Host: {organizationName}.",
+        "goToRoom": "Kanal öffnen",
+        "goToChat": "Zurück zum Chat",
+        "declinedTitle": "Einladung abgelehnt",
+        "declinedDescription": "Du hast die Einladung zu #{roomName} von {organizationName} abgelehnt.",
+        "revokedTitle": "Einladung widerrufen",
+        "revokedDescription": "Die Einladung zu #{roomName} von {organizationName} wurde widerrufen.",
+        "expiredTitle": "Einladung abgelaufen",
+        "expiredDescription": "Die Einladung zu #{roomName} von {organizationName} ist abgelaufen.",
+        "Actions": {
+          "accept": "Annehmen",
+          "decline": "Ablehnen",
+          "Success": {
+            "accept": "Einladung angenommen",
+            "decline": "Einladung abgelehnt"
+          },
+          "Error": {
+            "accept": "Einladung konnte nicht angenommen werden",
+            "decline": "Einladung konnte nicht abgelehnt werden"
+          }
+        },
+        "Error": {
+          "Expired": {
+            "title": "Einladung abgelaufen",
+            "description": "Diese Kanaleinladung ist nicht mehr gültig.",
+            "content": "Bitte den Host um eine neue Einladung, wenn du weiterhin Zugang brauchst.",
+            "footer": "Zurück zum Chat"
+          },
+          "NotFound": {
+            "title": "Einladung nicht gefunden",
+            "description": "Diese Kanaleinladung wurde nicht gefunden.",
+            "content": "Der Link ist möglicherweise falsch, oder die Einladung wurde bereits genutzt oder widerrufen.",
+            "footer": "Zurück zum Chat"
+          }
+        }
+      },
+      "ChatJoin": {
+        "title": "Kanal beitreten",
+        "invitedToJoin": "Du wurdest eingeladen, #{room} ({organization}) beizutreten.",
+        "guestNote": "Als Gast beizutreten macht dich nicht zum Mitglied der Host-Organisation.",
+        "join": "#{room} beitreten",
+        "joining": "Beitritt…",
+        "joined": "Du bist #{room} beigetreten.",
+        "alreadyGuest": "Du bist bereits in #{room}.",
+        "signedOutHint": "Melde dich an oder erstelle ein Konto, um diesem Kanal als Gast beizutreten.",
+        "signIn": "Anmelden",
+        "register": "Konto erstellen",
+        "Error": {
+          "joinFailed": "Beitritt zu diesem Kanal fehlgeschlagen."
+        },
+        "Invalid": {
+          "title": "Einladungslink ungültig",
+          "expired": "Dieser Einladungslink ist abgelaufen.",
+          "revoked": "Dieser Einladungslink wurde widerrufen.",
+          "depleted": "Dieser Einladungslink hat sein Nutzungslimit erreicht.",
+          "notFound": "Dieser Einladungslink ist ungültig.",
+          "back": "Zurück zum Chat"
+        }
       }
     }
   },

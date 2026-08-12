@@ -1,5 +1,6 @@
 "use client";
 
+import { getFirstName } from "@sokosumi/utils";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -231,7 +232,7 @@ export default function RunningState({
     [messages, onRefresh, resolvedConfirmations, syncMessages],
   );
 
-  const firstName = userName?.split(" ")[0] ?? null;
+  const firstName = getFirstName(userName) ?? null;
   const timeline = buildTimeline(messages, resolvedConfirmations);
   const orbMotion = personalityToOrbMotion(instance?.personality);
 

@@ -1,3 +1,4 @@
+import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +40,13 @@ export function KanbanColumn({
         />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-2",
+          LIST_MOBILE_CREATE_FAB_CLEARANCE,
+          "md:pb-2",
+        )}
+      >
         {tasks.map((task) =>
           renderTask ? (
             renderTask(task)

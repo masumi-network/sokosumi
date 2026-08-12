@@ -69,7 +69,7 @@ export default async function ProjectDetailPage({
 
   return (
     <div className="min-h-full w-full">
-      <div className="mx-auto max-w-4xl px-4 pb-8">
+      <div className="mx-auto max-w-4xl pb-8 md:px-4">
         <ProjectDetailHeader
           projectName={project.name}
           backLabel={t("back")}

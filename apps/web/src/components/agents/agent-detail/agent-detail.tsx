@@ -55,7 +55,7 @@ export function AgentDetail({
   return (
     <div
       className={cn(
-        "mt-4 flex w-full flex-col space-y-8 px-4 pb-8 md:px-0",
+        "mt-0 flex w-full flex-col space-y-8 px-4 pb-8 md:mt-4 md:px-0",
         className,
       )}
     >
@@ -134,6 +134,17 @@ export function AgentDetailSkeleton({
       <section className="space-y-4">
         <AgentDetailReviewsSkeleton />
       </section>
+    </div>
+  );
+}
+
+/** Route-level Instant shell — sync only (no session/i18n/cookies). */
+export function AgentDetailPageSkeleton() {
+  return (
+    <div className="min-h-full w-full">
+      <div className="mx-auto w-full max-w-4xl">
+        <AgentDetailSkeleton className="mt-4 space-y-8 px-4 pb-8 md:px-0" />
+      </div>
     </div>
   );
 }

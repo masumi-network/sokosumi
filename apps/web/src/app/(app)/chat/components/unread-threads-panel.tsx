@@ -98,15 +98,15 @@ export function UnreadThreadsPanel({
       if (!result.ok) {
         if (forPanel) {
           setItems([]);
-          setError(result.message || labels.error);
+          setError(result.error.message || labels.error);
           setIsLoading(false);
         }
         return;
       }
 
-      setBadgeCount(result.data.length);
+      setBadgeCount(result.value.length);
       if (forPanel) {
-        setItems(result.data);
+        setItems(result.value);
         setIsLoading(false);
       }
     },
@@ -167,7 +167,7 @@ export function UnreadThreadsPanel({
       return;
     }
     if (!result.ok) {
-      setError(result.message || labels.markAllReadError);
+      setError(result.error.message || labels.markAllReadError);
       setIsMarkingAllRead(false);
       return;
     }

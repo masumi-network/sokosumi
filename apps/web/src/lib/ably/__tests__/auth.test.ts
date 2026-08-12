@@ -44,10 +44,16 @@ describe("createAuthTokenRequest", () => {
       }),
     });
 
-    const result = await createAuthTokenRequest();
+    const result = await createAuthTokenRequest({
+      clientInstanceId: "inst_test01",
+    });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "http://core.test/v1/realtime/ably-token",
+      expect.objectContaining({
+        href: expect.stringContaining(
+          "http://core.test/v1/realtime/ably-token",
+        ),
+      }),
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
@@ -56,6 +62,8 @@ describe("createAuthTokenRequest", () => {
         }),
       }),
     );
+    const fetchUrl = fetchMock.mock.calls[0]?.[0] as URL;
+    expect(fetchUrl.searchParams.get("clientInstanceId")).toBe("inst_test01");
     expect(result).toEqual(tokenRequest);
     // Must not return the Core envelope — Ably authUrl expects TokenRequest fields.
     expect(result).not.toHaveProperty("meta");

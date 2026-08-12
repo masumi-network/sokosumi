@@ -47,7 +47,7 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
       if (cancelled || !result.ok) {
         return;
       }
-      setRooms(applyRoomReadOverlays(result.data));
+      setRooms(applyRoomReadOverlays(result.value.rooms));
     };
 
     void refreshRooms();
@@ -129,7 +129,7 @@ export function useChatTabUnreadPresence(): UseChatTabUnreadPresenceResult {
         if (cancelled || !result.ok) {
           return;
         }
-        setRooms(applyRoomReadOverlays(result.data));
+        setRooms(applyRoomReadOverlays(result.value.rooms));
       });
     };
 

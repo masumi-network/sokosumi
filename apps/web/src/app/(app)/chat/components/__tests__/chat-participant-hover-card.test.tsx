@@ -192,6 +192,29 @@ describe("ChatParticipantHoverCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("strips inherited focus semantics when interactive is false (nested in links)", () => {
+    render(
+      <ChatParticipantHoverCard profile={humanProfile} interactive={false}>
+        <span
+          data-testid="passive-trigger"
+          role="button"
+          tabIndex={0}
+          aria-label="should-be-cleared"
+        >
+          avatar
+        </span>
+      </ChatParticipantHoverCard>,
+    );
+
+    const trigger = screen.getByTestId("passive-trigger");
+    expect(trigger).not.toHaveAttribute("aria-label");
+    expect(trigger).not.toHaveAttribute("role");
+    expect(trigger).not.toHaveAttribute("tabindex");
+    expect(
+      screen.queryByRole("button", { name: "Ada Lovelace" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("uses the child control itself as the hover trigger hit target", () => {
     render(
       <div className="flex" style={{ display: "flex", height: 400 }}>

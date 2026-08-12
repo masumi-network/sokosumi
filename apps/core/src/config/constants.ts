@@ -38,6 +38,30 @@ export const LIMITS = {
   /** Maximum organization invitations per organization */
   ORGANIZATION_INVITATION_LIMIT: 100,
 
+  /**
+   * Maximum pending guest invitations per external channel. Bounds email blast
+   * abuse and keeps host invite lists usable.
+   */
+  CHAT_ROOM_GUEST_INVITATION_PENDING_LIMIT: 100,
+
+  /**
+   * Maximum guest invitations one inviter may create per hour (across rooms).
+   * Complements the per-room pending cap for spam protection.
+   */
+  CHAT_ROOM_GUEST_INVITATION_CREATE_PER_HOUR: 30,
+
+  /**
+   * Maximum live (non-revoked, non-expired) shareable guest invite links per
+   * external channel. Bounds link sprawl; hosts revoke unused links first.
+   */
+  CHAT_ROOM_GUEST_INVITE_LINK_ACTIVE_LIMIT: 10,
+
+  /**
+   * Maximum shareable guest invite links one creator may mint per hour
+   * (across rooms). Complements the per-room active cap.
+   */
+  CHAT_ROOM_GUEST_INVITE_LINK_CREATE_PER_HOUR: 10,
+
   /** Maximum organizations per user */
   ORGANIZATION_LIMIT: 100,
 

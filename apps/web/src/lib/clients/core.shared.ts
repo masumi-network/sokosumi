@@ -15,6 +15,7 @@ import type {
   GetAgentsByIdReviewsData,
   GetAgentsData,
   GetCategoriesData,
+  GetChatsInvitationsData,
   GetChatsRoomsByIdMessagesData,
   GetChatsRoomsByIdThreadsByParentMessageIdMessagesData,
   GetChatsRoomsData,
@@ -54,6 +55,7 @@ import type {
   PostAgentsByIdJobsError,
   PostAgentsByIdRatingsData,
   PostChatsRoomsByIdFilesData,
+  PostChatsRoomsByIdInviteLinksData,
   PostChatsRoomsByIdMessagesByMessageIdReactionsData,
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
@@ -91,6 +93,9 @@ import {
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
+  deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
+  deleteChatsRoomsByIdInviteLinksByToken as coreDeleteChatsRoomsByIdInviteLinksByToken,
+  deleteChatsRoomsByIdMembersByUserId as coreDeleteChatsRoomsByIdMembersByUserId,
   deleteChatsRoomsByIdMembersMe as coreDeleteChatsRoomsByIdMembersMe,
   deleteChatsRoomsByIdMessagesByMessageId as coreDeleteChatsRoomsByIdMessagesByMessageId,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
@@ -123,8 +128,13 @@ import {
   getAgentsByIdReviews as coreGetAgentsByIdReviews,
   getAgentsByIdReviewsMe as coreGetAgentsByIdReviewsMe,
   getCategories as coreGetCategories,
+  getChatRoomInviteLinksByToken as coreGetChatRoomInviteLinksByToken,
+  getChatsInvitations as coreGetChatsInvitations,
+  getChatsInvitationsById as coreGetChatsInvitationsById,
   getChatsRooms as coreGetChatsRooms,
   getChatsRoomsById as coreGetChatsRoomsById,
+  getChatsRoomsByIdInvitations as coreGetChatsRoomsByIdInvitations,
+  getChatsRoomsByIdInviteLinks as coreGetChatsRoomsByIdInviteLinks,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
   getChatsRoomsByIdThreads as coreGetChatsRoomsByIdThreads,
   getChatsRoomsByIdThreadsByParentMessageId as coreGetChatsRoomsByIdThreadsByParentMessageId,
@@ -226,9 +236,14 @@ import {
   patchVendor as corePatchVendor,
   postAgentsByIdJobs as corePostAgentsByIdJobs,
   postAgentsByIdRatings as corePostAgentsByIdRatings,
+  postChatRoomInviteLinksByTokenAccept as corePostChatRoomInviteLinksByTokenAccept,
+  postChatsInvitationsByIdAccept as corePostChatsInvitationsByIdAccept,
+  postChatsInvitationsByIdDecline as corePostChatsInvitationsByIdDecline,
   postChatsRooms as corePostChatsRooms,
   postChatsRoomsByIdArchive as corePostChatsRoomsByIdArchive,
   postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
+  postChatsRoomsByIdInvitations as corePostChatsRoomsByIdInvitations,
+  postChatsRoomsByIdInviteLinks as corePostChatsRoomsByIdInviteLinks,
   postChatsRoomsByIdMembersMe as corePostChatsRoomsByIdMembersMe,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdReactions as corePostChatsRoomsByIdMessagesByMessageIdReactions,
@@ -411,6 +426,179 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getChatRoomInvitations(
+    query?: GetChatsInvitationsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsInvitations({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch chat room invitations",
+    );
+  }
+
+  async function acceptChatRoomInvitation(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsInvitationsByIdAccept({
+          client,
+          path: { id },
+        }),
+      "Failed to accept chat room invitation",
+    );
+  }
+
+  async function declineChatRoomInvitation(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsInvitationsByIdDecline({
+          client,
+          path: { id },
+        }),
+      "Failed to decline chat room invitation",
+    );
+  }
+
+  async function getChatRoomInvitation(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsInvitationsById({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch chat room invitation",
+    );
+  }
+
+  async function listChatRoomInvitations(roomId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdInvitations({
+          client,
+          path: { id: roomId },
+          cache: "no-store",
+        }),
+      "Failed to fetch room invitations",
+    );
+  }
+
+  async function createChatRoomInvitation(roomId: string, email: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdInvitations({
+          client,
+          path: { id: roomId },
+          body: { email },
+        }),
+      "Failed to create room invitation",
+    );
+  }
+
+  async function revokeChatRoomInvitation(
+    roomId: string,
+    invitationId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdInvitationsByInvitationId({
+          client,
+          path: { id: roomId, invitationId },
+        }),
+      "Failed to revoke room invitation",
+    );
+  }
+
+  /** Host: list shareable guest invite links for an external channel. */
+  async function listChatRoomGuestInviteLinks(roomId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdInviteLinks({
+          client,
+          path: { id: roomId },
+          cache: "no-store",
+        }),
+      "Failed to fetch room invite links",
+    );
+  }
+
+  /**
+   * Host: mint a shareable guest invite link for an external channel.
+   * Returns absolute `/chat/join/{token}` URL from Core.
+   */
+  async function createChatRoomGuestInviteLink(
+    roomId: string,
+    body: NonNullable<PostChatsRoomsByIdInviteLinksData["body"]> = {},
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdInviteLinks({
+          client,
+          path: { id: roomId },
+          body,
+        }),
+      "Failed to create room invite link",
+    );
+  }
+
+  /** Host: revoke a shareable guest invite link by token. */
+  async function revokeChatRoomGuestInviteLink(roomId: string, token: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdInviteLinksByToken({
+          client,
+          path: { id: roomId, token },
+        }),
+      "Failed to revoke room invite link",
+    );
+  }
+
+  /**
+   * Resolves a shareable room guest invite-link token for `/chat/join` preview.
+   * Public: status + room preview only when live.
+   */
+  async function resolveChatRoomGuestInviteLink(token: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatRoomInviteLinksByToken({
+          client,
+          path: { token },
+          cache: "no-store",
+        }),
+      "Failed to resolve room invite link",
+    );
+  }
+
+  /**
+   * Accepts a shareable room guest invite link for the signed-in user
+   * (`access=guest`). Idempotent when already a guest.
+   */
+  async function acceptChatRoomGuestInviteLink(token: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatRoomInviteLinksByTokenAccept({
+          client,
+          path: { token },
+        }),
+      "Failed to accept room invite link",
+    );
+  }
+
   async function getDiscoverableChatRooms(
     query?: GetChatsRoomsDiscoverableData["query"],
   ) {
@@ -518,6 +706,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to leave chat room",
+    );
+  }
+
+  /** Host: remove an external guest from a room. */
+  async function removeChatRoomMember(roomId: string, userId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdMembersByUserId({
+          client,
+          path: { id: roomId, userId },
+        }),
+      "Failed to remove room member",
     );
   }
 
@@ -3827,16 +4028,28 @@ export function createCoreClient(getClient: GetCoreClient) {
     patchEnterpriseContract,
     previewEnterpriseContractPeriods,
     acknowledgeNotice,
+    acceptChatRoomGuestInviteLink,
+    acceptChatRoomInvitation,
     addChatRoomMessage,
     archiveChatRoom,
+    createChatRoomGuestInviteLink,
+    createChatRoomInvitation,
+    declineChatRoomInvitation,
     deleteChatRoom,
     restoreChatRoom,
     leaveChatRoom,
+    removeChatRoomMember,
     joinChatRoom,
     assignOrganizationSeat,
     createChatRoom,
     createAgentJob,
     createChatRoomFileUploadSession,
+    getChatRoomInvitation,
+    listChatRoomGuestInviteLinks,
+    listChatRoomInvitations,
+    resolveChatRoomGuestInviteLink,
+    revokeChatRoomGuestInviteLink,
+    revokeChatRoomInvitation,
     cleanupOrganizationLogo,
     cleanupVendorLogo,
     createMyFileUploadSession,
@@ -3855,6 +4068,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteTask,
     deleteTaskSchedule,
     getChatRoom,
+    getChatRoomInvitations,
     getChatRoomMessages,
     getChatRoomThread,
     getChatRoomThreadMessages,

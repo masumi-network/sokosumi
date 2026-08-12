@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { badRequest, conflict } from "@/helpers/error";
+import { badRequest, conflict, forbidden } from "@/helpers/error";
 import { jsonContent, jsonErrorResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import {
@@ -25,6 +25,7 @@ import {
   buildDirectRoomName,
   buildUniqueRoomSlug,
   chatRoomInclude,
+  isOrganizationOwnerOrAdmin,
   mapChatRoomWithSidebarFlags,
   normalizeUniqueStrings,
   requireActiveOrganizationId,
@@ -97,11 +98,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     try {
       const room = await prisma.$transaction(async (tx) => {
-        await resolveMemberOrganizationById({
+        const { role } = await resolveMemberOrganizationById({
           id: organizationId,
           userId: userContext.userId,
           tx,
         });
+
+        if (
+          body.discoverability === "external" &&
+          !isOrganizationOwnerOrAdmin(role)
+        ) {
+          throw forbidden(
+            "Only an organization owner or admin can create external channels.",
+          );
+        }
 
         const memberUserIds = await validateOrganizationUserIds(
           organizationId,
@@ -134,7 +144,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             topic: body.topic?.trim() || null,
             discoverability: body.discoverability,
             userMembers: {
-              create: memberUserIds.map((userId) => ({ userId })),
+              create: memberUserIds.map((userId) => ({
+                userId,
+                access: "member",
+              })),
             },
             readStates: {
               create: memberUserIds.map((userId) => ({ userId })),

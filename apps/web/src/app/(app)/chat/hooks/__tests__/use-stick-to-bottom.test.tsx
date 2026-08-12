@@ -1,5 +1,5 @@
 import { act, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   STICK_TO_BOTTOM_NEAR_PX,
@@ -60,10 +60,15 @@ function setScrollerMetrics(
 }
 
 function Harness({ resetKey }: { resetKey: string | null }) {
-  const { scrollerRef, contentRef, scrollToBottomIfPinned, contentMinHeight } =
-    useStickToBottom({
-      resetKey,
-    });
+  const {
+    scrollerRef,
+    contentRef,
+    scrollToBottomIfPinned,
+    pinToBottomAfterOwnSend,
+    contentMinHeight,
+  } = useStickToBottom({
+    resetKey,
+  });
 
   return (
     <div>
@@ -80,6 +85,9 @@ function Harness({ resetKey }: { resetKey: string | null }) {
       </div>
       <button type="button" onClick={scrollToBottomIfPinned}>
         pin-scroll
+      </button>
+      <button type="button" onClick={pinToBottomAfterOwnSend}>
+        own-send-pin
       </button>
     </div>
   );
@@ -188,6 +196,69 @@ describe("useStickToBottom", () => {
     });
 
     expect(scroller.scrollTop).toBe(50);
+  });
+
+  it("pinToBottomAfterOwnSend forces bottom even when unpinned", async () => {
+    const rafQueue: FrameRequestCallback[] = [];
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((cb) => {
+        rafQueue.push(cb);
+        return rafQueue.length;
+      });
+    const cancelSpy = vi
+      .spyOn(window, "cancelAnimationFrame")
+      .mockImplementation(() => undefined);
+
+    function flushRaf() {
+      const queued = rafQueue.splice(0, rafQueue.length);
+      for (const cb of queued) {
+        cb(0);
+      }
+    }
+
+    render(<Harness resetKey="room-1" />);
+    const scroller = screen.getByTestId("scroller");
+
+    // Mutable height so we can grow content after the immediate pin, before rAF.
+    let scrollHeight = 1000;
+    Object.defineProperty(scroller, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeight,
+    });
+    Object.defineProperty(scroller, "clientHeight", {
+      configurable: true,
+      get: () => 400,
+    });
+    scroller.scrollTop = 50;
+
+    await act(async () => {
+      flushRaf(); // mount resetKey pin
+    });
+
+    act(() => {
+      scroller.dispatchEvent(new Event("scroll"));
+    });
+
+    act(() => {
+      screen.getByRole("button", { name: "own-send-pin" }).click();
+    });
+
+    // Immediate pin uses the still-small scrollHeight.
+    expect(scroller.scrollTop).toBe(1000);
+
+    // Own bubble layout grows before the queued frame runs.
+    scrollHeight = 1300;
+    expect(scroller.scrollTop).toBe(1000);
+
+    await act(async () => {
+      flushRaf();
+    });
+
+    expect(scroller.scrollTop).toBe(1300);
+
+    rafSpy.mockRestore();
+    cancelSpy.mockRestore();
   });
 
   it("mirrors scroller clientHeight onto content minHeight for short transcripts", () => {

@@ -1,3 +1,4 @@
+import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
 import type { UIMessage } from "ai";
 
 import {
@@ -10,9 +11,12 @@ import {
 } from "@/helpers/message-content";
 
 /**
- * Coerce assistant body parts to AI SDK `UIMessage` parts: non-text/file segments
- * with `text` become `{ type: "reasoning", text }` so provider-specific labels
- * (e.g. `redacted_reasoning`) pass `validateUIMessages`.
+ * Coerce assistant body parts to AI SDK `UIMessage` parts:
+ * - `output_text` → `text`
+ * - allowlisted reasoning only → `ReasoningUIPart` (`type: "reasoning"`)
+ * - other text-bearing segments (e.g. exotic primary `contentType`) → `text`
+ *
+ * Does not invent Thought for non-allowlisted types.
  */
 export function assistantContentPartsToAiSdkUiParts(
   rawParts: PersistedConversationContentPart[],
@@ -24,8 +28,15 @@ export function assistantContentPartsToAiSdkUiParts(
     if (part.type === "output_text") {
       return { type: "text" as const, text: part.text };
     }
-    if ("text" in part && typeof part.text === "string") {
+    if (
+      isChatUiProviderReasoningPartType(part.type) &&
+      "text" in part &&
+      typeof part.text === "string"
+    ) {
       return { type: "reasoning" as const, text: part.text };
+    }
+    if ("text" in part && typeof part.text === "string") {
+      return { type: "text" as const, text: part.text };
     }
     return part;
   }) as UIMessage["parts"];

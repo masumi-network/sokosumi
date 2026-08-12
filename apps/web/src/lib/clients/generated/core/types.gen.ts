@@ -1213,6 +1213,32 @@ export type AgentRatingRequest = {
     comment?: string | null;
 };
 
+export type ChatRoomInvitation = {
+    id: string;
+    roomId: string;
+    roomName: string;
+    organizationId: string;
+    organizationName: string;
+    email: string;
+    status: ChatRoomInvitationStatus;
+    inviter: {
+        id: string;
+        name: string;
+    };
+    expiresAt: Date;
+    createdAt: Date;
+};
+
+export const ChatRoomInvitationStatus = {
+    PENDING: 'pending',
+    ACCEPTED: 'accepted',
+    REVOKED: 'revoked',
+    DECLINED: 'declined',
+    EXPIRED: 'expired'
+} as const;
+
+export type ChatRoomInvitationStatus = typeof ChatRoomInvitationStatus[keyof typeof ChatRoomInvitationStatus];
+
 export type ChatRoom = {
     /**
      * Room ID
@@ -1222,6 +1248,10 @@ export type ChatRoom = {
      * Active organization at create time for channels and directs. Null only for coworker 1:1 DMs created with no active organization.
      */
     organizationId: string | null;
+    /**
+     * Host organization display name. Required for guest rows in list; may be null for personal directs.
+     */
+    organizationName: string | null;
     name: string;
     slug: string;
     kind: 'channel' | 'direct';
@@ -1231,9 +1261,9 @@ export type ChatRoom = {
     directKey: string | null;
     topic: string | null;
     /**
-     * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member) or `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join). Null for direct rooms.
+     * Channel discoverability: `"public"` (org-discoverable and self-joinable by any member), `"private"` (roster-only for plain members; organization owners/admins can still browse and self-join), or `"external"` (org-discoverable / self-joinable for host members; outsiders join only via room invitation as guests). Null for direct rooms.
      */
-    discoverability: 'public' | 'private' | null;
+    discoverability: 'public' | 'private' | 'external' | null;
     createdByUserId: string;
     createdAt: Date;
     updatedAt: Date;
@@ -1257,9 +1287,20 @@ export type ChatRoom = {
      * True when the current user marked this room unread. Cleared on mark-read.
      */
     markedUnread: boolean;
+    myAccess: ChatRoomAccess;
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
 };
+
+/**
+ * Caller's membership on this room. Guests are not host-org members.
+ */
+export const ChatRoomAccess = { MEMBER: 'member', GUEST: 'guest' } as const;
+
+/**
+ * Caller's membership on this room. Guests are not host-org members.
+ */
+export type ChatRoomAccess = typeof ChatRoomAccess[keyof typeof ChatRoomAccess];
 
 export type ChatRoomUserParticipant = {
     id: string;
@@ -1267,6 +1308,7 @@ export type ChatRoomUserParticipant = {
     email: string;
     image: string | null;
     presence: ChatRoomPresence;
+    access?: ChatRoomAccess & unknown;
 };
 
 export const ChatRoomPresence = {
@@ -1317,15 +1359,15 @@ export type ChatRoomSuccessResponse = {
 
 export type CreateChatRoomRequest = {
     /**
-     * Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them.
+     * Creates a named org channel. memberUserIds/coworkerIds seed the initial roster; they do not limit discoverability. Public and external channels are org-discoverable and self-joinable by any member (GET /chats/rooms/discoverable, POST /chats/rooms/{id}/members/me). Private channels stay roster-only for plain members; organization owners and admins can still browse and self-join them. External channels also allow guest invites (owner/admin create only).
      */
     kind: 'channel';
     name: string;
     topic?: string;
     /**
-     * Channel discoverability. Defaults to `"public"` (org-discoverable / joinable by any member). `"private"` keeps the channel roster-only for plain members; organization owners and admins can still browse and self-join.
+     * Channel discoverability. Defaults to `"public"` (org-discoverable / joinable by any member). `"private"` keeps the channel roster-only for plain members; organization owners and admins can still browse and self-join. `"external"` is org-discoverable for host members; guests join only via room invitation (owner/admin create only).
      */
-    discoverability?: 'public' | 'private';
+    discoverability?: 'public' | 'private' | 'external';
     /**
      * Organization member user IDs to add to the room.
      */
@@ -1362,12 +1404,16 @@ export type DiscoverableChatRoom = {
 };
 
 /**
- * `"public"` for every org member; `"private"` only appears for organization owners and admins.
+ * `"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.
  */
-export const DiscoverableChannelDiscoverability = { PUBLIC: 'public', PRIVATE: 'private' } as const;
+export const DiscoverableChannelDiscoverability = {
+    PUBLIC: 'public',
+    PRIVATE: 'private',
+    EXTERNAL: 'external'
+} as const;
 
 /**
- * `"public"` for every org member; `"private"` only appears for organization owners and admins.
+ * `"public"` and `"external"` for every org member; `"private"` only for organization owners and admins.
  */
 export type DiscoverableChannelDiscoverability = typeof DiscoverableChannelDiscoverability[keyof typeof DiscoverableChannelDiscoverability];
 
@@ -1412,18 +1458,46 @@ export type UpdateChatRoomRequest = {
 };
 
 /**
- * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it).
+ * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.
  */
-export const ChatRoomDiscoverability = { PUBLIC: 'public', PRIVATE: 'private' } as const;
+export const ChatRoomDiscoverability = {
+    PUBLIC: 'public',
+    PRIVATE: 'private',
+    EXTERNAL: 'external'
+} as const;
 
 /**
- * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it).
+ * Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.
  */
 export type ChatRoomDiscoverability = typeof ChatRoomDiscoverability[keyof typeof ChatRoomDiscoverability];
 
 export type ArchivedChatRoom = {
     id: string;
     archivedAt: Date;
+};
+
+export type CreateChatRoomInvitationRequest = {
+    email: string;
+};
+
+export type ChatRoomGuestInviteLink = {
+    token: string;
+    url: string;
+    roomId: string;
+    createdAt: Date;
+    expiresAt: Date | null;
+    revokedAt: Date | null;
+    maxUses: number | null;
+    useCount: number;
+};
+
+export type CreateChatRoomGuestInviteLinkRequest = {
+    expiresInDays?: number | null;
+    maxUses?: number | null;
+};
+
+export type RevokeChatRoomGuestInviteLinkResult = {
+    ok: boolean;
 };
 
 export type LeftChatRoom = {
@@ -3026,6 +3100,22 @@ export type AcceptOrganizationInviteLink = {
     status: 'joined' | 'already_member';
     organizationSlug: string;
     organizationId: string;
+};
+
+export type ResolveChatRoomGuestInviteLink = {
+    status: 'valid' | 'expired' | 'revoked' | 'depleted' | 'not_found';
+    room: {
+        id: string;
+        name: string;
+        organizationId: string;
+        organizationName: string;
+    } | null;
+};
+
+export type AcceptChatRoomGuestInviteLink = {
+    status: 'joined' | 'already_guest';
+    roomId: string;
+    roomName: string;
 };
 
 export type ProjectListItem = Project & {
@@ -9279,6 +9369,391 @@ export type GetCategoriesResponses = {
 
 export type GetCategoriesResponse = GetCategoriesResponses[keyof GetCategoriesResponses];
 
+export type GetChatsInvitationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Invitation status filter. Defaults to `pending`. Pending results exclude expired invites.
+         */
+        status?: ChatRoomInvitationStatus & unknown;
+    };
+    url: '/chats/invitations';
+};
+
+export type GetChatsInvitationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsInvitationsError = GetChatsInvitationsErrors[keyof GetChatsInvitationsErrors];
+
+export type GetChatsInvitationsResponses = {
+    /**
+     * Room invitations for the invitee
+     */
+    200: {
+        data: Array<ChatRoomInvitation>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsInvitationsResponse = GetChatsInvitationsResponses[keyof GetChatsInvitationsResponses];
+
+export type GetChatsInvitationsByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/invitations/{id}';
+};
+
+export type GetChatsInvitationsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invitation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsInvitationsByIdError = GetChatsInvitationsByIdErrors[keyof GetChatsInvitationsByIdErrors];
+
+export type GetChatsInvitationsByIdResponses = {
+    /**
+     * Room invitation
+     */
+    200: {
+        data: ChatRoomInvitation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsInvitationsByIdResponse = GetChatsInvitationsByIdResponses[keyof GetChatsInvitationsByIdResponses];
+
+export type PostChatsInvitationsByIdAcceptData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/invitations/{id}/accept';
+};
+
+export type PostChatsInvitationsByIdAcceptErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invitation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsInvitationsByIdAcceptError = PostChatsInvitationsByIdAcceptErrors[keyof PostChatsInvitationsByIdAcceptErrors];
+
+export type PostChatsInvitationsByIdAcceptResponses = {
+    /**
+     * Invitation accepted; guest membership ensured
+     */
+    200: {
+        data: ChatRoomInvitation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsInvitationsByIdAcceptResponse = PostChatsInvitationsByIdAcceptResponses[keyof PostChatsInvitationsByIdAcceptResponses];
+
+export type PostChatsInvitationsByIdDeclineData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/invitations/{id}/decline';
+};
+
+export type PostChatsInvitationsByIdDeclineErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invitation not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsInvitationsByIdDeclineError = PostChatsInvitationsByIdDeclineErrors[keyof PostChatsInvitationsByIdDeclineErrors];
+
+export type PostChatsInvitationsByIdDeclineResponses = {
+    /**
+     * Invitation declined
+     */
+    200: {
+        data: ChatRoomInvitation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsInvitationsByIdDeclineResponse = PostChatsInvitationsByIdDeclineResponses[keyof PostChatsInvitationsByIdDeclineResponses];
+
 export type GetChatsRoomsData = {
     body?: never;
     headers?: {
@@ -10602,6 +11077,626 @@ export type PostChatsRoomsByIdRestoreResponses = {
 
 export type PostChatsRoomsByIdRestoreResponse = PostChatsRoomsByIdRestoreResponses[keyof PostChatsRoomsByIdRestoreResponses];
 
+export type GetChatsRoomsByIdInvitationsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/invitations';
+};
+
+export type GetChatsRoomsByIdInvitationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdInvitationsError = GetChatsRoomsByIdInvitationsErrors[keyof GetChatsRoomsByIdInvitationsErrors];
+
+export type GetChatsRoomsByIdInvitationsResponses = {
+    /**
+     * Pending room invitations
+     */
+    200: {
+        data: Array<ChatRoomInvitation>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdInvitationsResponse = GetChatsRoomsByIdInvitationsResponses[keyof GetChatsRoomsByIdInvitationsResponses];
+
+export type PostChatsRoomsByIdInvitationsData = {
+    body?: CreateChatRoomInvitationRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/invitations';
+};
+
+export type PostChatsRoomsByIdInvitationsErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Pending invitation already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invitation rate limit exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdInvitationsError = PostChatsRoomsByIdInvitationsErrors[keyof PostChatsRoomsByIdInvitationsErrors];
+
+export type PostChatsRoomsByIdInvitationsResponses = {
+    /**
+     * Room invitation created
+     */
+    201: {
+        data: ChatRoomInvitation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdInvitationsResponse = PostChatsRoomsByIdInvitationsResponses[keyof PostChatsRoomsByIdInvitationsResponses];
+
+export type DeleteChatsRoomsByIdInvitationsByInvitationIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        invitationId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/invitations/{invitationId}';
+};
+
+export type DeleteChatsRoomsByIdInvitationsByInvitationIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invitation or room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdInvitationsByInvitationIdError = DeleteChatsRoomsByIdInvitationsByInvitationIdErrors[keyof DeleteChatsRoomsByIdInvitationsByInvitationIdErrors];
+
+export type DeleteChatsRoomsByIdInvitationsByInvitationIdResponses = {
+    /**
+     * Invitation revoked
+     */
+    204: void;
+};
+
+export type DeleteChatsRoomsByIdInvitationsByInvitationIdResponse = DeleteChatsRoomsByIdInvitationsByInvitationIdResponses[keyof DeleteChatsRoomsByIdInvitationsByInvitationIdResponses];
+
+export type GetChatsRoomsByIdInviteLinksData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/invite-links';
+};
+
+export type GetChatsRoomsByIdInviteLinksErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdInviteLinksError = GetChatsRoomsByIdInviteLinksErrors[keyof GetChatsRoomsByIdInviteLinksErrors];
+
+export type GetChatsRoomsByIdInviteLinksResponses = {
+    /**
+     * Shareable guest invite links
+     */
+    200: {
+        data: Array<ChatRoomGuestInviteLink>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdInviteLinksResponse = GetChatsRoomsByIdInviteLinksResponses[keyof GetChatsRoomsByIdInviteLinksResponses];
+
+export type PostChatsRoomsByIdInviteLinksData = {
+    body?: CreateChatRoomGuestInviteLinkRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/invite-links';
+};
+
+export type PostChatsRoomsByIdInviteLinksErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invite link rate limit exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdInviteLinksError = PostChatsRoomsByIdInviteLinksErrors[keyof PostChatsRoomsByIdInviteLinksErrors];
+
+export type PostChatsRoomsByIdInviteLinksResponses = {
+    /**
+     * Shareable guest invite link created
+     */
+    201: {
+        data: ChatRoomGuestInviteLink;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdInviteLinksResponse = PostChatsRoomsByIdInviteLinksResponses[keyof PostChatsRoomsByIdInviteLinksResponses];
+
+export type DeleteChatsRoomsByIdInviteLinksByTokenData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        /**
+         * Invite link capability token to revoke
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/invite-links/{token}';
+};
+
+export type DeleteChatsRoomsByIdInviteLinksByTokenErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdInviteLinksByTokenError = DeleteChatsRoomsByIdInviteLinksByTokenErrors[keyof DeleteChatsRoomsByIdInviteLinksByTokenErrors];
+
+export type DeleteChatsRoomsByIdInviteLinksByTokenResponses = {
+    /**
+     * Revoked
+     */
+    200: {
+        data: RevokeChatRoomGuestInviteLinkResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdInviteLinksByTokenResponse = DeleteChatsRoomsByIdInviteLinksByTokenResponses[keyof DeleteChatsRoomsByIdInviteLinksByTokenResponses];
+
 export type DeleteChatsRoomsByIdMembersMeData = {
     body?: never;
     headers?: {
@@ -10799,6 +11894,113 @@ export type PostChatsRoomsByIdMembersMeResponses = {
 };
 
 export type PostChatsRoomsByIdMembersMeResponse = PostChatsRoomsByIdMembersMeResponses[keyof PostChatsRoomsByIdMembersMeResponses];
+
+export type DeleteChatsRoomsByIdMembersByUserIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        userId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/members/{userId}';
+};
+
+export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMembersByUserIdError = DeleteChatsRoomsByIdMembersByUserIdErrors[keyof DeleteChatsRoomsByIdMembersByUserIdErrors];
+
+export type DeleteChatsRoomsByIdMembersByUserIdResponses = {
+    /**
+     * Guest removed
+     */
+    200: {
+        data: LeftChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdMembersByUserIdResponse = DeleteChatsRoomsByIdMembersByUserIdResponses[keyof DeleteChatsRoomsByIdMembersByUserIdResponses];
 
 export type PostChatsRoomsByIdReadData = {
     body?: never;
@@ -22709,6 +23911,162 @@ export type PostOrganizationInviteLinksByTokenAcceptResponses = {
 
 export type PostOrganizationInviteLinksByTokenAcceptResponse = PostOrganizationInviteLinksByTokenAcceptResponses[keyof PostOrganizationInviteLinksByTokenAcceptResponses];
 
+export type GetChatRoomInviteLinksByTokenData = {
+    body?: never;
+    path: {
+        /**
+         * Invite link capability token from the /chat/join URL
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/chat-room-invite-links/{token}';
+};
+
+export type GetChatRoomInviteLinksByTokenErrors = {
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatRoomInviteLinksByTokenError = GetChatRoomInviteLinksByTokenErrors[keyof GetChatRoomInviteLinksByTokenErrors];
+
+export type GetChatRoomInviteLinksByTokenResponses = {
+    /**
+     * The invite link status and (when valid) a room preview
+     */
+    200: {
+        data: ResolveChatRoomGuestInviteLink;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatRoomInviteLinksByTokenResponse = GetChatRoomInviteLinksByTokenResponses[keyof GetChatRoomInviteLinksByTokenResponses];
+
+export type PostChatRoomInviteLinksByTokenAcceptData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        /**
+         * Invite link capability token from the /chat/join URL
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/chat-room-invite-links/{token}/accept';
+};
+
+export type PostChatRoomInviteLinksByTokenAcceptErrors = {
+    /**
+     * Bad Request - link expired, revoked, or depleted
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - session user required (coworker/orchestrator rejected)
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - invalid link or room
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatRoomInviteLinksByTokenAcceptError = PostChatRoomInviteLinksByTokenAcceptErrors[keyof PostChatRoomInviteLinksByTokenAcceptErrors];
+
+export type PostChatRoomInviteLinksByTokenAcceptResponses = {
+    /**
+     * Joined, or already a guest
+     */
+    200: {
+        data: AcceptChatRoomGuestInviteLink;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatRoomInviteLinksByTokenAcceptResponse = PostChatRoomInviteLinksByTokenAcceptResponses[keyof PostChatRoomInviteLinksByTokenAcceptResponses];
+
 export type GetProjectsData = {
     body?: never;
     headers?: {
@@ -30208,11 +31566,27 @@ export type PostRealtimeAblyTokenData = {
         'X-Context-Organization-Id'?: string;
     };
     path?: never;
-    query?: never;
+    query?: {
+        clientInstanceId?: string;
+    };
     url: '/realtime/ably-token';
 };
 
 export type PostRealtimeAblyTokenErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
     /**
      * Unauthorized
      */

@@ -20,6 +20,8 @@ const {
   workspaceFindUniqueMock,
   userFindManyMock,
   userMemberDeleteManyMock,
+  userMemberUpdateManyMock,
+  userMemberFindManyMock,
   userMemberCreateManyMock,
   readStateDeleteManyMock,
   readStateCreateManyMock,
@@ -29,6 +31,11 @@ const {
   messageCreateMock,
   membershipFindManyMock,
   readStateFindManyMock,
+  guestInvitationCountMock,
+  guestInvitationUpdateManyMock,
+  guestInviteLinkCountMock,
+  queryRawMock,
+  userMemberCountMock,
   prismaTransactionMock,
   publishChatRoomMessageRealtimeMock,
   publishChatMembershipRevokedToUsersMock,
@@ -43,7 +50,10 @@ const {
   workspaceFindUniqueMock: vi.fn(),
   userFindManyMock: vi.fn(),
   userMemberDeleteManyMock: vi.fn(),
+  userMemberUpdateManyMock: vi.fn(),
+  userMemberFindManyMock: vi.fn(),
   userMemberCreateManyMock: vi.fn(),
+  userMemberCountMock: vi.fn(),
   readStateDeleteManyMock: vi.fn(),
   readStateCreateManyMock: vi.fn(),
   coworkerMemberDeleteManyMock: vi.fn(),
@@ -52,6 +62,10 @@ const {
   messageCreateMock: vi.fn(),
   membershipFindManyMock: vi.fn(),
   readStateFindManyMock: vi.fn(),
+  guestInvitationCountMock: vi.fn(),
+  guestInvitationUpdateManyMock: vi.fn(),
+  guestInviteLinkCountMock: vi.fn(),
+  queryRawMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   publishChatRoomMessageRealtimeMock: vi.fn(),
   publishChatMembershipRevokedToUsersMock: vi.fn(),
@@ -107,7 +121,10 @@ const tx = {
   },
   chatRoomUserMember: {
     deleteMany: userMemberDeleteManyMock,
+    updateMany: userMemberUpdateManyMock,
+    findMany: userMemberFindManyMock,
     createMany: userMemberCreateManyMock,
+    count: userMemberCountMock,
   },
   chatRoomReadState: {
     deleteMany: readStateDeleteManyMock,
@@ -123,6 +140,14 @@ const tx = {
   chatRoomMessage: {
     create: messageCreateMock,
   },
+  chatRoomGuestInvitation: {
+    count: guestInvitationCountMock,
+    updateMany: guestInvitationUpdateManyMock,
+  },
+  chatRoomGuestInviteLink: {
+    count: guestInviteLinkCountMock,
+  },
+  $queryRaw: queryRawMock,
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
@@ -167,6 +192,8 @@ function channelRoom(overrides: Record<string, unknown> = {}) {
     archivedAt: null,
     userMembers: [
       {
+        userId: USER_ID,
+        access: "member",
         user: {
           id: USER_ID,
           name: "Ada",
@@ -234,6 +261,13 @@ beforeEach(() => {
   publishChatMembershipRevokedToUsersMock.mockResolvedValue(undefined);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
+  guestInvitationCountMock.mockResolvedValue(0);
+  guestInvitationUpdateManyMock.mockResolvedValue({ count: 0 });
+  guestInviteLinkCountMock.mockResolvedValue(0);
+  queryRawMock.mockResolvedValue([{ id: ROOM_ID }]);
+  userMemberCountMock.mockResolvedValue(0);
+  userMemberUpdateManyMock.mockResolvedValue({ count: 0 });
+  userMemberFindManyMock.mockResolvedValue([]);
 });
 
 describe("PATCH /chats/rooms/{id}", () => {
@@ -568,5 +602,354 @@ describe("PATCH /chats/rooms/{id}", () => {
     expect(coworkerMemberDeleteManyMock).toHaveBeenCalledWith({
       where: { roomId: ROOM_ID },
     });
+  });
+
+  it("rejects a guest PATCH on roster with 403", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      channelRoom({
+        discoverability: "external",
+        userMembers: [
+          {
+            userId: USER_ID,
+            access: "guest",
+            user: {
+              id: USER_ID,
+              name: "Ada",
+              email: "ada@example.com",
+              image: null,
+              sessions: [],
+            },
+          },
+        ],
+      }),
+    );
+    // Guests are not host-org members — must fail before org elevation path.
+    memberFindUniqueMock.mockResolvedValue(null);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        memberUserIds: [USER_ID, OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.text()).toMatch(/guest/i);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a guest PATCH on settings with 403", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      channelRoom({
+        discoverability: "external",
+        userMembers: [
+          {
+            userId: USER_ID,
+            access: "guest",
+            user: {
+              id: USER_ID,
+              name: "Ada",
+              email: "ada@example.com",
+              image: null,
+              sessions: [],
+            },
+          },
+        ],
+      }),
+    );
+    memberFindUniqueMock.mockResolvedValue(null);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Hijacked" }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.text()).toMatch(/guest/i);
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks convert away from external when guest members exist", async () => {
+    const guestId = "user_guest";
+    roomFindFirstMock.mockResolvedValueOnce(
+      channelRoom({
+        discoverability: "external",
+        userMembers: [
+          {
+            userId: USER_ID,
+            access: "member",
+            user: {
+              id: USER_ID,
+              name: "Ada",
+              email: "ada@example.com",
+              image: null,
+              sessions: [],
+            },
+          },
+          {
+            userId: guestId,
+            access: "guest",
+            user: {
+              id: guestId,
+              name: "Guest",
+              email: "guest@example.com",
+              image: null,
+              sessions: [],
+            },
+          },
+        ],
+      }),
+    );
+    memberFindUniqueMock.mockResolvedValue({ role: "admin" });
+    userMemberCountMock.mockResolvedValue(1);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ discoverability: "public" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toMatch(
+      /guest members or pending invitations/i,
+    );
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+    expect(guestInvitationCountMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks convert away from external when pending invites exist", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      channelRoom({ discoverability: "external" }),
+    );
+    memberFindUniqueMock.mockResolvedValue({ role: "owner" });
+    guestInvitationCountMock.mockResolvedValue(1);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ discoverability: "private" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toMatch(
+      /guest members or pending invitations/i,
+    );
+    expect(guestInvitationCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        roomId: ROOM_ID,
+        status: "pending",
+        expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
+      }),
+    });
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks convert away from external when live shareable invite links exist", async () => {
+    roomFindFirstMock.mockResolvedValueOnce(
+      channelRoom({ discoverability: "external" }),
+    );
+    memberFindUniqueMock.mockResolvedValue({ role: "owner" });
+    guestInvitationCountMock.mockResolvedValue(0);
+    guestInviteLinkCountMock.mockResolvedValue(1);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ discoverability: "private" }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toMatch(/shareable invite links/i);
+    expect(guestInviteLinkCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        roomId: ROOM_ID,
+        revokedAt: null,
+        OR: expect.arrayContaining([
+          { expiresAt: null },
+          { expiresAt: expect.objectContaining({ gt: expect.any(Date) }) },
+        ]),
+      }),
+    });
+    expect(roomUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("allows convert away from external when no guests or pending invites", async () => {
+    const existing = channelRoom({ discoverability: "external" });
+    const updated = channelRoom({ discoverability: "public" });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    memberFindUniqueMock.mockResolvedValue({ role: "admin" });
+    guestInvitationCountMock.mockResolvedValue(0);
+    guestInviteLinkCountMock.mockResolvedValue(0);
+    roomUpdateMock.mockResolvedValueOnce(updated);
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ discoverability: "public" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(guestInvitationCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        roomId: ROOM_ID,
+        status: "pending",
+        expiresAt: expect.objectContaining({ gt: expect.any(Date) }),
+      }),
+    });
+    expect(guestInviteLinkCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        roomId: ROOM_ID,
+        revokedAt: null,
+        OR: expect.arrayContaining([
+          { expiresAt: null },
+          { expiresAt: expect.objectContaining({ gt: expect.any(Date) }) },
+        ]),
+      }),
+    });
+    expect(roomUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { discoverability: "public" },
+      }),
+    );
+  });
+
+  it("preserves guest rows when PATCH rewrites memberUserIds without the guest", async () => {
+    const guestId = "user_guest";
+    const existing = channelRoom({
+      discoverability: "external",
+      userMembers: [
+        {
+          userId: USER_ID,
+          access: "member",
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          userId: guestId,
+          access: "guest",
+          user: {
+            id: guestId,
+            name: "Guest",
+            email: "guest@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    const updated = channelRoom({
+      discoverability: "external",
+      userMembers: [
+        {
+          userId: USER_ID,
+          access: "member",
+          user: {
+            id: USER_ID,
+            name: "Ada",
+            email: "ada@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          userId: OTHER_USER_ID,
+          access: "member",
+          user: {
+            id: OTHER_USER_ID,
+            name: "Bob",
+            email: "bob@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+        {
+          userId: guestId,
+          access: "guest",
+          user: {
+            id: guestId,
+            name: "Guest",
+            email: "guest@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    roomFindFirstMock.mockResolvedValueOnce(existing);
+    memberFindUniqueMock.mockResolvedValue({ role: "member" });
+    roomUpdateMock.mockResolvedValueOnce(updated);
+    userMemberDeleteManyMock.mockResolvedValue({ count: 1 });
+    userMemberFindManyMock.mockResolvedValue([{ userId: guestId }]);
+    userMemberCreateManyMock.mockResolvedValue({ count: 2 });
+    readStateDeleteManyMock.mockResolvedValue({ count: 0 });
+    readStateCreateManyMock.mockResolvedValue({ count: 0 });
+
+    const app = createApp(userAuthContext);
+    const response = await app.request(`/${ROOM_ID}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        // Host roster only — guest intentionally omitted (web always sends members).
+        memberUserIds: [USER_ID, OTHER_USER_ID],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    // Must not wipe the whole roster (would silent-evict guests).
+    expect(userMemberDeleteManyMock).toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID, access: "member" },
+    });
+    expect(userMemberDeleteManyMock).not.toHaveBeenCalledWith({
+      where: { roomId: ROOM_ID },
+    });
+    // Recreate only host members; guest row stays access=guest.
+    expect(userMemberCreateManyMock).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          roomId: ROOM_ID,
+          userId: USER_ID,
+          access: "member",
+        }),
+        expect.objectContaining({
+          roomId: ROOM_ID,
+          userId: OTHER_USER_ID,
+          access: "member",
+        }),
+      ]),
+    });
+    const createdIds = userMemberCreateManyMock.mock.calls[0][0].data.map(
+      (row: { userId: string }) => row.userId,
+    );
+    expect(createdIds).not.toContain(guestId);
+    // Guest read state must not be swept when not in memberUserIds.
+    expect(readStateDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: ROOM_ID,
+        userId: {
+          notIn: expect.arrayContaining([USER_ID, OTHER_USER_ID, guestId]),
+        },
+      },
+    });
+    // Guest must not appear as left in membership status.
+    expect(
+      messageCreateMock.mock.calls.map((call) => call[0].data.content),
+    ).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/Guest left/i)]),
+    );
   });
 });

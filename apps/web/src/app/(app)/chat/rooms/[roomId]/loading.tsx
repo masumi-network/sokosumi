@@ -1,10 +1,9 @@
-import DefaultLoading from "@/components/default-loading";
+import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-view";
 
 /**
- * Spinner when opening a room. Home/Chats/Search tab destinations use their
- * own segment `loading.tsx` skeletons under Instant Nav. Room open remains
- * a heavier navigation that uses this spinner shell.
+ * Instant / soft-nav into a room: real composer chrome + message-list skeleton.
+ * No full-page spinner. Room-aware header/composer swap in after meta loads.
  */
 export default function ChatRoomLoading() {
-  return <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />;
+  return <RoomOpenLoadingView />;
 }

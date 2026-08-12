@@ -196,4 +196,37 @@ describe("POST /chats/rooms/{id}/archive", () => {
 
     expect((await archive()).status).toBe(404);
   });
+
+  it("rejects a guest who is not a host-org member with 403", async () => {
+    // Guests pass room access (access=guest) but fail resolveMemberOrganizationById.
+    roomFindFirstMock.mockResolvedValue({
+      ...room({
+        memberIds: [CREATOR_ID, "user_guest"],
+      }),
+      userMembers: [
+        {
+          userId: "user_guest",
+          access: "guest",
+          user: {
+            id: "user_guest",
+            name: "Guest",
+            email: "guest@example.com",
+            image: null,
+            sessions: [],
+          },
+        },
+      ],
+    });
+    memberFindUniqueMock.mockResolvedValue(null);
+
+    const app = createApp("user_guest");
+    const response = await app.request(`/${ROOM_ID}/archive`, {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(403);
+    expect(await response.text()).toMatch(/guests cannot archive/i);
+    expect(roomUpdateManyMock).not.toHaveBeenCalled();
+    expect(memberFindUniqueMock).not.toHaveBeenCalled();
+  });
 });
