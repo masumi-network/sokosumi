@@ -253,6 +253,30 @@ describe("buildX402AgentPaymentSources", () => {
     });
   });
 
+  it("drops an agent when only ONE of its sources has no amount rows", () => {
+    // The single-source case above cannot tell the per-source gate apart from
+    // the tail guard, which reports the same reason for an empty result. Only
+    // a second, payable source separates them: without the per-source gate the
+    // empty source is skipped, the agent is LISTED off source 1, and the
+    // per-agent fail-closed promise has quietly degraded to per-source skip —
+    // the agent's own 402 may still demand payment on the source Soko never
+    // verified.
+    expect(
+      buildX402AgentPaymentSources(
+        [
+          createSource({ amounts: [] }),
+          createSource({
+            amounts: [{ unit: EURC_ADDRESS, amount: 500000n, decimals: 6 }],
+          }),
+        ],
+        CONTEXT,
+      ),
+    ).toEqual({
+      status: "dropped",
+      reason: "no_amount_rows",
+    });
+  });
+
   it("drops an agent whose amount row has no recorded decimals", () => {
     expect(
       buildX402AgentPaymentSources(
