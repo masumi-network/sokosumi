@@ -37,10 +37,11 @@ class NotCanonicalizableError extends Error {}
  * them. `undefined` properties are treated as absent (the `filterUndefined`
  * behaviour the previous implementation was configured with).
  *
- * Returns `undefined` — never throws — when the value is outside the JSON data
- * model (a cycle, a function, a `BigInt`, a symbol, `NaN`/`Infinity`) or
- * nested past `X402_MAX_JSON_DEPTH`. The caller treats that as "not equal",
- * which is the fail-closed direction for a fund-diversion fence.
+ * Returns `undefined` — never throws, for ANY input — when the value is
+ * outside the JSON data model (a cycle, a function, a `BigInt`, a symbol,
+ * `NaN`/`Infinity`), nested past `X402_MAX_JSON_DEPTH`, or when reading one of
+ * its properties throws. The caller treats that as "not equal", which is the
+ * fail-closed direction for a fund-diversion fence.
  *
  * Keys and string values BOTH go through `JSON.stringify`, so neither can
  * forge the other's delimiters: a value containing `","` cannot appear as a
@@ -51,11 +52,16 @@ class NotCanonicalizableError extends Error {}
 export function canonicalJsonKey(value: unknown): string | undefined {
   try {
     return serialize(value, 0, new Set());
-  } catch (error) {
-    if (error instanceof NotCanonicalizableError) {
-      return undefined;
-    }
-    throw error;
+  } catch {
+    // EVERY throw becomes `undefined`, not just `NotCanonicalizableError`.
+    // Reading a property can itself throw — an enumerable getter that throws
+    // is not reachable from `JSON.parse` output, but "never throws" is the
+    // documented contract and the only caller is a fund-diversion fence:
+    // rethrowing there surfaces as a 500 on the pay path instead of the
+    // fail-closed "not equal" the caller is written for. The cost is that a
+    // genuine defect in this module also reads as "not equal" — which still
+    // fails closed (an unpayable agent), the direction this fence must err in.
+    return undefined;
   }
 }
 

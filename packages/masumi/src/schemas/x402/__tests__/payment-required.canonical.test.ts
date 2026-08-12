@@ -100,6 +100,27 @@ describe("canonicalJsonKey", () => {
     }
   });
 
+  it("returns undefined rather than throwing when a property read itself throws", () => {
+    // "Never throws" has to mean never, not "never for the values we expect".
+    // An enumerable getter that throws is not reachable from `JSON.parse`
+    // output, but the contract is absolute because the only caller is a
+    // fund-diversion fence: a throw there escapes as a 500 on the pay path
+    // instead of the fail-closed "not equal" the caller is written for.
+    const throwingGetter: Record<string, unknown> = {};
+    Object.defineProperty(throwingGetter, "boom", {
+      enumerable: true,
+      get() {
+        throw new Error("property read blew up");
+      },
+    });
+
+    expect(() => canonicalJsonKey(throwingGetter)).not.toThrow();
+    expect(canonicalJsonKey(throwingGetter)).toBeUndefined();
+    // Nested behind a plain object, so the throw crosses a recursion level.
+    expect(() => canonicalJsonKey({ a: throwingGetter })).not.toThrow();
+    expect(canonicalJsonKey({ a: throwingGetter })).toBeUndefined();
+  });
+
   it("returns undefined for a value nested deeper than the depth cap", () => {
     let deep: unknown = 1;
     for (let index = 0; index < 200; index += 1) {
