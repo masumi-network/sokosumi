@@ -3,15 +3,15 @@ import Script from "next/script";
 import { CONSENT_COOKIE, CONSENT_VERSION } from "@/lib/analytics/consent";
 
 /**
- * Google Consent Mode v2, denied by default (Basic Consent Mode). This MUST
- * run before GTM loads, so it is a `beforeInteractive` inline script placed
- * above <GoogleTagManager> in the root layout. Nothing analytics/ads-related
- * leaves the browser until the visitor opts in via the cookie banner.
+ * Google Consent Mode v2, denied by default (Advanced: tags still load).
+ * MUST run before GTM, so this is a `beforeInteractive` inline script above
+ * <GoogleTagManager> in the root layout. Storage signals stay denied until
+ * the banner grants them; cookieless pings can still leave. Does not gate
+ * Vercel Analytics / Speed Insights. See apps/web/TRACKING.md.
  *
- * It also re-applies a previously stored choice immediately, so a returning
- * visitor's consent is honoured before the first tag can fire. The snippet is
- * mirrored on the marketing site (sokosumi-landing, templates/shell.js
- * ANALYTICS_HEAD) — keep the two in sync.
+ * Re-applies a stored choice immediately so a returning visitor's consent is
+ * honoured before the first tag can fire. Mirrored on the marketing site
+ * (sokosumi-landing, templates/shell.js ANALYTICS_HEAD) — keep both in sync.
  */
 export function ConsentModeInit() {
   return (

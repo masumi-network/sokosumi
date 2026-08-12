@@ -22,7 +22,10 @@ USER
 Reports · funnels · user paths · conversions
 ```
 
-Vercel Analytics + Speed Insights run separately (`components/analytics/client-analytics.tsx`) for traffic and web-vitals; they are not part of this pipeline.
+Vercel Analytics + Speed Insights run separately
+(`components/analytics/client-analytics.tsx`) for traffic and web-vitals.
+They are **not** part of this pipeline and **not** gated by `sokosumi_consent`
+— `ClientAnalytics` mounts them on every page regardless of the banner.
 
 **One container, one property, both domains.** The marketing site and the app
 load the *same* GTM container and feed the *same* GA4 property, so a visit that
@@ -30,9 +33,17 @@ starts on a landing page and ends as an active, paying user is a single journey
 in one place. GA4 cross-domain measurement links `sokosumi.com` ↔
 `app.sokosumi.com` so it is one session, not two.
 
-## Consent (Google Consent Mode v2, "Basic")
+## Consent (Google Consent Mode v2, Advanced)
 
-Nothing analytics- or ads-related leaves the browser until the visitor opts in.
+Google tags (`GoogleTagManager`, `GoogleAnalytics`) load whenever their public
+IDs are set. Consent Mode defaults every ad/analytics **storage** signal to
+`denied`, so GA4/Ads cookies are not written until the visitor grants
+analytics or marketing. Denied tags can still send cookieless pings — that is
+Advanced Consent Mode, not a hard block. Hard-blocking (render tags only after
+a grant) is a separate privacy-posture change.
+
+This guarantee is Google storage only. Vercel Analytics / Speed Insights are
+outside it; see above.
 
 - `components/analytics/consent-mode-init.tsx` runs **before** GTM (a
   `beforeInteractive` script) and sets every ad/analytics signal to `denied`.
@@ -125,4 +136,4 @@ It contains, at minimum:
   (`ad_storage`).
 
 Test changes with **Tag Assistant** (Preview) before publishing, and confirm
-tags stay unfired until consent is granted.
+storage-gated tags do not write analytics/ads cookies until consent is granted.
