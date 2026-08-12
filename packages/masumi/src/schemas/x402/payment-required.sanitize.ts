@@ -60,10 +60,11 @@ class UnwalkableValueError extends Error {}
  * already outside it, and flattening one produces a value the schema then
  * rejects loudly rather than a value that quietly keeps its own behaviour.
  *
- * Fails closed with an error — never a throw — for a value nested past
- * `X402_MAX_JSON_DEPTH` or containing a cycle. Both are impossible from
- * `JSON.parse`, but this runs before any bound the schema applies, so the
- * walk must carry its own.
+ * Fails closed with an error — never a throw, for ANY input — for a value
+ * nested past `X402_MAX_JSON_DEPTH`, containing a cycle, or whose property
+ * read throws. All three are impossible from `JSON.parse`, but this runs
+ * before any bound the schema applies (and before zod, whose `safeParse`
+ * throws on the third), so the walk must carry its own.
  */
 export function stripPrototypePollutingKeys(
   value: unknown,
@@ -74,7 +75,19 @@ export function stripPrototypePollutingKeys(
     if (error instanceof UnwalkableValueError) {
       return err(error.message);
     }
-    throw error;
+    // EVERY other throw fails closed too, exactly as `canonicalJsonKey` does
+    // and for the same reason. `walk` reads `source[key]`, so an enumerable
+    // getter that throws escapes as a plain `TypeError` out of a function
+    // whose declared contract is `Result<unknown, string>` — an unhandled 500
+    // on the pay path where the contract promises a refusal. This walker runs
+    // FIRST, before zod (`safeParse` throws on the same input), so it is the
+    // one place that must not let a property read escape.
+    //
+    // The message is FIXED, not `error.message`: the thrown value is
+    // attacker-authored and unbounded, and every other echo in this module is
+    // capped. The cost is that a genuine defect here also reads as a refused
+    // 402 — which still fails closed, the direction this module must err in.
+    return err("x402 payment-required payload could not be read");
   }
 }
 

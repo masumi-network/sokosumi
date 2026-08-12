@@ -329,6 +329,30 @@ describe("normalizeX402PaymentRequired", () => {
     expect(call().isErr()).toBe(true);
   });
 
+  it("returns a failed result for a payload whose property read throws", () => {
+    // The sanitizer is the FIRST thing to touch the payload and the choke
+    // point that rebuilds it into plain data before zod sees it — `safeParse`
+    // throws on the same input. A throwing enumerable getter is unreachable
+    // from `JSON.parse` output, so neither live transport produces one, but a
+    // caller handing this exported normalizer a hand-built payload can, and
+    // the documented contract is a fail-closed Result rather than a 500.
+    const hostile: Record<string, unknown> = {
+      x402Version: 2,
+      accepts: [v2Entry()],
+    };
+    Object.defineProperty(hostile, "boom", {
+      enumerable: true,
+      get() {
+        throw new TypeError("property read exploded");
+      },
+    });
+
+    const call = () => normalizeX402PaymentRequired(hostile);
+
+    expect(call).not.toThrow();
+    expect(call().isErr()).toBe(true);
+  });
+
   it("rejects an asset or payTo that is not an EVM address", () => {
     // `payTo` is the recipient that gets signed into the EIP-3009
     // authorization and `asset` selects the token contract. Accepting a

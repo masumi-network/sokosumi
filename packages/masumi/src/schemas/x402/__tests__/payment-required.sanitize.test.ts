@@ -112,5 +112,57 @@ describe("stripPrototypePollutingKeys", () => {
 
     expect(call).not.toThrow();
     expect(call().isErr()).toBe(true);
+    // The depth guard does NOT subsume the cycle guard: `ancestors` holds the
+    // objects on the CURRENT path, so a self-reference trips at depth 1, long
+    // before the 64-level bound. Pinned by message because both guards fail
+    // closed, which makes removing either one invisible to an isErr assertion.
+    expect(call()._unsafeUnwrapErr()).toMatch(/circular reference/);
+  });
+
+  it("reports a cycle longer than the depth bound as a depth failure", () => {
+    // The other side of the same relationship: a loop longer than
+    // X402_MAX_JSON_DEPTH is caught by the depth guard, because the walk runs
+    // out of depth before it revisits the first object.
+    const root: Record<string, unknown> = {};
+    let cursor = root;
+    for (let index = 0; index < 100; index += 1) {
+      const next: Record<string, unknown> = {};
+      cursor.next = next;
+      cursor = next;
+    }
+    cursor.next = root;
+
+    expect(stripPrototypePollutingKeys(root)._unsafeUnwrapErr()).toMatch(
+      /nested deeper than/,
+    );
+  });
+
+  it("returns an error, never a throw, when reading a property throws", () => {
+    // `walk` reads `source[key]`, so an enumerable getter that throws escaped
+    // as a plain TypeError out of a function whose declared contract is
+    // `Result<unknown, string>` — an unhandled 500 exactly where the contract
+    // promises a fail-closed error. Round 4 made `canonicalJsonKey` swallow
+    // every throw for this reason and left this sibling walker's narrow catch
+    // in place, even though this one runs FIRST and is the choke point that
+    // rebuilds the payload into plain data before zod sees it.
+    //
+    // Same reachability as the canonical.ts twin: `JSON.parse` output cannot
+    // carry a getter, so neither live transport triggers it, but the exported
+    // normalizer takes any caller's hand-built value.
+    const hostile: Record<string, unknown> = { keep: 1 };
+    Object.defineProperty(hostile, "boom", {
+      enumerable: true,
+      get() {
+        throw new TypeError("property read exploded");
+      },
+    });
+
+    const call = () => stripPrototypePollutingKeys({ nested: hostile });
+
+    expect(call).not.toThrow();
+    expect(call().isErr()).toBe(true);
+    // A FIXED message: the thrown error's own message is attacker-authored
+    // and unbounded, and every other echo in this module is capped.
+    expect(call()._unsafeUnwrapErr()).not.toContain("property read exploded");
   });
 });
