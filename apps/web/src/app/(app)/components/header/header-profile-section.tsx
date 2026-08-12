@@ -23,12 +23,10 @@ interface HeaderProfileSectionProps {
 
 function HeaderProfileSectionSkeleton() {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex flex-col items-end gap-1">
-        <div className="bg-muted h-4 w-28 animate-pulse rounded-md" />
-        <div className="bg-muted h-3 w-36 animate-pulse rounded-md" />
-      </div>
-      <div className="bg-muted size-8 animate-pulse rounded-full" />
+    <div className="flex h-8 items-center gap-1.5" aria-hidden>
+      <div className="bg-muted h-3 w-20 animate-pulse rounded-md" />
+      <div className="bg-muted size-4 shrink-0 animate-pulse rounded-full" />
+      <div className="bg-muted size-4 shrink-0 animate-pulse rounded-sm" />
     </div>
   );
 }
@@ -97,9 +95,10 @@ async function HeaderProfileSectionInner({
 }: HeaderProfileSectionProps) {
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
-  // Start account-summary work immediately, but only await last-known members
-  // here so desktop workspace switch + notification bell are not blocked by
-  // credits. Shared private-cache slice with sidebar / chats (SOK-779).
+  // Start account-summary work immediately. Await the shared private-cache
+  // chrome slice (rooms + archived + members) so the switcher uses last-known
+  // members. Notification Center is a sibling of this Suspense and does not
+  // wait. Credits stay on accountSummaryPromise.
   const accountSummaryPromise = loadHeaderAccountSummary(adminMenuEnabled);
   const { members } = await getPrivateCachedChatListChrome({
     userId: session.user.id,

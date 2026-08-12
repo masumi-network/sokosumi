@@ -168,6 +168,12 @@ export default function HeaderWorkspaceSwitch({
             type="button"
             className="text-foreground hover:opacity-80 flex h-8 min-w-0 items-center text-sm transition-opacity md:h-auto"
             disabled={isPending}
+            aria-busy={!activeWorkspace}
+            aria-label={
+              activeWorkspace
+                ? undefined
+                : tOrganizationSwitcher("switchWorkspace")
+            }
           >
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1.5">
               {activeWorkspace ? (

@@ -28,10 +28,6 @@ vi.mock("@/app/components/header/header-workspace-switch.client", () => ({
   },
 }));
 
-vi.mock("@/app/components/header/header-notification-bell.client", () => ({
-  HeaderNotificationBell: () => null,
-}));
-
 vi.mock("@/app/components/header/header-account-control.client", () => ({
   HeaderAccountControl: (props: unknown) => {
     headerAccountControlMock(props);

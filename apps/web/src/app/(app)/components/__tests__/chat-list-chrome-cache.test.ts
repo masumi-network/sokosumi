@@ -147,6 +147,32 @@ describe("chat list chrome single-source composition contract", () => {
     );
   });
 
+  it("header Notification Center sits outside the members Suspense", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { dirname, join } = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+
+    const headerProfile = readFileSync(
+      join(
+        dirname(fileURLToPath(import.meta.url)),
+        "../header/header-profile-section.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(headerProfile).toMatch(/HeaderNotificationBell/);
+    expect(headerProfile).toMatch(
+      /<Suspense[\s\S]*HeaderProfileSectionInner[\s\S]*<\/Suspense>\s*<HeaderNotificationBell/,
+    );
+
+    const fallback = headerProfile.slice(
+      headerProfile.indexOf("function HeaderProfileSectionSkeleton"),
+      headerProfile.indexOf("export default function HeaderProfileSection"),
+    );
+    expect(fallback).toMatch(/size-4/);
+    expect(fallback).not.toMatch(/size-8/);
+  });
+
   it("private cache loader tags user/org like sidebar chrome", async () => {
     const { readFileSync } = await import("node:fs");
     const { dirname, join } = await import("node:path");

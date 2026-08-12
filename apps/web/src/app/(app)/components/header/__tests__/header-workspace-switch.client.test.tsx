@@ -64,6 +64,9 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     expect(
       screen.getByTestId("workspace-switcher-skeleton"),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "switchWorkspace" }),
+    ).toBeInTheDocument();
   });
 
   it("shows personal workspace from session when no org is active", () => {
