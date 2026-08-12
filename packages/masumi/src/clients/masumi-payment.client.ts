@@ -479,9 +479,14 @@ export function createPaymentClient(
      * never scoped to the caller. `POST /x402/pay`, however, only draws on
      * budgets whose `apiKeyId` equals the calling key (`pay.ts`,
      * `createX402Payment`). So this method resolves its own key id via
-     * `GET /api-key-status` and filters server-side: a foreign key's budget
-     * must never mark a (network, asset) pair buy-side ready. Raw node
-     * rows — see getX402AvailableNetworks.
+     * `GET /api-key-status`, asks the node to filter on it, AND re-filters
+     * the returned rows on `X402Budget.apiKeyId`: a foreign key's budget must
+     * never mark a (network, asset) pair buy-side ready. The request-side
+     * filter alone fails OPEN — a node that renames, drops, or ignores the
+     * query parameter answers 200 with every key's rows, and a funded foreign
+     * budget would then record an `evmWalletId` Soko cannot spend from,
+     * producing a post-charge 402. Rows are otherwise raw node rows — see
+     * getX402AvailableNetworks.
      */
     async getX402Budgets(
       options: PaymentClientRequestOptions = {},
@@ -516,7 +521,14 @@ export function createPaymentClient(
             `x402 budgets ${response.response?.status ?? "unknown"}: ${extractNodeErrorMessage(response.error)}`,
           );
         }
-        return ok(response.data.data.Budgets);
+        // Re-filter what came back. A row with no apiKeyId is dropped too:
+        // unattributable is indistinguishable from foreign, and only a row
+        // this key can spend may mark a pair ready.
+        return ok(
+          response.data.data.Budgets.filter(
+            (budget) => budget.apiKeyId === apiKeyId,
+          ),
+        );
       } catch (error) {
         return err(String(error) || "Failed to get x402 budgets");
       }

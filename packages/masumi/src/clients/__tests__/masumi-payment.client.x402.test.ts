@@ -138,7 +138,7 @@ describe("getX402Budgets", () => {
   });
 
   it("returns the node's budget rows on success", async () => {
-    const budgets = [budget()];
+    const budgets = [budget({ apiKeyId: "apikey_own" })];
     getX402BudgetsMock.mockResolvedValue({
       data: { status: "success", data: { Budgets: budgets } },
       error: undefined,
@@ -151,11 +151,13 @@ describe("getX402Budgets", () => {
     expect(result.isOk() && result.value).toEqual(budgets);
   });
 
-  it("filters the admin-scoped budget list to its own API key", async () => {
+  it("asks the node to scope the admin-only list to its own API key", async () => {
     // GET /x402/budgets is admin-only and returns EVERY key's rows unless
     // filtered — but POST /x402/pay only draws on budgets granted to the
     // calling key, so an unfiltered read would mark pairs ready off budgets
-    // this key can never spend.
+    // this key can never spend. Passing the filter is only the REQUEST half;
+    // the response is re-filtered below, because a node that renames or
+    // ignores this parameter fails open.
     getX402BudgetsMock.mockResolvedValue({
       data: { status: "success", data: { Budgets: [] } },
       error: undefined,
@@ -167,6 +169,35 @@ describe("getX402Budgets", () => {
     expect(getX402BudgetsMock).toHaveBeenCalledWith(
       expect.objectContaining({ query: { apiKeyId: "apikey_own" } }),
     );
+  });
+
+  it("drops rows belonging to another API key even when the node returns them", async () => {
+    // A node that renames, drops, or ignores the apiKeyId query parameter
+    // answers 200 with every key's rows. Trusting that response marks a
+    // (network, asset) pair buy-side ready off a budget this key cannot
+    // spend, and records an evmWalletId POST /x402/pay will refuse — a
+    // post-charge 402.
+    const ownBudget = budget({ id: "own", apiKeyId: "apikey_own" });
+    getX402BudgetsMock.mockResolvedValue({
+      data: {
+        status: "success",
+        data: {
+          Budgets: [
+            budget({ id: "foreign", apiKeyId: "apikey_someone_else" }),
+            ownBudget,
+            // No apiKeyId at all: unattributable, so unusable.
+            budget({ id: "unattributed", apiKeyId: undefined }),
+          ],
+        },
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const result = await createClient().getX402Budgets();
+
+    expect(result.isOk()).toBe(true);
+    expect(result.isOk() && result.value).toEqual([ownBudget]);
   });
 
   it("fails when the own-key lookup fails instead of reading unscoped", async () => {
