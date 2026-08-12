@@ -6,7 +6,6 @@ import {
   getAllowedX402Caip2Networks,
   getX402ReadySources,
   isX402NetworkAllowed,
-  isX402SourceReady,
   X402_BUY_SIDE_READINESS_KEY,
 } from "./x402-readiness";
 
@@ -259,48 +258,33 @@ describe("getX402ReadySources", () => {
 });
 
 describe("findX402ReadySource", () => {
-  it("returns the recorded pair with its backing wallet id", () => {
+  it("returns the recorded pair with its backing wallet id and decimals", () => {
     expect(
       findX402ReadySource("EIP155:84532", USDC_BASE_SEPOLIA.toUpperCase(), [
         X402_READY_SOURCE,
       ]),
     ).toEqual(X402_READY_SOURCE);
+  });
+
+  it("requires the exact network and asset pair", () => {
+    // Callers take the charged `decimals` and the signing `evmWalletId` off
+    // the returned pair, so a near-miss must be undefined rather than the
+    // wrong chain's or the wrong token's numbers.
     expect(
       findX402ReadySource("eip155:8453", USDC_BASE_SEPOLIA, [
         X402_READY_SOURCE,
       ]),
     ).toBeUndefined();
-  });
-});
-
-describe("isX402SourceReady", () => {
-  it("requires the exact network and asset pair", () => {
     expect(
-      isX402SourceReady("eip155:84532", USDC_BASE_SEPOLIA, [X402_READY_SOURCE]),
-    ).toBe(true);
-    expect(
-      isX402SourceReady("eip155:8453", USDC_BASE_SEPOLIA, [X402_READY_SOURCE]),
-    ).toBe(false);
-    expect(
-      isX402SourceReady(
+      findX402ReadySource(
         "eip155:84532",
         "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
         [X402_READY_SOURCE],
       ),
-    ).toBe(false);
-    expect(isX402SourceReady("eip155:84532", USDC_BASE_SEPOLIA, [])).toBe(
-      false,
-    );
-  });
-
-  it("normalizes network and asset casing", () => {
+    ).toBeUndefined();
     expect(
-      isX402SourceReady(
-        "EIP155:84532",
-        USDC_BASE_SEPOLIA.toUpperCase().replace("0X", "0x"),
-        [X402_READY_SOURCE],
-      ),
-    ).toBe(true);
+      findX402ReadySource("eip155:84532", USDC_BASE_SEPOLIA, []),
+    ).toBeUndefined();
   });
 });
 

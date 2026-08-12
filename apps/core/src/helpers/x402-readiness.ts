@@ -120,15 +120,6 @@ export function findX402ReadySource(
   );
 }
 
-/** Whether an advertised (network, asset) pair is buy-side ready. */
-export function isX402SourceReady(
-  caip2Network: string,
-  asset: string,
-  readySources: readonly X402ReadySource[],
-): boolean {
-  return findX402ReadySource(caip2Network, asset, readySources) !== undefined;
-}
-
 /**
  * Exact (network, asset) pairs the payment node last reported buy-side ready.
  * Empty means never recorded, the payload is unusable, OR a successful check

@@ -812,7 +812,12 @@ test; `missing_decimals` gate deleted → 1 red; ready-pair drop deleted → 1
 red; `payTo` fold deleted → 1 red; per-source amount gate deleted → 1 red.
 All restored green.
 
-**Verification:** `pnpm --filter core test` 361 files / 3350 passed (6
+`isX402SourceReady` is deleted with this change: the listing was its last
+caller, and every consumer in the stack now needs the pair itself (the
+node's `decimals` here, `evmWalletId` on the pay side). Its two uncovered
+cases moved into `findX402ReadySource`'s describe.
+
+**Verification:** `pnpm --filter core test` 361 files / 3349 passed (6
 skipped); `pnpm typecheck` all workspaces; `pnpm check` clean. Listing
 helper 269 lines — under the 750 ceiling (its 717-line test is exempt, but
 the route test is at 715 and should be split by concern before it grows).
