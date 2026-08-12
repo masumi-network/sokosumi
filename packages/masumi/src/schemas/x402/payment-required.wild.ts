@@ -34,14 +34,16 @@ import {
   X402_MAX_RAW_ADDRESS_LENGTH,
   X402_MAX_RAW_AMOUNT_LENGTH,
   X402_MAX_RAW_NETWORK_LENGTH,
+  X402_MAX_RAW_SCHEME_LENGTH,
   X402_MAX_RESOURCE_URL_LENGTH,
   X402_MAX_TIMEOUT_SECONDS,
 } from "./payment-required.limits.js";
 import { isPrototypePollutingKey } from "./payment-required.sanitize.js";
 import {
+  wildX402ExtraSchema,
+  X402_SUPPORTED_ASSET_TRANSFER_METHOD,
   X402_SUPPORTED_SCHEMES,
   x402ExtensionsSchema,
-  x402ExtraSchema,
 } from "./payment-required.supported.js";
 
 /**
@@ -70,10 +72,23 @@ const V1_NETWORK_NAME_TO_CAIP2: ReadonlyMap<string, string> = new Map([
  * rather than stripped — see x402PaymentRequirementsSchema for why that is
  * the safe direction, for why it is NOT about byte-identity, and for why
  * loose still gets the bounded-map ceiling.
+ *
+ * Lenient about WHICH OPTION an entry names, too. `scheme`, `extra
+ * .assetTransferMethod` and the `maxTimeoutSeconds` cap were typed here as
+ * the allowlist / the literal / the bound, which made a single unsupported
+ * option fail `z.array(...)` and refuse the whole payload — including a
+ * sibling entry Soko could pay. Those three are now shape checks only; the
+ * VALUES are refused per entry in `selectPayableRequirement`, and
+ * `x402PaymentRequirementsSchema` re-imposes all three on whatever survives.
+ *
+ * The line is deliberate: a field of the wrong TYPE (a numeric `scheme`, a
+ * fractional `maxTimeoutSeconds`) is still a payload-wide parse failure,
+ * because that is a malformed 402 rather than a menu entry Soko happens not
+ * to support.
  */
 const wildRequirementSchema = z
   .looseObject({
-    scheme: z.enum(X402_SUPPORTED_SCHEMES),
+    scheme: z.string().min(1).max(X402_MAX_RAW_SCHEME_LENGTH),
     network: z.string().min(1).max(X402_MAX_RAW_NETWORK_LENGTH),
     asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
     // Both amount spellings stay loosely typed here: normalizeAmount owns
@@ -83,12 +98,8 @@ const wildRequirementSchema = z
     amount: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
     maxAmountRequired: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
     payTo: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
-    maxTimeoutSeconds: z
-      .number()
-      .int()
-      .positive()
-      .max(X402_MAX_TIMEOUT_SECONDS),
-    extra: x402ExtraSchema.optional(),
+    maxTimeoutSeconds: z.number().int().positive(),
+    extra: wildX402ExtraSchema.optional(),
     /** v1 carries the resource URL per entry, as a plain string. */
     resource: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional(),
   })
@@ -247,7 +258,17 @@ function dropShadowKeys(
 
 /**
  * Translates ONE offered requirement into the node's field spelling, or says
- * why it cannot be.
+ * why that entry cannot be selected.
+ *
+ * An error here is about THIS entry only — the caller skips it and keeps
+ * looking — so every check must be one that makes the entry unpayable on its
+ * own, never one about the payload as a whole (the resource-URL pool and the
+ * entry-count cap stay with the caller).
+ *
+ * Nothing is guessed. An unsupported scheme, transfer method, network,
+ * timeout, address or amount is not translated into a supported one; the
+ * entry is simply not selected, and if no entry is, the payload is refused
+ * with every collected reason.
  *
  * The returned object is deliberately untyped data rather than an
  * `X402PaymentRequirements`: it has been translated, not validated, and the
@@ -257,6 +278,32 @@ function dropShadowKeys(
 export function selectPayableRequirement(
   entry: WildX402Requirement,
 ): Result<Record<string, unknown>, string> {
+  // Exact spelling, no trim and no case fold: `Exact` is not `exact`, and a
+  // scheme Soko has not seen the settlement semantics of is not one it can
+  // charge credits against (see X402_SUPPORTED_SCHEMES).
+  if (!X402_SUPPORTED_SCHEMES.some((supported) => supported === entry.scheme)) {
+    return err(
+      `Unsupported x402 scheme "${truncateEcho(entry.scheme)}"; expected one of: ${X402_SUPPORTED_SCHEMES.join(", ")}`,
+    );
+  }
+  const assetTransferMethod = entry.extra?.assetTransferMethod;
+  if (
+    assetTransferMethod !== undefined &&
+    assetTransferMethod !== X402_SUPPORTED_ASSET_TRANSFER_METHOD
+  ) {
+    return err(
+      `Unsupported x402 extra.assetTransferMethod "${truncateEcho(assetTransferMethod)}"; expected ${X402_SUPPORTED_ASSET_TRANSFER_METHOD}`,
+    );
+  }
+  if (entry.maxTimeoutSeconds > X402_MAX_TIMEOUT_SECONDS) {
+    // The signed authorization is a bearer instrument until
+    // `validBefore = now + maxTimeoutSeconds`, so an entry asking for a longer
+    // window is refused rather than clamped — clamping would sign a payment
+    // against terms the server never offered.
+    return err(
+      `x402 maxTimeoutSeconds ${entry.maxTimeoutSeconds} is above the ${X402_MAX_TIMEOUT_SECONDS}-second cap`,
+    );
+  }
   const network = normalizeNetwork(entry.network);
   if (network.isErr()) {
     return err(network.error);

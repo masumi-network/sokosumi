@@ -153,6 +153,11 @@ export const x402PaymentRequiredSchema = z.object({
     .optional(),
   accepts: z
     .array(x402PaymentRequirementsSchema)
+    // `min(1)` is also the structural "nothing payable" gate: the normalizer
+    // selects entries one at a time now, so an emptied `accepts` is what a
+    // 402 with no supported option normalizes to. The normalizer returns its
+    // own reasoned error first — this is the backstop that holds if a future
+    // edit loses it, and the reason an empty array can never be forwarded.
     .min(1)
     .max(X402_MAX_ACCEPTS_ENTRIES),
   extensions: x402ExtensionsSchema.optional(),
@@ -207,6 +212,12 @@ function decodeBase64PaymentRequired(value: string): Result<unknown, string> {
  * manipulated) 402. Never pick one (same stance as the conflicting-amounts
  * guard); a top-level url that disagrees with a per-entry one is caught too,
  * not silently preferred.
+ *
+ * Pooled over EVERY wild entry, including ones no translation can select, and
+ * evaluated BEFORE selection. The fence is about the payload as a whole — the
+ * coworker re-requests exactly one resource — so letting an unselectable entry
+ * drop its url out of the pool would silence a disagreement rather than
+ * resolve it.
  */
 function poolResourceUrl(
   wild: z.infer<typeof wildPaymentRequiredSchema>,
@@ -274,18 +285,41 @@ export function normalizeX402PaymentRequired(
     );
   }
 
-  const accepts: Record<string, unknown>[] = [];
-  for (const entry of wild.data.accepts) {
-    const selected = selectPayableRequirement(entry);
-    if (selected.isErr()) {
-      return err(selected.error);
-    }
-    accepts.push(selected.value);
-  }
-
+  // Pooled BEFORE selection, over every wild entry: see poolResourceUrl.
   const resourceUrl = poolResourceUrl(wild.data);
   if (resourceUrl.isErr()) {
     return err(resourceUrl.error);
+  }
+
+  // `accepts` is a MENU — the client picks one option — so an option Soko
+  // cannot settle costs that option and nothing else. Refusing the payload
+  // per entry made a 402 that offers `exact` on Base alongside
+  // `batch-settlement` (research 001 §2 records exactly that pairing on live
+  // Base-mainnet resources) unpayable in full, while the listing side kept
+  // the agent listed: "listed ⇒ payable" broken against a real listing.
+  //
+  // This is a SELECTION, not a repair. Nothing is guessed or clamped: an
+  // entry that cannot be translated is dropped with its reason, every entry
+  // that survives is still fully validated and canonicalized by
+  // `x402PaymentRequiredSchema` below, and `narrowToChosenRequirement`
+  // forwards exactly one of them to the node.
+  const accepts: Record<string, unknown>[] = [];
+  const refusals: string[] = [];
+  for (const [index, entry] of wild.data.accepts.entries()) {
+    const selected = selectPayableRequirement(entry);
+    if (selected.isErr()) {
+      refusals.push(`[${index}] ${selected.error}`);
+      continue;
+    }
+    accepts.push(selected.value);
+  }
+  if (accepts.length === 0) {
+    // Every reason, truncated as a whole: one refusal per entry at up to 20
+    // entries is an echo built out of many attacker-controlled values, which
+    // the per-value cap says nothing about.
+    return err(
+      `No payable x402 requirement in accepts (${refusals.length} refused): ${truncateDetail(refusals.join(" | "))}`,
+    );
   }
 
   const normalized = {

@@ -65,6 +65,18 @@ export const X402_MAX_AMOUNT_DIGITS = 78;
 export const X402_MAX_AMOUNT_BASE_UNITS = 9223372036854775807n;
 
 /**
+ * Upper bound on the RAW `scheme` string a wild 402 may carry.
+ *
+ * The wild reader can no longer type `scheme` as the allowlist — one
+ * unsupported option must cost only its own entry, not the whole 402 — so the
+ * field arrives as a free string that reaches an error message. Every scheme
+ * the spec repo defines is under 20 characters (`batch-settlement` is the
+ * longest), so this rejects nothing legitimate and only stops a multi-megabyte
+ * string from being echoed.
+ */
+export const X402_MAX_RAW_SCHEME_LENGTH = 64;
+
+/**
  * Upper bound on the RAW `network` string a wild 402 may carry. A CAIP-2 id
  * caps its namespace at 8 and its reference at 32 characters (41 with the
  * separator) and the v1 plain names are shorter still, so this rejects
@@ -171,10 +183,11 @@ export const X402_MAX_ECHOED_VALUE_LENGTH = 78;
  * the logs and Sentry on every rejected 402.
  *
  * 896 is `X402_MAX_ERROR_LENGTH` minus 128 characters of headroom for the
- * fixed prefix each caller prepends (the longest is "Normalized x402 payload
- * failed validation: ", 43 characters). The point of the headroom is the
- * invariant it buys: EVERY rejection message this module produces fits the
- * same 1024 characters a 402 is allowed to spend on its own error.
+ * fixed prefix each caller prepends (the longest is "No payable x402
+ * requirement in accepts (20 refused): ", 53 characters). The point of the
+ * headroom is the invariant it buys: EVERY rejection message this module
+ * produces fits the same 1024 characters a 402 is allowed to spend on its own
+ * error.
  */
 export const X402_MAX_DETAIL_LENGTH = X402_MAX_ERROR_LENGTH - 128;
 

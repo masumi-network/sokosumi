@@ -64,17 +64,51 @@ export const x402ExtensionsSchema = z
   .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });
 
 /**
+ * The EIP-712 domain values every `extra` may carry, in either direction.
+ * Both form the domain the authorization is signed under, so both are typed.
+ */
+const x402Eip712DomainShape = {
+  name: z.string().max(X402_MAX_EIP712_DOMAIN_VALUE_LENGTH).optional(),
+  version: z.string().max(X402_MAX_EIP712_DOMAIN_VALUE_LENGTH).optional(),
+};
+
+/**
  * `extra` stays LOOSE — it carries the EIP-712 domain (`name`, `version`) for
  * the signature plus scheme-specific keys (`batch-settlement` adds
  * `receiverAuthorizer`/`withdrawDelay`) — but the three keys that change how
  * the wallet signs are typed, and the transfer method is pinned.
+ *
+ * This is the EMITTED shape, so the pin is a hard `z.literal`: it is the check
+ * that makes the wild reader's per-entry transfer-method decision
+ * unskippable, whatever a future edit does to the selection loop.
  */
 export const x402ExtraSchema = z
   .looseObject({
-    name: z.string().max(X402_MAX_EIP712_DOMAIN_VALUE_LENGTH).optional(),
-    version: z.string().max(X402_MAX_EIP712_DOMAIN_VALUE_LENGTH).optional(),
+    ...x402Eip712DomainShape,
     assetTransferMethod: z
       .literal(X402_SUPPORTED_ASSET_TRANSFER_METHOD)
+      .optional(),
+  })
+  .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });
+
+/**
+ * The same map as READ off a wild 402, where `assetTransferMethod` is a plain
+ * bounded string.
+ *
+ * `accepts` is a menu, so an entry naming Permit2 or ERC-7710 — both
+ * standardized v2 exact/EVM fallbacks (research 001 §3) — must cost only its
+ * own entry. Typing the field as the literal here made one such option refuse
+ * the whole payload, including a sibling entry Soko could pay. The VALUE is
+ * still refused, per entry, by the wild reader; only the payload-wide veto is
+ * gone. A non-string stays a payload-wide parse failure: that is a malformed
+ * 402, not an option Soko happens not to support.
+ */
+export const wildX402ExtraSchema = z
+  .looseObject({
+    ...x402Eip712DomainShape,
+    assetTransferMethod: z
+      .string()
+      .max(X402_MAX_EIP712_DOMAIN_VALUE_LENGTH)
       .optional(),
   })
   .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });

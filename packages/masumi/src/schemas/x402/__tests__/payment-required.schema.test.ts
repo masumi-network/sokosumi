@@ -4,6 +4,7 @@ import {
   X402_MAX_ACCEPTS_ENTRIES,
   X402_MAX_ENCODED_PAYLOAD_LENGTH,
   X402_MAX_ERROR_LENGTH,
+  X402_MAX_RAW_SCHEME_LENGTH,
   X402_MAX_TIMEOUT_SECONDS,
 } from "../payment-required.limits.js";
 import {
@@ -424,8 +425,11 @@ describe("normalizeX402PaymentRequired", () => {
       });
 
       expect(result.isErr()).toBe(true);
+      // Pinned in full, not by substring: the point is that the message is
+      // the network one and nothing else — a non-string `network` slipping
+      // through to the trailing re-validation reads as a DIFFERENT error.
       expect(result._unsafeUnwrapErr()).toBe(
-        `Unknown x402 network "${network}"; expected a CAIP-2 id (eip155:*) or one of: base, base-sepolia`,
+        `No payable x402 requirement in accepts (1 refused): [0] Unknown x402 network "${network}"; expected a CAIP-2 id (eip155:*) or one of: base, base-sepolia`,
       );
     }
   });
@@ -644,7 +648,12 @@ describe("normalizeX402PaymentRequired", () => {
 
   it("rejects oversized attacker-controlled strings pre-charge", () => {
     const oversized = [
-      { x402Version: 2, accepts: [v2Entry({ scheme: "e".repeat(33) })] },
+      {
+        x402Version: 2,
+        accepts: [
+          v2Entry({ scheme: "e".repeat(X402_MAX_RAW_SCHEME_LENGTH + 1) }),
+        ],
+      },
       {
         x402Version: 2,
         error: "x".repeat(1025),
@@ -1023,6 +1032,169 @@ describe("normalizeX402PaymentRequired", () => {
     );
     const result = normalizeX402PaymentRequired(header);
     expect(result.isErr()).toBe(true);
+  });
+});
+
+describe("normalizeX402PaymentRequired: a mixed accepts array", () => {
+  // `accepts` is a MENU of options and the client picks ONE, so an option
+  // Soko cannot settle must not cost it an option it can. Refusing the whole
+  // 402 was not hypothetical: research 001 §2 records `batch-settlement`
+  // offered ALONGSIDE `exact` by live Base-mainnet resources (with
+  // `receiverAuthorizer` / `withdrawDelay: 86400`) and notes that v2
+  // exact/EVM standardizes Permit2 and ERC-7710 beside EIP-3009 — and Base
+  // mainnet `eip155:8453` is exactly what X402_MAINNET_ALLOWED_CAIP2_NETWORKS
+  // allows. The listing side composes payability from the registry plus
+  // readiness rather than from the live 402, so every such agent stayed
+  // listed while every call 422'd.
+  //
+  // Nothing is GUESSED by selecting per entry: an unsupported option is not
+  // translated into a supported one, it is simply not selected, and
+  // `narrowToChosenRequirement` forwards exactly one entry.
+  const PAYABLE_NORMALIZED = {
+    scheme: "exact",
+    network: "eip155:8453",
+    amount: "1000",
+    asset: USDC_BASE_CANONICAL,
+    payTo: PAY_TO_CANONICAL,
+    maxTimeoutSeconds: 3600,
+    extra: { name: "USD Coin", version: "2" },
+  };
+
+  /** Every reason one offered entry can be unselectable. */
+  const UNSELECTABLE: ReadonlyArray<
+    readonly [string, Record<string, unknown>]
+  > = [
+    [
+      "an unsupported scheme (batch-settlement, live alongside exact)",
+      v2Entry({
+        scheme: "batch-settlement",
+        extra: {
+          name: "USD Coin",
+          version: "2",
+          receiverAuthorizer: PAY_TO,
+          withdrawDelay: 86_400,
+        },
+      }),
+    ],
+    [
+      "exact on a non-EVM chain",
+      v2Entry({ network: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpLKreadyKb" }),
+    ],
+    [
+      "an unsupported transfer method (permit2, a v2 exact/EVM fallback)",
+      v2Entry({
+        extra: {
+          name: "USD Coin",
+          version: "2",
+          assetTransferMethod: "permit2",
+        },
+      }),
+    ],
+    [
+      "a timeout above the cap",
+      v2Entry({ maxTimeoutSeconds: X402_MAX_TIMEOUT_SECONDS + 1 }),
+    ],
+    ["an amount wider than uint256", v2Entry({ amount: "1".repeat(79) })],
+    [
+      "an amount above what the node can persist",
+      v2Entry({ amount: "9223372036854775808" }),
+    ],
+    ["a non-integer amount", v2Entry({ amount: "1.5" })],
+    ["no amount in either spelling", v2Entry({ amount: undefined })],
+    [
+      "disagreeing amount spellings",
+      v2Entry({ amount: "1000", maxAmountRequired: "2000" }),
+    ],
+    ["a payTo that is not an address", v2Entry({ payTo: "not-an-address" })],
+    ["an asset that is not an address", v2Entry({ asset: "USDC" })],
+  ];
+
+  for (const [label, unselectable] of UNSELECTABLE) {
+    it(`selects the payable entry when the 402 also offers ${label}`, () => {
+      // Both orderings: selection must not depend on the payable entry
+      // coming first.
+      for (const accepts of [
+        [v2Entry(), unselectable],
+        [unselectable, v2Entry()],
+      ]) {
+        const result = normalizeX402PaymentRequired({
+          x402Version: 2,
+          accepts,
+        });
+
+        expect(result.isOk()).toBe(true);
+        expect(result._unsafeUnwrap().accepts).toEqual([PAYABLE_NORMALIZED]);
+      }
+    });
+  }
+
+  it("still fails closed when that entry is the only one offered", () => {
+    for (const [, unselectable] of UNSELECTABLE) {
+      expect(
+        normalizeX402PaymentRequired({
+          x402Version: 2,
+          accepts: [unselectable],
+        }).isErr(),
+      ).toBe(true);
+    }
+  });
+
+  it("fails closed, naming every refusal, when no entry is payable", () => {
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [
+        v2Entry({ scheme: "upto" }),
+        v2Entry({
+          network: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpLKreadyKb",
+        }),
+      ],
+    });
+
+    expect(result.isErr()).toBe(true);
+    const message = result._unsafeUnwrapErr();
+    expect(message).toMatch(
+      /^No payable x402 requirement in accepts \(2 refused\): /,
+    );
+    expect(message).toContain('[0] Unsupported x402 scheme "upto"');
+    expect(message).toContain("[1] Unknown x402 network");
+  });
+
+  it("keeps the resource-conflict fence over entries it cannot select", () => {
+    // The pool is built from EVERY wild entry, before selection: the fence is
+    // about the payload as a whole — the coworker re-requests exactly one
+    // resource — so an unselectable entry naming a second one must still be a
+    // loud refusal, not a silent drop.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 1,
+      accepts: [
+        v1Entry(),
+        v1Entry({
+          scheme: "batch-settlement",
+          resource: "https://other.example.com/api",
+        }),
+      ],
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(/Conflicting x402 resource URLs/);
+  });
+
+  it("bounds the no-payable-entry echo at the full entry count", () => {
+    // One refusal per entry, up to 20, each echoing a network name at the raw
+    // cap — the same reason the zod-issue and resource-pool echoes are
+    // truncated as a whole rather than per value.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: Array.from({ length: X402_MAX_ACCEPTS_ENTRIES }, (_v, index) =>
+        v2Entry({ network: `unknown-chain-${index}`.padEnd(64, "x") }),
+      ),
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toMatch(/No payable x402 requirement/);
+    expect(result._unsafeUnwrapErr().length).toBeLessThan(
+      X402_MAX_ERROR_LENGTH,
+    );
   });
 });
 
