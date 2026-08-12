@@ -249,13 +249,14 @@ describe("ChatMessageRow", () => {
     expect(rail).toHaveClass("w-8", "min-w-8", "max-w-8");
   });
 
-  it("still shows outbound delivery marks in the continuation rail", () => {
+  it("shows wall-clock in the continuation rail until pending spinner delay", () => {
     renderRow({
       isContinuation: true,
       currentUserId: "user-1",
       message: userMessage({
         id: "pending:turn-1",
         content: "on the train",
+        createdAt: new Date(),
         metadata: {
           client_message_id: "turn-1",
           outbound_delivery_status: "pending",
@@ -263,8 +264,8 @@ describe("ChatMessageRow", () => {
       }),
     });
 
-    expect(screen.getByTestId("outbound-delivery-pending")).toBeTruthy();
-    expect(screen.queryByRole("time")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+    expect(screen.getByRole("time")).toBeInTheDocument();
   });
 
   it("shows reactor names in reaction tooltip in API order", () => {
@@ -1842,12 +1843,13 @@ describe("ChatMessageRow coworker Thought", () => {
 });
 
 describe("ChatMessageRow outbound delivery", () => {
-  it("shows a quiet spinner in the timestamp slot while pending", () => {
+  it("keeps wall-clock time while pending before the spinner delay", () => {
     renderRow({
       currentUserId: "user-1",
       message: userMessage({
         id: "pending:turn-1",
         content: "on the train",
+        createdAt: new Date(),
         metadata: {
           client_message_id: "turn-1",
           outbound_delivery_status: "pending",
@@ -1855,12 +1857,42 @@ describe("ChatMessageRow outbound delivery", () => {
       }),
     });
 
-    expect(screen.getByTestId("outbound-delivery-pending")).toBeTruthy();
-    expect(
-      screen.getByTestId("outbound-delivery-pending-spinner"),
-    ).toBeTruthy();
-    expect(screen.getByLabelText("Outbound.sending")).toBeTruthy();
+    expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+    expect(screen.getByRole("time")).toBeInTheDocument();
     expect(screen.queryByTestId("outbound-delivery-failed")).toBeNull();
+  });
+
+  it("shows a quiet spinner after the pending delay elapses", () => {
+    vi.useFakeTimers();
+    try {
+      const createdAt = new Date();
+      renderRow({
+        currentUserId: "user-1",
+        message: userMessage({
+          id: "pending:turn-1",
+          content: "on the train",
+          createdAt,
+          metadata: {
+            client_message_id: "turn-1",
+            outbound_delivery_status: "pending",
+          },
+        }),
+      });
+
+      expect(screen.queryByTestId("outbound-delivery-pending")).toBeNull();
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(screen.getByTestId("outbound-delivery-pending")).toBeTruthy();
+      expect(
+        screen.getByTestId("outbound-delivery-pending-spinner"),
+      ).toBeTruthy();
+      expect(screen.getByLabelText("Outbound.sending")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("shows a brief check in the timestamp slot right after confirm", () => {

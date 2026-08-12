@@ -39,10 +39,12 @@ import {
 } from "@/app/chat/utils/jumbo-emoji";
 import {
   isOutboundLocalMessage,
+  OUTBOUND_PENDING_SPINNER_DELAY_MS,
   OUTBOUND_SENT_TICK_MS,
   type OutboundDeliveryStatus,
   readClientTurnId,
   readOutboundDeliveryStatus,
+  shouldShowOutboundPendingSpinner,
 } from "@/app/chat/utils/outbound-room-message";
 import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
 import {
@@ -1271,8 +1273,12 @@ function OutboundPendingSpinner({ className }: { className?: string }) {
 }
 
 /**
- * Timestamp slot: slow ring while pending; brief check on confirm (fades, then
- * parent swaps to wall-clock); alert while failed; settled = real time.
+ * Timestamp slot for classic outbound:
+ * - Pending before delay: wall-clock (fast path — most sends never show chrome)
+ * - Pending after delay: quiet spinner (bad-network path)
+ * - Confirm after spinner: brief check → wall-clock (parent `showSentTick`)
+ * - Confirm before delay: wall-clock only (no check)
+ * - Failed: alert immediately
  *
  * Settled wall-clock uses only the caller's className so color/size match
  * pre-outbound message chrome (muted meta, not body foreground).
@@ -1293,11 +1299,41 @@ function MessageTimeOrOutboundStatus({
 }) {
   const t = useTranslations("App.Channels");
   const [sentFading, setSentFading] = useState(false);
+  const [showPendingSpinner, setShowPendingSpinner] = useState(() =>
+    outboundStatus === "pending"
+      ? shouldShowOutboundPendingSpinner(createdAt)
+      : false,
+  );
   const markClass = reserveHeaderWidth
     ? OUTBOUND_HEADER_MARK_CLASS
     : OUTBOUND_GUTTER_MARK_CLASS;
   // Smaller icon in the narrow continuation gutter.
   const iconClass = reserveHeaderWidth ? "size-3" : "size-2.5";
+
+  useEffect(() => {
+    if (outboundStatus !== "pending") {
+      setShowPendingSpinner(false);
+      return;
+    }
+    if (shouldShowOutboundPendingSpinner(createdAt)) {
+      setShowPendingSpinner(true);
+      return;
+    }
+    setShowPendingSpinner(false);
+    const createdMs = new Date(createdAt).getTime();
+    const remainingMs = Number.isFinite(createdMs)
+      ? OUTBOUND_PENDING_SPINNER_DELAY_MS - (Date.now() - createdMs)
+      : OUTBOUND_PENDING_SPINNER_DELAY_MS;
+    const timeoutId = window.setTimeout(
+      () => {
+        setShowPendingSpinner(true);
+      },
+      Math.max(0, remainingMs),
+    );
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [outboundStatus, createdAt]);
 
   useEffect(() => {
     if (!showSentTick) {
@@ -1314,6 +1350,10 @@ function MessageTimeOrOutboundStatus({
   }, [showSentTick, createdAt]);
 
   if (outboundStatus === "pending") {
+    if (!showPendingSpinner) {
+      // Fast path: look like a normal message until the delay elapses.
+      return <MessageWallClockTime value={createdAt} className={className} />;
+    }
     return (
       <span
         className={cn(markClass, className)}

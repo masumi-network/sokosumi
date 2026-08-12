@@ -14,7 +14,9 @@ import {
   confirmOutboundMessage,
   createPendingRoomMessage,
   listJustConfirmedOutboundMessageIds,
+  OUTBOUND_PENDING_SPINNER_DELAY_MS,
   OUTBOUND_SENT_TICK_MS,
+  shouldFlashOutboundSentCheck,
 } from "../outbound-room-message";
 import {
   clearOutboundSentTicksForTests,
@@ -205,21 +207,21 @@ function chromeSequenceFor(
 }
 
 describe("outbound delivery chrome sequence", () => {
-  it("documents the bug: confirm without tick paints time before check can appear", () => {
+  it("fast path: pending keeps wall-clock; confirm without tick stays time", () => {
     const sequence = chromeSequenceFor("none");
-    // pending → settled without tick → wall clock (no check phase)
-    expect(sequence[0]).toBe("spinner");
-    expect(sequence[1]).toBe("time");
+    // Before spinner delay: wall-clock while pending; confirm → still time (no check)
+    expect(sequence).toEqual(["time", "time", "time"]);
   });
 
-  it("sync map inside messages updater: spinner → check → time (React tick prop still false)", () => {
+  it("slow-path check: sync map shows check then time (React tick prop still false)", () => {
+    // First paint is wall-clock (pending before delay); confirm with map → check
     const sequence = chromeSequenceFor("atomic-map-inside-updater");
-    expect(sequence).toEqual(["spinner", "check", "time"]);
+    expect(sequence).toEqual(["time", "check", "time"]);
   });
 
-  it("after-messages React tick state must not insert wall-clock between spinner and check", () => {
+  it("after-messages React tick state: pending wall-clock then check then time", () => {
     const sequence = chromeSequenceFor("after-messages-react-only");
-    expect(sequence).toEqual(["spinner", "check", "time"]);
+    expect(sequence).toEqual(["time", "check", "time"]);
   });
 
   it("listJustConfirmedOutboundMessageIds returns the server id for a pending swap", () => {
@@ -238,5 +240,49 @@ describe("outbound delivery chrome sequence", () => {
 
   it("OUTBOUND_SENT_TICK_MS is long enough for a visible check", () => {
     expect(OUTBOUND_SENT_TICK_MS).toBeGreaterThanOrEqual(800);
+  });
+
+  it("fast confirms skip the sent check (spinner delay not elapsed)", () => {
+    const createdAt = new Date();
+    expect(shouldFlashOutboundSentCheck(createdAt, createdAt.getTime())).toBe(
+      false,
+    );
+    expect(
+      shouldFlashOutboundSentCheck(
+        createdAt,
+        createdAt.getTime() + OUTBOUND_PENDING_SPINNER_DELAY_MS,
+      ),
+    ).toBe(true);
+  });
+
+  it("pending chrome stays wall-clock until spinner delay", () => {
+    clearOutboundSentTicksForTests();
+    vi.useFakeTimers();
+    try {
+      const pending = createPendingRoomMessage({
+        clientTurnId: "turn-1",
+        roomId: "room-1",
+        content: "on the train",
+        senderUser,
+        createdAt: new Date(),
+      });
+      render(
+        <ChatMessageRow
+          message={pending}
+          coworkersById={new Map()}
+          coworkersBySlug={new Map()}
+          currentUserId="user-1"
+          onToggleReaction={() => {}}
+        />,
+      );
+      expect(readChrome()).toBe("time");
+      act(() => {
+        vi.advanceTimersByTime(OUTBOUND_PENDING_SPINNER_DELAY_MS);
+      });
+      expect(readChrome()).toBe("spinner");
+    } finally {
+      vi.useRealTimers();
+      clearOutboundSentTicksForTests();
+    }
   });
 });

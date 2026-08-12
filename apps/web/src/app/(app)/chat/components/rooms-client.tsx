@@ -62,8 +62,10 @@ import {
   listJustConfirmedOutboundMessageIds,
   markOutboundMessagePending,
   OUTBOUND_SENT_TICK_MS,
+  outboundLocalMessageId,
   readClientTurnId,
   removeOutboundMessage,
+  shouldFlashOutboundSentCheck,
 } from "@/app/chat/utils/outbound-room-message";
 import { markOutboundSentTick } from "@/app/chat/utils/outbound-sent-tick";
 import { applyReplySoftDeleteToParentIfUnchanged } from "@/app/chat/utils/parent-thread-preview";
@@ -656,30 +658,42 @@ export function RoomsClient({
   }
 
   /**
-   * Apply a message list update and arm sent ticks for any pending→server
-   * swap. Marks the sync registry *inside* the messages updater so the
-   * first paint after confirm cannot show wall-clock before the check.
+   * Apply a message list update and arm sent ticks only for **slow-path**
+   * pending→server swaps (spinner delay already elapsed). Fast confirms
+   * skip spinner and check. Marks the sync registry inside the messages
+   * updater so the first paint after a slow confirm cannot skip the check.
    */
   function applyMessagesFlashingOutboundConfirms(
     setMessages: Dispatch<SetStateAction<ChatRoomMessage[]>>,
     computeNext: (current: ChatRoomMessage[]) => ChatRoomMessage[],
   ) {
-    let confirmedIds: string[] = [];
+    let slowPathConfirmed: { messageId: string; turnId: string | null }[] = [];
     setMessages((current) => {
       const next = computeNext(current);
-      confirmedIds = listJustConfirmedOutboundMessageIds(current, next);
+      const confirmedIds = listJustConfirmedOutboundMessageIds(current, next);
+      slowPathConfirmed = [];
       for (const messageId of confirmedIds) {
         const row = next.find((message) => message.id === messageId);
-        markOutboundSentTick([
-          messageId,
-          row != null ? readClientTurnId(row) : null,
-        ]);
+        const turnId = row != null ? readClientTurnId(row) : null;
+        const pendingShell =
+          turnId != null
+            ? current.find(
+                (message) => message.id === outboundLocalMessageId(turnId),
+              )
+            : null;
+        if (
+          pendingShell == null ||
+          !shouldFlashOutboundSentCheck(pendingShell.createdAt)
+        ) {
+          continue;
+        }
+        markOutboundSentTick([messageId, turnId]);
+        slowPathConfirmed.push({ messageId, turnId });
       }
       return next;
     });
-    for (const messageId of confirmedIds) {
-      // Re-arms timeout + React state; map already marked inside the updater.
-      flashOutboundSentTick(messageId);
+    for (const { messageId, turnId } of slowPathConfirmed) {
+      flashOutboundSentTick(messageId, turnId);
     }
   }
 
@@ -1878,8 +1892,8 @@ export function RoomsClient({
       onFailure: handleChannelOutboundFailure,
       onSuccess: (job, confirmed) => {
         if (isStillSelectedRoom(job.roomId)) {
-          // Flash first so tick state lands with the confirm swap (same batch).
-          flashOutboundSentTick(confirmed.id, job.clientMessageId);
+          // Slow-path check only (spinner delay already elapsed); fast path
+          // settles to wall-clock with no check.
           applyMessagesFlashingOutboundConfirms(setMessagesState, (current) =>
             confirmOutboundMessage(current, confirmed, job.clientMessageId),
           );
@@ -1921,7 +1935,6 @@ export function RoomsClient({
           job.parentMessageId != null &&
           threadParentMessageIdRef.current === job.parentMessageId
         ) {
-          flashOutboundSentTick(confirmed.id, job.clientMessageId);
           applyMessagesFlashingOutboundConfirms(setThreadMessages, (current) =>
             confirmOutboundMessage(current, confirmed, job.clientMessageId),
           );

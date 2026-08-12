@@ -11,9 +11,52 @@ export const OUTBOUND_LOCAL_ID_PREFIX = "pending:" as const;
 
 /**
  * How long the post-confirm check stays in the timestamp slot before
- * swapping to wall-clock time (includes fade).
+ * swapping to wall-clock time (includes fade). Only used on the slow path
+ * (spinner already shown).
  */
 export const OUTBOUND_SENT_TICK_MS = 1600;
+
+/**
+ * How long a pending shell keeps wall-clock chrome before showing the spinner.
+ * Fast sends confirm before this and never show spinner/check (99% path).
+ */
+export const OUTBOUND_PENDING_SPINNER_DELAY_MS = 500;
+
+/** Age of a pending shell in ms (clamped ≥ 0). */
+export function outboundPendingAgeMs(
+  createdAt: Date | string,
+  nowMs: number = Date.now(),
+): number {
+  const created = new Date(createdAt).getTime();
+  if (!Number.isFinite(created)) {
+    return 0;
+  }
+  return Math.max(0, nowMs - created);
+}
+
+/**
+ * True when pending has lasted long enough to show the spinner (bad-network
+ * path). Before this, the timestamp slot keeps wall-clock time.
+ */
+export function shouldShowOutboundPendingSpinner(
+  createdAt: Date | string,
+  nowMs: number = Date.now(),
+  delayMs: number = OUTBOUND_PENDING_SPINNER_DELAY_MS,
+): boolean {
+  return outboundPendingAgeMs(createdAt, nowMs) >= delayMs;
+}
+
+/**
+ * True when confirm should flash the check — only if the spinner delay had
+ * already elapsed (slow path). Fast confirms skip spinner and check.
+ */
+export function shouldFlashOutboundSentCheck(
+  pendingCreatedAt: Date | string,
+  nowMs: number = Date.now(),
+  delayMs: number = OUTBOUND_PENDING_SPINNER_DELAY_MS,
+): boolean {
+  return shouldShowOutboundPendingSpinner(pendingCreatedAt, nowMs, delayMs);
+}
 
 /** Core + local metadata key for the client turn id. */
 export const CLIENT_MESSAGE_ID_METADATA_KEY = "client_message_id" as const;

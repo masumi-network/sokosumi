@@ -12,10 +12,14 @@ import {
   listJustConfirmedOutboundMessageIds,
   markOutboundMessagePending,
   OUTBOUND_DELIVERY_STATUS_METADATA_KEY,
+  OUTBOUND_PENDING_SPINNER_DELAY_MS,
   outboundLocalMessageId,
+  outboundPendingAgeMs,
   readClientTurnId,
   readOutboundDeliveryStatus,
   removeOutboundMessage,
+  shouldFlashOutboundSentCheck,
+  shouldShowOutboundPendingSpinner,
 } from "../outbound-room-message";
 
 const senderUser = {
@@ -227,6 +231,32 @@ describe("outbound room message", () => {
     expect(
       listJustConfirmedOutboundMessageIds([peer], [peer, incoming]),
     ).toEqual([]);
+  });
+
+  it("delays pending spinner until the delay elapses", () => {
+    const createdAt = "2026-07-01T14:35:00.000Z";
+    const t0 = new Date(createdAt).getTime();
+    expect(outboundPendingAgeMs(createdAt, t0)).toBe(0);
+    expect(shouldShowOutboundPendingSpinner(createdAt, t0)).toBe(false);
+    expect(
+      shouldShowOutboundPendingSpinner(
+        createdAt,
+        t0 + OUTBOUND_PENDING_SPINNER_DELAY_MS - 1,
+      ),
+    ).toBe(false);
+    expect(
+      shouldShowOutboundPendingSpinner(
+        createdAt,
+        t0 + OUTBOUND_PENDING_SPINNER_DELAY_MS,
+      ),
+    ).toBe(true);
+    expect(shouldFlashOutboundSentCheck(createdAt, t0 + 100)).toBe(false);
+    expect(
+      shouldFlashOutboundSentCheck(
+        createdAt,
+        t0 + OUTBOUND_PENDING_SPINNER_DELAY_MS,
+      ),
+    ).toBe(true);
   });
 
   it("reads client turn id from confirmed metadata", () => {
