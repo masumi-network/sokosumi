@@ -119,6 +119,23 @@ const X402_MAX_AMOUNT_DIGITS = 78;
  */
 const X402_MAX_AMOUNT_BASE_UNITS = 9223372036854775807n;
 
+/**
+ * Upper bound on the RAW `network` string a wild 402 may carry. A CAIP-2 id
+ * caps its namespace at 8 and its reference at 32 characters (41 with the
+ * separator) and the v1 plain names are shorter still, so this rejects
+ * nothing legitimate — it stops a multi-megabyte string reaching the regex
+ * and, before that, the error message that echoes it.
+ */
+const X402_MAX_RAW_NETWORK_LENGTH = 64;
+
+/**
+ * Upper bound on the RAW `amount` / `maxAmountRequired` strings. Wide enough
+ * that `normalizeAmount` can still report the exact digit width of a
+ * plausibly-mistaken amount (uint256 is 78 digits), narrow enough that the
+ * conflicting-amounts echo cannot be built out of two megabyte strings.
+ */
+const X402_MAX_RAW_AMOUNT_LENGTH = 256;
+
 /** `exact`, `upto`, `batch-settlement` — no real scheme name is near this. */
 const X402_MAX_SCHEME_LENGTH = 32;
 /** The 402's human-readable error blurb; logged, never parsed. */
@@ -131,6 +148,30 @@ const X402_MAX_MAP_ENTRIES = 32;
 const X402_MAX_MAP_KEY_LENGTH = 128;
 /** `extra.name` / `extra.version` — an EIP-712 domain, never long. */
 const X402_MAX_EIP712_DOMAIN_VALUE_LENGTH = 128;
+
+/**
+ * Longest attacker-controlled value any error message repeats back. 78 is a
+ * full-width uint256 amount — the widest value worth reading in full.
+ *
+ * Every rejection echo is built once per `accepts` entry (up to 20) and ends
+ * up in the response body, the logs and Sentry, so an echo is only ever as
+ * bounded as the field it repeats. The schema caps above are the first fence;
+ * this is the second, so loosening a cap later cannot silently reopen the
+ * multi-megabyte error string.
+ */
+const X402_MAX_ECHOED_VALUE_LENGTH = 78;
+
+/**
+ * Shortens an attacker-controlled value for an error message, naming the true
+ * length instead of repeating it. Same stance as the digit-width rejection in
+ * `normalizeAmount`: the whole point is that the value may be enormous.
+ */
+function truncateEcho(value: string): string {
+  if (value.length <= X402_MAX_ECHOED_VALUE_LENGTH) {
+    return value;
+  }
+  return `${value.slice(0, X402_MAX_ECHOED_VALUE_LENGTH)}… (${value.length} chars)`;
+}
 
 /**
  * A free-form attacker-controlled map (`extensions`, and the unknown keys of
@@ -254,12 +295,14 @@ export type X402PaymentRequired = z.infer<typeof x402PaymentRequiredSchema>;
  */
 const wildRequirementSchema = z.looseObject({
   scheme: z.string().min(1).max(X402_MAX_SCHEME_LENGTH),
-  network: z.string().min(1),
+  network: z.string().min(1).max(X402_MAX_RAW_NETWORK_LENGTH),
   asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
-  // Both amount spellings stay untyped here: normalizeAmount owns unifying
-  // them and is the single place that reports WHY an amount was refused.
-  amount: z.string().optional(),
-  maxAmountRequired: z.string().optional(),
+  // Both amount spellings stay loosely typed here: normalizeAmount owns
+  // unifying them and is the single place that reports WHY an amount was
+  // refused. Only the length is fenced, so neither spelling can reach an
+  // error message as a megabyte string.
+  amount: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
+  maxAmountRequired: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
   payTo: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
   maxTimeoutSeconds: z.number().int().positive().max(X402_MAX_TIMEOUT_SECONDS),
   extra: x402ExtraSchema.optional(),
@@ -293,7 +336,7 @@ function normalizeNetwork(network: string): Result<string, string> {
     return ok(mapped);
   }
   return err(
-    `Unknown x402 network "${network}"; expected a CAIP-2 id (eip155:*) or one of: ${Object.keys(V1_NETWORK_NAME_TO_CAIP2).join(", ")}`,
+    `Unknown x402 network "${truncateEcho(network)}"; expected a CAIP-2 id (eip155:*) or one of: ${Object.keys(V1_NETWORK_NAME_TO_CAIP2).join(", ")}`,
   );
 }
 
@@ -310,7 +353,7 @@ function normalizeEvmAddress(
 ): Result<string, string> {
   const normalized = value.trim().toLowerCase();
   if (!EVM_ADDRESS_PATTERN.test(normalized)) {
-    return err(`Invalid x402 ${field} address: ${value}`);
+    return err(`Invalid x402 ${field} address: ${truncateEcho(value)}`);
   }
   return ok(normalized);
 }
@@ -327,7 +370,7 @@ function normalizeAmount(
     // Both spellings present but disagreeing is not a dialect — it is a
     // malformed (or manipulated) 402. Never pick one.
     return err(
-      `Conflicting x402 amounts: amount=${amount}, maxAmountRequired=${maxAmountRequired}`,
+      `Conflicting x402 amounts: amount=${truncateEcho(amount)}, maxAmountRequired=${truncateEcho(maxAmountRequired)}`,
     );
   }
   const value = amount ?? maxAmountRequired;
@@ -343,7 +386,7 @@ function normalizeAmount(
     );
   }
   if (!/^\d+$/.test(value)) {
-    return err(`Invalid x402 amount: ${value}`);
+    return err(`Invalid x402 amount: ${truncateEcho(value)}`);
   }
   if (BigInt(value) > X402_MAX_AMOUNT_BASE_UNITS) {
     // The node persists base units in Postgres BIGINT columns, so a larger
@@ -510,7 +553,11 @@ export function normalizeX402PaymentRequired(
     ),
   );
   if (resources.length > 1) {
-    return err(`Conflicting x402 resource URLs: ${resources.join(", ")}`);
+    // Up to 21 pooled URLs at 2048 characters each, so the echo is truncated
+    // per URL for the same reason the network and amount echoes are.
+    return err(
+      `Conflicting x402 resource URLs: ${resources.map(truncateEcho).join(", ")}`,
+    );
   }
   const resourceUrl = resources[0];
 

@@ -491,6 +491,57 @@ describe("normalizeX402PaymentRequired", () => {
     }
   });
 
+  it("bounds every attacker-controlled value it echoes back", () => {
+    // A rejected 402's error string flows into the response body, the logs
+    // and Sentry — once per entry, up to 20 entries. Measured before this
+    // fix: a 200 000-char `network` produced a 200 086-char error, and two
+    // 500 000-digit amounts a 1 000 053-char one. `network` was the only
+    // wild-dialect string with no length cap at all.
+    const payloads = [
+      { x402Version: 2, accepts: [v2Entry({ network: "n".repeat(200_000) })] },
+      {
+        x402Version: 2,
+        accepts: [
+          v2Entry({
+            amount: "1".repeat(500_000),
+            maxAmountRequired: "2".repeat(500_000),
+          }),
+        ],
+      },
+      {
+        x402Version: 2,
+        accepts: [v2Entry({ amount: `1.${"5".repeat(500_000)}` })],
+      },
+      {
+        x402Version: 1,
+        accepts: [
+          v1Entry({ resource: `https://a.example.com/${"p".repeat(2000)}` }),
+          v1Entry({
+            network: "base",
+            resource: `https://b.example.com/${"p".repeat(2000)}`,
+          }),
+        ],
+      },
+    ];
+
+    for (const payload of payloads) {
+      const result = normalizeX402PaymentRequired(payload);
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().length).toBeLessThan(1024);
+    }
+  });
+
+  it("still echoes a short network name in full", () => {
+    // The truncation must not make the common operator-facing errors useless.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 1,
+      accepts: [v1Entry({ network: "base-mainnet-typo" })],
+    });
+    expect(result._unsafeUnwrapErr()).toMatch(
+      /Unknown x402 network "base-mainnet-typo"/,
+    );
+  });
+
   it("rejects an empty accepts array", () => {
     const result = normalizeX402PaymentRequired({
       x402Version: 2,
