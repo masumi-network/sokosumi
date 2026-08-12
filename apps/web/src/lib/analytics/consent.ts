@@ -59,18 +59,26 @@ function cookieSecureSuffix(): string {
 
 export function readConsent(): ConsentChoice | null {
   if (typeof document === "undefined") return null;
-  const match = document.cookie.match(/(?:^|; )sokosumi_consent=([^;]+)/);
+  const match = document.cookie.match(
+    new RegExp(`(?:^|; )${CONSENT_COOKIE}=([^;]+)`),
+  );
   if (!match) return null;
   try {
     const parsed = JSON.parse(decodeURIComponent(match[1])) as StoredConsent;
-    // A choice recorded against an older schema is not a choice about the
-    // current categories — treat it as no decision so the banner asks again.
-    // Without this check CONSENT_VERSION was written but never honoured.
-    if (parsed.v !== CONSENT_VERSION) return null;
+    // Mirror the beforeInteractive inline script: a stale schema or a
+    // hand-crafted cookie must not count as a decision. Coercing with !!
+    // would treat "false" as granted and hide the banner.
+    if (
+      parsed.v !== CONSENT_VERSION ||
+      typeof parsed.analytics !== "boolean" ||
+      typeof parsed.marketing !== "boolean"
+    ) {
+      return null;
+    }
     return {
       necessary: true,
-      analytics: !!parsed.analytics,
-      marketing: !!parsed.marketing,
+      analytics: parsed.analytics,
+      marketing: parsed.marketing,
     };
   } catch {
     return null;

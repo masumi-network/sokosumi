@@ -38,6 +38,9 @@ export const APP_SHELL_MESSAGE_PATHS = [
   "Components",
   "Library",
   "Onboarding",
+  // Account Legal drill reopens the banner; nested app/Hermes/Admin
+  // boundaries replace the global bag, so CookieConsent must travel with them.
+  "CookieConsent",
   "App.Sidebar",
   "App.Header",
   "App.Error",
@@ -68,6 +71,7 @@ export const APP_MESSAGE_PATHS = [
   "Components",
   "Library",
   "Onboarding",
+  "CookieConsent",
   "notifications",
   ...appMessagePathsExcluding(APP_FEATURE_EXCLUSIONS),
 ] as const;

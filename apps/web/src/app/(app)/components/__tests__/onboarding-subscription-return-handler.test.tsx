@@ -6,6 +6,7 @@ import { OnboardingSubscriptionReturnHandler } from "@/app/components/onboarding
 const replaceMock = vi.fn();
 const completeOnboardingMock = vi.fn();
 const toastErrorMock = vi.fn();
+const onboardingCompleteMock = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
 
@@ -30,12 +31,19 @@ vi.mock("@/lib/actions/onboarding", () => ({
   completeOnboarding: () => completeOnboardingMock(),
 }));
 
+vi.mock("@/lib/gtm-events", () => ({
+  fireGTMEvent: {
+    onboardingComplete: () => onboardingCompleteMock(),
+  },
+}));
+
 describe("OnboardingSubscriptionReturnHandler", () => {
   beforeEach(() => {
     mockSearchParams = new URLSearchParams();
     replaceMock.mockReset();
     completeOnboardingMock.mockReset();
     toastErrorMock.mockReset();
+    onboardingCompleteMock.mockReset();
   });
 
   it("completes onboarding and cleans the URL after a successful checkout return", async () => {
@@ -51,6 +59,7 @@ describe("OnboardingSubscriptionReturnHandler", () => {
 
     await waitFor(() => {
       expect(completeOnboardingMock).toHaveBeenCalledTimes(1);
+      expect(onboardingCompleteMock).toHaveBeenCalledTimes(1);
       expect(replaceMock).toHaveBeenCalledWith("/tasks");
     });
   });
@@ -67,6 +76,7 @@ describe("OnboardingSubscriptionReturnHandler", () => {
     });
 
     expect(completeOnboardingMock).not.toHaveBeenCalled();
+    expect(onboardingCompleteMock).not.toHaveBeenCalled();
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
 });

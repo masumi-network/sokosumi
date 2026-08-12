@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Code2,
+  Cookie,
   LifeBuoy,
   Scale,
 } from "lucide-react";
@@ -31,6 +32,7 @@ interface AccountPopoverDrillProps {
   onNavigatePanel: (panel: AccountPopoverPanel) => void;
   onNavigateRoute: (href: string) => void;
   onOpenExternal: (url: string) => void;
+  onOpenConsent: () => void;
 }
 
 function DrillRow({
@@ -69,10 +71,12 @@ export function AccountPopoverDrill({
   onNavigatePanel,
   onNavigateRoute,
   onOpenExternal,
+  onOpenConsent,
 }: AccountPopoverDrillProps): ReactElement {
   const panelRef = useRef<HTMLDivElement>(null);
   const tMenu = useTranslations("App.Sidebar.Content.MenuItems");
   const tUserAvatar = useTranslations("Components.UserAvatar");
+  const tConsent = useTranslations("CookieConsent");
   const tOrganizationSwitcher = useTranslations(
     "Components.OrganizationSwitcher",
   );
@@ -202,8 +206,9 @@ export function AccountPopoverDrill({
               );
             })
           : null}
-        {panel.kind === "legal"
-          ? LEGAL_LINKS.map((item) => {
+        {panel.kind === "legal" ? (
+          <>
+            {LEGAL_LINKS.map((item) => {
               const Icon = item.icon;
               return (
                 <DrillRow
@@ -221,8 +226,14 @@ export function AccountPopoverDrill({
                   onClick={() => onOpenExternal(item.url)}
                 />
               );
-            })
-          : null}
+            })}
+            <DrillRow
+              label={tConsent("settings")}
+              icon={<Cookie className="size-4 shrink-0" aria-hidden />}
+              onClick={onOpenConsent}
+            />
+          </>
+        ) : null}
       </div>
     </div>
   );
