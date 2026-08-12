@@ -1842,7 +1842,7 @@ describe("ChatMessageRow coworker Thought", () => {
 });
 
 describe("ChatMessageRow outbound delivery", () => {
-  it("shows a clock in the timestamp slot while pending", () => {
+  it("shows a quiet spinner in the timestamp slot while pending", () => {
     renderRow({
       currentUserId: "user-1",
       message: userMessage({
@@ -1856,6 +1856,9 @@ describe("ChatMessageRow outbound delivery", () => {
     });
 
     expect(screen.getByTestId("outbound-delivery-pending")).toBeTruthy();
+    expect(
+      screen.getByTestId("outbound-delivery-pending-spinner"),
+    ).toBeTruthy();
     expect(screen.getByLabelText("Outbound.sending")).toBeTruthy();
     expect(screen.queryByTestId("outbound-delivery-failed")).toBeNull();
   });

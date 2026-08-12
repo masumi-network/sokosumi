@@ -134,6 +134,8 @@
   --animate-reasoning-text-shine: reasoning-text-shine 2.5s ease-in-out infinite;
   /* Beautiful UI shimmer — register like reasoning-text-shine so Tailwind emits it. */
   --animate-bui-shimmer-text: bui-shimmer-text 1.8s linear infinite;
+  /* Classic outbound pending: slow dual-arc ring in the timestamp slot. */
+  --animate-outbound-pending-spin: outbound-pending-spin 1.4s linear infinite;
 
   @keyframes bui-shimmer-text {
     0% {
@@ -141,6 +143,12 @@
     }
     100% {
       background-position: -50% 0;
+    }
+  }
+
+  @keyframes outbound-pending-spin {
+    to {
+      transform: rotate(360deg);
     }
   }
 

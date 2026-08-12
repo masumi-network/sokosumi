@@ -4,7 +4,6 @@ import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
   AlertCircle,
   Check,
-  Clock,
   MessageCircle,
   Pencil,
   Quote,
@@ -1209,7 +1208,7 @@ function MessageEditComposer({
 }
 
 /**
- * Header (next to name): min width so clock → check → time does not nudge.
+ * Header (next to name): min width so spinner → check → time does not nudge.
  * Continuation gutter matches the avatar rail (`w-8`); icons only — no min-w.
  */
 const OUTBOUND_HEADER_MARK_CLASS =
@@ -1226,7 +1225,51 @@ const MESSAGE_LEFT_RAIL_CLASS =
   "flex w-8 min-w-8 max-w-8 shrink-0 justify-center overflow-visible pt-0.5";
 
 /**
- * Timestamp slot: clock while pending; brief check on confirm (fades, then
+ * Quiet dual-arc ring for classic outbound pending. Slow spin; static under
+ * prefers-reduced-motion. Not the coworker Drive grid / thinking orb.
+ */
+function OutboundPendingSpinner({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden
+      className={cn(
+        "text-muted-foreground/70 animate-outbound-pending-spin motion-reduce:animate-none",
+        className,
+      )}
+      data-testid="outbound-delivery-pending-spinner"
+    >
+      {/* Faint track — stays put under reduced motion so the mark still reads. */}
+      <circle
+        cx="8"
+        cy="8"
+        r="5.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        opacity={0.28}
+      />
+      {/* Leading arc */}
+      <path
+        d="M8 2.5a5.5 5.5 0 0 1 4.76 2.75"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      {/* Trailing arc (opposite, softer) */}
+      <path
+        d="M8 13.5a5.5 5.5 0 0 1-4.76-2.75"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        opacity={0.45}
+      />
+    </svg>
+  );
+}
+
+/**
+ * Timestamp slot: slow ring while pending; brief check on confirm (fades, then
  * parent swaps to wall-clock); alert while failed; settled = real time.
  *
  * Settled wall-clock uses only the caller's className so color/size match
@@ -1277,7 +1320,7 @@ function MessageTimeOrOutboundStatus({
         title={t("Outbound.sending")}
         aria-label={t("Outbound.sending")}
       >
-        <Clock className={iconClass} aria-hidden />
+        <OutboundPendingSpinner className={iconClass} />
       </span>
     );
   }
