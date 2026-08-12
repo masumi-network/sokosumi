@@ -58,6 +58,16 @@ describe("canonicalJsonKey", () => {
     expect(canonicalJsonKey({ 0: 1, 1: 2 })).not.toBe(canonicalJsonKey([1, 2]));
   });
 
+  it("writes an array hole as null, exactly like JSON.stringify", () => {
+    // `Array.prototype.map` SKIPS holes, so a hole never reaches the
+    // element serializer. Emitting nothing for it produced `[,1]` — not
+    // valid JSON, and a canonical form no `JSON.parse` output can equal.
+    const sparse = [, 1];
+    expect(canonicalJsonKey(sparse)).toBe("[null,1]");
+    expect(canonicalJsonKey(sparse)).toBe(JSON.stringify(sparse));
+    expect(canonicalJsonKey(sparse)).toBe(canonicalJsonKey([undefined, 1]));
+  });
+
   it("treats an undefined property as absent, matching filterUndefined", () => {
     expect(canonicalJsonKey({ a: 1, b: undefined })).toBe(
       canonicalJsonKey({ a: 1 }),

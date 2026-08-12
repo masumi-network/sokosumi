@@ -101,13 +101,20 @@ function serializeObject(
   ancestors.add(value);
   try {
     if (Array.isArray(value)) {
-      const elements = value.map((element) =>
-        // `JSON.stringify` writes a hole or an `undefined` element as `null`;
-        // matching it keeps array length meaningful.
-        element === undefined
-          ? "null"
-          : serialize(element, depth + 1, ancestors),
-      );
+      const elements: string[] = [];
+      // An index loop, not `map`: `Array.prototype.map` SKIPS holes, so a
+      // sparse array emitted nothing for them and produced `[,1]` — not valid
+      // JSON, and a string no `JSON.parse` output could ever equal. Visiting
+      // every index writes a hole or an `undefined` element as `null`, which
+      // is what `JSON.stringify` does and what keeps array length meaningful.
+      for (let index = 0; index < value.length; index += 1) {
+        const element: unknown = value[index];
+        elements.push(
+          element === undefined
+            ? "null"
+            : serialize(element, depth + 1, ancestors),
+        );
+      }
       return `[${elements.join(",")}]`;
     }
     // Own enumerable string keys only, sorted by UTF-16 code unit — what
