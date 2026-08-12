@@ -15,6 +15,30 @@ EXCEPTION
   WHEN duplicate_object THEN null;
 END $$;
 
+-- AlterEnum
+-- The guard above swallows the whole type on re-apply, so a database that
+-- applied an earlier shape of this file keeps that shape's member set forever
+-- — the one object here that did not restate itself. Every member is therefore
+-- restated, matching the converge discipline the columns and constraints below
+-- already follow. Re-running is a no-op once the members match.
+--
+-- ALTER TYPE … ADD VALUE is transaction-safe on PostgreSQL 12+ so long as the
+-- member being added is not USED in the same transaction, so these are safe
+-- whether or not the runner wraps this file in one. That proviso holds here,
+-- and only here, because no statement in this file uses a member this file
+-- adds: the sole enum literal below is the `DEFAULT 'PENDING'` in the CREATE
+-- TABLE, and on the fresh path the type itself is created in the same
+-- transaction (which makes all of its members usable), while on every converge
+-- path 'PENDING' already exists and the ADD VALUE is a no-op.
+--
+-- A future amendment that adds a member MUST NOT also use it in this file —
+-- Postgres rejects that with `unsafe use of new value of enum type`. Add the
+-- member here, and use it in a later migration.
+ALTER TYPE "TaskX402PaymentStatus" ADD VALUE IF NOT EXISTS 'PENDING';
+ALTER TYPE "TaskX402PaymentStatus" ADD VALUE IF NOT EXISTS 'VERIFIED';
+ALTER TYPE "TaskX402PaymentStatus" ADD VALUE IF NOT EXISTS 'FAILED';
+ALTER TYPE "TaskX402PaymentStatus" ADD VALUE IF NOT EXISTS 'REFUNDED';
+
 -- CreateTable
 CREATE TABLE IF NOT EXISTS "task_x402_payment" (
     "id" TEXT NOT NULL,
@@ -38,7 +62,11 @@ CREATE TABLE IF NOT EXISTS "task_x402_payment" (
     "transactionId" TEXT NOT NULL,
     "refundTransactionId" TEXT,
 
-    CONSTRAINT "task_x402_payment_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "task_x402_payment_pkey" PRIMARY KEY ("id"),
+    -- See the AlterTable below for why this constraint exists; declared here
+    -- too so the fresh-create path gets it without a second statement.
+    CONSTRAINT "task_x402_payment_nonce_payer_together_chk"
+      CHECK (("payerAddress" IS NULL) = ("payloadNonce" IS NULL))
 );
 
 -- AlterTable
@@ -75,6 +103,32 @@ CREATE UNIQUE INDEX IF NOT EXISTS "task_x402_payment_taskId_idempotencyKey_key" 
 CREATE UNIQUE INDEX IF NOT EXISTS "task_x402_payment_nonce_replay_uidx"
   ON "task_x402_payment" ("caip2Network", "asset", "payerAddress", "payloadNonce")
   WHERE "payloadNonce" IS NOT NULL;
+
+-- AlterTable
+-- Closes the NULL hole in the index above. A btree unique treats NULLs as
+-- distinct while the partial predicate gates only on `payloadNonce IS NOT
+-- NULL`, so two rows with the same nonce and a NULL "payerAddress" insert
+-- cleanly and the index stays silent — two credit debits behind one EIP-3009
+-- authorization, precisely what it claims to prevent. That is reachable
+-- without a bug in this table: the VERIFIED transition writes both fields from
+-- the node's response, and a response that omits `payer` (or an upstream
+-- rename) leaves one of them undefined. Making the tuple all-or-nothing means
+-- the index never sees a half-populated key, and a half-populated write fails
+-- the transition and leaves the row PENDING — which is refundable, the same
+-- outcome the index's own violation path produces.
+--
+-- Prisma cannot model CHECK constraints, so this joins the hand-written
+-- statements; it is restated here (and inline on the CREATE above) because a
+-- database that already applied an earlier shape of this file skips the CREATE
+-- entirely. Safe unconditionally: nothing writes this table yet on any
+-- database that can reach this migration, so no existing row can violate it.
+DO $$ BEGIN
+  ALTER TABLE "task_x402_payment"
+    ADD CONSTRAINT "task_x402_payment_nonce_payer_together_chk"
+    CHECK (("payerAddress" IS NULL) = ("payloadNonce" IS NULL));
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
 
 -- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "task_x402_payment_taskEventId_key" ON "task_x402_payment"("taskEventId");

@@ -1990,6 +1990,13 @@ model TaskX402Payment {
   /// a single settleable transfer. Scoped by network+asset because the
   /// authorizationState mapping is per-token-contract, and partial because a
   /// PENDING row has no nonce yet and many such rows must coexist.
+  ///
+  /// A btree unique treats NULLs as distinct, so on its own this index lets
+  /// two rows share a nonce whenever `payerAddress` is NULL. The migration
+  /// therefore also carries a CHECK
+  /// (`task_x402_payment_nonce_payer_together_chk`) making the pair
+  /// all-or-nothing, which Prisma cannot express here. Writers must set both
+  /// fields together or neither.
   @@unique([caip2Network, asset, payerAddress, payloadNonce], map: "task_x402_payment_nonce_replay_uidx", where: { payloadNonce: { not: null } })
   @@index([agentId, status]) // per-endpoint refund aggregation (PR1-SPEC §5)
   @@index([status, validBefore]) // phased-settlement reconciler expiry scan
