@@ -491,6 +491,64 @@ describe("normalizeX402PaymentRequired", () => {
     }
   });
 
+  it("bounds the entry's own key count and the size of every value", () => {
+    // The `looseObject` retention decision stands — forwarding a key the node
+    // ignores costs nothing, stripping one it turns out to propagate costs
+    // money post-charge — but the "the extra surface is bounded" claim was
+    // false. The cap only ever covered KEY COUNTS on `extensions` and
+    // `extra`; the entry itself was a bare looseObject and no value had any
+    // size bound. Measured before this fix: 5 000 unknown keys on an entry
+    // passed and all 5 006 keys were forwarded, and `extra.blob` /
+    // `extensions.big` at 1 MB each passed.
+    const manyKeys = Object.fromEntries(
+      Array.from({ length: 5000 }, (_value, index) => [`key-${index}`, "v"]),
+    );
+    const oversized = [
+      { x402Version: 2, accepts: [v2Entry(manyKeys)] },
+      {
+        x402Version: 2,
+        accepts: [v2Entry({ extra: { blob: "x".repeat(1_000_000) } })],
+      },
+      {
+        x402Version: 2,
+        accepts: [v2Entry()],
+        extensions: { big: "y".repeat(1_000_000) },
+      },
+      // The same blob by another route: a 1 MB unknown key on the entry.
+      {
+        x402Version: 2,
+        accepts: [v2Entry({ outputSchema: { blob: "z".repeat(1_000_000) } })],
+      },
+    ];
+
+    for (const payload of oversized) {
+      expect(normalizeX402PaymentRequired(payload).isErr()).toBe(true);
+    }
+  });
+
+  it("still accepts a realistically sized live entry", () => {
+    // The bound must not turn a live Bazaar listing — whose largest field is
+    // an `outputSchema` JSON schema — into a pre-charge 422.
+    const result = normalizeX402PaymentRequired({
+      x402Version: 1,
+      accepts: [
+        v1Entry({
+          outputSchema: {
+            type: "object",
+            properties: Object.fromEntries(
+              Array.from({ length: 20 }, (_value, index) => [
+                `field${index}`,
+                { type: "string", description: "a".repeat(80) },
+              ]),
+            ),
+          },
+        }),
+      ],
+    });
+    expect(result.isOk()).toBe(true);
+    expect(result._unsafeUnwrap().accepts[0]?.outputSchema).toBeDefined();
+  });
+
   it("bounds every attacker-controlled value it echoes back", () => {
     // A rejected 402's error string flows into the response body, the logs
     // and Sentry — once per entry, up to 20 entries. Measured before this
@@ -689,6 +747,22 @@ describe("the exported node-shape schemas", () => {
     );
     expect(amountIssues).toHaveLength(1);
     expect(amountIssues[0]?.code).toBe("too_big");
+  });
+
+  it("never throws for structurally alien input", () => {
+    // `boundedMapCheck` calls Object.keys and JSON.stringify, both of which
+    // throw on the wrong input, so the entry-level refine must not run when
+    // the base type check has already failed.
+    for (const input of [null, undefined, 42, "str", [], true, Number.NaN]) {
+      expect(() =>
+        x402PaymentRequirementsSchema.safeParse(input),
+      ).not.toThrow();
+      expect(() => x402PaymentRequiredSchema.safeParse(input)).not.toThrow();
+      expect(x402PaymentRequirementsSchema.safeParse(input).success).toBe(
+        false,
+      );
+      expect(x402PaymentRequiredSchema.safeParse(input).success).toBe(false);
+    }
   });
 
   it("still accepts a well-formed node-shape entry", () => {

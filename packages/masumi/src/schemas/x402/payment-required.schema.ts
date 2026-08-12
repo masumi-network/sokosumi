@@ -146,6 +146,16 @@ const X402_MAX_RESOURCE_URL_LENGTH = 2048;
 const X402_MAX_MAP_ENTRIES = 32;
 /** Key length allowed in a free-form `extensions` / `extra` map. */
 const X402_MAX_MAP_KEY_LENGTH = 128;
+/**
+ * Serialized-size ceiling on a bounded map AND on a whole requirement entry.
+ *
+ * Key counts alone left every VALUE unbounded: a single `extra.blob` of 1 MB
+ * passed, and so did a 1 MB unknown key on the entry. 8 KiB is far above any
+ * live listing — the largest field a Bazaar entry carries is `outputSchema`,
+ * a small JSON schema — and it caps the whole forwarded 402 at 20 entries ×
+ * 8 KiB.
+ */
+const X402_MAX_SERIALIZED_LENGTH = 8192;
 /** `extra.name` / `extra.version` — an EIP-712 domain, never long. */
 const X402_MAX_EIP712_DOMAIN_VALUE_LENGTH = 128;
 
@@ -174,19 +184,32 @@ function truncateEcho(value: string): string {
 }
 
 /**
- * A free-form attacker-controlled map (`extensions`, and the unknown keys of
- * `extra`), bounded in entry count and key length so a 402 cannot ship an
- * unbounded blob into the node's request body.
+ * A free-form attacker-controlled map — `extensions`, the unknown keys of
+ * `extra`, and a requirement entry itself, which is the same surface by
+ * another name. Bounded in entry count, key length AND serialized size, so a
+ * 402 cannot ship an unbounded blob into the node's request body.
  */
 function boundedMapCheck(value: Record<string, unknown>): boolean {
   const keys = Object.keys(value);
-  return (
-    keys.length <= X402_MAX_MAP_ENTRIES &&
-    keys.every((key) => key.length <= X402_MAX_MAP_KEY_LENGTH)
-  );
+  if (
+    keys.length > X402_MAX_MAP_ENTRIES ||
+    keys.some((key) => key.length > X402_MAX_MAP_KEY_LENGTH)
+  ) {
+    return false;
+  }
+  // JSON.stringify is the serialization the payload reaches the node through,
+  // so it is the size that matters. It can throw on a hand-built object (a
+  // BigInt value, a cycle) even though one from JSON.parse never contains
+  // either, and a check must never throw out of `safeParse` — so a value that
+  // cannot be serialized fails closed.
+  try {
+    return (JSON.stringify(value)?.length ?? 0) <= X402_MAX_SERIALIZED_LENGTH;
+  } catch {
+    return false;
+  }
 }
 
-const BOUNDED_MAP_MESSAGE = `Too many entries or too long a key (max ${X402_MAX_MAP_ENTRIES} entries, ${X402_MAX_MAP_KEY_LENGTH}-char keys)`;
+const BOUNDED_MAP_MESSAGE = `Too many entries, too long a key, or too large serialized (max ${X402_MAX_MAP_ENTRIES} entries, ${X402_MAX_MAP_KEY_LENGTH}-char keys, ${X402_MAX_SERIALIZED_LENGTH} serialized characters)`;
 
 const x402ExtensionsSchema = z
   .record(z.string(), z.unknown())
@@ -252,22 +275,34 @@ const x402AmountSchema = z
  * forwarding an ignored key costs nothing, while stripping a key the node
  * turns out to propagate cannot be undone AFTER the credits are charged and
  * a settleable header exists (a strict resource server re-402s, and the
- * bearer authorization is still spendable). The extra surface is bounded —
- * unknown keys are never read by Soko, never reach a signing input, and the
- * node validates its own shape — so the safe direction is to pass them on.
- * Every field Soko acts on is validated here and written LAST (see the
- * normalization loop).
+ * bearer authorization is still spendable). Unknown keys are never read by
+ * Soko, never reach a signing input, and the node validates its own shape, so
+ * the safe direction is to pass them on.
+ *
+ * Loose is NOT unbounded, and the previous comment's "the extra surface is
+ * bounded" was wishful: nothing capped the entry at all until
+ * `boundedMapCheck` was applied here. It is the same free-form
+ * attacker-controlled map as `extensions`/`extra`, so it gets the same entry
+ * count, key length and serialized size ceiling. Keys that collide
+ * case-insensitively with a validated field are dropped in the normalization
+ * loop (see `dropShadowKeys`).
  */
-export const x402PaymentRequirementsSchema = z.looseObject({
-  scheme: z.string().min(1).max(X402_MAX_SCHEME_LENGTH),
-  network: z.string().regex(CAIP2_EVM_NETWORK_PATTERN),
-  asset: z.string().regex(CANONICAL_EVM_ADDRESS_PATTERN),
-  /** Atomic token base units. */
-  amount: x402AmountSchema,
-  payTo: z.string().regex(CANONICAL_EVM_ADDRESS_PATTERN),
-  maxTimeoutSeconds: z.number().int().positive().max(X402_MAX_TIMEOUT_SECONDS),
-  extra: x402ExtraSchema.optional(),
-});
+export const x402PaymentRequirementsSchema = z
+  .looseObject({
+    scheme: z.string().min(1).max(X402_MAX_SCHEME_LENGTH),
+    network: z.string().regex(CAIP2_EVM_NETWORK_PATTERN),
+    asset: z.string().regex(CANONICAL_EVM_ADDRESS_PATTERN),
+    /** Atomic token base units. */
+    amount: x402AmountSchema,
+    payTo: z.string().regex(CANONICAL_EVM_ADDRESS_PATTERN),
+    maxTimeoutSeconds: z
+      .number()
+      .int()
+      .positive()
+      .max(X402_MAX_TIMEOUT_SECONDS),
+    extra: x402ExtraSchema.optional(),
+  })
+  .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });
 
 /** The node's v2 `paymentRequired` shape (`POST /x402/pay` request field). */
 export const x402PaymentRequiredSchema = z.object({
@@ -291,24 +326,31 @@ export type X402PaymentRequired = z.infer<typeof x402PaymentRequiredSchema>;
  * Lenient parse of one wild-dialect requirement entry (v1 or v2 fields).
  * LOOSE on purpose: keys beyond the recognized dialect fields are forwarded
  * rather than stripped — see x402PaymentRequirementsSchema for why that is
- * the safe direction, and for why it is NOT about byte-identity.
+ * the safe direction, for why it is NOT about byte-identity, and for why
+ * loose still gets the bounded-map ceiling.
  */
-const wildRequirementSchema = z.looseObject({
-  scheme: z.string().min(1).max(X402_MAX_SCHEME_LENGTH),
-  network: z.string().min(1).max(X402_MAX_RAW_NETWORK_LENGTH),
-  asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
-  // Both amount spellings stay loosely typed here: normalizeAmount owns
-  // unifying them and is the single place that reports WHY an amount was
-  // refused. Only the length is fenced, so neither spelling can reach an
-  // error message as a megabyte string.
-  amount: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
-  maxAmountRequired: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
-  payTo: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
-  maxTimeoutSeconds: z.number().int().positive().max(X402_MAX_TIMEOUT_SECONDS),
-  extra: x402ExtraSchema.optional(),
-  /** v1 carries the resource URL per entry, as a plain string. */
-  resource: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional(),
-});
+const wildRequirementSchema = z
+  .looseObject({
+    scheme: z.string().min(1).max(X402_MAX_SCHEME_LENGTH),
+    network: z.string().min(1).max(X402_MAX_RAW_NETWORK_LENGTH),
+    asset: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
+    // Both amount spellings stay loosely typed here: normalizeAmount owns
+    // unifying them and is the single place that reports WHY an amount was
+    // refused. Only the length is fenced, so neither spelling can reach an
+    // error message as a megabyte string.
+    amount: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
+    maxAmountRequired: z.string().max(X402_MAX_RAW_AMOUNT_LENGTH).optional(),
+    payTo: z.string().min(1).max(X402_MAX_RAW_ADDRESS_LENGTH),
+    maxTimeoutSeconds: z
+      .number()
+      .int()
+      .positive()
+      .max(X402_MAX_TIMEOUT_SECONDS),
+    extra: x402ExtraSchema.optional(),
+    /** v1 carries the resource URL per entry, as a plain string. */
+    resource: z.string().max(X402_MAX_RESOURCE_URL_LENGTH).optional(),
+  })
+  .refine(boundedMapCheck, { message: BOUNDED_MAP_MESSAGE });
 
 /** Lenient parse of a wild-dialect 402 body (either generation). */
 const wildPaymentRequiredSchema = z.object({
