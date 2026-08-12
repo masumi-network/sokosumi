@@ -139,7 +139,24 @@ export function truncateEcho(value: string): string {
   if (value.length <= X402_MAX_ECHOED_VALUE_LENGTH) {
     return value;
   }
-  return `${value.slice(0, X402_MAX_ECHOED_VALUE_LENGTH)}… (${value.length} chars)`;
+  return `${sliceWholeCodePoints(value, X402_MAX_ECHOED_VALUE_LENGTH)}… (${value.length} chars)`;
+}
+
+/**
+ * `String.prototype.slice` counts UTF-16 code units, so a cap at an odd offset
+ * cuts an astral character in half and leaves a LONE HIGH SURROGATE at the
+ * end — `truncateEcho("a" + "😀".repeat(60))` did exactly that.
+ *
+ * ES2019 `JSON.stringify` escapes a lone surrogate, so a JSON response body
+ * survives it; a `Buffer`/Postgres write silently substitutes U+FFFD and some
+ * log shippers reject the value outright. Since an echo exists to be read by
+ * an operator in exactly those places, the cut goes to the nearest whole code
+ * point instead — which costs at most one code unit.
+ */
+function sliceWholeCodePoints(value: string, maxLength: number): string {
+  const lastUnit = value.charCodeAt(maxLength - 1);
+  const splitsAPair = lastUnit >= 0xd800 && lastUnit <= 0xdbff;
+  return value.slice(0, splitsAPair ? maxLength - 1 : maxLength);
 }
 
 /**
