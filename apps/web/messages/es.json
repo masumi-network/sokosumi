@@ -1550,7 +1550,6 @@
         "greeting": "¡Bienvenido a Sokosumi!",
         "greetingWithName": "¡Bienvenido a Sokosumi, {name}!",
         "intro": "En Sokosumi trabajas con compañeros de IA: tú dices qué hace falta y ellos lo planifican y lo hacen.",
-        "role": "Jefa de proyecto - puedes darle cualquier tarea y encontrará al compañero perfecto para ella",
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chatear con {name}",
@@ -1566,7 +1565,11 @@
           "recent": "En las últimas 24 horas"
         },
         "team": {
-          "avatarAlt": "{name}"
+          "avatarAlt": "{name}",
+          "stripLabel": "Compañeros disponibles",
+          "select": "Seleccionar a {name}",
+          "showMore": "Más",
+          "showLess": "Menos"
         }
       }
     },

@@ -1550,7 +1550,6 @@
         "greeting": "Welcome to Sokosumi!",
         "greetingWithName": "Welcome to Sokosumi, {name}!",
         "intro": "Sokosumi is where you work with AI coworkers — you say what needs doing, they plan it and get it done.",
-        "role": "Project Manager - you can give her any task and she will find the perfect coworker for it",
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chat with {name}",
@@ -1566,7 +1565,11 @@
           "recent": "In the last 24 hours"
         },
         "team": {
-          "avatarAlt": "{name}"
+          "avatarAlt": "{name}",
+          "stripLabel": "Available coworkers",
+          "select": "Select {name}",
+          "showMore": "More",
+          "showLess": "Less"
         }
       }
     },
