@@ -339,6 +339,8 @@ interface RoomHeaderChromeProps {
   canLeave: boolean;
   canInviteGuests: boolean;
   membersLoadFailed: boolean;
+  /** When false, skip avatar stack so title can paint without it. */
+  showParticipants: boolean;
 }
 
 function RoomHeaderChrome({
@@ -361,6 +363,7 @@ function RoomHeaderChrome({
   canLeave,
   canInviteGuests,
   membersLoadFailed,
+  showParticipants,
 }: RoomHeaderChromeProps) {
   const t = useTranslations("App.Channels");
 
@@ -375,7 +378,12 @@ function RoomHeaderChrome({
             discoverability={room.discoverability}
           />
         )}
-        <p className="text-muted-foreground truncate text-sm">{displayName}</p>
+        <p
+          className="text-muted-foreground truncate text-sm"
+          data-testid="room-open-title"
+        >
+          {displayName}
+        </p>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
         <RoomSearchPanel
@@ -412,13 +420,15 @@ function RoomHeaderChrome({
               t("UnreadThreads.unreadReplies", { count }),
           }}
         />
-        <RoomParticipantStack
-          room={room}
-          currentUserId={currentUserId}
-          canOpenHumanDirect={canOpenHumanDirect}
-          onOpenDirect={onOpenDirect}
-          openingDirectKey={openingDirectKey}
-        />
+        {showParticipants ? (
+          <RoomParticipantStack
+            room={room}
+            currentUserId={currentUserId}
+            canOpenHumanDirect={canOpenHumanDirect}
+            onOpenDirect={onOpenDirect}
+            openingDirectKey={openingDirectKey}
+          />
+        ) : null}
         {isDirectRoom ? null : (
           <EditChannelDialog
             channel={room}
@@ -461,6 +471,19 @@ export function RoomsClient({
   const isApple = useIsApplePlatform();
   const isMobile = useIsMobileMedia();
   const headerRoomSlotHost = useHeaderRoomSlotHost();
+  // Defer portal until after first paint so getRoom title lands in-column with
+  // the composer (useLayoutEffect host + isMobile would portal before paint and
+  // leave the app header blank on the first real chrome frame).
+  const [mobileHeaderPortaled, setMobileHeaderPortaled] = useState(false);
+  useEffect(() => {
+    setMobileHeaderPortaled(isMobile === true && headerRoomSlotHost != null);
+  }, [isMobile, headerRoomSlotHost]);
+  // Defer participant avatars one frame so the title string is not gated on
+  // the avatar stack committing in the same first paint.
+  const [showHeaderParticipants, setShowHeaderParticipants] = useState(false);
+  useEffect(() => {
+    setShowHeaderParticipants(true);
+  }, []);
   // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
   const localCalendarReady = useClientLocalCalendarReady();
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
@@ -2217,6 +2240,7 @@ export function RoomsClient({
         canLeave={canLeaveSelectedRoom}
         canInviteGuests={canInviteGuestsToSelectedRoom}
         membersLoadFailed={membersLoadFailed}
+        showParticipants={showHeaderParticipants}
       />
     ) : null;
 
@@ -2365,7 +2389,7 @@ export function RoomsClient({
 
     return (
       <>
-        {isMobile === true && headerRoomSlotHost && roomHeaderChrome
+        {mobileHeaderPortaled && headerRoomSlotHost && roomHeaderChrome
           ? createPortal(roomHeaderChrome, headerRoomSlotHost)
           : null}
         <RoomShellLayout
@@ -2384,13 +2408,10 @@ export function RoomsClient({
             ) : null
           }
           reserveDesktopHeader
-          // Until mobile portal host is ready (`isMobile` starts undefined), keep
-          // title in-column with the composer so getRoom name paints immediately
-          // and does not wait on roster hydrate / media-query effect.
+          // Keep title in-column until after first paint (portal flips in
+          // useEffect). First real chrome frame = title + composer together.
           desktopHeader={
-            !(isMobile === true && headerRoomSlotHost) && roomHeaderChrome
-              ? roomHeaderChrome
-              : null
+            !mobileHeaderPortaled && roomHeaderChrome ? roomHeaderChrome : null
           }
           wrapColumn={(columnBody) => (
             <RoomFileDropZone

@@ -639,9 +639,47 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       />,
     );
 
-    // Title must not wait on isMobile===true portal or roster hydrate.
-    expect(screen.getByText("general")).toBeTruthy();
+    // Title must not wait on isMobile===true portal, roster, or avatars.
+    expect(screen.getByTestId("room-open-title")).toHaveTextContent("general");
     expect(screen.getByTestId("room-session-composer")).toBeTruthy();
+  });
+
+  it("shows getRoom title with composer when portal host exists (never blank header)", async () => {
+    mockIsMobileMedia.mockReturnValue(true);
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    mockHeaderRoomSlotHost.mockReturnValue(host);
+
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>(() => undefined);
+    const rosterPromise = new Promise<{
+      organizationMembers: [];
+      membersLoadFailed: boolean;
+      coworkers: [];
+    }>(() => undefined);
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={messagesPromise}
+        rosterPromise={rosterPromise}
+      />,
+    );
+
+    // Portal flips in useEffect; title must still be present with composer
+    // (in-column first, then portaled) — never back-chevron-only blank header.
+    expect(screen.getByTestId("room-open-title")).toHaveTextContent("general");
+    expect(screen.getByTestId("room-session-composer")).toBeTruthy();
+    await waitFor(() => {
+      expect(
+        host.querySelector("[data-testid='room-open-title']"),
+      ).toHaveTextContent("general");
+    });
+
+    document.body.removeChild(host);
   });
 
   it("hydrates roster into the same instance without remounting composer", async () => {

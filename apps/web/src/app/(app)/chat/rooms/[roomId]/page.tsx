@@ -53,7 +53,7 @@ function NoOrganizationCard({
 /**
  * Real header + composer as soon as the room is known; history + roster via
  * promises so chrome is not blocked (SOK-778 history; roster deferred for LCP).
- * Instant / Suspense: RoomOpenLoadingView (real composer chrome + list bones).
+ * Instant / Suspense: composer-less RoomOpenLoadingView (list bones only).
  */
 function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
   const messagesPromise = loadRoomMessages(roomId);
@@ -83,13 +83,10 @@ function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
  * Open one room. Avoid `listRooms()` here — sidebar already owns the list.
  *
  * Progressive paint (mobile LCP):
- * Production traces show LCP locking onto Instant/Suspense loading bones
- * (`empty:before` placeholder / list skeleton) when room meta is late.
- * Await `getRoom` only so real title + composer replace `RoomOpenLoadingView`
- * before that bone can win LCP. Members/coworkers stream via `rosterPromise`;
- * history via `messagesPromise` (SOK-778).
+ * Instant/Suspense fallback is composer-less so missing rooms never flash send
+ * UI and an `empty:before` bone cannot win LCP. After `getRoom`, RoomsClient
+ * paints real title + composer together; roster/history stream in via promises.
  *
- * Instant / outer Suspense: `RoomOpenLoadingView` (composer chrome + list bones).
  * Non-member / missing / invalid room id → soft land on `/chat`, not error card.
  * Do not start roster/history until access succeeds.
  */
