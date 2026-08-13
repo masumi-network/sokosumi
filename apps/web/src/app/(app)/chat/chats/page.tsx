@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import {
   getPrivateCachedChatListArchivedAndMembers,
   getPrivateCachedMembershipVisibleRooms,
+  type PrivateChatListCacheArgs,
 } from "@/app/components/private-sidebar-cache";
 import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
@@ -13,13 +14,8 @@ import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import type { ChatRoomsPage } from "@/lib/services";
 
-interface ChatListCacheArgs {
-  userId: string;
-  activeOrganizationId: string | null;
-}
-
 interface ChatChatsOrganizationListProps {
-  cacheArgs: ChatListCacheArgs;
+  cacheArgs: PrivateChatListCacheArgs;
   chatRoomsPage: ChatRoomsPage;
   currentUserId: string;
   activeOrganizationId: string | null;
@@ -83,7 +79,7 @@ export default async function ChatChatsPage() {
   const session = await getSession();
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
   const currentUserId = session?.user.id ?? "";
-  const cacheArgs: ChatListCacheArgs = {
+  const cacheArgs: PrivateChatListCacheArgs = {
     userId: currentUserId,
     activeOrganizationId,
   };

@@ -37,7 +37,7 @@ export interface PrivateCachedChatListArchivedAndMembers {
   members: MemberWithOrganization[];
 }
 
-interface PrivateChatListCacheArgs {
+export interface PrivateChatListCacheArgs {
   userId: string;
   activeOrganizationId: string | null;
 }

@@ -56,7 +56,7 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarSeparator: () => <hr />,
 }));
 
-import ChatChatsPage from "../page";
+import ChatChatsPage from "@/app/chat/chats/page";
 
 const USER_ID = "user_1";
 const ORG_ID = "org_1";
