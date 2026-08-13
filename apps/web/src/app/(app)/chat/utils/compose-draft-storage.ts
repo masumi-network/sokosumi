@@ -10,7 +10,6 @@ export interface ComposeDraft {
 }
 
 const DRAFT_KEY_PREFIX = "sokosumi:compose-draft:v1:";
-const LEGACY_CHAT_INPUT_KEY = "chat-input";
 
 export const EMPTY_COMPOSE_DRAFT: ComposeDraft = {
   text: "",
@@ -23,9 +22,6 @@ export const composeDraftKey = {
   },
   thread(roomId: string, parentId: string): string {
     return `${DRAFT_KEY_PREFIX}thread:${roomId}:${parentId}`;
-  },
-  welcome(): string {
-    return `${DRAFT_KEY_PREFIX}welcome`;
   },
   draftDm(): string {
     return `${DRAFT_KEY_PREFIX}draft-dm`;
@@ -89,40 +85,16 @@ function isEmptyComposeDraft(draft: ComposeDraft): boolean {
   return draft.text.trim().length === 0 && draft.attachments.length === 0;
 }
 
-function migrateLegacyChatInput(): ComposeDraft | null {
-  try {
-    const legacy = window.localStorage.getItem(LEGACY_CHAT_INPUT_KEY);
-    if (legacy == null) {
-      return null;
-    }
-    window.localStorage.removeItem(LEGACY_CHAT_INPUT_KEY);
-    try {
-      const text: unknown = JSON.parse(legacy);
-      if (typeof text !== "string" || text.length === 0) {
-        return null;
-      }
-      return { text, attachments: [] };
-    } catch {
-      return null;
-    }
-  } catch {
-    return null;
-  }
-}
-
 export function getComposeDraft(key: string): ComposeDraft | null {
   try {
     if (typeof window === "undefined") {
       return null;
     }
     const raw = window.localStorage.getItem(key);
-    if (raw != null) {
-      return parseComposeDraft(raw);
+    if (raw == null) {
+      return null;
     }
-    if (key === composeDraftKey.welcome()) {
-      return migrateLegacyChatInput();
-    }
-    return null;
+    return parseComposeDraft(raw);
   } catch {
     return null;
   }

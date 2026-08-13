@@ -23,10 +23,10 @@ describe("compose-draft-storage", () => {
     expect(composeDraftKey.thread("room-1", "msg-2")).toBe(
       "sokosumi:compose-draft:v1:thread:room-1:msg-2",
     );
-    expect(composeDraftKey.welcome()).toBe("sokosumi:compose-draft:v1:welcome");
     expect(composeDraftKey.draftDm()).toBe(
       "sokosumi:compose-draft:v1:draft-dm",
     );
+    expect("welcome" in composeDraftKey).toBe(false);
   });
 
   it("roundtrips text and attachments", () => {
@@ -71,28 +71,13 @@ describe("compose-draft-storage", () => {
     expect(window.localStorage.getItem(key)).toBeNull();
   });
 
-  it("migrates legacy chat-input once into welcome", () => {
-    window.localStorage.setItem("chat-input", JSON.stringify("legacy text"));
+  it("does not migrate leftover chat-input into any draft key", () => {
+    const leftover = JSON.stringify("legacy text");
+    window.localStorage.setItem("chat-input", leftover);
 
-    const welcomeKey = composeDraftKey.welcome();
-    expect(getComposeDraft(welcomeKey)).toEqual({
-      text: "legacy text",
-      attachments: [],
-    });
-    expect(window.localStorage.getItem("chat-input")).toBeNull();
-
-    setComposeDraft(welcomeKey, { text: "new draft", attachments: [] });
-    window.localStorage.setItem("chat-input", JSON.stringify("ignored"));
-    expect(getComposeDraft(welcomeKey)).toEqual({
-      text: "new draft",
-      attachments: [],
-    });
-  });
-
-  it("does not migrate empty legacy chat-input text", () => {
-    window.localStorage.setItem("chat-input", JSON.stringify(""));
-    expect(getComposeDraft(composeDraftKey.welcome())).toBeNull();
-    expect(window.localStorage.getItem("chat-input")).toBeNull();
+    expect(getComposeDraft(composeDraftKey.draftDm())).toBeNull();
+    expect(getComposeDraft("sokosumi:compose-draft:v1:welcome")).toBeNull();
+    expect(window.localStorage.getItem("chat-input")).toBe(leftover);
   });
 
   it("returns null for corrupt JSON", () => {
