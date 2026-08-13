@@ -35,6 +35,7 @@ import {
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
+import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import {
   filterTopLevelChatRoomMessages,
   isReplyUnderThreadParent,
@@ -150,6 +151,7 @@ import {
   ROOM_SHELL_ROOT_CLASSNAME,
   RoomShellLayout,
 } from "./room-shell-layout";
+import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { ThreadPanel } from "./thread-panel";
 
 interface RoomsClientProps {
@@ -173,6 +175,11 @@ interface RoomsClientProps {
    * instance so real header + composer stay mounted while the list skeletons.
    */
   messagesPromise?: Promise<RoomMessagePage>;
+  /**
+   * Deferred org members + coworkers. Room chrome paints from `rooms` alone;
+   * roster streams in for pickers / mentions / admin gates.
+   */
+  rosterPromise?: Promise<RoomShellRosterPage>;
 }
 
 const COWORKER_RESPONSE_POLL_MS = 2500;
@@ -332,6 +339,8 @@ interface RoomHeaderChromeProps {
   canLeave: boolean;
   canInviteGuests: boolean;
   membersLoadFailed: boolean;
+  /** When false, skip avatar stack so title can paint without it. */
+  showParticipants: boolean;
 }
 
 function RoomHeaderChrome({
@@ -354,6 +363,7 @@ function RoomHeaderChrome({
   canLeave,
   canInviteGuests,
   membersLoadFailed,
+  showParticipants,
 }: RoomHeaderChromeProps) {
   const t = useTranslations("App.Channels");
 
@@ -368,7 +378,12 @@ function RoomHeaderChrome({
             discoverability={room.discoverability}
           />
         )}
-        <p className="text-muted-foreground truncate text-sm">{displayName}</p>
+        <p
+          className="text-muted-foreground truncate text-sm"
+          data-testid="room-open-title"
+        >
+          {displayName}
+        </p>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 md:gap-2">
         <RoomSearchPanel
@@ -405,13 +420,15 @@ function RoomHeaderChrome({
               t("UnreadThreads.unreadReplies", { count }),
           }}
         />
-        <RoomParticipantStack
-          room={room}
-          currentUserId={currentUserId}
-          canOpenHumanDirect={canOpenHumanDirect}
-          onOpenDirect={onOpenDirect}
-          openingDirectKey={openingDirectKey}
-        />
+        {showParticipants ? (
+          <RoomParticipantStack
+            room={room}
+            currentUserId={currentUserId}
+            canOpenHumanDirect={canOpenHumanDirect}
+            onOpenDirect={onOpenDirect}
+            openingDirectKey={openingDirectKey}
+          />
+        ) : null}
         {isDirectRoom ? null : (
           <EditChannelDialog
             channel={room}
@@ -433,17 +450,18 @@ function RoomHeaderChrome({
 export function RoomsClient({
   activeOrganization,
   rooms,
-  organizationMembers,
+  organizationMembers: organizationMembersProp,
   currentUserId,
-  coworkers,
+  coworkers: coworkersProp,
   selectedRoomId,
   isCreateChannelRequested,
   isNewDirectMessage,
   messageLoadFailed,
-  membersLoadFailed,
+  membersLoadFailed: membersLoadFailedProp,
   messages,
   messagesNextCursor,
   messagesPromise,
+  rosterPromise,
 }: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
@@ -453,6 +471,21 @@ export function RoomsClient({
   const isApple = useIsApplePlatform();
   const isMobile = useIsMobileMedia();
   const headerRoomSlotHost = useHeaderRoomSlotHost();
+  // Defer portal until after first paint so getRoom title lands in-column with
+  // the composer (useLayoutEffect host + isMobile would portal before paint and
+  // leave the app header blank on the first real chrome frame).
+  const [mobileHeaderPortaled, setMobileHeaderPortaled] = useState(false);
+  useEffect(() => {
+    setMobileHeaderPortaled(isMobile === true && headerRoomSlotHost != null);
+  }, [isMobile, headerRoomSlotHost]);
+  // Defer participant avatars one frame so the title string is not gated on
+  // the avatar stack committing in the same first paint.
+  // Approved LCP exception: mount-only Effect keeps title-with-composer paint
+  // order; do not replace with render-time/portal-only avatar mounting.
+  const [showHeaderParticipants, setShowHeaderParticipants] = useState(false);
+  useEffect(() => {
+    setShowHeaderParticipants(true);
+  }, []);
   // Defer local day separators / continuation until after hydrate (SOKOSUMI-A).
   const localCalendarReady = useClientLocalCalendarReady();
   const [openingDirectKey, setOpeningDirectKey] = useState<string | null>(null);
@@ -471,6 +504,9 @@ export function RoomsClient({
     useState(messageLoadFailed);
   const [syncedMessagesPromise, setSyncedMessagesPromise] =
     useState(messagesPromise);
+  const [deferredRoster, setDeferredRoster] =
+    useState<RoomShellRosterPage | null>(null);
+  const [syncedRosterPromise, setSyncedRosterPromise] = useState(rosterPromise);
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
@@ -484,6 +520,9 @@ export function RoomsClient({
       setMessageLoadFailedState(false);
       setDeferredHistoryPending(true);
     }
+    if (rosterPromise != null) {
+      setDeferredRoster(null);
+    }
   }
   if (messagesPromise !== syncedMessagesPromise) {
     setSyncedMessagesPromise(messagesPromise);
@@ -495,6 +534,24 @@ export function RoomsClient({
       setMessageLoadFailedState(messageLoadFailed);
     }
   }
+  if (rosterPromise !== syncedRosterPromise) {
+    setSyncedRosterPromise(rosterPromise);
+    if (rosterPromise == null) {
+      setDeferredRoster(null);
+    }
+  }
+  const organizationMembers =
+    rosterPromise != null
+      ? (deferredRoster?.organizationMembers ?? organizationMembersProp)
+      : organizationMembersProp;
+  const coworkers =
+    rosterPromise != null
+      ? (deferredRoster?.coworkers ?? coworkersProp)
+      : coworkersProp;
+  const membersLoadFailed =
+    rosterPromise != null
+      ? (deferredRoster?.membersLoadFailed ?? membersLoadFailedProp)
+      : membersLoadFailedProp;
   const messagesPending = deferredHistoryPending;
   const effectiveMessageLoadFailed = messagesPending
     ? false
@@ -506,6 +563,13 @@ export function RoomsClient({
     setMessageLoadFailedState(page.failed);
     setDeferredHistoryPending(false);
   }, []);
+
+  const handleDeferredRosterResolved = useCallback(
+    (page: RoomShellRosterPage) => {
+      setDeferredRoster(page);
+    },
+    [],
+  );
 
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
@@ -2178,6 +2242,7 @@ export function RoomsClient({
         canLeave={canLeaveSelectedRoom}
         canInviteGuests={canInviteGuestsToSelectedRoom}
         membersLoadFailed={membersLoadFailed}
+        showParticipants={showHeaderParticipants}
       />
     ) : null;
 
@@ -2185,6 +2250,12 @@ export function RoomsClient({
     const showListSkeleton = messagesPending && displayMessages.length === 0;
     const openRoomListBody = (
       <>
+        {rosterPromise ? (
+          <RoomShellRosterHydrator
+            promise={rosterPromise}
+            onResolved={handleDeferredRosterResolved}
+          />
+        ) : null}
         {messagesPromise ? (
           <RoomMessagesHydrator
             promise={messagesPromise}
@@ -2320,7 +2391,7 @@ export function RoomsClient({
 
     return (
       <>
-        {isMobile === true && headerRoomSlotHost && roomHeaderChrome
+        {mobileHeaderPortaled && headerRoomSlotHost && roomHeaderChrome
           ? createPortal(roomHeaderChrome, headerRoomSlotHost)
           : null}
         <RoomShellLayout
@@ -2339,8 +2410,10 @@ export function RoomsClient({
             ) : null
           }
           reserveDesktopHeader
+          // Keep title in-column until after first paint (portal flips in
+          // useEffect). First real chrome frame = title + composer together.
           desktopHeader={
-            isMobile === false && roomHeaderChrome ? roomHeaderChrome : null
+            !mobileHeaderPortaled && roomHeaderChrome ? roomHeaderChrome : null
           }
           wrapColumn={(columnBody) => (
             <RoomFileDropZone
