@@ -4,11 +4,7 @@ import type { Coworker } from "@/app/chat/utils/types";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
-import {
-  buildActivityStats,
-  hasReportableActivity,
-  resolveFeaturedCoworker,
-} from "./landing-content";
+import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
 import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
 
@@ -16,7 +12,7 @@ interface ChatLandingMobileProps {
   coworkers: Coworker[];
   /** True only for an organization workspace, where other humans exist. */
   isOrganizationWorkspace: boolean;
-  /** Null when Core could not be reached; the greeting renders without stats. */
+  /** Null when Core could not be reached; chips still render as zeros. */
   summary: TaskActivitySummary | null;
   userName: null | string;
 }
@@ -25,9 +21,9 @@ interface ChatLandingMobileProps {
  * Mobile composition of the `/chat` welcome (`chat-landing.mobile.tsx`).
  *
  * Pair of {@link ChatLanding} (`chat-landing.tsx`): same three zones (mark,
- * pitch, stats) scaled for a narrow column. Stats stay pinned at the bottom of
- * the viewport-tall column; the strip scrolls inside a min-w-0 viewport so it
- * cannot widen Start chat off-screen.
+ * pitch, stats) scaled for a narrow column. Middle column is top-aligned so
+ * Start chat stays put across coworker selection. Stats stay pinned at the
+ * bottom — always mounted with zero chips when idle.
  */
 export async function ChatLandingMobile({
   coworkers,
@@ -41,7 +37,6 @@ export async function ChatLandingMobile({
   ]);
   const featured = resolveFeaturedCoworker(coworkers);
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
-  const hasAnyActivity = hasReportableActivity(summary);
 
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch px-4 pt-4 pb-3 text-center">
@@ -52,7 +47,7 @@ export async function ChatLandingMobile({
         width={32}
       />
 
-      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-center overflow-y-auto py-4">
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-start overflow-y-auto py-4">
         <h1 className="text-foreground shrink-0 text-2xl font-light text-balance">
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
         </h1>
@@ -73,30 +68,28 @@ export async function ChatLandingMobile({
         ) : null}
       </div>
 
-      {summary && hasAnyActivity && stats.length > 0 ? (
-        <div
-          className="flex w-full shrink-0 flex-col items-center gap-2 pt-1"
-          data-testid="landing-activity-stats"
-        >
-          <p className="text-muted-foreground/70 text-xs">
-            {summary.basis === "lastVisit"
-              ? t("stats.sinceLastActivity", {
-                  when: format.relativeTime(summary.since),
-                })
-              : t("stats.recent")}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {stats.map((stat) => (
-              <span
-                className="bg-card text-muted-foreground rounded-full border px-2.5 py-1 text-xs tabular-nums"
-                key={stat}
-              >
-                {stat}
-              </span>
-            ))}
-          </div>
+      <div
+        className="flex w-full shrink-0 flex-col items-center gap-2 pt-1"
+        data-testid="landing-activity-stats"
+      >
+        <p className="text-muted-foreground/70 text-xs">
+          {summary?.basis === "lastVisit"
+            ? t("stats.sinceLastActivity", {
+                when: format.relativeTime(summary.since),
+              })
+            : t("stats.recent")}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {stats.map((stat) => (
+            <span
+              className="bg-card text-muted-foreground rounded-full border px-2.5 py-1 text-xs tabular-nums"
+              key={stat}
+            >
+              {stat}
+            </span>
+          ))}
         </div>
-      ) : null}
+      </div>
     </section>
   );
 }

@@ -29,7 +29,8 @@ interface LandingCoworkerPickerProps {
  * Order under the strip: name → caption → Start chat → description.
  * The picker is viewport-bounded (`w-full min-w-0`) so the strip's w-max track
  * cannot widen Start chat. Caption slot keeps a fixed min-height so omitting
- * or wrapping caption does not jump the CTA. Description stays below the CTA.
+ * or wrapping caption does not jump the CTA. Name → caption → CTA is a
+ * shrink-0 stack; description stays below so selection / more-less grows down.
  */
 export function LandingCoworkerPicker({
   coworkers,
@@ -73,44 +74,51 @@ export function LandingCoworkerPicker({
         />
       </div>
 
-      {/* Featured block is its own width budget — never inherits strip track width. */}
+      {/* Featured block is its own width budget — never inherits strip track width.
+          Name → caption → CTA is a shrink-0 stack; description grows below so
+          selection / more-less cannot shift Start chat (parent is top-aligned). */}
       <div
         className={cn(
-          "mx-auto flex w-full min-w-0 max-w-xs flex-col items-center",
+          "mx-auto flex w-full min-w-0 max-w-xs flex-col items-center justify-start",
           size === "compact" ? "mt-4" : "mt-5",
         )}
         data-testid="landing-selected-block"
       >
-        <p
-          className={cn(
-            "font-semibold tracking-[-0.01em]",
-            size === "compact" ? "text-lg" : "text-xl",
-          )}
-          data-testid="landing-selected-name"
+        <div
+          className="flex w-full shrink-0 flex-col items-center"
+          data-testid="landing-selected-cta-stack"
         >
-          {selected.name}
-        </p>
+          <p
+            className={cn(
+              "font-semibold tracking-[-0.01em]",
+              size === "compact" ? "text-lg" : "text-xl",
+            )}
+            data-testid="landing-selected-name"
+          >
+            {selected.name}
+          </p>
 
-        {/* Always reserve two caption lines so empty/wrapping captions cannot
-            shift Start chat when the middle column is vertically centred. */}
-        <p
-          className={cn(
-            "text-muted-foreground line-clamp-2 w-full leading-snug",
-            size === "compact"
-              ? "mt-1 min-h-[2.4375rem] text-[0.8125rem]"
-              : "mt-1.5 min-h-[2.5rem] text-sm",
-          )}
-          data-testid="landing-selected-caption"
-        >
-          {selectedCaption ?? "\u00a0"}
-        </p>
+          {/* Always reserve two caption lines so empty/wrapping captions cannot
+              shift Start chat relative to the top-aligned stack. */}
+          <p
+            className={cn(
+              "text-muted-foreground line-clamp-2 w-full leading-snug",
+              size === "compact"
+                ? "mt-1 min-h-[2.4375rem] text-[0.8125rem]"
+                : "mt-1.5 min-h-[2.5rem] text-sm",
+            )}
+            data-testid="landing-selected-caption"
+          >
+            {selectedCaption ?? "\u00a0"}
+          </p>
 
-        <div className="mt-4 w-full min-w-0" data-testid="landing-start-chat">
-          <StartChatButton
-            className={cn("w-full", startChatClassName)}
-            coworkerId={selected.id}
-            coworkerName={selected.name}
-          />
+          <div className="mt-4 w-full min-w-0" data-testid="landing-start-chat">
+            <StartChatButton
+              className={cn("w-full", startChatClassName)}
+              coworkerId={selected.id}
+              coworkerName={selected.name}
+            />
+          </div>
         </div>
 
         {selectedDescription ? (

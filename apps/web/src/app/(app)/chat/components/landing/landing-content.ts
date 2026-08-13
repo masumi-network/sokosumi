@@ -127,52 +127,28 @@ type StatsTranslator = (
 ) => string;
 
 /**
- * Chip labels for the "while you were gone" row, in display order.
+ * Chip labels for the landing activity row, in display order.
  *
- * The teammates chip is included at zero inside an organization: "what my
- * teammates added" is a question the row should answer rather than omit.
- * Window is session-derived activity, so any non-zero metric can show.
+ * Always returns chips — including zeros — so the first viewport keeps a
+ * reserved stats footer even when the account has no activity yet (or Core
+ * could not be reached). Teammates chip stays org-only.
  */
 export function buildActivityStats(
   summary: TaskActivitySummary | null,
   isOrganizationWorkspace: boolean,
   t: StatsTranslator,
 ): string[] {
-  if (!summary) {
-    return [];
-  }
+  const completed = summary?.completed ?? 0;
+  const workedMinutes = summary?.workedMinutes ?? 0;
+  const awaitingInput = summary?.awaitingInput ?? 0;
+  const createdByOtherHumans = summary?.createdByOtherHumans ?? 0;
 
   return [
-    ...(summary.completed > 0
-      ? [t("stats.completed", { count: summary.completed })]
-      : []),
-    ...(summary.workedMinutes > 0
-      ? [t("stats.worked", { minutes: summary.workedMinutes })]
-      : []),
-    ...(summary.awaitingInput > 0
-      ? [t("stats.awaiting", { count: summary.awaitingInput })]
-      : []),
+    t("stats.completed", { count: completed }),
+    t("stats.worked", { minutes: workedMinutes }),
+    t("stats.awaiting", { count: awaitingInput }),
     ...(isOrganizationWorkspace
-      ? [t("stats.byTeammates", { count: summary.createdByOtherHumans })]
+      ? [t("stats.byTeammates", { count: createdByOtherHumans })]
       : []),
   ];
-}
-
-/**
- * Whether the summary has anything worth a chip row at all.
- *
- * Needs at least one non-zero metric; a lone "0 tasks from your team" chip is
- * worse than no row. Window is session-derived (last activity), not a stamped
- * visit — so there is no separate "first visit" hide.
- */
-export function hasReportableActivity(
-  summary: TaskActivitySummary | null,
-): boolean {
-  return (
-    summary !== null &&
-    (summary.completed > 0 ||
-      summary.workedMinutes > 0 ||
-      summary.awaitingInput > 0 ||
-      summary.createdByOtherHumans > 0)
-  );
 }

@@ -6,7 +6,6 @@ import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 import {
   buildActivityStats,
   clampLandingDescription,
-  hasReportableActivity,
   LANDING_DESCRIPTION_MAX_CHARS,
   orderStripCoworkers,
   resolveFeaturedCoworker,
@@ -213,9 +212,13 @@ describe("orderStripCoworkers", () => {
 });
 
 describe("buildActivityStats", () => {
-  it("omits every zero metric in a personal workspace", () => {
+  it("still emits zero chips in a personal workspace with no activity", () => {
     const stats = buildActivityStats(buildSummary(), false, fakeTranslator);
-    expect(stats).toEqual([]);
+    expect(stats).toEqual([
+      'stats.completed:{"count":0}',
+      'stats.worked:{"minutes":0}',
+      'stats.awaiting:{"count":0}',
+    ]);
   });
 
   it("lists completed, worked, and awaiting in display order", () => {
@@ -235,16 +238,26 @@ describe("buildActivityStats", () => {
   it("keeps the teammates chip at zero inside an organization", () => {
     // "what my teammates added" is a question the row should answer, not omit.
     const stats = buildActivityStats(buildSummary(), true, fakeTranslator);
-    expect(stats).toEqual(['stats.byTeammates:{"count":0}']);
+    expect(stats).toEqual([
+      'stats.completed:{"count":0}',
+      'stats.worked:{"minutes":0}',
+      'stats.awaiting:{"count":0}',
+      'stats.byTeammates:{"count":0}',
+    ]);
   });
 
-  it("returns nothing when the summary could not be loaded", () => {
-    expect(buildActivityStats(null, true, fakeTranslator)).toEqual([]);
+  it("still emits zero chips when the summary could not be loaded", () => {
+    expect(buildActivityStats(null, true, fakeTranslator)).toEqual([
+      'stats.completed:{"count":0}',
+      'stats.worked:{"minutes":0}',
+      'stats.awaiting:{"count":0}',
+      'stats.byTeammates:{"count":0}',
+    ]);
   });
 
   it("still lists metrics when lastVisitAt is null (no sessions)", () => {
     // Window is session-derived; null lastVisitAt only means no sessions, not
-    // "hide chips". Chips follow non-zero metrics only.
+    // "hide chips". Chips always render, including zeros for idle metrics.
     const stats = buildActivityStats(
       buildSummary({
         awaitingInput: 3,
@@ -258,26 +271,8 @@ describe("buildActivityStats", () => {
     );
     expect(stats).toEqual([
       'stats.completed:{"count":2}',
+      'stats.worked:{"minutes":0}',
       'stats.awaiting:{"count":3}',
     ]);
-  });
-});
-
-describe("hasReportableActivity", () => {
-  it("is false for a failed summary", () => {
-    expect(hasReportableActivity(null)).toBe(false);
-  });
-
-  it("is false for a brand-new account with nothing to report", () => {
-    expect(hasReportableActivity(buildSummary())).toBe(false);
-  });
-
-  it.each([
-    ["completed", { completed: 1 }],
-    ["workedMinutes", { workedMinutes: 1 }],
-    ["awaitingInput", { awaitingInput: 1 }],
-    ["createdByOtherHumans", { createdByOtherHumans: 1 }],
-  ])("is true when %s is non-zero", (_label, overrides) => {
-    expect(hasReportableActivity(buildSummary(overrides))).toBe(true);
   });
 });

@@ -188,6 +188,78 @@ describe("LandingCoworkerPicker", () => {
     ).toBeTruthy();
   });
 
+  it("top-aligns the selected stack so caption/description cannot own CTA position", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
+    );
+
+    const selected = screen.getByTestId("landing-selected-block");
+    expect(selected.className).toMatch(/justify-start/);
+    expect(selected.className).not.toMatch(/justify-center/);
+
+    const stack = screen.getByTestId("landing-selected-cta-stack");
+    expect(stack.className).toMatch(/shrink-0/);
+    expect(stack.contains(screen.getByTestId("landing-selected-name"))).toBe(
+      true,
+    );
+    expect(stack.contains(screen.getByTestId("landing-selected-caption"))).toBe(
+      true,
+    );
+    expect(stack.contains(screen.getByTestId("landing-start-chat"))).toBe(true);
+    expect(
+      stack.contains(screen.getByTestId("landing-selected-description")),
+    ).toBe(false);
+
+    const cta = screen.getByTestId("landing-start-chat");
+    const descriptionBefore = screen.getByTestId(
+      "landing-selected-description",
+    );
+    expect(cta.compareDocumentPosition(descriptionBefore)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
+    // Empty caption (Deckster) must keep CTA after the reserved caption slot
+    // and must not pull description into the CTA stack.
+    await user.click(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Deckster"}',
+      }),
+    );
+    expect(
+      screen
+        .getByTestId("landing-selected-cta-stack")
+        .contains(screen.getByTestId("landing-start-chat")),
+    ).toBe(true);
+    expect(
+      screen
+        .getByTestId("landing-start-chat")
+        .compareDocumentPosition(
+          screen.getByTestId("landing-selected-description"),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    // Long description (Hannah) still sits below CTA — not inside the stack.
+    await user.click(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Hannah"}',
+      }),
+    );
+    expect(
+      screen
+        .getByTestId("landing-selected-cta-stack")
+        .contains(screen.getByTestId("landing-selected-description")),
+    ).toBe(false);
+    expect(
+      screen
+        .getByTestId("landing-start-chat")
+        .compareDocumentPosition(
+          screen.getByTestId("landing-selected-description"),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("keeps Start chat above description so long copy cannot shift the CTA", async () => {
     const user = userEvent.setup();
 

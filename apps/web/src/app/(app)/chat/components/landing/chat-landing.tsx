@@ -4,11 +4,7 @@ import type { Coworker } from "@/app/chat/utils/types";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
-import {
-  buildActivityStats,
-  hasReportableActivity,
-  resolveFeaturedCoworker,
-} from "./landing-content";
+import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
 import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
 
@@ -16,7 +12,7 @@ interface ChatLandingProps {
   coworkers: Coworker[];
   /** True only for an organization workspace, where other humans exist. */
   isOrganizationWorkspace: boolean;
-  /** Null when Core could not be reached; the greeting renders without stats. */
+  /** Null when Core could not be reached; chips still render as zeros. */
   summary: TaskActivitySummary | null;
   userName: null | string;
 }
@@ -28,9 +24,9 @@ interface ChatLandingProps {
  * decisions from `landing-content`, larger strip and type. Owns `/chat` at
  * `md` and up.
  *
- * Stats stay `shrink-0` at the bottom of the viewport-tall column so the
- * activity row remains on the first view; the middle zone may scroll if the
- * strip + selection block needs more room.
+ * Middle column is top-aligned so description length cannot re-center Start
+ * chat. Stats stay `shrink-0` at the bottom of the viewport-tall column —
+ * always mounted, including zero chips — so the first view keeps the row.
  */
 export async function ChatLanding({
   coworkers,
@@ -44,7 +40,6 @@ export async function ChatLanding({
   ]);
   const featured = resolveFeaturedCoworker(coworkers);
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
-  const hasAnyActivity = hasReportableActivity(summary);
 
   return (
     <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch">
@@ -55,7 +50,7 @@ export async function ChatLanding({
         width={48}
       />
 
-      <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-4xl flex-1 flex-col items-stretch justify-center overflow-y-auto px-4 py-6 text-center">
+      <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-4xl flex-1 flex-col items-stretch justify-start overflow-y-auto px-4 py-6 text-center">
         <h1 className="text-foreground shrink-0 text-2xl font-light text-balance md:text-4xl">
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
         </h1>
@@ -74,30 +69,28 @@ export async function ChatLanding({
         ) : null}
       </div>
 
-      {summary && hasAnyActivity && stats.length > 0 ? (
-        <div
-          className="flex w-full shrink-0 flex-col items-center gap-3 px-4 pb-4"
-          data-testid="landing-activity-stats"
-        >
-          <p className="text-muted-foreground/70 text-[0.8125rem]">
-            {summary.basis === "lastVisit"
-              ? t("stats.sinceLastActivity", {
-                  when: format.relativeTime(summary.since),
-                })
-              : t("stats.recent")}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {stats.map((stat) => (
-              <span
-                className="bg-card text-muted-foreground rounded-full border px-3 py-1.5 text-[0.8125rem] tabular-nums"
-                key={stat}
-              >
-                {stat}
-              </span>
-            ))}
-          </div>
+      <div
+        className="flex w-full shrink-0 flex-col items-center gap-3 px-4 pb-4"
+        data-testid="landing-activity-stats"
+      >
+        <p className="text-muted-foreground/70 text-[0.8125rem]">
+          {summary?.basis === "lastVisit"
+            ? t("stats.sinceLastActivity", {
+                when: format.relativeTime(summary.since),
+              })
+            : t("stats.recent")}
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {stats.map((stat) => (
+            <span
+              className="bg-card text-muted-foreground rounded-full border px-3 py-1.5 text-[0.8125rem] tabular-nums"
+              key={stat}
+            >
+              {stat}
+            </span>
+          ))}
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
