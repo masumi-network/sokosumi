@@ -56,7 +56,7 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarSeparator: () => <hr />,
 }));
 
-import ChatChatsPage from "@/app/chat/chats/page";
+import { ChatMobileRoomList } from "@/app/chat/components/chat-mobile-room-list";
 
 const USER_ID = "user_1";
 const ORG_ID = "org_1";
@@ -112,7 +112,7 @@ function listProps(element: ReactElement): OrganizationChatListProps {
   return element.props as OrganizationChatListProps;
 }
 
-describe("ChatChatsPage progressive rooms (mobile LCP)", () => {
+describe("ChatMobileRoomList progressive rooms (mobile LCP)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({
@@ -130,7 +130,7 @@ describe("ChatChatsPage progressive rooms (mobile LCP)", () => {
       new Promise(() => {}),
     );
 
-    const tree = await ChatChatsPage();
+    const tree = await ChatMobileRoomList();
 
     // Parent finishes after membership rooms; Suspense fallback already has
     // real row text. Deferred chrome is a sibling child, not awaited here.
@@ -169,7 +169,7 @@ describe("ChatChatsPage progressive rooms (mobile LCP)", () => {
       members: [],
     });
 
-    const tree = await ChatChatsPage();
+    const tree = await ChatMobileRoomList();
     const shell = findElement(tree, (el) => {
       const props = el.props as ClassNameProps;
       return (

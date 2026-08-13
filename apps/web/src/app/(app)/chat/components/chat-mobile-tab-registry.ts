@@ -127,7 +127,7 @@ export type ChatMobileTabLabelKey =
 export interface ChatMobileTab {
   kind: "link";
   id: ChatMobileTabId;
-  href: "/tasks" | "/agents" | "/chat/chats" | "/projects" | "/history";
+  href: "/tasks" | "/agents" | "/chat" | "/projects" | "/history";
   labelKey: ChatMobileTabLabelKey;
   icon: LucideIcon;
   isActive: (pathname: string, searchParams?: SearchParamsLike) => boolean;
@@ -153,10 +153,13 @@ export const CHAT_MOBILE_TABS: readonly ChatMobileTab[] = [
   {
     id: "chats",
     kind: "link",
-    href: "/chat/chats",
+    href: "/chat",
     labelKey: "chats",
     icon: MessageCircle,
-    isActive: (pathname) => pathname === "/chat/chats",
+    isActive: (pathname, searchParams) => {
+      const surface = classifyChatChromeSurface(pathname, searchParams);
+      return surface === "home" || surface === "chats";
+    },
   },
   {
     id: "projects",

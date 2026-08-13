@@ -150,7 +150,7 @@ export function ChatRoomSidebarRow({
     // as stale "older" rows and they stick in the sidebar.
     notifyOrganizationChatRoomsChanged({ removedRoomId: room.id });
     if (isActive) {
-      // Land on chat home — `/chat/chats` is mobile-only (`md:hidden`).
+      // Land on chat root (`/chat`): landing or mobile list.
       router.replace("/chat");
       router.refresh();
     }

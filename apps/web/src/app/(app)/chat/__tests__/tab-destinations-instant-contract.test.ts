@@ -56,11 +56,9 @@ describe("mobile tab destinations Instant Nav contract", () => {
     );
   });
 
-  it("chat/chats/loading.tsx default export returns ChatChatsPageSkeleton", () => {
+  it("chat/chats/loading.tsx redirects the legacy list URL to chat root", () => {
     const code = stripComments(readApp("chat/chats/loading.tsx"));
-    expect(code).toMatch(
-      /export\s+default\s+function[\s\S]*?return\s+<\s*ChatChatsPageSkeleton\s*\/>/,
-    );
+    expect(code).toMatch(/redirect\(\s*["']\/chat["']\s*\)/);
   });
 
   it("history/loading.tsx default export returns HistoryPageSkeleton", () => {

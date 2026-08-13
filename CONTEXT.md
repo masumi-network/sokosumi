@@ -28,6 +28,20 @@ _Avoid_: Topbar, shell (unless meaning the loading frame)
 The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point.
 _Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar
 
+### Chat surfaces
+
+**Chat landing**:
+The welcome at chat root: greeting and a way in via a coworker. On mobile it is the Chat tab start only when the user has no membership-visible rooms. On desktop it is the main pane at chat root beside the sidebar room list.
+_Avoid_: Home hub, welcome (unless UI copy), chat home (ambiguous with the Chat tab)
+
+**Chat tab**:
+The mobile bottom-nav item whose root is chat. Distinct from Chat landing (a surface that may appear at that root when there are no membership-visible rooms).
+_Avoid_: Home tab, chats tab (product name is Chat)
+
+**Chat root**:
+The authenticated chat entry. Chat tab destination and post-login path. Mobile: Chat landing if there are no membership-visible rooms, else the room list. Desktop: Chat landing beside the sidebar room list.
+_Avoid_: Home, chats list (that list is a surface at chat root on mobile, not a separate root)
+
 ### Chat membership
 
 **Membership-visible rooms**:

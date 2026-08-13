@@ -88,7 +88,7 @@ export function resolveMobileAppBackTarget(
     if (MOBILE_TAB_LIST_PATH_SET.has(root)) {
       return null;
     }
-    return { href: "/chat/chats", labelKey: "backToChats" };
+    return { href: "/chat", labelKey: "backToChats" };
   }
   return { href: root, labelKey: "back" };
 }

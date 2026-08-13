@@ -6,15 +6,18 @@ import { describe, expect, it } from "vitest";
 const here = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Mobile `/chat/chats` must grow with content so AppMobileChrome's in-flow
+ * Mobile chat-root list must grow with content so AppMobileChrome's in-flow
  * tab-bar spacer sits after the last DM in main's scroll. A nested
  * `min-h-0` + `overflow-y-auto` height-lock left the last row clipped under
  * the fixed bottom nav (padding on that flex overflow child does not clear).
  * Create FAB is gone on this surface — do not reserve FAB bottom padding.
  */
-describe("chat/chats page scroll clearance contract", () => {
+describe("chat mobile room list scroll clearance contract", () => {
   it("does not height-lock the list shell or reserve create-FAB clearance", () => {
-    const source = readFileSync(join(here, "../page.tsx"), "utf8");
+    const source = readFileSync(
+      join(here, "../../components/chat-mobile-room-list.tsx"),
+      "utf8",
+    );
 
     // Drop block comments so docs mentioning the forbidden classes do not
     // false-positive; still catch real className usage.

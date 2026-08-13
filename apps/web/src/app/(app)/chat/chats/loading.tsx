@@ -1,6 +1,6 @@
-import { ChatChatsPageSkeleton } from "@/app/chat/components/chat-chats-loading-view";
+import { redirect } from "next/navigation";
 
-/** Sync shell only — no cookies/`connection()` (Instant Nav). */
+/** Legacy list URL — bounce to chat root before a list-shaped Instant shell. */
 export default function ChatChatsLoading() {
-  return <ChatChatsPageSkeleton />;
+  redirect("/chat");
 }

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-let mockPathname = "/chat/chats";
+let mockPathname = "/chat";
 let mockSearchParams = new URLSearchParams();
 let mockIsApple = false;
 let mockShowUnreadDot = false;
@@ -47,13 +47,13 @@ describe("resolveChatMobileActiveTabId", () => {
   it("marks each tab active only on its exact list-root pathname", () => {
     expect(resolveChatMobileActiveTabId("/tasks")).toBe("tasks");
     expect(resolveChatMobileActiveTabId("/agents")).toBe("agents");
+    expect(resolveChatMobileActiveTabId("/chat")).toBe("chats");
     expect(resolveChatMobileActiveTabId("/chat/chats")).toBe("chats");
     expect(resolveChatMobileActiveTabId("/projects")).toBe("projects");
     expect(resolveChatMobileActiveTabId("/history")).toBe("search");
   });
 
-  it("returns null on bare /chat, drafts, rooms, and nested routes", () => {
-    expect(resolveChatMobileActiveTabId("/chat")).toBeNull();
+  it("returns null on drafts, rooms, and nested routes", () => {
     expect(
       resolveChatMobileActiveTabId(
         "/chat",
@@ -63,10 +63,10 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(
       resolveChatMobileActiveTabId("/chat", new URLSearchParams("dm=new")),
     ).toBeNull();
-    // Retired param: treated as bare /chat, which has no tab of its own.
+    // Retired param: treated as chat root, so the Chat tab is current.
     expect(
       resolveChatMobileActiveTabId("/chat", new URLSearchParams("welcome=1")),
-    ).toBeNull();
+    ).toBe("chats");
     expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
     expect(resolveChatMobileActiveTabId("/chat/chats/extra")).toBeNull();
     expect(resolveChatMobileActiveTabId("/tasks/t1")).toBeNull();
@@ -78,7 +78,7 @@ describe("resolveChatMobileActiveTabId", () => {
 
 describe("ChatMobileBottomNav", () => {
   beforeEach(() => {
-    mockPathname = "/chat/chats";
+    mockPathname = "/chat";
     mockSearchParams = new URLSearchParams();
     mockIsApple = false;
     mockShowUnreadDot = false;
@@ -91,7 +91,7 @@ describe("ChatMobileBottomNav", () => {
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/tasks",
       "/agents",
-      "/chat/chats",
+      "/chat",
       "/projects",
       "/history",
     ]);
@@ -103,8 +103,8 @@ describe("ChatMobileBottomNav", () => {
     expect(screen.queryByRole("link", { name: "home" })).toBeNull();
   });
 
-  it("sets aria-current on the Chats link for /chat/chats", () => {
-    mockPathname = "/chat/chats";
+  it("sets aria-current on the Chats link for /chat", () => {
+    mockPathname = "/chat";
     render(<ChatMobileBottomNav />);
 
     expect(screen.getByRole("link", { name: "chats" })).toHaveAttribute(
@@ -165,8 +165,8 @@ describe("ChatMobileBottomNav", () => {
     );
   });
 
-  it("does not set aria-current on any tab for bare /chat", () => {
-    mockPathname = "/chat";
+  it("does not set aria-current on any tab for a room", () => {
+    mockPathname = "/chat/rooms/r1";
     render(<ChatMobileBottomNav />);
 
     for (const name of ["tasks", "agents", "chats", "projects", "search"]) {

@@ -36,15 +36,15 @@ describe("mobile-app-chrome", () => {
 
     it("sends non-tab hub roots back to Chats", () => {
       expect(resolveMobileAppBackTarget("/personal-assistant")).toEqual({
-        href: "/chat/chats",
+        href: "/chat",
         labelKey: "backToChats",
       });
       expect(resolveMobileAppBackTarget("/admin")).toEqual({
-        href: "/chat/chats",
+        href: "/chat",
         labelKey: "backToChats",
       });
       expect(resolveMobileAppBackTarget("/notifications")).toEqual({
-        href: "/chat/chats",
+        href: "/chat",
         labelKey: "backToChats",
       });
     });

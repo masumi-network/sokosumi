@@ -18,7 +18,7 @@ import { SokosumiIcon } from "@/components/masumi-logos";
 /**
  * Mobile header leading slot (`md:hidden` size-8):
  * - chats + bottom-nav tab roots → Sokosumi icon (no back / hamburger)
- * - chat room / draft compose → back to `/chat/chats`
+ * - chat room / draft compose → back to `/chat`
  * - nested tasks → back to stored list URL (view/filters) when present
  * - other nested list pages → back to list root
  * - non-tab hub roots → back to chats
@@ -44,7 +44,7 @@ export function HeaderLeadingControl(): React.ReactElement {
   if (surface === "room" || surface === "draft") {
     return (
       <Link
-        href="/chat/chats"
+        href="/chat"
         aria-label={t("backToChats")}
         className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
       >
@@ -78,7 +78,7 @@ export function HeaderLeadingControl(): React.ReactElement {
 
   return (
     <Link
-      href="/chat/chats"
+      href="/chat"
       aria-label={t("backToChats")}
       className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
     >

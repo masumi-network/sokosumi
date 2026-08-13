@@ -18,7 +18,7 @@ interface PrivateCachedAppSidebarProps {
 /**
  * Sync sidebar frame so cold load paints nav immediately after session.
  * Membership-visible rooms stay in a private-cache slice (shared with
- * `/chat/chats`). Credits / vendor-admin / account notice stream. Pending
+ * the mobile chat-root list). Credits / vendor-admin / account notice stream. Pending
  * invites are filled by OrganizationChatList's client refresh.
  */
 export default function PrivateCachedAppSidebar({
@@ -72,7 +72,7 @@ async function PrivateCachedSidebarRooms({
   userId,
   activeOrganizationId,
 }: PrivateCachedSidebarRoomsProps) {
-  // Shared private-cache slice with `/chat/chats` (SOK-779). Personal coworker
+  // Shared private-cache slice with the mobile chat-root list (SOK-779). Personal coworker
   // directs exist with no active org; Core returns those when organization
   // context is null. Guest rooms (any host org) are mixed into the list.
   const chatListChrome = await getPrivateCachedChatListChrome({
