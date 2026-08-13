@@ -16,6 +16,14 @@ export const NEXT_IMAGE_REMOTE_PATTERNS = [
     protocol: "https",
     hostname: "**.utxoag.com",
   },
+  /**
+   * Serviceplan usecase hosts (Jamal, Maya, …). Avatars are often `.webp`;
+   * allowlisting is by hostname — next/image already accepts webp bytes.
+   */
+  {
+    protocol: "https",
+    hostname: "**.serviceplan-agents.com",
+  },
 ] as const;
 
 export function canUseNextImageSrc(url: string): boolean {

@@ -30,4 +30,32 @@ describe("canUseNextImageSrc", () => {
   it("allows relative paths", () => {
     expect(canUseNextImageSrc("/static/local.png")).toBe(true);
   });
+
+  it("allows Serviceplan usecase hosts used by Jamal/Maya WebP avatars", () => {
+    expect(
+      canUseNextImageSrc(
+        "https://usecases.serviceplan-agents.com/images/jamal.webp",
+      ),
+    ).toBe(true);
+    expect(
+      canUseNextImageSrc(
+        "https://usecases.serviceplan-agents.com/images/maya.webp",
+      ),
+    ).toBe(true);
+    expect(
+      canUseNextImageSrc("https://serviceplan-agents.com/images/jamal.webp"),
+    ).toBe(true);
+  });
+
+  it("does not reject .webp on already-allowed hosts (format is not the gate)", () => {
+    expect(
+      canUseNextImageSrc(
+        "https://yhpsw8jlcoagsrkq.public.blob.vercel-storage.com/coworkers/avatar.webp",
+      ),
+    ).toBe(true);
+    expect(canUseNextImageSrc("/images/coworkers/elena.webp")).toBe(true);
+    expect(
+      canUseNextImageSrc("https://cdn.azurecontainerapps.io/path/to/face.webp"),
+    ).toBe(true);
+  });
 });

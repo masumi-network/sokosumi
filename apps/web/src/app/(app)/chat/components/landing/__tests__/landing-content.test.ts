@@ -166,6 +166,43 @@ describe("toStripCoworker", () => {
     );
     expect(strip.title).toBeNull();
   });
+
+  it("keeps Serviceplan .webp avatar URLs for the strip (Jamal/Maya)", () => {
+    const jamalUrl =
+      "https://usecases.serviceplan-agents.com/images/jamal.webp";
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "jamal-id",
+        slug: "jamal",
+        avatar: jamalUrl,
+      }),
+    );
+    expect(strip.imageUrl).toBe(jamalUrl);
+  });
+
+  it("keeps .webp on already-allowed blob hosts", () => {
+    const blobWebp =
+      "https://yhpsw8jlcoagsrkq.public.blob.vercel-storage.com/coworkers/maya.webp";
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "maya-id",
+        slug: "maya",
+        avatar: blobWebp,
+      }),
+    );
+    expect(strip.imageUrl).toBe(blobWebp);
+  });
+
+  it("still nulls avatars on unknown hosts so next/image cannot crash the page", () => {
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "evil",
+        slug: "evil",
+        avatar: "https://evil.example.com/face.webp",
+      }),
+    );
+    expect(strip.imageUrl).toBeNull();
+  });
 });
 
 describe("orderStripCoworkers", () => {
