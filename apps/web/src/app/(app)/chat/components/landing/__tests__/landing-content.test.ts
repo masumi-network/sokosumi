@@ -9,7 +9,6 @@ import {
   LANDING_DESCRIPTION_MAX_CHARS,
   orderStripCoworkers,
   resolveFeaturedCoworker,
-  selectedCoworkerCaption,
   selectedCoworkerDescription,
   toStripCoworker,
 } from "../landing-content";
@@ -71,28 +70,6 @@ describe("resolveFeaturedCoworker", () => {
 
   it("returns null when there are no coworkers at all", () => {
     expect(resolveFeaturedCoworker([])).toBeNull();
-  });
-});
-
-describe("selectedCoworkerCaption", () => {
-  it("returns a trimmed caption", () => {
-    expect(
-      selectedCoworkerCaption(
-        buildCoworker({ id: "elena", caption: "  Strategy  " }),
-      ),
-    ).toBe("Strategy");
-  });
-
-  it("returns null when caption is empty — no useCase fallback", () => {
-    expect(
-      selectedCoworkerCaption(
-        buildCoworker({
-          id: "hannah",
-          caption: "   ",
-          useCase: "Research briefs",
-        }),
-      ),
-    ).toBeNull();
   });
 });
 

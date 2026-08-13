@@ -33,17 +33,8 @@ export function resolveFeaturedCoworker(
 }
 
 /**
- * Short specialty under the selected name (above Start chat).
- * DB `caption` only — omit when empty (no useCase fallback here).
- */
-export function selectedCoworkerCaption(
-  coworker: Pick<Coworker, "caption">,
-): string | null {
-  return nonEmptySpecialty(coworker.caption);
-}
-
-/**
  * Body copy above Start chat. DB `description` only — never caption/useCase.
+ * Name + role stay under the strip avatar; the selected block does not repeat them.
  */
 export function selectedCoworkerDescription(
   coworker: Pick<Coworker, "description">,

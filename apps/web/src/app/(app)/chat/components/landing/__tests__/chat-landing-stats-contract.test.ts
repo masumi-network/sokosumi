@@ -10,8 +10,8 @@ import { describe, expect, it } from "vitest";
  * pinned (`shrink-0` + test id) at the bottom of the viewport-tall column,
  * always mounted (including zero chips), never gated on non-zero activity.
  *
- * The middle column must be top-aligned (`justify-start`) so description /
- * caption length cannot vertically re-center Start chat.
+ * The middle column must be top-aligned (`justify-start`) so description
+ * length cannot vertically re-center Start chat.
  */
 describe("chat landing stats row contract", () => {
   it.each(["chat-landing.tsx", "chat-landing.mobile.tsx"])(

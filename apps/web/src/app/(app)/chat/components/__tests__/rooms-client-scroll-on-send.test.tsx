@@ -492,10 +492,13 @@ describe("RoomsClient scroll on own send", () => {
 
     screen.getByTestId("send-message").click();
 
-    const failedShell = await screen.findByTestId(
-      "message-pending:client-msg-1",
-    );
-    expect(failedShell).toHaveAttribute("data-outbound-status", "failed");
+    // Pending shell mounts first; wait for the failed transition — findByTestId
+    // alone resolves while status is still "pending" under CI load.
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("message-pending:client-msg-1"),
+      ).toHaveAttribute("data-outbound-status", "failed");
+    });
     expect(screen.getByTestId("retry-outbound")).toBeTruthy();
 
     screen.getByTestId("retry-outbound").click();
@@ -519,9 +522,11 @@ describe("RoomsClient scroll on own send", () => {
 
     screen.getByTestId("send-message").click();
 
-    expect(
-      await screen.findByTestId("message-pending:client-msg-1"),
-    ).toBeTruthy();
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("message-pending:client-msg-1"),
+      ).toHaveAttribute("data-outbound-status", "failed");
+    });
 
     screen.getByTestId("remove-outbound").click();
 
