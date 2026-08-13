@@ -82,7 +82,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useClipboard } from "@/hooks/use-clipboard";
+import { copyTextWithToast } from "@/hooks/use-clipboard";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -1664,10 +1664,6 @@ export function ChatMessageRow({
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
-  const { copy } = useClipboard({
-    copySuccessMessage: tChannels("Copy.success"),
-    copyErrorMessage: tChannels("Copy.error"),
-  });
   const sender = messageSender(message);
   const hoverProfile = sender.kind === "unknown" ? null : sender;
   const isOpeningDirect = hoverProfile
@@ -1735,10 +1731,18 @@ export function ChatMessageRow({
   const showActions =
     !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
   const canCopy =
-    showActions && !isStreamOverlay && message.content.trim().length > 0;
+    !isDeleted &&
+    !isThinking &&
+    !isEditing &&
+    !isOutboundLocal &&
+    !isStreamOverlay &&
+    message.content.trim().length > 0;
 
   function handleCopy() {
-    void copy(message.content);
+    void copyTextWithToast(message.content, {
+      copySuccessMessage: tChannels("Copy.success"),
+      copyErrorMessage: tChannels("Copy.error"),
+    });
   }
 
   function requestDelete(_message: ChatRoomMessage) {
@@ -1757,7 +1761,7 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
+        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-48",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"

@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -82,6 +82,7 @@ vi.mock("@/components/ui/tooltip", () => ({
 }));
 
 vi.mock("@/hooks/use-clipboard", () => ({
+  copyTextWithToast: copyMock,
   useClipboard: () => ({
     copied: false,
     copy: copyMock,
@@ -439,7 +440,13 @@ describe("ChatMessageRow", () => {
       }),
     );
 
-    expect(copyMock).toHaveBeenCalledWith("**bold** body");
+    expect(copyMock).toHaveBeenCalledWith(
+      "**bold** body",
+      expect.objectContaining({
+        copySuccessMessage: "Copy.success",
+        copyErrorMessage: "Copy.error",
+      }),
+    );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -479,6 +486,7 @@ describe("ChatMessageRow", () => {
   });
 
   it("shows Copy on the hover action pill", () => {
+    copyMock.mockClear();
     renderRow({
       message: userMessage({ content: "Hover copy body" }),
       onQuote: vi.fn(),
@@ -488,11 +496,54 @@ describe("ChatMessageRow", () => {
       '[data-message-actions="hover"]',
     );
     expect(hoverActions).toBeTruthy();
-    expect(
-      within(hoverActions as HTMLElement).getByRole("button", {
-        name: "Copy.action",
+    const hoverCopy = within(hoverActions as HTMLElement).getByRole("button", {
+      name: "Copy.action",
+    });
+    fireEvent.click(hoverCopy);
+    expect(copyMock).toHaveBeenCalledWith(
+      "Hover copy body",
+      expect.objectContaining({
+        copySuccessMessage: "Copy.success",
+        copyErrorMessage: "Copy.error",
       }),
-    ).toBeInTheDocument();
+    );
+  });
+
+  it("hides Copy when the message is deleted", () => {
+    renderRow({
+      currentUserId: "user-1",
+      onDelete: vi.fn(),
+      onQuote: vi.fn(),
+      message: userMessage({
+        content: "gone",
+        deletedAt: new Date("2026-07-02T10:00:00.000Z"),
+      }),
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Copy.action" }),
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelector('[data-message-actions="hover"]'),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides Copy while a coworker message is still thinking", () => {
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:asst-1",
+        content: "",
+        metadata: { streaming: true },
+      }),
+      onQuote: vi.fn(),
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "Copy.action" }),
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelector('[data-message-actions="hover"]'),
+    ).not.toBeInTheDocument();
   });
 
   it("dismisses the sheet when swiped down past the threshold", async () => {
@@ -693,8 +744,8 @@ describe("ChatMessageRow", () => {
     renderRow();
 
     const article = screen.getByRole("article");
-    expect(article.className).toContain("[@media(hover:hover)]:pr-20");
-    expect(article.className.split(/\s+/)).not.toContain("pr-20");
+    expect(article.className).toContain("[@media(hover:hover)]:pr-48");
+    expect(article.className.split(/\s+/)).not.toContain("pr-48");
   });
 
   it("renders quote snapshot from DTO and soft-fails jump when target missing", async () => {
