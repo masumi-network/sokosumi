@@ -161,4 +161,68 @@ describe("CoworkerStrip", () => {
       }),
     ).toHaveAttribute("aria-selected", "false");
   });
+
+  it("reserves two title lines on every chip so 1-line vs 2-line captions cannot resize the row", () => {
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({
+            id: "elena",
+            name: "Elena",
+            title: "Strategy",
+          }),
+          buildStripCoworker({
+            id: "pheme",
+            name: "Pheme",
+            title: "Communications and media outreach",
+          }),
+          buildStripCoworker({
+            id: "deckster",
+            name: "Deckster",
+            title: null,
+          }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="elena"
+      />,
+    );
+
+    const titles = screen.getAllByTestId("coworker-strip-title");
+    expect(titles).toHaveLength(3);
+
+    for (const title of titles) {
+      expect(title.className).toMatch(/line-clamp-2/);
+      expect(title.className).toMatch(/min-h-\[2lh\]/);
+    }
+
+    expect(titles[0]).toHaveTextContent("Strategy");
+    expect(titles[1]).toHaveTextContent("Communications and media outreach");
+    // Empty title stays mounted (nbsp) so chip height matches the others.
+    expect(titles[2]?.textContent).toBe("\u00a0");
+  });
+
+  it("keeps the same title min-height class in compact size", () => {
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({ id: "elena", name: "Elena", title: "Ops" }),
+          buildStripCoworker({
+            id: "pheme",
+            name: "Pheme",
+            title: "Long specialty that wraps",
+          }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="elena"
+        size="compact"
+      />,
+    );
+
+    for (const title of screen.getAllByTestId("coworker-strip-title")) {
+      expect(title.className).toMatch(/min-h-\[2lh\]/);
+      expect(title.className).toMatch(/line-clamp-2/);
+    }
+  });
 });

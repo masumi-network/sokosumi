@@ -63,7 +63,9 @@ const STRIP_SIZES = {
  *
  * The scrollport is always viewport-bounded (`w-full min-w-0`). The `w-max`
  * track lives *inside* overflow-x-auto so it cannot widen the picker or page.
- * On mount, scrolls so `centerOnId` sits optically in the middle.
+ * On mount, scrolls so `centerOnId` sits optically in the middle. Strip titles
+ * always reserve two lines (`min-h-[2lh]`) so 1-line vs wrapping captions
+ * cannot change row height and push Start chat.
  */
 export function CoworkerStrip({
   coworkers,
@@ -188,16 +190,19 @@ export function CoworkerStrip({
                 >
                   {coworker.name}
                 </span>
-                {coworker.title ? (
-                  <span
-                    className={cn(
-                      "text-muted-foreground line-clamp-2 leading-snug",
-                      scale.title,
-                    )}
-                  >
-                    {coworker.title}
-                  </span>
-                ) : null}
+                {/* Always reserve two title lines so 1-line / empty / wrapping
+                    captions cannot grow or shrink the strip row (and Start chat).
+                    `2lh` follows the element's line-height (twMerge drops
+                    `leading-*` next to `line-clamp-*`). */}
+                <span
+                  className={cn(
+                    "text-muted-foreground line-clamp-2 min-h-[2lh]",
+                    scale.title,
+                  )}
+                  data-testid="coworker-strip-title"
+                >
+                  {coworker.title ?? "\u00a0"}
+                </span>
               </span>
             </button>
           );
