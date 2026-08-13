@@ -109,6 +109,18 @@ export const X402_MAX_MAP_KEY_LENGTH = 128;
  * live listing — the largest field a Bazaar entry carries is `outputSchema`,
  * a small JSON schema — and it caps the whole forwarded 402 at 20 entries ×
  * 8 KiB.
+ *
+ * The same ceiling is applied to the WILD entry before translation and to the
+ * EMITTED entry after it, and translation can GROW an entry: a v1 network name
+ * expands to CAIP-2 (`base` → `eip155:8453`, +7 characters). So a 7-character
+ * window exists where an entry passes the wild check and its emitted form does
+ * not — measured: a `base` entry serializing to 8186–8192 characters parses,
+ * then fails the trailing `x402PaymentRequiredSchema.safeParse`, which refuses
+ * the whole payload including any payable sibling. Documented rather than
+ * special-cased: it fails CLOSED, it is identical to the pre-selection
+ * behaviour, only the resource server can author it, and an 8 KiB entry is
+ * orders of magnitude past any live listing. Raising the emitted ceiling above
+ * the wild one is the fix if a real 402 ever comes near.
  */
 export const X402_MAX_SERIALIZED_LENGTH = 8192;
 /**
