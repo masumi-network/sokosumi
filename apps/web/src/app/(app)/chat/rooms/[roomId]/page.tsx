@@ -79,12 +79,14 @@ function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
 /**
  * Open one room. Avoid `listRooms()` here — sidebar already owns the list.
  *
- * Progressive paint:
- * - Instant / outer Suspense: real composer chrome + message-list skeleton
- *   (no full-page spinner; no pulse fake composer).
- * - After room meta (`getRoom` only): room-aware header + composer + list skeleton.
- * - After history / roster: messages + members/coworkers into the same RoomsClient.
+ * Progressive paint (mobile LCP):
+ * Production traces show LCP locking onto Instant/Suspense loading bones
+ * (`empty:before` placeholder / list skeleton) when room meta is late.
+ * Await `getRoom` only so real title + composer replace `RoomOpenLoadingView`
+ * before that bone can win LCP. Members/coworkers stream via `rosterPromise`;
+ * history via `messagesPromise` (SOK-778).
  *
+ * Instant / outer Suspense: `RoomOpenLoadingView` (composer chrome + list bones).
  * Non-member / missing room → soft land on `/chat`, not 404.
  */
 export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
