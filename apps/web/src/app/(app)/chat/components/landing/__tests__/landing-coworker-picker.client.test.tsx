@@ -41,12 +41,9 @@ function buildCoworker(overrides: Partial<Coworker> & { id: string }) {
 }
 
 function blockOrder(): string[] {
-  return [
-    "landing-selected-name",
-    "landing-selected-caption",
-    "landing-selected-description",
-    "landing-start-chat",
-  ].filter((id) => screen.queryByTestId(id) !== null);
+  return ["landing-selected-description", "landing-start-chat"].filter(
+    (id) => screen.queryByTestId(id) !== null,
+  );
 }
 
 describe("LandingCoworkerPicker", () => {
@@ -123,61 +120,81 @@ describe("LandingCoworkerPicker", () => {
     expect(optionIds).toEqual(["a", "b", "elena", "c", "d"]);
   });
 
-  it("orders name, caption, description, then Start chat", () => {
+  it("orders description then Start chat — no name or role in the detail block", () => {
     render(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
     expect(blockOrder()).toEqual([
-      "landing-selected-name",
-      "landing-selected-caption",
       "landing-selected-description",
       "landing-start-chat",
     ]);
+    expect(
+      screen.queryByTestId("landing-selected-name"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("landing-selected-caption"),
+    ).not.toBeInTheDocument();
 
-    const name = screen.getByTestId("landing-selected-name");
-    const caption = screen.getByTestId("landing-selected-caption");
     const description = screen.getByTestId("landing-selected-description");
     const cta = screen.getByTestId("landing-start-chat");
 
-    expect(name.compareDocumentPosition(caption)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-    expect(caption.compareDocumentPosition(description)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
     expect(description.compareDocumentPosition(cta)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
   });
 
-  it("keeps a reserved caption slot so omitting caption cannot remove CTA spacing", async () => {
+  it("keeps strip name + role and does not repeat them below the strip", () => {
+    render(
+      <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
+    );
+
+    const elenaOption = screen.getByRole("option", {
+      name: 'team.select:{"name":"Elena"}',
+    });
+    expect(elenaOption).toHaveTextContent("Elena");
+    expect(elenaOption).toHaveTextContent("Strategy");
+
+    expect(
+      screen.queryByTestId("landing-selected-name"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("landing-selected-caption"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("landing-selected-description"),
+    ).toHaveTextContent("Elena turns goals into planned work.");
+    expect(
+      screen.getByTestId("landing-selected-description"),
+    ).not.toHaveTextContent("Strategy");
+    expect(screen.getByTestId("landing-start-chat")).toBeInTheDocument();
+  });
+
+  it("does not repeat identity when selecting another coworker", async () => {
     const user = userEvent.setup();
 
     render(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
-    const caption = screen.getByTestId("landing-selected-caption");
-    expect(caption.className).toMatch(/min-h-/);
-    expect(caption).toHaveTextContent("Strategy");
-
     await user.click(
       screen.getByRole("option", {
-        name: 'team.select:{"name":"Deckster"}',
+        name: 'team.select:{"name":"Hannah"}',
       }),
     );
 
-    expect(screen.getByTestId("landing-selected-caption").className).toMatch(
-      /min-h-/,
-    );
-    expect(screen.getByTestId("landing-start-chat")).toBeInTheDocument();
     expect(
-      screen
-        .getByTestId("landing-selected-caption")
-        .compareDocumentPosition(screen.getByTestId("landing-start-chat")) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      screen.queryByTestId("landing-selected-name"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("landing-selected-caption"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("landing-selected-description").textContent,
+    ).toContain("Hannah digs into sources");
+    expect(
+      screen.getByTestId("landing-selected-description"),
+    ).not.toHaveTextContent("Research");
   });
 
   it("reserves collapsed description height above Start chat including empty", async () => {
@@ -222,6 +239,7 @@ describe("LandingCoworkerPicker", () => {
     expect(
       screen.queryByTestId("landing-description-toggle"),
     ).not.toBeInTheDocument();
+    expect(screen.getByTestId("landing-start-chat")).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("option", {
@@ -255,16 +273,16 @@ describe("LandingCoworkerPicker", () => {
 
     const stack = screen.getByTestId("landing-selected-cta-stack");
     expect(stack.className).toMatch(/shrink-0/);
-    expect(stack.contains(screen.getByTestId("landing-selected-name"))).toBe(
-      true,
-    );
-    expect(stack.contains(screen.getByTestId("landing-selected-caption"))).toBe(
-      true,
-    );
     expect(
       stack.contains(screen.getByTestId("landing-selected-description")),
     ).toBe(true);
     expect(stack.contains(screen.getByTestId("landing-start-chat"))).toBe(true);
+    expect(
+      screen.queryByTestId("landing-selected-name"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("landing-selected-caption"),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps description above Start chat across selection", async () => {
@@ -362,8 +380,6 @@ describe("LandingCoworkerPicker", () => {
     );
 
     expect(blockOrder()).toEqual([
-      "landing-selected-name",
-      "landing-selected-caption",
       "landing-selected-description",
       "landing-start-chat",
     ]);
@@ -372,7 +388,7 @@ describe("LandingCoworkerPicker", () => {
     ).toBe("\u00a0");
   });
 
-  it("updates caption, description, and Start chat when a strip face is tapped", async () => {
+  it("updates description and Start chat when a strip face is tapped", async () => {
     const user = userEvent.setup();
 
     render(
@@ -386,9 +402,6 @@ describe("LandingCoworkerPicker", () => {
     );
 
     expect(openCoworkerRoom).not.toHaveBeenCalled();
-    expect(screen.getByTestId("landing-selected-caption")).toHaveTextContent(
-      "Research",
-    );
     expect(
       screen.getByTestId("landing-selected-description").textContent,
     ).toContain("Hannah digs into sources");
