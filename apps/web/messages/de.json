@@ -1420,35 +1420,6 @@
           "description": "Dieser Chat ist leer.{specialization} Sende eine Nachricht, um loszulegen!",
           "suggestionTitle": "Probiere zum Beispiel:"
         },
-        "welcomeScreen": {
-          "greeting": "Willkommen!",
-          "greetingWithName": "Willkommen {name}!",
-          "question": "Wie können wir dir heute helfen?",
-          "title": "Willkommen! Wie können wir dir heute helfen?",
-          "titleWithName": "Willkommen {name}! Wie können wir dir heute helfen?",
-          "placeholder": "Nachricht an {coworkerSlug}...",
-          "coworkerSlugFallback": "den Coworker",
-          "suggestionsLabel": "Probiere zum Beispiel",
-          "startingChat": "Chat mit {name} wird gestartet…",
-          "startingChatFallback": "Chat wird gestartet…",
-          "prompts": {
-            "alex": {
-              "1": "Erstelle mir ein Dashboard für meine Rechercheergebnisse.",
-              "2": "Erstelle mir eine Datenvisualisierung für mein Excel-Dokument.",
-              "3": "Analysiere die Daten in meinem OneDrive-Ordner."
-            },
-            "hannah": {
-              "1": "Recherchiere unsere Wettbewerber und vergleiche uns mit ihnen.",
-              "2": "Analysiere die SEO-Performance unserer Website und wie wir bei ChatGPT erwähnt werden.",
-              "3": "Analysiere unsere Zielgruppe: Bedürfnisse, Verhalten, Mediennutzung."
-            },
-            "elena": {
-              "1": "Wie kann ich Sokosumi für mein Unternehmen nutzen und wo fange ich an?",
-              "2": "Zeig mir den Status aller meiner offenen Tasks und was meine Aufmerksamkeit benötigt.",
-              "3": "Welche Agents und Funktionen können helfen, meine Website zu verbessern?"
-            }
-          }
-        },
         "introducingCoworkers": "Neu: Agentische Coworker",
         "emptyTitle": "Gespräch starten",
         "emptyDescription": "Frag mich alles und ich helfe dir weiter. Du kannst einen neuen Chat starten oder einen bestehenden fortsetzen.",
@@ -1547,9 +1518,9 @@
         "sidebarNew": "Neu"
       },
       "Landing": {
-        "greeting": "Willkommen bei Sokosumi!",
-        "greetingWithName": "Willkommen bei Sokosumi, {name}!",
-        "intro": "Bei Sokosumi arbeitest du mit KI-Coworkern – du sagst, was zu tun ist, sie planen es und erledigen es.",
+        "greeting": "Willkommen!",
+        "greetingWithName": "Willkommen, {name}!",
+        "intro": "Arbeite mit KI-Coworkern. Du sagst, was zu tun ist; sie planen es und erledigen es.",
         "cta": {
           "avatarAlt": "{name}",
           "button": "Mit {name} chatten",

@@ -9,6 +9,7 @@ import { coworkerService } from "@/lib/services/coworker.service";
 import { taskService } from "@/lib/services/task.service";
 import { ChatLanding } from "./components/landing/chat-landing";
 import { ChatLandingMobile } from "./components/landing/chat-landing.mobile";
+import { resolveLandingGreetingName } from "./components/landing/landing-content";
 import { RoomsClient } from "./components/rooms-client";
 import { loadOrganizationMembers } from "./load-organization-members";
 import { firstSearchValue } from "./load-room-messages";
@@ -145,6 +146,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
     }),
   ]);
   const coworkers = coworkerRows.map(mapDbCoworkerToChatCoworker);
+  const greetingName = resolveLandingGreetingName(session?.user.name);
 
   return (
     <>
@@ -156,7 +158,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           coworkers={coworkers}
           isOrganizationWorkspace={activeOrganizationId !== null}
           summary={summary}
-          userName={session?.user.name ?? null}
+          userName={greetingName}
         />
       </div>
       {/*
@@ -170,7 +172,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           coworkers={coworkers}
           isOrganizationWorkspace={activeOrganizationId !== null}
           summary={summary}
-          userName={session?.user.name ?? null}
+          userName={greetingName}
         />
       </div>
     </>
