@@ -180,6 +180,18 @@ describe("toStripCoworker", () => {
     expect(strip.imageUrl).toBe(jamalUrl);
   });
 
+  it("keeps avatars from any *.serviceplan-agents.com subdomain", () => {
+    const fooUrl = "https://foo.serviceplan-agents.com/images/maya.webp";
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "maya-id",
+        slug: "maya",
+        avatar: fooUrl,
+      }),
+    );
+    expect(strip.imageUrl).toBe(fooUrl);
+  });
+
   it("keeps .webp on already-allowed blob hosts", () => {
     const blobWebp =
       "https://yhpsw8jlcoagsrkq.public.blob.vercel-storage.com/coworkers/maya.webp";

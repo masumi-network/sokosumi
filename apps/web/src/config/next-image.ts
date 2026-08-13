@@ -17,12 +17,17 @@ export const NEXT_IMAGE_REMOTE_PATTERNS = [
     hostname: "**.utxoag.com",
   },
   /**
-   * Serviceplan usecase hosts (Jamal, Maya, …). Avatars are often `.webp`;
-   * allowlisting is by hostname — next/image already accepts webp bytes.
+   * Serviceplan coworker hosts (Jamal, Maya, …). `*` = one subdomain segment
+   * (e.g. usecases. / foo.); apex listed separately because Next `*` does not
+   * match the bare domain.
    */
   {
     protocol: "https",
-    hostname: "**.serviceplan-agents.com",
+    hostname: "*.serviceplan-agents.com",
+  },
+  {
+    protocol: "https",
+    hostname: "serviceplan-agents.com",
   },
 ] as const;
 
