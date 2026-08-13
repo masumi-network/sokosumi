@@ -4,18 +4,12 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-view";
 import { RoomsClient } from "@/app/chat/components/rooms-client";
-import { loadOrganizationMembers } from "@/app/chat/load-organization-members";
 import { loadRoomMessages } from "@/app/chat/load-room-messages";
+import { loadRoomShellRoster } from "@/app/chat/load-room-shell-roster";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
-import type {
-  ChatRoom,
-  Coworker,
-  Member,
-  Organization,
-} from "@/lib/clients/generated/core";
+import type { ChatRoom, Organization } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
-import { coworkerService } from "@/lib/services/coworker.service";
 
 interface ChatRoomPageProps {
   params: Promise<{ roomId: string }>;
@@ -24,11 +18,10 @@ interface ChatRoomPageProps {
 interface ChatRoomShellProps {
   activeOrganization: Organization | null;
   rooms: ChatRoom[];
-  organizationMembers: Member[];
   currentUserId: string;
-  coworkers: Coworker[];
   selectedRoomId: string;
-  membersLoadFailed: boolean;
+  /** Null when personal workspace has no org roster to load. */
+  organizationIdForRoster: string | null;
 }
 
 function NoOrganizationCard({
@@ -55,28 +48,30 @@ function NoOrganizationCard({
 }
 
 /**
- * Real header + composer as soon as the room is known; history via promise
- * so the message list can skeleton without blocking chrome (SOK-778).
+ * Real header + composer as soon as the room is known; history + roster via
+ * promises so chrome is not blocked (SOK-778 history; roster deferred for LCP).
  * Instant / Suspense: RoomOpenLoadingView (real composer chrome + list bones).
  */
 function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
   const messagesPromise = loadRoomMessages(roomId);
+  const rosterPromise = loadRoomShellRoster(shell.organizationIdForRoster);
 
   return (
     <RoomsClient
       activeOrganization={shell.activeOrganization}
       rooms={shell.rooms}
-      organizationMembers={shell.organizationMembers}
+      organizationMembers={[]}
       currentUserId={shell.currentUserId}
-      coworkers={shell.coworkers}
+      coworkers={[]}
       selectedRoomId={shell.selectedRoomId}
       isCreateChannelRequested={false}
       isNewDirectMessage={false}
       messageLoadFailed={false}
-      membersLoadFailed={shell.membersLoadFailed}
+      membersLoadFailed={false}
       messages={[]}
       messagesNextCursor={null}
       messagesPromise={messagesPromise}
+      rosterPromise={rosterPromise}
     />
   );
 }
@@ -84,11 +79,11 @@ function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
 /**
  * Open one room. Avoid `listRooms()` here — sidebar already owns the list.
  *
- * Progressive paint (SOK-778):
+ * Progressive paint:
  * - Instant / outer Suspense: real composer chrome + message-list skeleton
  *   (no full-page spinner; no pulse fake composer).
- * - After room meta: room-aware header + composer + list skeleton.
- * - After history: real messages into the same RoomsClient.
+ * - After room meta (`getRoom` only): room-aware header + composer + list skeleton.
+ * - After history / roster: messages + members/coworkers into the same RoomsClient.
  *
  * Non-member / missing room → soft land on `/chat`, not 404.
  */
@@ -105,10 +100,7 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
   const currentUserId = session?.user.id ?? "";
 
   if (!activeOrganization) {
-    const [selectedRoom, coworkers] = await Promise.all([
-      chatRoomService.getRoom(roomId),
-      coworkerService.listCoworkers("chat"),
-    ]);
+    const selectedRoom = await chatRoomService.getRoom(roomId);
 
     if (!selectedRoom) {
       redirect("/chat?notice=room-unavailable");
@@ -131,21 +123,15 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
       {
         activeOrganization: null,
         rooms: [selectedRoom],
-        organizationMembers: [],
         currentUserId,
-        coworkers,
         selectedRoomId: selectedRoom.id,
-        membersLoadFailed: false,
+        organizationIdForRoster: null,
       },
       selectedRoom.id,
     );
   }
 
-  const [selectedRoom, membersPage, coworkers] = await Promise.all([
-    chatRoomService.getRoom(roomId),
-    loadOrganizationMembers(activeOrganization.id),
-    coworkerService.listCoworkers("chat"),
-  ]);
+  const selectedRoom = await chatRoomService.getRoom(roomId);
 
   if (!selectedRoom) {
     redirect("/chat?notice=room-unavailable");
@@ -161,11 +147,9 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     {
       activeOrganization,
       rooms: [selectedRoom],
-      organizationMembers: membersPage.members,
       currentUserId,
-      coworkers,
       selectedRoomId: selectedRoom.id,
-      membersLoadFailed: membersPage.failed,
+      organizationIdForRoster: activeOrganization.id,
     },
     selectedRoom.id,
   );

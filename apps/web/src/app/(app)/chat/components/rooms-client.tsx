@@ -35,6 +35,7 @@ import {
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
 import { useStickToBottom } from "@/app/chat/hooks/use-stick-to-bottom";
+import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import {
   filterTopLevelChatRoomMessages,
   isReplyUnderThreadParent,
@@ -150,6 +151,7 @@ import {
   ROOM_SHELL_ROOT_CLASSNAME,
   RoomShellLayout,
 } from "./room-shell-layout";
+import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { ThreadPanel } from "./thread-panel";
 
 interface RoomsClientProps {
@@ -173,6 +175,11 @@ interface RoomsClientProps {
    * instance so real header + composer stay mounted while the list skeletons.
    */
   messagesPromise?: Promise<RoomMessagePage>;
+  /**
+   * Deferred org members + coworkers. Room chrome paints from `rooms` alone;
+   * roster streams in for pickers / mentions / admin gates.
+   */
+  rosterPromise?: Promise<RoomShellRosterPage>;
 }
 
 const COWORKER_RESPONSE_POLL_MS = 2500;
@@ -433,17 +440,18 @@ function RoomHeaderChrome({
 export function RoomsClient({
   activeOrganization,
   rooms,
-  organizationMembers,
+  organizationMembers: organizationMembersProp,
   currentUserId,
-  coworkers,
+  coworkers: coworkersProp,
   selectedRoomId,
   isCreateChannelRequested,
   isNewDirectMessage,
   messageLoadFailed,
-  membersLoadFailed,
+  membersLoadFailed: membersLoadFailedProp,
   messages,
   messagesNextCursor,
   messagesPromise,
+  rosterPromise,
 }: RoomsClientProps) {
   const t = useTranslations("App.Channels");
   const tBreadcrumb = useTranslations("Components.Breadcrumb");
@@ -471,6 +479,9 @@ export function RoomsClient({
     useState(messageLoadFailed);
   const [syncedMessagesPromise, setSyncedMessagesPromise] =
     useState(messagesPromise);
+  const [deferredRoster, setDeferredRoster] =
+    useState<RoomShellRosterPage | null>(null);
+  const [syncedRosterPromise, setSyncedRosterPromise] = useState(rosterPromise);
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
   // RoomsClient stays mounted across /chat/rooms/[id] navigations. Progressive
@@ -484,6 +495,9 @@ export function RoomsClient({
       setMessageLoadFailedState(false);
       setDeferredHistoryPending(true);
     }
+    if (rosterPromise != null) {
+      setDeferredRoster(null);
+    }
   }
   if (messagesPromise !== syncedMessagesPromise) {
     setSyncedMessagesPromise(messagesPromise);
@@ -495,6 +509,24 @@ export function RoomsClient({
       setMessageLoadFailedState(messageLoadFailed);
     }
   }
+  if (rosterPromise !== syncedRosterPromise) {
+    setSyncedRosterPromise(rosterPromise);
+    if (rosterPromise == null) {
+      setDeferredRoster(null);
+    }
+  }
+  const organizationMembers =
+    rosterPromise != null
+      ? (deferredRoster?.organizationMembers ?? organizationMembersProp)
+      : organizationMembersProp;
+  const coworkers =
+    rosterPromise != null
+      ? (deferredRoster?.coworkers ?? coworkersProp)
+      : coworkersProp;
+  const membersLoadFailed =
+    rosterPromise != null
+      ? (deferredRoster?.membersLoadFailed ?? membersLoadFailedProp)
+      : membersLoadFailedProp;
   const messagesPending = deferredHistoryPending;
   const effectiveMessageLoadFailed = messagesPending
     ? false
@@ -506,6 +538,13 @@ export function RoomsClient({
     setMessageLoadFailedState(page.failed);
     setDeferredHistoryPending(false);
   }, []);
+
+  const handleDeferredRosterResolved = useCallback(
+    (page: RoomShellRosterPage) => {
+      setDeferredRoster(page);
+    },
+    [],
+  );
 
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
@@ -2185,6 +2224,12 @@ export function RoomsClient({
     const showListSkeleton = messagesPending && displayMessages.length === 0;
     const openRoomListBody = (
       <>
+        {rosterPromise ? (
+          <RoomShellRosterHydrator
+            promise={rosterPromise}
+            onResolved={handleDeferredRosterResolved}
+          />
+        ) : null}
         {messagesPromise ? (
           <RoomMessagesHydrator
             promise={messagesPromise}

@@ -160,7 +160,22 @@ vi.mock("../draft-direct-message", () => ({
 }));
 
 vi.mock("../edit-channel-dialog", () => ({
-  EditChannelDialog: () => null,
+  EditChannelDialog: ({
+    membersLoadFailed,
+    members,
+    coworkers,
+  }: {
+    membersLoadFailed?: boolean;
+    members?: unknown[];
+    coworkers?: unknown[];
+  }) => (
+    <div
+      data-testid="edit-channel-dialog-probe"
+      data-members-load-failed={String(Boolean(membersLoadFailed))}
+      data-members-count={String(members?.length ?? 0)}
+      data-coworkers-count={String(coworkers?.length ?? 0)}
+    />
+  ),
 }));
 
 vi.mock("../chat-participant-hover-card", () => ({
@@ -558,5 +573,107 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       "data-focus-on-mount",
       "true",
     );
+  });
+});
+
+describe("RoomsClient progressive roster (header + composer without members)", () => {
+  it("paints room title and composer while rosterPromise is pending", () => {
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>(() => undefined);
+    const rosterPromise = new Promise<{
+      organizationMembers: [];
+      membersLoadFailed: boolean;
+      coworkers: [];
+    }>(() => undefined);
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={messagesPromise}
+        rosterPromise={rosterPromise}
+      />,
+    );
+
+    expect(screen.getByText("general")).toBeTruthy();
+    expect(screen.getByTestId("room-session-composer")).toBeTruthy();
+    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
+    const probe = screen.getByTestId("edit-channel-dialog-probe");
+    expect(probe).toHaveAttribute("data-members-load-failed", "false");
+    expect(probe).toHaveAttribute("data-members-count", "0");
+    expect(probe).toHaveAttribute("data-coworkers-count", "0");
+  });
+
+  it("hydrates roster into the same instance without remounting composer", async () => {
+    let resolveRoster!: (page: {
+      organizationMembers: {
+        id: string;
+        role: string;
+        user: { id: string; name: string; email: string; image: null };
+      }[];
+      membersLoadFailed: boolean;
+      coworkers: { id: string; name: string }[];
+    }) => void;
+    const rosterPromise = new Promise<{
+      organizationMembers: {
+        id: string;
+        role: string;
+        user: { id: string; name: string; email: string; image: null };
+      }[];
+      membersLoadFailed: boolean;
+      coworkers: { id: string; name: string }[];
+    }>((resolve) => {
+      resolveRoster = resolve;
+    });
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>(() => undefined);
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={messagesPromise}
+        rosterPromise={rosterPromise as never}
+      />,
+    );
+
+    const composer = screen.getByTestId("room-session-composer");
+    expect(screen.getByText("general")).toBeTruthy();
+
+    await act(async () => {
+      resolveRoster({
+        organizationMembers: [
+          {
+            id: "member-1",
+            role: "member",
+            user: {
+              id: "user-2",
+              name: "Bob",
+              email: "bob@example.com",
+              image: null,
+            },
+          },
+        ],
+        membersLoadFailed: true,
+        coworkers: [{ id: "coworker-1", name: "Agent" }],
+      });
+      await rosterPromise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("edit-channel-dialog-probe")).toHaveAttribute(
+        "data-members-load-failed",
+        "true",
+      );
+    });
+    const probe = screen.getByTestId("edit-channel-dialog-probe");
+    expect(probe).toHaveAttribute("data-members-count", "1");
+    expect(probe).toHaveAttribute("data-coworkers-count", "1");
+    expect(screen.getByTestId("room-session-composer")).toBe(composer);
+    expect(screen.getByText("general")).toBeTruthy();
   });
 });
