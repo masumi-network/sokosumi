@@ -17,8 +17,8 @@ import {
 
 function buildCoworker(overrides: Partial<Coworker> & { id: string }) {
   return {
-    avatar: null,
-    caption: null,
+    avatar: undefined,
+    caption: undefined,
     description: "",
     name: overrides.id,
     slug: overrides.id,
