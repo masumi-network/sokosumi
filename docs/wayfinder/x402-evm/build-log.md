@@ -600,3 +600,66 @@ raising the encoded-payload cap kills 1. All restored green.
 **Verification:** `pnpm --filter @sokosumi/masumi test` 17 files / 342
 passed; `pnpm --filter core test` 357 files / 3275 passed (2 files / 6
 skipped); `pnpm typecheck` all workspaces; `pnpm check` clean.
+
+### Step-3 sixth review (confirmation) — two test-quality fixes — 2026-08-13
+
+**Verdict: clean on security.** The confirmation round found both round-5
+fixes correct, the three-way file split behaviour-preserving, and no
+fund-diversion, fail-open or new DoS path. It left exactly two
+test-quality findings, both of them coverage a comment CLAIMED and the
+suite did not have. No production behaviour changed in this round.
+
+**1. The raw `scheme` length cap was covered by a vacuous assertion.** The
+oversized-strings test asserted only `isErr()` on a 65-character
+`scheme`, and the scheme ALLOWLIST refuses that value regardless of its
+length — so `.max(X402_MAX_RAW_SCHEME_LENGTH)` could be deleted from
+`wildRequirementSchema` with all 112 x402 tests green; the payload merely
+failed one fence later with a different message. The cap is triply
+redundant (a 1 MB scheme is refused by `boundedMapCheck`, and the echo is
+bounded by `truncateEcho` at 78 either way), so the impact was nil — but
+it is exactly the pattern earlier rounds kept catching. The case now has
+its own test asserting the MESSAGE on both sides of the cap: 65 characters
+gives `Unparseable x402 402 payload: … <=64 characters … accepts[0].scheme`
+and never `Unsupported x402 scheme`; 64 characters parses and gives
+`No payable x402 requirement in accepts … Unsupported x402 scheme`.
+
+**2. The output schema's half of the safety argument had zero tests.** The
+stated invariant is that the wild schema loosens three fields so a payload
+with an unsupported option still parses, and `x402PaymentRequirementsSchema`
+re-imposes all three on whatever survives selection. Every test of the
+re-imposition went through `normalizeX402PaymentRequired`, where
+`selectPayableRequirement` refuses the same values FIRST, so the emitted
+half was unpinned: four mutants survived. Node-shape entries are now fed
+DIRECTLY into the exported schemas, and the supported counterparts are
+asserted to pass so the bounds cannot be met by refusing everything. No
+exploit today — selection catches all four and the exported schemas have
+no consumer outside the module at this commit — but a later branch imports
+from this package, and this is the layer the comments call load-bearing.
+
+**Mutation-tested (all five went red, all restored green).**
+
+```
+wild.ts    scheme .max(64) deleted          -> kills 1 (the new cap test)
+schema.ts  scheme z.enum -> z.string()      -> kills 1
+schema.ts  maxTimeoutSeconds .max() dropped -> kills 1
+supported  assetTransferMethod literal      -> kills 1
+           -> z.string()
+schema.ts  accepts .min(1) -> .min(0)       -> kills 1
+```
+
+**Optional observation, taken as a comment.** An entry serialized at
+8186–8192 characters carrying a v1 network name grows past
+`X402_MAX_SERIALIZED_LENGTH` when `base` expands to `eip155:8453` (+7),
+and the trailing `safeParse` then refuses the whole payload including a
+payable sibling. Measured and confirmed (`base` fails at wild length 8186,
+`eip155:8453` only at 8193). Not a finding — fail-closed, identical to
+pre-change behaviour, only the resource server can author it, and 8 KiB
+entries are orders of magnitude past any live listing — so the asymmetry
+is documented on the constant (the ceiling is applied to the wild entry
+before translation and to the emitted entry after) rather than
+special-cased.
+
+**Verification:** `pnpm --filter @sokosumi/masumi test` 17 files / 345
+passed (115 of them x402); `pnpm --filter core test` 357 files / 3275
+passed (2 files / 6 skipped); `pnpm typecheck` all workspaces;
+`pnpm check` clean.
