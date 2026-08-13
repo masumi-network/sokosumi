@@ -1,3 +1,5 @@
+import { getFirstName } from "@sokosumi/utils";
+
 import {
   findDefaultCoworker,
   getCoworkerImageUrl,
@@ -7,6 +9,13 @@ import { canUseNextImageSrc } from "@/config/next-image";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import type { StripCoworker } from "./coworker-strip.client";
+
+/** Given name for the landing greeting. Null → nameless greeting. */
+export function resolveLandingGreetingName(
+  userName: null | string | undefined,
+): string | null {
+  return getFirstName(userName) ?? null;
+}
 
 /**
  * Elena fronts the product: she is the coworker who takes a goal and turns it
