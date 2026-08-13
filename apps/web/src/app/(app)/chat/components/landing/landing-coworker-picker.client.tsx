@@ -25,12 +25,15 @@ interface LandingCoworkerPickerProps {
 /**
  * Landing strip + details + Start chat.
  *
- * The strip already shows name + role under each avatar. The selected block
- * below is description → Start chat only — no second identity heading.
- * The picker is viewport-bounded (`w-full min-w-0`) so the strip's w-max track
- * cannot widen Start chat. Collapsed description slots keep fixed min-heights
- * (including empty) so selection cannot jump the CTA. Expanding More grows
- * the description downward and may shift Start chat; Less restores.
+ * The strip already shows name + role under each avatar and is full-bleed
+ * within the landing column (no horizontal page pad on the strip or its
+ * overflow ancestors). The selected block below is description → Start chat
+ * only — no second identity heading — and keeps `px-4` + `max-w-xs` so copy
+ * and CTA stay inset. The picker is viewport-bounded (`w-full min-w-0`) so
+ * the strip's w-max track cannot widen Start chat. Collapsed description
+ * slots keep fixed min-heights (including empty) so selection cannot jump
+ * the CTA. Expanding More grows the description downward and may shift
+ * Start chat; Less restores.
  */
 export function LandingCoworkerPicker({
   coworkers,
@@ -58,11 +61,14 @@ export function LandingCoworkerPicker({
       className="w-full min-w-0 max-w-full"
       data-testid="landing-coworker-picker"
     >
+      {/* Full-width strip — must not sit inside page `px-*` / max-w that would
+          inset + clip edge avatars. Landing compositions pad pitch/stats only. */}
       <div
         className={cn(
           "w-full min-w-0 max-w-full",
           size === "compact" ? "mt-6" : "mt-10",
         )}
+        data-testid="landing-coworker-strip"
       >
         <CoworkerStrip
           centerOnId={initial.id}
@@ -79,7 +85,7 @@ export function LandingCoworkerPicker({
           More is the only intentional CTA shift. */}
       <div
         className={cn(
-          "mx-auto flex w-full min-w-0 max-w-xs flex-col items-center justify-start",
+          "mx-auto flex w-full min-w-0 max-w-xs flex-col items-center justify-start px-4",
           size === "compact" ? "mt-4" : "mt-5",
         )}
         data-testid="landing-selected-block"

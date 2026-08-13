@@ -42,6 +42,9 @@ export async function ChatLanding({
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
 
   return (
+    // No middle-column `px-*`: pad pitch + stats + selected block only so the
+    // coworker strip can span the full content width. Padding on an overflow-y
+    // ancestor clips edge faces (overflow-x becomes auto with overflow-y).
     <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch">
       <SokosumiIcon
         animated={false}
@@ -50,12 +53,12 @@ export async function ChatLanding({
         width={48}
       />
 
-      <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-4xl flex-1 flex-col items-stretch justify-start overflow-y-auto px-4 py-6 text-center">
-        <h1 className="text-foreground shrink-0 text-2xl font-light text-balance md:text-4xl">
+      <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-4xl flex-1 flex-col items-stretch justify-start overflow-y-auto py-6 text-center">
+        <h1 className="text-foreground shrink-0 px-4 text-2xl font-light text-balance md:text-4xl">
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
         </h1>
 
-        <p className="text-muted-foreground mx-auto mt-4 max-w-[62ch] shrink-0 text-base leading-[1.65] text-balance md:text-lg">
+        <p className="text-muted-foreground mx-auto mt-4 max-w-[62ch] shrink-0 px-4 text-base leading-[1.65] text-balance md:text-lg">
           {t("intro")}
         </p>
 

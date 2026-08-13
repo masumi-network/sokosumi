@@ -90,10 +90,35 @@ describe("LandingCoworkerPicker", () => {
     expect(selected.className).toMatch(/max-w-xs/);
     expect(selected.className).toMatch(/w-full/);
     expect(selected.className).toMatch(/min-w-0/);
+    // Selected copy/CTA stay inset; strip itself must not inherit this pad.
+    expect(selected.className).toMatch(/px-4/);
 
     const scroll = screen.getByTestId("coworker-strip-scroll");
     expect(scroll.className).toMatch(/min-w-0/);
     expect(scroll.className).toMatch(/overflow-x-auto/);
+  });
+
+  it("keeps the coworker strip full-bleed (no page px / max-w inset on the track)", () => {
+    render(
+      <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
+    );
+
+    const strip = screen.getByTestId("landing-coworker-strip");
+    expect(strip.className).toMatch(/w-full/);
+    expect(strip.className).toMatch(/min-w-0/);
+    expect(strip.className).toMatch(/max-w-full/);
+    expect(strip.className).not.toMatch(/px-\d/);
+    expect(strip.className).not.toMatch(/max-w-xs/);
+
+    const scroll = screen.getByTestId("coworker-strip-scroll");
+    expect(strip.contains(scroll)).toBe(true);
+    expect(scroll.className).toMatch(/w-full/);
+    expect(scroll.className).toMatch(/overflow-x-auto/);
+
+    // Selected block is a sibling, not a padded ancestor of the strip.
+    const selected = screen.getByTestId("landing-selected-block");
+    expect(strip.contains(selected)).toBe(false);
+    expect(selected.contains(strip)).toBe(false);
   });
 
   it("renders Elena in the middle of the full strip order", () => {
