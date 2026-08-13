@@ -207,7 +207,9 @@ export const chatRoomService = (() => {
     } catch (error) {
       if (
         error instanceof CoreApiRequestError &&
-        (error.status === 404 || error.status === 403)
+        // 400: path UUID validation (e.g. /rooms/not-a-real-room-id).
+        // 403/404: missing or unauthorized → soft-land on /chat.
+        (error.status === 400 || error.status === 403 || error.status === 404)
       ) {
         return null;
       }

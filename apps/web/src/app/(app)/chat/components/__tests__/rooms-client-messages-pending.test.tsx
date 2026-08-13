@@ -1,15 +1,22 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
-import { describe, expect, it, vi } from "vitest";
-
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import type {
   ChatRoom,
   ChatRoomMessage,
+  Coworker,
+  Member,
   Organization,
 } from "@/lib/clients/generated/core";
-
+import { MemberRole } from "@/lib/clients/generated/core";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
+
+const { mockIsMobileMedia, mockHeaderRoomSlotHost } = vi.hoisted(() => ({
+  mockIsMobileMedia: vi.fn((): boolean | undefined => false),
+  mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -43,11 +50,11 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
 }));
 
 vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobileMedia: () => false,
+  useIsMobileMedia: () => mockIsMobileMedia(),
 }));
 
 vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
-  useHeaderRoomSlotHost: () => null,
+  useHeaderRoomSlotHost: () => mockHeaderRoomSlotHost(),
 }));
 
 vi.mock("@/contexts/breadcrumb-override-context", () => ({
@@ -160,7 +167,22 @@ vi.mock("../draft-direct-message", () => ({
 }));
 
 vi.mock("../edit-channel-dialog", () => ({
-  EditChannelDialog: () => null,
+  EditChannelDialog: ({
+    membersLoadFailed,
+    members,
+    coworkers,
+  }: {
+    membersLoadFailed?: boolean;
+    members?: unknown[];
+    coworkers?: unknown[];
+  }) => (
+    <div
+      data-testid="edit-channel-dialog-probe"
+      data-members-load-failed={String(Boolean(membersLoadFailed))}
+      data-members-count={String(members?.length ?? 0)}
+      data-coworkers-count={String(coworkers?.length ?? 0)}
+    />
+  ),
 }));
 
 vi.mock("../chat-participant-hover-card", () => ({
@@ -558,5 +580,188 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
       "data-focus-on-mount",
       "true",
     );
+  });
+});
+
+describe("RoomsClient progressive roster (header + composer without members)", () => {
+  beforeEach(() => {
+    mockIsMobileMedia.mockReturnValue(false);
+    mockHeaderRoomSlotHost.mockReturnValue(null);
+  });
+
+  it("paints room title and composer while rosterPromise is pending", () => {
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>(() => undefined);
+    const rosterPromise = new Promise<{
+      organizationMembers: [];
+      membersLoadFailed: boolean;
+      coworkers: [];
+    }>(() => undefined);
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={messagesPromise}
+        rosterPromise={rosterPromise}
+      />,
+    );
+
+    expect(screen.getByText("general")).toBeTruthy();
+    expect(screen.getByTestId("room-session-composer")).toBeTruthy();
+    expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
+    const probe = screen.getByTestId("edit-channel-dialog-probe");
+    expect(probe).toHaveAttribute("data-members-load-failed", "false");
+    expect(probe).toHaveAttribute("data-members-count", "0");
+    expect(probe).toHaveAttribute("data-coworkers-count", "0");
+  });
+
+  it("paints getRoom title with composer before mobile portal/media is ready", () => {
+    mockIsMobileMedia.mockReturnValue(undefined);
+    mockHeaderRoomSlotHost.mockReturnValue(null);
+
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>(() => undefined);
+    const rosterPromise = new Promise<{
+      organizationMembers: [];
+      membersLoadFailed: boolean;
+      coworkers: [];
+    }>(() => undefined);
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={messagesPromise}
+        rosterPromise={rosterPromise}
+      />,
+    );
+
+    // Title must not wait on isMobile===true portal, roster, or avatars.
+    expect(screen.getByTestId("room-open-title")).toHaveTextContent("general");
+    expect(screen.getByTestId("room-session-composer")).toBeTruthy();
+  });
+
+  it("shows getRoom title with composer when portal host exists (never blank header)", async () => {
+    mockIsMobileMedia.mockReturnValue(true);
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    mockHeaderRoomSlotHost.mockReturnValue(host);
+
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>(() => undefined);
+    const rosterPromise = new Promise<{
+      organizationMembers: [];
+      membersLoadFailed: boolean;
+      coworkers: [];
+    }>(() => undefined);
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={messagesPromise}
+        rosterPromise={rosterPromise}
+      />,
+    );
+
+    // Portal flips in useEffect; title must still be present with composer
+    // (in-column first, then portaled) — never back-chevron-only blank header.
+    expect(screen.getByTestId("room-open-title")).toHaveTextContent("general");
+    expect(screen.getByTestId("room-session-composer")).toBeTruthy();
+    await waitFor(() => {
+      expect(
+        host.querySelector("[data-testid='room-open-title']"),
+      ).toHaveTextContent("general");
+    });
+
+    document.body.removeChild(host);
+  });
+
+  it("hydrates roster into the same instance without remounting composer", async () => {
+    const hydratedMember: Member = {
+      id: "member-1",
+      organizationId: "org-1",
+      role: MemberRole.MEMBER,
+      seatAssignedAt: null,
+      createdAt: new Date("2026-07-01T12:00:00.000Z"),
+      user: {
+        id: "user-2",
+        name: "Bob",
+        email: "bob@example.com",
+        image: null,
+      },
+      lastSeenAt: null,
+    };
+    const hydratedCoworker: Coworker = {
+      id: "coworker-1",
+      createdAt: new Date("2026-07-01T12:00:00.000Z"),
+      updatedAt: new Date("2026-07-01T12:00:00.000Z"),
+      archivedAt: null,
+      isWhitelisted: true,
+      priority: 0,
+      slug: "agent",
+      name: "Agent",
+      vendor: {
+        id: "vendor-1",
+        createdAt: new Date("2026-07-01T12:00:00.000Z"),
+        updatedAt: new Date("2026-07-01T12:00:00.000Z"),
+        name: "Vendor",
+        slug: "vendor",
+        logos: { light: null, dark: null },
+      },
+      baseURL: null,
+      capabilities: ["chat"],
+      image: null,
+      metadata: null,
+    };
+
+    let resolveRoster!: (page: RoomShellRosterPage) => void;
+    const rosterPromise = new Promise<RoomShellRosterPage>((resolve) => {
+      resolveRoster = resolve;
+    });
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>(() => undefined);
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={messagesPromise}
+        rosterPromise={rosterPromise}
+      />,
+    );
+
+    const composer = screen.getByTestId("room-session-composer");
+    expect(screen.getByText("general")).toBeTruthy();
+
+    await act(async () => {
+      resolveRoster({
+        organizationMembers: [hydratedMember],
+        membersLoadFailed: true,
+        coworkers: [hydratedCoworker],
+      });
+      await rosterPromise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("edit-channel-dialog-probe")).toHaveAttribute(
+        "data-members-load-failed",
+        "true",
+      );
+    });
+    const probe = screen.getByTestId("edit-channel-dialog-probe");
+    expect(probe).toHaveAttribute("data-members-count", "1");
+    expect(probe).toHaveAttribute("data-coworkers-count", "1");
+    expect(screen.getByTestId("room-session-composer")).toBe(composer);
+    expect(screen.getByText("general")).toBeTruthy();
   });
 });
