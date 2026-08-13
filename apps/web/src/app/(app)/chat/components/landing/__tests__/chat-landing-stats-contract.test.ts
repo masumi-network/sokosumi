@@ -50,4 +50,16 @@ describe("chat landing stats row contract", () => {
       );
     },
   );
+
+  it("mobile landing omits content-area brand mark (header owns the logo)", () => {
+    const source = readFileSync(
+      join(import.meta.dirname, "..", "chat-landing.mobile.tsx"),
+      "utf8",
+    );
+
+    // HeaderLeadingControl already renders the mark on `/chat`; forbid a
+    // second instance in this column (import or JSX). Doc comments may name it.
+    expect(source).not.toMatch(/from ["']@\/components\/masumi-logos["']/);
+    expect(source).not.toMatch(/<SokosumiIcon\b/);
+  });
 });

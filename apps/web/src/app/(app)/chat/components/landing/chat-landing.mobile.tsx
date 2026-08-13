@@ -1,7 +1,6 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import type { Coworker } from "@/app/chat/utils/types";
-import { SokosumiIcon } from "@/components/masumi-logos";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";
@@ -20,10 +19,11 @@ interface ChatLandingMobileProps {
 /**
  * Mobile composition of the `/chat` welcome (`chat-landing.mobile.tsx`).
  *
- * Pair of {@link ChatLanding} (`chat-landing.tsx`): same three zones (mark,
- * pitch, stats) scaled for a narrow column. Middle column is top-aligned so
- * Start chat stays put across coworker selection. Stats stay pinned at the
- * bottom — always mounted with zero chips when idle.
+ * Pair of {@link ChatLanding} (`chat-landing.tsx`): pitch + stats for a narrow
+ * column. Brand mark lives only in the mobile header leading slot — do not
+ * re-render `SokosumiIcon` here. Middle column is top-aligned so Start chat
+ * stays put across coworker selection. Stats stay pinned at the bottom —
+ * always mounted with zero chips when idle.
  */
 export async function ChatLandingMobile({
   coworkers,
@@ -40,13 +40,6 @@ export async function ChatLandingMobile({
 
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch px-4 pt-4 pb-3 text-center">
-      <SokosumiIcon
-        animated={false}
-        className="text-foreground shrink-0 self-center"
-        height={32}
-        width={32}
-      />
-
       <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-start overflow-y-auto py-4">
         <h1 className="text-foreground shrink-0 text-2xl font-light text-balance">
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
