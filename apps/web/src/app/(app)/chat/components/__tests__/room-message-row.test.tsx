@@ -1671,6 +1671,107 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
   });
 
+  it("anchors mention thinking elapsed to message createdAt (wall clock)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-10T12:02:00.000Z"));
+    try {
+      renderRow({
+        message: userMessage({
+          content: "@Maya draft the deck",
+          createdAt: new Date("2026-08-10T12:00:00.000Z"),
+          mentions: [
+            {
+              id: "mention-wall",
+              coworkerId: "cow-1",
+              status: "sent",
+              responseMessageId: null,
+            },
+          ],
+        }),
+        coworkersById: new Map([
+          [
+            "cow-1",
+            {
+              id: "cow-1",
+              name: "Maya",
+              slug: "maya",
+              caption: null,
+              image: null,
+              presence: "online",
+            },
+          ],
+        ]),
+      });
+      // ~2 minutes since the ask — not ~0 from client mount.
+      expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
+        "2m 0.0s",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps mention thinking elapsed across remount / reopen", () => {
+    vi.useFakeTimers();
+    const createdAt = new Date("2026-08-10T12:00:00.000Z");
+    const coworkersById = new Map([
+      [
+        "cow-1",
+        {
+          id: "cow-1",
+          name: "Maya",
+          slug: "maya",
+          caption: null,
+          image: null,
+          presence: "online" as const,
+        },
+      ],
+    ]);
+    const message = userMessage({
+      content: "@Maya draft the deck",
+      createdAt,
+      mentions: [
+        {
+          id: "mention-remount",
+          coworkerId: "cow-1",
+          status: "sent",
+          responseMessageId: null,
+        },
+      ],
+    });
+    try {
+      vi.setSystemTime(new Date("2026-08-10T12:01:30.000Z"));
+      const { unmount } = render(
+        <ChatMessageRow
+          message={message}
+          coworkersById={coworkersById}
+          coworkersBySlug={new Map()}
+          onToggleReaction={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
+        "1m 30.0s",
+      );
+      unmount();
+
+      // Leave and reopen ~10s later: elapsed continues from createdAt, not remount.
+      vi.setSystemTime(new Date("2026-08-10T12:01:40.000Z"));
+      render(
+        <ChatMessageRow
+          message={message}
+          coworkersById={coworkersById}
+          coworkersBySlug={new Map()}
+          onToggleReaction={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
+        "1m 40.0s",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("hides mention status when coworker replied; shows failed terminal only", () => {
     const coworkersById = new Map([
       [
@@ -1792,6 +1893,46 @@ describe("ChatMessageRow coworker Thought", () => {
       });
       expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
         "10.0s",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps stream overlay thinking elapsed across remount", () => {
+    vi.useFakeTimers();
+    const createdAt = new Date("2026-08-10T12:00:00.000Z");
+    const message = coworkerMessage({
+      id: "stream:asst-remount",
+      content: "",
+      createdAt,
+      metadata: { streaming: true },
+    });
+    try {
+      vi.setSystemTime(new Date("2026-08-10T12:00:45.000Z"));
+      const { unmount } = render(
+        <ChatMessageRow
+          message={message}
+          coworkersById={new Map()}
+          coworkersBySlug={new Map()}
+          onToggleReaction={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
+        "45.0s",
+      );
+      unmount();
+      vi.setSystemTime(new Date("2026-08-10T12:01:05.000Z"));
+      render(
+        <ChatMessageRow
+          message={message}
+          coworkersById={new Map()}
+          coworkersBySlug={new Map()}
+          onToggleReaction={vi.fn()}
+        />,
+      );
+      expect(screen.getByTestId("live-stream-elapsed")).toHaveTextContent(
+        "1m 5.0s",
       );
     } finally {
       vi.useRealTimers();

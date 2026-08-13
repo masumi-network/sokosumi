@@ -1472,13 +1472,10 @@ function MessageMetaFooter({
   isDeleted: boolean;
 }) {
   const t = useTranslations("App.Channels");
-  /**
-   * First time this client mounts a pending/sent mention chip — wall clock for
-   * the loading elapsed timer. Avoids using user-message createdAt (reload of a
-   * stuck mention would show multi-minute age).
-   */
-  const mentionThinkStartMsByIdRef = useRef(new Map<string, number>());
   const isOutboundLocal = isOutboundLocalMessage(message);
+  // Wall clock from the ask (persisted message createdAt) — remount/reopen must
+  // continue elapsed time, not restart from client mount.
+  const mentionThinkingStartedAtMs = new Date(message.createdAt).getTime();
 
   return (
     <>
@@ -1541,21 +1538,11 @@ function MessageMetaFooter({
             // Channel @mentions have no client stream overlay — show Beautiful UI
             // loading here (pending/sent) so "Noodles is thinking" is not a dead badge.
             if (mention.status === "pending" || mention.status === "sent") {
-              let thinkStartMs = mentionThinkStartMsByIdRef.current.get(
-                mention.id,
-              );
-              if (thinkStartMs == null) {
-                thinkStartMs = Date.now();
-                mentionThinkStartMsByIdRef.current.set(
-                  mention.id,
-                  thinkStartMs,
-                );
-              }
               return (
                 <CoworkerLoadingState
                   key={mention.id}
                   label={label}
-                  startedAtMs={thinkStartMs}
+                  startedAtMs={mentionThinkingStartedAtMs}
                 />
               );
             }
