@@ -151,7 +151,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
       {landingNotice}
       {/* One welcome per breakpoint. The compositions differ enough — six 64px
           teammates versus four at 44px — that CSS alone cannot bridge them. */}
-      <div className="hidden md:contents">
+      <div className="hidden min-h-full min-w-0 flex-1 flex-col md:flex">
         <ChatLanding
           coworkers={coworkers}
           isOrganizationWorkspace={activeOrganizationId !== null}
@@ -159,7 +159,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           userName={session?.user.name ?? null}
         />
       </div>
-      <div className="flex min-h-full w-full flex-col md:hidden">
+      <div className="flex min-h-full min-w-0 w-full flex-1 flex-col md:hidden">
         <ChatLandingMobile
           coworkers={coworkers}
           isOrganizationWorkspace={activeOrganizationId !== null}

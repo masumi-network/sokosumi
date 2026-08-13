@@ -33,18 +33,51 @@ export function resolveFeaturedCoworker(
 }
 
 /**
- * Pitch under the featured face. Elena keeps product-managed copy; anyone else
- * (fallback when Elena is unavailable) uses their DB caption or nothing —
- * never Elena's gendered "Project Manager" line.
+ * Short specialty under the selected name (above Start chat).
+ * DB `caption` only — omit when empty (no useCase fallback here).
  */
-export function featuredCoworkerRole(
-  coworker: Coworker,
-  elenaRole: string,
+export function selectedCoworkerCaption(
+  coworker: Pick<Coworker, "caption">,
 ): string | null {
-  if (isElenaCoworker(coworker)) {
-    return elenaRole;
+  return nonEmptySpecialty(coworker.caption);
+}
+
+/**
+ * Body copy above Start chat. DB `description` only — never caption/useCase.
+ */
+export function selectedCoworkerDescription(
+  coworker: Pick<Coworker, "description">,
+): string | null {
+  return nonEmptySpecialty(coworker.description);
+}
+
+/** Collapsed landing description budget (~3 lines of body copy). */
+export const LANDING_DESCRIPTION_MAX_CHARS = 180;
+
+/**
+ * Truncate a landing description for the collapsed state.
+ * Returns the full string when it already fits; otherwise a word-aware preview
+ * capped near `maxChars` with an ellipsis, and `isTruncated: true`.
+ */
+export function clampLandingDescription(
+  description: string,
+  maxChars: number = LANDING_DESCRIPTION_MAX_CHARS,
+): { isTruncated: boolean; preview: string } {
+  if (description.length <= maxChars) {
+    return { isTruncated: false, preview: description };
   }
-  return coworker.caption ?? null;
+
+  const slice = description.slice(0, maxChars);
+  const lastSpace = slice.lastIndexOf(" ");
+  const cut =
+    lastSpace > Math.floor(maxChars * 0.6) ? slice.slice(0, lastSpace) : slice;
+
+  return { isTruncated: true, preview: `${cut.trimEnd()}…` };
+}
+
+function nonEmptySpecialty(value: null | string | undefined): null | string {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }
 
 export function toStripCoworker(coworker: Coworker): StripCoworker {
@@ -58,30 +91,34 @@ export function toStripCoworker(coworker: Coworker): StripCoworker {
     // next/image throw and takes the whole page down, so fall back to initials.
     imageUrl: imageUrl && canUseNextImageSrc(imageUrl) ? imageUrl : null,
     name: coworker.name,
-    title: coworker.caption ?? null,
+    title:
+      nonEmptySpecialty(coworker.caption) ??
+      nonEmptySpecialty(coworker.useCase) ??
+      null,
   };
 }
 
 /**
- * The teammates flanking the featured coworker.
+ * Full catalog ordered with the featured coworker (Elena / fallback) in the
+ * optical middle. Odd counts → exact centre; even → left of the two centre
+ * slots (`floor(others/2)` flanks left). Never drops anyone.
  *
- * Both landings pass an even `max` (6 desktop / 4 mobile). Odd counts are
- * dropped so flanks balance and the featured face stays optically centred.
+ * Empty when nothing is featured — the strip only renders with a lead face.
  */
-export function selectStripCoworkers(
+export function orderStripCoworkers(
   coworkers: Coworker[],
   featured: Coworker | null,
-  max: number,
 ): StripCoworker[] {
   if (!featured) {
     return [];
   }
 
   const others = coworkers.filter((coworker) => coworker.id !== featured.id);
-  const capped = Math.min(max, others.length);
-  const limit = capped - (capped % 2);
+  const leftCount = Math.floor(others.length / 2);
+  const left = others.slice(0, leftCount);
+  const right = others.slice(leftCount);
 
-  return others.slice(0, Math.max(0, limit)).map(toStripCoworker);
+  return [...left, featured, ...right].map(toStripCoworker);
 }
 
 type StatsTranslator = (
@@ -90,52 +127,28 @@ type StatsTranslator = (
 ) => string;
 
 /**
- * Chip labels for the "while you were gone" row, in display order.
+ * Chip labels for the landing activity row, in display order.
  *
- * The teammates chip is included at zero inside an organization: "what my
- * teammates added" is a question the row should answer rather than omit.
- * Window is session-derived activity, so any non-zero metric can show.
+ * Always returns chips — including zeros — so the first viewport keeps a
+ * reserved stats footer even when the account has no activity yet (or Core
+ * could not be reached). Teammates chip stays org-only.
  */
 export function buildActivityStats(
   summary: TaskActivitySummary | null,
   isOrganizationWorkspace: boolean,
   t: StatsTranslator,
 ): string[] {
-  if (!summary) {
-    return [];
-  }
+  const completed = summary?.completed ?? 0;
+  const workedMinutes = summary?.workedMinutes ?? 0;
+  const awaitingInput = summary?.awaitingInput ?? 0;
+  const createdByOtherHumans = summary?.createdByOtherHumans ?? 0;
 
   return [
-    ...(summary.completed > 0
-      ? [t("stats.completed", { count: summary.completed })]
-      : []),
-    ...(summary.workedMinutes > 0
-      ? [t("stats.worked", { minutes: summary.workedMinutes })]
-      : []),
-    ...(summary.awaitingInput > 0
-      ? [t("stats.awaiting", { count: summary.awaitingInput })]
-      : []),
+    t("stats.completed", { count: completed }),
+    t("stats.worked", { minutes: workedMinutes }),
+    t("stats.awaiting", { count: awaitingInput }),
     ...(isOrganizationWorkspace
-      ? [t("stats.byTeammates", { count: summary.createdByOtherHumans })]
+      ? [t("stats.byTeammates", { count: createdByOtherHumans })]
       : []),
   ];
-}
-
-/**
- * Whether the summary has anything worth a chip row at all.
- *
- * Needs at least one non-zero metric; a lone "0 tasks from your team" chip is
- * worse than no row. Window is session-derived (last activity), not a stamped
- * visit — so there is no separate "first visit" hide.
- */
-export function hasReportableActivity(
-  summary: TaskActivitySummary | null,
-): boolean {
-  return (
-    summary !== null &&
-    (summary.completed > 0 ||
-      summary.workedMinutes > 0 ||
-      summary.awaitingInput > 0 ||
-      summary.createdByOtherHumans > 0)
-  );
 }
