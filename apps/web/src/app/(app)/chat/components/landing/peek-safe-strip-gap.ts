@@ -119,6 +119,7 @@ export function resolveOverflowStripGapPx({
   }
 
   const maxGap = preferred * maxGapFactor;
+  const minGap = preferred * 0.5;
   const maxK = Math.max(0, Math.floor(d / itemWidthPx) + 1);
   const targetPeekPx = itemWidthPx * targetPeekFraction;
 
@@ -127,7 +128,7 @@ export function resolveOverflowStripGapPx({
   let bestGapDistance = Number.POSITIVE_INFINITY;
 
   function consider(gap: number): void {
-    if (!(gap > 0) || gap > maxGap) {
+    if (!(gap >= minGap) || gap > maxGap) {
       return;
     }
     if (
@@ -185,8 +186,8 @@ export function resolveOverflowStripGapPx({
   }
 
   const sampleSteps = 64;
-  for (let step = 1; step <= sampleSteps; step += 1) {
-    consider((maxGap * step) / sampleSteps);
+  for (let step = 0; step <= sampleSteps; step += 1) {
+    consider(minGap + ((maxGap - minGap) * step) / sampleSteps);
   }
 
   if (bestGap !== null) {
@@ -198,7 +199,7 @@ export function resolveOverflowStripGapPx({
   let effortGapDistance = Number.POSITIVE_INFINITY;
 
   function considerEffort(gap: number): void {
-    if (!(gap > 0) || gap > maxGap) {
+    if (!(gap >= minGap) || gap > maxGap) {
       return;
     }
     const peekPx = overflowStripEdgePeekPx(viewportWidthPx, itemWidthPx, gap);
@@ -218,8 +219,8 @@ export function resolveOverflowStripGapPx({
     }
   }
 
-  for (let step = 1; step <= sampleSteps; step += 1) {
-    considerEffort((maxGap * step) / sampleSteps);
+  for (let step = 0; step <= sampleSteps; step += 1) {
+    considerEffort(minGap + ((maxGap - minGap) * step) / sampleSteps);
   }
 
   return effortGap ?? preferred;
