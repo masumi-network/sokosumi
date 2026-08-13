@@ -32,10 +32,49 @@ export interface PrivateCachedChatListChrome {
   members: MemberWithOrganization[];
 }
 
+export interface PrivateCachedChatListArchivedAndMembers {
+  archivedChatRoomsPage: ChatRoomsPage;
+  members: MemberWithOrganization[];
+}
+
+interface PrivateChatListCacheArgs {
+  userId: string;
+  activeOrganizationId: string | null;
+}
+
+/**
+ * Membership-visible rooms only (no archived / members). Fail-soft to empty
+ * page on service errors.
+ */
+export async function loadMembershipVisibleRooms(): Promise<ChatRoomsPage> {
+  return chatRoomService.listRooms().catch(() => EMPTY_ROOMS_PAGE);
+}
+
+/**
+ * Archived rooms + org memberships for admin-delete. Fail-soft empties.
+ */
+export async function loadChatListArchivedAndMembers(
+  activeOrganizationId: string | null,
+): Promise<PrivateCachedChatListArchivedAndMembers> {
+  const archivedChatRoomsPromise = activeOrganizationId
+    ? chatRoomService.listArchivedRooms().catch(() => EMPTY_ROOMS_PAGE)
+    : Promise.resolve(EMPTY_ROOMS_PAGE);
+  const membersPromise = userService
+    .getMyMembersWithOrganizations()
+    .catch(() => []);
+
+  const [archivedChatRoomsPage, members] = await Promise.all([
+    archivedChatRoomsPromise,
+    membersPromise,
+  ]);
+
+  return { archivedChatRoomsPage, members };
+}
+
 /**
  * Testable body for membership-visible rooms + archived + members.
- * Prefer {@link getPrivateCachedChatListChrome} from RSC so sidebar and chats
- * list share one private-cache slice (React.cache does not cross use-cache).
+ * Prefer the private-cache wrappers from RSC so sidebar and chats list share
+ * slices (React.cache does not cross use-cache).
  *
  * Fail-soft: service errors become empty pages/arrays (same as pre-SOK-779
  * sidebar/page). When used under private cache those empties are shared until
@@ -46,41 +85,68 @@ export interface PrivateCachedChatListChrome {
 export async function loadChatListChromeData(
   activeOrganizationId: string | null,
 ): Promise<PrivateCachedChatListChrome> {
-  const chatRoomsPromise = chatRoomService
-    .listRooms()
-    .catch(() => EMPTY_ROOMS_PAGE);
-  const archivedChatRoomsPromise = activeOrganizationId
-    ? chatRoomService.listArchivedRooms().catch(() => EMPTY_ROOMS_PAGE)
-    : Promise.resolve(EMPTY_ROOMS_PAGE);
-  const membersPromise = userService
-    .getMyMembersWithOrganizations()
-    .catch(() => []);
-
-  const [chatRoomsPage, archivedChatRoomsPage, members] = await Promise.all([
-    chatRoomsPromise,
-    archivedChatRoomsPromise,
-    membersPromise,
+  const [chatRoomsPage, deferred] = await Promise.all([
+    loadMembershipVisibleRooms(),
+    loadChatListArchivedAndMembers(activeOrganizationId),
   ]);
 
-  return { chatRoomsPage, archivedChatRoomsPage, members };
+  return {
+    chatRoomsPage,
+    archivedChatRoomsPage: deferred.archivedChatRoomsPage,
+    members: deferred.members,
+  };
 }
 
 /**
- * Membership-visible rooms chrome shared by private sidebar + `/chat/chats`.
- * Same private tags/life as sidebar so cold composition hits Core once.
+ * Membership-visible rooms chrome (SOK-779). Same private tags/life as the
+ * archived+members slice so sidebar + `/chat/chats` share one Core hit for
+ * rooms; chats can await this without waiting on archived/members.
  */
-export async function getPrivateCachedChatListChrome(args: {
-  userId: string;
-  activeOrganizationId: string | null;
-}): Promise<PrivateCachedChatListChrome> {
+export async function getPrivateCachedMembershipVisibleRooms(
+  args: PrivateChatListCacheArgs,
+): Promise<ChatRoomsPage> {
   "use cache: private";
   cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
   cacheTag(privateSidebarUserTag(args.userId));
   if (args.activeOrganizationId) {
     cacheTag(privateSidebarOrgTag(args.activeOrganizationId));
   }
+  return loadMembershipVisibleRooms();
+}
 
-  return loadChatListChromeData(args.activeOrganizationId);
+/**
+ * Archived rooms + members for admin-delete. Same tags as membership rooms.
+ */
+export async function getPrivateCachedChatListArchivedAndMembers(
+  args: PrivateChatListCacheArgs,
+): Promise<PrivateCachedChatListArchivedAndMembers> {
+  "use cache: private";
+  cacheLife({ stale: 300, revalidate: 60, expire: 3600 });
+  cacheTag(privateSidebarUserTag(args.userId));
+  if (args.activeOrganizationId) {
+    cacheTag(privateSidebarOrgTag(args.activeOrganizationId));
+  }
+  return loadChatListArchivedAndMembers(args.activeOrganizationId);
+}
+
+/**
+ * Full chat-list chrome: composes the rooms + archived/members private-cache
+ * slices (same tags/life). Sidebar / header keep this one-call API; `/chat/chats`
+ * awaits rooms first then streams archived+members.
+ */
+export async function getPrivateCachedChatListChrome(
+  args: PrivateChatListCacheArgs,
+): Promise<PrivateCachedChatListChrome> {
+  const [chatRoomsPage, deferred] = await Promise.all([
+    getPrivateCachedMembershipVisibleRooms(args),
+    getPrivateCachedChatListArchivedAndMembers(args),
+  ]);
+
+  return {
+    chatRoomsPage,
+    archivedChatRoomsPage: deferred.archivedChatRoomsPage,
+    members: deferred.members,
+  };
 }
 
 /**
