@@ -16,6 +16,21 @@ export interface UseClipboardReturn {
 
 export const COPY_SUCCESS_TIMEOUT = 3000;
 
+/** One-shot clipboard write + toast. Use when the caller does not need `copied`. */
+export async function copyTextWithToast(
+  text: string,
+  messages: UseClipboardOptions,
+): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(messages.copySuccessMessage);
+    return true;
+  } catch {
+    toast.error(messages.copyErrorMessage);
+    return false;
+  }
+}
+
 /**
  * Clipboard copy with toast feedback and optional visual "copied" state timing.
  * Callers supply messages so this hook stays free of any specific i18n namespace.
@@ -27,22 +42,23 @@ export function useClipboard(options: UseClipboardOptions): UseClipboardReturn {
 
   const copy = useCallback(
     async (text: string): Promise<void> => {
-      try {
-        await navigator.clipboard.writeText(text);
-        toast.success(copySuccessMessage);
-        setCopied(true);
-
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-
-        timeoutRef.current = setTimeout(() => {
-          setCopied(false);
-          timeoutRef.current = null;
-        }, COPY_SUCCESS_TIMEOUT);
-      } catch {
-        toast.error(copyErrorMessage);
+      const didCopy = await copyTextWithToast(text, {
+        copySuccessMessage,
+        copyErrorMessage,
+      });
+      if (!didCopy) {
+        return;
       }
+      setCopied(true);
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        timeoutRef.current = null;
+      }, COPY_SUCCESS_TIMEOUT);
     },
     [copyErrorMessage, copySuccessMessage],
   );

@@ -5032,6 +5032,11 @@
         "people": "Personen",
         "coworkers": "Coworkers"
       },
+      "Copy": {
+        "action": "Kopieren",
+        "success": "In Zwischenablage kopiert",
+        "error": "Kopieren fehlgeschlagen"
+      },
       "Edit": {
         "action": "Bearbeiten",
         "composerAria": "Nachricht bearbeiten. Enter speichern, Escape abbrechen, Umschalt+Enter neue Zeile.",

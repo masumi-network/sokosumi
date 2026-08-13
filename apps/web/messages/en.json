@@ -5030,6 +5030,11 @@
         "composerAria": "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line.",
         "edited": "Edited"
       },
+      "Copy": {
+        "action": "Copy",
+        "success": "Copied to clipboard",
+        "error": "Failed to copy"
+      },
       "MentionAll": {
         "label": "Everyone"
       },

@@ -4,6 +4,7 @@ import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
   AlertCircle,
   Check,
+  Copy,
   MessageCircle,
   Pencil,
   Quote,
@@ -81,6 +82,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { copyTextWithToast } from "@/hooks/use-clipboard";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
@@ -658,10 +660,12 @@ function MessageActionControls({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onCopy,
   onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showCopyButton,
   showEditButton,
   showDeleteButton,
   onAfterAction,
@@ -670,10 +674,12 @@ function MessageActionControls({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onCopy?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showCopyButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
   onAfterAction?: () => void;
@@ -724,6 +730,22 @@ function MessageActionControls({
           <Quote className="size-4" aria-hidden />
         </Button>
       ) : null}
+      {showCopyButton && onCopy ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-9 rounded-full sm:size-7"
+          title={t("Copy.action")}
+          aria-label={t("Copy.action")}
+          onClick={() => {
+            onCopy();
+            onAfterAction?.();
+          }}
+        >
+          <Copy className="size-4" aria-hidden />
+        </Button>
+      ) : null}
       {showThreadButton && onOpenThread ? (
         <Button
           type="button"
@@ -768,10 +790,12 @@ function MessageActions({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onCopy,
   onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showCopyButton,
   showEditButton,
   showDeleteButton,
 }: {
@@ -779,10 +803,12 @@ function MessageActions({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onCopy?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showCopyButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
@@ -799,10 +825,12 @@ function MessageActions({
         onToggleReaction={onToggleReaction}
         onOpenThread={onOpenThread}
         onQuote={onQuote}
+        onCopy={onCopy}
         onEdit={onEdit}
         onDelete={onDelete}
         showThreadButton={showThreadButton}
         showQuoteButton={showQuoteButton}
+        showCopyButton={showCopyButton}
         showEditButton={showEditButton}
         showDeleteButton={showDeleteButton}
       />
@@ -942,10 +970,12 @@ function TouchMessageActionsSheet({
   onToggleReaction,
   onOpenThread,
   onQuote,
+  onCopy,
   onEdit,
   onDelete,
   showThreadButton,
   showQuoteButton,
+  showCopyButton,
   showEditButton,
   showDeleteButton,
 }: {
@@ -955,10 +985,12 @@ function TouchMessageActionsSheet({
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
+  onCopy?: () => void;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   showQuoteButton: boolean;
+  showCopyButton: boolean;
   showEditButton: boolean;
   showDeleteButton: boolean;
 }) {
@@ -1088,6 +1120,19 @@ function TouchMessageActionsSheet({
             >
               <Quote className="size-4 shrink-0" aria-hidden />
               {t("Quote.action")}
+            </Button>
+          ) : null}
+          {showCopyButton && onCopy ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-11 justify-start gap-3 px-3"
+              onClick={() => {
+                runAndClose(onCopy);
+              }}
+            >
+              <Copy className="size-4 shrink-0" aria-hidden />
+              {t("Copy.action")}
             </Button>
           ) : null}
           {showThreadButton && onOpenThread ? (
@@ -1685,6 +1730,20 @@ export function ChatMessageRow({
   });
   const showActions =
     !isThinking && !isDeleted && !isEditing && !isOutboundLocal;
+  const canCopy =
+    !isDeleted &&
+    !isThinking &&
+    !isEditing &&
+    !isOutboundLocal &&
+    !isStreamOverlay &&
+    message.content.trim().length > 0;
+
+  function handleCopy() {
+    void copyTextWithToast(message.content, {
+      copySuccessMessage: tChannels("Copy.success"),
+      copyErrorMessage: tChannels("Copy.error"),
+    });
+  }
 
   function requestDelete(_message: ChatRoomMessage) {
     setSheetOpen(false);
@@ -1702,7 +1761,7 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-20",
+        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-48",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"
@@ -1893,10 +1952,12 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onCopy={handleCopy}
             onEdit={onStartEdit}
             onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showCopyButton={canCopy}
             showEditButton={canEdit}
             showDeleteButton={canDelete}
           />
@@ -1916,10 +1977,12 @@ export function ChatMessageRow({
             onToggleReaction={onToggleReaction}
             onOpenThread={onOpenThread}
             onQuote={onQuote}
+            onCopy={handleCopy}
             onEdit={onStartEdit}
             onDelete={requestDelete}
             showThreadButton={showThreadButton}
             showQuoteButton={canQuote}
+            showCopyButton={canCopy}
             showEditButton={canEdit}
             showDeleteButton={canDelete}
           />
