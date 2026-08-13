@@ -40,7 +40,9 @@ describe("chat/chats page scroll clearance contract", () => {
     const source = readFileSync(join(here, "../page.tsx"), "utf8");
     const code = source.replace(/\/\*[\s\S]*?\*\//g, "");
 
-    expect(code).toMatch(/CHAT_CHATS_MOBILE_LIST_SHELL_CLASS/);
+    // Require the className binding — a bare import would still match the
+    // identifier alone and would not prove the shell mounts on the list root.
+    expect(code).toMatch(/className=\{CHAT_CHATS_MOBILE_LIST_SHELL_CLASS\}/);
     expect(code).not.toMatch(/LIST_MOBILE_CREATE_FAB_CLEARANCE/);
     expect(code).not.toMatch(/overflow-y-auto/);
     expect(code).not.toMatch(/\bmin-h-0\b/);

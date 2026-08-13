@@ -18,7 +18,8 @@ describe("ChatChatsPageSkeleton", () => {
 
     const root = screen.getByTestId("chat-chats-loading");
     for (const token of CHAT_CHATS_MOBILE_LIST_SHELL_CLASS.split(/\s+/)) {
-      expect(root.className).toContain(token);
+      // Token match — substring `toContain("flex")` would pass on `flex-1`.
+      expect(root.classList.contains(token)).toBe(true);
     }
     // Nested min-h-0 + overflow-y-auto clips the last row under the fixed
     // tab bar; AppMobileChrome's in-flow spacer needs natural growth.
