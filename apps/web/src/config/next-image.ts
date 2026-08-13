@@ -16,6 +16,19 @@ export const NEXT_IMAGE_REMOTE_PATTERNS = [
     protocol: "https",
     hostname: "**.utxoag.com",
   },
+  /**
+   * Serviceplan coworker hosts (Jamal, Maya, …). `*` = one subdomain segment
+   * (e.g. usecases. / foo.); apex listed separately because Next `*` does not
+   * match the bare domain.
+   */
+  {
+    protocol: "https",
+    hostname: "*.serviceplan-agents.com",
+  },
+  {
+    protocol: "https",
+    hostname: "serviceplan-agents.com",
+  },
 ] as const;
 
 export function canUseNextImageSrc(url: string): boolean {
