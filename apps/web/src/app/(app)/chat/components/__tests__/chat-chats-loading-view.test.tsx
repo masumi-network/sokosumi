@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chats/chat-chats-list-shell";
+
 import { ChatChatsPageSkeleton } from "../chat-chats-loading-view";
 
 describe("ChatChatsPageSkeleton", () => {
@@ -11,16 +13,20 @@ describe("ChatChatsPageSkeleton", () => {
     expect(root.className).toMatch(/md:hidden/);
   });
 
-  it("grows with content (no nested overflow height-lock, no create-FAB pad)", () => {
+  it("uses the shared list shell so the last row clears the tab bar", () => {
     render(<ChatChatsPageSkeleton />);
 
     const root = screen.getByTestId("chat-chats-loading");
+    for (const token of CHAT_CHATS_MOBILE_LIST_SHELL_CLASS.split(/\s+/)) {
+      expect(root.className).toContain(token);
+    }
     // Nested min-h-0 + overflow-y-auto clips the last row under the fixed
     // tab bar; AppMobileChrome's in-flow spacer needs natural growth.
     expect(root.className).not.toMatch(/overflow-y-auto/);
     expect(root.className).not.toMatch(/\bmin-h-0\b/);
-    // Create FAB no longer mounts on /chat/chats.
-    expect(root.className).not.toMatch(/pb-\[/);
+    // Full four-side -m-4 pulls the spacer into the last rows.
+    expect(root.className).not.toMatch(/(?:^|\s)-m-4(?:\s|$)/);
+    expect(root.className).not.toMatch(/-mb-/);
   });
 
   it("omits Personal Assistant chrome (beta-gated on the real page)", () => {
