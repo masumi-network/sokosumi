@@ -1,12 +1,26 @@
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import type { AuthVariables } from "@/middleware/auth";
+import {
+  BASE_MAINNET,
+  BASE_SEPOLIA,
+  COWORKER_AGENT_CONTEXT,
+  createAgentRow,
+  createApp,
+  createCreditCostRow,
+  createReadinessRow,
+  NODE_DECIMALS,
+  PAY_TO,
+  type ReadinessPairFixture,
+  UNPRICED_ADDRESS,
+  USDC_ADDRESS,
+} from "./get.fixtures";
 
-import mountGetX402Agents from "./get";
-
+/**
+ * Who may list, which agents survive the fail-closed gates, and what the
+ * route logs about the ones it hid. The shape of the catalog query itself —
+ * pagination, ordering, snapshot isolation, column narrowing — lives in
+ * `get.query.test.ts`.
+ */
 const {
   agentCountMock,
   agentFindManyMock,
@@ -40,115 +54,12 @@ vi.mock("@/lib/db/prisma", () => ({
     agent: { findMany: agentFindManyMock, count: agentCountMock },
     creditCost: { findMany: creditCostFindManyMock },
     syncMetadata: { findUnique: syncMetadataFindUniqueMock },
-    // A spy, not a bare passthrough: the snapshot's ISOLATION LEVEL is the
-    // second argument, and a mock that discarded it left the option free to
-    // delete with every test still green.
     $transaction: prismaTransactionMock,
   },
 }));
 
-const BASE_SEPOLIA = "eip155:84532";
-const BASE_MAINNET = "eip155:8453";
-const USDC_ADDRESS = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
-const UNPRICED_ADDRESS = "0x2222222222222222222222222222222222222222";
-const PAY_TO = "0x1111111111111111111111111111111111111111";
-
-const COWORKER_AGENT_CONTEXT: AuthVariables["authContext"] = {
-  actor: "coworker",
-  coworkerId: "coworker_1",
-  vendorId: "vendor_1",
-};
-
-function createApp(authContext: AuthVariables["authContext"]) {
-  const app = new OpenAPIHono<{
-    Variables: AuthVariables;
-  }>({
-    defaultHook: (result) => {
-      if (!result.success && result.error) {
-        throw unprocessableEntity(formatZodErrorMessage(result.error));
-      }
-    },
-  });
-
-  app.use("*", async (c, next) => {
-    c.set("requestId", "test-req-id");
-    c.set("isAuthenticated", true);
-    c.set("authContext", authContext);
-    return await next();
-  });
-
-  mountGetX402Agents(app as unknown as OpenAPIHonoWithAuth);
-  return app;
-}
-
-/**
- * The node's published scale for the test assets, as the readiness cache
- * carries it. Seeded pairs default to it — `getX402ReadySources` drops a pair
- * whose `decimals` is missing or unusable — so a fixture only spells the field
- * out when the point of the test is the node/registry split.
- */
-const NODE_DECIMALS = 6;
-
-function seedReadiness(
-  pairs: {
-    caip2Network: string;
-    asset: string;
-    evmWalletId: string;
-    decimals?: number;
-  }[],
-) {
-  syncMetadataFindUniqueMock.mockResolvedValue({
-    key: "x402-buy-side-readiness",
-    cursorId: JSON.stringify(
-      pairs.map((pair) => ({ decimals: NODE_DECIMALS, ...pair })),
-    ),
-    lastSyncedAt: new Date(),
-  });
-}
-
-function createCreditCostRow(unit: string, centsPerUnit: bigint) {
-  const now = new Date("2026-01-01T00:00:00.000Z");
-  return {
-    id: `credit-cost-${unit}`,
-    createdAt: now,
-    updatedAt: now,
-    unit,
-    centsPerUnit,
-  };
-}
-
-interface AgentRowOverrides {
-  id?: string;
-  metadataOverride?: {
-    name: string | null;
-    description: string | null;
-    image: string | null;
-  } | null;
-  paymentSources?: unknown[];
-}
-
-function createAgentRow(overrides: AgentRowOverrides = {}) {
-  return {
-    id: overrides.id ?? "agent_x402_1",
-    name: "Registry Name",
-    description: "Registry description",
-    image: "https://registry.example.com/image.png",
-    x402ResourcesUrl: "https://agent.example.com/.well-known/x402",
-    metadataOverride:
-      overrides.metadataOverride === undefined
-        ? null
-        : overrides.metadataOverride,
-    paymentSources: overrides.paymentSources ?? [
-      {
-        sourceIndex: 0,
-        network: BASE_SEPOLIA,
-        payTo: PAY_TO,
-        pricingType: "FIXED",
-        scheme: "exact",
-        amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
-      },
-    ],
-  };
+function seedReadiness(pairs: ReadinessPairFixture[]) {
+  syncMetadataFindUniqueMock.mockResolvedValue(createReadinessRow(pairs));
 }
 
 describe("GET /agents/x402", () => {
@@ -156,8 +67,7 @@ describe("GET /agents/x402", () => {
     vi.clearAllMocks();
 
     // Batch form: Prisma resolves the array of operations together, which is
-    // what gives the page and its count one snapshot. The mock mirrors that
-    // while recording the options argument.
+    // what gives the page and its count one snapshot.
     prismaTransactionMock.mockImplementation(async (operations: unknown) =>
       Array.isArray(operations) ? await Promise.all(operations) : operations,
     );
@@ -293,190 +203,6 @@ describe("GET /agents/x402", () => {
         credits: 0.5,
       },
     ]);
-  });
-
-  it("only queries shown, online X402 entries (curation and status gate in SQL)", async () => {
-    const app = createApp(COWORKER_AGENT_CONTEXT);
-
-    const response = await app.request("http://localhost/x402");
-
-    expect(response.status).toBe(200);
-    expect(agentFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          type: "X402",
-          status: "ONLINE",
-          isShown: true,
-        },
-      }),
-    );
-  });
-
-  it("bounds the catalog page and reports pagination metadata", async () => {
-    // Registry entries are third-party-created. Without a bound, one listing
-    // call loads every X402 agent with every payment source and amount row.
-    const app = createApp(COWORKER_AGENT_CONTEXT);
-
-    const response = await app.request("http://localhost/x402");
-
-    expect(response.status).toBe(200);
-    const query = agentFindManyMock.mock.calls[0]?.[0];
-    // One over the page size is how the next-page probe works.
-    expect(query.take).toBe(21);
-    expect(query.cursor).toBeUndefined();
-    expect(query.skip).toBeUndefined();
-    const body = (await response.json()) as {
-      meta: { pagination: unknown };
-    };
-    expect(body.meta.pagination).toEqual({
-      cursor: null,
-      limit: 20,
-      total: 1,
-      nextCursor: null,
-    });
-  });
-
-  it("hands back a next cursor keyed on the raw page, not the payable subset", async () => {
-    // Cursoring off the FILTERED list would park the cursor on a dropped
-    // agent forever. The last RAW row of the page is the cursor.
-    const rawPage = Array.from({ length: 3 }, (_, index) =>
-      createAgentRow({
-        id: `agent_x402_${index}`,
-        // Only the first is payable; the rest must still advance the cursor.
-        paymentSources:
-          index === 0
-            ? undefined
-            : [
-                {
-                  sourceIndex: 0,
-                  network: BASE_SEPOLIA,
-                  payTo: PAY_TO,
-                  pricingType: "FIXED",
-                  scheme: "upto",
-                  amounts: [
-                    { unit: USDC_ADDRESS, amount: 250000n, decimals: 6 },
-                  ],
-                },
-              ],
-      }),
-    );
-    agentFindManyMock.mockResolvedValue(rawPage);
-    agentCountMock.mockResolvedValue(9);
-    const app = createApp(COWORKER_AGENT_CONTEXT);
-
-    const response = await app.request("http://localhost/x402?limit=2");
-
-    expect(response.status).toBe(200);
-    expect(agentFindManyMock.mock.calls[0]?.[0].take).toBe(3);
-    const body = (await response.json()) as {
-      data: { id: string }[];
-      meta: {
-        pagination: { limit: number; total: number; nextCursor: string };
-      };
-    };
-    expect(body.data.map((agent) => agent.id)).toEqual(["agent_x402_0"]);
-    expect(body.meta.pagination).toEqual({
-      cursor: null,
-      limit: 2,
-      total: 9,
-      // Second raw row of the page, even though it was dropped.
-      nextCursor: "agent_x402_1",
-    });
-  });
-
-  it("resumes from a supplied cursor", async () => {
-    const app = createApp(COWORKER_AGENT_CONTEXT);
-
-    const response = await app.request(
-      "http://localhost/x402?cursor=agent_x402_0&limit=5",
-    );
-
-    expect(response.status).toBe(200);
-    const query = agentFindManyMock.mock.calls[0]?.[0];
-    expect(query.cursor).toEqual({ id: "agent_x402_0" });
-    // Skip the cursor row itself.
-    expect(query.skip).toBe(1);
-    expect(query.take).toBe(6);
-  });
-
-  it("rejects a limit above the maximum instead of honouring it", async () => {
-    const app = createApp(COWORKER_AGENT_CONTEXT);
-
-    const response = await app.request("http://localhost/x402?limit=5000");
-
-    expect(response.status).toBe(422);
-    expect(agentFindManyMock).not.toHaveBeenCalled();
-  });
-
-  it("orders amount rows deterministically so row identity is stable", async () => {
-    // Unordered, the relation comes back in Postgres heap order and the
-    // listing's "first row for this asset" can disagree with the pay
-    // endpoint's — the same triple resolving to two different prices.
-    const app = createApp(COWORKER_AGENT_CONTEXT);
-
-    const response = await app.request("http://localhost/x402");
-
-    expect(response.status).toBe(200);
-    const query = agentFindManyMock.mock.calls[0]?.[0];
-    expect(query.select.paymentSources.select.amounts.orderBy).toEqual([
-      { unit: "asc" },
-      { id: "asc" },
-    ]);
-    expect(query.select.paymentSources.orderBy).toEqual({ sourceIndex: "asc" });
-  });
-
-  it("reads the page and its count in one repeatable-read snapshot", async () => {
-    // Prisma loads each selected relation as a SEPARATE statement. At READ
-    // COMMITTED a registry replay committing between them returns a FIXED
-    // payment source whose amount rows are already gone, so the listing
-    // advertises a price whose row no longer exists — listed but unpayable,
-    // the one invariant this route exists to hold. The BATCH form gets a
-    // shared snapshot without holding a pool connection across app code.
-    const app = createApp(COWORKER_AGENT_CONTEXT);
-
-    const response = await app.request("http://localhost/x402");
-
-    expect(response.status).toBe(200);
-    // The real AGENT_PRICING_READ_TRANSACTION_OPTIONS — this file does not
-    // mock @/helpers/agent — so the literal pins the shipped value.
-    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Array), {
-      isolationLevel: "RepeatableRead",
-    });
-    expect(agentFindManyMock).toHaveBeenCalled();
-    expect(agentCountMock).toHaveBeenCalled();
-  });
-
-  it("breaks the non-unique catalog order with a unique id tiebreak", async () => {
-    // `agentOrderBy` is (jobCount desc, createdAt desc) and neither column is
-    // unique. Cursor pagination resolves the cursor row's sort key and reads
-    // on from there, so without a unique final key agents sharing a
-    // (jobCount, createdAt) can be skipped or repeated across pages — a
-    // payable agent that no amount of paging ever reveals.
-    const app = createApp(COWORKER_AGENT_CONTEXT);
-
-    const response = await app.request("http://localhost/x402");
-
-    expect(response.status).toBe(200);
-    expect(agentFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        orderBy: [{ jobCount: "desc" }, { createdAt: "desc" }, { id: "desc" }],
-      }),
-    );
-  });
-
-  it("selects only the override columns the response actually reads", async () => {
-    // `metadataOverride: true` loads every scalar on the override row; the
-    // response resolves exactly three of them through the metadata getters,
-    // and the cost is multiplied by the page size.
-    const app = createApp(COWORKER_AGENT_CONTEXT);
-
-    const response = await app.request("http://localhost/x402");
-
-    expect(response.status).toBe(200);
-    const query = agentFindManyMock.mock.calls[0]?.[0];
-    expect(query.select.metadataOverride).toEqual({
-      select: { name: true, description: true, image: true },
-    });
   });
 
   it("hides the entire listing when buy-side readiness has never been recorded", async () => {
