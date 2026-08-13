@@ -1362,6 +1362,68 @@ describe("the exported node-shape schemas", () => {
       x402PaymentRequirementsSchema.safeParse(nodeShapeEntry()).success,
     ).toBe(true);
   });
+
+  it("re-imposes the three options the wild schema deliberately loosens", () => {
+    // The other half of the per-entry selection argument. `scheme`,
+    // `extra.assetTransferMethod` and the `maxTimeoutSeconds` cap were
+    // loosened in the WILD schema so one unsupported option costs only its
+    // own entry, on the stated promise that this schema re-imposes all three
+    // on whatever survives selection. Every test of that promise went through
+    // `normalizeX402PaymentRequired`, where `selectPayableRequirement`
+    // refuses the same three values first — so all three bounds could be
+    // deleted here with the suite still green, and the load-bearing half of
+    // the argument was unpinned. Fed DIRECTLY, this is the only gate.
+    const unsupported = [
+      { scheme: "upto" },
+      { maxTimeoutSeconds: X402_MAX_TIMEOUT_SECONDS + 1 },
+      { extra: { assetTransferMethod: "permit2" } },
+    ];
+
+    for (const override of unsupported) {
+      expect(
+        x402PaymentRequirementsSchema.safeParse(nodeShapeEntry(override))
+          .success,
+      ).toBe(false);
+      expect(
+        x402PaymentRequiredSchema.safeParse({
+          x402Version: 2,
+          accepts: [nodeShapeEntry(override)],
+        }).success,
+      ).toBe(false);
+    }
+
+    // Two-sided, so the bounds cannot be satisfied by refusing everything.
+    const supported = [
+      { scheme: X402_SUPPORTED_SCHEMES[0] },
+      { maxTimeoutSeconds: X402_MAX_TIMEOUT_SECONDS },
+      { extra: { assetTransferMethod: "eip3009" } },
+    ];
+
+    for (const override of supported) {
+      expect(
+        x402PaymentRequirementsSchema.safeParse(nodeShapeEntry(override))
+          .success,
+      ).toBe(true);
+    }
+  });
+
+  it("refuses an emptied accepts array", () => {
+    // `min(1)` is the structural nothing-payable backstop: selection empties
+    // `accepts` one entry at a time, and the normalizer's own reasoned error
+    // is what a caller sees today. This pins the backstop that has to hold if
+    // a future edit loses that guard — an empty `accepts` must never be
+    // forwarded to the node.
+    expect(
+      x402PaymentRequiredSchema.safeParse({ x402Version: 2, accepts: [] })
+        .success,
+    ).toBe(false);
+    expect(
+      x402PaymentRequiredSchema.safeParse({
+        x402Version: 2,
+        accepts: [nodeShapeEntry()],
+      }).success,
+    ).toBe(true);
+  });
 });
 
 describe("isX402PaymentIdentifierAdvertised", () => {
