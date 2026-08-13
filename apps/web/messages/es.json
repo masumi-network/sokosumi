@@ -5061,6 +5061,11 @@
         "people": "Personas",
         "coworkers": "Coworkers"
       },
+      "Copy": {
+        "action": "Copiar",
+        "success": "Copiado al portapapeles",
+        "error": "Error al copiar"
+      },
       "Edit": {
         "action": "Editar",
         "composerAria": "Editar mensaje. Intro para guardar, Escape para cancelar, Mayús+Intro para nueva línea.",

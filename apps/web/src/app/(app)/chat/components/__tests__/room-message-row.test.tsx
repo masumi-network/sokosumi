@@ -2,6 +2,11 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
+
+const { copyMock } = vi.hoisted(() => ({
+  copyMock: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { OUTBOUND_PENDING_SPINNER_DELAY_MS } from "@/app/chat/utils/outbound-room-message";
 import type {
   ChatRoomCoworkerParticipant,
@@ -74,6 +79,14 @@ vi.mock("@/components/ui/tooltip", () => ({
     <div role="tooltip">{children}</div>
   ),
   TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("@/hooks/use-clipboard", () => ({
+  useClipboard: () => ({
+    copied: false,
+    copy: copyMock,
+    reset: vi.fn(),
+  }),
 }));
 
 function userMessage(
@@ -393,6 +406,93 @@ describe("ChatMessageRow", () => {
       expect.objectContaining({ id: "message-1" }),
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows Copy in the message actions sheet", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      message: userMessage({ content: "Selectable chat body" }),
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Copy.action",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("copies stored message content and closes the sheet", async () => {
+    copyMock.mockClear();
+    const user = userEvent.setup();
+    renderRow({
+      message: userMessage({ content: "**bold** body" }),
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Copy.action",
+      }),
+    );
+
+    expect(copyMock).toHaveBeenCalledWith("**bold** body");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("hides Copy when the message has no copyable content", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      message: userMessage({ content: "   " }),
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", {
+        name: "Copy.action",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides Copy on a still-streaming overlay message", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      message: coworkerMessage({
+        id: "stream:turn-1",
+        content: "partial answer",
+      }),
+      onQuote: vi.fn(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+
+    expect(
+      within(screen.getByRole("dialog")).queryByRole("button", {
+        name: "Copy.action",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Copy on the hover action pill", () => {
+    renderRow({
+      message: userMessage({ content: "Hover copy body" }),
+      onQuote: vi.fn(),
+    });
+
+    const hoverActions = document.querySelector(
+      '[data-message-actions="hover"]',
+    );
+    expect(hoverActions).toBeTruthy();
+    expect(
+      within(hoverActions as HTMLElement).getByRole("button", {
+        name: "Copy.action",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("dismisses the sheet when swiped down past the threshold", async () => {
