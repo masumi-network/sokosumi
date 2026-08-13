@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AuthenticationContext } from "@/middleware/auth";
+
 const {
   authContextState,
   agentCountMock,
@@ -18,15 +20,13 @@ const {
   syncMetadataFindUniqueMock,
 } = vi.hoisted(() => ({
   authContextState: {
-    current: null as
-      | {
-          actor: "user";
-          userId: string;
-          organizationId: string | null;
-          role: string;
-        }
-      | { actor: "coworker"; agentId: string; context?: undefined }
-      | null,
+    // Typed as the real union, not a hand-written shape: the previous local
+    // literal declared an `agentId` field that exists nowhere in
+    // middleware/auth.ts, so drift from the real context could not be a
+    // compile error. Harmless while isCoworkerAgentContext reads only `actor`
+    // and `context`, but a later gate reading `coworkerId` would silently see
+    // undefined and the test would still pass.
+    current: null as AuthenticationContext | null,
   },
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
@@ -162,7 +162,11 @@ describe("agents routes auth gate", () => {
     // listing handler answers with its fail-closed empty ARRAY. The by-id
     // capture cannot produce that shape: it would transact a lookup for
     // id="x402" and 404.
-    authContextState.current = { actor: "coworker", agentId: "cw_agent_1" };
+    authContextState.current = {
+      actor: "coworker",
+      coworkerId: "coworker_1",
+      vendorId: "vendor_1",
+    };
     syncMetadataFindUniqueMock.mockResolvedValue(null);
 
     const response = await agentsRouter.request("http://localhost/x402");
