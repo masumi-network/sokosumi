@@ -6,7 +6,7 @@ import type { Coworker } from "@/app/chat/utils/types";
 import { cn } from "@/lib/utils";
 
 import { CoworkerStrip } from "./coworker-strip.client";
-import { featuredCoworkerRole, toStripCoworker } from "./landing-content";
+import { featuredCoworkerRole, orderStripCoworkers } from "./landing-content";
 import { StartChatButton } from "./start-chat-button.client";
 
 interface LandingCoworkerPickerProps {
@@ -24,6 +24,8 @@ interface LandingCoworkerPickerProps {
  * Landing strip + details + Start chat.
  *
  * Strip taps only change selection. Opening a DM waits for Start chat.
+ * Default featured (Elena) sits in the middle of the full catalog and is
+ * scrolled into optical centre on first paint.
  */
 export function LandingCoworkerPicker({
   coworkers,
@@ -44,18 +46,14 @@ export function LandingCoworkerPicker({
   const selected =
     coworkers.find((coworker) => coworker.id === selectedId) ?? initial;
 
-  // Stable browse order: default featured first, then the rest of the catalog.
-  const ordered = [
-    initial,
-    ...coworkers.filter((coworker) => coworker.id !== initial.id),
-  ];
-  const stripCoworkers = ordered.map(toStripCoworker);
+  const stripCoworkers = orderStripCoworkers(coworkers, initial);
   const selectedRole = featuredCoworkerRole(selected, elenaRole);
 
   return (
     <>
       <div className={cn(size === "compact" ? "mt-8" : "mt-12", "w-full")}>
         <CoworkerStrip
+          centerOnId={initial.id}
           coworkers={stripCoworkers}
           onSelect={setSelectedId}
           selectedId={selected.id}

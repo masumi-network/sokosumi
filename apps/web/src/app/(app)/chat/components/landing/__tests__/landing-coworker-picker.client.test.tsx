@@ -61,6 +61,35 @@ describe("LandingCoworkerPicker", () => {
     }),
   ];
 
+  it("renders Elena in the middle of the full strip order", () => {
+    const catalog = [
+      buildCoworker({ id: "a", name: "A", slug: "a" }),
+      buildCoworker({ id: "b", name: "B", slug: "b" }),
+      buildCoworker({
+        id: "elena",
+        name: "Elena",
+        slug: "elena",
+        caption: "Strategy",
+      }),
+      buildCoworker({ id: "c", name: "C", slug: "c" }),
+      buildCoworker({ id: "d", name: "D", slug: "d" }),
+    ];
+
+    render(
+      <LandingCoworkerPicker
+        coworkers={catalog}
+        elenaRole="Project Manager - you can give her any task"
+        initialSelectedId="elena"
+      />,
+    );
+
+    const optionIds = screen
+      .getAllByRole("option")
+      .map((node) => node.getAttribute("data-coworker-id"));
+    // 5 coworkers → Elena at exact middle (index 2); nothing dropped.
+    expect(optionIds).toEqual(["a", "b", "elena", "c", "d"]);
+  });
+
   it("defaults selection to the initial coworker and binds Start chat to them", () => {
     render(
       <LandingCoworkerPicker

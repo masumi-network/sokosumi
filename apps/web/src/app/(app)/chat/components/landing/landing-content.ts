@@ -71,11 +71,13 @@ export function toStripCoworker(coworker: Coworker): StripCoworker {
 }
 
 /**
- * Every non-featured coworker for the scrollable landing strip.
+ * Full catalog ordered with the featured coworker (Elena / fallback) in the
+ * optical middle. Odd counts → exact centre; even → left of the two centre
+ * slots (`floor(others/2)` flanks left). Never drops anyone.
  *
  * Empty when nothing is featured — the strip only renders with a lead face.
  */
-export function selectStripCoworkers(
+export function orderStripCoworkers(
   coworkers: Coworker[],
   featured: Coworker | null,
 ): StripCoworker[] {
@@ -83,9 +85,28 @@ export function selectStripCoworkers(
     return [];
   }
 
-  return coworkers
-    .filter((coworker) => coworker.id !== featured.id)
-    .map(toStripCoworker);
+  const others = coworkers.filter((coworker) => coworker.id !== featured.id);
+  const leftCount = Math.floor(others.length / 2);
+  const left = others.slice(0, leftCount);
+  const right = others.slice(leftCount);
+
+  return [...left, featured, ...right].map(toStripCoworker);
+}
+
+/**
+ * Horizontal scroll offset that puts a child at the optical centre of its
+ * scrollport. Clamped so short strips (or edge children) do not overscroll.
+ */
+export function opticalCenterScrollLeft(input: {
+  childOffsetLeft: number;
+  childWidth: number;
+  containerWidth: number;
+  scrollWidth: number;
+}): number {
+  const childCenter = input.childOffsetLeft + input.childWidth / 2;
+  const target = childCenter - input.containerWidth / 2;
+  const maxScroll = Math.max(0, input.scrollWidth - input.containerWidth);
+  return Math.min(maxScroll, Math.max(0, target));
 }
 
 type StatsTranslator = (

@@ -7,8 +7,9 @@ import {
   buildActivityStats,
   featuredCoworkerRole,
   hasReportableActivity,
+  opticalCenterScrollLeft,
+  orderStripCoworkers,
   resolveFeaturedCoworker,
-  selectStripCoworkers,
   toStripCoworker,
 } from "../landing-content";
 
@@ -130,36 +131,81 @@ describe("toStripCoworker", () => {
   });
 });
 
-describe("selectStripCoworkers", () => {
+describe("orderStripCoworkers", () => {
   const featured = buildCoworker({ id: "elena", slug: "elena" });
   const others = ["a", "b", "c", "d", "e", "f", "g"].map((id) =>
     buildCoworker({ id }),
   );
 
-  it("never includes the featured coworker", () => {
-    const picked = selectStripCoworkers([featured, ...others], featured);
-    expect(picked.map((c) => c.id)).not.toContain("elena");
+  it("places the featured coworker at the exact middle for an odd count", () => {
+    // 1 featured + 4 others = 5 → index 2
+    const four = others.slice(0, 4);
+    const ordered = orderStripCoworkers([featured, ...four], featured);
+    expect(ordered.map((c) => c.id)).toEqual(["a", "b", "elena", "c", "d"]);
+    expect(ordered).toHaveLength(5);
   });
 
-  it("returns every non-featured coworker", () => {
-    const picked = selectStripCoworkers([featured, ...others], featured);
-    expect(picked.map((c) => c.id)).toEqual([
-      "a",
-      "b",
-      "c",
-      "d",
-      "e",
-      "f",
-      "g",
-    ]);
+  it("places the featured coworker left-of-centre for an even count", () => {
+    // 1 featured + 3 others = 4 → index 1 (left of the two centre slots)
+    const three = others.slice(0, 3);
+    const ordered = orderStripCoworkers([featured, ...three], featured);
+    expect(ordered.map((c) => c.id)).toEqual(["a", "elena", "b", "c"]);
+    expect(ordered).toHaveLength(4);
+  });
+
+  it("keeps every coworker — never drops for even flanks", () => {
+    const ordered = orderStripCoworkers([featured, ...others], featured);
+    expect(ordered).toHaveLength(1 + others.length);
+    expect(ordered.map((c) => c.id).sort()).toEqual(
+      ["elena", ...others.map((c) => c.id)].sort(),
+    );
+    // 8 items → index floor(7/2)=3
+    expect(ordered[3]?.id).toBe("elena");
   });
 
   it("returns an empty list when nothing is featured", () => {
-    expect(selectStripCoworkers(others, null)).toEqual([]);
+    expect(orderStripCoworkers(others, null)).toEqual([]);
   });
 
-  it("returns an empty list for a lone featured coworker", () => {
-    expect(selectStripCoworkers([featured], featured)).toEqual([]);
+  it("returns a lone featured coworker alone", () => {
+    expect(orderStripCoworkers([featured], featured).map((c) => c.id)).toEqual([
+      "elena",
+    ]);
+  });
+});
+
+describe("opticalCenterScrollLeft", () => {
+  it("centres a mid-strip child in an overflowing viewport", () => {
+    expect(
+      opticalCenterScrollLeft({
+        childOffsetLeft: 400,
+        childWidth: 100,
+        containerWidth: 200,
+        scrollWidth: 900,
+      }),
+    ).toBe(350);
+  });
+
+  it("clamps to zero when the strip fits the viewport", () => {
+    expect(
+      opticalCenterScrollLeft({
+        childOffsetLeft: 40,
+        childWidth: 80,
+        containerWidth: 400,
+        scrollWidth: 300,
+      }),
+    ).toBe(0);
+  });
+
+  it("clamps to max scroll near the end of the strip", () => {
+    expect(
+      opticalCenterScrollLeft({
+        childOffsetLeft: 800,
+        childWidth: 100,
+        containerWidth: 200,
+        scrollWidth: 900,
+      }),
+    ).toBe(700);
   });
 });
 

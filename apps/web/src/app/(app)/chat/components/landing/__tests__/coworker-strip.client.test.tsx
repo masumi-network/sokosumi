@@ -54,6 +54,7 @@ describe("CoworkerStrip", () => {
 
     render(
       <CoworkerStrip
+        centerOnId="elena"
         coworkers={coworkers}
         onSelect={vi.fn()}
         selectedId="elena"
@@ -71,6 +72,7 @@ describe("CoworkerStrip", () => {
   it("uses a horizontally scrollable overflow container", () => {
     render(
       <CoworkerStrip
+        centerOnId="elena"
         coworkers={[
           buildStripCoworker({ id: "elena", name: "Elena" }),
           buildStripCoworker({ id: "hannah", name: "Hannah", title: "Ops" }),
@@ -84,12 +86,31 @@ describe("CoworkerStrip", () => {
     expect(scroll.className).toMatch(/overflow-x-auto/);
   });
 
+  it("keeps a data hook for the centered coworker", () => {
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({ id: "a", name: "A" }),
+          buildStripCoworker({ id: "elena", name: "Elena" }),
+          buildStripCoworker({ id: "b", name: "B" }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="elena"
+      />,
+    );
+
+    const scroll = screen.getByTestId("coworker-strip-scroll");
+    expect(scroll.querySelector('[data-coworker-id="elena"]')).toBeTruthy();
+  });
+
   it("selects a coworker on tap without opening a room", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
 
     render(
       <CoworkerStrip
+        centerOnId="elena"
         coworkers={[
           buildStripCoworker({ id: "elena", name: "Elena" }),
           buildStripCoworker({ id: "hannah", name: "Hannah", title: "Ops" }),
@@ -112,6 +133,7 @@ describe("CoworkerStrip", () => {
   it("marks the selected coworker as aria-selected", () => {
     render(
       <CoworkerStrip
+        centerOnId="elena"
         coworkers={[
           buildStripCoworker({ id: "elena", name: "Elena" }),
           buildStripCoworker({ id: "hannah", name: "Hannah" }),
