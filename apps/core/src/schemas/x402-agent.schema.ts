@@ -17,9 +17,17 @@ export const x402AgentPaymentSourceSchema = z
       example: "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
       description: "ERC-20 contract address of the accepted asset (lowercase)",
     }),
+    // Filled from `X402ReadySource.decimals` (the node's
+    // `defaultAssetDecimals`), NOT from the agent's `AgentPaymentSourceAmount`
+    // row. The scale divides the charge, so swapping the two back would let an
+    // agent registering 18 for 6-decimals USDC be charged 10^12 too little for
+    // a token Soko's managed wallet really signs away. Say so in the published
+    // description too: an integrator told this field is agent-authored has no
+    // reason to leave the safe source in place.
     decimals: z.number().int().openapi({
       example: 6,
-      description: "Asset decimals from the agent's registry entry",
+      description:
+        "Base units per whole token for this (network, asset) pair, as the Sokosumi payment node publishes it — never the scale the agent registered. It is the scale `credits` was computed at.",
     }),
     payTo: z.string().openapi({
       example: "0x1111111111111111111111111111111111111111",
