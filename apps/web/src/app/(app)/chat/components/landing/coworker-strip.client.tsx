@@ -8,6 +8,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
 import { findNearestCenterIdFromElements } from "./nearest-center-coworker";
+import { resolveOverflowStripGapPx } from "./peek-safe-strip-gap";
 
 export interface StripCoworker {
   id: string;
@@ -34,7 +35,9 @@ const STRIP_SIZES = {
   compact: {
     featured: "size-20",
     other: "size-11",
-    gap: "gap-4",
+    // Preferred 1rem; overflow may override via --strip-gap (peek-safe).
+    gap: "gap-[length:var(--strip-gap,1rem)]",
+    preferredGapRem: 1,
     // All chips share the featured width so selection reflow cannot move
     // centers while scroll-driven selection is active.
     itemWidth: "w-[5.5rem]",
@@ -50,7 +53,8 @@ const STRIP_SIZES = {
   default: {
     featured: "size-28",
     other: "size-16",
-    gap: "gap-5",
+    gap: "gap-[length:var(--strip-gap,1.25rem)]",
+    preferredGapRem: 1.25,
     itemWidth: "w-28",
     featuredSizes: "112px",
     otherSizes: "64px",
@@ -71,6 +75,8 @@ const STRIP_SIZES = {
  * it cannot widen the picker or page. On mount, scrolls so `centerOnId` sits
  * optically in the middle. While the user scrolls, selection follows the
  * coworker nearest the visual center; tap selects and centers that face.
+ * When the track overflows, `--strip-gap` is tuned so a middle-centered chip
+ * peek-cuts both scrollport edges (overflow-only; fit case keeps preferred).
  * Strip titles always reserve two lines (`min-h-[2lh]`) so 1-line vs wrapping
  * captions cannot change row height and push Start chat.
  */
@@ -84,6 +90,7 @@ export function CoworkerStrip({
   const t = useTranslations("App.Chat.Landing");
   const scale = STRIP_SIZES[size];
   const scrollRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef(new Map<string, HTMLButtonElement>());
   /** >0 while programmatic scrollIntoView should not drive selection. */
   const suppressScrollSelectRef = useRef(0);
@@ -150,6 +157,50 @@ export function CoworkerStrip({
     }
   });
 
+  const syncPeekSafeGap = useEffectEvent(() => {
+    const scroll = scrollRef.current;
+    const track = trackRef.current;
+    if (!scroll || !track) {
+      return;
+    }
+
+    if (scroll.scrollWidth <= scroll.clientWidth) {
+      track.style.removeProperty("--strip-gap");
+      return;
+    }
+
+    const firstChip = track.querySelector<HTMLElement>("[data-coworker-id]");
+    if (!firstChip) {
+      return;
+    }
+
+    const itemWidthPx = firstChip.getBoundingClientRect().width;
+    const rootFontPx = Number.parseFloat(
+      getComputedStyle(document.documentElement).fontSize,
+    );
+    const preferredGapPx = scale.preferredGapRem * rootFontPx;
+    if (
+      !(itemWidthPx > 0) ||
+      !(preferredGapPx > 0) ||
+      !(scroll.clientWidth > 0)
+    ) {
+      return;
+    }
+
+    const gapPx = resolveOverflowStripGapPx({
+      viewportWidthPx: scroll.clientWidth,
+      itemWidthPx,
+      preferredGapPx,
+    });
+
+    if (Math.abs(gapPx - preferredGapPx) < 0.5) {
+      track.style.removeProperty("--strip-gap");
+      return;
+    }
+
+    track.style.setProperty("--strip-gap", `${gapPx}px`);
+  });
+
   useMountEffect(() => {
     const child = itemRefs.current.get(centerOnId);
     if (!child) {
@@ -167,6 +218,27 @@ export function CoworkerStrip({
     return () => {
       cancelAnimationFrame(frame1);
       cancelAnimationFrame(frame2);
+    };
+  });
+
+  useMountEffect(() => {
+    const scroll = scrollRef.current;
+    const track = trackRef.current;
+    if (!scroll || typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    syncPeekSafeGap();
+    const observer = new ResizeObserver(() => {
+      syncPeekSafeGap();
+    });
+    observer.observe(scroll);
+    if (track) {
+      observer.observe(track);
+    }
+
+    return () => {
+      observer.disconnect();
     };
   });
 
@@ -193,10 +265,13 @@ export function CoworkerStrip({
       onScroll={syncSelectionFromScroll}
     >
       <div
+        ref={trackRef}
         className={cn(
           // min-w-full + justify-center: when the catalog fits, Elena (middle
           // of the track) lands in the visual centre. When it overflows, w-max
           // wins and edgePad lets first/last faces reach optical center.
+          // Gap uses --strip-gap when overflowing so middle-centered chips
+          // peek-cut both scrollport edges (see syncPeekSafeGap).
           "flex w-max min-w-full items-start justify-center py-1",
           scale.edgePad,
           scale.gap,

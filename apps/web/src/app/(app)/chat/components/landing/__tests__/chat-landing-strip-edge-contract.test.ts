@@ -72,6 +72,27 @@ describe("chat landing coworker strip edge-to-edge contract", () => {
     expect(selectedBlock).toMatch(/px-4/);
   });
 
+  it("coworker strip scrollport stays full-bleed and uses peek-safe gap var", () => {
+    const source = readFileSync(
+      join(import.meta.dirname, "..", "coworker-strip.client.tsx"),
+      "utf8",
+    );
+
+    // Scrollport: column-bounded overflow, no page inset.
+    expect(source).toContain('data-testid="coworker-strip-scroll"');
+    expect(source).toMatch(/overflow-x-auto/);
+    expect(source).not.toMatch(
+      /data-testid="coworker-strip-scroll"[\s\S]{0,200}px-\d/,
+    );
+
+    // Track gap is CSS-var driven (overflow peek-safe); no static gap-4/gap-5.
+    expect(source).toContain("--strip-gap");
+    expect(source).toMatch(/gap-\[length:var\(--strip-gap,/);
+    expect(source).not.toMatch(/\bgap-4\b/);
+    expect(source).not.toMatch(/\bgap-5\b/);
+    expect(source).toContain("resolveOverflowStripGapPx");
+  });
+
   it("app main still pads with p-4 (the ancestor that would clip mobile)", () => {
     const source = readFileSync(
       join(
