@@ -11,11 +11,13 @@ const {
   agentCountMock,
   agentFindManyMock,
   creditCostFindManyMock,
+  prismaTransactionMock,
   syncMetadataFindUniqueMock,
 } = vi.hoisted(() => ({
   agentCountMock: vi.fn(),
   agentFindManyMock: vi.fn(),
   creditCostFindManyMock: vi.fn(),
+  prismaTransactionMock: vi.fn(),
   syncMetadataFindUniqueMock: vi.fn(),
 }));
 
@@ -38,9 +40,10 @@ vi.mock("@/lib/db/prisma", () => ({
     agent: { findMany: agentFindManyMock, count: agentCountMock },
     creditCost: { findMany: creditCostFindManyMock },
     syncMetadata: { findUnique: syncMetadataFindUniqueMock },
-    // The route reads the page and its count in one snapshot; the mocked
-    // client resolves the batch straight through.
-    $transaction: (operations: Promise<unknown>[]) => Promise.all(operations),
+    // A spy, not a bare passthrough: the snapshot's ISOLATION LEVEL is the
+    // second argument, and a mock that discarded it left the option free to
+    // delete with every test still green.
+    $transaction: prismaTransactionMock,
   },
 }));
 
@@ -152,6 +155,12 @@ describe("GET /agents/x402", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    // Batch form: Prisma resolves the array of operations together, which is
+    // what gives the page and its count one snapshot. The mock mirrors that
+    // while recording the options argument.
+    prismaTransactionMock.mockImplementation(async (operations: unknown) =>
+      Array.isArray(operations) ? await Promise.all(operations) : operations,
+    );
     seedReadiness([
       {
         caip2Network: BASE_SEPOLIA,
@@ -414,6 +423,45 @@ describe("GET /agents/x402", () => {
       { id: "asc" },
     ]);
     expect(query.select.paymentSources.orderBy).toEqual({ sourceIndex: "asc" });
+  });
+
+  it("reads the page and its count in one repeatable-read snapshot", async () => {
+    // Prisma loads each selected relation as a SEPARATE statement. At READ
+    // COMMITTED a registry replay committing between them returns a FIXED
+    // payment source whose amount rows are already gone, so the listing
+    // advertises a price whose row no longer exists — listed but unpayable,
+    // the one invariant this route exists to hold. The BATCH form gets a
+    // shared snapshot without holding a pool connection across app code.
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    // The real AGENT_PRICING_READ_TRANSACTION_OPTIONS — this file does not
+    // mock @/helpers/agent — so the literal pins the shipped value.
+    expect(prismaTransactionMock).toHaveBeenCalledWith(expect.any(Array), {
+      isolationLevel: "RepeatableRead",
+    });
+    expect(agentFindManyMock).toHaveBeenCalled();
+    expect(agentCountMock).toHaveBeenCalled();
+  });
+
+  it("breaks the non-unique catalog order with a unique id tiebreak", async () => {
+    // `agentOrderBy` is (jobCount desc, createdAt desc) and neither column is
+    // unique. Cursor pagination resolves the cursor row's sort key and reads
+    // on from there, so without a unique final key agents sharing a
+    // (jobCount, createdAt) can be skipped or repeated across pages — a
+    // payable agent that no amount of paging ever reveals.
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402");
+
+    expect(response.status).toBe(200);
+    expect(agentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ jobCount: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+      }),
+    );
   });
 
   it("selects only the override columns the response actually reads", async () => {
