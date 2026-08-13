@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -435,6 +435,68 @@ describe("LandingCoworkerPicker", () => {
         name: 'cta.button:{"name":"Hannah"}',
       }),
     ).toBeInTheDocument();
+  });
+
+  it("updates description and Start chat when scroll centers another coworker", () => {
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+
+    render(
+      <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
+    );
+
+    const scroll = screen.getByTestId("coworker-strip-scroll");
+    scroll.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        width: 300,
+        top: 0,
+        height: 80,
+        right: 300,
+        bottom: 80,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    function place(id: string, left: number, width: number): void {
+      const node = scroll.querySelector(
+        `[data-coworker-id="${id}"]`,
+      ) as HTMLElement;
+      node.getBoundingClientRect = () =>
+        ({
+          left,
+          width,
+          top: 0,
+          height: 80,
+          right: left + width,
+          bottom: 80,
+          x: left,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    }
+
+    // Strip order is [hannah, elena, deckster] with Elena featured.
+    place("hannah", 110, 80);
+    place("elena", 260, 80);
+    place("deckster", 410, 80);
+
+    fireEvent.scroll(scroll);
+
+    expect(openCoworkerRoom).not.toHaveBeenCalled();
+    expect(
+      screen.getByTestId("landing-selected-description").textContent,
+    ).toContain("Hannah digs into sources");
+    expect(
+      screen.getByRole("button", {
+        name: 'cta.button:{"name":"Hannah"}',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Hannah"}',
+      }),
+    ).toHaveAttribute("aria-selected", "true");
   });
 
   it("opens a DM only from Start chat after selection", async () => {
