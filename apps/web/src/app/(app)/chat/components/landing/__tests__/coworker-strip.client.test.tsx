@@ -96,16 +96,17 @@ describe("CoworkerStrip", () => {
   });
 
   it("sets peek-safe --strip-gap when the strip overflows", () => {
+    const rootFontPx = `${16}px`;
     const rootFontSpy = vi
       .spyOn(window, "getComputedStyle")
       .mockImplementation((el: Element) => {
         if (el === document.documentElement) {
-          return { fontSize: "16px" } as CSSStyleDeclaration;
+          return { fontSize: rootFontPx } as CSSStyleDeclaration;
         }
         return {
-          fontSize: "16px",
-          columnGap: "16px",
-          gap: "16px",
+          fontSize: rootFontPx,
+          columnGap: rootFontPx,
+          gap: rootFontPx,
         } as CSSStyleDeclaration;
       });
 
