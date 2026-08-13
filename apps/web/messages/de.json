@@ -1567,7 +1567,9 @@
         "team": {
           "avatarAlt": "{name}",
           "stripLabel": "Verfügbare Coworker",
-          "select": "{name} auswählen"
+          "select": "{name} auswählen",
+          "showMore": "Mehr",
+          "showLess": "Weniger"
         }
       }
     },

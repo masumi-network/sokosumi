@@ -8,8 +8,10 @@ import { cn } from "@/lib/utils";
 import { CoworkerStrip } from "./coworker-strip.client";
 import {
   orderStripCoworkers,
+  selectedCoworkerCaption,
   selectedCoworkerDescription,
 } from "./landing-content";
+import { LandingSelectedDescription } from "./landing-selected-description.client";
 import { StartChatButton } from "./start-chat-button.client";
 
 interface LandingCoworkerPickerProps {
@@ -24,10 +26,10 @@ interface LandingCoworkerPickerProps {
 /**
  * Landing strip + details + Start chat.
  *
- * Strip taps only change selection. Opening a DM waits for Start chat.
+ * Order under the strip: name → caption → Start chat → description.
+ * Description lives below the CTA so length / more-less never moves the button.
  * Default featured (Elena) sits in the middle of the full catalog and is
- * scrolled into optical centre on first paint. Under-name copy is the
- * selected coworker's DB description (caption stays on strip chips only).
+ * scrolled into optical centre on first paint.
  */
 export function LandingCoworkerPicker({
   coworkers,
@@ -48,10 +50,11 @@ export function LandingCoworkerPicker({
     coworkers.find((coworker) => coworker.id === selectedId) ?? initial;
 
   const stripCoworkers = orderStripCoworkers(coworkers, initial);
+  const selectedCaption = selectedCoworkerCaption(selected);
   const selectedDescription = selectedCoworkerDescription(selected);
 
   return (
-    <>
+    <div data-testid="landing-coworker-picker">
       <div className={cn(size === "compact" ? "mt-8" : "mt-12", "w-full")}>
         <CoworkerStrip
           centerOnId={initial.id}
@@ -67,30 +70,42 @@ export function LandingCoworkerPicker({
           "font-semibold tracking-[-0.01em]",
           size === "compact" ? "mt-4 text-lg" : "mt-5 text-xl",
         )}
+        data-testid="landing-selected-name"
       >
         {selected.name}
       </p>
-      {selectedDescription ? (
+      {selectedCaption ? (
         <p
           className={cn(
-            "text-muted-foreground text-balance",
+            "text-muted-foreground",
             size === "compact"
-              ? "mt-1.5 max-w-[40ch] text-[0.8125rem] leading-[1.5]"
-              : "mx-auto mt-2 max-w-[46ch] text-[0.9375rem] leading-[1.55]",
+              ? "mt-1 text-[0.8125rem] leading-snug"
+              : "mt-1.5 text-sm leading-snug",
           )}
-          data-testid="landing-selected-description"
+          data-testid="landing-selected-caption"
         >
-          {selectedDescription}
+          {selectedCaption}
         </p>
       ) : null}
 
-      <div className={cn("mt-6", size === "compact" && "w-full max-w-xs")}>
+      <div
+        className={cn("mt-6", size === "compact" && "w-full max-w-xs")}
+        data-testid="landing-start-chat"
+      >
         <StartChatButton
           className={startChatClassName}
           coworkerId={selected.id}
           coworkerName={selected.name}
         />
       </div>
-    </>
+
+      {selectedDescription ? (
+        <LandingSelectedDescription
+          coworkerId={selected.id}
+          description={selectedDescription}
+          size={size}
+        />
+      ) : null}
+    </div>
   );
 }

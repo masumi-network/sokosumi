@@ -5,10 +5,13 @@ import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import {
   buildActivityStats,
+  clampLandingDescription,
   hasReportableActivity,
+  LANDING_DESCRIPTION_MAX_CHARS,
   opticalCenterScrollLeft,
   orderStripCoworkers,
   resolveFeaturedCoworker,
+  selectedCoworkerCaption,
   selectedCoworkerDescription,
   toStripCoworker,
 } from "../landing-content";
@@ -73,6 +76,28 @@ describe("resolveFeaturedCoworker", () => {
   });
 });
 
+describe("selectedCoworkerCaption", () => {
+  it("returns a trimmed caption", () => {
+    expect(
+      selectedCoworkerCaption(
+        buildCoworker({ id: "elena", caption: "  Strategy  " }),
+      ),
+    ).toBe("Strategy");
+  });
+
+  it("returns null when caption is empty — no useCase fallback", () => {
+    expect(
+      selectedCoworkerCaption(
+        buildCoworker({
+          id: "hannah",
+          caption: "   ",
+          useCase: "Research briefs",
+        }),
+      ),
+    ).toBeNull();
+  });
+});
+
 describe("selectedCoworkerDescription", () => {
   it("returns a trimmed description", () => {
     const elena = buildCoworker({
@@ -92,6 +117,25 @@ describe("selectedCoworkerDescription", () => {
       description: "   ",
     });
     expect(selectedCoworkerDescription(hannah)).toBeNull();
+  });
+});
+
+describe("clampLandingDescription", () => {
+  it("leaves short copy untouched", () => {
+    expect(clampLandingDescription("Short pitch.")).toEqual({
+      isTruncated: false,
+      preview: "Short pitch.",
+    });
+  });
+
+  it("truncates long copy near the character budget with an ellipsis", () => {
+    const long = "word ".repeat(50).trim();
+    const result = clampLandingDescription(long);
+    expect(result.isTruncated).toBe(true);
+    expect(result.preview.endsWith("…")).toBe(true);
+    expect(result.preview.length).toBeLessThanOrEqual(
+      LANDING_DESCRIPTION_MAX_CHARS + 1,
+    );
   });
 });
 

@@ -33,13 +33,46 @@ export function resolveFeaturedCoworker(
 }
 
 /**
- * Body copy under the selected coworker name (above Start chat).
- * DB `description` only — never caption, useCase, or Elena i18n pitch.
+ * Short specialty under the selected name (above Start chat).
+ * DB `caption` only — omit when empty (no useCase fallback here).
+ */
+export function selectedCoworkerCaption(
+  coworker: Pick<Coworker, "caption">,
+): string | null {
+  return nonEmptySpecialty(coworker.caption);
+}
+
+/**
+ * Body copy under Start chat. DB `description` only — never caption/useCase.
  */
 export function selectedCoworkerDescription(
   coworker: Pick<Coworker, "description">,
 ): string | null {
   return nonEmptySpecialty(coworker.description);
+}
+
+/** Collapsed landing description budget (~3 lines of body copy). */
+export const LANDING_DESCRIPTION_MAX_CHARS = 180;
+
+/**
+ * Truncate a landing description for the collapsed state.
+ * Returns the full string when it already fits; otherwise a word-aware preview
+ * capped near `maxChars` with an ellipsis, and `isTruncated: true`.
+ */
+export function clampLandingDescription(
+  description: string,
+  maxChars: number = LANDING_DESCRIPTION_MAX_CHARS,
+): { isTruncated: boolean; preview: string } {
+  if (description.length <= maxChars) {
+    return { isTruncated: false, preview: description };
+  }
+
+  const slice = description.slice(0, maxChars);
+  const lastSpace = slice.lastIndexOf(" ");
+  const cut =
+    lastSpace > Math.floor(maxChars * 0.6) ? slice.slice(0, lastSpace) : slice;
+
+  return { isTruncated: true, preview: `${cut.trimEnd()}…` };
 }
 
 function nonEmptySpecialty(value: null | string | undefined): null | string {
