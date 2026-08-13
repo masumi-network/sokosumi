@@ -1,0 +1,228 @@
+import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { StripCoworker } from "../coworker-strip.client";
+
+vi.mock("next/image", () => ({
+  default: ({ alt, src }: { alt: string; src: string }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img alt={alt} src={src} />
+  ),
+}));
+
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}:${JSON.stringify(values)}` : key,
+}));
+
+import { CoworkerStrip } from "../coworker-strip.client";
+
+function buildStripCoworker(
+  overrides: Partial<StripCoworker> & Pick<StripCoworker, "id" | "name">,
+): StripCoworker {
+  return {
+    imageUrl: null,
+    title: null,
+    ...overrides,
+  };
+}
+
+describe("CoworkerStrip", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("keeps the scrollport viewport-bounded so the w-max track cannot widen parents", () => {
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({ id: "a", name: "A" }),
+          buildStripCoworker({ id: "elena", name: "Elena" }),
+          buildStripCoworker({ id: "b", name: "B" }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="elena"
+      />,
+    );
+
+    const scroll = screen.getByTestId("coworker-strip-scroll");
+    expect(scroll.className).toMatch(/w-full/);
+    expect(scroll.className).toMatch(/min-w-0/);
+    expect(scroll.className).toMatch(/max-w-full/);
+    expect(scroll.className).toMatch(/overflow-x-auto/);
+
+    const track = screen.getByTestId("coworker-strip-track");
+    expect(track.className).toMatch(/w-max/);
+  });
+
+  it("shows every coworker name and specialty in the DOM", () => {
+    const coworkers = [
+      buildStripCoworker({
+        id: "elena",
+        name: "Elena",
+        title: "Project Manager",
+      }),
+      buildStripCoworker({
+        id: "hannah",
+        name: "Hannah",
+        title: "Research",
+      }),
+      buildStripCoworker({
+        id: "alex",
+        name: "Alex",
+        title: "Data",
+      }),
+    ];
+
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={coworkers}
+        onSelect={vi.fn()}
+        selectedId="elena"
+      />,
+    );
+
+    for (const name of ["Elena", "Hannah", "Alex"]) {
+      expect(screen.getByText(name)).toBeInTheDocument();
+    }
+    for (const title of ["Project Manager", "Research", "Data"]) {
+      expect(screen.getByText(title)).toBeInTheDocument();
+    }
+  });
+
+  it("keeps a data hook for the centered coworker", () => {
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({ id: "a", name: "A" }),
+          buildStripCoworker({ id: "elena", name: "Elena" }),
+          buildStripCoworker({ id: "b", name: "B" }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="elena"
+      />,
+    );
+
+    const scroll = screen.getByTestId("coworker-strip-scroll");
+    expect(scroll.querySelector('[data-coworker-id="elena"]')).toBeTruthy();
+  });
+
+  it("selects a coworker on tap without opening a room", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({ id: "elena", name: "Elena" }),
+          buildStripCoworker({ id: "hannah", name: "Hannah", title: "Ops" }),
+        ]}
+        onSelect={onSelect}
+        selectedId="elena"
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Hannah"}',
+      }),
+    );
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("hannah");
+  });
+
+  it("marks the selected coworker as aria-selected", () => {
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({ id: "elena", name: "Elena" }),
+          buildStripCoworker({ id: "hannah", name: "Hannah" }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="hannah"
+      />,
+    );
+
+    expect(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Hannah"}',
+      }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Elena"}',
+      }),
+    ).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("reserves two title lines on every chip so 1-line vs 2-line captions cannot resize the row", () => {
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({
+            id: "elena",
+            name: "Elena",
+            title: "Strategy",
+          }),
+          buildStripCoworker({
+            id: "pheme",
+            name: "Pheme",
+            title: "Communications and media outreach",
+          }),
+          buildStripCoworker({
+            id: "deckster",
+            name: "Deckster",
+            title: null,
+          }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="elena"
+      />,
+    );
+
+    const titles = screen.getAllByTestId("coworker-strip-title");
+    expect(titles).toHaveLength(3);
+
+    for (const title of titles) {
+      expect(title.className).toMatch(/line-clamp-2/);
+      expect(title.className).toMatch(/min-h-\[2lh\]/);
+    }
+
+    expect(titles[0]).toHaveTextContent("Strategy");
+    expect(titles[1]).toHaveTextContent("Communications and media outreach");
+    // Empty title stays mounted (nbsp) so chip height matches the others.
+    expect(titles[2]?.textContent).toBe("\u00a0");
+  });
+
+  it("keeps the same title min-height class in compact size", () => {
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({ id: "elena", name: "Elena", title: "Ops" }),
+          buildStripCoworker({
+            id: "pheme",
+            name: "Pheme",
+            title: "Long specialty that wraps",
+          }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="elena"
+        size="compact"
+      />,
+    );
+
+    for (const title of screen.getAllByTestId("coworker-strip-title")) {
+      expect(title.className).toMatch(/min-h-\[2lh\]/);
+      expect(title.className).toMatch(/line-clamp-2/);
+    }
+  });
+});

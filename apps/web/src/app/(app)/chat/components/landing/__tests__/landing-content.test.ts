@@ -5,18 +5,23 @@ import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import {
   buildActivityStats,
-  featuredCoworkerRole,
-  hasReportableActivity,
+  clampLandingDescription,
+  LANDING_DESCRIPTION_MAX_CHARS,
+  orderStripCoworkers,
   resolveFeaturedCoworker,
-  selectStripCoworkers,
+  selectedCoworkerCaption,
+  selectedCoworkerDescription,
+  toStripCoworker,
 } from "../landing-content";
 
 function buildCoworker(overrides: Partial<Coworker> & { id: string }) {
   return {
-    avatar: null,
-    caption: null,
+    avatar: undefined,
+    caption: undefined,
+    description: "",
     name: overrides.id,
     slug: overrides.id,
+    useCase: "",
     ...overrides,
   } as Coworker;
 }
@@ -69,70 +74,200 @@ describe("resolveFeaturedCoworker", () => {
   });
 });
 
-describe("featuredCoworkerRole", () => {
-  const elenaPitch = "Project Manager - you can give her any task";
+describe("selectedCoworkerCaption", () => {
+  it("returns a trimmed caption", () => {
+    expect(
+      selectedCoworkerCaption(
+        buildCoworker({ id: "elena", caption: "  Strategy  " }),
+      ),
+    ).toBe("Strategy");
+  });
 
-  it("uses product copy for Elena", () => {
+  it("returns null when caption is empty — no useCase fallback", () => {
+    expect(
+      selectedCoworkerCaption(
+        buildCoworker({
+          id: "hannah",
+          caption: "   ",
+          useCase: "Research briefs",
+        }),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("selectedCoworkerDescription", () => {
+  it("returns a trimmed description", () => {
     const elena = buildCoworker({
       id: "elena",
       slug: "elena",
       caption: "Strategy",
+      description: "  Turns goals into work.  ",
     });
-    expect(featuredCoworkerRole(elena, elenaPitch)).toBe(elenaPitch);
+    expect(selectedCoworkerDescription(elena)).toBe("Turns goals into work.");
   });
 
-  it("uses caption for a non-Elena featured coworker", () => {
+  it("returns null when description is empty — no caption fallback", () => {
     const hannah = buildCoworker({
       id: "hannah",
       slug: "hannah",
       caption: "Research",
+      description: "   ",
     });
-    expect(featuredCoworkerRole(hannah, elenaPitch)).toBe("Research");
-  });
-
-  it("returns null when a non-Elena featured coworker has no caption", () => {
-    const hannah = buildCoworker({ id: "hannah", slug: "hannah" });
-    expect(featuredCoworkerRole(hannah, elenaPitch)).toBeNull();
+    expect(selectedCoworkerDescription(hannah)).toBeNull();
   });
 });
 
-describe("selectStripCoworkers", () => {
+describe("clampLandingDescription", () => {
+  it("leaves short copy untouched", () => {
+    expect(clampLandingDescription("Short pitch.")).toEqual({
+      isTruncated: false,
+      preview: "Short pitch.",
+    });
+  });
+
+  it("truncates long copy near the character budget with an ellipsis", () => {
+    const long = "word ".repeat(50).trim();
+    const result = clampLandingDescription(long);
+    expect(result.isTruncated).toBe(true);
+    expect(result.preview.endsWith("…")).toBe(true);
+    expect(result.preview.length).toBeLessThanOrEqual(
+      LANDING_DESCRIPTION_MAX_CHARS + 1,
+    );
+  });
+});
+
+describe("toStripCoworker", () => {
+  it("maps a non-empty caption to title", () => {
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "hannah",
+        caption: "Research lead",
+        useCase: "Should not win",
+      }),
+    );
+    expect(strip.title).toBe("Research lead");
+  });
+
+  it("falls back to useCase when caption is empty", () => {
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "alex",
+        caption: "   ",
+        useCase: "Data analysis",
+      }),
+    );
+    expect(strip.title).toBe("Data analysis");
+  });
+
+  it("returns null title when caption and useCase are empty", () => {
+    const strip = toStripCoworker(
+      buildCoworker({ id: "blake", caption: "", useCase: "  " }),
+    );
+    expect(strip.title).toBeNull();
+  });
+
+  it("keeps Serviceplan .webp avatar URLs for the strip (Jamal/Maya)", () => {
+    const jamalUrl =
+      "https://usecases.serviceplan-agents.com/images/jamal.webp";
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "jamal-id",
+        slug: "jamal",
+        avatar: jamalUrl,
+      }),
+    );
+    expect(strip.imageUrl).toBe(jamalUrl);
+  });
+
+  it("keeps avatars from any *.serviceplan-agents.com subdomain", () => {
+    const fooUrl = "https://foo.serviceplan-agents.com/images/maya.webp";
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "maya-id",
+        slug: "maya",
+        avatar: fooUrl,
+      }),
+    );
+    expect(strip.imageUrl).toBe(fooUrl);
+  });
+
+  it("keeps .webp on already-allowed blob hosts", () => {
+    const blobWebp =
+      "https://yhpsw8jlcoagsrkq.public.blob.vercel-storage.com/coworkers/maya.webp";
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "maya-id",
+        slug: "maya",
+        avatar: blobWebp,
+      }),
+    );
+    expect(strip.imageUrl).toBe(blobWebp);
+  });
+
+  it("still nulls avatars on unknown hosts so next/image cannot crash the page", () => {
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "evil",
+        slug: "evil",
+        avatar: "https://evil.example.com/face.webp",
+      }),
+    );
+    expect(strip.imageUrl).toBeNull();
+  });
+});
+
+describe("orderStripCoworkers", () => {
   const featured = buildCoworker({ id: "elena", slug: "elena" });
   const others = ["a", "b", "c", "d", "e", "f", "g"].map((id) =>
     buildCoworker({ id }),
   );
 
-  it("never includes the featured coworker", () => {
-    const picked = selectStripCoworkers([featured, ...others], featured, 6);
-    expect(picked.map((c) => c.id)).not.toContain("elena");
+  it("places the featured coworker at the exact middle for an odd count", () => {
+    // 1 featured + 4 others = 5 → index 2
+    const four = others.slice(0, 4);
+    const ordered = orderStripCoworkers([featured, ...four], featured);
+    expect(ordered.map((c) => c.id)).toEqual(["a", "b", "elena", "c", "d"]);
+    expect(ordered).toHaveLength(5);
   });
 
-  it("drops the odd one out so the flanks balance", () => {
-    // Five candidates, max six: an odd count would shove the featured face off
-    // the optical centre, so it takes four.
-    const five = others.slice(0, 5);
-    const picked = selectStripCoworkers([featured, ...five], featured, 6);
-    expect(picked).toHaveLength(4);
+  it("places the featured coworker left-of-centre for an even count", () => {
+    // 1 featured + 3 others = 4 → index 1 (left of the two centre slots)
+    const three = others.slice(0, 3);
+    const ordered = orderStripCoworkers([featured, ...three], featured);
+    expect(ordered.map((c) => c.id)).toEqual(["a", "elena", "b", "c"]);
+    expect(ordered).toHaveLength(4);
   });
 
-  it("caps at max even when more coworkers exist", () => {
-    const picked = selectStripCoworkers([featured, ...others], featured, 4);
-    expect(picked).toHaveLength(4);
+  it("keeps every coworker — never drops for even flanks", () => {
+    const ordered = orderStripCoworkers([featured, ...others], featured);
+    expect(ordered).toHaveLength(1 + others.length);
+    expect(ordered.map((c) => c.id).sort()).toEqual(
+      ["elena", ...others.map((c) => c.id)].sort(),
+    );
+    // 8 items → index floor(7/2)=3
+    expect(ordered[3]?.id).toBe("elena");
   });
 
   it("returns an empty list when nothing is featured", () => {
-    expect(selectStripCoworkers(others, null, 6)).toEqual([]);
+    expect(orderStripCoworkers(others, null)).toEqual([]);
   });
 
-  it("never returns a negative slice for a lone coworker", () => {
-    expect(selectStripCoworkers([featured], featured, 6)).toEqual([]);
+  it("returns a lone featured coworker alone", () => {
+    expect(orderStripCoworkers([featured], featured).map((c) => c.id)).toEqual([
+      "elena",
+    ]);
   });
 });
 
 describe("buildActivityStats", () => {
-  it("omits every zero metric in a personal workspace", () => {
+  it("still emits zero chips in a personal workspace with no activity", () => {
     const stats = buildActivityStats(buildSummary(), false, fakeTranslator);
-    expect(stats).toEqual([]);
+    expect(stats).toEqual([
+      'stats.completed:{"count":0}',
+      'stats.worked:{"minutes":0}',
+      'stats.awaiting:{"count":0}',
+    ]);
   });
 
   it("lists completed, worked, and awaiting in display order", () => {
@@ -152,16 +287,26 @@ describe("buildActivityStats", () => {
   it("keeps the teammates chip at zero inside an organization", () => {
     // "what my teammates added" is a question the row should answer, not omit.
     const stats = buildActivityStats(buildSummary(), true, fakeTranslator);
-    expect(stats).toEqual(['stats.byTeammates:{"count":0}']);
+    expect(stats).toEqual([
+      'stats.completed:{"count":0}',
+      'stats.worked:{"minutes":0}',
+      'stats.awaiting:{"count":0}',
+      'stats.byTeammates:{"count":0}',
+    ]);
   });
 
-  it("returns nothing when the summary could not be loaded", () => {
-    expect(buildActivityStats(null, true, fakeTranslator)).toEqual([]);
+  it("still emits zero chips when the summary could not be loaded", () => {
+    expect(buildActivityStats(null, true, fakeTranslator)).toEqual([
+      'stats.completed:{"count":0}',
+      'stats.worked:{"minutes":0}',
+      'stats.awaiting:{"count":0}',
+      'stats.byTeammates:{"count":0}',
+    ]);
   });
 
   it("still lists metrics when lastVisitAt is null (no sessions)", () => {
     // Window is session-derived; null lastVisitAt only means no sessions, not
-    // "hide chips". Chips follow non-zero metrics only.
+    // "hide chips". Chips always render, including zeros for idle metrics.
     const stats = buildActivityStats(
       buildSummary({
         awaitingInput: 3,
@@ -175,26 +320,8 @@ describe("buildActivityStats", () => {
     );
     expect(stats).toEqual([
       'stats.completed:{"count":2}',
+      'stats.worked:{"minutes":0}',
       'stats.awaiting:{"count":3}',
     ]);
-  });
-});
-
-describe("hasReportableActivity", () => {
-  it("is false for a failed summary", () => {
-    expect(hasReportableActivity(null)).toBe(false);
-  });
-
-  it("is false for a brand-new account with nothing to report", () => {
-    expect(hasReportableActivity(buildSummary())).toBe(false);
-  });
-
-  it.each([
-    ["completed", { completed: 1 }],
-    ["workedMinutes", { workedMinutes: 1 }],
-    ["awaitingInput", { awaitingInput: 1 }],
-    ["createdByOtherHumans", { createdByOtherHumans: 1 }],
-  ])("is true when %s is non-zero", (_label, overrides) => {
-    expect(hasReportableActivity(buildSummary(overrides))).toBe(true);
   });
 });
