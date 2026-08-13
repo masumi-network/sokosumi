@@ -69,7 +69,7 @@ For Cursor background shells, kill those shell PIDs (or stop the terminal jobs) 
 
 Require `doctor ok`. If `owned_by_verify=no`, do **read-only** checks only — never mutate a foreign instance. If ports already answer before `launch`, the helper refuses (no double-drive).
 
-Doctor also prints `fixture_auth=ok|fail` (Core `POST /auth/sign-in/email` for `alice@sokosumi.test`) and whether `agent-browser` is on `PATH`. Fixture failure is a **warn** (local DB may lack seeds) — not a doctor fail. On cloud-agent Neon branches, expect `fixture_auth=ok` before driving.
+Doctor also prints `fixture_auth=ok|fail` (Core `POST /auth/sign-in/email` for `alice@sokosumi.test`), `vault_profile=…` when `agent-browser auth list` has the coworker profile, and whether `agent-browser` is on `PATH`. Fixture failure is a **warn** (local/shared DB may lack seeds) — not a doctor fail. On cloud-agent Neon branches, expect `fixture_auth=ok` before driving. On a coworker machine or shared Neon, expect `fixture_auth=fail` and use the vault — do **not** seed Alice onto that database.
 
 Optional Core-only smoke:
 
@@ -77,20 +77,25 @@ Optional Core-only smoke:
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi core-smoke
 ```
 
-## Sign-in (cloud agents: use the harness)
+## Sign-in (use the harness)
 
-Prefer the helper over hand-rolled browser clicks. It probes fixtures, drives UI Enter-submit, and falls back to Core cookie bootstrap (parses `Set-Cookie` from `POST /auth/sign-in/email`, then `agent-browser cookies set` with `HttpOnly` + `SameSite=Lax` on `localhost` — raw `cookies set --curl` often hits CDP “Invalid cookie fields” on Better Auth cookies):
+Prefer the helper over hand-rolled browser clicks. `auto` (default):
+
+1. Probe Core email sign-in for the fixture (`alice@sokosumi.test` unless overridden).
+2. If the fixture works: UI Enter-submit, then Core cookie bootstrap.
+3. If the fixture fails: coworker vault `agent-browser auth login sokosumi` with `[data-testid="auth-field-email"]` / `[data-testid="auth-field-currentPassword"]`. Persist check is `/agents` — do not wait `networkidle` on `/chat` (Ably hangs that wait).
 
 ```bash
 export AGENT_BROWSER_SESSION_NAME=sokosumi
-.cursor/skills/verify-sokosumi/bin/verify-sokosumi doctor   # require doctor ok + fixture_auth=ok on agent DBs
-.cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in  # alice@sokosumi.test / Password123!
+.cursor/skills/verify-sokosumi/bin/verify-sokosumi doctor   # require doctor ok; fixture_auth=ok only on agent DBs
+.cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in  # fixtures, else vault
 # or: … sign-in --admin
-# or: … sign-in --method cookie   # skip flaky UI; unlock rest of map
-# or: … sign-in --method ui       # UI-only (no cookie fallback)
+# or: … sign-in --method vault    # skip fixtures; coworker profile
+# or: … sign-in --method cookie   # fixture cookie bootstrap only
+# or: … sign-in --method ui       # fixture UI only (signin-submit proof)
 ```
 
-Artifacts land under `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `account.txt`, `method.txt`). Cookie-only unlocks later features — for `signin-submit` proof, require `--method ui` (or `auto` that succeeded with `method=ui`).
+Artifacts land under `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). Cookie-only unlocks later features — for `signin-submit` proof, require `method=ui`. Vault unlocks the map on coworker/shared Neon; it is not fixture `signin-submit` proof.
 
 ## Drive
 
@@ -106,9 +111,9 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 
 Stable auth selectors: `[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`, `[data-testid="auth-submit"]`.
 
-**Login rule (manual drive):** fill email/password fields only, then **press Enter** — do not click submit, Google, Microsoft, Passkey, or Magic Link. react-hook-form can race a programmatic click; social/passkey controls sit **above** the password form and steal automation focus.
+**Login rule (manual drive):** fill email/password fields only, then **press Enter** — do not click submit, Google, Microsoft, Passkey, or Magic Link. react-hook-form can race a programmatic click; social/passkey controls sit **above** the password form and steal automation focus. After login, open `/agents` to prove the session. Do not `wait --load networkidle` on `/chat`.
 
-If UI login leaves you on `/signin` or bounces back after a “success” (classic `BETTER_AUTH_COOKIE_DOMAIN` trap, or passkey/OAuth interference), fix env first, then `verify-sokosumi sign-in --method cookie` (see [sign-in.md](./features/sign-in.md)). API bootstrap alone is not UI proof — reopen a protected page in the browser after injecting cookies.
+If UI login leaves you on `/signin` or bounces back after a “success” (classic `BETTER_AUTH_COOKIE_DOMAIN` trap, or passkey/OAuth interference), fix env first, then `verify-sokosumi sign-in --method cookie` when fixtures work, or `--method vault` on a coworker machine (see [sign-in.md](./features/sign-in.md)). API bootstrap alone is not UI proof — reopen a protected page in the browser after injecting cookies.
 
 Credentials (pick one):
 
@@ -117,8 +122,8 @@ Credentials (pick one):
 | Cloud-agent fixtures | `alice@sokosumi.test` | `Password123!` | Neon `cloud-agent-*` branches after migrate/seed (owns org `alice-fixture`) |
 | Cloud-agent admin | `admin@sokosumi.test` | `Password123!` | Admin UI `/admin` (owns org `admin-fixture`) |
 | Cloud-agent bob | `bob@sokosumi.test` | `Password123!` | Second user (owns org `bob-fixture`) |
-| Local signup | unique `*@sokosumi.test` via `/signup` | choose once | Empty/local DB without fixtures |
-| Coworker vault | `agent-browser auth save sokosumi …` | machine-local | Personal accounts — never commit |
+| Coworker vault | `agent-browser auth save sokosumi …` | machine-local | Shared/preprod Neon or local DB — never seed Alice here |
+| Local signup | unique `*@sokosumi.test` via `/signup` | choose once | No fixtures and no vault |
 
 OAuth, magic-link, and passkey do **not** work with placeholder credentials. Skip those paths.
 
@@ -162,7 +167,7 @@ Executable: `.cursor/skills/verify-sokosumi/bin/verify-sokosumi`
 .cursor/skills/verify-sokosumi/bin/verify-sokosumi cleanup
 ```
 
-Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL`, `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`.
+Env overrides: `VERIFY_SOKOSUMI_WEB_URL`, `VERIFY_SOKOSUMI_CORE_URL`, `VERIFY_SOKOSUMI_STATE_DIR`, `VERIFY_SOKOSUMI_ARTIFACT_ROOT`, `VERIFY_SOKOSUMI_EMAIL`, `VERIFY_SOKOSUMI_PASSWORD`, `VERIFY_SOKOSUMI_VAULT_PROFILE`.
 
 ## Isolate
 
@@ -177,6 +182,7 @@ Default ports **3000** (web) and **8787** (core) are shared. Second concurrent v
 - `COMPOSIO_API_KEY` set without an `ak_` prefix → Core refuses to start (optional key; omit or use `ak_…`)
 - Empty local catalog: `/agents` soft-empty (“No agents available”) or Core 500 until `credit_cost` rows exist
 - Ably placeholders break realtime chat UI
-- Fixtures exist only on agent Neon branches, not production/`main`
+- Fixtures exist only on agent Neon branches, not production/`main`. `fixture_auth=fail` on a coworker/shared Neon → vault or signup; never seed Alice onto that DB
+- After login, prove the session on `/agents`. `wait --load networkidle` on `/chat` hangs (Ably)
 - Node **24.x** required
 - `/signin` shows Google / Microsoft / Passkey / Magic Link **above** the password form — automation must target `[data-testid="auth-field-*"]` only

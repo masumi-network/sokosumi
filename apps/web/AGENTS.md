@@ -435,17 +435,24 @@ Each coworker stores their **own** credentials (nothing shared/committed):
 # one-time, per machine — password read from stdin, never echoed
 agent-browser auth save sokosumi \
   --url http://localhost:3000/signin \
-  --username you@nmkr.io --password-stdin
+  --username you@example.com --password-stdin \
+  --username-selector '[data-testid="auth-field-email"]' \
+  --password-selector '[data-testid="auth-field-currentPassword"]'
 ```
 
-Reliable login recipe (fill via vault, submit via Enter — not the vault click):
+Prefer `verify-sokosumi sign-in` (fixtures, then this vault). Manual recipe:
 
 ```bash
 agent-browser open http://localhost:3000/signin
-agent-browser auth login sokosumi      # fills email + password
-agent-browser press Enter              # submits the form
-agent-browser wait --load networkidle
+agent-browser auth login sokosumi \
+  --username-selector '[data-testid="auth-field-email"]' \
+  --password-selector '[data-testid="auth-field-currentPassword"]'
+# if still on /signin: press Enter (vault click can race react-hook-form)
+agent-browser open http://localhost:3000/agents
+agent-browser wait --url "**/agents"
 ```
+
+Do not `wait --load networkidle` on `/chat` after login — Ably hangs that wait. Prove the session on `/agents`.
 
 Stable selectors exist for deterministic targeting if you fill fields yourself:
 `[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`,

@@ -18,6 +18,8 @@ mkdir -p "$STATE_DIR" "$LOG_DIR" "$ARTIFACT_ROOT"
 
 DEFAULT_FIXTURE_EMAIL="${VERIFY_SOKOSUMI_EMAIL:-alice@sokosumi.test}"
 DEFAULT_FIXTURE_PASSWORD="${VERIFY_SOKOSUMI_PASSWORD:-Password123!}"
+AUTH_EMAIL_SELECTOR='[data-testid="auth-field-email"]'
+AUTH_PASSWORD_SELECTOR='[data-testid="auth-field-currentPassword"]'
 
 function usage() {
   cat <<'EOF'
@@ -27,15 +29,16 @@ Commands:
   launch     Start Core (:8787) and Web (:3000) for this verification run.
              Uses with-db.mjs when .cursor/cloud-agent-db.env exists.
   doctor     Read-only health check (ports, OpenAPI, sign-in page, fixture probe).
-  sign-in    Authenticate demo fixtures into agent-browser (UI, then cookie fallback).
+  sign-in    Authenticate into agent-browser (fixtures, then coworker vault).
   cleanup    Stop processes started by launch (keeps proof artifacts).
   core-smoke GET Core OpenAPI JSON; exit 0 if HTTP 200.
 
 sign-in options:
   --email <email>       default alice@sokosumi.test (or VERIFY_SOKOSUMI_EMAIL)
   --password <pass>     default Password123! (or VERIFY_SOKOSUMI_PASSWORD)
-  --method ui|cookie|auto   default auto (UI first, cookie bootstrap on failure)
+  --method ui|cookie|auto|vault   default auto
   --admin               shorthand for admin@sokosumi.test
+  --vault               shorthand for --method vault
 
 Env overrides:
   VERIFY_SOKOSUMI_WEB_URL   default http://localhost:3000
@@ -43,6 +46,7 @@ Env overrides:
   VERIFY_SOKOSUMI_STATE_DIR state/pids/logs directory
   VERIFY_SOKOSUMI_ARTIFACT_ROOT proof artifact root
   VERIFY_SOKOSUMI_EMAIL / VERIFY_SOKOSUMI_PASSWORD  fixture credentials for sign-in
+  VERIFY_SOKOSUMI_VAULT_PROFILE  default sokosumi (agent-browser auth profile)
   AGENT_BROWSER_SESSION_NAME  preferred: sokosumi (session cookie reuse)
 EOF
 }
@@ -209,9 +213,13 @@ function fixture_probe() {
   fi
   echo "fixture_auth=fail email=$email (Core POST /auth/sign-in/email → HTTP $http_status)"
   echo "warn: demo fixtures missing or Core auth rejected credentials."
-  echo "warn: on Neon cloud-agent-* branches run: node scripts/cloud-agent-db/provision.mjs"
-  echo "warn: or seed: node scripts/cloud-agent-db/with-db.mjs -- pnpm cloud-agent-db:seed-auth"
-  echo "warn: otherwise use features/sign-up.md for a disposable account"
+  if cloud_agent_db; then
+    echo "warn: cloud-agent DB: node scripts/cloud-agent-db/provision.mjs"
+    echo "warn: or seed: node scripts/cloud-agent-db/with-db.mjs -- pnpm cloud-agent-db:seed-auth"
+  else
+    echo "warn: coworker / shared Neon: verify-sokosumi sign-in --method vault, or features/sign-up.md"
+    echo "warn: do not seed alice@sokosumi.test onto a shared or preprod Neon"
+  fi
   if [[ -f "$tmp/body.json" ]]; then
     head -c 400 "$tmp/body.json" | tr '\n' ' ' >&2 || true
     echo >&2
@@ -228,6 +236,48 @@ function require_agent_browser() {
     return 1
   fi
   return 0
+}
+
+function cloud_agent_db() {
+  [[ -f "$REPO_ROOT/.cursor/cloud-agent-db.env" ]]
+}
+
+function vault_profile() {
+  echo "${VERIFY_SOKOSUMI_VAULT_PROFILE:-sokosumi}"
+}
+
+function vault_profile_exists() {
+  local name="$1"
+  command -v agent-browser >/dev/null 2>&1 || return 1
+  agent-browser auth list 2>/dev/null | grep -Eq "(^|[[:space:]])${name}([[:space:]]|$)"
+}
+
+function vault_profile_email() {
+  local name="$1"
+  local line
+  line="$(agent-browser auth show "$name" 2>/dev/null | grep -E '^Username:' || true)"
+  line="${line#Username:}"
+  echo "${line#"${line%%[![:space:]]*}"}"
+}
+
+function wait_authed_agents() {
+  # Persist check. Do not wait --load networkidle on /chat — Ably keeps the
+  # network busy and that wait hangs. Prove the session on /agents instead.
+  # Prefer a short sleep over `wait --url` here — that wait has a long default
+  # timeout and can sit for minutes after a successful navigation.
+  agent-browser open "$WEB_URL/agents" >/dev/null
+  sleep 2
+}
+
+function record_sign_in() {
+  local email="$1"
+  local method="$2"
+  local art_dir="$ARTIFACT_ROOT/sign-in"
+  mkdir -p "$art_dir"
+  agent-browser snapshot -i >"$art_dir/after-login.snapshot.txt" || true
+  agent-browser screenshot >/dev/null || true
+  printf '%s\n' "$email" >"$art_dir/account.txt"
+  printf 'method=%s\n' "$method" >"$art_dir/method.txt"
 }
 
 function web_host() {
@@ -340,8 +390,7 @@ function sign_in_cookie() {
     return 1
   fi
 
-  agent-browser open "$WEB_URL/agents" >/dev/null
-  agent-browser wait --load networkidle >/dev/null || agent-browser wait 2000 >/dev/null || true
+  wait_authed_agents
   local url
   url="$(agent-browser get url 2>/dev/null || true)"
   echo "sign-in cookie: landed $url"
@@ -351,10 +400,7 @@ function sign_in_cookie() {
     return 1
   fi
 
-  agent-browser snapshot -i >"$art_dir/after-login.snapshot.txt" || true
-  agent-browser screenshot >/dev/null || true
-  echo "$email" >"$art_dir/account.txt"
-  echo "method=cookie" >"$art_dir/method.txt"
+  record_sign_in "$email" "cookie"
   echo "sign-in cookie ok (session in AGENT_BROWSER_SESSION_NAME=${AGENT_BROWSER_SESSION_NAME})"
   echo "note: cookie bootstrap unlocks the map; record UI path separately if proving signin-submit."
   return 0
@@ -378,16 +424,16 @@ function sign_in_ui() {
   agent-browser wait --load networkidle >/dev/null || agent-browser wait 1500 >/dev/null || true
 
   # Fill only password-form testids — never click Google/Microsoft/Passkey/Magic Link.
-  if ! agent-browser fill '[data-testid="auth-field-email"]' "$email"; then
+  if ! agent-browser fill "$AUTH_EMAIL_SELECTOR" "$email"; then
     echo "error: could not fill auth-field-email (passkey/OAuth may have stolen focus — retry once)." >&2
     agent-browser wait 500 >/dev/null || true
-    agent-browser fill '[data-testid="auth-field-email"]' "$email"
+    agent-browser fill "$AUTH_EMAIL_SELECTOR" "$email"
   fi
-  agent-browser fill '[data-testid="auth-field-currentPassword"]' "$password"
+  agent-browser fill "$AUTH_PASSWORD_SELECTOR" "$password"
   # react-hook-form: wait for controlled state, then Enter (not click auth-submit).
   agent-browser wait 400 >/dev/null || sleep 0.4
   agent-browser press Enter
-  agent-browser wait --load networkidle >/dev/null || agent-browser wait 3000 >/dev/null || true
+  # Do not wait --load networkidle here: post-login often lands on /chat and Ably hangs that wait.
   agent-browser wait 1000 >/dev/null || sleep 1
 
   url="$(agent-browser get url 2>/dev/null || true)"
@@ -398,8 +444,7 @@ function sign_in_ui() {
     return 1
   fi
 
-  agent-browser open "$WEB_URL/agents" >/dev/null
-  agent-browser wait --load networkidle >/dev/null || agent-browser wait 2000 >/dev/null || true
+  wait_authed_agents
   url="$(agent-browser get url 2>/dev/null || true)"
   echo "sign-in ui: persist check → $url"
   if ! assert_authed_url "$url"; then
@@ -408,11 +453,70 @@ function sign_in_ui() {
     return 1
   fi
 
-  agent-browser snapshot -i >"$art_dir/after-login.snapshot.txt" || true
-  agent-browser screenshot >/dev/null || true
-  echo "$email" >"$art_dir/account.txt"
-  echo "method=ui" >"$art_dir/method.txt"
+  record_sign_in "$email" "ui"
   echo "sign-in ui ok (session in AGENT_BROWSER_SESSION_NAME=${AGENT_BROWSER_SESSION_NAME})"
+  return 0
+}
+
+function sign_in_vault() {
+  local profile art_dir url email
+  profile="$(vault_profile)"
+  art_dir="$ARTIFACT_ROOT/sign-in"
+  mkdir -p "$art_dir"
+  require_agent_browser
+  export AGENT_BROWSER_SESSION_NAME="${AGENT_BROWSER_SESSION_NAME:-sokosumi}"
+
+  if ! vault_profile_exists "$profile"; then
+    echo "error: no agent-browser auth profile '$profile'." >&2
+    echo "error: one-time save (password via stdin, never commit):" >&2
+    echo "  agent-browser auth save $profile \\" >&2
+    echo "    --url $WEB_URL/signin \\" >&2
+    echo "    --username you@example.com --password-stdin \\" >&2
+    echo "    --username-selector '$AUTH_EMAIL_SELECTOR' \\" >&2
+    echo "    --password-selector '$AUTH_PASSWORD_SELECTOR'" >&2
+    return 1
+  fi
+
+  email="$(vault_profile_email "$profile")"
+  echo "sign-in vault: open $WEB_URL/signin via profile $profile (${email:-unknown})"
+  agent-browser open "$WEB_URL/signin" >/dev/null
+  agent-browser cookies clear >/dev/null || true
+  agent-browser open "$WEB_URL/signin" >/dev/null
+  agent-browser wait 1500 >/dev/null || sleep 1.5
+
+  if ! agent-browser auth login "$profile" \
+    --username-selector "$AUTH_EMAIL_SELECTOR" \
+    --password-selector "$AUTH_PASSWORD_SELECTOR"; then
+    echo "error: agent-browser auth login $profile failed." >&2
+    return 1
+  fi
+
+  url="$(agent-browser get url 2>/dev/null || true)"
+  if ! assert_authed_url "$url"; then
+    echo "sign-in vault: still on auth page after login — Enter submit"
+    agent-browser wait 400 >/dev/null || sleep 0.4
+    agent-browser press Enter
+    agent-browser wait 1000 >/dev/null || sleep 1
+    url="$(agent-browser get url 2>/dev/null || true)"
+  fi
+
+  if ! assert_authed_url "$url"; then
+    echo "error: vault sign-in stayed on auth page ($url)." >&2
+    agent-browser snapshot -i >"$art_dir/ui-fail.snapshot.txt" || true
+    return 1
+  fi
+
+  wait_authed_agents
+  url="$(agent-browser get url 2>/dev/null || true)"
+  echo "sign-in vault: persist check → $url"
+  if ! assert_authed_url "$url"; then
+    echo "error: session did not persist on /agents (bounced to $url)." >&2
+    echo "error: classic cause: BETTER_AUTH_COOKIE_DOMAIN set — comment out in apps/core/.env and restart Core." >&2
+    return 1
+  fi
+
+  record_sign_in "${email:-vault:$profile}" "vault"
+  echo "sign-in vault ok (profile=$profile session=${AGENT_BROWSER_SESSION_NAME})"
   return 0
 }
 
@@ -439,6 +543,10 @@ function sign_in() {
         email="admin@sokosumi.test"
         shift
         ;;
+      --vault)
+        method="vault"
+        shift
+        ;;
       -h | --help)
         usage
         return 0
@@ -451,7 +559,7 @@ function sign_in() {
     esac
   done
 
-  if [[ -z "$email" || -z "$password" ]]; then
+  if [[ "$method" != "vault" && ( -z "$email" || -z "$password" ) ]]; then
     echo "error: email and password required" >&2
     return 1
   fi
@@ -474,30 +582,55 @@ function sign_in() {
     return 1
   fi
 
-  # Probe fixtures early so UI failures are explained.
-  if ! fixture_probe "$email" "$password"; then
-    if [[ "$method" == "ui" || "$method" == "auto" ]]; then
-      echo "error: refusing UI/cookie sign-in — Core rejected fixture credentials." >&2
-      return 1
-    fi
+  local fixtures_ok=0
+  if [[ "$method" == "vault" ]]; then
+    echo "sign-in: --method vault (skip fixture probe)"
+  elif fixture_probe "$email" "$password"; then
+    fixtures_ok=1
   fi
 
   case "$method" in
+    vault)
+      sign_in_vault
+      ;;
     ui)
+      if [[ "$fixtures_ok" -ne 1 ]]; then
+        echo "error: refusing --method ui — Core rejected credentials." >&2
+        echo "error: coworker/shared Neon: sign-in --method vault, or features/sign-up.md" >&2
+        return 1
+      fi
       sign_in_ui "$email" "$password"
       ;;
     cookie)
+      if [[ "$fixtures_ok" -ne 1 ]]; then
+        echo "error: refusing --method cookie — Core rejected credentials." >&2
+        return 1
+      fi
       sign_in_cookie "$email" "$password"
       ;;
     auto)
-      if sign_in_ui "$email" "$password"; then
+      if [[ "$fixtures_ok" -eq 1 ]]; then
+        if sign_in_ui "$email" "$password"; then
+          return 0
+        fi
+        echo "sign-in auto: UI path failed — falling back to Core cookie bootstrap"
+        sign_in_cookie "$email" "$password"
+        return
+      fi
+      echo "sign-in auto: fixtures rejected — falling back to coworker vault"
+      if sign_in_vault; then
         return 0
       fi
-      echo "sign-in auto: UI path failed — falling back to Core cookie bootstrap"
-      sign_in_cookie "$email" "$password"
+      echo "error: vault fallback failed. Create a disposable user (features/sign-up.md)." >&2
+      if cloud_agent_db; then
+        echo "error: cloud-agent DB: provision/seed fixtures, then retry." >&2
+      else
+        echo "error: do not seed alice@sokosumi.test onto a shared or preprod Neon." >&2
+      fi
+      return 1
       ;;
     *)
-      echo "error: --method must be ui|cookie|auto (got $method)" >&2
+      echo "error: --method must be ui|cookie|auto|vault (got $method)" >&2
       return 1
       ;;
   esac
@@ -552,6 +685,14 @@ function doctor() {
 
   if command -v agent-browser >/dev/null 2>&1; then
     echo "agent_browser=$(command -v agent-browser)"
+    local vp ve
+    vp="$(vault_profile)"
+    if vault_profile_exists "$vp"; then
+      ve="$(vault_profile_email "$vp")"
+      echo "vault_profile=$vp email=${ve:-unknown}"
+    else
+      echo "vault_profile=missing name=$vp"
+    fi
   else
     echo "agent_browser=missing"
     echo "warn: install agent-browser for UI drive (npm i -g agent-browser && agent-browser install)"
