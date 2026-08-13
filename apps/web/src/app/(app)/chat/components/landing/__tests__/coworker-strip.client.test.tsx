@@ -95,75 +95,84 @@ describe("CoworkerStrip", () => {
     expect(track.className).toMatch(/gap-\[length:var\(--strip-gap,/);
   });
 
-  it("sets peek-safe --strip-gap when the strip overflows", () => {
+  it("sets a strong peek-safe --strip-gap when the strip overflows on desktop widths", () => {
     const rootFontPx = `${16}px`;
+    const realGetComputedStyle = window.getComputedStyle.bind(window);
     const rootFontSpy = vi
       .spyOn(window, "getComputedStyle")
       .mockImplementation((el: Element) => {
         if (el === document.documentElement) {
-          return { fontSize: rootFontPx } as CSSStyleDeclaration;
+          return {
+            ...realGetComputedStyle(el),
+            fontSize: rootFontPx,
+            getPropertyValue: (prop: string) =>
+              prop === "font-size"
+                ? rootFontPx
+                : realGetComputedStyle(el).getPropertyValue(prop),
+          } as CSSStyleDeclaration;
         }
-        return {
-          fontSize: rootFontPx,
-          columnGap: rootFontPx,
-          gap: rootFontPx,
-        } as CSSStyleDeclaration;
+        return realGetComputedStyle(el);
       });
 
-    render(
-      <CoworkerStrip
-        centerOnId="elena"
-        coworkers={[
-          buildStripCoworker({ id: "a", name: "A" }),
-          buildStripCoworker({ id: "b", name: "B" }),
-          buildStripCoworker({ id: "elena", name: "Elena" }),
-          buildStripCoworker({ id: "c", name: "C" }),
-          buildStripCoworker({ id: "d", name: "D" }),
-        ]}
-        onSelect={vi.fn()}
-        selectedId="elena"
-        size="compact"
-      />,
-    );
+    try {
+      render(
+        <CoworkerStrip
+          centerOnId="elena"
+          coworkers={[
+            buildStripCoworker({ id: "a", name: "A" }),
+            buildStripCoworker({ id: "b", name: "B" }),
+            buildStripCoworker({ id: "elena", name: "Elena" }),
+            buildStripCoworker({ id: "c", name: "C" }),
+            buildStripCoworker({ id: "d", name: "D" }),
+            buildStripCoworker({ id: "e", name: "E" }),
+          ]}
+          onSelect={vi.fn()}
+          selectedId="elena"
+          size="default"
+        />,
+      );
 
-    const scroll = screen.getByTestId("coworker-strip-scroll");
-    const track = screen.getByTestId("coworker-strip-track");
+      const scroll = screen.getByTestId("coworker-strip-scroll");
+      const track = screen.getByTestId("coworker-strip-track");
 
-    // Preferred compact gap 16px fails peek-safe at Vp=288 / itemW=80
-    // (d=104, rem=8 < 16). Overflow + adjust must set --strip-gap.
-    Object.defineProperty(scroll, "clientWidth", {
-      configurable: true,
-      get: () => 288,
-    });
-    Object.defineProperty(scroll, "scrollWidth", {
-      configurable: true,
-      get: () => 900,
-    });
+      // Preferred default gap 20px at max-w-4xl (~896) only haircuts ~4px —
+      // overflow must retune --strip-gap into the strong mid-chip band.
+      Object.defineProperty(scroll, "clientWidth", {
+        configurable: true,
+        get: () => 896,
+      });
+      Object.defineProperty(scroll, "scrollWidth", {
+        configurable: true,
+        get: () => 2000,
+      });
 
-    const firstChip = track.querySelector("[data-coworker-id]") as HTMLElement;
-    firstChip.getBoundingClientRect = () =>
-      ({
-        width: 80,
-        height: 80,
-        top: 0,
-        left: 0,
-        right: 80,
-        bottom: 80,
-        x: 0,
-        y: 0,
-        toJSON: () => ({}),
-      }) as DOMRect;
+      const firstChip = track.querySelector(
+        "[data-coworker-id]",
+      ) as HTMLElement;
+      firstChip.getBoundingClientRect = () =>
+        ({
+          width: 112,
+          height: 112,
+          top: 0,
+          left: 0,
+          right: 112,
+          bottom: 112,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
 
-    flushResizeObservers();
+      flushResizeObservers();
 
-    const gapVar = track.style.getPropertyValue("--strip-gap");
-    expect(gapVar).toMatch(/px$/);
-    const gapPx = Number.parseFloat(gapVar);
-    expect(gapPx).toBeGreaterThan(0);
-    expect(gapPx).toBeLessThanOrEqual(16 * 1.5 + 1e-9);
-    expect(isOverflowStripGapPeekSafe(288, 80, gapPx)).toBe(true);
-
-    rootFontSpy.mockRestore();
+      const gapVar = track.style.getPropertyValue("--strip-gap");
+      expect(gapVar).toMatch(/px$/);
+      const gapPx = Number.parseFloat(gapVar);
+      expect(gapPx).toBeGreaterThan(0);
+      expect(gapPx).toBeLessThanOrEqual(20 * 2.5 + 1e-9);
+      expect(isOverflowStripGapPeekSafe(896, 112, gapPx)).toBe(true);
+    } finally {
+      rootFontSpy.mockRestore();
+    }
   });
 
   it("clears --strip-gap when the catalog fits without overflow", () => {

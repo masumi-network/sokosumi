@@ -76,7 +76,8 @@ const STRIP_SIZES = {
  * optically in the middle. While the user scrolls, selection follows the
  * coworker nearest the visual center; tap selects and centers that face.
  * When the track overflows, `--strip-gap` is tuned so a middle-centered chip
- * peek-cuts both scrollport edges (overflow-only; fit case keeps preferred).
+ * shows a strong peek at both scrollport edges (mid-chip band, not a 4px
+ * sliver/haircut; overflow-only; fit case keeps preferred).
  * Strip titles always reserve two lines (`min-h-[2lh]`) so 1-line vs wrapping
  * captions cannot change row height and push Start chat.
  */
