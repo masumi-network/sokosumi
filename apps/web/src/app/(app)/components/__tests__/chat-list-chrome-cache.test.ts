@@ -87,8 +87,39 @@ describe("loadChatListChromeData", () => {
   });
 });
 
+describe("loadMembershipVisibleRooms progressive paint", () => {
+  beforeEach(() => {
+    listRoomsMock.mockReset();
+    listArchivedRoomsMock.mockReset();
+    getMyMembersWithOrganizationsMock.mockReset();
+  });
+
+  it("resolves room row labels without calling archived or members", async () => {
+    listRoomsMock.mockResolvedValue({
+      rooms: [{ id: "room-1", name: "Plan.Net Studios x NMKR" }],
+      nextCursor: null,
+    });
+    // Hang forever — proves rooms paint path does not await these.
+    listArchivedRoomsMock.mockReturnValue(new Promise(() => {}));
+    getMyMembersWithOrganizationsMock.mockReturnValue(new Promise(() => {}));
+
+    const { loadMembershipVisibleRooms } = await import(
+      "@/app/components/private-sidebar-cache"
+    );
+
+    const roomsPage = await loadMembershipVisibleRooms();
+
+    expect(roomsPage.rooms).toEqual([
+      { id: "room-1", name: "Plan.Net Studios x NMKR" },
+    ]);
+    expect(listRoomsMock).toHaveBeenCalledTimes(1);
+    expect(listArchivedRoomsMock).not.toHaveBeenCalled();
+    expect(getMyMembersWithOrganizationsMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("chat list chrome single-source composition contract", () => {
-  it("sidebar and chats page both call getPrivateCachedChatListChrome", async () => {
+  it("sidebar shares private chrome slices; chats page awaits rooms first", async () => {
     const { readFileSync } = await import("node:fs");
     const { dirname, join } = await import("node:path");
     const { fileURLToPath } = await import("node:url");
@@ -102,11 +133,18 @@ describe("chat list chrome single-source composition contract", () => {
       join(dir, "../../chat/chats/page.tsx"),
       "utf8",
     );
+    const cacheSource = readFileSync(
+      join(dir, "../private-sidebar-cache.ts"),
+      "utf8",
+    );
 
     expect(sidebar).toMatch(/getPrivateCachedChatListChrome/);
-    expect(chatsPage).toMatch(/getPrivateCachedChatListChrome/);
+    // Chats awaits membership rooms, then Suspense-streams archived+members.
+    expect(chatsPage).toMatch(/getPrivateCachedMembershipVisibleRooms/);
+    expect(chatsPage).toMatch(/getPrivateCachedChatListArchivedAndMembers/);
+    expect(chatsPage).toMatch(/<Suspense/);
     // Page must not re-issue raw listRooms / listArchived / members after the
-    // shared private-cache slice owns that cold composition work.
+    // shared private-cache slices own that cold composition work.
     expect(chatsPage).not.toMatch(/chatRoomService\s*\.\s*listRooms\s*\(/);
     expect(chatsPage).not.toMatch(
       /chatRoomService\s*\.\s*listArchivedRooms\s*\(/,
@@ -114,6 +152,15 @@ describe("chat list chrome single-source composition contract", () => {
     expect(chatsPage).not.toMatch(
       /userService\s*\.\s*getMyMembersWithOrganizations\s*\(/,
     );
+    // Composer still exists for sidebar/header; rooms + deferred are separate
+    // private-cache entries with the same tags (SOK-779).
+    expect(cacheSource).toMatch(
+      /function getPrivateCachedMembershipVisibleRooms/,
+    );
+    expect(cacheSource).toMatch(
+      /function getPrivateCachedChatListArchivedAndMembers/,
+    );
+    expect(cacheSource).toMatch(/function getPrivateCachedChatListChrome/);
   });
 
   it("header workspace switcher reads members from getPrivateCachedChatListChrome", async () => {
@@ -190,5 +237,9 @@ describe("chat list chrome single-source composition contract", () => {
     expect(source).toMatch(/privateSidebarUserTag/);
     expect(source).toMatch(/privateSidebarOrgTag/);
     expect(source).toMatch(/function getPrivateCachedChatListChrome/);
+    expect(source).toMatch(/function getPrivateCachedMembershipVisibleRooms/);
+    expect(source).toMatch(
+      /function getPrivateCachedChatListArchivedAndMembers/,
+    );
   });
 });
