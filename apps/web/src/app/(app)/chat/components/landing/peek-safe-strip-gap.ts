@@ -11,8 +11,18 @@
  * Edge is in a chip iff `rem >= g`; visible chip depth is `rem - g`.
  */
 
-/** Minimum visible (and clipped) fraction of the edge chip. */
-export const STRIP_MIN_PEEK_FRACTION = 0.35;
+/** Minimum visible fraction of the edge chip (reject tiny slivers). */
+export const STRIP_MIN_VISIBLE_PEEK_FRACTION = 0.4;
+/**
+ * Minimum clipped fraction (reject a 4px haircut on an otherwise full face).
+ * Visible band is `[minVisible, 1 - minClip]`.
+ */
+export const STRIP_MIN_CLIP_FRACTION = 0.25;
+/** Aim near the mobile QA ballpark (~0.65 of a chip visible). */
+export const STRIP_TARGET_PEEK_FRACTION = 0.65;
+
+/** @deprecated Use STRIP_MIN_VISIBLE_PEEK_FRACTION. */
+export const STRIP_MIN_PEEK_FRACTION = STRIP_MIN_VISIBLE_PEEK_FRACTION;
 
 export interface ResolveOverflowStripGapPxInput {
   viewportWidthPx: number;
@@ -20,11 +30,12 @@ export interface ResolveOverflowStripGapPxInput {
   preferredGapPx: number;
   /**
    * Upper bound as a multiple of preferred. Default 2.5 so wide desktop
-   * scrollports can still reach a mid-chip peek.
+   * scrollports can still reach a strong peek.
    */
   maxGapFactor?: number;
-  /** Override for tests; default `STRIP_MIN_PEEK_FRACTION`. */
-  minPeekFraction?: number;
+  minVisibleFraction?: number;
+  minClipFraction?: number;
+  targetPeekFraction?: number;
 }
 
 /**
@@ -56,34 +67,37 @@ export function overflowStripEdgePeekPx(
 
 /**
  * True when a middle-centered layout shows a strong peek at each scrollport
- * edge (visible depth in `[minPeek, itemW - minPeek]`).
+ * edge (enough visible chunk and enough clipped that it is not a haircut).
  */
 export function isOverflowStripGapPeekSafe(
   viewportWidthPx: number,
   itemWidthPx: number,
   gapPx: number,
-  minPeekFraction: number = STRIP_MIN_PEEK_FRACTION,
+  minVisibleFraction: number = STRIP_MIN_VISIBLE_PEEK_FRACTION,
+  minClipFraction: number = STRIP_MIN_CLIP_FRACTION,
 ): boolean {
   const peekPx = overflowStripEdgePeekPx(viewportWidthPx, itemWidthPx, gapPx);
   if (peekPx === null) {
     return false;
   }
 
-  const minPeekPx = itemWidthPx * minPeekFraction;
-  return peekPx >= minPeekPx && peekPx <= itemWidthPx - minPeekPx;
+  const minVisiblePx = itemWidthPx * minVisibleFraction;
+  const minClipPx = itemWidthPx * minClipFraction;
+  return peekPx >= minVisiblePx && itemWidthPx - peekPx >= minClipPx;
 }
 
 /**
- * Returns preferred gap when already strongly peek-safe; otherwise a
- * closed-form gap aimed at half-chip peek (`rem ≈ g + itemW/2`), clamped to
- * (0, maxGap]. Prefers mid-chip peeks, then proximity to preferred gap.
+ * Returns preferred gap when already strongly peek-safe; otherwise aims for
+ * ~65% chip visible (mobile QA ballpark), clamped to (0, maxGap].
  */
 export function resolveOverflowStripGapPx({
   viewportWidthPx,
   itemWidthPx,
   preferredGapPx,
   maxGapFactor = 2.5,
-  minPeekFraction = STRIP_MIN_PEEK_FRACTION,
+  minVisibleFraction = STRIP_MIN_VISIBLE_PEEK_FRACTION,
+  minClipFraction = STRIP_MIN_CLIP_FRACTION,
+  targetPeekFraction = STRIP_TARGET_PEEK_FRACTION,
 }: ResolveOverflowStripGapPxInput): number {
   const preferred = preferredGapPx;
   if (
@@ -92,7 +106,8 @@ export function resolveOverflowStripGapPx({
       viewportWidthPx,
       itemWidthPx,
       preferred,
-      minPeekFraction,
+      minVisibleFraction,
+      minClipFraction,
     )
   ) {
     return preferred;
@@ -105,7 +120,7 @@ export function resolveOverflowStripGapPx({
 
   const maxGap = preferred * maxGapFactor;
   const maxK = Math.max(0, Math.floor(d / itemWidthPx) + 1);
-  const halfChip = itemWidthPx / 2;
+  const targetPeekPx = itemWidthPx * targetPeekFraction;
 
   let bestGap: null | number = null;
   let bestPeekDistance = Number.POSITIVE_INFINITY;
@@ -120,7 +135,8 @@ export function resolveOverflowStripGapPx({
         viewportWidthPx,
         itemWidthPx,
         gap,
-        minPeekFraction,
+        minVisibleFraction,
+        minClipFraction,
       )
     ) {
       return;
@@ -131,7 +147,7 @@ export function resolveOverflowStripGapPx({
       return;
     }
 
-    const peekDistance = Math.abs(peekPx - halfChip);
+    const peekDistance = Math.abs(peekPx - targetPeekPx);
     const gapDistance = Math.abs(gap - preferred);
     const betterPeek = peekDistance < bestPeekDistance - 1e-9;
     const samePeekCloserGap =
@@ -145,10 +161,10 @@ export function resolveOverflowStripGapPx({
     }
   }
 
-  // Closed form toward half-chip peek: rem = g + itemW/2
-  // d = k*(itemW+g) + g + itemW/2  →  g = (d - itemW*(k+0.5)) / (k+1)
+  // Closed form toward target peek: rem = g + targetPeek
+  // d = k*(itemW+g) + g + targetPeek → g = (d - itemW*k - targetPeek) / (k+1)
   for (let k = 0; k <= maxK; k += 1) {
-    const gap = (d - itemWidthPx * (k + 0.5)) / (k + 1);
+    const gap = (d - itemWidthPx * k - targetPeekPx) / (k + 1);
     const period = itemWidthPx + gap;
     if (!(period > 0) || Math.floor(d / period) !== k) {
       continue;
@@ -156,8 +172,7 @@ export function resolveOverflowStripGapPx({
     consider(gap);
   }
 
-  // Nearby peek fractions, then dense sample within the clamp.
-  const fractions = [0.35, 0.4, 0.45, 0.55, 0.6, 0.65, 0.25, 0.75] as const;
+  const fractions = [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.35] as const;
   for (let k = 0; k <= maxK; k += 1) {
     for (const fraction of fractions) {
       const gap = (d - itemWidthPx * (k + fraction)) / (k + 1);
@@ -178,8 +193,6 @@ export function resolveOverflowStripGapPx({
     return bestGap;
   }
 
-  // Best-effort when no gap hits the strong band within the clamp: pick the
-  // positive peek closest to half-chip (still better than a 4px haircut).
   let effortGap: null | number = null;
   let effortPeekDistance = Number.POSITIVE_INFINITY;
   let effortGapDistance = Number.POSITIVE_INFINITY;
@@ -192,7 +205,7 @@ export function resolveOverflowStripGapPx({
     if (peekPx === null || !(peekPx > 0)) {
       return;
     }
-    const peekDistance = Math.abs(peekPx - halfChip);
+    const peekDistance = Math.abs(peekPx - targetPeekPx);
     const gapDistance = Math.abs(gap - preferred);
     const betterPeek = peekDistance < effortPeekDistance - 1e-9;
     const samePeekCloserGap =
