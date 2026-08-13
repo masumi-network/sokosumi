@@ -30,8 +30,8 @@ import { LandingCoworkerPicker } from "../landing-coworker-picker.client";
 
 function buildCoworker(overrides: Partial<Coworker> & { id: string }) {
   return {
-    avatar: null,
-    caption: null,
+    avatar: undefined,
+    caption: undefined,
     description: "",
     name: overrides.id,
     slug: overrides.id,
@@ -81,7 +81,7 @@ describe("LandingCoworkerPicker", () => {
       id: "deckster",
       name: "Deckster",
       slug: "deckster",
-      caption: null,
+      caption: undefined,
       description: "Deckster builds decks.",
     }),
   ];
