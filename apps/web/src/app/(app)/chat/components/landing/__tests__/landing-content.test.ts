@@ -9,14 +9,17 @@ import {
   hasReportableActivity,
   resolveFeaturedCoworker,
   selectStripCoworkers,
+  toStripCoworker,
 } from "../landing-content";
 
 function buildCoworker(overrides: Partial<Coworker> & { id: string }) {
   return {
     avatar: null,
     caption: null,
+    description: "",
     name: overrides.id,
     slug: overrides.id,
+    useCase: "",
     ...overrides,
   } as Coworker;
 }
@@ -96,6 +99,37 @@ describe("featuredCoworkerRole", () => {
   });
 });
 
+describe("toStripCoworker", () => {
+  it("maps a non-empty caption to title", () => {
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "hannah",
+        caption: "Research lead",
+        useCase: "Should not win",
+      }),
+    );
+    expect(strip.title).toBe("Research lead");
+  });
+
+  it("falls back to useCase when caption is empty", () => {
+    const strip = toStripCoworker(
+      buildCoworker({
+        id: "alex",
+        caption: "   ",
+        useCase: "Data analysis",
+      }),
+    );
+    expect(strip.title).toBe("Data analysis");
+  });
+
+  it("returns null title when caption and useCase are empty", () => {
+    const strip = toStripCoworker(
+      buildCoworker({ id: "blake", caption: "", useCase: "  " }),
+    );
+    expect(strip.title).toBeNull();
+  });
+});
+
 describe("selectStripCoworkers", () => {
   const featured = buildCoworker({ id: "elena", slug: "elena" });
   const others = ["a", "b", "c", "d", "e", "f", "g"].map((id) =>
@@ -103,29 +137,29 @@ describe("selectStripCoworkers", () => {
   );
 
   it("never includes the featured coworker", () => {
-    const picked = selectStripCoworkers([featured, ...others], featured, 6);
+    const picked = selectStripCoworkers([featured, ...others], featured);
     expect(picked.map((c) => c.id)).not.toContain("elena");
   });
 
-  it("drops the odd one out so the flanks balance", () => {
-    // Five candidates, max six: an odd count would shove the featured face off
-    // the optical centre, so it takes four.
-    const five = others.slice(0, 5);
-    const picked = selectStripCoworkers([featured, ...five], featured, 6);
-    expect(picked).toHaveLength(4);
-  });
-
-  it("caps at max even when more coworkers exist", () => {
-    const picked = selectStripCoworkers([featured, ...others], featured, 4);
-    expect(picked).toHaveLength(4);
+  it("returns every non-featured coworker", () => {
+    const picked = selectStripCoworkers([featured, ...others], featured);
+    expect(picked.map((c) => c.id)).toEqual([
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+    ]);
   });
 
   it("returns an empty list when nothing is featured", () => {
-    expect(selectStripCoworkers(others, null, 6)).toEqual([]);
+    expect(selectStripCoworkers(others, null)).toEqual([]);
   });
 
-  it("never returns a negative slice for a lone coworker", () => {
-    expect(selectStripCoworkers([featured], featured, 6)).toEqual([]);
+  it("returns an empty list for a lone featured coworker", () => {
+    expect(selectStripCoworkers([featured], featured)).toEqual([]);
   });
 });
 

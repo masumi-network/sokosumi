@@ -16,12 +16,6 @@ import {
 import { StartChatButton } from "./start-chat-button.client";
 import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
 
-/**
- * Enough to read as a team without the row wrapping on a laptop. Kept even so
- * the flanks balance and the featured coworker stays optically centred.
- */
-const MAX_STRIP_COWORKERS = 6;
-
 interface ChatLandingProps {
   coworkers: Coworker[];
   /** True only for an organization workspace, where other humans exist. */
@@ -49,7 +43,7 @@ export async function ChatLanding({
     getFormatter(),
   ]);
   const featured = resolveFeaturedCoworker(coworkers);
-  const others = selectStripCoworkers(coworkers, featured, MAX_STRIP_COWORKERS);
+  const others = selectStripCoworkers(coworkers, featured);
   const featuredRole = featured
     ? featuredCoworkerRole(featured, t("role"))
     : null;

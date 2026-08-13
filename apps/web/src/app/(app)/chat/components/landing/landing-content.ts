@@ -47,6 +47,11 @@ export function featuredCoworkerRole(
   return coworker.caption ?? null;
 }
 
+function nonEmptySpecialty(value: null | string | undefined): null | string {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export function toStripCoworker(coworker: Coworker): StripCoworker {
   // Keyed by SLUG on purpose: the static fallback map is slug-keyed, so
   // passing the id (as most call sites do) silently yields null.
@@ -58,30 +63,29 @@ export function toStripCoworker(coworker: Coworker): StripCoworker {
     // next/image throw and takes the whole page down, so fall back to initials.
     imageUrl: imageUrl && canUseNextImageSrc(imageUrl) ? imageUrl : null,
     name: coworker.name,
-    title: coworker.caption ?? null,
+    title:
+      nonEmptySpecialty(coworker.caption) ??
+      nonEmptySpecialty(coworker.useCase) ??
+      null,
   };
 }
 
 /**
- * The teammates flanking the featured coworker.
+ * Every non-featured coworker for the scrollable landing strip.
  *
- * Both landings pass an even `max` (6 desktop / 4 mobile). Odd counts are
- * dropped so flanks balance and the featured face stays optically centred.
+ * Empty when nothing is featured — the strip only renders with a lead face.
  */
 export function selectStripCoworkers(
   coworkers: Coworker[],
   featured: Coworker | null,
-  max: number,
 ): StripCoworker[] {
   if (!featured) {
     return [];
   }
 
-  const others = coworkers.filter((coworker) => coworker.id !== featured.id);
-  const capped = Math.min(max, others.length);
-  const limit = capped - (capped % 2);
-
-  return others.slice(0, Math.max(0, limit)).map(toStripCoworker);
+  return coworkers
+    .filter((coworker) => coworker.id !== featured.id)
+    .map(toStripCoworker);
 }
 
 type StatsTranslator = (

@@ -16,12 +16,6 @@ import {
 import { StartChatButton } from "./start-chat-button.client";
 import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
 
-/**
- * Four teammates plus the 80px featured face fit a 390px viewport with room to
- * breathe. Even, so the flanks balance and Elena stays centred.
- */
-const MAX_STRIP_COWORKERS = 4;
-
 interface ChatLandingMobileProps {
   coworkers: Coworker[];
   /** True only for an organization workspace, where other humans exist. */
@@ -36,7 +30,7 @@ interface ChatLandingMobileProps {
  *
  * Pair of {@link ChatLanding} (`chat-landing.tsx`): same three zones (mark,
  * centred pitch, stats) and the same `landing-content` decisions, scaled for
- * a 390px column — 32px mark, an 80px featured face flanked by four at 44px,
+ * a 390px column — 32px mark, scrollable strip with an 80px featured face,
  * and a full-width CTA. Owns `/chat` below `md`; the room list stays at
  * `/chat/chats`.
  */
@@ -51,7 +45,7 @@ export async function ChatLandingMobile({
     getFormatter(),
   ]);
   const featured = resolveFeaturedCoworker(coworkers);
-  const others = selectStripCoworkers(coworkers, featured, MAX_STRIP_COWORKERS);
+  const others = selectStripCoworkers(coworkers, featured);
   const featuredRole = featured
     ? featuredCoworkerRole(featured, t("role"))
     : null;
