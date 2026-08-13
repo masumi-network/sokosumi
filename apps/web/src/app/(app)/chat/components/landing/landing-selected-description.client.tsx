@@ -55,8 +55,8 @@ function LandingSelectedDescriptionBody({
       className={cn(
         "text-muted-foreground w-full min-w-0 text-balance",
         size === "compact"
-          ? "mt-3 text-[0.8125rem] leading-[1.5]"
-          : "mt-4 text-[0.9375rem] leading-[1.55]",
+          ? "text-[0.8125rem] leading-[1.5]"
+          : "text-[0.9375rem] leading-[1.55]",
       )}
       data-testid="landing-selected-description"
     >

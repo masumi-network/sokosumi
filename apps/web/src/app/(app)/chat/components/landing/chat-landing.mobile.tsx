@@ -1,7 +1,6 @@
 import { getFormatter, getTranslations } from "next-intl/server";
 
 import type { Coworker } from "@/app/chat/utils/types";
-import { SokosumiIcon } from "@/components/masumi-logos";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";
@@ -20,10 +19,16 @@ interface ChatLandingMobileProps {
 /**
  * Mobile composition of the `/chat` welcome (`chat-landing.mobile.tsx`).
  *
- * Pair of {@link ChatLanding} (`chat-landing.tsx`): same three zones (mark,
- * pitch, stats) scaled for a narrow column. Middle column is top-aligned so
- * Start chat stays put across coworker selection. Stats stay pinned at the
- * bottom — always mounted with zero chips when idle.
+ * Pair of {@link ChatLanding} (`chat-landing.tsx`): pitch + stats for a narrow
+ * column. Brand mark lives only in the mobile header leading slot — do not
+ * re-render `SokosumiIcon` here. Middle column is top-aligned so Start chat
+ * stays put across coworker selection. Stats stay pinned at the bottom —
+ * always mounted with zero chips when idle.
+ *
+ * No section/column `px-*`: horizontal padding on pitch + stats + selected
+ * block only so the coworker strip can span full content width. `/chat` page
+ * shell also uses `-m-4` to cancel app-main `p-4` (same as `/chat/chats`);
+ * without that the strip stays inset 16px under main padding.
  */
 export async function ChatLandingMobile({
   coworkers,
@@ -39,21 +44,7 @@ export async function ChatLandingMobile({
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
 
   return (
-    // No section/column `px-*`: horizontal padding on pitch + stats + selected
-    // block only. The coworker strip must span the full content width — page
-    // padding on an overflow-y ancestor would clip edge faces (CSS forces
-    // overflow-x:auto when overflow-y is not visible).
-    // Mobile: `/chat` page shell also uses `-m-4` to cancel app-main `p-4`
-    // above this section (same pattern as `/chat/chats`); without that the
-    // strip stays inset 16px even when this section has no px.
     <section className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch pt-4 pb-3 text-center">
-      <SokosumiIcon
-        animated={false}
-        className="text-foreground shrink-0 self-center"
-        height={32}
-        width={32}
-      />
-
       <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-start overflow-y-auto py-4">
         <h1 className="text-foreground shrink-0 px-4 text-2xl font-light text-balance">
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
