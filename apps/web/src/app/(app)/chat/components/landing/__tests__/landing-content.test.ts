@@ -5,11 +5,11 @@ import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import {
   buildActivityStats,
-  featuredCoworkerRole,
   hasReportableActivity,
   opticalCenterScrollLeft,
   orderStripCoworkers,
   resolveFeaturedCoworker,
+  selectedCoworkerDescription,
   toStripCoworker,
 } from "../landing-content";
 
@@ -73,30 +73,25 @@ describe("resolveFeaturedCoworker", () => {
   });
 });
 
-describe("featuredCoworkerRole", () => {
-  const elenaPitch = "Project Manager - you can give her any task";
-
-  it("uses product copy for Elena", () => {
+describe("selectedCoworkerDescription", () => {
+  it("returns a trimmed description", () => {
     const elena = buildCoworker({
       id: "elena",
       slug: "elena",
       caption: "Strategy",
+      description: "  Turns goals into work.  ",
     });
-    expect(featuredCoworkerRole(elena, elenaPitch)).toBe(elenaPitch);
+    expect(selectedCoworkerDescription(elena)).toBe("Turns goals into work.");
   });
 
-  it("uses caption for a non-Elena featured coworker", () => {
+  it("returns null when description is empty — no caption fallback", () => {
     const hannah = buildCoworker({
       id: "hannah",
       slug: "hannah",
       caption: "Research",
+      description: "   ",
     });
-    expect(featuredCoworkerRole(hannah, elenaPitch)).toBe("Research");
-  });
-
-  it("returns null when a non-Elena featured coworker has no caption", () => {
-    const hannah = buildCoworker({ id: "hannah", slug: "hannah" });
-    expect(featuredCoworkerRole(hannah, elenaPitch)).toBeNull();
+    expect(selectedCoworkerDescription(hannah)).toBeNull();
   });
 });
 

@@ -6,15 +6,16 @@ import type { Coworker } from "@/app/chat/utils/types";
 import { cn } from "@/lib/utils";
 
 import { CoworkerStrip } from "./coworker-strip.client";
-import { featuredCoworkerRole, orderStripCoworkers } from "./landing-content";
+import {
+  orderStripCoworkers,
+  selectedCoworkerDescription,
+} from "./landing-content";
 import { StartChatButton } from "./start-chat-button.client";
 
 interface LandingCoworkerPickerProps {
   coworkers: Coworker[];
   /** Elena (or fallback) — default selection before the user taps. */
   initialSelectedId: string;
-  /** Product pitch for Elena under the strip. */
-  elenaRole: string;
   size?: "compact" | "default";
   /** Mobile passes `w-full` so the CTA spans the column. */
   startChatClassName?: string;
@@ -25,12 +26,12 @@ interface LandingCoworkerPickerProps {
  *
  * Strip taps only change selection. Opening a DM waits for Start chat.
  * Default featured (Elena) sits in the middle of the full catalog and is
- * scrolled into optical centre on first paint.
+ * scrolled into optical centre on first paint. Under-name copy is the
+ * selected coworker's DB description (caption stays on strip chips only).
  */
 export function LandingCoworkerPicker({
   coworkers,
   initialSelectedId,
-  elenaRole,
   size = "default",
   startChatClassName,
 }: LandingCoworkerPickerProps) {
@@ -47,7 +48,7 @@ export function LandingCoworkerPicker({
     coworkers.find((coworker) => coworker.id === selectedId) ?? initial;
 
   const stripCoworkers = orderStripCoworkers(coworkers, initial);
-  const selectedRole = featuredCoworkerRole(selected, elenaRole);
+  const selectedDescription = selectedCoworkerDescription(selected);
 
   return (
     <>
@@ -69,7 +70,7 @@ export function LandingCoworkerPicker({
       >
         {selected.name}
       </p>
-      {selectedRole ? (
+      {selectedDescription ? (
         <p
           className={cn(
             "text-muted-foreground text-balance",
@@ -77,8 +78,9 @@ export function LandingCoworkerPicker({
               ? "mt-1.5 max-w-[40ch] text-[0.8125rem] leading-[1.5]"
               : "mx-auto mt-2 max-w-[46ch] text-[0.9375rem] leading-[1.55]",
           )}
+          data-testid="landing-selected-description"
         >
-          {selectedRole}
+          {selectedDescription}
         </p>
       ) : null}
 

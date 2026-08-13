@@ -52,12 +52,14 @@ describe("LandingCoworkerPicker", () => {
       name: "Elena",
       slug: "elena",
       caption: "Strategy",
+      description: "Elena turns goals into planned work.",
     }),
     buildCoworker({
       id: "hannah",
       name: "Hannah",
       slug: "hannah",
       caption: "Research",
+      description: "Hannah digs into sources and briefs.",
     }),
   ];
 
@@ -76,11 +78,7 @@ describe("LandingCoworkerPicker", () => {
     ];
 
     render(
-      <LandingCoworkerPicker
-        coworkers={catalog}
-        elenaRole="Project Manager - you can give her any task"
-        initialSelectedId="elena"
-      />,
+      <LandingCoworkerPicker coworkers={catalog} initialSelectedId="elena" />,
     );
 
     const optionIds = screen
@@ -90,13 +88,9 @@ describe("LandingCoworkerPicker", () => {
     expect(optionIds).toEqual(["a", "b", "elena", "c", "d"]);
   });
 
-  it("defaults selection to the initial coworker and binds Start chat to them", () => {
+  it("shows the selected coworker description above Start chat", () => {
     render(
-      <LandingCoworkerPicker
-        coworkers={coworkers}
-        elenaRole="Project Manager - you can give her any task"
-        initialSelectedId="elena"
-      />,
+      <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
     expect(
@@ -105,8 +99,10 @@ describe("LandingCoworkerPicker", () => {
       }),
     ).toHaveAttribute("aria-selected", "true");
     expect(
-      screen.getByText("Project Manager - you can give her any task"),
-    ).toBeInTheDocument();
+      screen.getByTestId("landing-selected-description"),
+    ).toHaveTextContent("Elena turns goals into planned work.");
+    // Strip chips still show the short caption.
+    expect(screen.getByText("Strategy")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: 'cta.button:{"name":"Elena"}',
@@ -114,15 +110,33 @@ describe("LandingCoworkerPicker", () => {
     ).toBeInTheDocument();
   });
 
-  it("updates featured copy and Start chat target when a strip face is tapped", async () => {
+  it("omits the description paragraph when description is empty", () => {
+    render(
+      <LandingCoworkerPicker
+        coworkers={[
+          buildCoworker({
+            id: "elena",
+            name: "Elena",
+            slug: "elena",
+            caption: "Strategy",
+            description: "   ",
+          }),
+        ]}
+        initialSelectedId="elena"
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("landing-selected-description"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Strategy")).toBeInTheDocument();
+  });
+
+  it("updates description and Start chat when a strip face is tapped", async () => {
     const user = userEvent.setup();
 
     render(
-      <LandingCoworkerPicker
-        coworkers={coworkers}
-        elenaRole="Project Manager - you can give her any task"
-        initialSelectedId="elena"
-      />,
+      <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
     await user.click(
@@ -132,7 +146,11 @@ describe("LandingCoworkerPicker", () => {
     );
 
     expect(openCoworkerRoom).not.toHaveBeenCalled();
-    expect(screen.getAllByText("Research").length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getByTestId("landing-selected-description"),
+    ).toHaveTextContent("Hannah digs into sources and briefs.");
+    // Caption remains on the strip chip.
+    expect(screen.getByText("Research")).toBeInTheDocument();
     expect(
       screen.getByRole("button", {
         name: 'cta.button:{"name":"Hannah"}',
@@ -144,11 +162,7 @@ describe("LandingCoworkerPicker", () => {
     const user = userEvent.setup();
 
     render(
-      <LandingCoworkerPicker
-        coworkers={coworkers}
-        elenaRole="Project Manager - you can give her any task"
-        initialSelectedId="elena"
-      />,
+      <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
 
     await user.click(

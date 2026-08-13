@@ -68,7 +68,6 @@ export async function ChatLanding({
           <OpenCoworkerRoomProvider>
             <LandingCoworkerPicker
               coworkers={coworkers}
-              elenaRole={t("role")}
               initialSelectedId={featured.id}
             />
           </OpenCoworkerRoomProvider>

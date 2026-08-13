@@ -68,7 +68,6 @@ export async function ChatLandingMobile({
           <OpenCoworkerRoomProvider>
             <LandingCoworkerPicker
               coworkers={coworkers}
-              elenaRole={t("role")}
               initialSelectedId={featured.id}
               size="compact"
               startChatClassName="w-full"

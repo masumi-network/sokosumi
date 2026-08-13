@@ -33,18 +33,13 @@ export function resolveFeaturedCoworker(
 }
 
 /**
- * Pitch under the featured face. Elena keeps product-managed copy; anyone else
- * (fallback when Elena is unavailable) uses their DB caption or nothing —
- * never Elena's gendered "Project Manager" line.
+ * Body copy under the selected coworker name (above Start chat).
+ * DB `description` only — never caption, useCase, or Elena i18n pitch.
  */
-export function featuredCoworkerRole(
-  coworker: Coworker,
-  elenaRole: string,
+export function selectedCoworkerDescription(
+  coworker: Pick<Coworker, "description">,
 ): string | null {
-  if (isElenaCoworker(coworker)) {
-    return elenaRole;
-  }
-  return coworker.caption ?? null;
+  return nonEmptySpecialty(coworker.description);
 }
 
 function nonEmptySpecialty(value: null | string | undefined): null | string {

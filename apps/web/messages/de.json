@@ -1550,7 +1550,6 @@
         "greeting": "Willkommen bei Sokosumi!",
         "greetingWithName": "Willkommen bei Sokosumi, {name}!",
         "intro": "Bei Sokosumi arbeitest du mit KI-Coworkern – du sagst, was zu tun ist, sie planen es und erledigen es.",
-        "role": "Projektmanagerin - du kannst ihr jede Aufgabe geben und sie findet den perfekten Coworker dafür",
         "cta": {
           "avatarAlt": "{name}",
           "button": "Mit {name} chatten",
