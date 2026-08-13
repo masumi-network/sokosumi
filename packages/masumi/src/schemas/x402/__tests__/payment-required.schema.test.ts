@@ -672,12 +672,9 @@ describe("normalizeX402PaymentRequired", () => {
 
   it("rejects oversized attacker-controlled strings pre-charge", () => {
     const oversized = [
-      {
-        x402Version: 2,
-        accepts: [
-          v2Entry({ scheme: "e".repeat(X402_MAX_RAW_SCHEME_LENGTH + 1) }),
-        ],
-      },
+      // The raw `scheme` cap lives in its own test below: it is the one
+      // length bound an `isErr()` assertion cannot pin, because the scheme
+      // allowlist refuses the same value for a different reason.
       {
         x402Version: 2,
         error: "x".repeat(1025),
@@ -719,6 +716,44 @@ describe("normalizeX402PaymentRequired", () => {
     for (const payload of oversized) {
       expect(normalizeX402PaymentRequired(payload).isErr()).toBe(true);
     }
+  });
+
+  it("bounds the raw scheme by LENGTH, distinctly from the allowlist refusal", () => {
+    // Asserting `isErr()` on an over-long scheme pins nothing: the allowlist
+    // in `selectPayableRequirement` refuses any unsupported spelling whatever
+    // its length, so deleting `X402_MAX_RAW_SCHEME_LENGTH` from the wild
+    // schema left the whole suite green — the payload merely failed one fence
+    // later, with a different message. Only the MESSAGE tells the two apart.
+    const overLong = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [
+        v2Entry({ scheme: "e".repeat(X402_MAX_RAW_SCHEME_LENGTH + 1) }),
+      ],
+    });
+    const overLongError = overLong._unsafeUnwrapErr();
+
+    expect(overLong.isErr()).toBe(true);
+    // The wild schema refused it, so no entry was ever translated.
+    expect(overLongError).toMatch(/^Unparseable x402 402 payload:/);
+    expect(overLongError).toMatch(
+      new RegExp(`<=\\s*${X402_MAX_RAW_SCHEME_LENGTH} characters`),
+    );
+    expect(overLongError).toMatch(/accepts\[0\]\.scheme/);
+    expect(overLongError).not.toMatch(/Unsupported x402 scheme/);
+
+    // One character shorter the payload PARSES, and the same value is refused
+    // per entry by the allowlist instead — which is what the over-long case
+    // silently fell through to while the cap was untested.
+    const atCap = normalizeX402PaymentRequired({
+      x402Version: 2,
+      accepts: [v2Entry({ scheme: "e".repeat(X402_MAX_RAW_SCHEME_LENGTH) })],
+    });
+    const atCapError = atCap._unsafeUnwrapErr();
+
+    expect(atCap.isErr()).toBe(true);
+    expect(atCapError).toMatch(/No payable x402 requirement in accepts/);
+    expect(atCapError).toMatch(/Unsupported x402 scheme/);
+    expect(atCapError).not.toMatch(/Unparseable x402 402 payload/);
   });
 
   it("bounds the entry's own key count and the size of every value", () => {
