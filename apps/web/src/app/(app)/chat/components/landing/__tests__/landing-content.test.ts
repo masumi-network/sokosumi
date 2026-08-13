@@ -9,6 +9,7 @@ import {
   LANDING_DESCRIPTION_MAX_CHARS,
   orderStripCoworkers,
   resolveFeaturedCoworker,
+  resolveLandingGreetingName,
   selectedCoworkerDescription,
   toStripCoworker,
 } from "../landing-content";
@@ -24,6 +25,17 @@ function buildCoworker(overrides: Partial<Coworker> & { id: string }) {
     ...overrides,
   } as Coworker;
 }
+
+describe("resolveLandingGreetingName", () => {
+  it("uses the given name only", () => {
+    expect(resolveLandingGreetingName("Andreas Schmidt")).toBe("Andreas");
+  });
+
+  it("returns null when blank so the nameless greeting shows", () => {
+    expect(resolveLandingGreetingName(null)).toBeNull();
+    expect(resolveLandingGreetingName("   ")).toBeNull();
+  });
+});
 
 const RETURNING_VISIT_AT = new Date("2026-08-10T09:00:00.000Z");
 

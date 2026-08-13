@@ -13,6 +13,7 @@ interface ChatLandingMobileProps {
   isOrganizationWorkspace: boolean;
   /** Null when Core could not be reached; chips still render as zeros. */
   summary: TaskActivitySummary | null;
+  /** Given name already resolved, or null for the nameless greeting. */
   userName: null | string;
 }
 
