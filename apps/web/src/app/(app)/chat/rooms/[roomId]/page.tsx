@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import type { ChatRoom, Organization } from "@/lib/clients/generated/core";
 import { chatRoomService, userService } from "@/lib/services";
+import { isUuidString } from "@/lib/utils/uuid";
 
 interface ChatRoomPageProps {
   params: Promise<{ roomId: string }>;
@@ -23,6 +24,8 @@ interface ChatRoomShellProps {
   /** Null when personal workspace has no org roster to load. */
   organizationIdForRoster: string | null;
 }
+
+const ROOM_UNAVAILABLE_HREF = "/chat?notice=room-unavailable";
 
 function NoOrganizationCard({
   title,
@@ -87,7 +90,8 @@ function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
  * history via `messagesPromise` (SOK-778).
  *
  * Instant / outer Suspense: `RoomOpenLoadingView` (composer chrome + list bones).
- * Non-member / missing room → soft land on `/chat`, not 404.
+ * Non-member / missing / invalid room id → soft land on `/chat`, not error card.
+ * Do not start roster/history until access succeeds.
  */
 export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
   await connection();
@@ -101,11 +105,18 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
 
   const currentUserId = session?.user.id ?? "";
 
+  // Core path params are UUIDs — invalid ids 400 before 404. Redirect without
+  // calling getRoom / roster / history so Instant composer is not followed by
+  // RoomsClient or Chat Error.
+  if (!isUuidString(roomId)) {
+    redirect(ROOM_UNAVAILABLE_HREF);
+  }
+
   if (!activeOrganization) {
     const selectedRoom = await chatRoomService.getRoom(roomId);
 
     if (!selectedRoom) {
-      redirect("/chat?notice=room-unavailable");
+      redirect(ROOM_UNAVAILABLE_HREF);
     }
 
     const isPersonalDirect =
@@ -136,13 +147,13 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
   const selectedRoom = await chatRoomService.getRoom(roomId);
 
   if (!selectedRoom) {
-    redirect("/chat?notice=room-unavailable");
+    redirect(ROOM_UNAVAILABLE_HREF);
   }
 
   const isHostOrgRoom = selectedRoom.organizationId === activeOrganization.id;
   const isGuestRoom = selectedRoom.myAccess === "guest";
   if (!isHostOrgRoom && !isGuestRoom) {
-    redirect("/chat?notice=room-unavailable");
+    redirect(ROOM_UNAVAILABLE_HREF);
   }
 
   return progressiveRoomOpen(

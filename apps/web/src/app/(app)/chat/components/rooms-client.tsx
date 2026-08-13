@@ -2384,8 +2384,13 @@ export function RoomsClient({
             ) : null
           }
           reserveDesktopHeader
+          // Until mobile portal host is ready (`isMobile` starts undefined), keep
+          // title in-column with the composer so getRoom name paints immediately
+          // and does not wait on roster hydrate / media-query effect.
           desktopHeader={
-            isMobile === false && roomHeaderChrome ? roomHeaderChrome : null
+            !(isMobile === true && headerRoomSlotHost) && roomHeaderChrome
+              ? roomHeaderChrome
+              : null
           }
           wrapColumn={(columnBody) => (
             <RoomFileDropZone

@@ -172,6 +172,25 @@ describe("ChatRoomPage org deep-link guard", () => {
     expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
   });
 
+  it("redirects invalid room id without getRoom, roster, history, or RoomsClient", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: ORG_A,
+      name: "Org A",
+      slug: "org-a",
+    });
+
+    await expect(
+      ChatRoomPageContent({
+        params: Promise.resolve({ roomId: "not-a-real-room-id" }),
+      }),
+    ).rejects.toThrow(`REDIRECT:/chat?notice=room-unavailable`);
+
+    expect(redirectMock).toHaveBeenCalledWith("/chat?notice=room-unavailable");
+    expect(getRoomMock).not.toHaveBeenCalled();
+    expect(loadRoomMessagesMock).not.toHaveBeenCalled();
+    expect(loadRoomShellRosterMock).not.toHaveBeenCalled();
+  });
+
   it("paints shell without awaiting members/coworkers (rosterPromise deferred)", async () => {
     getActiveOrganizationMock.mockResolvedValue({
       id: ORG_A,

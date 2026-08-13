@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ChatRoom,
@@ -10,6 +10,11 @@ import type {
 
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
+
+const { mockIsMobileMedia, mockHeaderRoomSlotHost } = vi.hoisted(() => ({
+  mockIsMobileMedia: vi.fn((): boolean | undefined => false),
+  mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -43,11 +48,11 @@ vi.mock("@/hooks/use-is-apple-platform", () => ({
 }));
 
 vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobileMedia: () => false,
+  useIsMobileMedia: () => mockIsMobileMedia(),
 }));
 
 vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
-  useHeaderRoomSlotHost: () => null,
+  useHeaderRoomSlotHost: () => mockHeaderRoomSlotHost(),
 }));
 
 vi.mock("@/contexts/breadcrumb-override-context", () => ({
@@ -577,6 +582,11 @@ describe("RoomsClient progressive history (real composer + list skeleton)", () =
 });
 
 describe("RoomsClient progressive roster (header + composer without members)", () => {
+  beforeEach(() => {
+    mockIsMobileMedia.mockReturnValue(false);
+    mockHeaderRoomSlotHost.mockReturnValue(null);
+  });
+
   it("paints room title and composer while rosterPromise is pending", () => {
     const messagesPromise = new Promise<{
       messages: ChatRoomMessage[];
@@ -604,6 +614,34 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     expect(probe).toHaveAttribute("data-members-load-failed", "false");
     expect(probe).toHaveAttribute("data-members-count", "0");
     expect(probe).toHaveAttribute("data-coworkers-count", "0");
+  });
+
+  it("paints getRoom title with composer before mobile portal/media is ready", () => {
+    mockIsMobileMedia.mockReturnValue(undefined);
+    mockHeaderRoomSlotHost.mockReturnValue(null);
+
+    const messagesPromise = new Promise<{
+      messages: ChatRoomMessage[];
+      nextCursor: string | null;
+      failed: boolean;
+    }>(() => undefined);
+    const rosterPromise = new Promise<{
+      organizationMembers: [];
+      membersLoadFailed: boolean;
+      coworkers: [];
+    }>(() => undefined);
+
+    render(
+      <RoomsClient
+        {...baseProps}
+        messagesPromise={messagesPromise}
+        rosterPromise={rosterPromise}
+      />,
+    );
+
+    // Title must not wait on isMobile===true portal or roster hydrate.
+    expect(screen.getByText("general")).toBeTruthy();
+    expect(screen.getByTestId("room-session-composer")).toBeTruthy();
   });
 
   it("hydrates roster into the same instance without remounting composer", async () => {
