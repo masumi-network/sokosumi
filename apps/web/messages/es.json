@@ -1566,7 +1566,9 @@
           "recent": "En las últimas 24 horas"
         },
         "team": {
-          "avatarAlt": "{name}"
+          "avatarAlt": "{name}",
+          "stripLabel": "Compañeros disponibles",
+          "select": "Seleccionar a {name}"
         }
       }
     },

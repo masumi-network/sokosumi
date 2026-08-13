@@ -1566,7 +1566,9 @@
           "recent": "In the last 24 hours"
         },
         "team": {
-          "avatarAlt": "{name}"
+          "avatarAlt": "{name}",
+          "stripLabel": "Available coworkers",
+          "select": "Select {name}"
         }
       }
     },

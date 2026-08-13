@@ -4,16 +4,12 @@ import type { Coworker } from "@/app/chat/utils/types";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
-import { CoworkerStrip } from "./coworker-strip.client";
 import {
   buildActivityStats,
-  featuredCoworkerRole,
   hasReportableActivity,
   resolveFeaturedCoworker,
-  selectStripCoworkers,
-  toStripCoworker,
 } from "./landing-content";
-import { StartChatButton } from "./start-chat-button.client";
+import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
 import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
 
 interface ChatLandingProps {
@@ -43,10 +39,6 @@ export async function ChatLanding({
     getFormatter(),
   ]);
   const featured = resolveFeaturedCoworker(coworkers);
-  const others = selectStripCoworkers(coworkers, featured);
-  const featuredRole = featured
-    ? featuredCoworkerRole(featured, t("role"))
-    : null;
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
   const hasAnyActivity = hasReportableActivity(summary);
 
@@ -74,28 +66,11 @@ export async function ChatLanding({
 
         {featured ? (
           <OpenCoworkerRoomProvider>
-            <div className="mt-12 w-full">
-              <CoworkerStrip
-                featured={toStripCoworker(featured)}
-                others={others}
-              />
-            </div>
-
-            <p className="mt-5 text-xl font-semibold tracking-[-0.01em]">
-              {featured.name}
-            </p>
-            {featuredRole ? (
-              <p className="text-muted-foreground mx-auto mt-2 max-w-[46ch] text-[0.9375rem] leading-[1.55] text-balance">
-                {featuredRole}
-              </p>
-            ) : null}
-
-            <div className="mt-6">
-              <StartChatButton
-                coworkerId={featured.id}
-                coworkerName={featured.name}
-              />
-            </div>
+            <LandingCoworkerPicker
+              coworkers={coworkers}
+              elenaRole={t("role")}
+              initialSelectedId={featured.id}
+            />
           </OpenCoworkerRoomProvider>
         ) : null}
       </div>

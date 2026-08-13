@@ -4,16 +4,12 @@ import type { Coworker } from "@/app/chat/utils/types";
 import { SokosumiIcon } from "@/components/masumi-logos";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
-import { CoworkerStrip } from "./coworker-strip.client";
 import {
   buildActivityStats,
-  featuredCoworkerRole,
   hasReportableActivity,
   resolveFeaturedCoworker,
-  selectStripCoworkers,
-  toStripCoworker,
 } from "./landing-content";
-import { StartChatButton } from "./start-chat-button.client";
+import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
 import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
 
 interface ChatLandingMobileProps {
@@ -30,9 +26,9 @@ interface ChatLandingMobileProps {
  *
  * Pair of {@link ChatLanding} (`chat-landing.tsx`): same three zones (mark,
  * centred pitch, stats) and the same `landing-content` decisions, scaled for
- * a 390px column — 32px mark, scrollable strip with an 80px featured face,
- * and a full-width CTA. Owns `/chat` below `md`; the room list stays at
- * `/chat/chats`.
+ * a 390px column — 32px mark, scrollable selectable strip with an 80px
+ * featured face, and a full-width CTA. Owns `/chat` below `md`; the room list
+ * stays at `/chat/chats`.
  */
 export async function ChatLandingMobile({
   coworkers,
@@ -45,10 +41,6 @@ export async function ChatLandingMobile({
     getFormatter(),
   ]);
   const featured = resolveFeaturedCoworker(coworkers);
-  const others = selectStripCoworkers(coworkers, featured);
-  const featuredRole = featured
-    ? featuredCoworkerRole(featured, t("role"))
-    : null;
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
   const hasAnyActivity = hasReportableActivity(summary);
 
@@ -74,30 +66,13 @@ export async function ChatLandingMobile({
 
         {featured ? (
           <OpenCoworkerRoomProvider>
-            <div className="mt-8 w-full">
-              <CoworkerStrip
-                featured={toStripCoworker(featured)}
-                others={others}
-                size="compact"
-              />
-            </div>
-
-            <p className="mt-4 text-lg font-semibold tracking-[-0.01em]">
-              {featured.name}
-            </p>
-            {featuredRole ? (
-              <p className="text-muted-foreground mt-1.5 max-w-[40ch] text-[0.8125rem] leading-[1.5] text-balance">
-                {featuredRole}
-              </p>
-            ) : null}
-
-            <div className="mt-6 w-full max-w-xs">
-              <StartChatButton
-                className="w-full"
-                coworkerId={featured.id}
-                coworkerName={featured.name}
-              />
-            </div>
+            <LandingCoworkerPicker
+              coworkers={coworkers}
+              elenaRole={t("role")}
+              initialSelectedId={featured.id}
+              size="compact"
+              startChatClassName="w-full"
+            />
           </OpenCoworkerRoomProvider>
         ) : null}
       </div>

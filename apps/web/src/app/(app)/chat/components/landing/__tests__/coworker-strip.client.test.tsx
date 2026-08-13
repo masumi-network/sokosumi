@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { StripCoworker } from "../coworker-strip.client";
@@ -13,14 +14,6 @@ vi.mock("next/image", () => ({
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${JSON.stringify(values)}` : key,
-}));
-
-vi.mock("../use-open-coworker-room", () => ({
-  useOpenCoworkerRoom: () => ({
-    isPending: false,
-    openCoworkerRoom: vi.fn(),
-    openingId: null,
-  }),
 }));
 
 import { CoworkerStrip } from "../coworker-strip.client";
@@ -41,12 +34,12 @@ describe("CoworkerStrip", () => {
   });
 
   it("shows every coworker name and specialty in the DOM", () => {
-    const featured = buildStripCoworker({
-      id: "elena",
-      name: "Elena",
-      title: "Project Manager",
-    });
-    const others = [
+    const coworkers = [
+      buildStripCoworker({
+        id: "elena",
+        name: "Elena",
+        title: "Project Manager",
+      }),
       buildStripCoworker({
         id: "hannah",
         name: "Hannah",
@@ -59,7 +52,13 @@ describe("CoworkerStrip", () => {
       }),
     ];
 
-    render(<CoworkerStrip featured={featured} others={others} />);
+    render(
+      <CoworkerStrip
+        coworkers={coworkers}
+        onSelect={vi.fn()}
+        selectedId="elena"
+      />,
+    );
 
     for (const name of ["Elena", "Hannah", "Alex"]) {
       expect(screen.getByText(name)).toBeInTheDocument();
@@ -70,18 +69,67 @@ describe("CoworkerStrip", () => {
   });
 
   it("uses a horizontally scrollable overflow container", () => {
-    const featured = buildStripCoworker({ id: "elena", name: "Elena" });
-
     render(
       <CoworkerStrip
-        featured={featured}
-        others={[
+        coworkers={[
+          buildStripCoworker({ id: "elena", name: "Elena" }),
           buildStripCoworker({ id: "hannah", name: "Hannah", title: "Ops" }),
         ]}
+        onSelect={vi.fn()}
+        selectedId="elena"
       />,
     );
 
     const scroll = screen.getByTestId("coworker-strip-scroll");
     expect(scroll.className).toMatch(/overflow-x-auto/);
+  });
+
+  it("selects a coworker on tap without opening a room", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+
+    render(
+      <CoworkerStrip
+        coworkers={[
+          buildStripCoworker({ id: "elena", name: "Elena" }),
+          buildStripCoworker({ id: "hannah", name: "Hannah", title: "Ops" }),
+        ]}
+        onSelect={onSelect}
+        selectedId="elena"
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Hannah"}',
+      }),
+    );
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith("hannah");
+  });
+
+  it("marks the selected coworker as aria-selected", () => {
+    render(
+      <CoworkerStrip
+        coworkers={[
+          buildStripCoworker({ id: "elena", name: "Elena" }),
+          buildStripCoworker({ id: "hannah", name: "Hannah" }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="hannah"
+      />,
+    );
+
+    expect(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Hannah"}',
+      }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Elena"}',
+      }),
+    ).toHaveAttribute("aria-selected", "false");
   });
 });
