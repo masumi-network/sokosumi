@@ -159,7 +159,13 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           userName={session?.user.name ?? null}
         />
       </div>
-      <div className="flex min-h-full min-w-0 w-full flex-1 flex-col md:hidden">
+      {/*
+        Cancel authenticated-app-frame main `p-4` on mobile (same `-m-4` as
+        `/chat/chats` + room shell). Without this, the coworker strip scrollport
+        is inset 16px and edge avatars clip at the pad, not the viewport.
+        Pitch/stats/selected keep their own `px-4` inside ChatLandingMobile.
+      */}
+      <div className="bg-background -m-4 flex min-h-full min-w-0 flex-1 flex-col md:hidden">
         <ChatLandingMobile
           coworkers={coworkers}
           isOrganizationWorkspace={activeOrganizationId !== null}

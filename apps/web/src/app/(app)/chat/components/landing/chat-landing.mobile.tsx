@@ -43,6 +43,9 @@ export async function ChatLandingMobile({
     // block only. The coworker strip must span the full content width — page
     // padding on an overflow-y ancestor would clip edge faces (CSS forces
     // overflow-x:auto when overflow-y is not visible).
+    // Mobile: `/chat` page shell also uses `-m-4` to cancel app-main `p-4`
+    // above this section (same pattern as `/chat/chats`); without that the
+    // strip stays inset 16px even when this section has no px.
     <section className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch pt-4 pb-3 text-center">
       <SokosumiIcon
         animated={false}
