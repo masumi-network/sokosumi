@@ -821,3 +821,90 @@ cases moved into `findX402ReadySource`'s describe.
 skipped); `pnpm typecheck` all workspaces; `pnpm check` clean. Listing
 helper 269 lines — under the 750 ceiling (its 717-line test is exempt, but
 the route test is at 715 and should be split by concern before it grows).
+
+### Step-4 fourth review — docs provenance, unasserted query shape, warn volume
+
+Round 4 confirmed the round-3 fixes (53 mutations, no fourth vacuous test)
+and left four LOW issues. All four are now closed.
+
+**The OpenAPI `decimals` description still named the untrusted source.** The
+round-3 change moved the value's provenance to `X402ReadySource.decimals`
+but touched only `x402-agent-listing.ts`; the published description still
+read "Asset decimals from the agent's registry entry". `decimals` scales the
+charge inversely, and the agent-authored value was the 10^n mischarge this
+stack closed — so the stale line invited a maintainer reconciling code
+against docs to swap `readySource.decimals` back to `amount.decimals`. It
+now states the payment node publishes it for that (network, asset) pair and
+that it is never the agent's registered value, with a code comment naming
+the safe source. The sibling fields were checked and are accurate: `amount`
+and `payTo` genuinely are the registry's, and `credits` really is
+charge-floored (`calculateCentsFromX402Amount` ceils, then floors at
+`MIN_CHARGEABLE_CREDITS`). No test asserts doc strings anywhere in core, and
+none was added — the behavioural guard ("advertises the cached node decimals
+over the agent's registered scale") already covers the regression path.
+
+**Two mechanisms in the route were unasserted** — deleting either left all
+21 tests green, the strongest survivors in the file.
+
+- `AGENT_PRICING_READ_TRANSACTION_OPTIONS` was invisible because the prisma
+  mock's `$transaction` discarded its second argument. It is a `vi.fn()` now
+  and the RepeatableRead level is asserted against the REAL constant (this
+  suite does not mock `@/helpers/agent`, unlike the catalog route's test).
+  Without the snapshot, Prisma issues the agent / paymentSources / amounts
+  reads as separate statements and a registry replay committing mid-read
+  yields a FIXED source with a partial amount set — listed-but-unpayable.
+- The `{ id: "desc" }` cursor tiebreak. `agentOrderBy` is
+  (jobCount, createdAt) and is not unique, so without a unique final key
+  cursor pagination can skip or repeat agents sharing that pair.
+
+**Warn volume was client-driven.** `logX402ListingDrops` warned whenever a
+page listed nothing while dropping something, and BOTH inputs are
+client-selectable: `?limit=1&cursor=<id before an unpayable agent>` emits one
+`console.warn` per request on a healthy deployment, loopable by any
+authenticated coworker. `limit` alone suffices — it narrows the page until a
+single unpayable agent IS the page. That is the gap the empty-page case was
+written to close. Of the two offered fixes, the warn was restricted to the
+unfiltered first page (no cursor, default limit) rather than demoted to
+`debug`: demoting would delete the "listing is broken" signal outright, since
+the repo has no rate-limited log sink to hand it to. On the unfiltered first
+page the client chooses neither which agents appear nor how many, so a
+healthy deployment emits zero warns under any traffic. Accepted cost: a
+genuinely broken deployment still logs once per unfiltered request; a
+module-scoped rate limiter was rejected as per-instance mutable state in a
+route handler. The per-reason tally is untouched and every demoted case still
+reports it at debug — the env-separation test depends on that.
+
+**Mutation results:** isolation option deleted → 1 red
+(`reads the page and its count in one repeatable-read snapshot`); `{ id:
+"desc" }` deleted → 1 red (`breaks the non-unique catalog order with a unique
+id tiebreak`); warn gate reverted to `listedCount === 0` → 2 red (the
+cursored and narrowed all-dropped pages). All restored green, and all three
+re-run after the test split below.
+
+**Test split.** The route suite hit 839 lines, past the point round 3 flagged
+("at 715 and should be split by concern before it grows"). Split along the
+boundary it already had: `get.query.test.ts` (9) covers how the route asks
+Postgres for its page — pagination, cursor and tiebreak, relation ordering,
+snapshot isolation, column narrowing; `get.test.ts` (16) keeps authorization,
+the fail-closed gates, and drop logging. Builders moved to `get.fixtures.ts`
+(not a `*.test.ts` name, so vitest's `src/**/*.test.ts` include skips it);
+only the `vi.hoisted` mocks stay per-file, which `vi.mock` scoping requires.
+No test added, removed, or reworded — 25 before, 25 after.
+
+The move surfaced a latent typing weakness: `COWORKER_AGENT_CONTEXT` was
+annotated with the whole `AuthenticationContext` union and only compiled
+because an in-file `const` narrows back to its initializer's member. Once
+imported, the delegated-coworker test's spread of `context` was an excess
+property against `UserAuthenticationContext`. Typed as
+`CoworkerAuthenticationContext` now, which is what it always was.
+
+**Web client:** not regenerated, deliberately. Nothing under `apps/web/src`
+references this endpoint, and the tracked Core client carries no `X402Agent`
+or `X402AgentPaymentSource` at all — coworker agents call Core directly, so
+PR4 never wired the listing into web. A description-only change to a schema
+web does not import has nothing to regenerate.
+
+**Verification:** `pnpm --filter core test` 361 files / 3353 passed (6
+skipped); `pnpm typecheck` all workspaces; `pnpm check` clean. Route 239
+lines, listing helper 269, schema 76, fixtures 136 — all under 750; the two
+test files are 565 and 273.
