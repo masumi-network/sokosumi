@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 import { AgentEntryType, AgentStatus, agentOrderBy } from "@sokosumi/database";
 
+import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { AGENT_PRICING_READ_TRANSACTION_OPTIONS } from "@/helpers/agent";
 import {
@@ -34,19 +35,29 @@ import { type X402Agent, x402AgentsSchema } from "@/schemas/x402-agent.schema";
 
 /**
  * One line per request summarising which gates hid agents, never one per
- * agent. Warns only when the page came back empty despite candidates being
- * queried — that is the state an operator reports as "the listing is broken";
- * partial drops are routine and stay at debug.
+ * agent. Warns only when the UNFILTERED FIRST PAGE came back empty despite
+ * candidates being queried — that is the state an operator reports as "the
+ * listing is broken"; partial drops are routine and stay at debug.
+ *
+ * Both other inputs to that condition are client-supplied. `cursor` lets a
+ * coworker aim a page at an agent it already knows is unpayable, and `limit`
+ * narrows the page until a single such agent IS the page — either one makes
+ * `listedCount === 0` hold on a perfectly healthy deployment, one warn per
+ * request, loopable. Restricting the warn to the default-limit, cursorless
+ * page leaves the client choosing neither which agents appear nor how many,
+ * so warn volume tracks the deployment's health rather than its traffic.
+ * Every demoted case still reports the per-reason tally at debug.
  */
 function logX402ListingDrops(
   listedCount: number,
   dropsByReason: ReadonlyMap<X402ListingDropReason, number>,
+  isUnfilteredFirstPage: boolean,
 ): void {
   if (dropsByReason.size === 0) {
     return;
   }
   const summary = JSON.stringify(Object.fromEntries(dropsByReason));
-  if (listedCount === 0) {
+  if (listedCount === 0 && isUnfilteredFirstPage) {
     console.warn(
       `[agents/x402] every candidate agent was dropped as unpayable: ${summary}`,
     );
@@ -206,7 +217,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         paymentSources: result.paymentSources,
       });
     }
-    logX402ListingDrops(listed.length, dropsByReason);
+    // A page the client did not narrow or seek into: see logX402ListingDrops
+    // for why only that page may raise the warn. An explicit `limit` equal to
+    // the default reads the same rows as no `limit` at all, so it counts.
+    const isUnfilteredFirstPage =
+      cursor === undefined && take === LIMITS.DEFAULT_PAGINATION_LIMIT;
+    logX402ListingDrops(listed.length, dropsByReason, isUnfilteredFirstPage);
 
     return ok(
       c,

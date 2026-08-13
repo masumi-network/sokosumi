@@ -598,6 +598,82 @@ describe("GET /agents/x402", () => {
     expect(debug).not.toHaveBeenCalled();
   });
 
+  it("stays quiet on a cursored all-dropped page", async () => {
+    // `cursor` is client-supplied, so a coworker can aim a page straight at an
+    // unpayable agent and make `listedCount === 0` hold on a perfectly healthy
+    // deployment — one warn per request, looped at will. Only the unfiltered
+    // first page, whose contents no client chooses, may warn.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        id: "agent_x402_upto",
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "FIXED",
+            scheme: "upto",
+            amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
+          },
+        ],
+      }),
+    ]);
+    agentCountMock.mockResolvedValue(9);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request(
+      "http://localhost/x402?cursor=agent_x402_0",
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: unknown };
+    expect(body.data).toEqual([]);
+    expect(warn).not.toHaveBeenCalled();
+    // The per-reason tally survives the demotion — it is the only thing that
+    // tells "nothing priced" apart from "everything failed the network gate".
+    expect(debug).toHaveBeenCalledWith(
+      '[agents/x402] dropped unpayable agents: {"unsupported_scheme":1}',
+    );
+  });
+
+  it("stays quiet on a client-narrowed all-dropped page", async () => {
+    // The second client-selectable input: `limit=1` slices the catalog down to
+    // one agent, so any unpayable agent anywhere in the listing can be made
+    // the whole page. Narrowing the page must not be a way to raise a warn.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    agentFindManyMock.mockResolvedValue([
+      createAgentRow({
+        id: "agent_x402_upto",
+        paymentSources: [
+          {
+            sourceIndex: 0,
+            network: BASE_SEPOLIA,
+            payTo: PAY_TO,
+            pricingType: "FIXED",
+            scheme: "upto",
+            amounts: [{ unit: USDC_ADDRESS, amount: 250000n, decimals: 6 }],
+          },
+        ],
+      }),
+      createAgentRow({ id: "agent_x402_next" }),
+    ]);
+    agentCountMock.mockResolvedValue(9);
+    const app = createApp(COWORKER_AGENT_CONTEXT);
+
+    const response = await app.request("http://localhost/x402?limit=1");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: unknown };
+    expect(body.data).toEqual([]);
+    expect(warn).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledWith(
+      '[agents/x402] dropped unpayable agents: {"unsupported_scheme":1}',
+    );
+  });
+
   it("drops an agent advertising a payment scheme other than exact", async () => {
     // `scheme` is what the payer signs against. A priced, allowed, ready
     // source in an unknown scheme is not payable, so it must not be listed.
