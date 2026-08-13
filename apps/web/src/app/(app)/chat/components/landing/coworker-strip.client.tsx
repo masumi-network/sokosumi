@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useRef } from "react";
+import { useEffectEvent, useRef } from "react";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
+
+import { findNearestCenterIdFromElements } from "./nearest-center-coworker";
 
 export interface StripCoworker {
   id: string;
@@ -20,8 +22,7 @@ interface CoworkerStripProps {
   /** Currently selected coworker — larger face, Start chat target. */
   selectedId: string;
   /**
-   * Coworker to optically centre on first paint (Elena / fallback). Selection
-   * changes do not re-scroll — browsing stays where the user left it.
+   * Coworker to optically centre on first paint (Elena / fallback).
    */
   centerOnId: string;
   onSelect: (coworkerId: string) => void;
@@ -34,27 +35,30 @@ const STRIP_SIZES = {
     featured: "size-20",
     other: "size-11",
     gap: "gap-4",
-    itemWidth: "w-[4.5rem]",
-    featuredItemWidth: "w-[5.5rem]",
+    // All chips share the featured width so selection reflow cannot move
+    // centers while scroll-driven selection is active.
+    itemWidth: "w-[5.5rem]",
     featuredSizes: "80px",
     otherSizes: "44px",
     featuredInitial: "text-xl",
     otherInitial: "text-xs",
     name: "text-xs",
     title: "text-[0.625rem]",
+    // Half featured width: lets first/last faces reach optical center.
+    edgePad: "px-[max(0.25rem,calc(50%-2.75rem))]",
   },
   default: {
     featured: "size-28",
     other: "size-16",
     gap: "gap-5",
-    itemWidth: "w-24",
-    featuredItemWidth: "w-28",
+    itemWidth: "w-28",
     featuredSizes: "112px",
     otherSizes: "64px",
     featuredInitial: "text-2xl",
     otherInitial: "text-sm",
     name: "text-sm",
     title: "text-xs",
+    edgePad: "px-[max(0.25rem,calc(50%-3.5rem))]",
   },
 } as const;
 
@@ -65,9 +69,10 @@ const STRIP_SIZES = {
  * full-bleed parent (no page `px-*` on overflow ancestors) so edge faces are
  * not inset-and-clipped. The `w-max` track lives *inside* overflow-x-auto so
  * it cannot widen the picker or page. On mount, scrolls so `centerOnId` sits
- * optically in the middle. Strip titles always reserve two lines
- * (`min-h-[2lh]`) so 1-line vs wrapping captions cannot change row height and
- * push Start chat.
+ * optically in the middle. While the user scrolls, selection follows the
+ * coworker nearest the visual center; tap selects and centers that face.
+ * Strip titles always reserve two lines (`min-h-[2lh]`) so 1-line vs wrapping
+ * captions cannot change row height and push Start chat.
  */
 export function CoworkerStrip({
   coworkers,
@@ -80,6 +85,70 @@ export function CoworkerStrip({
   const scale = STRIP_SIZES[size];
   const scrollRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef(new Map<string, HTMLButtonElement>());
+  /** >0 while programmatic scrollIntoView should not drive selection. */
+  const suppressScrollSelectRef = useRef(0);
+
+  function runProgrammaticCenter(
+    child: HTMLElement,
+    behavior: ScrollBehavior,
+  ): void {
+    const scroll = scrollRef.current;
+    suppressScrollSelectRef.current += 1;
+    let released = false;
+
+    function release(): void {
+      if (released) {
+        return;
+      }
+      released = true;
+      suppressScrollSelectRef.current = Math.max(
+        0,
+        suppressScrollSelectRef.current - 1,
+      );
+      scroll?.removeEventListener("scrollend", release);
+    }
+
+    try {
+      child.scrollIntoView({
+        behavior,
+        block: "nearest",
+        inline: "center",
+      });
+    } catch {
+      // jsdom / older engines may lack scrollIntoView — still release suppress.
+      release();
+      return;
+    }
+
+    if (behavior === "smooth" && scroll) {
+      scroll.addEventListener("scrollend", release, { once: true });
+      window.setTimeout(release, 500);
+      return;
+    }
+
+    // `auto` centering is synchronous; any scroll events from it already ran
+    // while suppress was elevated.
+    release();
+  }
+
+  const syncSelectionFromScroll = useEffectEvent(() => {
+    if (suppressScrollSelectRef.current > 0) {
+      return;
+    }
+
+    const scroll = scrollRef.current;
+    if (!scroll) {
+      return;
+    }
+
+    const nearestId = findNearestCenterIdFromElements(
+      scroll,
+      itemRefs.current.entries(),
+    );
+    if (nearestId && nearestId !== selectedId) {
+      onSelect(nearestId);
+    }
+  });
 
   useMountEffect(() => {
     const child = itemRefs.current.get(centerOnId);
@@ -91,11 +160,7 @@ export function CoworkerStrip({
     let frame2 = 0;
     const frame1 = requestAnimationFrame(() => {
       frame2 = requestAnimationFrame(() => {
-        child.scrollIntoView({
-          behavior: "auto",
-          block: "nearest",
-          inline: "center",
-        });
+        runProgrammaticCenter(child, "auto");
       });
     });
 
@@ -104,6 +169,15 @@ export function CoworkerStrip({
       cancelAnimationFrame(frame2);
     };
   });
+
+  function handleSelect(coworkerId: string): void {
+    onSelect(coworkerId);
+    const child = itemRefs.current.get(coworkerId);
+    if (!child) {
+      return;
+    }
+    runProgrammaticCenter(child, "smooth");
+  }
 
   return (
     <div
@@ -116,13 +190,15 @@ export function CoworkerStrip({
       data-testid="coworker-strip-scroll"
       role="listbox"
       aria-label={t("team.stripLabel")}
+      onScroll={syncSelectionFromScroll}
     >
       <div
         className={cn(
           // min-w-full + justify-center: when the catalog fits, Elena (middle
           // of the track) lands in the visual centre. When it overflows, w-max
-          // wins and the scrollport alone handles overflow.
-          "flex w-max min-w-full items-start justify-center px-1 py-1",
+          // wins and edgePad lets first/last faces reach optical center.
+          "flex w-max min-w-full items-start justify-center py-1",
+          scale.edgePad,
           scale.gap,
         )}
         data-testid="coworker-strip-track"
@@ -148,9 +224,9 @@ export function CoworkerStrip({
               className={cn(
                 "flex shrink-0 cursor-pointer flex-col items-center gap-2 text-center transition-opacity outline-none",
                 "focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:ring-offset-2",
-                isSelected ? scale.featuredItemWidth : scale.itemWidth,
+                scale.itemWidth,
               )}
-              onClick={() => onSelect(coworker.id)}
+              onClick={() => handleSelect(coworker.id)}
             >
               <span
                 className={cn(

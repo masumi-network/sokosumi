@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -113,9 +113,11 @@ describe("CoworkerStrip", () => {
     expect(scroll.querySelector('[data-coworker-id="elena"]')).toBeTruthy();
   });
 
-  it("selects a coworker on tap without opening a room", async () => {
+  it("selects a coworker on tap without opening a room and centers that face", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
 
     render(
       <CoworkerStrip
@@ -129,6 +131,8 @@ describe("CoworkerStrip", () => {
       />,
     );
 
+    scrollIntoView.mockClear();
+
     await user.click(
       screen.getByRole("option", {
         name: 'team.select:{"name":"Hannah"}',
@@ -137,6 +141,89 @@ describe("CoworkerStrip", () => {
 
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect).toHaveBeenCalledWith("hannah");
+    expect(scrollIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({ inline: "center" }),
+    );
+  });
+
+  it("selects the coworker nearest the scrollport center while scrolling", () => {
+    const onSelect = vi.fn();
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({ id: "deckster", name: "Deckster" }),
+          buildStripCoworker({ id: "apol", name: "Apol" }),
+          buildStripCoworker({ id: "elena", name: "Elena" }),
+        ]}
+        onSelect={onSelect}
+        selectedId="elena"
+      />,
+    );
+
+    const scroll = screen.getByTestId("coworker-strip-scroll");
+    scroll.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        width: 300,
+        top: 0,
+        height: 80,
+        right: 300,
+        bottom: 80,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    function place(id: string, left: number, width: number): void {
+      const node = scroll.querySelector(
+        `[data-coworker-id="${id}"]`,
+      ) as HTMLElement;
+      node.getBoundingClientRect = () =>
+        ({
+          left,
+          width,
+          top: 0,
+          height: 80,
+          right: left + width,
+          bottom: 80,
+          x: left,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
+    }
+
+    // Viewport center at 150; Apol centered there.
+    place("deckster", -40, 80);
+    place("apol", 110, 80);
+    place("elena", 260, 80);
+
+    onSelect.mockClear();
+    fireEvent.scroll(scroll);
+
+    expect(onSelect).toHaveBeenCalledWith("apol");
+  });
+
+  it("keeps a stable chip width so selection reflow cannot move centers", () => {
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({ id: "elena", name: "Elena" }),
+          buildStripCoworker({ id: "hannah", name: "Hannah" }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="elena"
+        size="compact"
+      />,
+    );
+
+    const options = screen.getAllByRole("option");
+    for (const option of options) {
+      expect(option.className).toMatch(/w-\[5\.5rem\]/);
+    }
   });
 
   it("marks the selected coworker as aria-selected", () => {
