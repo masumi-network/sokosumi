@@ -8,7 +8,6 @@ import {
   clampLandingDescription,
   hasReportableActivity,
   LANDING_DESCRIPTION_MAX_CHARS,
-  opticalCenterScrollLeft,
   orderStripCoworkers,
   resolveFeaturedCoworker,
   selectedCoworkerCaption,
@@ -210,41 +209,6 @@ describe("orderStripCoworkers", () => {
     expect(orderStripCoworkers([featured], featured).map((c) => c.id)).toEqual([
       "elena",
     ]);
-  });
-});
-
-describe("opticalCenterScrollLeft", () => {
-  it("centres a mid-strip child in an overflowing viewport", () => {
-    expect(
-      opticalCenterScrollLeft({
-        childOffsetLeft: 400,
-        childWidth: 100,
-        containerWidth: 200,
-        scrollWidth: 900,
-      }),
-    ).toBe(350);
-  });
-
-  it("clamps to zero when the strip fits the viewport", () => {
-    expect(
-      opticalCenterScrollLeft({
-        childOffsetLeft: 40,
-        childWidth: 80,
-        containerWidth: 400,
-        scrollWidth: 300,
-      }),
-    ).toBe(0);
-  });
-
-  it("clamps to max scroll near the end of the strip", () => {
-    expect(
-      opticalCenterScrollLeft({
-        childOffsetLeft: 800,
-        childWidth: 100,
-        containerWidth: 200,
-        scrollWidth: 900,
-      }),
-    ).toBe(700);
   });
 });
 

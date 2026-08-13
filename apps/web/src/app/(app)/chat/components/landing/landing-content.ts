@@ -121,22 +121,6 @@ export function orderStripCoworkers(
   return [...left, featured, ...right].map(toStripCoworker);
 }
 
-/**
- * Horizontal scroll offset that puts a child at the optical centre of its
- * scrollport. Clamped so short strips (or edge children) do not overscroll.
- */
-export function opticalCenterScrollLeft(input: {
-  childOffsetLeft: number;
-  childWidth: number;
-  containerWidth: number;
-  scrollWidth: number;
-}): number {
-  const childCenter = input.childOffsetLeft + input.childWidth / 2;
-  const target = childCenter - input.containerWidth / 2;
-  const maxScroll = Math.max(0, input.scrollWidth - input.containerWidth);
-  return Math.min(maxScroll, Math.max(0, target));
-}
-
 type StatsTranslator = (
   key: string,
   values?: Record<string, number | string>,

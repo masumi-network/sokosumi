@@ -33,6 +33,30 @@ describe("CoworkerStrip", () => {
     cleanup();
   });
 
+  it("keeps the scrollport viewport-bounded so the w-max track cannot widen parents", () => {
+    render(
+      <CoworkerStrip
+        centerOnId="elena"
+        coworkers={[
+          buildStripCoworker({ id: "a", name: "A" }),
+          buildStripCoworker({ id: "elena", name: "Elena" }),
+          buildStripCoworker({ id: "b", name: "B" }),
+        ]}
+        onSelect={vi.fn()}
+        selectedId="elena"
+      />,
+    );
+
+    const scroll = screen.getByTestId("coworker-strip-scroll");
+    expect(scroll.className).toMatch(/w-full/);
+    expect(scroll.className).toMatch(/min-w-0/);
+    expect(scroll.className).toMatch(/max-w-full/);
+    expect(scroll.className).toMatch(/overflow-x-auto/);
+
+    const track = screen.getByTestId("coworker-strip-track");
+    expect(track.className).toMatch(/w-max/);
+  });
+
   it("shows every coworker name and specialty in the DOM", () => {
     const coworkers = [
       buildStripCoworker({
@@ -67,23 +91,6 @@ describe("CoworkerStrip", () => {
     for (const title of ["Project Manager", "Research", "Data"]) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
-  });
-
-  it("uses a horizontally scrollable overflow container", () => {
-    render(
-      <CoworkerStrip
-        centerOnId="elena"
-        coworkers={[
-          buildStripCoworker({ id: "elena", name: "Elena" }),
-          buildStripCoworker({ id: "hannah", name: "Hannah", title: "Ops" }),
-        ]}
-        onSelect={vi.fn()}
-        selectedId="elena"
-      />,
-    );
-
-    const scroll = screen.getByTestId("coworker-strip-scroll");
-    expect(scroll.className).toMatch(/overflow-x-auto/);
   });
 
   it("keeps a data hook for the centered coworker", () => {

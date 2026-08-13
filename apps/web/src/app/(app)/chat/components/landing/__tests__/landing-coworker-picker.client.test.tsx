@@ -46,7 +46,14 @@ function blockOrder(): string[] {
     "landing-selected-caption",
     "landing-start-chat",
     "landing-selected-description",
-  ].filter((id) => screen.queryByTestId(id));
+  ].filter((id) => {
+    const node = screen.queryByTestId(id);
+    if (!node) {
+      return false;
+    }
+    // Caption slot is always mounted; treat empty nbsp as "present".
+    return true;
+  });
 }
 
 describe("LandingCoworkerPicker", () => {
@@ -70,7 +77,34 @@ describe("LandingCoworkerPicker", () => {
       caption: "Research",
       description: `Hannah digs into sources and briefs. ${"detail ".repeat(40)}`,
     }),
+    buildCoworker({
+      id: "deckster",
+      name: "Deckster",
+      slug: "deckster",
+      caption: null,
+      description: "Deckster builds decks.",
+    }),
   ];
+
+  it("bounds the picker and featured CTA so the strip cannot widen them", () => {
+    render(
+      <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
+    );
+
+    const picker = screen.getByTestId("landing-coworker-picker");
+    expect(picker.className).toMatch(/w-full/);
+    expect(picker.className).toMatch(/min-w-0/);
+    expect(picker.className).toMatch(/max-w-full/);
+
+    const selected = screen.getByTestId("landing-selected-block");
+    expect(selected.className).toMatch(/max-w-xs/);
+    expect(selected.className).toMatch(/w-full/);
+    expect(selected.className).toMatch(/min-w-0/);
+
+    const scroll = screen.getByTestId("coworker-strip-scroll");
+    expect(scroll.className).toMatch(/min-w-0/);
+    expect(scroll.className).toMatch(/overflow-x-auto/);
+  });
 
   it("renders Elena in the middle of the full strip order", () => {
     const catalog = [
@@ -96,7 +130,7 @@ describe("LandingCoworkerPicker", () => {
     expect(optionIds).toEqual(["a", "b", "elena", "c", "d"]);
   });
 
-  it("orders name, caption, Start chat, then description", () => {
+  it("orders name, caption slot, Start chat, then description", () => {
     render(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
@@ -122,6 +156,36 @@ describe("LandingCoworkerPicker", () => {
     expect(cta.compareDocumentPosition(description)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
+  });
+
+  it("keeps a reserved caption slot so omitting caption cannot remove CTA spacing", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
+    );
+
+    const caption = screen.getByTestId("landing-selected-caption");
+    expect(caption.className).toMatch(/min-h-/);
+    expect(caption).toHaveTextContent("Strategy");
+
+    await user.click(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Deckster"}',
+      }),
+    );
+
+    // Slot stays mounted with reserved height; empty caption is nbsp only.
+    expect(screen.getByTestId("landing-selected-caption").className).toMatch(
+      /min-h-/,
+    );
+    expect(screen.getByTestId("landing-start-chat")).toBeInTheDocument();
+    expect(
+      screen
+        .getByTestId("landing-selected-caption")
+        .compareDocumentPosition(screen.getByTestId("landing-start-chat")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("keeps Start chat above description so long copy cannot shift the CTA", async () => {
@@ -186,7 +250,7 @@ describe("LandingCoworkerPicker", () => {
     ).toContain(long.trim());
   });
 
-  it("omits caption and description blocks when those fields are empty", () => {
+  it("omits the description block when description is empty", () => {
     render(
       <LandingCoworkerPicker
         coworkers={[
@@ -194,7 +258,7 @@ describe("LandingCoworkerPicker", () => {
             id: "elena",
             name: "Elena",
             slug: "elena",
-            caption: "   ",
+            caption: "Strategy",
             description: "",
           }),
         ]}
@@ -204,11 +268,9 @@ describe("LandingCoworkerPicker", () => {
 
     expect(blockOrder()).toEqual([
       "landing-selected-name",
+      "landing-selected-caption",
       "landing-start-chat",
     ]);
-    expect(
-      screen.queryByTestId("landing-selected-caption"),
-    ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("landing-selected-description"),
     ).not.toBeInTheDocument();

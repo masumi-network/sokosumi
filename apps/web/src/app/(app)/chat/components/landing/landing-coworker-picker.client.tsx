@@ -27,9 +27,9 @@ interface LandingCoworkerPickerProps {
  * Landing strip + details + Start chat.
  *
  * Order under the strip: name → caption → Start chat → description.
- * Description lives below the CTA so length / more-less never moves the button.
- * Default featured (Elena) sits in the middle of the full catalog and is
- * scrolled into optical centre on first paint.
+ * The picker is viewport-bounded (`w-full min-w-0`) so the strip's w-max track
+ * cannot widen Start chat. Caption slot keeps a fixed min-height so omitting
+ * or wrapping caption does not jump the CTA. Description stays below the CTA.
  */
 export function LandingCoworkerPicker({
   coworkers,
@@ -54,8 +54,16 @@ export function LandingCoworkerPicker({
   const selectedDescription = selectedCoworkerDescription(selected);
 
   return (
-    <div data-testid="landing-coworker-picker">
-      <div className={cn(size === "compact" ? "mt-8" : "mt-12", "w-full")}>
+    <div
+      className="w-full min-w-0 max-w-full"
+      data-testid="landing-coworker-picker"
+    >
+      <div
+        className={cn(
+          "w-full min-w-0 max-w-full",
+          size === "compact" ? "mt-6" : "mt-10",
+        )}
+      >
         <CoworkerStrip
           centerOnId={initial.id}
           coworkers={stripCoworkers}
@@ -65,47 +73,54 @@ export function LandingCoworkerPicker({
         />
       </div>
 
-      <p
+      {/* Featured block is its own width budget — never inherits strip track width. */}
+      <div
         className={cn(
-          "font-semibold tracking-[-0.01em]",
-          size === "compact" ? "mt-4 text-lg" : "mt-5 text-xl",
+          "mx-auto flex w-full min-w-0 max-w-xs flex-col items-center",
+          size === "compact" ? "mt-4" : "mt-5",
         )}
-        data-testid="landing-selected-name"
+        data-testid="landing-selected-block"
       >
-        {selected.name}
-      </p>
-      {selectedCaption ? (
         <p
           className={cn(
-            "text-muted-foreground",
+            "font-semibold tracking-[-0.01em]",
+            size === "compact" ? "text-lg" : "text-xl",
+          )}
+          data-testid="landing-selected-name"
+        >
+          {selected.name}
+        </p>
+
+        {/* Always reserve two caption lines so empty/wrapping captions cannot
+            shift Start chat when the middle column is vertically centred. */}
+        <p
+          className={cn(
+            "text-muted-foreground line-clamp-2 w-full leading-snug",
             size === "compact"
-              ? "mt-1 text-[0.8125rem] leading-snug"
-              : "mt-1.5 text-sm leading-snug",
+              ? "mt-1 min-h-[2.4375rem] text-[0.8125rem]"
+              : "mt-1.5 min-h-[2.5rem] text-sm",
           )}
           data-testid="landing-selected-caption"
         >
-          {selectedCaption}
+          {selectedCaption ?? "\u00a0"}
         </p>
-      ) : null}
 
-      <div
-        className={cn("mt-6", size === "compact" && "w-full max-w-xs")}
-        data-testid="landing-start-chat"
-      >
-        <StartChatButton
-          className={startChatClassName}
-          coworkerId={selected.id}
-          coworkerName={selected.name}
-        />
+        <div className="mt-4 w-full min-w-0" data-testid="landing-start-chat">
+          <StartChatButton
+            className={cn("w-full", startChatClassName)}
+            coworkerId={selected.id}
+            coworkerName={selected.name}
+          />
+        </div>
+
+        {selectedDescription ? (
+          <LandingSelectedDescription
+            coworkerId={selected.id}
+            description={selectedDescription}
+            size={size}
+          />
+        ) : null}
       </div>
-
-      {selectedDescription ? (
-        <LandingSelectedDescription
-          coworkerId={selected.id}
-          description={selectedDescription}
-          size={size}
-        />
-      ) : null}
     </div>
   );
 }

@@ -27,6 +27,10 @@ interface ChatLandingProps {
  * Pair of {@link ChatLandingMobile} (`chat-landing.mobile.tsx`): same content
  * decisions from `landing-content`, larger strip and type. Owns `/chat` at
  * `md` and up.
+ *
+ * Stats stay `shrink-0` at the bottom of the viewport-tall column so the
+ * activity row remains on the first view; the middle zone may scroll if the
+ * strip + selection block needs more room.
  */
 export async function ChatLanding({
   coworkers,
@@ -43,24 +47,20 @@ export async function ChatLanding({
   const hasAnyActivity = hasReportableActivity(summary);
 
   return (
-    // Three zones: the mark keeps the page's top edge aligned with every other
-    // route, the pitch centres in whatever height is left, and the stats close
-    // out the bottom.
-    <div className="flex min-h-full w-full flex-col items-center">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch">
       <SokosumiIcon
         animated={false}
-        className="text-foreground shrink-0"
+        className="text-foreground shrink-0 self-center"
         height={48}
         width={48}
       />
 
-      <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center py-10 text-center">
-        {/* Same treatment as the agents page heading. */}
-        <h1 className="text-foreground text-2xl font-light text-balance md:text-4xl">
+      <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-4xl flex-1 flex-col items-stretch justify-center overflow-y-auto px-4 py-6 text-center">
+        <h1 className="text-foreground shrink-0 text-2xl font-light text-balance md:text-4xl">
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
         </h1>
 
-        <p className="text-muted-foreground mx-auto mt-5 max-w-[62ch] text-base leading-[1.65] text-balance md:text-lg">
+        <p className="text-muted-foreground mx-auto mt-4 max-w-[62ch] shrink-0 text-base leading-[1.65] text-balance md:text-lg">
           {t("intro")}
         </p>
 
@@ -75,7 +75,10 @@ export async function ChatLanding({
       </div>
 
       {summary && hasAnyActivity && stats.length > 0 ? (
-        <div className="flex w-full shrink-0 flex-col items-center gap-4">
+        <div
+          className="flex w-full shrink-0 flex-col items-center gap-3 px-4 pb-4"
+          data-testid="landing-activity-stats"
+        >
           <p className="text-muted-foreground/70 text-[0.8125rem]">
             {summary.basis === "lastVisit"
               ? t("stats.sinceLastActivity", {

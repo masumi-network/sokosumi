@@ -7,8 +7,6 @@ import { useRef } from "react";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
-import { opticalCenterScrollLeft } from "./landing-content";
-
 export interface StripCoworker {
   id: string;
   imageUrl: null | string;
@@ -63,9 +61,9 @@ const STRIP_SIZES = {
 /**
  * Horizontal scrollable strip for browsing coworkers on the landing.
  *
- * Tap selects a coworker for the Start chat CTA — it does not open a DM.
- * On mount, scrolls so `centerOnId` sits optically in the middle of the
- * viewport (full catalog stays in the row; nothing is dropped).
+ * The scrollport is always viewport-bounded (`w-full min-w-0`). The `w-max`
+ * track lives *inside* overflow-x-auto so it cannot widen the picker or page.
+ * On mount, scrolls so `centerOnId` sits optically in the middle.
  */
 export function CoworkerStrip({
   coworkers,
@@ -80,24 +78,36 @@ export function CoworkerStrip({
   const itemRefs = useRef(new Map<string, HTMLButtonElement>());
 
   useMountEffect(() => {
-    const root = scrollRef.current;
     const child = itemRefs.current.get(centerOnId);
-    if (!root || !child) {
+    if (!child) {
       return;
     }
-    root.scrollLeft = opticalCenterScrollLeft({
-      childOffsetLeft: child.offsetLeft,
-      childWidth: child.offsetWidth,
-      containerWidth: root.clientWidth,
-      scrollWidth: root.scrollWidth,
+
+    // Double rAF: wait until flex widths settle so centre isn't measured at 0.
+    let frame2 = 0;
+    const frame1 = requestAnimationFrame(() => {
+      frame2 = requestAnimationFrame(() => {
+        child.scrollIntoView({
+          behavior: "auto",
+          block: "nearest",
+          inline: "center",
+        });
+      });
     });
+
+    return () => {
+      cancelAnimationFrame(frame1);
+      cancelAnimationFrame(frame2);
+    };
   });
 
   return (
     <div
       ref={scrollRef}
       className={cn(
-        "w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        // min-w-0 is load-bearing: without it, a flex ancestor sizes to the
+        // w-max track and the Start chat `w-full` stretches to ~900px.
+        "w-full min-w-0 max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
       )}
       data-testid="coworker-strip-scroll"
       role="listbox"
@@ -105,9 +115,13 @@ export function CoworkerStrip({
     >
       <div
         className={cn(
+          // min-w-full + justify-center: when the catalog fits, Elena (middle
+          // of the track) lands in the visual centre. When it overflows, w-max
+          // wins and the scrollport alone handles overflow.
           "flex w-max min-w-full items-start justify-center px-1 py-1",
           scale.gap,
         )}
+        data-testid="coworker-strip-track"
       >
         {coworkers.map((coworker) => {
           const isSelected = coworker.id === selectedId;

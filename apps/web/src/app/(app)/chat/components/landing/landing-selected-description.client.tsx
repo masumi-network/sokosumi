@@ -45,10 +45,10 @@ function LandingSelectedDescriptionBody({
   return (
     <div
       className={cn(
-        "text-muted-foreground text-balance",
+        "text-muted-foreground w-full min-w-0 text-balance",
         size === "compact"
-          ? "mt-4 max-w-[40ch] text-[0.8125rem] leading-[1.5]"
-          : "mx-auto mt-5 max-w-[46ch] text-[0.9375rem] leading-[1.55]",
+          ? "mt-3 text-[0.8125rem] leading-[1.5]"
+          : "mt-4 text-[0.9375rem] leading-[1.55]",
       )}
       data-testid="landing-selected-description"
     >
