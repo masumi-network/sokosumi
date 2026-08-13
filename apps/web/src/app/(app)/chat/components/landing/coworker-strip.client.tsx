@@ -61,11 +61,13 @@ const STRIP_SIZES = {
 /**
  * Horizontal scrollable strip for browsing coworkers on the landing.
  *
- * The scrollport is always viewport-bounded (`w-full min-w-0`). The `w-max`
- * track lives *inside* overflow-x-auto so it cannot widen the picker or page.
- * On mount, scrolls so `centerOnId` sits optically in the middle. Strip titles
- * always reserve two lines (`min-h-[2lh]`) so 1-line vs wrapping captions
- * cannot change row height and push Start chat.
+ * The scrollport is always column-bounded (`w-full min-w-0`) and expects a
+ * full-bleed parent (no page `px-*` on overflow ancestors) so edge faces are
+ * not inset-and-clipped. The `w-max` track lives *inside* overflow-x-auto so
+ * it cannot widen the picker or page. On mount, scrolls so `centerOnId` sits
+ * optically in the middle. Strip titles always reserve two lines
+ * (`min-h-[2lh]`) so 1-line vs wrapping captions cannot change row height and
+ * push Start chat.
  */
 export function CoworkerStrip({
   coworkers,

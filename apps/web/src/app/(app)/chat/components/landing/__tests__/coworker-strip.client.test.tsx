@@ -33,7 +33,7 @@ describe("CoworkerStrip", () => {
     cleanup();
   });
 
-  it("keeps the scrollport viewport-bounded so the w-max track cannot widen parents", () => {
+  it("keeps the scrollport column-bounded so the w-max track cannot widen parents", () => {
     render(
       <CoworkerStrip
         centerOnId="elena"
@@ -52,6 +52,8 @@ describe("CoworkerStrip", () => {
     expect(scroll.className).toMatch(/min-w-0/);
     expect(scroll.className).toMatch(/max-w-full/);
     expect(scroll.className).toMatch(/overflow-x-auto/);
+    // Scrollport itself must not add page inset — landing pads elsewhere.
+    expect(scroll.className).not.toMatch(/px-\d/);
 
     const track = screen.getByTestId("coworker-strip-track");
     expect(track.className).toMatch(/w-max/);

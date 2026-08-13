@@ -39,7 +39,11 @@ export async function ChatLandingMobile({
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
 
   return (
-    <section className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch px-4 pt-4 pb-3 text-center">
+    // No section/column `px-*`: horizontal padding on pitch + stats + selected
+    // block only. The coworker strip must span the full content width — page
+    // padding on an overflow-y ancestor would clip edge faces (CSS forces
+    // overflow-x:auto when overflow-y is not visible).
+    <section className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch pt-4 pb-3 text-center">
       <SokosumiIcon
         animated={false}
         className="text-foreground shrink-0 self-center"
@@ -48,11 +52,11 @@ export async function ChatLandingMobile({
       />
 
       <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-start overflow-y-auto py-4">
-        <h1 className="text-foreground shrink-0 text-2xl font-light text-balance">
+        <h1 className="text-foreground shrink-0 px-4 text-2xl font-light text-balance">
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
         </h1>
 
-        <p className="text-muted-foreground mx-auto mt-2 max-w-[42ch] shrink-0 text-sm leading-[1.6] text-balance">
+        <p className="text-muted-foreground mx-auto mt-2 max-w-[42ch] shrink-0 px-4 text-sm leading-[1.6] text-balance">
           {t("intro")}
         </p>
 
@@ -69,7 +73,7 @@ export async function ChatLandingMobile({
       </div>
 
       <div
-        className="flex w-full shrink-0 flex-col items-center gap-2 pt-1"
+        className="flex w-full shrink-0 flex-col items-center gap-2 px-4 pt-1"
         data-testid="landing-activity-stats"
       >
         <p className="text-muted-foreground/70 text-xs">
