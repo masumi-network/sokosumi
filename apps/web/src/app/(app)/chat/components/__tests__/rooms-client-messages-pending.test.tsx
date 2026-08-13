@@ -1,13 +1,15 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import type {
   ChatRoom,
   ChatRoomMessage,
+  Coworker,
+  Member,
   Organization,
 } from "@/lib/clients/generated/core";
-
+import { MemberRole } from "@/lib/clients/generated/core";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
 
@@ -683,24 +685,45 @@ describe("RoomsClient progressive roster (header + composer without members)", (
   });
 
   it("hydrates roster into the same instance without remounting composer", async () => {
-    let resolveRoster!: (page: {
-      organizationMembers: {
-        id: string;
-        role: string;
-        user: { id: string; name: string; email: string; image: null };
-      }[];
-      membersLoadFailed: boolean;
-      coworkers: { id: string; name: string }[];
-    }) => void;
-    const rosterPromise = new Promise<{
-      organizationMembers: {
-        id: string;
-        role: string;
-        user: { id: string; name: string; email: string; image: null };
-      }[];
-      membersLoadFailed: boolean;
-      coworkers: { id: string; name: string }[];
-    }>((resolve) => {
+    const hydratedMember: Member = {
+      id: "member-1",
+      organizationId: "org-1",
+      role: MemberRole.MEMBER,
+      seatAssignedAt: null,
+      createdAt: new Date("2026-07-01T12:00:00.000Z"),
+      user: {
+        id: "user-2",
+        name: "Bob",
+        email: "bob@example.com",
+        image: null,
+      },
+      lastSeenAt: null,
+    };
+    const hydratedCoworker: Coworker = {
+      id: "coworker-1",
+      createdAt: new Date("2026-07-01T12:00:00.000Z"),
+      updatedAt: new Date("2026-07-01T12:00:00.000Z"),
+      archivedAt: null,
+      isWhitelisted: true,
+      priority: 0,
+      slug: "agent",
+      name: "Agent",
+      vendor: {
+        id: "vendor-1",
+        createdAt: new Date("2026-07-01T12:00:00.000Z"),
+        updatedAt: new Date("2026-07-01T12:00:00.000Z"),
+        name: "Vendor",
+        slug: "vendor",
+        logos: { light: null, dark: null },
+      },
+      baseURL: null,
+      capabilities: ["chat"],
+      image: null,
+      metadata: null,
+    };
+
+    let resolveRoster!: (page: RoomShellRosterPage) => void;
+    const rosterPromise = new Promise<RoomShellRosterPage>((resolve) => {
       resolveRoster = resolve;
     });
     const messagesPromise = new Promise<{
@@ -713,7 +736,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       <RoomsClient
         {...baseProps}
         messagesPromise={messagesPromise}
-        rosterPromise={rosterPromise as never}
+        rosterPromise={rosterPromise}
       />,
     );
 
@@ -722,20 +745,9 @@ describe("RoomsClient progressive roster (header + composer without members)", (
 
     await act(async () => {
       resolveRoster({
-        organizationMembers: [
-          {
-            id: "member-1",
-            role: "member",
-            user: {
-              id: "user-2",
-              name: "Bob",
-              email: "bob@example.com",
-              image: null,
-            },
-          },
-        ],
+        organizationMembers: [hydratedMember],
         membersLoadFailed: true,
-        coworkers: [{ id: "coworker-1", name: "Agent" }],
+        coworkers: [hydratedCoworker],
       });
       await rosterPromise;
     });

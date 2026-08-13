@@ -4,6 +4,11 @@ import { useEffect, useRef } from "react";
 
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 
+interface RoomShellRosterHydratorProps {
+  promise: Promise<RoomShellRosterPage>;
+  onResolved: (page: RoomShellRosterPage) => void;
+}
+
 /**
  * Resolves deferred org members + coworkers into the parent RoomsClient.
  * Parent (header + composer) stays mounted; roster-dependent UI updates later.
@@ -11,10 +16,7 @@ import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 export function RoomShellRosterHydrator({
   promise,
   onResolved,
-}: {
-  promise: Promise<RoomShellRosterPage>;
-  onResolved: (page: RoomShellRosterPage) => void;
-}) {
+}: RoomShellRosterHydratorProps) {
   const onResolvedRef = useRef(onResolved);
   onResolvedRef.current = onResolved;
   const deliveredPromiseRef = useRef<Promise<RoomShellRosterPage> | null>(null);
