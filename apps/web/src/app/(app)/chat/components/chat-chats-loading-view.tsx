@@ -1,4 +1,6 @@
+import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chats/chat-chats-list-shell";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 /**
  * Sync Instant Nav shell for `/chat/chats` (no cookies/`connection()`/i18n).
@@ -6,15 +8,13 @@ import { Skeleton } from "@/components/ui/skeleton";
  * Personal Assistant is beta-gated and omitted here so non-beta users do not
  * flash PA chrome that never mounts.
  *
- * Grow with content so AppMobileChrome's in-flow tab-bar spacer clears the last
- * row (no nested overflow-y-auto height lock). No create-FAB clearance — that
- * FAB no longer mounts on this surface.
+ * Same bottom-inset shell as the page (`CHAT_CHATS_MOBILE_LIST_SHELL_CLASS`).
  */
 export function ChatChatsPageSkeleton(): React.ReactElement {
   return (
     <div
       data-testid="chat-chats-loading"
-      className="bg-background md:hidden -m-4 flex flex-1 flex-col p-4"
+      className={cn(CHAT_CHATS_MOBILE_LIST_SHELL_CLASS, "px-4 pt-4")}
     >
       <div className="mb-3 flex items-center justify-between">
         <Skeleton className="h-5 w-24" />
