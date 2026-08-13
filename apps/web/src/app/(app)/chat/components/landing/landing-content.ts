@@ -43,7 +43,7 @@ export function selectedCoworkerCaption(
 }
 
 /**
- * Body copy under Start chat. DB `description` only — never caption/useCase.
+ * Body copy above Start chat. DB `description` only — never caption/useCase.
  */
 export function selectedCoworkerDescription(
   coworker: Pick<Coworker, "description">,

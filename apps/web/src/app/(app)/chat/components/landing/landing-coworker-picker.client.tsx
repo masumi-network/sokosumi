@@ -26,11 +26,11 @@ interface LandingCoworkerPickerProps {
 /**
  * Landing strip + details + Start chat.
  *
- * Order under the strip: name → caption → Start chat → description.
+ * Order under the strip: name → caption → description → Start chat.
  * The picker is viewport-bounded (`w-full min-w-0`) so the strip's w-max track
- * cannot widen Start chat. Caption slot keeps a fixed min-height so omitting
- * or wrapping caption does not jump the CTA. Name → caption → CTA is a
- * shrink-0 stack; description stays below so selection / more-less grows down.
+ * cannot widen Start chat. Caption and collapsed description slots keep fixed
+ * min-heights (including empty) so selection cannot jump the CTA. Expanding
+ * More grows the description downward and may shift Start chat; Less restores.
  */
 export function LandingCoworkerPicker({
   coworkers,
@@ -52,7 +52,7 @@ export function LandingCoworkerPicker({
 
   const stripCoworkers = orderStripCoworkers(coworkers, initial);
   const selectedCaption = selectedCoworkerCaption(selected);
-  const selectedDescription = selectedCoworkerDescription(selected);
+  const selectedDescription = selectedCoworkerDescription(selected) ?? "";
 
   return (
     <div
@@ -75,8 +75,8 @@ export function LandingCoworkerPicker({
       </div>
 
       {/* Featured block is its own width budget — never inherits strip track width.
-          Name → caption → CTA is a shrink-0 stack; description grows below so
-          selection / more-less cannot shift Start chat (parent is top-aligned). */}
+          Name → caption → description → CTA; reserved slots keep CTA stable
+          across selection; More is the only intentional CTA shift. */}
       <div
         className={cn(
           "mx-auto flex w-full min-w-0 max-w-xs flex-col items-center justify-start",
@@ -112,6 +112,12 @@ export function LandingCoworkerPicker({
             {selectedCaption ?? "\u00a0"}
           </p>
 
+          <LandingSelectedDescription
+            coworkerId={selected.id}
+            description={selectedDescription}
+            size={size}
+          />
+
           <div className="mt-4 w-full min-w-0" data-testid="landing-start-chat">
             <StartChatButton
               className={cn("w-full", startChatClassName)}
@@ -120,14 +126,6 @@ export function LandingCoworkerPicker({
             />
           </div>
         </div>
-
-        {selectedDescription ? (
-          <LandingSelectedDescription
-            coworkerId={selected.id}
-            description={selectedDescription}
-            size={size}
-          />
-        ) : null}
       </div>
     </div>
   );

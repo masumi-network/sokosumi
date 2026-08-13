@@ -44,16 +44,9 @@ function blockOrder(): string[] {
   return [
     "landing-selected-name",
     "landing-selected-caption",
-    "landing-start-chat",
     "landing-selected-description",
-  ].filter((id) => {
-    const node = screen.queryByTestId(id);
-    if (!node) {
-      return false;
-    }
-    // Caption slot is always mounted; treat empty nbsp as "present".
-    return true;
-  });
+    "landing-start-chat",
+  ].filter((id) => screen.queryByTestId(id) !== null);
 }
 
 describe("LandingCoworkerPicker", () => {
@@ -82,7 +75,7 @@ describe("LandingCoworkerPicker", () => {
       name: "Deckster",
       slug: "deckster",
       caption: undefined,
-      description: "Deckster builds decks.",
+      description: "",
     }),
   ];
 
@@ -130,7 +123,7 @@ describe("LandingCoworkerPicker", () => {
     expect(optionIds).toEqual(["a", "b", "elena", "c", "d"]);
   });
 
-  it("orders name, caption slot, Start chat, then description", () => {
+  it("orders name, caption, description, then Start chat", () => {
     render(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
@@ -138,22 +131,22 @@ describe("LandingCoworkerPicker", () => {
     expect(blockOrder()).toEqual([
       "landing-selected-name",
       "landing-selected-caption",
-      "landing-start-chat",
       "landing-selected-description",
+      "landing-start-chat",
     ]);
 
     const name = screen.getByTestId("landing-selected-name");
     const caption = screen.getByTestId("landing-selected-caption");
-    const cta = screen.getByTestId("landing-start-chat");
     const description = screen.getByTestId("landing-selected-description");
+    const cta = screen.getByTestId("landing-start-chat");
 
     expect(name.compareDocumentPosition(caption)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
-    expect(caption.compareDocumentPosition(cta)).toBe(
+    expect(caption.compareDocumentPosition(description)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
-    expect(cta.compareDocumentPosition(description)).toBe(
+    expect(description.compareDocumentPosition(cta)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
   });
@@ -175,7 +168,6 @@ describe("LandingCoworkerPicker", () => {
       }),
     );
 
-    // Slot stays mounted with reserved height; empty caption is nbsp only.
     expect(screen.getByTestId("landing-selected-caption").className).toMatch(
       /min-h-/,
     );
@@ -188,9 +180,71 @@ describe("LandingCoworkerPicker", () => {
     ).toBeTruthy();
   });
 
-  it("top-aligns the selected stack so caption/description cannot own CTA position", async () => {
+  it("reserves collapsed description height above Start chat including empty", async () => {
     const user = userEvent.setup();
 
+    render(
+      <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
+    );
+
+    const description = screen.getByTestId("landing-selected-description");
+    const text = screen.getByTestId("landing-selected-description-text");
+    const toggleSlot = screen.getByTestId("landing-description-toggle-slot");
+
+    expect(text.className).toMatch(/line-clamp-3/);
+    expect(text.className).toMatch(/min-h-\[3lh\]/);
+    expect(toggleSlot.className).toMatch(/min-h-\[1\.25rem\]/);
+    expect(
+      description.compareDocumentPosition(
+        screen.getByTestId("landing-start-chat"),
+      ),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    await user.click(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Deckster"}',
+      }),
+    );
+
+    // Empty description still mounts the reserved slot (nbsp + min-height).
+    expect(
+      screen.getByTestId("landing-selected-description"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("landing-selected-description-text").textContent,
+    ).toBe("\u00a0");
+    expect(
+      screen.getByTestId("landing-selected-description-text").className,
+    ).toMatch(/min-h-\[3lh\]/);
+    expect(
+      screen.getByTestId("landing-description-toggle-slot").className,
+    ).toMatch(/min-h-\[1\.25rem\]/);
+    expect(
+      screen.queryByTestId("landing-description-toggle"),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("option", {
+        name: 'team.select:{"name":"Hannah"}',
+      }),
+    );
+
+    // Long collapsed copy keeps the same reserve classes above the CTA.
+    expect(
+      screen.getByTestId("landing-selected-description-text").className,
+    ).toMatch(/min-h-\[3lh\]/);
+    expect(
+      screen.getByTestId("landing-description-toggle"),
+    ).toBeInTheDocument();
+    expect(
+      screen
+        .getByTestId("landing-selected-description")
+        .compareDocumentPosition(screen.getByTestId("landing-start-chat")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("top-aligns the selected stack with description above Start chat", () => {
     render(
       <LandingCoworkerPicker coworkers={coworkers} initialSelectedId="elena" />,
     );
@@ -207,60 +261,13 @@ describe("LandingCoworkerPicker", () => {
     expect(stack.contains(screen.getByTestId("landing-selected-caption"))).toBe(
       true,
     );
-    expect(stack.contains(screen.getByTestId("landing-start-chat"))).toBe(true);
     expect(
       stack.contains(screen.getByTestId("landing-selected-description")),
-    ).toBe(false);
-
-    const cta = screen.getByTestId("landing-start-chat");
-    const descriptionBefore = screen.getByTestId(
-      "landing-selected-description",
-    );
-    expect(cta.compareDocumentPosition(descriptionBefore)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-
-    // Empty caption (Deckster) must keep CTA after the reserved caption slot
-    // and must not pull description into the CTA stack.
-    await user.click(
-      screen.getByRole("option", {
-        name: 'team.select:{"name":"Deckster"}',
-      }),
-    );
-    expect(
-      screen
-        .getByTestId("landing-selected-cta-stack")
-        .contains(screen.getByTestId("landing-start-chat")),
     ).toBe(true);
-    expect(
-      screen
-        .getByTestId("landing-start-chat")
-        .compareDocumentPosition(
-          screen.getByTestId("landing-selected-description"),
-        ) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-
-    // Long description (Hannah) still sits below CTA — not inside the stack.
-    await user.click(
-      screen.getByRole("option", {
-        name: 'team.select:{"name":"Hannah"}',
-      }),
-    );
-    expect(
-      screen
-        .getByTestId("landing-selected-cta-stack")
-        .contains(screen.getByTestId("landing-selected-description")),
-    ).toBe(false);
-    expect(
-      screen
-        .getByTestId("landing-start-chat")
-        .compareDocumentPosition(
-          screen.getByTestId("landing-selected-description"),
-        ) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(stack.contains(screen.getByTestId("landing-start-chat"))).toBe(true);
   });
 
-  it("keeps Start chat above description so long copy cannot shift the CTA", async () => {
+  it("keeps description above Start chat across selection", async () => {
     const user = userEvent.setup();
 
     render(
@@ -268,9 +275,9 @@ describe("LandingCoworkerPicker", () => {
     );
 
     const cta = screen.getByTestId("landing-start-chat");
-    const before = cta.compareDocumentPosition(
-      screen.getByTestId("landing-selected-description"),
-    );
+    const before = screen
+      .getByTestId("landing-selected-description")
+      .compareDocumentPosition(cta);
 
     await user.click(
       screen.getByRole("option", {
@@ -278,15 +285,18 @@ describe("LandingCoworkerPicker", () => {
       }),
     );
 
-    const description = screen.getByTestId("landing-selected-description");
-    expect(cta.compareDocumentPosition(description)).toBe(before);
+    expect(
+      screen
+        .getByTestId("landing-selected-description")
+        .compareDocumentPosition(screen.getByTestId("landing-start-chat")),
+    ).toBe(before);
     expect(before & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
       screen.getByTestId("landing-description-toggle"),
     ).toBeInTheDocument();
   });
 
-  it("clamps long description behind a more/less control", async () => {
+  it("clamps long description behind a more/less control above Start chat", async () => {
     const user = userEvent.setup();
     const long =
       "Hannah researches deeply across many sources and produces concise briefs for the team. ".repeat(
@@ -314,15 +324,28 @@ describe("LandingCoworkerPicker", () => {
       "landing-selected-description",
     ).textContent;
     expect(collapsed?.includes("…")).toBe(true);
+    expect(
+      screen.getByTestId("landing-selected-description-text").className,
+    ).toMatch(/min-h-\[3lh\]/);
 
     await user.click(toggle);
     expect(toggle).toHaveTextContent("team.showLess");
     expect(
       screen.getByTestId("landing-selected-description").textContent,
     ).toContain(long.trim());
+    // Expanded copy drops the collapsed reserve so More can grow downward.
+    expect(
+      screen.getByTestId("landing-selected-description-text").className,
+    ).not.toMatch(/min-h-\[3lh\]/);
+
+    await user.click(toggle);
+    expect(toggle).toHaveTextContent("team.showMore");
+    expect(
+      screen.getByTestId("landing-selected-description-text").className,
+    ).toMatch(/min-h-\[3lh\]/);
   });
 
-  it("omits the description block when description is empty", () => {
+  it("still mounts the description slot when description is empty", () => {
     render(
       <LandingCoworkerPicker
         coworkers={[
@@ -341,11 +364,12 @@ describe("LandingCoworkerPicker", () => {
     expect(blockOrder()).toEqual([
       "landing-selected-name",
       "landing-selected-caption",
+      "landing-selected-description",
       "landing-start-chat",
     ]);
     expect(
-      screen.queryByTestId("landing-selected-description"),
-    ).not.toBeInTheDocument();
+      screen.getByTestId("landing-selected-description-text").textContent,
+    ).toBe("\u00a0");
   });
 
   it("updates caption, description, and Start chat when a strip face is tapped", async () => {
