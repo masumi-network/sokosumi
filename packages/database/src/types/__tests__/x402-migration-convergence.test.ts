@@ -28,6 +28,14 @@ const x402MigrationPath = join(
 
 const NONCE_REPLAY_INDEX = "task_x402_payment_nonce_replay_uidx";
 const NONCE_PAYER_CHECK = "task_x402_payment_nonce_payer_together_chk";
+/**
+ * The exact predicate, not just the columns it mentions. Both spellings of the
+ * hole this closes — payer without nonce, and nonce without payer — are only
+ * refused by the equality; an `OR`-shaped predicate naming the same columns
+ * passes a substring check while permitting both.
+ */
+const NONCE_PAYER_PREDICATE =
+  'CHECK (("payerAddress" IS NULL) = ("payloadNonce" IS NULL))';
 
 function readSchema(): string {
   return readFileSync(schemaPath, "utf8");
@@ -146,6 +154,19 @@ describe("x402 migration convergence", () => {
         `"${column}" IS NULL`,
       );
     }
+
+    // Asserting the two column names appear is NOT enough: a predicate like
+    // `(("payerAddress" IS NULL) OR ("payloadNonce" IS NULL) OR TRUE)` contains
+    // both substrings, satisfies every check above, and is vacuously true —
+    // reopening the NULL-payer nonce-replay hole this constraint exists to
+    // close. Pin the whole equality, and pin it on BOTH paths.
+    expect(
+      checkStatements.length,
+      `${NONCE_PAYER_PREDICATE} declared on both paths`,
+    ).toBe(
+      sql.split("\n").filter((line) => line.includes(NONCE_PAYER_PREDICATE))
+        .length,
+    );
   });
 
   it("declares the nonce/payer CHECK on both the fresh and the converge path", () => {
