@@ -120,14 +120,15 @@ export function CoworkerStrip({
       return;
     }
 
-    if (behavior === "smooth" && scroll) {
+    // Keep suppress until scroll settles for both `auto` and `smooth`. A late
+    // `scroll` after `scrollIntoView` returns can otherwise overwrite the
+    // intended selection (mount Elena / tap-to-center).
+    if (scroll) {
       scroll.addEventListener("scrollend", release, { once: true });
       window.setTimeout(release, 500);
       return;
     }
 
-    // `auto` centering is synchronous; any scroll events from it already ran
-    // while suppress was elevated.
     release();
   }
 
