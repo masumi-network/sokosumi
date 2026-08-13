@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chats/chat-chats-list-shell";
 import {
   getPrivateCachedChatListArchivedAndMembers,
   getPrivateCachedMembershipVisibleRooms,
@@ -83,12 +84,11 @@ export async function ChatMobileRoomList() {
   return (
     <Sheet open>
       {/*
-        Grow with content — do not height-lock with min-h-0 + overflow-y-auto.
-        AppMobileChrome's in-flow tab-bar spacer must sit after the last row in
-        main's scroll; padding on a nested overflow flex child does not clear
-        the fixed bottom nav (last DM was clipped).
+        Shell class: top/side main-pad cancel only — see chat-chats-list-shell.ts.
+        Grow with content so AppMobileChrome's in-flow tab-bar spacer sits after
+        the last row in main's scroll (no nested overflow height-lock).
       */}
-      <div className="bg-background md:hidden -m-4 flex flex-1 flex-col">
+      <div className={CHAT_CHATS_MOBILE_LIST_SHELL_CLASS}>
         <PersonalAssistantNav enabled={hermesMenuEnabled} />
         {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
         <Suspense
