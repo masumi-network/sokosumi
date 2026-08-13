@@ -1,6 +1,6 @@
 # Sign up
 
-Sign up creates a disposable email/password account when cloud-agent fixtures are unavailable (typical empty local DB). Use this only to unlock other features — not as a substitute for fixture login on agent branches.
+Sign up creates a disposable email/password account when cloud-agent fixtures are unavailable and there is no coworker vault (`agent-browser auth list` has no `sokosumi` profile). Use this only to unlock other features — not as a substitute for fixture login on agent branches or vault login on a shared Neon.
 
 ## Sub-features
 
@@ -18,14 +18,14 @@ Sign up creates a disposable email/password account when cloud-agent fixtures ar
 Preconditions:
 
 - `verify-sokosumi doctor` ok and `owned_by_verify=yes`.
-- Fixtures unavailable or intentionally unused.
+- Fixtures unavailable or intentionally unused. Prefer `verify-sokosumi sign-in --method vault` when a `sokosumi` profile exists.
 - Choose a unique email, e.g. `verify-$(date +%s)@sokosumi.test`, and a password meeting app rules (fixture-style `Password123!` is fine).
 
 - **Open form.** Run `agent-browser open http://localhost:3000/signup`, wait until the snapshot shows Name / Email / Password textboxes (a too-early snapshot can be empty or `about:blank` right after `close`). Google / Microsoft / Magic Link sit **above** the email form — ignore them (same trap as sign-in).
 - **Fill required fields.** Prefer refs from that **fresh** snapshot (`textbox "Name"` / `"Email"` / `"Password"`). CSS `[data-testid="auth-field-name|email|password"]` works once the form is interactive; they fail if you fill before the fields appear. Optional marketing checkbox can stay unchecked.
 - **Accept terms.** Prefer `agent-browser check` on the terms checkbox (accessible name about Terms / Nutzungsbedingungen, or `#termsAccepted`). Submit stays **disabled** until terms are accepted.
 - **Submit.** When `Register` / `Registrieren` is enabled, **click** the snapshot ref (`@eN`, not bare `@N` — agent-browser needs the `e` prefix). Prefer click over Enter — Enter can leave the form unchanged. Wait for navigation away from `/signup` (often `/` then `/chat`). Signup has **no** `data-testid="auth-submit"` (that testid is sign-in only).
-- **Confirm session.** Open `/agents` or `/chat`; must not bounce to `/signin`.
+- **Confirm session.** Open `/agents` and `wait --url "**/agents"`; must not bounce to `/signin`. Do not wait `networkidle` on `/chat`.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-up` then screenshot + snapshot of the post-signup authenticated view. Record the email in `account.txt` (no password).
 
 ### Bootstrap when UI checkbox will not toggle
@@ -47,6 +47,6 @@ Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alo
 - Email verification is off in local/core config — do not wait for a verification email. A “confirm email” banner after login is OK.
 - OAuth and magic-link signup paths are invalid with placeholder credentials.
 - Do not reuse an email that already exists; pick a fresh address per run.
-- On cloud-agent branches, prefer fixtures over signup unless testing signup itself.
+- On cloud-agent branches, prefer fixtures over signup unless testing signup itself. On a coworker / shared Neon, prefer the vault over creating another disposable user.
 - Origin must be `http://localhost:3000` for Core auth API calls (`INVALID_ORIGIN` otherwise).
 - Submit button stays disabled until terms are accepted.

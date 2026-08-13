@@ -7,10 +7,10 @@ Maintained source for verifying user-facing Sokosumi behavior. Read this index b
 - Launch Core (`http://localhost:8787`) and Web (`http://localhost:3000`) for this run (Cursor background shells or `verify-sokosumi launch` in a durable terminal). Record pids in `.cursor/verify-sokosumi-artifacts/state/dev.pids`.
 - Run `.cursor/skills/verify-sokosumi/bin/verify-sokosumi doctor` and require `doctor ok` with `owned_by_verify=yes`.
 - Export `AGENT_BROWSER_SESSION_NAME=sokosumi`.
-- Prefer fixture `alice@sokosumi.test` / `Password123!` on cloud-agent Neon branches; otherwise create a disposable user (see [Sign up](./sign-up.md)).
+- Prefer fixture `alice@sokosumi.test` / `Password123!` on cloud-agent Neon branches. On a coworker machine or shared Neon, use the `sokosumi` vault (`sign-in --method vault`) or a disposable user (see [Sign up](./sign-up.md)). Do **not** seed Alice onto a shared/preprod database.
 - Use **`localhost`**, not `127.0.0.1`, for browser URLs (Better Auth origin/cookies).
 - Confirm `BETTER_AUTH_COOKIE_DOMAIN` is unset in `apps/core/.env` before login; `doctor` fails when it is set.
-- After doctor, authenticate with `.cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in` (UI then cookie fallback). Expect `fixture_auth=ok` on agent Neon branches.
+- After doctor, authenticate with `.cursor/skills/verify-sokosumi/bin/verify-sokosumi sign-in` (fixtures, then vault). Expect `fixture_auth=ok` only on agent Neon branches.
 - Never drive an instance that was not started by this verification run.
 - Put proof under `.cursor/verify-sokosumi-artifacts/<feature-id>/` (gitignored). Cleanup must keep those files.
 

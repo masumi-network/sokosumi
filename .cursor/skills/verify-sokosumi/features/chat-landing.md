@@ -21,7 +21,7 @@ Preconditions:
 - Signed in (see [Sign in](./sign-in.md)).
 - `verify-sokosumi doctor` ok.
 
-- **Open landing.** Run `agent-browser open http://localhost:3000/chat` then `agent-browser wait --load networkidle`.
+- **Open landing.** Run `agent-browser open http://localhost:3000/chat` then `agent-browser wait --url "**/chat"`. Do not `wait --load networkidle` on `/chat` — Ably keeps the network busy and that wait hangs.
 - **Confirm URL.** Run `agent-browser get url`. URL contains `/chat` and is not `/signin`.
 - **Auth `/` redirect.** Run `agent-browser open http://localhost:3000/` then wait; URL ends on `/chat` (covers `chat-default-landing` via the authenticated root hop).
 - **Confirm shell.** Run `agent-browser snapshot -i`. Prefer welcome heading and/or `[data-testid="multimodal-input"]` / message composer plus app nav (`data-app-shell` / sidebar), not a room transcript.
