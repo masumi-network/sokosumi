@@ -809,6 +809,7 @@ describe("getChatRoomThreadAggregates", () => {
         unreadReplyCount: 3,
         lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
         hasLooked: true,
+        attentionReplyCount: 3,
       },
     ]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
@@ -827,6 +828,7 @@ describe("getChatRoomThreadAggregates", () => {
         unreadReplyCount: 3,
         lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
         hasLooked: true,
+        attentionReplyCount: 3,
       },
     ]);
 
@@ -835,8 +837,9 @@ describe("getChatRoomThreadAggregates", () => {
     expect(sql).toContain('reply."createdAt" > thread_read."lastReadAt"');
     expect(sql).toContain('MAX(thread_read."lastReadAt") IS NOT NULL');
     expect(sql).toContain('"hasLooked"');
-    expect(sql).not.toContain('room_read."createdAt"');
-    expect(sql).not.toContain("'-infinity'::timestamp");
+    expect(sql).toContain('"attentionReplyCount"');
+    expect(sql).toContain('room_read."createdAt"');
+    expect(sql).toContain("'-infinity'::timestamp");
     expect(sql).not.toMatch(/room_read\."lastReadAt"/);
     expect(sql).toContain('reply."deletedAt" IS NULL');
     expect(sql).toContain('parent."deletedAt" IS NULL');

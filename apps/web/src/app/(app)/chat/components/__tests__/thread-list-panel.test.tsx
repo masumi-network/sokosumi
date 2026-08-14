@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ChatRoomMessage,
@@ -77,6 +83,7 @@ function threadItem(overrides: Partial<ChatRoomThread> = {}): ChatRoomThread {
     unreadReplyCount: 2,
     lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
     hasLooked: true,
+    attentionReplyCount: 2,
     ...overrides,
   };
 }
@@ -131,6 +138,7 @@ describe("ThreadListPanel", () => {
             unreadReplyCount: 0,
             lastUnreadReplyAt: null,
             hasLooked: true,
+            attentionReplyCount: 0,
           }),
         ],
         nextCursor: null,
@@ -179,6 +187,7 @@ describe("ThreadListPanel", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
+              attentionReplyCount: 0,
             }),
           ],
           nextCursor: "cursor-1",
@@ -196,6 +205,7 @@ describe("ThreadListPanel", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
+              attentionReplyCount: 0,
             }),
           ],
           nextCursor: null,
@@ -258,6 +268,7 @@ describe("ThreadListPanel", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
+              attentionReplyCount: 0,
             }),
           ],
           nextCursor: "cursor-1",
@@ -276,6 +287,7 @@ describe("ThreadListPanel", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
+              attentionReplyCount: 0,
             }),
             threadItem({
               parentMessage: parentMessage({
@@ -286,6 +298,7 @@ describe("ThreadListPanel", () => {
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
               hasLooked: true,
+              attentionReplyCount: 0,
             }),
           ],
           nextCursor: "cursor-2",
@@ -320,6 +333,7 @@ describe("ThreadListPanel", () => {
             unreadReplyCount: 0,
             lastUnreadReplyAt: null,
             hasLooked: false,
+            attentionReplyCount: 37,
             replyCount: 37,
           }),
         ],
@@ -332,6 +346,9 @@ describe("ThreadListPanel", () => {
     const item = await screen.findByTestId("thread-list-item");
     expect(item).toHaveAttribute("data-needs-attention", "true");
     expect(item).toHaveTextContent("37 unread replies");
+    expect(
+      within(item).getByTestId("thread-list-unread-dot"),
+    ).toBeInTheDocument();
     expect(
       await screen.findByTestId("thread-list-mark-all-read"),
     ).toBeInTheDocument();

@@ -201,6 +201,12 @@ export interface ChatRoomThreadAggregate {
   lastUnreadReplyAt: Date | null;
   /** True when the viewer has a ChatRoomThreadReadState row for this parent. */
   hasLooked: boolean;
+  /**
+   * Non-self replies after dual-baseline look (thread lastReadAt, else room
+   * read-state createdAt, else -infinity). Drives thread-overview attention /
+   * Mark all; broader than ADR-0005 unreadReplyCount.
+   */
+  attentionReplyCount: number;
 }
 
 /**
@@ -209,9 +215,9 @@ export interface ChatRoomThreadAggregate {
  *
  * A thread is unread (ADR-0005 / Threads badge) only after a prior look row
  * (`ChatRoomThreadReadState.lastReadAt`). Never-looked threads have
- * unreadReplyCount 0. Never uses room lastReadAt or room read-state
- * createdAt for unreadReplyCount. `hasLooked` still exposes never-looked
- * rows so the thread overview can style them and Mark all can clear them.
+ * unreadReplyCount 0. `attentionReplyCount` uses the sidebar dual-baseline so
+ * the thread overview can style never-looked replies and Mark all can clear
+ * them (SOK-811).
  */
 export async function getChatRoomThreadAggregates(
   roomId: string,
@@ -241,7 +247,15 @@ export async function getChatRoomThreadAggregates(
           AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
           AND reply."createdAt" > thread_read."lastReadAt"
       ) AS "lastUnreadReplyAt",
-      (MAX(thread_read."lastReadAt") IS NOT NULL) AS "hasLooked"
+      (MAX(thread_read."lastReadAt") IS NOT NULL) AS "hasLooked",
+      COUNT(reply.id) FILTER (
+        WHERE (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+          AND reply."createdAt" > COALESCE(
+            thread_read."lastReadAt",
+            room_read."createdAt",
+            '-infinity'::timestamp
+          )
+      )::int AS "attentionReplyCount"
     FROM "chat_room_message" reply
     INNER JOIN "chat_room_message" parent
       ON parent.id = reply."parentMessageId"
@@ -249,6 +263,9 @@ export async function getChatRoomThreadAggregates(
     LEFT JOIN "chat_room_thread_read_state" thread_read
       ON thread_read."parentMessageId" = parent.id
       AND thread_read."userId" = $2
+    LEFT JOIN "chat_room_read_state" room_read
+      ON room_read."roomId" = reply."roomId"
+      AND room_read."userId" = $2
     WHERE reply."roomId" = $1::uuid
       AND reply."parentMessageId" IS NOT NULL
       AND reply."deletedAt" IS NULL
@@ -320,6 +337,7 @@ export async function getChatRoomThreadAggregates(
       unreadReplyCount: number | bigint;
       lastUnreadReplyAt: Date | null;
       hasLooked: boolean;
+      attentionReplyCount: number | bigint;
     }>
   >(recencySql, ...queryArgs);
 
@@ -330,6 +348,7 @@ export async function getChatRoomThreadAggregates(
     unreadReplyCount: Number(row.unreadReplyCount),
     lastUnreadReplyAt: row.lastUnreadReplyAt,
     hasLooked: row.hasLooked === true,
+    attentionReplyCount: Number(row.attentionReplyCount),
   }));
 }
 
@@ -367,6 +386,7 @@ async function mapThreadAggregates(
         unreadReplyCount: aggregate.unreadReplyCount,
         lastUnreadReplyAt: aggregate.lastUnreadReplyAt,
         hasLooked: aggregate.hasLooked,
+        attentionReplyCount: aggregate.attentionReplyCount,
       },
     ];
   });

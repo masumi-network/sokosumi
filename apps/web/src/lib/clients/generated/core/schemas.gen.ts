@@ -5436,6 +5436,12 @@ export const ChatRoomThreadSchema = {
             type: 'boolean',
             description: 'True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.',
             example: true
+        },
+        attentionReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by the thread overview and Mark all; includes never-looked replies that still contribute to sidebar unread.',
+            example: 3
         }
     },
     required: [
@@ -5444,7 +5450,8 @@ export const ChatRoomThreadSchema = {
         'lastReplyAt',
         'unreadReplyCount',
         'lastUnreadReplyAt',
-        'hasLooked'
+        'hasLooked',
+        'attentionReplyCount'
     ]
 } as const;
 
