@@ -5484,7 +5484,7 @@
     "identityTitle": "Create your first workspace",
     "identityDescription": "You need a workspace before you can use Sokosumi.",
     "pendingInvitesTitle": "You have pending invitations",
-    "pendingInvitesDescription": "Accept or decline organization invitations to continue.",
+    "pendingInvitesDescription": "Organization invitations are waiting for you. Finishing them is not available on this screen yet.",
     "body": "You cannot use the product until you have a first workspace. Sign out is the only way to leave this screen for now.",
     "signOut": "Sign out",
     "unavailableTitle": "We could not check your workspace access",

@@ -5484,7 +5484,7 @@
     "identityTitle": "Erstelle deinen ersten Workspace",
     "identityDescription": "Du brauchst einen Workspace, bevor du Sokosumi nutzen kannst.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
-    "pendingInvitesDescription": "Nimm Organisations-Einladungen an oder lehne sie ab, um fortzufahren.",
+    "pendingInvitesDescription": "Es warten Organisations-Einladungen auf dich. Sie können auf diesem Bildschirm noch nicht bearbeitet werden.",
     "body": "Du kannst das Produkt erst nutzen, wenn du einen ersten Workspace hast. Abmelden ist vorerst der einzige Weg, diesen Bildschirm zu verlassen.",
     "signOut": "Abmelden",
     "unavailableTitle": "Workspace-Zugriff konnte nicht geprüft werden",

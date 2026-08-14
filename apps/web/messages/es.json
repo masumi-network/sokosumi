@@ -5484,7 +5484,7 @@
     "identityTitle": "Crea tu primer espacio de trabajo",
     "identityDescription": "Necesitas un espacio de trabajo antes de usar Sokosumi.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
-    "pendingInvitesDescription": "Acepta o rechaza las invitaciones de organización para continuar.",
+    "pendingInvitesDescription": "Hay invitaciones de organización pendientes. Aún no se pueden gestionar en esta pantalla.",
     "body": "No puedes usar el producto hasta tener un primer espacio de trabajo. Cerrar sesión es la única forma de salir de esta pantalla por ahora.",
     "signOut": "Cerrar sesión",
     "unavailableTitle": "No pudimos comprobar el acceso a tu espacio de trabajo",

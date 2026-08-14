@@ -13,5 +13,9 @@ describe("(app)/layout Ably ownership", () => {
     expect(source).not.toContain("lazy-ably-provider");
     expect(source).toContain("SidebarProvider");
     expect(source).toContain("AppShellLoadingFrame");
+    // Gate resolves outside chrome Suspense so not-ready users never see
+    // sidebar/header skeletons (SOK-797).
+    expect(source).toContain("WorkspaceAccessGate");
+    expect(source).toContain("AppAccessCheckingFallback");
   });
 });

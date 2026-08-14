@@ -16,10 +16,13 @@ export function WorkspaceGateSignOut() {
 
   async function handleSignOut() {
     setLoading(true);
-    await authClient.signOut();
-    const returnUrl = getReturnUrlFromCurrentLocation();
-    router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
-    setLoading(false);
+    try {
+      await authClient.signOut();
+      const returnUrl = getReturnUrlFromCurrentLocation();
+      router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

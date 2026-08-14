@@ -18,8 +18,7 @@ export const workspaceInventorySchema = z
       example: true,
     }),
     hasOrganizationMembership: z.boolean().openapi({
-      description:
-        "Whether the user is a member of at least one organization (with its workspace)",
+      description: "Whether the user is a member of at least one organization",
       example: false,
     }),
     hasPendingOrganizationInvites: z.boolean().openapi({
