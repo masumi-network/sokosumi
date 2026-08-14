@@ -4807,8 +4807,7 @@
         "mute": "Silenciar",
         "unmute": "Dejar de silenciar",
         "roomMenu": "Acciones del chat para {name}",
-        "actionFailed": "No se pudo actualizar este chat. Inténtalo de nuevo.",
-        "unreadThreadReplies": "{count, plural, one {# respuesta de hilo sin leer} other {# respuestas de hilo sin leer}}"
+        "actionFailed": "No se pudo actualizar este chat. Inténtalo de nuevo."
       },
       "Metadata": {
         "title": "Chat",

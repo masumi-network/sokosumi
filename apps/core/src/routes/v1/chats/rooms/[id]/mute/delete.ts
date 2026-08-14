@@ -81,9 +81,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       chatRoomSchema.parse(
         mapChatRoom(room, userContext.userId, {
-          unreadCount: unreadCounts.get(room.id)?.unreadCount ?? 0,
-          unreadThreadReplyCount:
-            unreadCounts.get(room.id)?.unreadThreadReplyCount ?? 0,
+          unreadCount: unreadCounts.get(room.id) ?? 0,
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
           pinnedAt: flags?.pinnedAt ?? null,
           mutedAt: null,

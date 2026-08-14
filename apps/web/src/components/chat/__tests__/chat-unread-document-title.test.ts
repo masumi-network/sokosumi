@@ -75,15 +75,6 @@ describe("countChatRoomsWithUnreadAttention", () => {
       ]),
     ).toBe(0);
   });
-
-  it("does not count thread-only unread toward the tab title", () => {
-    expect(
-      countChatRoomsWithUnreadAttention([
-        { id: "a", unreadCount: 0, unreadThreadReplyCount: 5 },
-        { id: "b", unreadCount: 1 },
-      ]),
-    ).toBe(1);
-  });
 });
 
 describe("stripChatUnreadTitlePrefix", () => {

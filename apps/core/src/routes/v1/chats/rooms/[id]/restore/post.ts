@@ -122,7 +122,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
       return mapChatRoomWithSidebarFlags(live, userContext.userId, tx, {
         unreadCount: 0,
-        unreadThreadReplyCount: 0,
         unreadMentionCount: 0,
       });
     });

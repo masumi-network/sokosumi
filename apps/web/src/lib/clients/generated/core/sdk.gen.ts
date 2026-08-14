@@ -648,7 +648,7 @@ export const deleteChatsRoomsByIdMembersByUserId = <ThrowOnError extends boolean
 });
 
 /**
- * Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadThreadReplyCount.
+ * Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadCount.
  */
 export const postChatsRoomsByIdRead = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdReadData, ThrowOnError>): RequestResult<PostChatsRoomsByIdReadResponses, PostChatsRoomsByIdReadErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdReadResponses, PostChatsRoomsByIdReadErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdReadResponseTransformer,

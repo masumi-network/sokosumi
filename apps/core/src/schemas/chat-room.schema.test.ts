@@ -47,7 +47,6 @@ describe("chatRoomSchema", () => {
     createdAt: "2026-08-02T12:00:00.000Z",
     updatedAt: "2026-08-02T12:00:00.000Z",
     unreadCount: 0,
-    unreadThreadReplyCount: 0,
     unreadMentionCount: 0,
     pinnedAt: null,
     mutedAt: null,

@@ -125,13 +125,8 @@ export const chatRoomSchema = z
     updatedAt: dateTimeSchema,
     unreadCount: z.number().int().min(0).openapi({
       description:
-        "Unread top-level messages from others after room lastReadAt. Soft-deleted excluded. Does not include thread replies.",
+        "Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.",
       example: 2,
-    }),
-    unreadThreadReplyCount: z.number().int().min(0).openapi({
-      description:
-        "Unread thread replies from others after per-thread look baseline (thread lastReadAt, else room read-state createdAt, else -infinity). Soft-deleted excluded. Room mark-read does not clear this.",
-      example: 1,
     }),
     unreadMentionCount: z.number().int().min(0).openapi({
       description:

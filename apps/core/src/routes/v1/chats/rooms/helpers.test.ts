@@ -496,27 +496,16 @@ describe("mergeUnfurlsIntoMessageMetadata", () => {
 });
 
 describe("getChatRoomUnreadCounts", () => {
-  it("returns split top-level and thread reply counts with dual-baseline SQL", async () => {
-    const queryRawUnsafe = vi.fn().mockResolvedValue([
-      {
-        roomId: "room-a",
-        unreadCount: 2,
-        unreadThreadReplyCount: 3,
-      },
-    ]);
+  it("counts top-level by room lastReadAt and thread replies by look baseline", async () => {
+    const queryRawUnsafe = vi
+      .fn()
+      .mockResolvedValue([{ roomId: "room-a", unreadCount: 3 }]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
 
     const counts = await getChatRoomUnreadCounts(["room-a"], "user_1", tx);
 
-    expect(counts.get("room-a")).toEqual({
-      unreadCount: 2,
-      unreadThreadReplyCount: 3,
-    });
+    expect(counts.get("room-a")).toBe(3);
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
-    // Both legs present and aggregated separately (not one combined COUNT)
-    expect(sql).toContain('"unreadCount"');
-    expect(sql).toContain('"unreadThreadReplyCount"');
-    expect(sql).not.toMatch(/COUNT\(\*\)::int AS "unreadCount"/);
     // Top-level leg uses room lastReadAt
     expect(sql).toContain('message."parentMessageId" IS NULL');
     expect(sql).toMatch(/read_state\."lastReadAt"/);

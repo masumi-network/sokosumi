@@ -229,9 +229,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         rooms.map((room) => {
           const flags = sidebarFlags.get(room.id);
           return mapChatRoom(room, userId, {
-            unreadCount: unreadCounts.get(room.id)?.unreadCount ?? 0,
-            unreadThreadReplyCount:
-              unreadCounts.get(room.id)?.unreadThreadReplyCount ?? 0,
+            unreadCount: unreadCounts.get(room.id) ?? 0,
             unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
             lastActivityAt: lastMessageAts.get(room.id) ?? room.updatedAt,
             pinnedAt: flags?.pinnedAt ?? null,

@@ -34,21 +34,18 @@ export function forgetRoomRead(roomId: string): void {
 
 /**
  * Persist full-clear overlay only when dual-baseline attention is actually
- * clear (top-level, thread replies, mentions, forced unread). Partial room
- * mark-read (top-level only; unlooked threads remain) must forget any sticky
- * overlay so unreadThreadReplyCount stays visible.
+ * clear. Partial room mark-read (top-level only; unlooked threads remain)
+ * must forget any sticky overlay so the real unreadCount stays visible.
  */
 export function applyRoomReadResultToOverlay(room: {
   id: string;
   updatedAt: string | Date;
   unreadCount: number;
-  unreadThreadReplyCount?: number;
   unreadMentionCount: number;
   markedUnread?: boolean;
 }): void {
   if (
     room.unreadCount === 0 &&
-    (room.unreadThreadReplyCount ?? 0) === 0 &&
     room.unreadMentionCount === 0 &&
     room.markedUnread !== true
   ) {
@@ -66,7 +63,6 @@ interface RoomAttentionFields {
   id: string;
   updatedAt: string | Date;
   unreadCount: number;
-  unreadThreadReplyCount: number;
   unreadMentionCount: number;
   markedUnread: boolean;
 }
@@ -97,7 +93,6 @@ export function applyRoomReadOverlays<T extends RoomAttentionFields>(
 
     if (
       room.unreadCount === 0 &&
-      room.unreadThreadReplyCount === 0 &&
       room.unreadMentionCount === 0 &&
       room.markedUnread === false
     ) {
@@ -108,7 +103,6 @@ export function applyRoomReadOverlays<T extends RoomAttentionFields>(
     return {
       ...room,
       unreadCount: 0,
-      unreadThreadReplyCount: 0,
       unreadMentionCount: 0,
       markedUnread: false,
     };

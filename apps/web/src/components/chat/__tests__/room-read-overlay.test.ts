@@ -12,7 +12,6 @@ function room(overrides: {
   id?: string;
   updatedAt?: string;
   unreadCount?: number;
-  unreadThreadReplyCount?: number;
   unreadMentionCount?: number;
   markedUnread?: boolean;
 }) {
@@ -20,7 +19,6 @@ function room(overrides: {
     id: overrides.id ?? "room-1",
     updatedAt: overrides.updatedAt ?? "2026-08-01T12:00:00.000Z",
     unreadCount: overrides.unreadCount ?? 0,
-    unreadThreadReplyCount: overrides.unreadThreadReplyCount ?? 0,
     unreadMentionCount: overrides.unreadMentionCount ?? 0,
     markedUnread: overrides.markedUnread ?? false,
   };
@@ -45,7 +43,6 @@ describe("room-read-overlay", () => {
       room({
         updatedAt: "2026-08-01T12:00:00.000Z",
         unreadCount: 4,
-        unreadThreadReplyCount: 2,
         unreadMentionCount: 1,
         markedUnread: true,
       }),
@@ -53,7 +50,6 @@ describe("room-read-overlay", () => {
 
     expect(remounted[0]).toMatchObject({
       unreadCount: 0,
-      unreadThreadReplyCount: 0,
       unreadMentionCount: 0,
       markedUnread: false,
     });
@@ -71,14 +67,12 @@ describe("room-read-overlay", () => {
       room({
         updatedAt: "2026-08-01T12:05:00.000Z",
         unreadCount: 2,
-        unreadThreadReplyCount: 1,
         unreadMentionCount: 1,
       }),
     ]);
 
     expect(withNewMessages[0]).toMatchObject({
       unreadCount: 2,
-      unreadThreadReplyCount: 1,
       unreadMentionCount: 1,
     });
   });
@@ -97,8 +91,7 @@ describe("room-read-overlay", () => {
   it("applyRoomReadResultToOverlay only sticky-clears fully clear rooms", () => {
     applyRoomReadResultToOverlay(
       room({
-        unreadCount: 0,
-        unreadThreadReplyCount: 2,
+        unreadCount: 2,
         unreadMentionCount: 0,
         markedUnread: false,
       }),
@@ -106,17 +99,15 @@ describe("room-read-overlay", () => {
 
     const stillUnread = applyRoomReadOverlays([
       room({
-        unreadCount: 0,
-        unreadThreadReplyCount: 2,
+        unreadCount: 2,
         unreadMentionCount: 0,
       }),
     ]);
-    expect(stillUnread[0]).toMatchObject({ unreadThreadReplyCount: 2 });
+    expect(stillUnread[0]).toMatchObject({ unreadCount: 2 });
 
     applyRoomReadResultToOverlay(
       room({
         unreadCount: 0,
-        unreadThreadReplyCount: 0,
         unreadMentionCount: 0,
         markedUnread: false,
       }),
@@ -125,13 +116,11 @@ describe("room-read-overlay", () => {
     const cleared = applyRoomReadOverlays([
       room({
         unreadCount: 4,
-        unreadThreadReplyCount: 3,
         unreadMentionCount: 1,
       }),
     ]);
     expect(cleared[0]).toMatchObject({
       unreadCount: 0,
-      unreadThreadReplyCount: 0,
       unreadMentionCount: 0,
       markedUnread: false,
     });

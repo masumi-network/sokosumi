@@ -36,8 +36,7 @@ vi.mock("next/link", () => ({
 
 vi.mock("next-intl", () => ({
   useTranslations:
-    (_namespace?: string) =>
-    (key: string, values?: Record<string, string | number>) => {
+    (_namespace?: string) => (key: string, values?: Record<string, string>) => {
       const translations: Record<string, string> = {
         leave: "Leave channel",
         leaveConfirmTitle: `Leave ${values?.name ?? ""}?`,
@@ -52,10 +51,6 @@ vi.mock("next-intl", () => ({
         unmute: "Unmute",
         roomMenu: `Chat actions for ${values?.name ?? ""}`,
         actionFailed: "Could not update this chat. Try again.",
-        unreadThreadReplies:
-          Number(values?.count) === 1
-            ? "1 unread thread reply"
-            : `${values?.count ?? 0} unread thread replies`,
       };
       return translations[key] ?? key;
     },
@@ -295,7 +290,6 @@ function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
     unreadCount: 0,
-    unreadThreadReplyCount: 0,
     unreadMentionCount: 0,
     pinnedAt: null,
     mutedAt: null,
@@ -342,62 +336,6 @@ describe("ChatRoomSidebarRow leading slot", () => {
     // Slot is a direct child of the room link so every room type shares the same column.
     const link = container.querySelector('a[href="/chat/rooms/room-1"]');
     expect(link?.firstElementChild).toBe(slot);
-  });
-});
-
-describe("ChatRoomSidebarRow thread unread indicator", () => {
-  it("shows a distinct thread indicator when unreadThreadReplyCount > 0", () => {
-    render(
-      <ChatRoomSidebarRow
-        room={makeRoom({ unreadThreadReplyCount: 3 })}
-        href="/chat/rooms/room-1"
-        label="general"
-        isActive={false}
-        leading={<span>#</span>}
-        onRoomUpdated={vi.fn()}
-      />,
-    );
-
-    const indicator = screen.getByTestId("thread-unread-indicator");
-    expect(indicator).toHaveAttribute("aria-label", "3 unread thread replies");
-    expect(indicator.textContent).toContain("3");
-    // Secondary chrome — not the primary mention pill.
-    expect(indicator.className).toContain("text-muted-foreground");
-    expect(indicator.className).not.toContain("bg-primary");
-  });
-
-  it("does not bold the room label from thread replies alone", () => {
-    render(
-      <ChatRoomSidebarRow
-        room={makeRoom({ unreadCount: 0, unreadThreadReplyCount: 2 })}
-        href="/chat/rooms/room-1"
-        label="general"
-        isActive={false}
-        leading={<span>#</span>}
-        onRoomUpdated={vi.fn()}
-      />,
-    );
-
-    const label = screen.getByText("general");
-    expect(label.className).not.toContain("font-semibold");
-    expect(screen.getByTestId("thread-unread-indicator")).toBeInTheDocument();
-  });
-
-  it("hides thread indicator when the room is active", () => {
-    render(
-      <ChatRoomSidebarRow
-        room={makeRoom({ unreadThreadReplyCount: 4 })}
-        href="/chat/rooms/room-1"
-        label="general"
-        isActive
-        leading={<span>#</span>}
-        onRoomUpdated={vi.fn()}
-      />,
-    );
-
-    expect(
-      screen.queryByTestId("thread-unread-indicator"),
-    ).not.toBeInTheDocument();
   });
 });
 

@@ -97,7 +97,6 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
     unreadCount: 0,
-    unreadThreadReplyCount: 0,
     unreadMentionCount: 0,
     pinnedAt: null,
     mutedAt: null,

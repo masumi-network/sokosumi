@@ -7,7 +7,6 @@ import {
   Loader2,
   LogOut,
   MessageSquare,
-  MessagesSquare,
   Pin,
   PinOff,
 } from "lucide-react";
@@ -88,33 +87,6 @@ function MentionBadge({ count }: { count: number }) {
   );
 }
 
-function ThreadUnreadIndicator({
-  count,
-  ariaLabel,
-}: {
-  count: number;
-  ariaLabel: string;
-}) {
-  if (count <= 0) {
-    return null;
-  }
-
-  const label = count > 99 ? "99+" : String(count);
-
-  return (
-    <span
-      aria-label={ariaLabel}
-      data-testid="thread-unread-indicator"
-      className="text-muted-foreground group-data-[collapsible=icon]:hidden inline-flex shrink-0 items-center gap-0.5"
-    >
-      <MessagesSquare className="size-3.5" aria-hidden />
-      <span className="text-[0.625rem] leading-4 font-medium tabular-nums">
-        {label}
-      </span>
-    </span>
-  );
-}
-
 export function ChatRoomSidebarRow({
   room,
   href,
@@ -133,9 +105,8 @@ export function ChatRoomSidebarRow({
   const isPinned = room.pinnedAt != null;
   const isMuted = room.mutedAt != null;
   const canLeave = room.kind === "channel" && room.userMembers.length > 1;
-  const { bold, badgeCount, threadUnreadCount } = resolveRoomAttention({
+  const { bold, badgeCount } = resolveRoomAttention({
     unreadCount: room.unreadCount,
-    unreadThreadReplyCount: room.unreadThreadReplyCount,
     unreadMentionCount: room.unreadMentionCount,
     markedUnread: room.markedUnread,
     isMuted,
@@ -217,12 +188,6 @@ export function ChatRoomSidebarRow({
           </span>
         ) : null}
       </span>
-      <ThreadUnreadIndicator
-        count={threadUnreadCount}
-        ariaLabel={tActions("unreadThreadReplies", {
-          count: threadUnreadCount,
-        })}
-      />
       <MentionBadge count={badgeCount} />
       <span
         className={cn(
