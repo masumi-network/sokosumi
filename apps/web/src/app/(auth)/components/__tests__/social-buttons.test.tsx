@@ -6,6 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SocialButtons from "../social-buttons";
@@ -121,6 +122,25 @@ function MockSocialButton({ onClick, text }: MockSocialButtonProps) {
       {text}
     </button>
   );
+}
+
+function renderWithSignInEmailField(ui: React.ReactElement) {
+  return render(
+    <>
+      <input
+        data-testid="auth-field-email"
+        autoComplete="username webauthn"
+        aria-label="email"
+      />
+      {ui}
+    </>,
+  );
+}
+
+async function focusSignInEmailField() {
+  await act(async () => {
+    fireEvent.focusIn(screen.getByTestId("auth-field-email"));
+  });
 }
 
 function createDeferred<T>() {
@@ -366,28 +386,41 @@ describe("SocialButtons", () => {
     await expect(waitForAuthSessionOptions.getSession()).resolves.toBeNull();
   });
 
-  it("starts conditional passkey UI only when supported", async () => {
-    mockIsConditionalMediationAvailable.mockResolvedValueOnce(true);
+  it("does not start conditional passkey autofill on mount", async () => {
+    mockIsConditionalMediationAvailable.mockResolvedValue(true);
 
-    render(<SocialButtons showPasskey />);
+    renderWithSignInEmailField(<SocialButtons showPasskey />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mockPasskeySignIn).not.toHaveBeenCalled();
+    expect(mockIsConditionalMediationAvailable).not.toHaveBeenCalled();
+  });
+
+  it("starts conditional passkey autofill once after email focus when supported", async () => {
+    mockIsConditionalMediationAvailable.mockResolvedValue(true);
+
+    renderWithSignInEmailField(<SocialButtons showPasskey />);
+
+    await focusSignInEmailField();
 
     await waitFor(() => {
       expect(mockPasskeySignIn).toHaveBeenCalledWith({
         autoFill: true,
       });
     });
+
+    expect(mockPasskeySignIn).toHaveBeenCalledTimes(1);
+
+    await focusSignInEmailField();
+
+    expect(mockPasskeySignIn).toHaveBeenCalledTimes(1);
   });
 
-  it("ignores stale conditional passkey results after return url changes", async () => {
+  it("does not restart conditional passkey autofill when return url changes", async () => {
     const firstPasskeyRequest = createDeferred<{
-      data: {
-        session: {
-          id: string;
-        };
-      };
-      error: null;
-    }>();
-    const secondPasskeyRequest = createDeferred<{
       data: {
         session: {
           id: string;
@@ -397,43 +430,38 @@ describe("SocialButtons", () => {
     }>();
 
     mockIsConditionalMediationAvailable.mockResolvedValue(true);
-    mockPasskeySignIn
-      .mockReturnValueOnce(firstPasskeyRequest.promise)
-      .mockReturnValueOnce(secondPasskeyRequest.promise);
+    mockPasskeySignIn.mockReturnValueOnce(firstPasskeyRequest.promise);
 
-    const { rerender } = render(
+    const { rerender } = renderWithSignInEmailField(
       <SocialButtons returnUrl="/jobs" showPasskey />,
     );
+
+    await focusSignInEmailField();
 
     await waitFor(() => {
       expect(mockPasskeySignIn).toHaveBeenCalledTimes(1);
     });
 
-    rerender(<SocialButtons returnUrl="/profile" showPasskey />);
+    rerender(
+      <>
+        <input
+          data-testid="auth-field-email"
+          autoComplete="username webauthn"
+          aria-label="email"
+        />
+        <SocialButtons returnUrl="/profile" showPasskey />
+      </>,
+    );
 
-    await waitFor(() => {
-      expect(mockPasskeySignIn).toHaveBeenCalledTimes(2);
-    });
+    await focusSignInEmailField();
+
+    expect(mockPasskeySignIn).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       firstPasskeyRequest.resolve({
         data: {
           session: {
-            id: "session-old",
-          },
-        },
-        error: null,
-      });
-      await Promise.resolve();
-    });
-
-    expect(mockRouterReplace).not.toHaveBeenCalled();
-
-    await act(async () => {
-      secondPasskeyRequest.resolve({
-        data: {
-          session: {
-            id: "session-new",
+            id: "session-id",
           },
         },
         error: null,
@@ -452,11 +480,15 @@ describe("SocialButtons", () => {
       value: undefined,
     });
 
-    render(<SocialButtons showPasskey />);
+    renderWithSignInEmailField(<SocialButtons showPasskey />);
 
-    await waitFor(() => {
-      expect(mockPasskeySignIn).not.toHaveBeenCalled();
+    await focusSignInEmailField();
+
+    await act(async () => {
+      await Promise.resolve();
     });
+
+    expect(mockPasskeySignIn).not.toHaveBeenCalled();
   });
 
   it("reveals the magic-link panel and requests a Magic Link", async () => {

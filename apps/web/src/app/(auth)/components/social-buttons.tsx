@@ -11,6 +11,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -134,6 +135,9 @@ export default function SocialButtons({
     }
   };
 
+  const finishPasskeySignInRef = useRef(finishPasskeySignIn);
+  finishPasskeySignInRef.current = finishPasskeySignIn;
+
   useEffect(() => {
     if (!showPasskey) {
       return;
@@ -148,6 +152,7 @@ export default function SocialButtons({
     }
 
     let isMounted = true;
+    let hasStartedConditionalAutofill = false;
 
     const startConditionalPasskeySignIn = async () => {
       try {
@@ -164,18 +169,37 @@ export default function SocialButtons({
           return;
         }
 
-        await finishPasskeySignIn();
+        await finishPasskeySignInRef.current();
       } catch {
         return undefined;
       }
     };
 
-    void startConditionalPasskeySignIn();
+    const handleEmailFocusIn = (event: FocusEvent) => {
+      if (hasStartedConditionalAutofill || !isMounted) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      if (!target.matches('input[data-testid="auth-field-email"]')) {
+        return;
+      }
+
+      hasStartedConditionalAutofill = true;
+      void startConditionalPasskeySignIn();
+    };
+
+    document.addEventListener("focusin", handleEmailFocusIn);
 
     return () => {
       isMounted = false;
+      document.removeEventListener("focusin", handleEmailFocusIn);
     };
-  }, [finishPasskeySignIn, showPasskey]);
+  }, [showPasskey]);
 
   const handleMagicLinkSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

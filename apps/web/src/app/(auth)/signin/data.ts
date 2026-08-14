@@ -14,6 +14,7 @@ export const signInFormData: FormData<
     name: "currentPassword",
     placeholderKey: "Fields.Password.placeholder",
     type: "password",
+    autoComplete: "current-password",
   },
   {
     name: "rememberMe",
