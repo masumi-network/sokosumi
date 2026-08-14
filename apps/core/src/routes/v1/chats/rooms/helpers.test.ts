@@ -874,16 +874,49 @@ describe("getChatRoomThreadAggregates", () => {
 
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
     expect(sql).toContain('"unreadReplyCount" = 0');
-    expect(sql).toContain("LIMIT $");
+    expect(sql).toContain("LIMIT $4");
     expect(sql).toContain(
       'ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC',
     );
-    expect(sql).toContain("COALESCE(");
-    expect(sql).toContain('p."createdAt"');
+    // Scalar subqueries only — no MAX(...) + p.createdAt without GROUP BY
+    // (Postgres 42803 / SOKOSUMI-CORE-32).
+    expect(sql).toContain('SELECT MAX(r."createdAt")');
+    expect(sql).toContain('SELECT p."createdAt"');
+    expect(sql).not.toMatch(/LEFT JOIN "chat_room_message" r[\s\S]*GROUP BY/i);
+    expect(sql).not.toContain(
+      'MAX(r."createdAt") FILTER (WHERE r."deletedAt" IS NULL)',
+    );
     expect(queryRawUnsafe.mock.calls[0]?.[3]).toBe(
       "550e8400-e29b-41d4-a716-446655440099",
     );
     expect(queryRawUnsafe.mock.calls[0]?.[4]).toBe(51);
+  });
+
+  it("first recency page omits cursor baseline so null $3 never hits Postgres", async () => {
+    const queryRawUnsafe = vi.fn().mockResolvedValue([]);
+    const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
+
+    await getChatRoomThreadAggregates(
+      "550e8400-e29b-41d4-a716-446655440000",
+      "user_123",
+      tx,
+      {
+        recency: {
+          limit: 50,
+        },
+      },
+    );
+
+    const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
+    expect(sql).toContain('"unreadReplyCount" = 0');
+    expect(sql).toContain("LIMIT $3");
+    expect(sql).not.toContain("$3::uuid IS NULL");
+    expect(sql).not.toContain('SELECT MAX(r."createdAt")');
+    expect(queryRawUnsafe.mock.calls[0]?.slice(1)).toEqual([
+      "550e8400-e29b-41d4-a716-446655440000",
+      "user_123",
+      51,
+    ]);
   });
 });
 
