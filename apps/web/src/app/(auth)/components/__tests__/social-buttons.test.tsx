@@ -104,7 +104,7 @@ vi.mock("@/lib/auth/auth.utils", async () => {
 
   return {
     ...actual,
-    normalizeAuthReturnUrl: (value?: string) => value ?? "/chat",
+    normalizeAuthReturnUrl: (value?: string) => value ?? "/",
     waitForAuthSession: (options: MockWaitForAuthSessionOptions) =>
       mockWaitForAuthSession(options),
   };
