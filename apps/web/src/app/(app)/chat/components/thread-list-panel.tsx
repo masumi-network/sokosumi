@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   listThreadsAction,
   markAllUnreadThreadsReadAction,
@@ -51,84 +51,87 @@ export function ThreadListPanel({
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false);
-  const requestIdRef = useRef(0);
+  const listRequestIdRef = useRef(0);
   const { formatTimeAgo } = useLocalizedDateTime();
 
-  useEffect(() => {
-    const requestId = ++requestIdRef.current;
+  const loadFirstPage = useEffectEvent(async () => {
+    const requestId = ++listRequestIdRef.current;
     setIsLoading(true);
     setError(null);
-    void listThreadsAction(roomId).then((result) => {
-      if (requestId !== requestIdRef.current) {
+    try {
+      const result = await listThreadsAction(roomId);
+      if (requestId !== listRequestIdRef.current) {
         return;
       }
       if (!result.ok) {
         setItems([]);
         setNextCursor(null);
         setError(result.error.message || labels.error);
-        setIsLoading(false);
         return;
       }
       setItems(result.value.threads);
       setNextCursor(result.value.nextCursor);
-      setIsLoading(false);
-    });
+    } finally {
+      if (requestId === listRequestIdRef.current) {
+        setIsLoading(false);
+      }
+    }
+  });
+
+  useEffect(() => {
+    void loadFirstPage();
     return () => {
-      requestIdRef.current += 1;
+      listRequestIdRef.current += 1;
     };
-  }, [roomId, labels.error]);
+  }, [roomId]);
 
   async function handleLoadOlder() {
     if (!nextCursor || isLoadingOlder) {
       return;
     }
-    const requestId = ++requestIdRef.current;
+    const requestId = ++listRequestIdRef.current;
     setIsLoadingOlder(true);
-    const result = await listThreadsAction(roomId, { cursor: nextCursor });
-    if (requestId !== requestIdRef.current) {
-      return;
-    }
-    if (!result.ok) {
-      setError(result.error.message || labels.error);
+    try {
+      const result = await listThreadsAction(roomId, { cursor: nextCursor });
+      if (requestId !== listRequestIdRef.current) {
+        return;
+      }
+      if (!result.ok) {
+        setError(result.error.message || labels.error);
+        return;
+      }
+      setItems((current) => {
+        const seen = new Set(current.map((item) => item.parentMessage.id));
+        return [
+          ...current,
+          ...result.value.threads.filter(
+            (item) => !seen.has(item.parentMessage.id),
+          ),
+        ];
+      });
+      setNextCursor(result.value.nextCursor);
+    } finally {
       setIsLoadingOlder(false);
-      return;
     }
-    setItems((current) => [...current, ...result.value.threads]);
-    setNextCursor(result.value.nextCursor);
-    setIsLoadingOlder(false);
   }
 
   async function handleMarkAllRead() {
     if (isMarkingAllRead) {
       return;
     }
-    const requestId = ++requestIdRef.current;
     setIsMarkingAllRead(true);
     setError(null);
-    const result = await markAllUnreadThreadsReadAction(roomId);
-    if (requestId !== requestIdRef.current) {
-      return;
-    }
-    if (!result.ok) {
-      setError(result.error.message || labels.markAllReadError);
+    try {
+      const result = await markAllUnreadThreadsReadAction(roomId);
+      if (!result.ok) {
+        setError(result.error.message || labels.markAllReadError);
+        return;
+      }
+      onAllThreadsLooked?.();
+      await loadFirstPage();
+    } finally {
       setIsMarkingAllRead(false);
-      return;
     }
-    setItems((current) =>
-      current
-        .map((item) =>
-          item.unreadReplyCount > 0
-            ? { ...item, unreadReplyCount: 0, lastUnreadReplyAt: null }
-            : item,
-        )
-        .toSorted((a, b) => {
-          const aAt = new Date(a.lastReplyAt).getTime();
-          const bAt = new Date(b.lastReplyAt).getTime();
-          return bAt - aAt;
-        }),
-    );
-    setIsMarkingAllRead(false);
-    onAllThreadsLooked?.();
   }
 
   const unreadCount = items.filter((item) => item.unreadReplyCount > 0).length;

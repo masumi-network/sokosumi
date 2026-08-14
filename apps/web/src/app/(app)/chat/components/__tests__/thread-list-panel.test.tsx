@@ -226,34 +226,61 @@ describe("ThreadListPanel", () => {
     expect(onAllThreadsLooked).toHaveBeenCalledTimes(1);
   });
 
-  it("drops newly looked rows into last-reply recency after mark-all", async () => {
+  it("refetches the first page after mark-all so recency and cursor stay consistent", async () => {
     const olderUnreadId = "550e8400-e29b-41d4-a716-446655440097";
     const recentLookedId = "550e8400-e29b-41d4-a716-446655440096";
-    listThreadsActionMock.mockResolvedValue({
-      ok: true,
-      value: {
-        threads: [
-          threadItem({
-            parentMessage: parentMessage({
-              id: olderUnreadId,
-              content: "Older unread",
+    listThreadsActionMock
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: olderUnreadId,
+                content: "Older unread",
+              }),
+              lastReplyAt: new Date("2026-07-01T00:00:00.000Z"),
+              unreadReplyCount: 1,
             }),
-            lastReplyAt: new Date("2026-07-01T00:00:00.000Z"),
-            unreadReplyCount: 1,
-          }),
-          threadItem({
-            parentMessage: parentMessage({
-              id: recentLookedId,
-              content: "Recent looked",
+            threadItem({
+              parentMessage: parentMessage({
+                id: recentLookedId,
+                content: "Recent looked",
+              }),
+              lastReplyAt: new Date("2026-08-01T00:00:00.000Z"),
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
             }),
-            lastReplyAt: new Date("2026-08-01T00:00:00.000Z"),
-            unreadReplyCount: 0,
-            lastUnreadReplyAt: null,
-          }),
-        ],
-        nextCursor: null,
-      },
-    });
+          ],
+          nextCursor: "cursor-1",
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: {
+          threads: [
+            threadItem({
+              parentMessage: parentMessage({
+                id: recentLookedId,
+                content: "Recent looked",
+              }),
+              lastReplyAt: new Date("2026-08-01T00:00:00.000Z"),
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+            }),
+            threadItem({
+              parentMessage: parentMessage({
+                id: olderUnreadId,
+                content: "Older unread",
+              }),
+              lastReplyAt: new Date("2026-07-01T00:00:00.000Z"),
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+            }),
+          ],
+          nextCursor: "cursor-2",
+        },
+      });
 
     renderPanel();
 
@@ -263,10 +290,14 @@ describe("ThreadListPanel", () => {
     await waitFor(() => {
       expect(markAllUnreadThreadsReadActionMock).toHaveBeenCalled();
     });
+    await waitFor(() => {
+      expect(listThreadsActionMock).toHaveBeenCalledTimes(2);
+    });
     const after = screen.getAllByTestId("thread-list-item");
     expect(after[0]).toHaveTextContent("Recent looked");
     expect(after[1]).toHaveTextContent("Older unread");
     expect(after[1]).toHaveTextContent("2 replies");
     expect(after[1]).not.toHaveTextContent("unread replies");
+    expect(screen.getByTestId("thread-list-load-older")).toBeInTheDocument();
   });
 });

@@ -840,6 +840,22 @@ describe("getChatRoomThreadAggregates", () => {
     );
   });
 
+  it("filters unread threads in SQL after a prior look, newest unread first", async () => {
+    const queryRawUnsafe = vi.fn().mockResolvedValue([]);
+    const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
+
+    await getChatRoomThreadAggregates(
+      "550e8400-e29b-41d4-a716-446655440000",
+      "user_123",
+      tx,
+      { unreadOnly: true },
+    );
+
+    const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
+    expect(sql).toContain('"unreadReplyCount" >= 1');
+    expect(sql).toContain('"lastUnreadReplyAt" DESC');
+  });
+
   it("pages looked and never-looked threads by last reply, excluding unreads", async () => {
     const queryRawUnsafe = vi.fn().mockResolvedValue([]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;

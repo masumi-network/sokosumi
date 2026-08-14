@@ -271,7 +271,13 @@ export async function getChatRoomThreadAggregates(
     ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC
     LIMIT $4
     `
-    : `
+    : unreadOnly
+      ? `
+    SELECT * FROM (${innerSelect}) threads
+    WHERE "unreadReplyCount" >= 1
+    ORDER BY "lastUnreadReplyAt" DESC, "parentMessageId" DESC
+    `
+      : `
     ${innerSelect}
     ORDER BY MAX(reply."createdAt") DESC
     `;
@@ -292,25 +298,13 @@ export async function getChatRoomThreadAggregates(
     }>
   >(recencySql, ...queryArgs);
 
-  const aggregates = rows.map((row) => ({
+  return rows.map((row) => ({
     parentMessageId: row.parentMessageId,
     replyCount: Number(row.replyCount),
     lastReplyAt: row.lastReplyAt,
     unreadReplyCount: Number(row.unreadReplyCount),
     lastUnreadReplyAt: row.lastUnreadReplyAt,
   }));
-
-  if (!unreadOnly) {
-    return aggregates;
-  }
-
-  return aggregates
-    .filter((row) => row.unreadReplyCount >= 1)
-    .toSorted((a, b) => {
-      const aAt = a.lastUnreadReplyAt?.getTime() ?? 0;
-      const bAt = b.lastUnreadReplyAt?.getTime() ?? 0;
-      return bAt - aAt;
-    });
 }
 
 async function mapThreadAggregates(
