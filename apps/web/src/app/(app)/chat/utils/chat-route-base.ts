@@ -10,6 +10,12 @@ export const CHAT_APP_ROUTE_PREFIX = "/chat" as const;
  */
 export const CHAT_API_PATH = "/api/chat" as const;
 
+/** Mobile Chats list route (mounted at bare `/chat`). */
+export const CHAT_CHATS_LIST_PATH = CHAT_APP_ROUTE_PREFIX;
+
+/** Welcome home (drafts/notices land here). */
+export const CHAT_WELCOME_PATH = "/" as const;
+
 /** Mobile chrome surface for pathname-driven shell/header behavior. */
 export type ChatChromeSurface =
   | "home"
@@ -19,13 +25,17 @@ export type ChatChromeSurface =
   | "other-chat";
 
 const CHAT_ROOM_PATHNAME_RE = /^\/chat\/rooms\/[^/]+/;
-const CHAT_CHATS_PATH = `${CHAT_APP_ROUTE_PREFIX}/chats` as const;
 
 type SearchParamsLike =
   | URLSearchParams
   | { get?: (key: string) => string | null }
   | null
   | undefined;
+
+export type NextSearchParamsRecord = Record<
+  string,
+  string | string[] | undefined
+>;
 
 function pathMatchesChatPrefix(pathname: string): boolean {
   return (
@@ -54,14 +64,14 @@ export function isChatRoomPathname(
   return CHAT_ROOM_PATHNAME_RE.test(pathname);
 }
 
-/** True for the mobile Chats list route `/chat/chats`. */
+/** True for the mobile Chats list route (bare `/chat`). */
 export function isChatChatsPathname(
   pathname: string | null | undefined,
 ): boolean {
   if (!pathname) {
     return false;
   }
-  return pathname === CHAT_CHATS_PATH;
+  return pathname === CHAT_CHATS_LIST_PATH;
 }
 
 function readSearchParam(
@@ -78,12 +88,67 @@ function readSearchParam(
 }
 
 function isWelcomeHomePathname(pathname: string | null | undefined): boolean {
-  return pathname === "/" || pathname === CHAT_APP_ROUTE_PREFIX;
+  return pathname === CHAT_WELCOME_PATH;
+}
+
+function isDraftComposeQuery(searchParams: SearchParamsLike): boolean {
+  const create = readSearchParam(searchParams, "create");
+  const dm = readSearchParam(searchParams, "dm");
+  return create === "channel" || dm === "new";
+}
+
+/**
+ * Draft compose or soft-land notice query — wins over the mobile list and
+ * must land on Welcome (`/`).
+ */
+export function hasChatDraftOrNoticeQuery(
+  searchParams: SearchParamsLike,
+): boolean {
+  if (isDraftComposeQuery(searchParams)) {
+    return true;
+  }
+  return readSearchParam(searchParams, "notice") != null;
+}
+
+/** Build `URLSearchParams` from a Next.js `searchParams` record. */
+export function toURLSearchParamsFromRecord(
+  params: NextSearchParamsRecord,
+): URLSearchParams {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        qs.append(key, entry);
+      }
+    } else {
+      qs.set(key, value);
+    }
+  }
+  return qs;
+}
+
+/** `pathname` or `pathname?query` (empty query omitted). */
+export function pathWithSearch(
+  pathname: string,
+  searchParams: URLSearchParams,
+): string {
+  const search = searchParams.toString();
+  return search.length > 0 ? `${pathname}?${search}` : pathname;
+}
+
+/** True when a Next.js searchParams record carries draft/notice keys. */
+export function hasChatDraftOrNoticeFromRecord(
+  params: NextSearchParamsRecord,
+): boolean {
+  return hasChatDraftOrNoticeQuery(toURLSearchParamsFromRecord(params));
 }
 
 /**
  * Classifies chat mobile chrome by pathname (+ optional search).
- * Welcome home is `/` (and legacy bare `/chat` before redirect). Callers
+ * Welcome home is `/`. Bare `/chat` is the mobile chats list. Callers
  * outside chat still get `"other-chat"` (safe default for hamburger).
  * Do not treat `/` as a chat shell path — use `isChatShellPathname` for that.
  */
@@ -96,14 +161,17 @@ export function classifyChatChromeSurface(
   }
 
   if (isChatChatsPathname(pathname)) {
+    // Draft/notice normally server-redirect to Welcome; classify as draft if
+    // the query is still present (soft-nav / tests).
+    if (isDraftComposeQuery(searchParams)) {
+      return "draft";
+    }
     return "chats";
   }
 
   if (isWelcomeHomePathname(pathname)) {
-    const create = readSearchParam(searchParams, "create");
-    const dm = readSearchParam(searchParams, "dm");
     // Compose flows share Welcome but use room-style chrome (no tab bar, back).
-    if (create === "channel" || dm === "new") {
+    if (isDraftComposeQuery(searchParams)) {
       return "draft";
     }
     return "home";

@@ -16,6 +16,7 @@ import { useTranslations } from "next-intl";
 import { type ReactNode, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
+import { CHAT_CHATS_LIST_PATH } from "@/app/chat/utils/chat-route-base";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   markOrganizationChatRoomUnreadAction,
@@ -150,8 +151,8 @@ export function ChatRoomSidebarRow({
     // as stale "older" rows and they stick in the sidebar.
     notifyOrganizationChatRoomsChanged({ removedRoomId: room.id });
     if (isActive) {
-      // Land on chat home — `/chat/chats` is mobile-only (`md:hidden`).
-      router.replace("/");
+      // Land on chat home / list (`/chat` — mobile list; desktop redirects).
+      router.replace(CHAT_CHATS_LIST_PATH);
       router.refresh();
     }
   }

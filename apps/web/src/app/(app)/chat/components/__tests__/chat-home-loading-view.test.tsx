@@ -4,9 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ChatHomePageSkeleton } from "../chat-home-loading-view";
 
 describe("ChatHomePageSkeleton", () => {
-  // Both breakpoints land on the welcome at `/chat`, so each gets its own
-  // welcome bones. Mobile used to borrow the chats-list shell back when bare
-  // `/chat` redirected to `/chat/chats`.
+  // Welcome Instant Nav bones for `/` (both breakpoints).
   it("gives each breakpoint its own welcome bones", () => {
     render(<ChatHomePageSkeleton />);
 

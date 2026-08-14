@@ -27,7 +27,7 @@ interface WelcomePageProps {
  * `/` welcome: what happened while the user was away, and a way in via a
  * coworker. This is the post-login landing on every breakpoint — desktop gets
  * the full-page composition, mobile a version sized for a 390px column. The
- * room list is its own surface (`/chat/chats` on mobile, the sidebar on
+ * room list is its own surface (`/chat` on mobile, the sidebar on
  * desktop) rather than something stacked underneath the welcome.
  *
  * Draft modes via query: `?create=channel`, `?dm=new`.
@@ -164,7 +164,7 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
       </div>
       {/*
         Cancel authenticated-app-frame main `p-4` on mobile (same `-m-4` as
-        `/chat/chats` + room shell). Without this, the coworker strip scrollport
+        `/chat` + room shell). Without this, the coworker strip scrollport
         is inset 16px and edge avatars clip at the pad, not the viewport.
         Pitch/stats/selected keep their own `px-4` inside ChatLandingMobile.
       */}

@@ -1,6 +1,6 @@
-import { ChatHomePageSkeleton } from "@/app/chat/components/chat-home-loading-view";
+import { ChatChatsPageSkeleton } from "@/app/chat/components/chat-chats-loading-view";
 
 /** Sync shell only — no cookies/`connection()` (Instant Nav). */
-export default function ChatHomeLoading() {
-  return <ChatHomePageSkeleton />;
+export default function ChatChatsLoading() {
+  return <ChatChatsPageSkeleton />;
 }

@@ -99,7 +99,7 @@ export async function loadChatListChromeData(
 
 /**
  * Membership-visible rooms chrome (SOK-779). Same private tags/life as the
- * archived+members slice so sidebar + `/chat/chats` share one Core hit for
+ * archived+members slice so sidebar + `/chat` share one Core hit for
  * rooms; chats can await this without waiting on archived/members.
  */
 export async function getPrivateCachedMembershipVisibleRooms(
@@ -131,7 +131,7 @@ export async function getPrivateCachedChatListArchivedAndMembers(
 
 /**
  * Full chat-list chrome: composes the rooms + archived/members private-cache
- * slices (same tags/life). Sidebar / header keep this one-call API; `/chat/chats`
+ * slices (same tags/life). Sidebar / header keep this one-call API; `/chat`
  * awaits rooms first then streams archived+members.
  */
 export async function getPrivateCachedChatListChrome(

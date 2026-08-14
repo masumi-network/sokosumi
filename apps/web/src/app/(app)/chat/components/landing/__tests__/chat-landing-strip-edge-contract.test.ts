@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
  *
  * Mobile also sits under authenticated-app-frame `main` `p-4` (+ overflow-x
  * hidden). The md:hidden landing shell must cancel that pad (`-m-4`, same
- * pattern as `/chat/chats` + room shell) or the strip scrollport stays
+ * pattern as `/chat` + room shell) or the strip scrollport stays
  * 16→344 on a 375 viewport.
  */
 describe("chat landing coworker strip edge-to-edge contract", () => {
@@ -101,7 +101,7 @@ describe("chat landing coworker strip edge-to-edge contract", () => {
     const code = source.replace(/\/\*[\s\S]*?\*\//g, "");
 
     expect(code).toContain("ChatLandingMobile");
-    // Same cancel as /chat/chats + room shell. Bare w-full without -m-4 leaves
+    // Same cancel as /chat + room shell. Bare w-full without -m-4 leaves
     // scrollport at 16→344 under main p-4.
     expect(code).toMatch(/-m-4[^"'\n]*md:hidden|md:hidden[^"'\n]*-m-4/);
     expect(code).toMatch(

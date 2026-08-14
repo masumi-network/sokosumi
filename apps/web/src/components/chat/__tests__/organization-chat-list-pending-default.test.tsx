@@ -6,7 +6,7 @@ import type { ChatRoom } from "@/lib/clients/generated/core";
 import { OrganizationChatList } from "../organization-chat-list.client";
 
 /**
- * Production: mobile `/chat/chats` mounts OrganizationChatList without
+ * Production: mobile `/chat` mounts OrganizationChatList without
  * `pendingInvitations`. Default `= []` creates a new array every render;
  * render-time `pendingInvitations !== prevPendingInvitations` sync then
  * never converges → React #301 → Chat Error boundary.
@@ -18,7 +18,7 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
     refresh: vi.fn(),
   }),
-  usePathname: () => "/chat/chats",
+  usePathname: () => "/chat",
 }));
 
 vi.mock("next/link", () => ({

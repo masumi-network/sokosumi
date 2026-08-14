@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chats/chat-chats-list-shell";
+import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "../../chat-chats-list-shell";
 
 import { ChatChatsPageSkeleton } from "../chat-chats-loading-view";
 

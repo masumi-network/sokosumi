@@ -1,4 +1,5 @@
 import {
+  CHAT_CHATS_LIST_PATH,
   classifyChatChromeSurface,
   isChatRoomPathname,
   isChatShellPathname,
@@ -88,7 +89,7 @@ export function resolveMobileAppBackTarget(
     if (MOBILE_TAB_LIST_PATH_SET.has(root)) {
       return null;
     }
-    return { href: "/chat/chats", labelKey: "backToChats" };
+    return { href: CHAT_CHATS_LIST_PATH, labelKey: "backToChats" };
   }
   return { href: root, labelKey: "back" };
 }

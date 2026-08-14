@@ -1,5 +1,5 @@
 /**
- * Mobile `/chat/chats` list shell (page + Instant Nav skeleton).
+ * Mobile `/chat` list shell (page + Instant Nav skeleton).
  *
  * Cancel authenticated-app-frame main `p-4` on top/sides only so rows can go
  * edge-to-edge. Do **not** use `-m-4` / `-mb-4`: negative bottom margin pulls

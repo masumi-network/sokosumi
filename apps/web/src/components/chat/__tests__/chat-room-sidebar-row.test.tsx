@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CHAT_CHATS_LIST_PATH } from "@/app/chat/utils/chat-route-base";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 
 const { leaveRoomActionMock, replaceMock, refreshMock, notifyMock } =
@@ -441,7 +442,7 @@ describe("ChatRoomSidebarRow leave menu", () => {
     });
     expect(toast.success).toHaveBeenCalledWith("You left general.");
     expect(notifyMock).toHaveBeenCalledWith({ removedRoomId: "room-1" });
-    expect(replaceMock).toHaveBeenCalledWith("/");
+    expect(replaceMock).toHaveBeenCalledWith(CHAT_CHATS_LIST_PATH);
     expect(refreshMock).toHaveBeenCalled();
   });
 });

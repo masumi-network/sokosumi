@@ -8,7 +8,7 @@ import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "../chat-chats-list-shell";
 const here = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Mobile `/chat/chats` must clear the fixed bottom nav:
+ * Mobile `/chat` must clear the fixed bottom nav:
  * 1. Grow with content so AppMobileChrome's in-flow tab-bar spacer sits after
  *    the last DM in main's scroll (no nested min-h-0 + overflow-y-auto).
  * 2. Cancel main `p-4` on top/sides only — never `-m-4` / `-mb-4` (negative
@@ -16,7 +16,7 @@ const here = dirname(fileURLToPath(import.meta.url));
  * 3. Keep a small `pb-*` gap above the tab bar for comfortable clearance.
  * Create FAB is gone on this surface — do not reserve FAB bottom padding.
  */
-describe("chat/chats page scroll clearance contract", () => {
+describe("chat list page scroll clearance contract", () => {
   it("locks the shared mobile list shell inset classes", () => {
     expect(CHAT_CHATS_MOBILE_LIST_SHELL_CLASS).toContain("md:hidden");
     expect(CHAT_CHATS_MOBILE_LIST_SHELL_CLASS).toContain("-mt-4");
