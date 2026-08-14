@@ -24,6 +24,7 @@ import {
   isJoinableChannelDiscoverability,
   mapChatRoom,
   mapChatRoomMessage,
+  markAllChatRoomThreadsRead,
   mergeChatRoomMessageMetadata,
   mergeUnfurlsIntoMessageMetadata,
   requireArchivedChatRoomUserAccess,
@@ -807,6 +808,7 @@ describe("getChatRoomThreadAggregates", () => {
         lastReplyAt: new Date("2026-07-02T11:00:00.000Z"),
         unreadReplyCount: 3,
         lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
+        hasLooked: true,
       },
     ]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
@@ -824,12 +826,15 @@ describe("getChatRoomThreadAggregates", () => {
         lastReplyAt: new Date("2026-07-02T11:00:00.000Z"),
         unreadReplyCount: 3,
         lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
+        hasLooked: true,
       },
     ]);
 
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
     expect(sql).toContain('thread_read."lastReadAt" IS NOT NULL');
     expect(sql).toContain('reply."createdAt" > thread_read."lastReadAt"');
+    expect(sql).toContain('MAX(thread_read."lastReadAt") IS NOT NULL');
+    expect(sql).toContain('"hasLooked"');
     expect(sql).not.toContain('room_read."createdAt"');
     expect(sql).not.toContain("'-infinity'::timestamp");
     expect(sql).not.toMatch(/room_read\."lastReadAt"/);
@@ -917,6 +922,53 @@ describe("getChatRoomThreadAggregates", () => {
       "user_123",
       51,
     ]);
+  });
+});
+
+describe("markAllChatRoomThreadsRead", () => {
+  it("upserts looks for dual-baseline attention parents including never-looked", async () => {
+    const queryRawUnsafe = vi
+      .fn()
+      .mockResolvedValue([
+        { parentMessageId: "550e8400-e29b-41d4-a716-446655440001" },
+        { parentMessageId: "550e8400-e29b-41d4-a716-446655440002" },
+      ]);
+    const upsert = vi.fn().mockResolvedValue({});
+    const tx = {
+      $queryRawUnsafe: queryRawUnsafe,
+      chatRoomThreadReadState: { upsert },
+    } as never;
+
+    const marked = await markAllChatRoomThreadsRead(
+      "550e8400-e29b-41d4-a716-446655440000",
+      "user_123",
+      tx,
+    );
+
+    expect(marked).toBe(2);
+    const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
+    expect(sql).toContain('room_read."createdAt"');
+    expect(sql).toContain("'-infinity'::timestamp");
+    expect(sql).toContain('thread_read."lastReadAt"');
+    expect(sql).not.toContain('"unreadReplyCount"');
+    expect(upsert).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns 0 without upserting when no parents need a look", async () => {
+    const upsert = vi.fn();
+    const tx = {
+      $queryRawUnsafe: vi.fn().mockResolvedValue([]),
+      chatRoomThreadReadState: { upsert },
+    } as never;
+
+    await expect(
+      markAllChatRoomThreadsRead(
+        "550e8400-e29b-41d4-a716-446655440000",
+        "user_123",
+        tx,
+      ),
+    ).resolves.toBe(0);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });
 

@@ -199,16 +199,19 @@ export interface ChatRoomThreadAggregate {
   lastReplyAt: Date;
   unreadReplyCount: number;
   lastUnreadReplyAt: Date | null;
+  /** True when the viewer has a ChatRoomThreadReadState row for this parent. */
+  hasLooked: boolean;
 }
 
 /**
  * Parents (top-level messages) in a room that have ≥1 non-deleted reply,
  * with per-user unread counts.
  *
- * A thread is unread only after a prior look row
+ * A thread is unread (ADR-0005 / Threads badge) only after a prior look row
  * (`ChatRoomThreadReadState.lastReadAt`). Never-looked threads have
- * unreadReplyCount 0 (ADR-0005). Never uses room lastReadAt or room
- * read-state createdAt for thread unread.
+ * unreadReplyCount 0. Never uses room lastReadAt or room read-state
+ * createdAt for unreadReplyCount. `hasLooked` still exposes never-looked
+ * rows so the thread overview can style them and Mark all can clear them.
  */
 export async function getChatRoomThreadAggregates(
   roomId: string,
@@ -237,7 +240,8 @@ export async function getChatRoomThreadAggregates(
         WHERE thread_read."lastReadAt" IS NOT NULL
           AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
           AND reply."createdAt" > thread_read."lastReadAt"
-      ) AS "lastUnreadReplyAt"
+      ) AS "lastUnreadReplyAt",
+      (MAX(thread_read."lastReadAt") IS NOT NULL) AS "hasLooked"
     FROM "chat_room_message" reply
     INNER JOIN "chat_room_message" parent
       ON parent.id = reply."parentMessageId"
@@ -315,6 +319,7 @@ export async function getChatRoomThreadAggregates(
       lastReplyAt: Date;
       unreadReplyCount: number | bigint;
       lastUnreadReplyAt: Date | null;
+      hasLooked: boolean;
     }>
   >(recencySql, ...queryArgs);
 
@@ -324,6 +329,7 @@ export async function getChatRoomThreadAggregates(
     lastReplyAt: row.lastReplyAt,
     unreadReplyCount: Number(row.unreadReplyCount),
     lastUnreadReplyAt: row.lastUnreadReplyAt,
+    hasLooked: row.hasLooked === true,
   }));
 }
 
@@ -360,6 +366,7 @@ async function mapThreadAggregates(
         lastReplyAt: aggregate.lastReplyAt,
         unreadReplyCount: aggregate.unreadReplyCount,
         lastUnreadReplyAt: aggregate.lastUnreadReplyAt,
+        hasLooked: aggregate.hasLooked,
       },
     ];
   });
@@ -506,40 +513,69 @@ export async function markChatRoomThreadRead(
 }
 
 /**
- * Upsert look state for every parent currently needing attention in the room.
- * Does not change room ChatRoomReadState or CHAT notifications.
+ * Upsert look state for every parent that still contributes thread replies to
+ * sidebar dual-baseline unread: looked threads with newer non-self replies,
+ * and never-looked threads with non-self replies after room read-state
+ * createdAt / -infinity. Does not change room ChatRoomReadState or CHAT
+ * notifications. Broader than ADR-0005 unreadOnly (badge) so Mark all in the
+ * thread overview can clear never-looked looks (SOK-811).
  */
 export async function markAllChatRoomThreadsRead(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
 ): Promise<number> {
-  const aggregates = await getChatRoomThreadAggregates(roomId, userId, tx, {
-    unreadOnly: true,
-  });
-  if (aggregates.length === 0) {
+  const parents = await tx.$queryRawUnsafe<Array<{ parentMessageId: string }>>(
+    `
+    SELECT DISTINCT parent.id AS "parentMessageId"
+    FROM "chat_room_message" reply
+    INNER JOIN "chat_room_message" parent
+      ON parent.id = reply."parentMessageId"
+      AND parent."roomId" = reply."roomId"
+    LEFT JOIN "chat_room_thread_read_state" thread_read
+      ON thread_read."parentMessageId" = parent.id
+      AND thread_read."userId" = $2
+    LEFT JOIN "chat_room_read_state" room_read
+      ON room_read."roomId" = reply."roomId"
+      AND room_read."userId" = $2
+    WHERE reply."roomId" = $1::uuid
+      AND reply."parentMessageId" IS NOT NULL
+      AND reply."deletedAt" IS NULL
+      AND parent."deletedAt" IS NULL
+      AND parent."parentMessageId" IS NULL
+      AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+      AND reply."createdAt" > COALESCE(
+        thread_read."lastReadAt",
+        room_read."createdAt",
+        '-infinity'::timestamp
+      )
+    `,
+    roomId,
+    userId,
+  );
+  if (parents.length === 0) {
     return 0;
   }
 
   const readAt = new Date();
-  for (const aggregate of aggregates) {
+  for (const parent of parents) {
     await tx.chatRoomThreadReadState.upsert({
       where: {
         userId_parentMessageId: {
           userId,
-          parentMessageId: aggregate.parentMessageId,
+          parentMessageId: parent.parentMessageId,
         },
       },
       update: { lastReadAt: readAt },
       create: {
         userId,
-        parentMessageId: aggregate.parentMessageId,
+        parentMessageId: parent.parentMessageId,
         lastReadAt: readAt,
       },
     });
   }
 
-  return aggregates.length;
+  return parents.length;
 }
 
 /**

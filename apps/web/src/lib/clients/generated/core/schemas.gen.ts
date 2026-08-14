@@ -5431,6 +5431,11 @@ export const ChatRoomThreadSchema = {
             format: 'date-time',
             example: '2026-07-02T12:00:00.000Z',
             description: 'createdAt of the newest qualifying unread reply, or null when none.'
+        },
+        hasLooked: {
+            type: 'boolean',
+            description: 'True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.',
+            example: true
         }
     },
     required: [
@@ -5438,7 +5443,8 @@ export const ChatRoomThreadSchema = {
         'replyCount',
         'lastReplyAt',
         'unreadReplyCount',
-        'lastUnreadReplyAt'
+        'lastUnreadReplyAt',
+        'hasLooked'
     ]
 } as const;
 

@@ -675,7 +675,7 @@ export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Mark every unread thread in a room as looked for the current user. Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.
+ * Mark every thread that still needs a look in this room for the current user: looked threads with newer replies, and never-looked threads with replies after the dual-baseline (join / -infinity). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.
  */
 export const postChatsRoomsByIdThreadsRead = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdThreadsReadData, ThrowOnError>): RequestResult<PostChatsRoomsByIdThreadsReadResponses, PostChatsRoomsByIdThreadsReadErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdThreadsReadResponses, PostChatsRoomsByIdThreadsReadErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdThreadsReadResponseTransformer,

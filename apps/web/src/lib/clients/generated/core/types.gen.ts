@@ -1526,6 +1526,10 @@ export type ChatRoomThread = {
      * createdAt of the newest qualifying unread reply, or null when none.
      */
     lastUnreadReplyAt: Date | null;
+    /**
+     * True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.
+     */
+    hasLooked: boolean;
 };
 
 export type ChatRoomMessage = {

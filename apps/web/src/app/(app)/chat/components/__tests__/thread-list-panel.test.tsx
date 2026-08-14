@@ -76,6 +76,7 @@ function threadItem(overrides: Partial<ChatRoomThread> = {}): ChatRoomThread {
     lastReplyAt: new Date("2026-08-01T01:00:00.000Z"),
     unreadReplyCount: 2,
     lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
+    hasLooked: true,
     ...overrides,
   };
 }
@@ -129,6 +130,7 @@ describe("ThreadListPanel", () => {
             replyCount: 4,
             unreadReplyCount: 0,
             lastUnreadReplyAt: null,
+            hasLooked: true,
           }),
         ],
         nextCursor: null,
@@ -173,7 +175,11 @@ describe("ThreadListPanel", () => {
         ok: true,
         value: {
           threads: [
-            threadItem({ unreadReplyCount: 0, lastUnreadReplyAt: null }),
+            threadItem({
+              unreadReplyCount: 0,
+              lastUnreadReplyAt: null,
+              hasLooked: true,
+            }),
           ],
           nextCursor: "cursor-1",
         },
@@ -189,6 +195,7 @@ describe("ThreadListPanel", () => {
               }),
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
+              hasLooked: true,
             }),
           ],
           nextCursor: null,
@@ -250,6 +257,7 @@ describe("ThreadListPanel", () => {
               lastReplyAt: new Date("2026-08-01T00:00:00.000Z"),
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
+              hasLooked: true,
             }),
           ],
           nextCursor: "cursor-1",
@@ -267,6 +275,7 @@ describe("ThreadListPanel", () => {
               lastReplyAt: new Date("2026-08-01T00:00:00.000Z"),
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
+              hasLooked: true,
             }),
             threadItem({
               parentMessage: parentMessage({
@@ -276,6 +285,7 @@ describe("ThreadListPanel", () => {
               lastReplyAt: new Date("2026-07-01T00:00:00.000Z"),
               unreadReplyCount: 0,
               lastUnreadReplyAt: null,
+              hasLooked: true,
             }),
           ],
           nextCursor: "cursor-2",
@@ -299,5 +309,31 @@ describe("ThreadListPanel", () => {
     expect(after[1]).toHaveTextContent("2 replies");
     expect(after[1]).not.toHaveTextContent("unread replies");
     expect(screen.getByTestId("thread-list-load-older")).toBeInTheDocument();
+  });
+
+  it("treats never-looked threads as needing attention and shows Mark all", async () => {
+    listThreadsActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        threads: [
+          threadItem({
+            unreadReplyCount: 0,
+            lastUnreadReplyAt: null,
+            hasLooked: false,
+            replyCount: 37,
+          }),
+        ],
+        nextCursor: null,
+      },
+    });
+
+    renderPanel();
+
+    const item = await screen.findByTestId("thread-list-item");
+    expect(item).toHaveAttribute("data-needs-attention", "true");
+    expect(item).toHaveTextContent("37 unread replies");
+    expect(
+      await screen.findByTestId("thread-list-mark-all-read"),
+    ).toBeInTheDocument();
   });
 });
