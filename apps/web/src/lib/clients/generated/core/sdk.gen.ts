@@ -666,7 +666,7 @@ export const postChatsRoomsByIdUnread = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * List threads in a room. `unread=true` returns every unread thread (prior look + newer replies) and ignores `cursor`/`limit`. Otherwise returns unread threads first, then a recency page of looked and never-looked threads (`cursor`/`limit`). Independent of room mark-read.
+ * List threads in a room. `unread=true` returns every attention thread (dual-baseline `attentionReplyCount`, including qualifying never-looked) and ignores `cursor`/`limit`. Otherwise returns attention threads first then a recency page of the rest (`cursor`/`limit`). Independent of room mark-read.
  */
 export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsResponseTransformer,

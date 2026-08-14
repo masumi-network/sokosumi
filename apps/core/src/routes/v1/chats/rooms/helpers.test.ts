@@ -848,7 +848,7 @@ describe("getChatRoomThreadAggregates", () => {
     );
   });
 
-  it("filters unread threads in SQL after a prior look, newest unread first", async () => {
+  it("filters attention threads in SQL (dual-baseline), newest reply first", async () => {
     const queryRawUnsafe = vi.fn().mockResolvedValue([]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
 
@@ -860,11 +860,15 @@ describe("getChatRoomThreadAggregates", () => {
     );
 
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
-    expect(sql).toContain('"unreadReplyCount" >= 1');
-    expect(sql).toContain('"lastUnreadReplyAt" DESC');
+    expect(sql).toContain('"attentionReplyCount" >= 1');
+    expect(sql).toContain(
+      'ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC',
+    );
+    expect(sql).not.toContain('"unreadReplyCount" >= 1');
+    expect(sql).not.toContain('"lastUnreadReplyAt" DESC');
   });
 
-  it("pages looked and never-looked threads by last reply, excluding unreads", async () => {
+  it("pages looked and never-looked threads by last reply, excluding attention", async () => {
     const queryRawUnsafe = vi.fn().mockResolvedValue([]);
     const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
 
@@ -881,7 +885,8 @@ describe("getChatRoomThreadAggregates", () => {
     );
 
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
-    expect(sql).toContain('"unreadReplyCount" = 0');
+    expect(sql).toContain('"attentionReplyCount" = 0');
+    expect(sql).not.toContain('"unreadReplyCount" = 0');
     expect(sql).toContain("LIMIT $4");
     expect(sql).toContain(
       'ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC',
@@ -916,7 +921,7 @@ describe("getChatRoomThreadAggregates", () => {
     );
 
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
-    expect(sql).toContain('"unreadReplyCount" = 0');
+    expect(sql).toContain('"attentionReplyCount" = 0');
     expect(sql).toContain("LIMIT $3");
     expect(sql).not.toContain("$3::uuid IS NULL");
     expect(sql).not.toContain('SELECT MAX(r."createdAt")');

@@ -1,11 +1,13 @@
 # Thread unread requires a prior look
 
-A **Thread** is an **unread thread** only if the user has already **looked** it and there is at least one non-self reply after that look. A never-looked Thread is not unread: it sorts by last reply only and does not count toward the Threads badge or mark-all.
+A **Thread** is an **unread thread** (`unreadReplyCount`) only if the user has already **looked** it and there is at least one non-self reply after that look. A never-looked Thread has `unreadReplyCount` 0 and sorts by last reply among non-attention rows.
 
-**Why look, not “any unseen reply”:** with no look row, the baseline is room-join or the beginning of history, so old threads flood the top of a full **Thread list** as unread. That made the unread-only panel noisy and would break “unreads on top” on a full list.
+**SOK-811 (product override):** Threads badge (`unread=true`), thread overview chrome, and Mark all use dual-baseline **`attentionReplyCount`**, which **does** include qualifying never-looked replies (same baseline as sidebar room unread). Do not re-gate the badge on ADR-0005 `unreadReplyCount` alone.
+
+**Why look, not “any unseen reply” for `unreadReplyCount`:** with no look row, the baseline is room-join or the beginning of history, so old threads flood a prior-look-only unread list. That metric stays prior-look-only.
 
 **Why not replied / participated:** unread means unseen activity in a Thread the user already chose to open. Requiring a reply (or parent authorship) blinds people who only read — including the parent author who never posts a reply.
 
-**Out of scope:** room sidebar dual-baseline unread still uses today’s thread look fallback (join / `-infinity`). Tightening that to match this rule is a follow-up.
+**Out of scope:** changing room sidebar dual-baseline unread itself.
 
-**Rejected:** never-looked counts as unread; unread = I replied; unread = I authored the parent or replied; sort-only change that leaves the badge counting fossils.
+**Rejected for `unreadReplyCount`:** never-looked counts as prior-look unread; unread = I replied; unread = I authored the parent or replied.
