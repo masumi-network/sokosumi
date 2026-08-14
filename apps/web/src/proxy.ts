@@ -97,8 +97,9 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  // Onboarding is checked server-side in the protected app layout.
-  // Users who still need onboarding see the in-app onboarding dialog there.
+  // Workspace gate (not ready → /workspace-gate) is enforced server-side in
+  // AuthenticatedAppFrame via Core workspace inventory. Legacy intro onboarding
+  // still mounts as an in-app dialog for ready users until SOK-799.
 
   return response;
 }

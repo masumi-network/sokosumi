@@ -5228,6 +5228,9 @@
           }
         }
       }
+    },
+    "WorkspaceAccess": {
+      "checking": "Checking workspace access"
     }
   },
   "Share": {
@@ -5478,5 +5481,18 @@
     "marketingTitle": "Marketing",
     "marketingBody": "Lets us measure ad campaigns and reach people who might find Sokosumi useful.",
     "settings": "Cookie settings"
+  },
+  "WorkspaceGate": {
+    "title": "Set up your workspace",
+    "identityTitle": "Create your first workspace",
+    "identityDescription": "You need a workspace before you can use Sokosumi.",
+    "pendingInvitesTitle": "You have pending invitations",
+    "pendingInvitesDescription": "Organization invitations are waiting for you. Finishing them is not available on this screen yet.",
+    "body": "You cannot use the product until you have a first workspace. Sign out is the only way to leave this screen for now.",
+    "signOut": "Sign out",
+    "unavailableTitle": "We could not check your workspace access",
+    "unavailableDescription": "Sokosumi could not load your workspace status right now. This is temporary — you are not locked out for missing a workspace.",
+    "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
+    "retry": "Try again"
   }
 }

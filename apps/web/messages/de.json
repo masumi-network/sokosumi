@@ -5228,6 +5228,9 @@
           "back": "Zurück zum Chat"
         }
       }
+    },
+    "WorkspaceAccess": {
+      "checking": "Workspace-Zugriff wird geprüft"
     }
   },
   "Share": {
@@ -5478,5 +5481,18 @@
     "marketingTitle": "Marketing",
     "marketingBody": "Ermöglicht die Messung von Werbekampagnen und das Erreichen von Personen, für die Sokosumi nützlich sein könnte.",
     "settings": "Cookie-Einstellungen"
+  },
+  "WorkspaceGate": {
+    "title": "Workspace einrichten",
+    "identityTitle": "Erstelle deinen ersten Workspace",
+    "identityDescription": "Du brauchst einen Workspace, bevor du Sokosumi nutzen kannst.",
+    "pendingInvitesTitle": "Du hast ausstehende Einladungen",
+    "pendingInvitesDescription": "Es warten Organisations-Einladungen auf dich. Sie können auf diesem Bildschirm noch nicht bearbeitet werden.",
+    "body": "Du kannst das Produkt erst nutzen, wenn du einen ersten Workspace hast. Abmelden ist vorerst der einzige Weg, diesen Bildschirm zu verlassen.",
+    "signOut": "Abmelden",
+    "unavailableTitle": "Workspace-Zugriff konnte nicht geprüft werden",
+    "unavailableDescription": "Sokosumi konnte deinen Workspace-Status gerade nicht laden. Das ist vorübergehend — du bist nicht wegen eines fehlenden Workspace ausgesperrt.",
+    "unavailableBody": "Versuche es gleich noch einmal. Wenn das Problem bleibt, melde dich ab und wieder an, oder kontaktiere den Support. Abmelden ist hier immer möglich.",
+    "retry": "Erneut versuchen"
   }
 }

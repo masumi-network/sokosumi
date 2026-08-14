@@ -2619,6 +2619,36 @@ export type PreferredOrganization = {
     organizationId: string | null;
 };
 
+export type WorkspaceInventory = {
+    gate: WorkspaceGateStatus;
+    /**
+     * Whether the user owns a personal workspace row
+     */
+    hasPersonalWorkspace: boolean;
+    /**
+     * Whether the user is a member of at least one organization (with its workspace)
+     */
+    hasOrganizationMembership: boolean;
+    /**
+     * Whether the user has at least one non-expired pending organization invitation by email
+     */
+    hasPendingOrganizationInvites: boolean;
+};
+
+/**
+ * Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry
+ */
+export const WorkspaceGateStatus = {
+    READY: 'ready',
+    PENDING_INVITES: 'pending-invites',
+    IDENTITY_ONBOARDING: 'identity-onboarding'
+} as const;
+
+/**
+ * Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry
+ */
+export type WorkspaceGateStatus = typeof WorkspaceGateStatus[keyof typeof WorkspaceGateStatus];
+
 export type Notice = {
     id: string;
     kind: NoticeKind;
@@ -19105,6 +19135,95 @@ export type PostUsersByIdOnboardingResponses = {
 };
 
 export type PostUsersByIdOnboardingResponse = PostUsersByIdOnboardingResponses[keyof PostUsersByIdOnboardingResponses];
+
+export type GetUsersByIdWorkspaceInventoryData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspace-inventory';
+};
+
+export type GetUsersByIdWorkspaceInventoryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdWorkspaceInventoryError = GetUsersByIdWorkspaceInventoryErrors[keyof GetUsersByIdWorkspaceInventoryErrors];
+
+export type GetUsersByIdWorkspaceInventoryResponses = {
+    /**
+     * Retrieve the user's workspace inventory and gate
+     */
+    200: {
+        data: WorkspaceInventory;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdWorkspaceInventoryResponse = GetUsersByIdWorkspaceInventoryResponses[keyof GetUsersByIdWorkspaceInventoryResponses];
 
 export type GetUsersByIdNoticesPendingData = {
     body?: never;
