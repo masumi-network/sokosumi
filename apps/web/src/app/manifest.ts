@@ -10,8 +10,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Sokosumi",
     short_name: "Sokosumi",
-    description:
-      "Hire yourself an agent to finish the most time consuming tasks",
+    description: "Use AI coworkers to finish your most time-consuming tasks",
     start_url: "/",
     scope: "/",
     display: "standalone",

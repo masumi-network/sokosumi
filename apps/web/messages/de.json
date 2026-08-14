@@ -86,13 +86,6 @@
           "page": "Seite {page} von {totalPages}"
         }
       },
-      "agentsNotAvailable": "Keine Agents verfügbar",
-      "agentsNotFound": "Keine Agents gefunden",
-      "hire": "Agent beauftragen",
-      "AgentCard": {
-        "view": "Details anzeigen",
-        "pricing": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
-      },
       "AgentDetail": {
         "Header": {
           "pricing": "{credits, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
@@ -1084,7 +1077,7 @@
         "default": "Sokosumi - Anmelden / Registrieren",
         "template": "Sokosumi - %s"
       },
-      "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+      "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
     },
     "SocialButtons": {
       "continueWith": "Weiter mit {provider}",
@@ -1117,7 +1110,7 @@
       "SignIn": {
         "Metadata": {
           "title": "Anmelden",
-          "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+          "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
         },
         "Header": {
           "title": "Anmelden",
@@ -1152,7 +1145,7 @@
       "SignUp": {
         "Metadata": {
           "title": "Registrieren",
-          "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+          "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
         },
         "Google": {
           "title": "Mit Google authentifizieren",
@@ -2793,7 +2786,7 @@
         "default": "Sokosumi - Marketplace für Mensch-Agent-Interaktionen",
         "template": "Sokosumi - %s"
       },
-      "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+      "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
     },
     "Sidebar": {
       "Account": {
@@ -4443,7 +4436,6 @@
         "heroHeadline": "What do you want to get done?",
         "heroSubtitle": "Hand real work to your AI coworkers, or start from a ready-to-run offer.",
         "searchPlaceholder": "Search agents, coworkers, and offers…",
-        "socialProof": "{count} agents on Sokosumi",
         "socialProofFallback": "AI coworkers ready to work",
         "companyWebsite": "Visit website",
         "companyLegal": "Legal",
@@ -4466,25 +4458,10 @@
         "noResults": "Nothing matches your search.",
         "coworkerNoOffers": "No ready-to-run offers yet."
       },
-      "FilterSection": {
-        "searchPlaceholder": "Agents suchen",
-        "reset": "Zurücksetzen",
-        "tags": "Tags",
-        "selectTags": "Tags auswählen",
-        "applyTags": "Anwenden",
-        "categories": "Kategorien",
-        "selectCategories": "Kategorien auswählen",
-        "applyCategories": "Anwenden",
-        "featuredAgents": "Featured Agents",
-        "newAgents": "Neue Agents",
-        "others": "Sonstige"
-      },
       "Jobs": {
-        "newJob": "Neuer Job",
         "switchedWorkspace": "Zu {account}-Account gewechselt",
         "Header": {
           "back": "Zurück zu Agents",
-          "newJob": "Neuer Job",
           "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
         },
         "Modal": {
@@ -4498,28 +4475,12 @@
         },
         "RightSection": {
           "noExecutedJobs": "Keine ausgeführten Jobs"
-        },
-        "CreateJob": {
-          "title": "Neuer {name}",
-          "cancel": "Abbrechen",
-          "Information": {
-            "title": "Informationen"
-          },
-          "Input": {
-            "title": "Input",
-            "projectLabel": "Projekt",
-            "projectNone": "Kein Projekt",
-            "projectSearchPlaceholder": "Projekte suchen...",
-            "projectEmptyResults": "Keine Projekte gefunden."
-          }
         }
       },
       "CoworkerGalleryCard": {
         "defaultSubtitle": "KI-Coworker",
         "defaultDescription": "Ein KI-gestützter Coworker, der dich unterstützt."
-      },
-      "allAgentsTitle": "Alle Agenten durchsuchen",
-      "allAgentsSubtitle": "Alle Agenten auf Sokosumi – gruppiert nach Aufgabe."
+      }
     },
     "EmailVerificationNotice": {
       "title": "Bestätige deine E-Mail-Adresse",
@@ -5239,19 +5200,19 @@
         "default": "Sokosumi - Marketplace für Mensch-Agent-Interaktionen",
         "template": "Sokosumi - %s"
       },
-      "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+      "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
     },
     "Jobs": {
       "Metadata": {
         "title": "{name}",
         "defaultName": "Unbenannt",
-        "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+        "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
       }
     },
     "Tasks": {
       "Metadata": {
         "title": "{name}",
-        "description": "Beauftrage einen Agent für deine zeitaufwändigsten Aufgaben"
+        "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
       },
       "Page": {
         "eyebrow": "Öffentlicher Task",
@@ -5361,24 +5322,12 @@
       },
       "Form": {
         "clear": "Zurücksetzen",
-        "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}} pro Ausführung",
-        "submit": "Beauftragen",
         "back": "Zurück",
         "next": "Weiter",
         "ctrl": "Strg",
-        "acceptByClickingSubmit": "Mit Klick auf \"Beauftragen\" stimmst du den ",
-        "termsOfService": "Nutzungsbedingungen",
-        "privacyPolicy": "Datenschutzrichtlinie",
-        "dpa": "Datenverarbeitungsvereinbarung (DPA)",
-        "legal": "weiteren rechtlichen Anforderungen",
-        "byCreator": " des Erstellers des Agents zu",
         "Error": {
-          "insufficientBalance": "Dein Credit-Guthaben reicht nicht aus, um diesen Job zu starten.",
-          "insufficientBalanceAction": "Credits hinzufügen",
           "badInput": "Deine Eingabedaten sind ungültig.",
-          "unauthenticated": "Du musst angemeldet sein, um einen Job zu starten.",
-          "unauthenticatedAction": "Anmelden",
-          "default": "Job konnte nicht gestartet werden."
+          "unauthenticated": "Du musst angemeldet sein, um fortzufahren."
         },
         "String": {
           "required": "{name} ist erforderlich",
