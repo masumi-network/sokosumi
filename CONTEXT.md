@@ -4,6 +4,24 @@ Shared product language for the Sokosumi monorepo (web, core, packages).
 
 ## Language
 
+### Marketplace
+
+**Agent**:
+A Masumi-registry marketplace listing. A user hires an Agent to run a Job. Distinct from Coworker.
+_Avoid_: Classic agent, bot
+
+**Hire**:
+Starting a Job on an Agent.
+_Avoid_: Purchase, subscribe (billing), assign (Task → Coworker)
+
+**Job**:
+One run of an Agent for a user or workspace. Not a Task.
+_Avoid_: Task, run (unless a UI label)
+
+**Coworker**:
+A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
+_Avoid_: Agent (when meaning this), assistant (Hermes)
+
 ### Notifications
 
 **Notification**:
