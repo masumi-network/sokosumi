@@ -9,9 +9,8 @@ import { projectService } from "@/lib/services/project.service";
 import { getJobQueryKey, getQueryClient } from "@/queries";
 
 interface LoadJobDetailsParams {
+  agentId: string;
   jobId: string;
-  /** Optional agent ownership check (legacy nested paths / call sites). */
-  agentId?: string;
 }
 
 interface LoadJobDetailsResult {
@@ -40,8 +39,8 @@ const getCachedJob = cache(async (jobId: string) => {
 });
 
 export async function loadJobDetails({
-  jobId,
   agentId,
+  jobId,
 }: LoadJobDetailsParams): Promise<LoadJobDetailsResult> {
   const session = await getSession();
   if (!session) {
@@ -49,7 +48,7 @@ export async function loadJobDetails({
   }
 
   const job = await getCachedJob(jobId);
-  if (!job || (agentId !== undefined && job.agent.id !== agentId)) {
+  if (!job || job.agent.id !== agentId) {
     notFound();
   }
 

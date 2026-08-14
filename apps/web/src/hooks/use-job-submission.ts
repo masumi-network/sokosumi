@@ -15,7 +15,6 @@ import {
   prepareInputValues,
 } from "@/lib/job-input";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
-import { buildJobHref } from "@/lib/utils/job-href";
 import {
   getUserFileUploadErrorMessage,
   uploadInputDataFiles,
@@ -89,7 +88,7 @@ export function useJobSubmission({
             jobId: result.value.jobId,
           });
           onSuccess();
-          router.push(buildJobHref(result.value.jobId));
+          router.push(`/agents/${agentId}/jobs/${result.value.jobId}`);
         } else {
           switch (result.error.code) {
             case CommonErrorCode.UNAUTHENTICATED:

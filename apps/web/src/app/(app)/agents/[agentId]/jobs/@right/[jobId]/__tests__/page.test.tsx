@@ -1,30 +1,136 @@
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const permanentRedirectMock = vi.fn((url: string) => {
-  throw new Error(`REDIRECT:${url}`);
-});
+const loadJobDetailsMock = vi.fn();
+const getMyMembersWithOrganizationsMock = vi.fn();
+const getTranslationsMock = vi.fn();
+const autoContextSwitchMock = vi.fn();
+const jobDetailsMock = vi.fn();
 
-vi.mock("next/navigation", () => ({
-  permanentRedirect: (url: string) => permanentRedirectMock(url),
+vi.mock("@tanstack/react-query", () => ({
+  HydrationBoundary: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="hydration-boundary">{children}</div>
+  ),
 }));
 
-describe("NestedJobRedirectPage", () => {
+vi.mock("next-intl/server", () => ({
+  getTranslations: (...args: unknown[]) => getTranslationsMock(...args),
+}));
+
+vi.mock("@/app/agents/[agentId]/jobs/_lib/load-job-details", () => ({
+  loadJobDetails: (...args: unknown[]) => loadJobDetailsMock(...args),
+}));
+
+vi.mock("@/app/components/auto-context-switch", () => ({
+  AutoContextSwitch: (props: unknown) => {
+    autoContextSwitchMock(props);
+    return <div data-testid="auto-context-switch" />;
+  },
+}));
+
+vi.mock("@/components/jobs", () => ({
+  JobDetails: (props: unknown) => {
+    jobDetailsMock(props);
+    return <div data-testid="job-details" />;
+  },
+}));
+
+vi.mock("@/lib/services/user.service", () => ({
+  userService: {
+    getMyMembersWithOrganizations: (...args: unknown[]) =>
+      getMyMembersWithOrganizationsMock(...args),
+  },
+}));
+
+describe("JobDetailsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getMyMembersWithOrganizationsMock.mockResolvedValue([
+      {
+        organizationId: "org-workspace",
+        organization: { id: "org-workspace", name: "Workspace Org" },
+      },
+    ]);
+    getTranslationsMock.mockImplementation(async (namespace: string) => {
+      if (namespace === "Components.OrganizationSwitcher") {
+        return (key: string) =>
+          key === "personalAccount" ? "Personal Account" : key;
+      }
+
+      return (key: string, values?: Record<string, unknown>) =>
+        values ? `${key}:${JSON.stringify(values)}` : key;
+    });
   });
 
-  it("permanent-redirects to /jobs/{jobId}", async () => {
-    const { default: NestedJobRedirectPage } = await import("../page");
+  it("switches to the workspace organization instead of the billing organization", async () => {
+    loadJobDetailsMock.mockResolvedValue({
+      activeOrganizationId: null,
+      dehydratedState: "dehydrated",
+      job: {
+        id: "job-1",
+        organizationId: "org-billing",
+        workspace: {
+          organizationId: "org-workspace",
+        },
+      },
+      personalWorkspaceLabel: "Ada Lovelace",
+      readOnly: false,
+    });
 
-    await expect(
-      NestedJobRedirectPage({
+    const { default: JobDetailsPage } = await import("../page");
+
+    render(
+      await JobDetailsPage({
         params: Promise.resolve({
           agentId: "agent-1",
           jobId: "job-1",
         }),
       }),
-    ).rejects.toThrow("REDIRECT:/jobs/job-1");
+    );
 
-    expect(permanentRedirectMock).toHaveBeenCalledWith("/jobs/job-1");
+    expect(autoContextSwitchMock).toHaveBeenCalledWith({
+      activeOrganizationId: null,
+      targetOrganizationId: "org-workspace",
+      successMessage: 'switchedWorkspace:{"account":"Workspace Org"}',
+    });
+    expect(jobDetailsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        personalWorkspaceLabel: "Ada Lovelace",
+      }),
+    );
+    expect(screen.getByTestId("hydration-boundary")).toBeInTheDocument();
+  });
+
+  it("uses the personal account label when the job is in the personal workspace", async () => {
+    loadJobDetailsMock.mockResolvedValue({
+      activeOrganizationId: "org-billing",
+      dehydratedState: "dehydrated",
+      job: {
+        id: "job-1",
+        organizationId: "org-billing",
+        workspace: {
+          organizationId: null,
+        },
+      },
+      personalWorkspaceLabel: null,
+      readOnly: false,
+    });
+
+    const { default: JobDetailsPage } = await import("../page");
+
+    render(
+      await JobDetailsPage({
+        params: Promise.resolve({
+          agentId: "agent-1",
+          jobId: "job-1",
+        }),
+      }),
+    );
+
+    expect(autoContextSwitchMock).toHaveBeenCalledWith({
+      activeOrganizationId: "org-billing",
+      targetOrganizationId: null,
+      successMessage: 'switchedWorkspace:{"account":"Personal Account"}',
+    });
   });
 });

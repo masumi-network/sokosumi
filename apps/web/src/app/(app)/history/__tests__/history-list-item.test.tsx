@@ -201,7 +201,7 @@ describe("HistoryListItem", () => {
     };
 
     expect(getHistoryItemHref(task)).toBe("/tasks/task-1");
-    expect(getHistoryItemHref(job)).toBe("/jobs/job-1");
+    expect(getHistoryItemHref(job)).toBe("/agents/agent-1/jobs/job-1");
   });
 
   it("uses the agent name as the job fallback subtitle", () => {

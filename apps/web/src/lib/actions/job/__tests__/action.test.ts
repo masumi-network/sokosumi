@@ -151,9 +151,8 @@ describe("startJob", () => {
       "user-1",
       "ada@example.com",
     );
-    expect(revalidatePath).toHaveBeenCalledWith("/jobs/job-1", "layout");
     expect(revalidatePath).toHaveBeenCalledWith(
-      "/agents/agent-1/jobs",
+      "/agents/agent-1/jobs/job-1",
       "layout",
     );
     expect(result).toEqual({

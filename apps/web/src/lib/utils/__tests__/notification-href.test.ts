@@ -5,24 +5,24 @@ import { getNotificationHref } from "@/lib/utils/notification-href";
 import { VENDOR_GRANT_PENDING_MESSAGE_KEY } from "@/lib/utils/vendor-grant-notification";
 
 describe("getNotificationHref", () => {
-  it("returns canonical job href", () => {
+  it("returns job href with agentId", () => {
     expect(
       getNotificationHref({
         kind: "JOB",
         referenceId: "job-1",
         metadata: { agentId: "agent-1" },
       }),
-    ).toBe("/jobs/job-1");
+    ).toBe("/agents/agent-1/jobs/job-1");
   });
 
-  it("returns canonical job href without agentId metadata", () => {
+  it("falls back to /tasks when job metadata lacks agentId", () => {
     expect(
       getNotificationHref({
         kind: "JOB",
         referenceId: "job-1",
         metadata: null,
       }),
-    ).toBe("/jobs/job-1");
+    ).toBe("/tasks");
   });
 
   it("returns task href", () => {

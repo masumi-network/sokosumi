@@ -134,26 +134,4 @@ describe("loadJobDetails", () => {
     ).rejects.toThrow("notFound");
     expect(notFoundMock).toHaveBeenCalled();
   });
-
-  it("loads by jobId alone without agentId guard", async () => {
-    getSessionMock.mockResolvedValue({
-      user: { id: "user-1" },
-      session: { activeOrganizationId: "org-1" },
-    });
-    getJobByIdMock.mockResolvedValue({
-      data: {
-        id: "job-1",
-        agent: { id: "agent-1" },
-        ownerId: "user-1",
-      },
-    });
-
-    const { loadJobDetails } = await import("../load-job-details");
-    const result = await loadJobDetails({ jobId: "job-1" });
-
-    expect(result).toMatchObject({
-      job: { id: "job-1" },
-      readOnly: false,
-    });
-  });
 });

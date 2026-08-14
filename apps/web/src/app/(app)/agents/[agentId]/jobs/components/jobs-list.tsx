@@ -16,7 +16,6 @@ import type { JobSummary } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
-import { buildJobHref } from "@/lib/utils/job-href";
 
 import { buildJobDayGroups } from "./jobs-list.utils";
 import { JobsSearch } from "./jobs-search";
@@ -194,7 +193,7 @@ export function JobsList({
 
   function handleJobClick(job: JobSummary) {
     const qs = new URLSearchParams(window.location.search).toString();
-    const base = buildJobHref(job.id);
+    const base = `/agents/${job.agentId}/jobs/${job.id}`;
     router.push(qs ? `${base}?${qs}` : base);
   }
 

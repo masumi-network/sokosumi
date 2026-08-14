@@ -4487,6 +4487,9 @@
           "newJob": "Neuer Job",
           "price": "{price, plural, =0 {Kostenlos} =1 {1 Credit} other {# Credits}}"
         },
+        "Modal": {
+          "back": "Zurück"
+        },
         "Footer": {
           "termsAndConditions": "Allgemeine Geschäftsbedingungen",
           "privacyPolicy": "Datenschutzrichtlinie",
@@ -4494,8 +4497,7 @@
           "customerSupport": "Kundensupport"
         },
         "RightSection": {
-          "noExecutedJobs": "Keine ausgeführten Jobs",
-          "selectJob": "Wähle einen Job aus der Liste"
+          "noExecutedJobs": "Keine ausgeführten Jobs"
         },
         "CreateJob": {
           "title": "Neuer {name}",

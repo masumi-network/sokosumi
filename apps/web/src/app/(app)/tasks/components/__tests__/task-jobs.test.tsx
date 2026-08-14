@@ -121,8 +121,8 @@ describe("TaskJobsSection", () => {
 
     const links = screen.getAllByRole("link");
     expect(links).toHaveLength(2);
-    expect(links[0]).toHaveAttribute("href", "/jobs/job-newer");
-    expect(links[1]).toHaveAttribute("href", "/jobs/job-older");
+    expect(links[0]).toHaveAttribute("href", "/agents/agent-2/jobs/job-newer");
+    expect(links[1]).toHaveAttribute("href", "/agents/agent-1/jobs/job-older");
 
     expect(screen.getByText("Untitled job")).toBeInTheDocument();
     expect(screen.getByText("Unknown agent")).toBeInTheDocument();

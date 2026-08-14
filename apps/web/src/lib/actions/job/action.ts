@@ -26,7 +26,6 @@ import {
   startJobInputSchema,
 } from "@/lib/schemas";
 import { callAgentHiredWebHook, jobService } from "@/lib/services";
-import { buildJobHref } from "@/lib/utils/job-href";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {
   type AuthenticatedRequest,
@@ -327,8 +326,7 @@ export const startJob = withSession<
 
       // call after agent hired webhook
       void callAgentHiredWebHook(userId, session.user.email);
-      revalidatePath(buildJobHref(job.data.id), "layout");
-      revalidatePath(`/agents/${input.agentId}/jobs`, "layout");
+      revalidatePath(`/agents/${input.agentId}/jobs/${job.data.id}`, "layout");
       return toActionResult(ok({ jobId: job.data.id }));
     } catch (error) {
       scope.setTag("error_type", "job_start_error");
@@ -564,7 +562,7 @@ export const moveJobToWorkspace = withSession<
   try {
     await jobService.moveJobToWorkspace(jobId, organizationId);
     revalidatePath(`/agents/${agentId}/jobs`);
-    revalidatePath(buildJobHref(jobId));
+    revalidatePath(`/agents/${agentId}/jobs/${jobId}`);
     return { jobId };
   } catch (error) {
     console.error("Failed to move job to workspace", error);
