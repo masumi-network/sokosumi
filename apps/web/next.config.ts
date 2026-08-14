@@ -29,6 +29,17 @@ const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  // SOK-797 shipped `/workspace-gate`; product path is now `/setup` (SOK-798).
+  // Query string is preserved by Next.js redirects by default.
+  async redirects() {
+    return [
+      {
+        source: "/workspace-gate",
+        destination: "/setup",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

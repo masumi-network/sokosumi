@@ -111,8 +111,8 @@ describe("AuthenticatedAppFrame workspace gate", () => {
 
     await expect(
       AuthenticatedAppFrame({ children: <div>app</div> }),
-    ).rejects.toThrow("REDIRECT:/workspace-gate");
-    expect(redirectMock).toHaveBeenCalledWith("/workspace-gate");
+    ).rejects.toThrow("REDIRECT:/setup");
+    expect(redirectMock).toHaveBeenCalledWith("/setup");
   });
 
   it("redirects when inventory is missing (fail closed)", async () => {
@@ -124,7 +124,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
 
     await expect(
       AuthenticatedAppFrame({ children: <div>app</div> }),
-    ).rejects.toThrow("REDIRECT:/workspace-gate");
+    ).rejects.toThrow("REDIRECT:/setup");
   });
 
   it("allows ready users through to the app chrome", async () => {

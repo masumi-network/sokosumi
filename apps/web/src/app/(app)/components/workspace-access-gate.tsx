@@ -10,7 +10,7 @@ interface WorkspaceAccessGateProps {
 
 /**
  * Hard gate before app chrome Suspense. Not-ready / inventory failure redirects
- * to `/workspace-gate` without mounting sidebar/header fallbacks.
+ * to `/setup` without mounting sidebar/header fallbacks.
  * Inventory is React-cached with AuthenticatedAppFrame (one Core hit per request).
  */
 export default async function WorkspaceAccessGate({

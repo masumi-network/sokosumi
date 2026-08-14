@@ -97,7 +97,7 @@ export async function proxy(request: NextRequest) {
     );
   }
 
-  // Workspace gate (not ready → /workspace-gate) is enforced server-side in
+  // Workspace gate (not ready → /setup) is enforced server-side in
   // AuthenticatedAppFrame via Core workspace inventory. Legacy intro onboarding
   // still mounts as an in-app dialog for ready users until SOK-799.
 
