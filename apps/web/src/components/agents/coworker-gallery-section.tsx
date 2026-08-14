@@ -350,6 +350,7 @@ function VendorDashboard({
               ) : null}
               <Button
                 type="button"
+                variant="primary"
                 size="lg"
                 className="w-full sm:w-auto"
                 onClick={() => onStartTask(active.id)}
