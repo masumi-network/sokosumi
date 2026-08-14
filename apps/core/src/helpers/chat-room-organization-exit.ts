@@ -4,6 +4,7 @@ import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-real
 import { publishChatMembershipRevoked } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { recordChannelMembershipStatus } from "@/routes/v1/chats/rooms/membership-status";
+import { CHAT_ROOM_INVITATION_STATUS } from "@/schemas/chat-room-invitation.schema";
 
 type TransactionClient = Prisma.TransactionClient;
 
@@ -26,6 +27,8 @@ export interface OrganizationExitChatRevocationResult {
  * status messages. Soft-archives channels left with zero humans. Hard-deletes
  * directs left with zero humans (soft-archive would keep `directKey` and block
  * create-or-get; product archive API already forbids archiving directs).
+ * Revokes pending guest invitations and live invite links on rooms left with
+ * zero humans (parity with the member-delete DB trigger).
  *
  * Does not publish realtime — call {@link publishOrganizationExitChatRevocation}
  * after the surrounding transaction commits.
@@ -110,11 +113,30 @@ export async function applyOrganizationExitChatRevocation(
     _count: { _all: true },
   });
   const roomsWithHumans = new Set(remainingRows.map((row) => row.roomId));
+  const emptyRoomIds = revokedRoomIds.filter(
+    (roomId) => !roomsWithHumans.has(roomId),
+  );
 
-  for (const roomId of revokedRoomIds) {
-    if (roomsWithHumans.has(roomId)) {
-      continue;
-    }
+  if (emptyRoomIds.length > 0) {
+    // Parity with DB trigger: no hanging pending guest invites on rooms that
+    // force-archive (or hard-delete) with zero humans.
+    await tx.chatRoomGuestInvitation.updateMany({
+      where: {
+        roomId: { in: emptyRoomIds },
+        status: CHAT_ROOM_INVITATION_STATUS.PENDING,
+      },
+      data: { status: CHAT_ROOM_INVITATION_STATUS.REVOKED },
+    });
+    await tx.chatRoomGuestInviteLink.updateMany({
+      where: {
+        roomId: { in: emptyRoomIds },
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+  }
+
+  for (const roomId of emptyRoomIds) {
     const room = roomById.get(roomId);
     if (!room) {
       continue;

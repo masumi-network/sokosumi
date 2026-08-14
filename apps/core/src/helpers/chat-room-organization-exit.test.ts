@@ -16,6 +16,8 @@ const deleteManyReadStateMock = vi.fn();
 const groupByMock = vi.fn();
 const chatRoomDeleteMock = vi.fn();
 const chatRoomUpdateManyMock = vi.fn();
+const guestInvitationUpdateManyMock = vi.fn();
+const guestInviteLinkUpdateManyMock = vi.fn();
 const recordChannelMembershipStatusMock = vi.fn();
 const publishChatRoomMessageRealtimeMock = vi.fn();
 const publishChatMembershipRevokedMock = vi.fn();
@@ -63,6 +65,12 @@ function createTx() {
       delete: chatRoomDeleteMock,
       updateMany: chatRoomUpdateManyMock,
     },
+    chatRoomGuestInvitation: {
+      updateMany: guestInvitationUpdateManyMock,
+    },
+    chatRoomGuestInviteLink: {
+      updateMany: guestInviteLinkUpdateManyMock,
+    },
   };
 }
 
@@ -76,6 +84,8 @@ beforeEach(() => {
   groupByMock.mockResolvedValue([]);
   chatRoomDeleteMock.mockResolvedValue({});
   chatRoomUpdateManyMock.mockResolvedValue({ count: 1 });
+  guestInvitationUpdateManyMock.mockResolvedValue({ count: 0 });
+  guestInviteLinkUpdateManyMock.mockResolvedValue({ count: 0 });
   recordChannelMembershipStatusMock.mockResolvedValue([{ id: "status-msg-1" }]);
   publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
   publishChatMembershipRevokedMock.mockResolvedValue(undefined);
@@ -184,11 +194,26 @@ describe("applyOrganizationExitChatRevocation", () => {
       },
     });
 
-    // Empty direct is hard-deleted, not archived.
+    // Empty direct is hard-deleted, not archived. Invite cleanup only for
+    // rooms left with zero humans (public/external still have members).
     expect(chatRoomDeleteMock).toHaveBeenCalledWith({
       where: { id: "room-dm" },
     });
     expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
+    expect(guestInvitationUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: { in: ["room-dm"] },
+        status: "pending",
+      },
+      data: { status: "revoked" },
+    });
+    expect(guestInviteLinkUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: { in: ["room-dm"] },
+        revokedAt: null,
+      },
+      data: { revokedAt: expect.any(Date) },
+    });
 
     expect(result.revokedRoomIds).toEqual([
       "room-public",
@@ -198,7 +223,7 @@ describe("applyOrganizationExitChatRevocation", () => {
     expect(result.statusMessages).toHaveLength(2);
   });
 
-  it("soft-archives channels left with zero human members", async () => {
+  it("soft-archives channels left with zero human members and revokes invites", async () => {
     findManyMock.mockResolvedValue([
       {
         roomId: "room-solo",
@@ -213,6 +238,20 @@ describe("applyOrganizationExitChatRevocation", () => {
       "org_1",
     );
 
+    expect(guestInvitationUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: { in: ["room-solo"] },
+        status: "pending",
+      },
+      data: { status: "revoked" },
+    });
+    expect(guestInviteLinkUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        roomId: { in: ["room-solo"] },
+        revokedAt: null,
+      },
+      data: { revokedAt: expect.any(Date) },
+    });
     expect(chatRoomUpdateManyMock).toHaveBeenCalledWith({
       where: { id: "room-solo", archivedAt: null },
       data: { archivedAt: expect.any(Date) },
@@ -220,6 +259,27 @@ describe("applyOrganizationExitChatRevocation", () => {
     expect(chatRoomDeleteMock).not.toHaveBeenCalled();
   });
 
+  it("does not revoke invites when other humans remain in the room", async () => {
+    findManyMock.mockResolvedValue([
+      {
+        roomId: "room-shared",
+        room: { id: "room-shared", kind: "channel", archivedAt: null },
+      },
+    ]);
+    groupByMock.mockResolvedValue([
+      { roomId: "room-shared", _count: { _all: 2 } },
+    ]);
+
+    await applyOrganizationExitChatRevocation(
+      createTx() as never,
+      "user_1",
+      "org_1",
+    );
+
+    expect(guestInvitationUpdateManyMock).not.toHaveBeenCalled();
+    expect(guestInviteLinkUpdateManyMock).not.toHaveBeenCalled();
+    expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
+  });
   it("does not re-archive already archived empty channels", async () => {
     findManyMock.mockResolvedValue([
       {

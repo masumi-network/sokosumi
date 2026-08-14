@@ -1,8 +1,14 @@
 -- Organization exit (chat): hard-leave every room owned by the organization.
--- Replaces demote-to-guest on member delete. Required for Better Auth
--- leaveOrganization, which does not fire afterRemoveMember (only remove-member
--- hooks run). App-layer revokeChatRoomMembershipsOnOrganizationExit still runs
--- on remove/admin for Ably + parity; trigger is the durable leave path.
+-- Replaces demote-to-guest on member delete.
+--
+-- Wiring (leave vs remove vs admin):
+-- * Voluntary leave (Better Auth leaveOrganization): no remove-member hooks.
+--   This trigger is the only durable hard-leave path.
+-- * BA remove-member: app captures room IDs (no chat mutate) before DELETE,
+--   this trigger performs durable hard-leave, app Ably-publishes after.
+-- * Platform admin remove: app applyOrganizationExitChatRevocation in the
+--   same txn as Member delete (then Ably); this trigger no-ops when
+--   memberships are already gone.
 
 DROP TRIGGER IF EXISTS chat_room_demote_external_on_member_delete ON "member";
 DROP FUNCTION IF EXISTS chat_room_demote_external_on_member_delete();
@@ -75,6 +81,31 @@ BEGIN
   DELETE FROM "chat_room_user_member" m
   WHERE m."userId" = OLD."userId"
     AND m."roomId" = ANY (left_room_ids);
+
+  -- Rooms left with zero humans: kill pending guest invites / live invite
+  -- links so force-archive cannot leave accept-able pending invites hanging
+  -- (accept already rejects archived rooms; this cleans status).
+  UPDATE "chat_room_guest_invitation" gi
+  SET
+    "status" = 'revoked',
+    "updatedAt" = CURRENT_TIMESTAMP
+  WHERE gi."status" = 'pending'
+    AND gi."roomId" = ANY (left_room_ids)
+    AND NOT EXISTS (
+      SELECT 1
+      FROM "chat_room_user_member" m
+      WHERE m."roomId" = gi."roomId"
+    );
+
+  UPDATE "chat_room_guest_invite_link" l
+  SET "revokedAt" = CURRENT_TIMESTAMP
+  WHERE l."revokedAt" IS NULL
+    AND l."roomId" = ANY (left_room_ids)
+    AND NOT EXISTS (
+      SELECT 1
+      FROM "chat_room_user_member" m
+      WHERE m."roomId" = l."roomId"
+    );
 
   -- Soft-archive channels left with zero humans (restorable).
   UPDATE "chat_room" r
