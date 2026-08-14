@@ -18,6 +18,7 @@ import type {
   GetChatsInvitationsData,
   GetChatsRoomsByIdMessagesData,
   GetChatsRoomsByIdThreadsByParentMessageIdMessagesData,
+  GetChatsRoomsByIdThreadsData,
   GetChatsRoomsData,
   GetChatsRoomsDiscoverableData,
   GetCoworkersData,
@@ -827,7 +828,7 @@ export function createCoreClient(getClient: GetCoreClient) {
 
   async function getChatRoomThreads(
     id: string,
-    query?: { unread?: "true" | "false" },
+    query?: GetChatsRoomsByIdThreadsData["query"],
   ) {
     return executeCoreOperation(
       getClient,

@@ -204,50 +204,38 @@ export interface ChatRoomThreadAggregate {
  * Parents (top-level messages) in a room that have ≥1 non-deleted reply,
  * with per-user unread counts.
  *
- * Look baseline per parent:
- * 1. ChatRoomThreadReadState.lastReadAt when a row exists
- * 2. else ChatRoomReadState.createdAt for (room, user) when present
- * 3. else -infinity (all historical non-self replies count)
- *
- * Never uses room lastReadAt — room mark-read must not clear thread look state.
+ * A thread is unread only after a prior look row
+ * (`ChatRoomThreadReadState.lastReadAt`). Never-looked threads have
+ * unreadReplyCount 0 (ADR-0005). Never uses room lastReadAt or room
+ * read-state createdAt for thread unread.
  */
 export async function getChatRoomThreadAggregates(
   roomId: string,
   userId: string,
   tx: Prisma.TransactionClient,
-  options?: { unreadOnly?: boolean; parentMessageId?: string },
+  options?: {
+    unreadOnly?: boolean;
+    parentMessageId?: string;
+    recency?: { cursor?: string; limit: number };
+  },
 ): Promise<ChatRoomThreadAggregate[]> {
   const unreadOnly = options?.unreadOnly === true;
   const parentMessageId = options?.parentMessageId;
-  const rows = await tx.$queryRawUnsafe<
-    Array<{
-      parentMessageId: string;
-      replyCount: number | bigint;
-      lastReplyAt: Date;
-      unreadReplyCount: number | bigint;
-      lastUnreadReplyAt: Date | null;
-    }>
-  >(
-    `
+  const recency = options?.recency;
+  const innerSelect = `
     SELECT
       parent.id AS "parentMessageId",
       COUNT(reply.id)::int AS "replyCount",
       MAX(reply."createdAt") AS "lastReplyAt",
       COUNT(reply.id) FILTER (
-        WHERE (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
-          AND reply."createdAt" > COALESCE(
-            thread_read."lastReadAt",
-            room_read."createdAt",
-            '-infinity'::timestamp
-          )
+        WHERE thread_read."lastReadAt" IS NOT NULL
+          AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+          AND reply."createdAt" > thread_read."lastReadAt"
       )::int AS "unreadReplyCount",
       MAX(reply."createdAt") FILTER (
-        WHERE (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
-          AND reply."createdAt" > COALESCE(
-            thread_read."lastReadAt",
-            room_read."createdAt",
-            '-infinity'::timestamp
-          )
+        WHERE thread_read."lastReadAt" IS NOT NULL
+          AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+          AND reply."createdAt" > thread_read."lastReadAt"
       ) AS "lastUnreadReplyAt"
     FROM "chat_room_message" reply
     INNER JOIN "chat_room_message" parent
@@ -256,9 +244,6 @@ export async function getChatRoomThreadAggregates(
     LEFT JOIN "chat_room_thread_read_state" thread_read
       ON thread_read."parentMessageId" = parent.id
       AND thread_read."userId" = $2
-    LEFT JOIN "chat_room_read_state" room_read
-      ON room_read."roomId" = reply."roomId"
-      AND room_read."userId" = $2
     WHERE reply."roomId" = $1::uuid
       AND reply."parentMessageId" IS NOT NULL
       AND reply."deletedAt" IS NULL
@@ -267,10 +252,45 @@ export async function getChatRoomThreadAggregates(
       ${parentMessageId ? "AND parent.id = $3::uuid" : ""}
     GROUP BY parent.id
     HAVING COUNT(reply.id) >= 1
+  `;
+
+  const recencySql = recency
+    ? `
+    SELECT * FROM (${innerSelect}) threads
+    WHERE "unreadReplyCount" = 0
+      AND (
+        $3::uuid IS NULL
+        OR ("lastReplyAt", "parentMessageId") < (
+          SELECT MAX(r."createdAt"), $3::uuid
+          FROM "chat_room_message" r
+          WHERE r."parentMessageId" = $3::uuid
+            AND r."deletedAt" IS NULL
+            AND r."roomId" = $1::uuid
+        )
+      )
+    ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC
+    LIMIT $4
+    `
+    : `
+    ${innerSelect}
     ORDER BY MAX(reply."createdAt") DESC
-    `,
-    ...(parentMessageId ? [roomId, userId, parentMessageId] : [roomId, userId]),
-  );
+    `;
+
+  const queryArgs = recency
+    ? [roomId, userId, recency.cursor ?? null, recency.limit + 1]
+    : parentMessageId
+      ? [roomId, userId, parentMessageId]
+      : [roomId, userId];
+
+  const rows = await tx.$queryRawUnsafe<
+    Array<{
+      parentMessageId: string;
+      replyCount: number | bigint;
+      lastReplyAt: Date;
+      unreadReplyCount: number | bigint;
+      lastUnreadReplyAt: Date | null;
+    }>
+  >(recencySql, ...queryArgs);
 
   const aggregates = rows.map((row) => ({
     parentMessageId: row.parentMessageId,
@@ -333,7 +353,7 @@ async function mapThreadAggregates(
 
 /**
  * List threads in a room. When `unreadOnly`, only parents with ≥1 unread
- * non-self reply after the look baseline.
+ * non-self reply after a prior look (ADR-0005).
  */
 export async function listChatRoomThreads(
   roomId: string,
@@ -345,6 +365,71 @@ export async function listChatRoomThreads(
     unreadOnly: options?.unreadOnly,
   });
   return mapThreadAggregates(roomId, userId, tx, aggregates);
+}
+
+export interface ChatRoomThreadListPage {
+  items: Awaited<ReturnType<typeof mapThreadAggregates>>;
+  nextCursor: string | null;
+  total: number;
+}
+
+/**
+ * Full room thread list: all unread threads, then a recency page of the rest
+ * (looked + never-looked) by last reply. Cursor pages are recency-only.
+ */
+export async function listChatRoomThreadListPage(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+  options: { cursor?: string; limit: number },
+): Promise<ChatRoomThreadListPage> {
+  const { cursor, limit } = options;
+
+  const unreadAggregates = cursor
+    ? []
+    : await getChatRoomThreadAggregates(roomId, userId, tx, {
+        unreadOnly: true,
+      });
+
+  const recencyPlus = await getChatRoomThreadAggregates(roomId, userId, tx, {
+    recency: { cursor, limit },
+  });
+  const hasMore = recencyPlus.length > limit;
+  const recencyAggregates = recencyPlus.slice(0, limit);
+
+  const countRows = await tx.$queryRawUnsafe<Array<{ count: number | bigint }>>(
+    `
+    SELECT COUNT(*)::int AS count FROM (
+      SELECT parent.id
+      FROM "chat_room_message" reply
+      INNER JOIN "chat_room_message" parent
+        ON parent.id = reply."parentMessageId"
+        AND parent."roomId" = reply."roomId"
+      WHERE reply."roomId" = $1::uuid
+        AND reply."parentMessageId" IS NOT NULL
+        AND reply."deletedAt" IS NULL
+        AND parent."deletedAt" IS NULL
+        AND parent."parentMessageId" IS NULL
+      GROUP BY parent.id
+      HAVING COUNT(reply.id) >= 1
+    ) threads
+    `,
+    roomId,
+  );
+
+  const items = await mapThreadAggregates(roomId, userId, tx, [
+    ...unreadAggregates,
+    ...recencyAggregates,
+  ]);
+
+  return {
+    items,
+    nextCursor: hasMore
+      ? (recencyAggregates[recencyAggregates.length - 1]?.parentMessageId ??
+        null)
+      : null,
+    total: Number(countRows[0]?.count ?? 0),
+  };
 }
 
 /**

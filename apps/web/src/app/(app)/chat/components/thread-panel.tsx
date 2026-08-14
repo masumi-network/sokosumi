@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, X } from "lucide-react";
+import { ChevronLeft, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
 import { CHAT_MESSAGE_LIST_SCROLLER_CLASS } from "@/app/chat/chat-message-list-scroller";
@@ -45,6 +45,7 @@ export function ThreadPanel({
   onBeforeSendReply,
   onSendReply,
   isSendingReply,
+  onBack,
   onClose,
   onToggleReaction,
   onQuote,
@@ -86,6 +87,7 @@ export function ThreadPanel({
     request: RoomSessionSendRequest,
   ) => Promise<RoomSessionSendResult>;
   isSendingReply: boolean;
+  onBack?: () => void;
   onClose: () => void;
   onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
   onQuote?: (message: ChatRoomMessage) => void;
@@ -179,17 +181,32 @@ export function ThreadPanel({
               })}
             </p>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-8 rounded-full"
-            aria-label={t("Thread.close")}
-            title={t("Thread.close")}
-            onClick={onClose}
-          >
-            <X className="size-4" aria-hidden />
-          </Button>
+          {onBack ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 rounded-full"
+              aria-label={t("Thread.back")}
+              title={t("Thread.back")}
+              onClick={onBack}
+              data-testid="thread-panel-back"
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 rounded-full"
+              aria-label={t("Thread.close")}
+              title={t("Thread.close")}
+              onClick={onClose}
+            >
+              <X className="size-4" aria-hidden />
+            </Button>
+          )}
         </header>
         <div ref={scrollerRef} className={CHAT_MESSAGE_LIST_SCROLLER_CLASS}>
           <div

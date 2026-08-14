@@ -187,41 +187,125 @@ describe("GET /chats/rooms/{id}/threads", () => {
   });
 
   it("returns all threads when unread is omitted", async () => {
-    queryRawUnsafeMock.mockResolvedValue([
-      aggregateRow(),
-      {
-        parentMessageId: "550e8400-e29b-41d4-a716-446655440099",
-        replyCount: 1,
-        lastReplyAt: new Date("2026-06-01T00:00:00.000Z"),
-        unreadReplyCount: 0,
-        lastUnreadReplyAt: null,
-      },
+    const lookedId = "550e8400-e29b-41d4-a716-446655440099";
+    queryRawUnsafeMock
+      .mockResolvedValueOnce([aggregateRow()])
+      .mockResolvedValueOnce([
+        {
+          parentMessageId: lookedId,
+          replyCount: 1,
+          lastReplyAt: new Date("2026-06-01T00:00:00.000Z"),
+          unreadReplyCount: 0,
+          lastUnreadReplyAt: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ count: 2 }]);
+    messageFindManyMock.mockResolvedValue([
+      parentMessage(),
+      { ...parentMessage(), id: lookedId, content: "Looked thread" },
     ]);
-    messageFindManyMock.mockResolvedValue([parentMessage()]);
 
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/threads`,
     );
 
     expect(response.status).toBe(200);
-    expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
+    expect(queryRawUnsafeMock).toHaveBeenCalledTimes(3);
     expect(messageFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           id: {
-            in: [PARENT_ID, "550e8400-e29b-41d4-a716-446655440099"],
+            in: [PARENT_ID, lookedId],
           },
         }),
       }),
     );
 
     const body = await response.json();
-    expect(body.data).toHaveLength(1);
+    expect(body.data).toHaveLength(2);
     expect(body.data[0]).toMatchObject({
       parentMessage: expect.objectContaining({ id: PARENT_ID }),
       replyCount: 2,
       unreadReplyCount: 1,
     });
+    expect(body.meta.pagination.nextCursor).toBeNull();
+  });
+
+  it("puts unread threads first then a recency page when listing all", async () => {
+    const lookedId = "550e8400-e29b-41d4-a716-446655440099";
+    const extraId = "550e8400-e29b-41d4-a716-446655440098";
+    queryRawUnsafeMock
+      .mockResolvedValueOnce([aggregateRow()])
+      .mockResolvedValueOnce([
+        {
+          parentMessageId: lookedId,
+          replyCount: 1,
+          lastReplyAt: new Date("2026-06-01T00:00:00.000Z"),
+          unreadReplyCount: 0,
+          lastUnreadReplyAt: null,
+        },
+        {
+          parentMessageId: extraId,
+          replyCount: 1,
+          lastReplyAt: new Date("2026-05-01T00:00:00.000Z"),
+          unreadReplyCount: 0,
+          lastUnreadReplyAt: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ count: 4 }]);
+    messageFindManyMock.mockResolvedValue([
+      parentMessage(),
+      { ...parentMessage(), id: lookedId, content: "Looked thread" },
+    ]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/threads?limit=1`,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(
+      body.data.map(
+        (row: { parentMessage: { id: string } }) => row.parentMessage.id,
+      ),
+    ).toEqual([PARENT_ID, lookedId]);
+    expect(body.data[0].unreadReplyCount).toBe(1);
+    expect(body.data[1].unreadReplyCount).toBe(0);
+    expect(body.meta.pagination).toMatchObject({
+      limit: 1,
+      total: 4,
+      nextCursor: lookedId,
+    });
+  });
+
+  it("pages recency only when a cursor is set", async () => {
+    const lookedId = "550e8400-e29b-41d4-a716-446655440099";
+    queryRawUnsafeMock
+      .mockResolvedValueOnce([
+        {
+          parentMessageId: lookedId,
+          replyCount: 1,
+          lastReplyAt: new Date("2026-06-01T00:00:00.000Z"),
+          unreadReplyCount: 0,
+          lastUnreadReplyAt: null,
+        },
+      ])
+      .mockResolvedValueOnce([{ count: 3 }]);
+    messageFindManyMock.mockResolvedValue([
+      { ...parentMessage(), id: lookedId, content: "Older looked" },
+    ]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/threads?cursor=${PARENT_ID}&limit=1`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(queryRawUnsafeMock).toHaveBeenCalledTimes(2);
+    const body = await response.json();
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].parentMessage.id).toBe(lookedId);
+    expect(body.data[0].unreadReplyCount).toBe(0);
+    expect(body.meta.pagination.nextCursor).toBeNull();
   });
 
   it("rejects coworker auth with 403", async () => {

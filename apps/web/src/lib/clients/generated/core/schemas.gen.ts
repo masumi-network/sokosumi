@@ -5420,7 +5420,7 @@ export const ChatRoomThreadSchema = {
         unreadReplyCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Non-deleted replies from others after the look baseline for this parent.',
+            description: 'Non-deleted replies from others after a prior look. Zero when the viewer has never looked this thread.',
             example: 2
         },
         lastUnreadReplyAt: {

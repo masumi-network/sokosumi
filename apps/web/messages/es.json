@@ -4988,6 +4988,7 @@
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
+        "back": "Volver a los hilos",
         "close": "Close thread",
         "loading": "Loading replies",
         "empty": "No replies yet",
@@ -5087,13 +5088,15 @@
         "adding": "Añadiendo…"
       },
       "UnreadThreads": {
-        "open": "Hilos sin leer",
-        "title": "Hilos sin leer",
+        "open": "Hilos",
+        "title": "Hilos",
+        "close": "Cerrar hilos",
         "markAllRead": "Marcar todas como leídas",
-        "empty": "No hay hilos sin leer.",
+        "empty": "Aún no hay hilos.",
         "loading": "Cargando hilos…",
         "error": "No se pudieron cargar los hilos. Inténtalo de nuevo.",
         "markAllReadError": "No se pudieron marcar los hilos no leídos como leídos. Inténtalo de nuevo.",
+        "loadOlder": "Cargar hilos anteriores",
         "startedBy": "Iniciado por {name}",
         "unreadReplies": "{count, plural, one {# respuesta no leída} other {# respuestas no leídas}}"
       },

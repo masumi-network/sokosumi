@@ -4988,6 +4988,7 @@
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
+        "back": "Back to threads",
         "close": "Close thread",
         "loading": "Loading replies",
         "empty": "No replies yet",
@@ -5087,13 +5088,15 @@
         "adding": "Adding…"
       },
       "UnreadThreads": {
-        "open": "Unread threads",
-        "title": "Unread Threads",
+        "open": "Threads",
+        "title": "Threads",
+        "close": "Close threads",
         "markAllRead": "Mark all as read",
-        "empty": "No unread threads.",
+        "empty": "No threads yet.",
         "loading": "Loading threads…",
         "error": "Could not load threads. Try again.",
         "markAllReadError": "Could not mark unread threads as read. Try again.",
+        "loadOlder": "Load older threads",
         "startedBy": "Started by {name}",
         "unreadReplies": "{count, plural, one {# unread reply} other {# unread replies}}"
       },
