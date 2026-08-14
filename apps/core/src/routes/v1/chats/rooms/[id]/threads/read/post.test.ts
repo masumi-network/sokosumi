@@ -124,10 +124,6 @@ function room() {
 function unreadAggregate(parentMessageId: string) {
   return {
     parentMessageId,
-    replyCount: 2,
-    lastReplyAt: new Date("2026-07-02T12:00:00.000Z"),
-    unreadReplyCount: 1,
-    lastUnreadReplyAt: new Date("2026-07-02T12:00:00.000Z"),
   };
 }
 
@@ -141,7 +137,7 @@ beforeEach(() => {
 });
 
 describe("POST /chats/rooms/{id}/threads/read", () => {
-  it("upserts look state for every unread parent and returns markedCount", async () => {
+  it("upserts look state for dual-baseline attention parents and returns markedCount", async () => {
     queryRawUnsafeMock.mockResolvedValue([
       unreadAggregate(PARENT_ID_1),
       unreadAggregate(PARENT_ID_2),
@@ -155,6 +151,10 @@ describe("POST /chats/rooms/{id}/threads/read", () => {
     expect(response.status).toBe(200);
     expect(prismaTransactionMock).toHaveBeenCalledOnce();
     expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
+    const sql = String(queryRawUnsafeMock.mock.calls[0]?.[0]);
+    expect(sql).toContain('room_read."createdAt"');
+    expect(sql).toContain("'-infinity'::timestamp");
+    expect(sql).toContain('thread_read."lastReadAt"');
     expect(threadReadUpsertMock).toHaveBeenCalledTimes(2);
     expect(threadReadUpsertMock).toHaveBeenCalledWith(
       expect.objectContaining({

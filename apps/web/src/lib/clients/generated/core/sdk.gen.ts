@@ -666,7 +666,7 @@ export const postChatsRoomsByIdUnread = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * List threads in a room. `unread=true` returns every unread thread (prior look + newer replies). Otherwise returns unread threads first, then a recency page of looked and never-looked threads (`cursor`/`limit`). Independent of room mark-read.
+ * List threads in a room. `unread=true` returns every unread thread (prior look + newer replies) and ignores `cursor`/`limit`. Otherwise returns unread threads first, then a recency page of looked and never-looked threads (`cursor`/`limit`). Independent of room mark-read.
  */
 export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsResponseTransformer,
@@ -675,7 +675,7 @@ export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * Mark every unread thread in a room as looked for the current user. Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.
+ * Mark every thread that still needs a look in this room for the current user: looked threads with newer replies, and never-looked threads with replies after the dual-baseline (join / -infinity). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.
  */
 export const postChatsRoomsByIdThreadsRead = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdThreadsReadData, ThrowOnError>): RequestResult<PostChatsRoomsByIdThreadsReadResponses, PostChatsRoomsByIdThreadsReadErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdThreadsReadResponses, PostChatsRoomsByIdThreadsReadErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdThreadsReadResponseTransformer,

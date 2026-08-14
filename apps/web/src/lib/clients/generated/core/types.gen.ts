@@ -1526,6 +1526,14 @@ export type ChatRoomThread = {
      * createdAt of the newest qualifying unread reply, or null when none.
      */
     lastUnreadReplyAt: Date | null;
+    /**
+     * True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.
+     */
+    hasLooked: boolean;
+    /**
+     * Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by the thread overview and Mark all; includes never-looked replies that still contribute to sidebar unread.
+     */
+    attentionReplyCount: number;
 };
 
 export type ChatRoomMessage = {
@@ -2626,7 +2634,7 @@ export type WorkspaceInventory = {
      */
     hasPersonalWorkspace: boolean;
     /**
-     * Whether the user is a member of at least one organization (with its workspace)
+     * Whether the user is a member of at least one organization
      */
     hasOrganizationMembership: boolean;
     /**
@@ -12268,7 +12276,7 @@ export type GetChatsRoomsByIdThreadsData = {
          */
         limit?: number;
         /**
-         * When `true`, only unread threads (prior look + newer non-self replies). When omitted or `false`, unread threads first then a recency page of the rest.
+         * When `true`, only unread threads (prior look + newer non-self replies). `cursor` and `limit` are ignored. When omitted or `false`, unread threads first then a recency page of the rest.
          */
         unread?: 'true' | 'false';
     };
@@ -12308,6 +12316,20 @@ export type GetChatsRoomsByIdThreadsErrors = {
      * Room not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

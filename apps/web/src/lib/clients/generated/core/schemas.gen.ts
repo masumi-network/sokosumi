@@ -5431,6 +5431,17 @@ export const ChatRoomThreadSchema = {
             format: 'date-time',
             example: '2026-07-02T12:00:00.000Z',
             description: 'createdAt of the newest qualifying unread reply, or null when none.'
+        },
+        hasLooked: {
+            type: 'boolean',
+            description: 'True when the viewer has a ChatRoomThreadReadState row for this parent. Never-looked threads are false even when replyCount > 0.',
+            example: true
+        },
+        attentionReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by the thread overview and Mark all; includes never-looked replies that still contribute to sidebar unread.',
+            example: 3
         }
     },
     required: [
@@ -5438,7 +5449,9 @@ export const ChatRoomThreadSchema = {
         'replyCount',
         'lastReplyAt',
         'unreadReplyCount',
-        'lastUnreadReplyAt'
+        'lastUnreadReplyAt',
+        'hasLooked',
+        'attentionReplyCount'
     ]
 } as const;
 
@@ -9023,7 +9036,7 @@ export const WorkspaceInventorySchema = {
         },
         hasOrganizationMembership: {
             type: 'boolean',
-            description: 'Whether the user is a member of at least one organization (with its workspace)',
+            description: 'Whether the user is a member of at least one organization',
             example: false
         },
         hasPendingOrganizationInvites: {
