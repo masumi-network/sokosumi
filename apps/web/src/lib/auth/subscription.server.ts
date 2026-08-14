@@ -9,7 +9,6 @@ import {
 } from "@/lib/actions/action-result";
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
-import { clearSubscriptionOnboardingGateSessionCookie } from "@/lib/actions/onboarding";
 import {
   getAuthServerClient,
   resolveWebRequestOrigin,
@@ -136,8 +135,6 @@ export async function upgradePersonalSubscriptionServer({
     return toActionResult(err(mapAuthClientError(result.error)));
   }
 
-  await clearSubscriptionOnboardingGateSessionCookie();
-
   return resolveUpgradeResult(result.data);
 }
 
@@ -208,8 +205,6 @@ export async function upgradeOrganizationSubscriptionServer({
   if (result.error) {
     return toActionResult(err(mapAuthClientError(result.error)));
   }
-
-  await clearSubscriptionOnboardingGateSessionCookie();
 
   return resolveUpgradeResult(result.data);
 }

@@ -81,7 +81,7 @@ export default async function AuthenticatedAppFrame({
                     adminMenuEnabled={adminMenuEnabled}
                   />
                   <Suspense fallback={null}>
-                    <AppShellOverlays session={session} />
+                    <AppShellOverlays />
                   </Suspense>
                   <div
                     className="flex min-w-0 flex-1 overflow-clip"

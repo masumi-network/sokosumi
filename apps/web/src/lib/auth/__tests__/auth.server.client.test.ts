@@ -197,9 +197,9 @@ describe("updateCurrentUserViaCore", () => {
       "../core-auth-http.server"
     );
 
-    await updateCurrentUserViaCore({ onboardingCompleted: true });
+    await updateCurrentUserViaCore({ name: "Ada" });
 
-    expect(updateUserMock).toHaveBeenCalledWith({ onboardingCompleted: true });
+    expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada" });
   });
 
   it("throws when authServerClient.updateUser returns an error", async () => {
@@ -221,9 +221,9 @@ describe("updateCurrentUserViaCore", () => {
       "../core-auth-http.server"
     );
 
-    await expect(
-      updateCurrentUserViaCore({ onboardingCompleted: true }),
-    ).rejects.toThrow("bad request");
+    await expect(updateCurrentUserViaCore({ name: "Ada" })).rejects.toThrow(
+      "bad request",
+    );
   });
 });
 

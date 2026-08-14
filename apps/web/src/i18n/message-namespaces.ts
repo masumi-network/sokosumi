@@ -22,7 +22,6 @@ export const GLOBAL_MESSAGE_PATHS = [
 /** Auth + invitation/join flows + workspace gate shell. */
 export const AUTH_MESSAGE_PATHS = [
   "Auth",
-  "Onboarding",
   "Library",
   "Components",
   "Join",
@@ -38,7 +37,6 @@ export const AUTH_MESSAGE_PATHS = [
 export const APP_SHELL_MESSAGE_PATHS = [
   "Components",
   "Library",
-  "Onboarding",
   // Account Legal drill reopens the banner; nested app/Hermes/Admin
   // boundaries replace the global bag, so CookieConsent must travel with them.
   "CookieConsent",
@@ -71,7 +69,6 @@ export const APP_SHELL_MESSAGE_PATHS = [
 export const APP_MESSAGE_PATHS = [
   "Components",
   "Library",
-  "Onboarding",
   "CookieConsent",
   "notifications",
   ...appMessagePathsExcluding(APP_FEATURE_EXCLUSIONS),
