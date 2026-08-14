@@ -17,7 +17,7 @@ import { SokosumiIcon } from "@/components/masumi-logos";
 
 /**
  * Mobile header leading slot (`md:hidden` size-8):
- * - chats + bottom-nav tab roots → Sokosumi icon (no back / hamburger)
+ * - Welcome home + chats + bottom-nav tab roots → Sokosumi icon Link to `/`
  * - chat room / draft compose → back to `/chat/chats`
  * - nested tasks → back to stored list URL (view/filters) when present
  * - other nested list pages → back to list root
@@ -35,9 +35,13 @@ export function HeaderLeadingControl(): React.ReactElement {
 
   if (shouldShowMobileBrandLeading(pathname, searchParams)) {
     return (
-      <span className="inline-flex size-8 shrink-0 items-center justify-center">
+      <Link
+        href="/"
+        aria-label={t("goHome")}
+        className="inline-flex size-8 shrink-0 items-center justify-center"
+      >
         <SokosumiIcon animated={false} className="size-8" />
-      </span>
+      </Link>
     );
   }
 
@@ -87,11 +91,16 @@ export function HeaderLeadingControl(): React.ReactElement {
   );
 }
 
-/** Suspense fallback while search params resolve — brand, never hamburger. */
+/** Suspense fallback while search params resolve — brand link, never hamburger. */
 export function HeaderLeadingBrandFallback(): React.ReactElement {
+  const t = useTranslations("App.Channels.MobileNav");
   return (
-    <span className="inline-flex size-8 shrink-0 items-center justify-center">
+    <Link
+      href="/"
+      aria-label={t("goHome")}
+      className="inline-flex size-8 shrink-0 items-center justify-center"
+    >
       <SokosumiIcon animated={false} className="size-8" />
-    </span>
+    </Link>
   );
 }

@@ -25,7 +25,7 @@ interface ChatRoomShellProps {
   organizationIdForRoster: string | null;
 }
 
-const ROOM_UNAVAILABLE_HREF = "/chat?notice=room-unavailable";
+const ROOM_UNAVAILABLE_HREF = "/?notice=room-unavailable";
 
 function NoOrganizationCard({
   title,
@@ -87,7 +87,7 @@ function progressiveRoomOpen(shell: ChatRoomShellProps, roomId: string) {
  * UI and an `empty:before` bone cannot win LCP. After `getRoom`, RoomsClient
  * paints real title + composer together; roster/history stream in via promises.
  *
- * Non-member / missing / invalid room id → soft land on `/chat`, not error card.
+ * Non-member / missing / invalid room id → soft land on `/`, not error card.
  * Do not start roster/history until access succeeds.
  */
 export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {

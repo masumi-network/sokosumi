@@ -676,7 +676,7 @@ export function OrganizationChatList({
           onOpenChange={setChannelSectionOpen}
         >
           <SectionHeader
-            href={hasOrganization ? "/chat?create=channel" : undefined}
+            href={hasOrganization ? "/?create=channel" : undefined}
             isOpen={channelSectionOpen}
             label={t("createChannel")}
             secondaryAction={
@@ -985,12 +985,12 @@ export function OrganizationChatList({
         <Collapsible open={directOpen} onOpenChange={setDirectOpen}>
           {/*
             Sidebar rows = messaged history only. `+` opens Start New DM
-            (`/chat?dm=new`): org members + coworkers (1:1 only). Personal
+            (`/?dm=new`): org members + coworkers (1:1 only). Personal
             workspace soft-gates named channels but still mounts the same draft
             with empty members (coworkers only).
           */}
           <SectionHeader
-            href="/chat?dm=new"
+            href="/?dm=new"
             isOpen={directOpen}
             label={t("Draft.title")}
             dismissSheetOnNavigate={dismissSheetOnNavigate}

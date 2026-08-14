@@ -47,7 +47,7 @@ function BreadcrumbOverrideFixture({ label }: { label: string }) {
     segments: [
       {
         label: "Chat",
-        href: "/chat",
+        href: "/",
       },
       {
         label,
@@ -80,7 +80,7 @@ function ChatBucketBreadcrumbFixture({
     segments: [
       {
         label: "Chat",
-        href: "/chat",
+        href: "/",
       },
       {
         label,
@@ -146,7 +146,7 @@ describe("BreadcrumbNavigationClient", () => {
 
     expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute(
       "href",
-      "/chat",
+      "/",
     );
     expect(screen.getByText("Test Channel")).toBeInTheDocument();
     expect(screen.queryByText("rooms")).not.toBeInTheDocument();
@@ -183,7 +183,7 @@ describe("BreadcrumbNavigationClient", () => {
     expect(screen.queryByText("elena")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Chat" })).toHaveAttribute(
       "href",
-      "/chat",
+      "/",
     );
   });
 

@@ -10,8 +10,8 @@ type SearchParamsLike = { toString(): string } | null | undefined;
 
 /**
  * Remount key for the page error boundary. Pathname alone is not enough:
- * `/chat`, `/chat?create=channel`, and `/chat?dm=new` share a pathname but
- * are distinct soft-navigations within the chat layout.
+ * `/`, `/?create=channel`, and `/?dm=new` share a pathname but
+ * are distinct soft-navigations within the welcome layout.
  */
 export function chatRouteErrorBoundaryKey(
   pathname: string,

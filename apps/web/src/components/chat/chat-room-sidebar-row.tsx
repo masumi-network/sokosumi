@@ -151,7 +151,7 @@ export function ChatRoomSidebarRow({
     notifyOrganizationChatRoomsChanged({ removedRoomId: room.id });
     if (isActive) {
       // Land on chat home — `/chat/chats` is mobile-only (`md:hidden`).
-      router.replace("/chat");
+      router.replace("/");
       router.refresh();
     }
   }

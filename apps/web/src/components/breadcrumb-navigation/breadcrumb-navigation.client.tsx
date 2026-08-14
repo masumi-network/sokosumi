@@ -187,7 +187,7 @@ function generateChatRoomSegments(
     return [
       {
         label: chatLabel,
-        href: "/chat",
+        href: "/",
         isCurrent: true,
       },
     ];
@@ -196,7 +196,7 @@ function generateChatRoomSegments(
   return [
     {
       label: chatLabel,
-      href: "/chat",
+      href: "/",
     },
     {
       label: roomLabel,

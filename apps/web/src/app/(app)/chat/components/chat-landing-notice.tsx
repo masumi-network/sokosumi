@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 /**
  * Soft-land notice when `/chat/rooms/{id}` redirects for missing/forbidden room.
- * Query: `?notice=room-unavailable`
+ * Query: `?notice=room-unavailable` on Welcome (`/`).
  */
 export function ChatLandingNotice({ notice }: { notice: string | null }) {
   const t = useTranslations("App.Channels");
@@ -18,7 +18,7 @@ export function ChatLandingNotice({ notice }: { notice: string | null }) {
       return;
     }
     toast.error(t("roomUnavailable"));
-    router.replace("/chat", { scroll: false });
+    router.replace("/", { scroll: false });
   }, [notice, router, t]);
 
   return null;

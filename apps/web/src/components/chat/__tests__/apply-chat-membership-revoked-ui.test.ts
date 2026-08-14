@@ -35,7 +35,7 @@ describe("applyChatMembershipRevokedUi", () => {
     });
 
     expect(notifyRemoved).toHaveBeenCalledWith("room-kicked");
-    expect(replace).toHaveBeenCalledWith("/chat");
+    expect(replace).toHaveBeenCalledWith("/");
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
