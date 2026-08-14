@@ -4949,6 +4949,7 @@
       "Thread": {
         "title": "Thread",
         "open": "Open thread",
+        "back": "Zurück zu Threads",
         "close": "Close thread",
         "loading": "Loading replies",
         "empty": "No replies yet",
@@ -5048,13 +5049,15 @@
         "adding": "Wird hinzugefügt…"
       },
       "UnreadThreads": {
-        "open": "Ungelesene Threads",
-        "title": "Ungelesene Threads",
+        "open": "Threads",
+        "title": "Threads",
+        "close": "Threads schließen",
         "markAllRead": "Alle als gelesen markieren",
-        "empty": "Keine ungelesenen Threads.",
+        "empty": "Noch keine Threads.",
         "loading": "Threads werden geladen…",
         "error": "Threads konnten nicht geladen werden. Bitte erneut versuchen.",
         "markAllReadError": "Ungelesene Threads konnten nicht als gelesen markiert werden. Bitte erneut versuchen.",
+        "loadOlder": "Ältere Threads laden",
         "startedBy": "Gestartet von {name}",
         "unreadReplies": "{count, plural, one {# ungelesene Antwort} other {# ungelesene Antworten}}"
       },

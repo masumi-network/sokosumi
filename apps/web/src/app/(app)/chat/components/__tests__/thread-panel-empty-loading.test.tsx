@@ -80,6 +80,7 @@ function parentMessage(
 function renderPanel(options: {
   isLoading: boolean;
   replies?: ChatRoomMessage[];
+  onBack?: () => void;
 }) {
   return render(
     <ThreadPanel
@@ -95,6 +96,7 @@ function renderPanel(options: {
       draftKey="thread:parent-1"
       onSendReply={async () => ({ ok: true })}
       isSendingReply={false}
+      onBack={options.onBack}
       onClose={() => undefined}
       onToggleReaction={() => undefined}
       roomId="room-1"
@@ -121,5 +123,22 @@ describe("ThreadPanel empty vs loading", () => {
 
     expect(screen.getByText("Thread.empty")).toBeTruthy();
     expect(screen.queryByText("Thread.loading")).toBeNull();
+  });
+
+  it("shows Back instead of Close when opened from the thread list", () => {
+    renderPanel({ isLoading: false, onBack: () => undefined });
+
+    expect(screen.getByTestId("thread-panel-back")).toHaveAttribute(
+      "aria-label",
+      "Thread.back",
+    );
+    expect(screen.queryByLabelText("Thread.close")).toBeNull();
+  });
+
+  it("shows Close when opened from a message row", () => {
+    renderPanel({ isLoading: false });
+
+    expect(screen.getByLabelText("Thread.close")).toBeTruthy();
+    expect(screen.queryByTestId("thread-panel-back")).toBeNull();
   });
 });

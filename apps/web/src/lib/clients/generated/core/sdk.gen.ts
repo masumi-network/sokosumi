@@ -666,7 +666,7 @@ export const postChatsRoomsByIdUnread = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * List threads in a room. Optional `unread=true` filters to threads needing look. Look baseline is per-thread lastReadAt, else room read-state createdAt, else all history. Independent of room mark-read.
+ * List threads in a room. `unread=true` returns every unread thread (prior look + newer replies). Otherwise returns unread threads first, then a recency page of looked and never-looked threads (`cursor`/`limit`). Independent of room mark-read.
  */
 export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsResponseTransformer,

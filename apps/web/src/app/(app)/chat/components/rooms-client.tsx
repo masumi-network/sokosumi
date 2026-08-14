@@ -28,6 +28,7 @@ import {
 import { chatMobileHeightShellClass } from "@/app/chat/components/chat-mobile-tab-registry";
 import DaySeparator from "@/app/chat/components/day-separator";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
+import { ThreadListPanel } from "@/app/chat/components/thread-list-panel";
 import { UnreadThreadsPanel } from "@/app/chat/components/unread-threads-panel";
 import { useClientLocalCalendarReady } from "@/app/chat/hooks/use-client-local-calendar-ready";
 import {
@@ -330,7 +331,8 @@ interface RoomHeaderChromeProps {
   topLevelRoomMessages: ChatRoomMessage[];
   onOpenThread: (message: ChatRoomMessage) => boolean | Promise<boolean>;
   attentionRefreshToken: number;
-  onAllThreadsLooked: () => void;
+  threadListOpen: boolean;
+  onToggleThreadList: () => void;
   organizationMembers: Member[];
   coworkers: Coworker[];
   canEditMembers: boolean;
@@ -354,7 +356,8 @@ function RoomHeaderChrome({
   topLevelRoomMessages,
   onOpenThread,
   attentionRefreshToken,
-  onAllThreadsLooked,
+  threadListOpen,
+  onToggleThreadList,
   organizationMembers,
   coworkers,
   canEditMembers,
@@ -405,19 +408,10 @@ function RoomHeaderChrome({
           key={`unread-threads-${room.id}`}
           roomId={room.id}
           attentionRefreshToken={attentionRefreshToken}
-          onOpenThread={onOpenThread}
-          onAllThreadsLooked={onAllThreadsLooked}
+          isOpen={threadListOpen}
+          onToggle={onToggleThreadList}
           labels={{
             open: t("UnreadThreads.open"),
-            title: t("UnreadThreads.title"),
-            markAllRead: t("UnreadThreads.markAllRead"),
-            empty: t("UnreadThreads.empty"),
-            loading: t("UnreadThreads.loading"),
-            error: t("UnreadThreads.error"),
-            markAllReadError: t("UnreadThreads.markAllReadError"),
-            startedBy: (name) => t("UnreadThreads.startedBy", { name }),
-            unreadReplies: (count) =>
-              t("UnreadThreads.unreadReplies", { count }),
           }}
         />
         {showParticipants ? (
@@ -571,6 +565,8 @@ export function RoomsClient({
     [],
   );
 
+  const [threadListOpen, setThreadListOpen] = useState(false);
+  const [threadOpenedFromList, setThreadOpenedFromList] = useState(false);
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
   const threadParentMessageRef = useRef<ChatRoomMessage | null>(null);
@@ -600,6 +596,8 @@ export function RoomsClient({
     setThreadParentMessage(null);
     setThreadMessages([]);
     setPendingThreadQuote(null);
+    setThreadListOpen(false);
+    setThreadOpenedFromList(false);
     setEditSession(null);
     threadLoadGenerationRef.current += 1;
     setIsThreadLoading(false);
@@ -1632,6 +1630,37 @@ export function RoomsClient({
   syncRoomAttentionAfterThreadLookRef.current =
     syncRoomAttentionAfterThreadLook;
 
+  async function handleOpenThreadFromMessage(
+    parentMessage: ChatRoomMessage,
+  ): Promise<boolean> {
+    setThreadOpenedFromList(false);
+    setThreadListOpen(false);
+    return loadThreadMessages(parentMessage);
+  }
+
+  async function handleOpenThreadFromList(
+    parentMessage: ChatRoomMessage,
+  ): Promise<boolean> {
+    setThreadOpenedFromList(true);
+    return loadThreadMessages(parentMessage);
+  }
+
+  function closeThreadSidePanel() {
+    threadLoadGenerationRef.current += 1;
+    setIsThreadLoading(false);
+    setThreadParentMessage(null);
+    setThreadMessages([]);
+    setThreadOlderNextCursor(null);
+    setPendingThreadQuote(null);
+    setThreadOpenedFromList(false);
+    clearClassicOutboundQueue(classicThreadRefs);
+  }
+
+  function backToThreadList() {
+    closeThreadSidePanel();
+    setThreadListOpen(true);
+  }
+
   async function loadThreadMessages(
     parentMessage: ChatRoomMessage,
   ): Promise<boolean> {
@@ -2229,10 +2258,23 @@ export function RoomsClient({
         onOpenDirect={handleOpenDirectMessage}
         openingDirectKey={openingDirectKey}
         topLevelRoomMessages={topLevelRoomMessages}
-        onOpenThread={loadThreadMessages}
+        onOpenThread={handleOpenThreadFromMessage}
         attentionRefreshToken={attentionRefreshToken}
-        onAllThreadsLooked={() => {
-          void syncRoomAttentionAfterThreadLook(selectedRoom.id);
+        threadListOpen={threadListOpen}
+        onToggleThreadList={() => {
+          if (threadParentMessage) {
+            threadLoadGenerationRef.current += 1;
+            setIsThreadLoading(false);
+            setThreadParentMessage(null);
+            setThreadMessages([]);
+            setThreadOlderNextCursor(null);
+            setPendingThreadQuote(null);
+            clearClassicOutboundQueue(classicThreadRefs);
+            setThreadOpenedFromList(false);
+            setThreadListOpen(true);
+            return;
+          }
+          setThreadListOpen((open) => !open);
         }}
         organizationMembers={organizationMembers}
         coworkers={coworkers}
@@ -2343,7 +2385,7 @@ export function RoomsClient({
                           room: selectedRoom,
                           isStreamOverlay,
                         })
-                          ? loadThreadMessages
+                          ? handleOpenThreadFromMessage
                           : undefined
                       }
                       onQuote={isOutboundLocal ? undefined : handleQuoteMessage}
@@ -2491,15 +2533,8 @@ export function RoomsClient({
                 onRetryOutbound={handleRetryOutbound}
                 onRemoveOutbound={handleRemoveOutbound}
                 outboundSentTickIds={outboundSentTickIds}
-                onClose={() => {
-                  threadLoadGenerationRef.current += 1;
-                  setIsThreadLoading(false);
-                  setThreadParentMessage(null);
-                  setThreadMessages([]);
-                  setThreadOlderNextCursor(null);
-                  setPendingThreadQuote(null);
-                  clearClassicOutboundQueue(classicThreadRefs);
-                }}
+                onBack={threadOpenedFromList ? backToThreadList : undefined}
+                onClose={closeThreadSidePanel}
                 onToggleReaction={handleToggleReaction}
                 onQuote={handleQuoteThreadMessage}
                 currentUserId={currentUserId}
@@ -2521,6 +2556,32 @@ export function RoomsClient({
                 )}
                 allowAttachments={!isCoworkerStreamRoom}
                 roomId={selectedRoom.id}
+              />
+            ) : threadListOpen ? (
+              <ThreadListPanel
+                roomId={selectedRoom.id}
+                onOpenThread={handleOpenThreadFromList}
+                onClose={() => {
+                  setThreadListOpen(false);
+                }}
+                onAllThreadsLooked={() => {
+                  setAttentionRefreshToken((token) => token + 1);
+                  void syncRoomAttentionAfterThreadLook(selectedRoom.id);
+                }}
+                labels={{
+                  title: t("UnreadThreads.title"),
+                  markAllRead: t("UnreadThreads.markAllRead"),
+                  empty: t("UnreadThreads.empty"),
+                  loading: t("UnreadThreads.loading"),
+                  error: t("UnreadThreads.error"),
+                  markAllReadError: t("UnreadThreads.markAllReadError"),
+                  loadOlder: t("UnreadThreads.loadOlder"),
+                  startedBy: (name) => t("UnreadThreads.startedBy", { name }),
+                  unreadReplies: (count) =>
+                    t("UnreadThreads.unreadReplies", { count }),
+                  replies: (count) => t("Thread.replyCount", { count }),
+                  close: t("UnreadThreads.close"),
+                }}
               />
             ) : null
           }

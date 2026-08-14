@@ -1519,7 +1519,7 @@ export type ChatRoomThread = {
      */
     lastReplyAt: Date;
     /**
-     * Non-deleted replies from others after the look baseline for this parent.
+     * Non-deleted replies from others after a prior look. Zero when the viewer has never looked this thread.
      */
     unreadReplyCount: number;
     /**
@@ -12260,7 +12260,15 @@ export type GetChatsRoomsByIdThreadsData = {
     };
     query?: {
         /**
-         * When `true`, only threads with ≥1 unread non-self reply after the look baseline. When omitted or `false`, all roots with ≥1 non-deleted reply.
+         * Cursor for pagination (ID of the last item from previous page)
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        /**
+         * When `true`, only unread threads (prior look + newer non-self replies). When omitted or `false`, unread threads first then a recency page of the rest.
          */
         unread?: 'true' | 'false';
     };
@@ -12337,7 +12345,7 @@ export type GetChatsRoomsByIdThreadsResponses = {
         meta: {
             timestamp: Date;
             requestId: string;
-            pagination?: PaginationMetadata;
+            pagination: PaginationMetadata;
         };
     };
 };

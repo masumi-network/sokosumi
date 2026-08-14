@@ -136,6 +136,24 @@ _Avoid_: Message id (server id after confirm), request id (transport-level)
 Per-composer single-flight ordering of outbound classic POSTs: at most one in-flight send per channel composer and per thread composer; further sends wait their turn. A failed send does not block the queue. Distinct from coworker stream send.
 _Avoid_: Global room lock (channel and thread do not share one queue)
 
+### Chat threads
+
+**Thread**:
+A reply chain under one top-level room message (the parent). A parent becomes a thread only after it has at least one non-deleted reply. Not a room and not a membership-visible room.
+_Avoid_: Channel, conversation, inbox, treating a thread as a room
+
+**Thread list**:
+The per-room list of that room’s threads, shown in the thread side panel. Every thread in the room, sorted with unread replies first, then by last reply. Not an unread-only inbox.
+_Avoid_: Unread threads (as the name of this list), inbox, treating this as a cross-room surface
+
+**Look**:
+The user’s high-water mark in a Thread: they opened it, and that moment is stored. Distinct from room read state and from posting a reply.
+_Avoid_: Replied, participated, lastLookedAt, read receipt. Do not use “looked” in product UI (say unread / mark as read)
+
+**Unread thread**:
+A Thread the user has already looked, with at least one non-self reply after that look. A never-looked Thread is not unread — it sorts by last reply only and does not count toward the badge or mark-all.
+_Avoid_: Unread (when meaning the room), never-replied, treating open-but-silent as unsubscribed
+
 ### Chat coworker thought
 
 **Mention status**:
