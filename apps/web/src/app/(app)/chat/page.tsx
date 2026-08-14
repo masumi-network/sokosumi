@@ -1,15 +1,6 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chat-chats-list-shell";
-import { ChatDesktopHomeRedirect } from "@/app/chat/components/chat-desktop-home-redirect.client";
-import {
-  CHAT_WELCOME_PATH,
-  hasChatDraftOrNoticeFromRecord,
-  type NextSearchParamsRecord,
-  pathWithSearch,
-  toURLSearchParamsFromRecord,
-} from "@/app/chat/utils/chat-route-base";
 import {
   getPrivateCachedChatListArchivedAndMembers,
   getPrivateCachedMembershipVisibleRooms,
@@ -23,6 +14,16 @@ import { getSession } from "@/lib/auth/auth.server";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
 import type { ChatRoomsPage } from "@/lib/services";
+
+import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "./chat-chats-list-shell";
+import { ChatDesktopHomeRedirect } from "./components/chat-desktop-home-redirect.client";
+import {
+  CHAT_WELCOME_PATH,
+  hasChatDraftOrNoticeFromRecord,
+  type NextSearchParamsRecord,
+  pathWithSearch,
+  toURLSearchParamsFromRecord,
+} from "./utils/chat-route-base";
 
 interface ChatPageProps {
   searchParams: Promise<NextSearchParamsRecord>;

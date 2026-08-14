@@ -1,10 +1,10 @@
 import type { MetadataRoute } from "next";
 
 /**
- * `scope: "/"` is required: default scope is the directory of `start_url`, so
- * a nested start URL under `/chat/` would scope the PWA to `/chat/` and tab
- * links (`/tasks`, …) open outside the PWA. Keep `start_url` origin-relative
- * for preview hosts.
+ * Explicit `scope: "/"` is required. Omitting `scope` derives it from the
+ * directory of `start_url` — a nested start URL under `/chat/` would become
+ * `/chat/`, and tab links (`/tasks`, …) would open outside the PWA. Keep
+ * `start_url` origin-relative for preview hosts.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {

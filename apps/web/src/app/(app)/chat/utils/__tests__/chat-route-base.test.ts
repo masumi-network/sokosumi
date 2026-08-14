@@ -95,6 +95,13 @@ describe("chat-route-base", () => {
         ),
       ).toBe("/?notice=x&a=1");
     });
+
+    it("toURLSearchParamsFromRecord appends repeated keys from arrays", () => {
+      const qs = toURLSearchParamsFromRecord({ tag: ["a", "b"], solo: "1" });
+      expect(qs.getAll("tag")).toEqual(["a", "b"]);
+      expect(qs.get("solo")).toBe("1");
+      expect(pathWithSearch("/", qs)).toBe("/?tag=a&tag=b&solo=1");
+    });
   });
 
   describe("classifyChatChromeSurface", () => {
