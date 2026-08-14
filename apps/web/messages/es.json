@@ -5231,6 +5231,9 @@
           "back": "Volver al chat"
         }
       }
+    },
+    "WorkspaceAccess": {
+      "checking": "Comprobando el acceso al espacio de trabajo"
     }
   },
   "Share": {
@@ -5481,5 +5484,18 @@
     "marketingTitle": "Marketing",
     "marketingBody": "Nos permite medir campañas publicitarias y llegar a personas a las que Sokosumi podría resultar útil.",
     "settings": "Configuración de cookies"
+  },
+  "WorkspaceGate": {
+    "title": "Configura tu espacio de trabajo",
+    "identityTitle": "Crea tu primer espacio de trabajo",
+    "identityDescription": "Necesitas un espacio de trabajo antes de usar Sokosumi.",
+    "pendingInvitesTitle": "Tienes invitaciones pendientes",
+    "pendingInvitesDescription": "Hay invitaciones de organización pendientes. Aún no se pueden gestionar en esta pantalla.",
+    "body": "No puedes usar el producto hasta tener un primer espacio de trabajo. Cerrar sesión es la única forma de salir de esta pantalla por ahora.",
+    "signOut": "Cerrar sesión",
+    "unavailableTitle": "No pudimos comprobar el acceso a tu espacio de trabajo",
+    "unavailableDescription": "Sokosumi no pudo cargar el estado de tu espacio de trabajo ahora. Es temporal: no estás bloqueado por no tener un espacio de trabajo.",
+    "unavailableBody": "Inténtalo de nuevo en un momento. Si sigue fallando, cierra sesión y vuelve a entrar, o contacta con soporte. Cerrar sesión siempre está disponible aquí.",
+    "retry": "Reintentar"
   }
 }

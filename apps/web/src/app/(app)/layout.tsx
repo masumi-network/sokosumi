@@ -6,9 +6,11 @@ import QueryProvider from "@/contexts/query-provider";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { APP_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 
+import { AppAccessCheckingFallback } from "./components/app-access-checking-fallback";
 import { AppShellLoadingFrame } from "./components/app-shell-loading-frame";
 import { AuthSessionGuard } from "./components/auth-session-guard";
 import AuthenticatedAppFrame from "./components/authenticated-app-frame";
+import WorkspaceAccessGate from "./components/workspace-access-gate";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -31,19 +33,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <ClientMessageBoundary paths={APP_MESSAGE_PATHS}>
       <QueryProvider>
         <AuthSessionGuard />
-        <SidebarProvider
-          // Cookie preference restored client-side in SidebarProvider
-          // (useLayoutEffect) so this layout stays sync for Instant Nav.
-          defaultOpen
-          data-app-shell
-          className="flex max-w-svw overflow-clip"
-        >
-          <Suspense
-            fallback={<AppShellLoadingFrame>{children}</AppShellLoadingFrame>}
-          >
-            <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
-          </Suspense>
-        </SidebarProvider>
+        {/* Outer Suspense: inventory gate — chrome-free fallback (no sidebar). */}
+        <Suspense fallback={<AppAccessCheckingFallback />}>
+          <WorkspaceAccessGate>
+            <SidebarProvider
+              // Cookie preference restored client-side in SidebarProvider
+              // (useLayoutEffect) so this layout stays sync for Instant Nav.
+              defaultOpen
+              data-app-shell
+              className="flex max-w-svw overflow-clip"
+            >
+              {/* Inner Suspense: Instant Nav chrome for ready users only. */}
+              <Suspense
+                fallback={
+                  <AppShellLoadingFrame>{children}</AppShellLoadingFrame>
+                }
+              >
+                <AuthenticatedAppFrame>{children}</AuthenticatedAppFrame>
+              </Suspense>
+            </SidebarProvider>
+          </WorkspaceAccessGate>
+        </Suspense>
       </QueryProvider>
     </ClientMessageBoundary>
   );

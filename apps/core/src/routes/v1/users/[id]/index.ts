@@ -36,6 +36,7 @@ import mountDenyUserVendorGrant from "./vendor-grants/[grantId]/deny/post.js";
 import mountRevokeUserVendorGrant from "./vendor-grants/[grantId]/revoke/post.js";
 import mountGetUserVendorGrants from "./vendor-grants/get.js";
 import mountPostUserVendorGrants from "./vendor-grants/post.js";
+import mountGetUserWorkspaceInventory from "./workspace-inventory/get.js";
 
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
@@ -55,6 +56,7 @@ mountPutUserPreferredOrganization(app);
 mountDeleteUserOauthConsent(app);
 mountGetUserOnboarding(app);
 mountPostUserOnboarding(app);
+mountGetUserWorkspaceInventory(app);
 mountGetUserPendingNotices(app);
 mountPostUserNoticeAcknowledge(app);
 mountGetUserFiles(app);

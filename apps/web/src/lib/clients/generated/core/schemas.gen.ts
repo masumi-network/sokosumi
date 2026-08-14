@@ -9010,6 +9010,47 @@ export const PreferredOrganizationSchema = {
     ]
 } as const;
 
+export const WorkspaceInventorySchema = {
+    type: 'object',
+    properties: {
+        gate: {
+            $ref: '#/components/schemas/WorkspaceGateStatus'
+        },
+        hasPersonalWorkspace: {
+            type: 'boolean',
+            description: 'Whether the user owns a personal workspace row',
+            example: true
+        },
+        hasOrganizationMembership: {
+            type: 'boolean',
+            description: 'Whether the user is a member of at least one organization (with its workspace)',
+            example: false
+        },
+        hasPendingOrganizationInvites: {
+            type: 'boolean',
+            description: 'Whether the user has at least one non-expired pending organization invitation by email',
+            example: false
+        }
+    },
+    required: [
+        'gate',
+        'hasPersonalWorkspace',
+        'hasOrganizationMembership',
+        'hasPendingOrganizationInvites'
+    ]
+} as const;
+
+export const WorkspaceGateStatusSchema = {
+    type: 'string',
+    enum: [
+        'ready',
+        'pending-invites',
+        'identity-onboarding'
+    ],
+    description: 'Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry',
+    example: 'ready'
+} as const;
+
 export const NoticeSchema = {
     type: 'object',
     properties: {

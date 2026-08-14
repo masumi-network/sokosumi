@@ -10,6 +10,7 @@ import type {
   MemberRecord,
   MemberWithOrganization,
   Organization,
+  WorkspaceInventory,
 } from "@/lib/clients/generated/core";
 
 /**
@@ -112,6 +113,22 @@ export const userService = (() => {
   );
 
   /**
+   * Current-user workspace inventory and derived gate from Core.
+   * Sole access decision for the workspace gate (not `onboardingCompleted`).
+   * Deduplicated per request via React cache().
+   */
+  const getWorkspaceInventory = cache(
+    async (): Promise<WorkspaceInventory | null> => {
+      const session = await getSession();
+      if (!session) {
+        return null;
+      }
+      const response = await coreClient.getMyWorkspaceInventory();
+      return response.data;
+    },
+  );
+
+  /**
    * Determines whether the onboarding flow should be shown for the current user.
    *
    * Logic:
@@ -177,6 +194,7 @@ export const userService = (() => {
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
     getOrganizationMembers,
+    getWorkspaceInventory,
     showOnboarding,
     markOnboardingCompleteForMe,
   };
