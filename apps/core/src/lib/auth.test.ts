@@ -55,7 +55,8 @@ const {
   ensureCanAcceptOrganizationInvitationMock,
   syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
   upgradeGuestChatRoomMembershipsToMemberMock,
-  revokeChatRoomMembershipsOnOrganizationExitMock,
+  captureOrganizationExitChatRoomsForAblyMock,
+  publishCapturedOrganizationExitChatRevocationMock,
   prepareStripeEmailSyncForUserUpdateMock,
   handleUserUpdateStripeEmailSyncMock,
   syncUserEmailWithStripeMock,
@@ -119,7 +120,8 @@ const {
     ensureCanAcceptOrganizationInvitationMock: vi.fn(),
     syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
     upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
-    revokeChatRoomMembershipsOnOrganizationExitMock: vi.fn(),
+    captureOrganizationExitChatRoomsForAblyMock: vi.fn(),
+    publishCapturedOrganizationExitChatRevocationMock: vi.fn(),
     prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
     handleUserUpdateStripeEmailSyncMock: vi.fn(),
     syncUserEmailWithStripeMock: vi.fn(),
@@ -320,8 +322,10 @@ vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-organization-exit", () => ({
-  revokeChatRoomMembershipsOnOrganizationExit: (...args: unknown[]) =>
-    revokeChatRoomMembershipsOnOrganizationExitMock(...args),
+  captureOrganizationExitChatRoomsForAbly: (...args: unknown[]) =>
+    captureOrganizationExitChatRoomsForAblyMock(...args),
+  publishCapturedOrganizationExitChatRevocation: (...args: unknown[]) =>
+    publishCapturedOrganizationExitChatRevocationMock(...args),
 }));
 
 vi.mock("@/services/stripe-user-email.service", () => ({
@@ -2138,7 +2142,7 @@ describe("core auth config", () => {
     ).toHaveBeenCalledWith("org-1");
   });
 
-  it("revokes org chat room memberships before removing a member", async () => {
+  it("captures then Ably-publishes org chat room revokes around member remove", async () => {
     await import("./auth");
 
     const [[config]] = organizationPluginMock.mock.calls as Array<
@@ -2151,6 +2155,7 @@ describe("core auth config", () => {
             }) => Promise<void>;
             afterRemoveMember: (input: {
               organization: { id: string };
+              user: { id: string };
             }) => Promise<void>;
           };
         },
@@ -2163,10 +2168,15 @@ describe("core auth config", () => {
     });
     await config.organizationHooks.afterRemoveMember({
       organization: { id: "org-1" },
+      user: { id: "user-1" },
     });
 
+    expect(captureOrganizationExitChatRoomsForAblyMock).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+    );
     expect(
-      revokeChatRoomMembershipsOnOrganizationExitMock,
+      publishCapturedOrganizationExitChatRevocationMock,
     ).toHaveBeenCalledWith("user-1", "org-1");
     expect(
       syncLocalFreeSeatsAndCreditsForCurrentMembersMock,

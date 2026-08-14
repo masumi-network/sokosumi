@@ -59,7 +59,10 @@ import {
   getWebAppBaseUrl,
 } from "@/config/env";
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
-import { revokeChatRoomMembershipsOnOrganizationExit } from "@/helpers/chat-room-organization-exit";
+import {
+  captureOrganizationExitChatRoomsForAbly,
+  publishCapturedOrganizationExitChatRevocation,
+} from "@/helpers/chat-room-organization-exit";
 import {
   applyDesignMdMetadataGuardToOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate,
@@ -691,16 +694,22 @@ export const auth = betterAuth({
           );
           await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
-        // BA leaveOrganization does not fire remove-member hooks — durable
-        // hard-leave for leave is the member-delete DB trigger. Hooks cover
-        // remove-member (Ably + status realtime) before the row is gone.
+        // BA leaveOrganization has no remove-member hooks — durable hard-leave
+        // for leave (and for remove) is the member-delete DB trigger. For
+        // remove-member only: snapshot room IDs before delete (no chat mutate),
+        // then Ably-revoke after Member is gone so a failed remove does not
+        // leave the user out of rooms while still an org Member.
         beforeRemoveMember: async ({ organization, user }) => {
-          await revokeChatRoomMembershipsOnOrganizationExit(
+          await captureOrganizationExitChatRoomsForAbly(
             user.id,
             organization.id,
           );
         },
-        afterRemoveMember: async ({ organization }) => {
+        afterRemoveMember: async ({ organization, user }) => {
+          await publishCapturedOrganizationExitChatRevocation(
+            user.id,
+            organization.id,
+          );
           await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
         beforeDeleteOrganization: async ({ organization, user }) => {

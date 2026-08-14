@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   applyOrganizationExitChatRevocation,
+  captureOrganizationExitChatRoomsForAbly,
+  publishCapturedOrganizationExitChatRevocation,
   publishOrganizationExitChatRevocation,
   revokeChatRoomMembershipsOnOrganizationExit,
 } from "./chat-room-organization-exit";
 
 const findManyMock = vi.fn();
+const prismaFindManyMock = vi.fn();
 const userFindUniqueMock = vi.fn();
 const deleteManyMemberMock = vi.fn();
 const deleteManyReadStateMock = vi.fn();
@@ -22,6 +25,9 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (callback: (tx: unknown) => unknown) =>
       transactionMock(callback),
+    chatRoomUserMember: {
+      findMany: (...args: unknown[]) => prismaFindManyMock(...args),
+    },
   },
 }));
 
@@ -63,6 +69,7 @@ function createTx() {
 beforeEach(() => {
   vi.clearAllMocks();
   findManyMock.mockResolvedValue([]);
+  prismaFindManyMock.mockResolvedValue([]);
   userFindUniqueMock.mockResolvedValue({ name: "Ada" });
   deleteManyMemberMock.mockResolvedValue({ count: 0 });
   deleteManyReadStateMock.mockResolvedValue({ count: 0 });
@@ -321,5 +328,47 @@ describe("revokeChatRoomMembershipsOnOrganizationExit", () => {
       reason: "left",
     });
     expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalled();
+  });
+});
+
+describe("captureOrganizationExitChatRoomsForAbly + publishCaptured", () => {
+  it("snapshots room ids without mutating chat, then Ably-revokes after", async () => {
+    prismaFindManyMock.mockResolvedValue([
+      { roomId: "room-a" },
+      { roomId: "room-b" },
+    ]);
+
+    await expect(
+      captureOrganizationExitChatRoomsForAbly("user_1", "org_1"),
+    ).resolves.toEqual(["room-a", "room-b"]);
+
+    expect(prismaFindManyMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_1",
+        room: { organizationId: "org_1" },
+      },
+      select: { roomId: true },
+    });
+    expect(deleteManyMemberMock).not.toHaveBeenCalled();
+    expect(publishChatMembershipRevokedMock).not.toHaveBeenCalled();
+
+    await publishCapturedOrganizationExitChatRevocation("user_1", "org_1");
+
+    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      roomId: "room-a",
+      reason: "left",
+    });
+    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      roomId: "room-b",
+      reason: "left",
+    });
+    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
+  });
+
+  it("no-ops Ably when nothing was captured", async () => {
+    await publishCapturedOrganizationExitChatRevocation("user_x", "org_x");
+    expect(publishChatMembershipRevokedMock).not.toHaveBeenCalled();
   });
 });

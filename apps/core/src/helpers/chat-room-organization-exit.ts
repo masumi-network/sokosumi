@@ -173,9 +173,62 @@ export async function publishOrganizationExitChatRevocation(
   }
 }
 
+function organizationExitPendingKey(
+  userId: string,
+  organizationId: string,
+): string {
+  return `${userId}:${organizationId}`;
+}
+
+/** Room IDs to Ably-revoke after BA member delete (trigger does durable work). */
+const pendingAblyRoomIdsByOrganizationExit = new Map<string, string[]>();
+
+/**
+ * Snapshot org room memberships for post-commit Ably without mutating chat.
+ * Pair with {@link publishCapturedOrganizationExitChatRevocation} after the
+ * Member row is deleted (DB trigger performs durable hard-leave).
+ */
+export async function captureOrganizationExitChatRoomsForAbly(
+  userId: string,
+  organizationId: string,
+): Promise<string[]> {
+  const rows = await prisma.chatRoomUserMember.findMany({
+    where: {
+      userId,
+      room: { organizationId },
+    },
+    select: { roomId: true },
+  });
+  const roomIds = rows.map((row) => row.roomId);
+  pendingAblyRoomIdsByOrganizationExit.set(
+    organizationExitPendingKey(userId, organizationId),
+    roomIds,
+  );
+  return roomIds;
+}
+
+/**
+ * Publish Ably membership revokes for rooms captured before Member delete.
+ * No-op when nothing was captured. Clears the pending entry.
+ */
+export async function publishCapturedOrganizationExitChatRevocation(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  const key = organizationExitPendingKey(userId, organizationId);
+  const roomIds = pendingAblyRoomIdsByOrganizationExit.get(key) ?? [];
+  pendingAblyRoomIdsByOrganizationExit.delete(key);
+  await publishOrganizationExitChatRevocation(userId, {
+    revokedRoomIds: roomIds,
+    statusMessages: [],
+  });
+}
+
 /**
  * Full organization-exit chat cleanup in its own transaction, then realtime.
- * Use from Better Auth `beforeRemoveMember` (member row still present).
+ * Prefer transactional `apply` + Member delete when both can share a txn
+ * (admin path). BA remove-member uses capture/publish + DB trigger instead
+ * so chat is not committed if Member delete fails.
  * Voluntary leave has no BA hook — durable hard-leave is the member-delete
  * DB trigger (`chat_room_hard_leave_on_organization_member_delete`).
  */
