@@ -5478,5 +5478,14 @@
     "marketingTitle": "Marketing",
     "marketingBody": "Ermöglicht die Messung von Werbekampagnen und das Erreichen von Personen, für die Sokosumi nützlich sein könnte.",
     "settings": "Cookie-Einstellungen"
+  },
+  "WorkspaceGate": {
+    "title": "Workspace einrichten",
+    "identityTitle": "Erstelle deinen ersten Workspace",
+    "identityDescription": "Du brauchst einen Workspace, bevor du Sokosumi nutzen kannst.",
+    "pendingInvitesTitle": "Du hast ausstehende Einladungen",
+    "pendingInvitesDescription": "Nimm Organisations-Einladungen an oder lehne sie ab, um fortzufahren.",
+    "body": "Du kannst das Produkt erst nutzen, wenn du einen ersten Workspace hast. Abmelden ist vorerst der einzige Weg, diesen Bildschirm zu verlassen.",
+    "signOut": "Abmelden"
   }
 }

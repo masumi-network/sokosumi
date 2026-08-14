@@ -204,6 +204,7 @@ import {
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
+  getUsersByIdWorkspaceInventory as coreGetUsersByIdWorkspaceInventory,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesDesignMd as coreGetWorkspacesDesignMd,
   listAdminAgents as coreListAdminAgents,
@@ -3052,6 +3053,23 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
+   * Current-user workspace inventory and derived gate from Core.
+   * Sole source of truth for the workspace gate (not `onboardingCompleted`).
+   */
+  async function getMyWorkspaceInventory() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdWorkspaceInventory({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch workspace inventory",
+    );
+  }
+
+  /**
    * Returns the current user's membership in `organizationId`, or `null` when
    * the user is not a member (Core responds 404 in that case).
    */
@@ -4186,6 +4204,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyCredits,
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
+    getMyWorkspaceInventory,
     getMyOrganizationCredits,
     getMyOrganizations,
     createMyStripeCustomer,

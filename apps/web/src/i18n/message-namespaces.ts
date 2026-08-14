@@ -19,7 +19,7 @@ export const GLOBAL_MESSAGE_PATHS = [
   "CookieConsent",
 ] as const;
 
-/** Auth + invitation/join flows. */
+/** Auth + invitation/join flows + workspace gate shell. */
 export const AUTH_MESSAGE_PATHS = [
   "Auth",
   "Onboarding",
@@ -27,6 +27,7 @@ export const AUTH_MESSAGE_PATHS = [
   "Components",
   "Join",
   "AcceptInvitation",
+  "WorkspaceGate",
   "App.Account",
 ] as const;
 
