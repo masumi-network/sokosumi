@@ -160,10 +160,12 @@ function renderRow({
   onSaveEdit,
   isSavingEdit = false,
   coworkersById = new Map(),
+  reserveHoverActionGutter,
 }: {
   message?: ChatRoomMessage;
   isContinuation?: boolean;
   isFirstOfDay?: boolean;
+  reserveHoverActionGutter?: boolean;
   onQuote?: (message: ChatRoomMessage) => void;
   currentUserId?: string;
   onStartEdit?: (message: ChatRoomMessage) => void;
@@ -200,6 +202,7 @@ function renderRow({
       isSavingEdit={isSavingEdit}
       isContinuation={isContinuation}
       isFirstOfDay={isFirstOfDay}
+      reserveHoverActionGutter={reserveHoverActionGutter}
     />,
   );
 }
@@ -746,6 +749,13 @@ describe("ChatMessageRow", () => {
     const article = screen.getByRole("article");
     expect(article.className).toContain("[@media(hover:hover)]:pr-48");
     expect(article.className.split(/\s+/)).not.toContain("pr-48");
+  });
+
+  it("skips the hover action gutter so a narrow thread can use full width", () => {
+    renderRow({ reserveHoverActionGutter: false });
+
+    const article = screen.getByRole("article");
+    expect(article.className).not.toContain("pr-48");
   });
 
   it("renders quote snapshot from DTO and soft-fails jump when target missing", async () => {

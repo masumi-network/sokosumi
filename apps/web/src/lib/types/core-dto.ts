@@ -88,11 +88,3 @@ export function getAgentCredits(agent: CoreAgentDto): number {
 export function getAgentCreditsCents(agent: CoreAgentDto): bigint {
   return convertCreditsToCents(agent.credits);
 }
-
-export function getAgentRatingStatsMap(
-  agents: CoreAgentDto[],
-): Record<string, AgentRatingStats> {
-  return Object.fromEntries(
-    agents.map((agent) => [agent.id, getAgentRatingStats(agent)]),
-  );
-}

@@ -53,9 +53,6 @@ const envSecretsSchema = z.object({
 
   // Ably TokenRequest mint moved to Core (ABLY_SUBSCRIBE_ONLY_KEY on Core).
   // Web /api/ably/auth proxies POST /v1/realtime/ably-token (SOK-741).
-
-  // analytics webhooks
-  AGENT_HIRED_WEBHOOK: z.url().optional(),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;

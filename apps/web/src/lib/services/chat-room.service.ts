@@ -21,6 +21,7 @@ import type {
 } from "@/lib/clients/generated/core";
 
 const ROOM_MESSAGE_LIMIT = 100;
+const THREAD_LIST_PAGE_LIMIT = 50;
 /** Cold fill / poll / load-more page size — Core default and tasks parity. */
 const ROOM_LIST_PAGE_LIMIT = 20;
 /** Discoverable browse may still walk multiple pages up to Core max page size. */
@@ -35,6 +36,11 @@ export interface ChatRoomMessagesPage {
 
 export interface ChatRoomsPage {
   rooms: ChatRoom[];
+  nextCursor: string | null;
+}
+
+export interface ChatRoomThreadsPage {
+  threads: ChatRoomThread[];
   nextCursor: string | null;
 }
 
@@ -322,6 +328,20 @@ export const chatRoomService = (() => {
     };
   });
 
+  const listThreads = cache(async function listThreads(
+    roomId: string,
+    options?: { cursor?: string },
+  ): Promise<ChatRoomThreadsPage> {
+    const response = await coreClient.getChatRoomThreads(roomId, {
+      limit: THREAD_LIST_PAGE_LIMIT,
+      cursor: options?.cursor,
+    });
+    return {
+      threads: response.data,
+      nextCursor: response.meta?.pagination?.nextCursor ?? null,
+    };
+  });
+
   const listUnreadThreads = cache(async function listUnreadThreads(
     roomId: string,
   ): Promise<ChatRoomThread[]> {
@@ -410,6 +430,7 @@ export const chatRoomService = (() => {
     listRoomGuestInviteLinks,
     listRoomInvitations,
     listRooms,
+    listThreads,
     listUnreadThreads,
     listThreadMessages,
     leaveRoom,

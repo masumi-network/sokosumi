@@ -25,10 +25,10 @@ interface OpenCoworkerRoomApi {
 const OpenCoworkerRoomContext = createContext<OpenCoworkerRoomApi | null>(null);
 
 /**
- * Shared open-or-create DM flow for the welcome landing CTA and coworker strip.
+ * Shared open-or-create coworker DM flow (landing CTA, coworker strip, gallery).
  *
- * One provider per landing surface so both faces share pending state and cannot
- * race two concurrent room ensures.
+ * One provider per surface so callers share pending state and cannot race two
+ * concurrent room ensures.
  */
 export function OpenCoworkerRoomProvider({
   children,

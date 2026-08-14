@@ -358,6 +358,60 @@ describe("chatRoomService thread attention", () => {
     vi.resetModules();
   });
 
+  it("listThreads returns a recency page without unread filter", async () => {
+    const items = [
+      {
+        parentMessage: { id: "msg-1" },
+        unreadReplyCount: 1,
+        lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
+      },
+      {
+        parentMessage: { id: "msg-2" },
+        unreadReplyCount: 0,
+        lastUnreadReplyAt: null,
+      },
+    ];
+    getChatRoomThreadsMock.mockResolvedValue({
+      data: items,
+      meta: { pagination: { nextCursor: "msg-2", total: 3, limit: 50 } },
+    });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    const result = await chatRoomService.listThreads("room-1");
+
+    expect(getChatRoomThreadsMock).toHaveBeenCalledWith("room-1", {
+      limit: 50,
+    });
+    expect(result).toEqual({
+      threads: items,
+      nextCursor: "msg-2",
+    });
+  });
+
+  it("listThreads passes cursor when loading older", async () => {
+    getChatRoomThreadsMock.mockResolvedValue({
+      data: [],
+      meta: { pagination: { nextCursor: null } },
+    });
+
+    const { chatRoomService } = await import("../chat-room.service");
+    await chatRoomService.listThreads("room-1", { cursor: "msg-2" });
+
+    expect(getChatRoomThreadsMock).toHaveBeenCalledWith("room-1", {
+      limit: 50,
+      cursor: "msg-2",
+    });
+  });
+
+  it("listThreads propagates Core client rejection", async () => {
+    getChatRoomThreadsMock.mockRejectedValue(new Error("network"));
+
+    const { chatRoomService } = await import("../chat-room.service");
+    await expect(chatRoomService.listThreads("room-1")).rejects.toThrow(
+      "network",
+    );
+  });
+
   it("listUnreadThreads returns Core unread thread items", async () => {
     const items = [
       {

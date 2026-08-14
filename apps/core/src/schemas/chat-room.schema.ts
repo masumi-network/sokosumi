@@ -500,8 +500,8 @@ export const restoredChatRoomSchema = chatRoomSchema;
 
 /**
  * A top-level room message that has ≥1 non-deleted reply, with per-user look
- * metadata. Unread counts use the look baseline (thread lastReadAt, else room
- * read-state createdAt, else -infinity) — never room lastReadAt.
+ * metadata. Unread counts require a prior look row (thread lastReadAt);
+ * never-looked threads are not unread (ADR-0005).
  */
 export const chatRoomThreadSchema = z
   .object({
@@ -516,7 +516,7 @@ export const chatRoomThreadSchema = z
     }),
     unreadReplyCount: z.number().int().min(0).openapi({
       description:
-        "Non-deleted replies from others after the look baseline for this parent.",
+        "Non-deleted replies from others after a prior look. Zero when the viewer has never looked this thread.",
       example: 2,
     }),
     lastUnreadReplyAt: dateTimeSchema.nullable().openapi({

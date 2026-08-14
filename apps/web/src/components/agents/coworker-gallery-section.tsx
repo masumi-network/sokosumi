@@ -11,6 +11,9 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
+import { StartChatButton } from "@/app/chat/components/landing/start-chat-button.client";
+import { OpenCoworkerRoomProvider } from "@/app/chat/components/landing/use-open-coworker-room";
+import { coworkerCanChat } from "@/app/chat/utils/coworker-utils";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
 import {
@@ -31,12 +34,6 @@ import { regionFlag } from "@/lib/utils/region-flag";
 
 interface CoworkerGallerySectionProps {
   coworkers: Coworker[];
-  agentCount?: number;
-}
-
-/** Deterministic thousands separator (avoids SSR/locale hydration drift). */
-function groupThousands(value: number): string {
-  return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 interface OfferItem {
@@ -336,15 +333,26 @@ function VendorDashboard({
                 ) : null}
               </div>
             </div>
-            <Button
-              type="button"
-              size="lg"
-              className="w-full shrink-0 sm:w-auto"
-              onClick={() => onStartTask(active.id)}
-            >
-              {labels.startForCoworker(active.name)}
-              <ArrowRight aria-hidden className="size-4" />
-            </Button>
+            <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+              {coworkerCanChat(active) ? (
+                <StartChatButton
+                  coworkerId={active.id}
+                  coworkerName={active.name}
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                />
+              ) : null}
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                className="w-full sm:w-auto"
+                onClick={() => onStartTask(active.id)}
+              >
+                {labels.startForCoworker(active.name)}
+                <ArrowRight aria-hidden className="size-4" />
+              </Button>
+            </div>
           </div>
 
           {active.description ? (
@@ -414,13 +422,20 @@ function VendorDashboard({
   );
 }
 
-function CoworkerGallerySection({
+function CoworkerGallerySection({ coworkers }: CoworkerGallerySectionProps) {
+  return (
+    <OpenCoworkerRoomProvider>
+      <CoworkerGallerySectionInner coworkers={coworkers} />
+    </OpenCoworkerRoomProvider>
+  );
+}
+
+function CoworkerGallerySectionInner({
   coworkers,
-  agentCount,
 }: CoworkerGallerySectionProps) {
   const t = useTranslations("App.Agents.CoworkerGallerySection");
   const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
-  // Shared URL query so the same search also filters the agent catalog below.
+  // Gallery search query (URL-backed) filters coworker offers below.
   const { query, setQuery } = useGalleryFilter();
   const { handleOpenWith } = useCreateTaskModal();
   const [selected, setSelected] = useState<OfferItem | null>(null);
@@ -468,17 +483,12 @@ function CoworkerGallerySection({
     return () => window.clearInterval(id);
   }, [rotatingHints.length]);
 
-  // Social proof: a cluster of real coworker faces + a Masumi catalog count.
+  // Social proof: a cluster of real coworker faces.
   const socialAvatars = useMemo(
     () => sortedCoworkers.filter((c) => c.image).slice(0, 5),
     [sortedCoworkers],
   );
-  const socialProofLabel =
-    agentCount && agentCount >= 1
-      ? t("socialProof", {
-          count: `${groupThousands(agentCount)}+`,
-        })
-      : t("socialProofFallback");
+  const socialProofLabel = t("socialProofFallback");
 
   const q = query.trim().toLowerCase();
 

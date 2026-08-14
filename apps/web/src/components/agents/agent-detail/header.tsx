@@ -10,7 +10,6 @@ import {
   AgentActionButtons,
   AgentActionButtonsSkeleton,
 } from "@/components/agents/agent-action-buttons";
-import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import AgentIcon from "@/components/agents/agent-icon";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -136,9 +135,6 @@ function AgentDetailHeader({
                 })}
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <AgentHireButton agentId={agent.id} />
-            </div>
           </div>
         </div>
       </div>
@@ -167,7 +163,6 @@ function AgentDetailHeaderSkeleton() {
             <div className="text-base">
               <Skeleton className="h-8 w-24" />
             </div>
-            <Skeleton className="h-8 w-24" />
           </div>
         </div>
       </div>

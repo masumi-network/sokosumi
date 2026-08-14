@@ -85,31 +85,13 @@ describe("agent detail first-paint contract (SOK-781)", () => {
     expect(secondWave![0]).toMatch(/getUserRatingForAgent/);
   });
 
-  it("page keeps create-job modal form graph off default first paint", () => {
+  it("page has no Hire / create-Job chrome (SOK-805)", () => {
     const page = stripComments(readAgentId("page.tsx"));
-    // Must not statically import the modal shell that pulls the form graph.
     expect(page).not.toMatch(
-      /import\s*\{[^}]*\bCreateJobModal\b[^}]*\}\s*from\s*["']@\/components\/create-job-modal["']/,
+      /CreateJobModal|LazyCreateJobModal|AgentHireButton/,
     );
-    expect(page).not.toMatch(
-      /import\s+CreateJobModal\s+from\s+["'][^"']*create-job-modal["']/,
-    );
-    // Context provider stays (hire trigger); modal itself is lazy/open-gated.
-    expect(page).toMatch(/CreateJobModalContextProvider/);
-    expect(page).toMatch(/LazyCreateJobModal/);
-  });
-
-  it("LazyCreateJobModal defers form graph until first open", () => {
-    const lazy = stripComments(
-      readWebSrc("components/create-job-modal/lazy-create-job-modal.tsx"),
-    );
-    expect(lazy).toMatch(
-      /dynamic\s*\(\s*\(\s*\)\s*=>\s*import\s*\(\s*["']\.\/create-job-modal["']/,
-    );
-    expect(lazy).toMatch(/ssr\s*:\s*false/);
-    // Open-gated latch (render-time, not useEffect mirror).
-    expect(lazy).toMatch(/open\s*&&\s*!hasOpened/);
-    expect(lazy).not.toMatch(/useEffect\s*\(/);
+    expect(page).not.toMatch(/AgentBottomNavigation|agent-botton-navigation/);
+    expect(page).not.toMatch(/create-job-modal/);
   });
 
   it("route-level loading shell exists and stays sync", () => {

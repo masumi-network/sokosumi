@@ -1,6 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { unprocessableEntity } from "@/helpers/error";
+import {
+  jsonErrorResponse,
+  jsonPaginatedSuccessResponse,
+} from "@/helpers/openapi";
+import { parseCursorPagination } from "@/helpers/pagination";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -9,8 +14,13 @@ import {
 } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomThreadSchema } from "@/schemas/chat-room.schema";
+import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 
-import { listChatRoomThreads, requireChatRoomUserAccess } from "../../helpers";
+import {
+  listChatRoomThreadListPage,
+  listChatRoomThreads,
+  requireChatRoomUserAccess,
+} from "../../helpers";
 
 const paramsSchema = z.object({
   id: z
@@ -22,14 +32,14 @@ const paramsSchema = z.object({
     }),
 });
 
-const querySchema = z.object({
+const querySchema = cursorPaginationQuerySchema.extend({
   unread: z
     .enum(["true", "false"])
     .optional()
     .openapi({
       param: { name: "unread", in: "query" },
       description:
-        "When `true`, only threads with ≥1 unread non-self reply after the look baseline. When omitted or `false`, all roots with ≥1 non-deleted reply.",
+        "When `true`, only unread threads (prior look + newer non-self replies). `cursor` and `limit` are ignored. When omitted or `false`, unread threads first then a recency page of the rest.",
       example: "true",
     }),
 });
@@ -39,17 +49,21 @@ const route = withGlobalHeaderParameters(
     method: "get",
     path: "/{id}/threads",
     description:
-      "List threads in a room. Optional `unread=true` filters to threads needing look. Look baseline is per-thread lastReadAt, else room read-state createdAt, else all history. Independent of room mark-read.",
+      "List threads in a room. `unread=true` returns every unread thread (prior look + newer replies) and ignores `cursor`/`limit`. Otherwise returns unread threads first, then a recency page of looked and never-looked threads (`cursor`/`limit`). Independent of room mark-read.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
       query: querySchema,
     },
     responses: {
-      200: jsonSuccessResponse(z.array(chatRoomThreadSchema), "Threads"),
+      200: jsonPaginatedSuccessResponse(
+        z.array(chatRoomThreadSchema),
+        "Threads",
+      ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -59,22 +73,46 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
-    const { unread } = c.req.valid("query");
+    const query = c.req.valid("query");
+    const unreadOnly = query.unread === "true";
 
     const room = await requireChatRoomUserAccess(
       id,
       userContext.userId,
       prisma,
     );
-    const items = await listChatRoomThreads(
+
+    if (unreadOnly) {
+      const items = await listChatRoomThreads(
+        room.id,
+        userContext.userId,
+        prisma,
+        { unreadOnly: true },
+      );
+      const parsed = z.array(chatRoomThreadSchema).parse(items);
+      return ok(c, parsed, {
+        cursor: null,
+        limit: parsed.length,
+        total: parsed.length,
+        nextCursor: null,
+      });
+    }
+
+    const { cursor, take } = parseCursorPagination(query);
+    if (cursor != null && !z.string().uuid().safeParse(cursor).success) {
+      throw unprocessableEntity("Invalid cursor");
+    }
+    const page = await listChatRoomThreadListPage(
       room.id,
       userContext.userId,
       prisma,
-      {
-        unreadOnly: unread === "true",
-      },
+      { cursor, limit: take },
     );
-
-    return ok(c, z.array(chatRoomThreadSchema).parse(items));
+    return ok(c, z.array(chatRoomThreadSchema).parse(page.items), {
+      cursor: cursor ?? null,
+      limit: take,
+      total: page.total,
+      nextCursor: page.nextCursor,
+    });
   });
 }

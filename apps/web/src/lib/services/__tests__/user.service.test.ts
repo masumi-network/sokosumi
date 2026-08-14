@@ -8,6 +8,7 @@ vi.mock("server-only", () => ({}));
 const getSessionMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
+const getMyWorkspaceInventoryMock = vi.fn();
 const getOrganizationByIdMock = vi.fn();
 const updateCurrentUserViaCoreMock = vi.fn();
 
@@ -34,6 +35,8 @@ vi.mock("@/lib/clients/core.client", () => {
         getMyMembersWithOrganizationsMock(...args),
       getMyMemberInOrganization: (...args: unknown[]) =>
         getMyMemberInOrganizationMock(...args),
+      getMyWorkspaceInventory: (...args: unknown[]) =>
+        getMyWorkspaceInventoryMock(...args),
       getOrganizationById: (...args: unknown[]) =>
         getOrganizationByIdMock(...args),
     },
@@ -199,6 +202,38 @@ describe("user.service", () => {
 
       expect(getMyMemberInOrganizationMock).not.toHaveBeenCalled();
       expect(result).toBeNull();
+    });
+  });
+
+  describe("getWorkspaceInventory", () => {
+    it("returns null when there is no session", async () => {
+      getSessionMock.mockResolvedValue(null);
+
+      const { userService } = await import("../user.service");
+      const result = await userService.getWorkspaceInventory();
+
+      expect(getMyWorkspaceInventoryMock).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+    });
+
+    it("returns Core inventory for the session user", async () => {
+      getSessionMock.mockResolvedValue({
+        session: { id: "session-1" },
+        user: { id: "user-1" },
+      });
+      const inventory = {
+        gate: "ready",
+        hasPersonalWorkspace: true,
+        hasOrganizationMembership: false,
+        hasPendingOrganizationInvites: false,
+      };
+      getMyWorkspaceInventoryMock.mockResolvedValue({ data: inventory });
+
+      const { userService } = await import("../user.service");
+      const result = await userService.getWorkspaceInventory();
+
+      expect(getMyWorkspaceInventoryMock).toHaveBeenCalled();
+      expect(result).toEqual(inventory);
     });
   });
 

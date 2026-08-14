@@ -688,6 +688,20 @@ export async function listThreadMessagesAction(
   }
 }
 
+export async function listThreadsAction(
+  roomId: string,
+  options?: { cursor?: string },
+): Promise<
+  RoomActionResult<{ threads: ChatRoomThread[]; nextCursor: string | null }>
+> {
+  try {
+    const page = await chatRoomService.listThreads(roomId, options);
+    return roomOk(page);
+  } catch (error) {
+    return roomCatch(error, "Could not load threads.");
+  }
+}
+
 export async function listUnreadThreadsAction(
   roomId: string,
 ): Promise<RoomActionResult<ChatRoomThread[]>> {
