@@ -1,43 +1,17 @@
 /**
- * Whether a thread row needs attention chrome in the room thread overview.
- *
- * Prefer `attentionReplyCount` (dual-baseline, includes never-looked replies
- * that still badge the sidebar). Fall back to ADR-0005 unread + never-looked
- * (`!hasLooked`) when older payloads omit attentionReplyCount.
+ * Thread-overview attention uses Core `attentionReplyCount` only — the same
+ * dual-baseline non-self reply predicate as `markAllChatRoomThreadsRead`.
+ * Never-looked alone is not enough: pre-join / self-only replies stay clear.
  */
 export function threadNeedsOverviewAttention(thread: {
-  unreadReplyCount: number;
-  hasLooked?: boolean;
-  attentionReplyCount?: number;
+  attentionReplyCount: number;
 }): boolean {
-  if (
-    typeof thread.attentionReplyCount === "number" &&
-    thread.attentionReplyCount > 0
-  ) {
-    return true;
-  }
-
-  if (thread.unreadReplyCount > 0) {
-    return true;
-  }
-
-  return thread.hasLooked === false;
+  return thread.attentionReplyCount > 0;
 }
 
-/** Reply count to show in overview unread copy for an attention row. */
+/** Qualifying unread-reply count for overview unread copy (Mark all / chrome). */
 export function threadOverviewAttentionReplyCount(thread: {
-  unreadReplyCount: number;
-  replyCount: number;
-  attentionReplyCount?: number;
+  attentionReplyCount: number;
 }): number {
-  if (
-    typeof thread.attentionReplyCount === "number" &&
-    thread.attentionReplyCount > 0
-  ) {
-    return thread.attentionReplyCount;
-  }
-  if (thread.unreadReplyCount > 0) {
-    return thread.unreadReplyCount;
-  }
-  return thread.replyCount;
+  return Math.max(0, thread.attentionReplyCount);
 }

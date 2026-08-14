@@ -324,7 +324,7 @@ describe("ThreadListPanel", () => {
     expect(screen.getByTestId("thread-list-load-older")).toBeInTheDocument();
   });
 
-  it("treats never-looked threads as needing attention and shows Mark all", async () => {
+  it("shows attention chrome and Mark all for never-looked with dual-baseline replies", async () => {
     listThreadsActionMock.mockResolvedValue({
       ok: true,
       value: {
@@ -352,5 +352,36 @@ describe("ThreadListPanel", () => {
     expect(
       await screen.findByTestId("thread-list-mark-all-read"),
     ).toBeInTheDocument();
+  });
+
+  it("does not treat never-looked with only pre-join or self replies as attention", async () => {
+    listThreadsActionMock.mockResolvedValue({
+      ok: true,
+      value: {
+        threads: [
+          threadItem({
+            unreadReplyCount: 0,
+            lastUnreadReplyAt: null,
+            hasLooked: false,
+            attentionReplyCount: 0,
+            replyCount: 4,
+          }),
+        ],
+        nextCursor: null,
+      },
+    });
+
+    renderPanel();
+
+    const item = await screen.findByTestId("thread-list-item");
+    expect(item).toHaveAttribute("data-needs-attention", "false");
+    expect(item).toHaveTextContent("4 replies");
+    expect(item).not.toHaveTextContent("unread");
+    expect(
+      within(item).queryByTestId("thread-list-unread-dot"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("thread-list-mark-all-read"),
+    ).not.toBeInTheDocument();
   });
 });
