@@ -4624,8 +4624,14 @@ export const ChatRoomSchema = {
         unreadCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.',
+            description: 'Unread top-level messages from others after room lastReadAt. Soft-deleted excluded. Does not include thread replies.',
             example: 2
+        },
+        unreadThreadReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Unread thread replies from others after per-thread look baseline (thread lastReadAt, else room read-state createdAt, else -infinity). Soft-deleted excluded. Room mark-read does not clear this.',
+            example: 1
         },
         unreadMentionCount: {
             type: 'integer',
@@ -4686,6 +4692,7 @@ export const ChatRoomSchema = {
         'createdAt',
         'updatedAt',
         'unreadCount',
+        'unreadThreadReplyCount',
         'unreadMentionCount',
         'pinnedAt',
         'mutedAt',
@@ -9023,7 +9030,7 @@ export const WorkspaceInventorySchema = {
         },
         hasOrganizationMembership: {
             type: 'boolean',
-            description: 'Whether the user is a member of at least one organization (with its workspace)',
+            description: 'Whether the user is a member of at least one organization',
             example: false
         },
         hasPendingOrganizationInvites: {

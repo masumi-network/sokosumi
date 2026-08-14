@@ -648,7 +648,7 @@ export const deleteChatsRoomsByIdMembersByUserId = <ThrowOnError extends boolean
 });
 
 /**
- * Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadCount.
+ * Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadThreadReplyCount.
  */
 export const postChatsRoomsByIdRead = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdReadData, ThrowOnError>): RequestResult<PostChatsRoomsByIdReadResponses, PostChatsRoomsByIdReadErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdReadResponses, PostChatsRoomsByIdReadErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdReadResponseTransformer,
@@ -666,7 +666,7 @@ export const postChatsRoomsByIdUnread = <ThrowOnError extends boolean = false>(o
 });
 
 /**
- * List threads in a room. `unread=true` returns every unread thread (prior look + newer replies). Otherwise returns unread threads first, then a recency page of looked and never-looked threads (`cursor`/`limit`). Independent of room mark-read.
+ * List threads in a room. `unread=true` returns every unread thread (prior look + newer replies) and ignores `cursor`/`limit`. Otherwise returns unread threads first, then a recency page of looked and never-looked threads (`cursor`/`limit`). Independent of room mark-read.
  */
 export const getChatsRoomsByIdThreads = <ThrowOnError extends boolean = false>(options: Options<GetChatsRoomsByIdThreadsData, ThrowOnError>): RequestResult<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError> => (options.client ?? client).get<GetChatsRoomsByIdThreadsResponses, GetChatsRoomsByIdThreadsErrors, ThrowOnError>({
     responseTransformer: getChatsRoomsByIdThreadsResponseTransformer,

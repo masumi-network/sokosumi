@@ -409,6 +409,7 @@ export function OrganizationChatList({
               ? (detail.room ?? {
                   ...room,
                   unreadCount: 0,
+                  unreadThreadReplyCount: 0,
                   unreadMentionCount: 0,
                   markedUnread: false,
                 })

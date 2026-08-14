@@ -54,6 +54,7 @@ function directRoom(overrides: {
     createdAt: new Date(0),
     updatedAt: new Date(0),
     unreadCount: 0,
+    unreadThreadReplyCount: 0,
     unreadMentionCount: 0,
     pinnedAt: null,
     mutedAt: null,

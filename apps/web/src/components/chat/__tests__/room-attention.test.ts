@@ -10,7 +10,7 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 0,
         isActive: false,
       }),
-    ).toEqual({ bold: true, badgeCount: 0 });
+    ).toEqual({ bold: true, badgeCount: 0, threadUnreadCount: 0 });
   });
 
   it("shows a mention badge only when unreadMentionCount > 0", () => {
@@ -20,18 +20,41 @@ describe("resolveRoomAttention", () => {
         unreadMentionCount: 2,
         isActive: false,
       }),
-    ).toEqual({ bold: true, badgeCount: 2 });
+    ).toEqual({ bold: true, badgeCount: 2, threadUnreadCount: 0 });
   });
 
-  it("suppresses bold and badge when the room is active", () => {
+  it("surfaces thread unread without bolding from thread replies alone", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 0,
+        unreadThreadReplyCount: 4,
+        unreadMentionCount: 0,
+        isActive: false,
+      }),
+    ).toEqual({ bold: false, badgeCount: 0, threadUnreadCount: 4 });
+  });
+
+  it("keeps channel bold independent of thread unread", () => {
+    expect(
+      resolveRoomAttention({
+        unreadCount: 2,
+        unreadThreadReplyCount: 3,
+        unreadMentionCount: 0,
+        isActive: false,
+      }),
+    ).toEqual({ bold: true, badgeCount: 0, threadUnreadCount: 3 });
+  });
+
+  it("suppresses bold, badge, and thread chrome when the room is active", () => {
     expect(
       resolveRoomAttention({
         unreadCount: 5,
+        unreadThreadReplyCount: 3,
         unreadMentionCount: 2,
         markedUnread: true,
         isActive: true,
       }),
-    ).toEqual({ bold: false, badgeCount: 0 });
+    ).toEqual({ bold: false, badgeCount: 0, threadUnreadCount: 0 });
   });
 
   it("bolds forced-unread rooms even when unreadCount is 0", () => {
@@ -42,18 +65,19 @@ describe("resolveRoomAttention", () => {
         markedUnread: true,
         isActive: false,
       }),
-    ).toEqual({ bold: true, badgeCount: 0 });
+    ).toEqual({ bold: true, badgeCount: 0, threadUnreadCount: 0 });
   });
 
-  it("suppresses bold and badge when the room is muted", () => {
+  it("suppresses bold, badge, and thread chrome when the room is muted", () => {
     expect(
       resolveRoomAttention({
         unreadCount: 5,
+        unreadThreadReplyCount: 3,
         unreadMentionCount: 2,
         markedUnread: true,
         isMuted: true,
         isActive: false,
       }),
-    ).toEqual({ bold: false, badgeCount: 0 });
+    ).toEqual({ bold: false, badgeCount: 0, threadUnreadCount: 0 });
   });
 });

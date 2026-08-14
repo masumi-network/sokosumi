@@ -4807,7 +4807,8 @@
         "mute": "Mute",
         "unmute": "Unmute",
         "roomMenu": "Chat actions for {name}",
-        "actionFailed": "Could not update this chat. Try again."
+        "actionFailed": "Could not update this chat. Try again.",
+        "unreadThreadReplies": "{count, plural, one {# unread thread reply} other {# unread thread replies}}"
       },
       "Metadata": {
         "title": "Chat",

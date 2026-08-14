@@ -1268,9 +1268,13 @@ export type ChatRoom = {
     createdAt: Date;
     updatedAt: Date;
     /**
-     * Unread messages from others: top-level after room lastReadAt, plus thread replies after per-thread look baseline (thread lastReadAt, else room read-state createdAt). Soft-deleted excluded.
+     * Unread top-level messages from others after room lastReadAt. Soft-deleted excluded. Does not include thread replies.
      */
     unreadCount: number;
+    /**
+     * Unread thread replies from others after per-thread look baseline (thread lastReadAt, else room read-state createdAt, else -infinity). Soft-deleted excluded. Room mark-read does not clear this.
+     */
+    unreadThreadReplyCount: number;
     /**
      * Unread @mention attentions for the current user in this room (CHAT notifications with referenceId=roomId). Cleared on mark-read.
      */
@@ -2626,7 +2630,7 @@ export type WorkspaceInventory = {
      */
     hasPersonalWorkspace: boolean;
     /**
-     * Whether the user is a member of at least one organization (with its workspace)
+     * Whether the user is a member of at least one organization
      */
     hasOrganizationMembership: boolean;
     /**
@@ -12268,7 +12272,7 @@ export type GetChatsRoomsByIdThreadsData = {
          */
         limit?: number;
         /**
-         * When `true`, only unread threads (prior look + newer non-self replies). When omitted or `false`, unread threads first then a recency page of the rest.
+         * When `true`, only unread threads (prior look + newer non-self replies). `cursor` and `limit` are ignored. When omitted or `false`, unread threads first then a recency page of the rest.
          */
         unread?: 'true' | 'false';
     };
@@ -12308,6 +12312,20 @@ export type GetChatsRoomsByIdThreadsErrors = {
      * Room not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

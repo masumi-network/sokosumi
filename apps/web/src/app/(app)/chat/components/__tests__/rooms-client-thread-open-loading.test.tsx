@@ -222,6 +222,7 @@ function channelRoom(): ChatRoom {
     createdAt: new Date("2026-07-01T12:00:00.000Z"),
     updatedAt: new Date("2026-07-01T12:00:00.000Z"),
     unreadCount: 0,
+    unreadThreadReplyCount: 0,
     unreadMentionCount: 0,
     pinnedAt: null,
     mutedAt: null,
@@ -312,6 +313,7 @@ describe("RoomsClient thread open loading race", () => {
       value: {
         id: "room-channel",
         unreadCount: 0,
+        unreadThreadReplyCount: 0,
         unreadMentionCount: 0,
         markedUnread: false,
       },

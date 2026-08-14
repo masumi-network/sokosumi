@@ -120,6 +120,7 @@ vi.mock("@/components/chat/organization-chat-list.actions", () => ({
     value: {
       id: roomId,
       unreadCount: 0,
+      unreadThreadReplyCount: 0,
       unreadMentionCount: 0,
       markedUnread: false,
     },
@@ -301,6 +302,7 @@ function channelRoom(): ChatRoom {
     createdAt: new Date("2026-07-01T12:00:00.000Z"),
     updatedAt: new Date("2026-07-01T12:00:00.000Z"),
     unreadCount: 0,
+    unreadThreadReplyCount: 0,
     unreadMentionCount: 0,
     pinnedAt: null,
     mutedAt: null,
@@ -329,6 +331,7 @@ function coworkerDirectRoom(): ChatRoom {
     createdAt: new Date("2026-07-01T12:00:00.000Z"),
     updatedAt: new Date("2026-07-01T12:00:00.000Z"),
     unreadCount: 0,
+    unreadThreadReplyCount: 0,
     unreadMentionCount: 0,
     pinnedAt: null,
     mutedAt: null,

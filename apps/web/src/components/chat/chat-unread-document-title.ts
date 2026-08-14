@@ -1,6 +1,8 @@
 interface ChatRoomUnreadAttention {
   id: string;
   unreadCount: number;
+  /** Thread-only unread must not contribute to tab/title attention. */
+  unreadThreadReplyCount?: number;
   markedUnread?: boolean;
   mutedAt?: string | Date | null;
 }

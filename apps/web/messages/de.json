@@ -4807,7 +4807,8 @@
         "mute": "Stummschalten",
         "unmute": "Stummschaltung aufheben",
         "roomMenu": "Chat-Aktionen für {name}",
-        "actionFailed": "Dieser Chat konnte nicht aktualisiert werden. Bitte erneut versuchen."
+        "actionFailed": "Dieser Chat konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+        "unreadThreadReplies": "{count, plural, one {# ungelesene Thread-Antwort} other {# ungelesene Thread-Antworten}}"
       },
       "Metadata": {
         "title": "Chat",
