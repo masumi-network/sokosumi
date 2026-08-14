@@ -255,28 +255,39 @@ export async function getChatRoomThreadAggregates(
     HAVING COUNT(reply.id) >= 1
   `;
 
+  // Recency cursor baseline must be pure scalar subqueries. Joining parent to
+  // replies then selecting MAX(...) + p.createdAt without GROUP BY is Postgres
+  // 42803 (SOKOSUMI-CORE-32) — every GET …/threads?limit=… 500s in prod.
+  const recencyCursorFilter = recency?.cursor
+    ? `
+      AND ("lastReplyAt", "parentMessageId") < (
+        SELECT COALESCE(
+          (
+            SELECT MAX(r."createdAt")
+            FROM "chat_room_message" r
+            WHERE r."parentMessageId" = $3::uuid
+              AND r."deletedAt" IS NULL
+              AND r."roomId" = $1::uuid
+          ),
+          (
+            SELECT p."createdAt"
+            FROM "chat_room_message" p
+            WHERE p.id = $3::uuid
+              AND p."roomId" = $1::uuid
+          )
+        ),
+        $3::uuid
+      )
+    `
+    : "";
+
   const recencySql = recency
     ? `
     SELECT * FROM (${innerSelect}) threads
     WHERE "unreadReplyCount" = 0
-      AND (
-        $3::uuid IS NULL
-        OR ("lastReplyAt", "parentMessageId") < (
-          SELECT COALESCE(
-            MAX(r."createdAt") FILTER (WHERE r."deletedAt" IS NULL),
-            p."createdAt"
-          ),
-          p.id
-          FROM "chat_room_message" p
-          LEFT JOIN "chat_room_message" r
-            ON r."parentMessageId" = p.id
-            AND r."roomId" = p."roomId"
-          WHERE p.id = $3::uuid
-            AND p."roomId" = $1::uuid
-        )
-      )
+    ${recencyCursorFilter}
     ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC
-    LIMIT $4
+    LIMIT $${recency.cursor ? 4 : 3}
     `
     : unreadOnly
       ? `
@@ -290,7 +301,9 @@ export async function getChatRoomThreadAggregates(
     `;
 
   const queryArgs = recency
-    ? [roomId, userId, recency.cursor ?? null, recency.limit + 1]
+    ? recency.cursor
+      ? [roomId, userId, recency.cursor, recency.limit + 1]
+      : [roomId, userId, recency.limit + 1]
     : parentMessageId
       ? [roomId, userId, parentMessageId]
       : [roomId, userId];
