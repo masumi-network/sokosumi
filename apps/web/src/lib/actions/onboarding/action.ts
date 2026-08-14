@@ -13,6 +13,7 @@ import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { getSession } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services";
 import { SUBSCRIPTION_ONBOARDING_GATE_SESSION_COOKIE_NAME } from "@/lib/subscription-onboarding-gate-cookie";
+import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 const SUBSCRIPTION_ONBOARDING_GATE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 400;
 
@@ -68,7 +69,9 @@ export async function completeOnboarding(): Promise<
     }
 
     revalidatePath("/");
-    return toActionResult(ok({ redirectUrl: "/tasks" }));
+    return toActionResult(
+      ok({ redirectUrl: DEFAULT_AUTHENTICATED_LANDING_PATH }),
+    );
   } catch (error) {
     console.error("Error completing onboarding:", error);
     const t = await getTranslations("Onboarding.Actions.Errors");

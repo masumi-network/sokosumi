@@ -52,7 +52,7 @@ describe("OnboardingSubscriptionReturnHandler", () => {
     );
     completeOnboardingMock.mockResolvedValue({
       ok: true,
-      value: { redirectUrl: "/tasks" },
+      value: { redirectUrl: "/" },
     });
 
     render(<OnboardingSubscriptionReturnHandler />);
@@ -60,7 +60,7 @@ describe("OnboardingSubscriptionReturnHandler", () => {
     await waitFor(() => {
       expect(completeOnboardingMock).toHaveBeenCalledTimes(1);
       expect(onboardingCompleteMock).toHaveBeenCalledTimes(1);
-      expect(replaceMock).toHaveBeenCalledWith("/tasks");
+      expect(replaceMock).toHaveBeenCalledWith("/");
     });
   });
 
@@ -72,7 +72,7 @@ describe("OnboardingSubscriptionReturnHandler", () => {
     render(<OnboardingSubscriptionReturnHandler />);
 
     await waitFor(() => {
-      expect(replaceMock).toHaveBeenCalledWith("/tasks");
+      expect(replaceMock).toHaveBeenCalledWith("/");
     });
 
     expect(completeOnboardingMock).not.toHaveBeenCalled();
