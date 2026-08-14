@@ -25,8 +25,30 @@ The persistent sidebar and header on authenticated pages: nav, membership-visibl
 _Avoid_: Topbar, shell (unless meaning the loading frame)
 
 **Workspace switcher**:
-The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point.
+The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point. It only lists workspaces the user actually has. If they have no personal workspace, it offers an explicit create action — it does not create one by switching.
 _Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar
+
+### Workspaces
+
+**Personal workspace**:
+A user-owned workspace (no Organization). At most one per user. Optional — created only when the user chooses personal as their first workspace, or later adds one. Not created on signup and not required for invitees who join an organization. It can be deleted only when the user still has at least one organization workspace.
+_Avoid_: Default workspace, account workspace, personal organization
+
+**Organization workspace**:
+The workspace owned by an Organization. Created with that Organization. Members act in it through organization membership, not by owning the workspace row.
+_Avoid_: Team workspace (unless the product renames it), company account
+
+**First workspace**:
+The first workspace a user can act in after signup: either a personal workspace they create, an organization they create, or an organization they join via invitation. Until it exists, they cannot use the product. After it exists, they cannot return to zero workspaces.
+_Avoid_: Default workspace, home workspace, onboarding workspace
+
+**Identity onboarding**:
+The hard-gated post-signup flow for a user who does not already have a first workspace. First screen: confirm display name (prefilled when known) and choose Personal vs Organization. Personal creates a personal workspace. Organization runs the create-organization wizard; the product becomes usable once that organization exists (wizard step 0). Creating an organization does not require a verified email. Users who join via invitation or join link skip it.
+_Avoid_: Onboarding (retired intro slides + plan checkout), account setup, onboardingCompleted (removed — first workspace is the state)
+
+**Workspace gate**:
+The dedicated authenticated route used when the user cannot use the product yet. It is where they resolve pending organization invitations and join links, or complete identity onboarding. No app chrome. Leaving is sign out or finish.
+_Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup product (the gate owns that moment)
 
 ### Chat membership
 
