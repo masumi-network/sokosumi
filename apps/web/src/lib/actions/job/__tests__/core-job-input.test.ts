@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { StartJobInputSchemaType } from "@/lib/schemas";
+import type { ProvideJobInputSchemaType } from "@/lib/schemas";
 
 import { toCoreJobInputData } from "../core-job-input";
 
@@ -23,7 +23,7 @@ describe("toCoreJobInputData", () => {
     expect(
       toCoreJobInputData({
         mixed: ["hello", 42],
-      } as StartJobInputSchemaType["inputData"]),
+      } as ProvideJobInputSchemaType["inputData"]),
     ).toBeNull();
   });
 });

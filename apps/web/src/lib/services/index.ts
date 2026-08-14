@@ -1,5 +1,4 @@
 export * from "./agent.service";
-export * from "./agent-hired-webhook.service";
 export * from "./chat-room.service";
 export * from "./coworker-access.service";
 export * from "./design-md.service";

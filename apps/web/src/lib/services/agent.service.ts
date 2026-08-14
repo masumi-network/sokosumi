@@ -4,7 +4,6 @@ import { mapCoreMyAgentReview } from "@/lib/agents/core-dto-mappers";
 import { getAllCoreAgents, getCoreAgentById } from "@/lib/agents/core-loaders";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { Agent, AgentDetail } from "@/lib/clients/generated/core";
-import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export const agentService = (() => {
   return {
@@ -16,22 +15,6 @@ export const agentService = (() => {
 
     getAvailableAgentsWithCreditsPrice: async (): Promise<Agent[]> => {
       return getAllCoreAgents();
-    },
-
-    getRandomAvailableAgentData: async (): Promise<{
-      agent: CoreAgentDto;
-      averageExecutionDuration: number | null;
-    } | null> => {
-      const coreAgents = await getAllCoreAgents();
-      if (coreAgents.length === 0) {
-        return null;
-      }
-      const randomIndex = Math.floor(Math.random() * coreAgents.length);
-      const coreAgent = coreAgents[randomIndex];
-      return {
-        agent: coreAgent,
-        averageExecutionDuration: coreAgent.metrics.executions.averageTime,
-      };
     },
 
     async canUserRateAgent(agentId: string): Promise<boolean> {

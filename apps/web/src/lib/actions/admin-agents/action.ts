@@ -8,10 +8,7 @@ import {
 } from "@/lib/actions/action-result";
 
 import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import {
-  AGENTS_CACHE_TAG,
-  CATEGORIES_CACHE_TAG,
-} from "@/lib/agents/core-loaders";
+import { AGENTS_CACHE_TAG } from "@/lib/agents/core-loaders";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import type { PatchAdminAgentMetadataOverrideBody } from "@/lib/clients/generated/core";
@@ -83,7 +80,6 @@ export const patchAdminAgentMetadataOverrideAction = withSession<
     assertAdminSession(session);
     const detail = await adminAgentService.patchMetadataOverride(agentId, body);
     updateTag(AGENTS_CACHE_TAG);
-    updateTag(CATEGORIES_CACHE_TAG);
     return toActionResult(ok(detail));
   } catch (error) {
     return toActionResult(err(mapError(error)));
@@ -105,7 +101,6 @@ export const deleteAdminAgentMetadataOverrideAction = withSession<
     assertAdminSession(session);
     const detail = await adminAgentService.deleteMetadataOverride(agentId);
     updateTag(AGENTS_CACHE_TAG);
-    updateTag(CATEGORIES_CACHE_TAG);
     return toActionResult(ok(detail));
   } catch (error) {
     return toActionResult(err(mapError(error)));

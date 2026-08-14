@@ -79,7 +79,6 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 |-----------------------|------------------------------------------------|-------|
 | `sign_up` `{provider}`| account created                                | auth |
 | `login` `{provider}`  | signed in                                      | auth |
-| `agent_hired` `{agent_name, agent_price}` | **a job/task is started**  | `hooks/use-job-submission.ts` |
 | `message_start` `{room_id}` | **a coworker DM is started** (first send per room) | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts` |
 | `begin_checkout`      | checkout opened                                | billing |
 | `purchase` `{transaction_id, value, currency, items}` | **a subscription / credit purchase succeeds** | `components/billing/purchase-tracker.tsx` |
@@ -89,15 +88,18 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 | `consent_status` `{consent_analytics, consent_marketing}` | cookie choice made | banner |
 | `set_user_id` `{user_id}` | login state resolves (and on logout, null) | `components/analytics/analytics-user-id.tsx` |
 
-The three the business cares about most map cleanly:
+Marketplace app Hire (`agent_hired` / `use-job-submission`) was removed with
+SOK-805. Job starts via Hermes/Coworker/Core API are not tracked as a web GTM
+conversion event yet.
 
-- **Starting jobs** → `agent_hired`
+The two the business cares about most map cleanly:
+
 - **Starting direct messages** → `message_start`
 - **Subscribing** → `purchase` (with `begin_checkout` as the step before)
 
-Mark `sign_up`, `agent_hired`, and `purchase` as **key events** (conversions)
-in GA4; add `message_start` / `onboarding_complete` if you want them as
-conversions too.
+Mark `sign_up` and `purchase` as **key events** (conversions) in GA4; add
+`message_start` / `onboarding_complete` if you want them as conversions too.
+Drop any GTM conversion that still keys on `agent_hired`.
 
 ## User-ID
 
