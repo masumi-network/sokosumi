@@ -420,7 +420,7 @@ function CoworkerGallerySection({
 }: CoworkerGallerySectionProps) {
   const t = useTranslations("App.Agents.CoworkerGallerySection");
   const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
-  // Shared URL query so the same search also filters the agent catalog below.
+  // Gallery search query (URL-backed) filters coworker offers below.
   const { query, setQuery } = useGalleryFilter();
   const { handleOpenWith } = useCreateTaskModal();
   const [selected, setSelected] = useState<OfferItem | null>(null);

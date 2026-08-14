@@ -21,10 +21,6 @@ vi.mock("@/components/agents/agent-rating-cta", () => ({
   AgentRatingCTA: () => <div data-testid="rating-cta" />,
 }));
 
-vi.mock("@/components/create-job-modal", () => ({
-  CreateJobModalTrigger: () => <div data-testid="create-job-trigger" />,
-}));
-
 vi.mock("@/lib/utils/credits", () => ({
   formatCreditsForDisplay: (value: number) => `${value} credits`,
 }));
@@ -44,5 +40,21 @@ describe("Header", () => {
     );
 
     expect(screen.getAllByTestId("detail-actions")).toHaveLength(2);
+  });
+
+  it("does not render create-job / hire controls (SOK-805)", () => {
+    const agent = createMockCoreAgent({ id: "agent-1", credits: 1 });
+
+    render(
+      <Header
+        agent={agent}
+        ratingStats={{ total: 0, average: null } satisfies AgentRatingStats}
+        canRate={false}
+        existingRating={null}
+      />,
+    );
+
+    expect(screen.queryByTestId("create-job-trigger")).not.toBeInTheDocument();
+    expect(screen.queryByText(/newJob/i)).not.toBeInTheDocument();
   });
 });
