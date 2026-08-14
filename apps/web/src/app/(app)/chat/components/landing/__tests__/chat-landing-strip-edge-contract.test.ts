@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /**
- * Coworker strip on `/chat` landing must span the full content column
+ * Coworker strip on Welcome (`/`) landing must span the full content column
  * (edge-to-edge). Horizontal page padding on an overflow-y ancestor clips
  * edge avatars — CSS promotes overflow-x to auto when overflow-y is not
  * visible — so pitch/stats/selected get `px-*`, not the strip column.
@@ -83,7 +83,7 @@ describe("chat landing coworker strip edge-to-edge contract", () => {
 
     expect(source).toContain("data-app-main");
     // Load-bearing: mobile landing -m-4 cancels this. If pad moves, update
-    // chat/page.tsx mobile shell in the same change. className with p-4 is
+    // (welcome)/page.tsx mobile shell in the same change. className with p-4 is
     // declared before the data-app-main attribute on <main>.
     expect(source).toMatch(
       /<main[\s\S]*?\bp-4\b[\s\S]*?data-app-main[\s\S]*?>/,
@@ -91,9 +91,9 @@ describe("chat landing coworker strip edge-to-edge contract", () => {
     expect(source).toMatch(/overflow-x-hidden/);
   });
 
-  it("mobile /chat landing shell cancels app-main p-4 so the strip can hit the viewport edge", () => {
+  it("mobile Welcome landing shell cancels app-main p-4 so the strip can hit the viewport edge", () => {
     const source = readFileSync(
-      join(import.meta.dirname, "../../../page.tsx"),
+      join(import.meta.dirname, "../../../../(welcome)/page.tsx"),
       "utf8",
     );
 
