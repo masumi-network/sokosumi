@@ -9,6 +9,7 @@ export function MonthInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.MONTH, InputMonthSchemaType>) {
   const { data } = jobInputSchema;
 
@@ -18,6 +19,7 @@ export function MonthInput({
       type="month"
       placeholder={data?.placeholder ?? undefined}
       {...field}
+      {...controlProps}
       value={typeof field.value === "string" ? field.value : ""}
     />
   );

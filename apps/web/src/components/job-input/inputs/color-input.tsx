@@ -8,6 +8,7 @@ import type { JobInputComponentProps } from "./types";
 export function ColorInput({
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.COLOR, InputColorSchemaType>) {
   const { data } = jobInputSchema;
   const defaultColor = data?.default ?? "#000000";

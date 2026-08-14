@@ -9,6 +9,7 @@ export function SearchInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.SEARCH, InputSearchSchemaType>) {
   const { data } = jobInputSchema;
   return (
@@ -17,6 +18,7 @@ export function SearchInput({
       placeholder={data?.placeholder ?? undefined}
       type="search"
       {...field}
+      {...controlProps}
       value={typeof field.value === "string" ? field.value : ""}
     />
   );

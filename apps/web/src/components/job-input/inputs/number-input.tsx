@@ -9,8 +9,16 @@ export function NumberInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.NUMBER, InputNumberSchemaType>) {
   const { data } = jobInputSchema;
+
+  const value =
+    field.value === null || field.value === undefined
+      ? ""
+      : typeof field.value === "string"
+        ? field.value
+        : String(field.value);
 
   return (
     <Input
@@ -18,7 +26,8 @@ export function NumberInput({
       placeholder={data?.placeholder ?? undefined}
       type="number"
       {...field}
-      value={Number(field.value).toString()}
+      {...controlProps}
+      value={value}
     />
   );
 }

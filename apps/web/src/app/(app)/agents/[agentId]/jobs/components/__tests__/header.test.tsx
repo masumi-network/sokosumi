@@ -54,6 +54,8 @@ describe("Header", () => {
       />,
     );
 
+    // Header still renders navigational chrome without hire/create-job.
+    expect(screen.getByText("back")).toBeInTheDocument();
     expect(screen.queryByTestId("create-job-trigger")).not.toBeInTheDocument();
     expect(screen.queryByText(/newJob/i)).not.toBeInTheDocument();
   });

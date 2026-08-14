@@ -5363,6 +5363,10 @@
           "min": "{name} muss mindestens {value} betragen",
           "max": "{name} darf maximal {value} betragen",
           "format": "{name} muss ein/eine {value} sein"
+        },
+        "Password": {
+          "show": "Passwort anzeigen",
+          "hide": "Passwort verbergen"
         }
       },
       "Error": {

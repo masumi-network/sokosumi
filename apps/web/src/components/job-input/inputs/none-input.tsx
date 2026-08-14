@@ -7,6 +7,7 @@ import type { JobInputComponentProps } from "./types";
 
 export function NoneInput({
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.NONE, InputNoneSchemaType>) {
   const description = jobInputSchema.data?.description;
 

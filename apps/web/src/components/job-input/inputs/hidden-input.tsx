@@ -7,6 +7,7 @@ export function HiddenInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.HIDDEN, InputHiddenSchemaType>) {
   const value =
     typeof field.value === "string"

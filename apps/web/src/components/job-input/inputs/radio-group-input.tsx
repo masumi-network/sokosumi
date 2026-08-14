@@ -8,6 +8,7 @@ import type { JobInputComponentProps } from "./types";
 export function RadioGroupInput({
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.RADIO_GROUP, InputRadioGroupSchemaType>) {
   const {
     data: { values },
@@ -20,6 +21,9 @@ export function RadioGroupInput({
     <RadioGroup
       value={selectedIndex >= 0 ? String(selectedIndex) : ""}
       onValueChange={(val) => field.onChange([Number(val)])}
+      disabled={field.disabled}
+      aria-describedby={controlProps?.["aria-describedby"]}
+      aria-invalid={controlProps?.["aria-invalid"]}
     >
       {values.map((label: string, idx: number) => (
         <label

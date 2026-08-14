@@ -69,6 +69,8 @@ interface InputFieldProps {
   jobInputSchema: InputFieldSchemaType;
   field: ControllerRenderProps<JobInputsFormSchemaType>;
   form: UseFormReturn<JobInputsFormSchemaType>;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean;
 }
 
 export function InputField({
@@ -76,6 +78,8 @@ export function InputField({
   field,
   jobInputSchema,
   form,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
 }: InputFieldProps) {
   const { type } = jobInputSchema;
 
@@ -91,6 +95,11 @@ export function InputField({
       field={field}
       jobInputSchema={jobInputSchema}
       form={form}
+      controlProps={{
+        id,
+        "aria-describedby": ariaDescribedBy,
+        "aria-invalid": ariaInvalid,
+      }}
     />
   );
 }

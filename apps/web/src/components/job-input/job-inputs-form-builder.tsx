@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { InputFieldSchemaType } from "@sokosumi/masumi/schemas";
 import type React from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { type SubmitHandler, useForm } from "react-hook-form";
 
 import { Form } from "@/components/ui/form";
@@ -36,6 +36,8 @@ export interface JobInputsFormBuilderProps {
   children?: React.ReactNode;
   inputsDisabled?: boolean;
   preventEnterSubmit?: boolean;
+  /** Live draft merge for multi-group flows (tab navigation without Next). */
+  onValuesChange?: (values: JobInputsFormSchemaType) => void;
 }
 
 export function JobInputsFormBuilder({
@@ -50,12 +52,21 @@ export function JobInputsFormBuilder({
   children,
   inputsDisabled = false,
   preventEnterSubmit = false,
+  onValuesChange,
 }: JobInputsFormBuilderProps) {
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(inputFields, t)),
     defaultValues: defaultValues ?? getDefaultValues(inputFields),
     mode: "onChange",
   });
+
+  useEffect(() => {
+    if (!onValuesChange) return;
+    const subscription = form.watch((values) => {
+      onValuesChange(values as JobInputsFormSchemaType);
+    });
+    return () => subscription.unsubscribe();
+  }, [form, onValuesChange]);
 
   const normalFormRef = useRef<HTMLFormElement | null>(null);
   const {

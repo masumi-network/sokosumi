@@ -9,6 +9,7 @@ export function WeekInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.WEEK, InputWeekSchemaType>) {
   const { data } = jobInputSchema;
 
@@ -18,6 +19,7 @@ export function WeekInput({
       type="week"
       placeholder={data?.placeholder ?? undefined}
       {...field}
+      {...controlProps}
       value={typeof field.value === "string" ? field.value : ""}
     />
   );

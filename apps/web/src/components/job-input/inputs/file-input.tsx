@@ -24,6 +24,7 @@ export function FileInput({
   field,
   jobInputSchema,
   form,
+  controlProps,
 }: JobInputComponentProps<InputType.FILE, InputFileSchemaType>) {
   const t = useTranslations("Library.JobInput.Form");
 
@@ -41,10 +42,12 @@ export function FileInput({
       id={id}
       value={currentFiles}
       onValueChange={field.onChange}
-      disabled={isSubmitting}
+      disabled={isSubmitting || field.disabled}
       accept={transformedValidations.accept?.toString()}
       maxFiles={maxFiles}
       multiple={maxFiles > 1}
+      aria-describedby={controlProps?.["aria-describedby"]}
+      aria-invalid={controlProps?.["aria-invalid"]}
       onFileReject={(_, message) => {
         form.setError(id, {
           message,

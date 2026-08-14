@@ -9,6 +9,7 @@ export function UrlInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.URL, InputUrlSchemaType>) {
   const { data } = jobInputSchema;
 
@@ -18,6 +19,7 @@ export function UrlInput({
       placeholder={data?.placeholder ?? undefined}
       type="url"
       {...field}
+      {...controlProps}
       value={typeof field.value === "string" ? field.value : ""}
     />
   );

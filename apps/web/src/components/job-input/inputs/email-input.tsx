@@ -9,6 +9,7 @@ export function EmailInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.EMAIL, InputEmailSchemaType>) {
   const { data } = jobInputSchema;
 
@@ -18,6 +19,7 @@ export function EmailInput({
       placeholder={data?.placeholder ?? undefined}
       type="email"
       {...field}
+      {...controlProps}
       value={typeof field.value === "string" ? field.value : ""}
     />
   );

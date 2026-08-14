@@ -16,8 +16,10 @@ import {
 import type { JobInputComponentProps } from "./types";
 
 export function OptionInput({
+  id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.OPTION, InputOptionSchemaType>) {
   const isSingle = isSingleOption(jobInputSchema);
   const {
@@ -37,7 +39,9 @@ export function OptionInput({
             ? String(selectedIndex)
             : ""
         }
+        disabled={field.disabled}
         onValueChange={(value) => {
+          if (field.disabled) return;
           const nextIndex = Number(value);
           if (
             Number.isInteger(nextIndex) &&
@@ -48,7 +52,15 @@ export function OptionInput({
           }
         }}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger
+          id={id}
+          className="w-full"
+          aria-describedby={controlProps?.["aria-describedby"]}
+          aria-invalid={
+            controlProps?.["aria-invalid"] === true ||
+            controlProps?.["aria-invalid"] === "true"
+          }
+        >
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -67,7 +79,11 @@ export function OptionInput({
 
   return (
     <MultipleSelect
+      id={id}
       name={name}
+      disabled={field.disabled}
+      aria-describedby={controlProps?.["aria-describedby"]}
+      aria-invalid={controlProps?.["aria-invalid"]}
       value={
         Array.isArray(field.value)
           ? field.value
@@ -75,11 +91,12 @@ export function OptionInput({
               .map((index) => values[index])
           : []
       }
-      onChange={(optionValues) =>
+      onChange={(optionValues) => {
+        if (field.disabled) return;
         field.onChange(
           optionValues.map((optionValue) => values.indexOf(optionValue)).sort(),
-        )
-      }
+        );
+      }}
       options={values}
       className="w-full"
     />

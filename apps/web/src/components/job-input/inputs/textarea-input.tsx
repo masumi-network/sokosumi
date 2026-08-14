@@ -9,6 +9,7 @@ export function TextareaInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.TEXTAREA, InputTextareaSchemaType>) {
   const { data } = jobInputSchema;
   const defaultValue = data?.default ?? "";
@@ -18,6 +19,7 @@ export function TextareaInput({
       id={id}
       placeholder={data?.placeholder ?? undefined}
       {...field}
+      {...controlProps}
       value={typeof field.value === "string" ? field.value : defaultValue}
     />
   );

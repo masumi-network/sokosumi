@@ -12,6 +12,7 @@ export function RangeInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.RANGE, InputRangeSchemaType>) {
   const { defaultValue, min, max, step } = useMemo(() => {
     const { data } = jobInputSchema;
@@ -41,6 +42,9 @@ export function RangeInput({
         value={sliderValue}
         className="pt-2 pb-4"
         onValueChange={(vals) => field.onChange(vals[0])}
+        disabled={field.disabled}
+        aria-describedby={controlProps?.["aria-describedby"]}
+        aria-invalid={controlProps?.["aria-invalid"]}
       />
       <Input
         id={`${id}-range-number`}
@@ -49,6 +53,7 @@ export function RangeInput({
         min={min}
         max={max}
         step={step}
+        disabled={field.disabled}
         onChange={(e) => {
           const next = Number(e.target.value);
           if (Number.isNaN(next)) return;

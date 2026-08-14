@@ -9,6 +9,7 @@ export function TextInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.TEXT, InputTextSchemaType>) {
   const { data } = jobInputSchema;
   const defaultValue = data?.default ?? "";
@@ -19,6 +20,7 @@ export function TextInput({
       placeholder={data?.placeholder ?? undefined}
       type="text"
       {...field}
+      {...controlProps}
       value={typeof field.value === "string" ? field.value : defaultValue}
     />
   );

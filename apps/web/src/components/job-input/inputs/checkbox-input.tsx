@@ -9,6 +9,7 @@ export function CheckboxInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.CHECKBOX, InputCheckboxSchemaType>) {
   const { data } = jobInputSchema;
 
@@ -19,6 +20,8 @@ export function CheckboxInput({
         checked={typeof field.value === "boolean" ? field.value : false}
         onCheckedChange={field.onChange}
         disabled={field.disabled}
+        aria-describedby={controlProps?.["aria-describedby"]}
+        aria-invalid={controlProps?.["aria-invalid"]}
       />
       <span>{data?.label}</span>
     </label>

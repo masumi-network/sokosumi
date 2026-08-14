@@ -26,6 +26,7 @@ export function DatetimeInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.DATETIME, InputDatetimeSchemaType>) {
   const valueString =
     typeof field.value === "string" &&
@@ -72,7 +73,17 @@ export function DatetimeInput({
     <div className="flex flex-col gap-2">
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" className="w-full justify-start">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start"
+            disabled={field.disabled}
+            aria-describedby={controlProps?.["aria-describedby"]}
+            aria-invalid={
+              controlProps?.["aria-invalid"] === true ||
+              controlProps?.["aria-invalid"] === "true"
+            }
+          >
             {valueDate
               ? valueDate.toLocaleDateString()
               : ((jobInputSchema as InputDatetimeSchemaType).data
@@ -101,6 +112,8 @@ export function DatetimeInput({
         type="time"
         value={timeString}
         onChange={(e) => handleTimeChange(e.target.value)}
+        aria-describedby={controlProps?.["aria-describedby"]}
+        aria-invalid={controlProps?.["aria-invalid"]}
       />
     </div>
   );

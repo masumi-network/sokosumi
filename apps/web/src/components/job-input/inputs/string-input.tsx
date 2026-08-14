@@ -9,6 +9,7 @@ export function StringInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.STRING, InputStringSchemaType>) {
   const { data } = jobInputSchema;
 
@@ -18,6 +19,7 @@ export function StringInput({
       placeholder={data?.placeholder ?? undefined}
       type="text"
       {...field}
+      {...controlProps}
       value={typeof field.value === "string" ? field.value : ""}
     />
   );

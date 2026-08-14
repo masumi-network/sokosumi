@@ -22,6 +22,7 @@ import type { JobInputComponentProps } from "./types";
 export function DateInput({
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.DATE, InputDateSchemaType>) {
   const selectedDate =
     typeof field.value === "string" ? parseDateValue(field.value) : undefined;
@@ -41,7 +42,17 @@ export function DateInput({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="w-full justify-start">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-start"
+          disabled={field.disabled}
+          aria-describedby={controlProps?.["aria-describedby"]}
+          aria-invalid={
+            controlProps?.["aria-invalid"] === true ||
+            controlProps?.["aria-invalid"] === "true"
+          }
+        >
           {selectedDate
             ? selectedDate.toLocaleDateString()
             : ((jobInputSchema as InputDateSchemaType).data?.placeholder ??

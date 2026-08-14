@@ -21,6 +21,10 @@ interface MultipleSelectProps {
   options: string[];
   name: string;
   className?: string | undefined;
+  disabled?: boolean;
+  "aria-describedby"?: string;
+  "aria-invalid"?: boolean | "true" | "false" | "grammar" | "spelling";
+  id?: string;
 }
 
 export default function MultipleSelect({
@@ -29,10 +33,15 @@ export default function MultipleSelect({
   options,
   name,
   className,
+  disabled = false,
+  "aria-describedby": ariaDescribedBy,
+  "aria-invalid": ariaInvalid,
+  id,
 }: MultipleSelectProps) {
   const [open, setOpen] = useState(false);
 
   const handleCheckOption = (option: string, checked: boolean) => {
+    if (disabled) return;
     if (checked) {
       onChange([...value, option]);
     } else {
@@ -41,10 +50,20 @@ export default function MultipleSelect({
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu
+      open={disabled ? false : open}
+      onOpenChange={(next) => {
+        if (!disabled) setOpen(next);
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <Button
+          id={id}
+          type="button"
           variant="outline"
+          disabled={disabled}
+          aria-describedby={ariaDescribedBy}
+          aria-invalid={ariaInvalid}
           className={cn("items-center gap-2 border", className)}
         >
           <div className="flex flex-1 items-center gap-2 overflow-hidden">
@@ -64,6 +83,7 @@ export default function MultipleSelect({
           <DropdownMenuCheckboxItem
             key={option}
             checked={value.includes(option)}
+            disabled={disabled}
             onCheckedChange={(checked) => handleCheckOption(option, checked)}
           >
             {option}

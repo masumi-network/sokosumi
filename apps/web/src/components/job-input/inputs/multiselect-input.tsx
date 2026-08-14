@@ -6,8 +6,10 @@ import MultipleSelect from "@/components/multiple-select";
 import type { JobInputComponentProps } from "./types";
 
 export function MultiselectInput({
+  id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.MULTISELECT, InputMultiselectSchemaType>) {
   const {
     name,
@@ -16,17 +18,22 @@ export function MultiselectInput({
 
   return (
     <MultipleSelect
+      id={id}
       name={name}
+      disabled={field.disabled}
+      aria-describedby={controlProps?.["aria-describedby"]}
+      aria-invalid={controlProps?.["aria-invalid"]}
       value={
         Array.isArray(field.value)
           ? (field.value as number[]).map((index) => values[index])
           : []
       }
-      onChange={(optionValues) =>
+      onChange={(optionValues) => {
+        if (field.disabled) return;
         field.onChange(
           optionValues.map((optionValue) => values.indexOf(optionValue)).sort(),
-        )
-      }
+        );
+      }}
       options={values}
       className="w-full"
     />

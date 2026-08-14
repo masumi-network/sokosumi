@@ -9,6 +9,7 @@ export function TelInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.TEL, InputTelSchemaType>) {
   const { data } = jobInputSchema;
 
@@ -18,6 +19,7 @@ export function TelInput({
       placeholder={data?.placeholder ?? undefined}
       type="tel"
       {...field}
+      {...controlProps}
       value={typeof field.value === "string" ? field.value : ""}
     />
   );

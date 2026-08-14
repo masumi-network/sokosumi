@@ -108,6 +108,13 @@ export function JobInputsGroupedForm({
     [groups, goToGroup],
   );
 
+  const handleGroupValuesChange = useCallback(
+    (groupValues: JobInputsFormSchemaType) => {
+      setCollectedGroupValues((prev) => ({ ...prev, ...groupValues }));
+    },
+    [],
+  );
+
   return (
     <GroupedInputTabs
       groups={groups}
@@ -121,6 +128,7 @@ export function JobInputsGroupedForm({
           inputFields={group.input_data}
           defaultValues={getGroupDefaultValues(index)}
           onSubmit={isLast ? handleGroupSubmit : handleGroupNext}
+          onValuesChange={handleGroupValuesChange}
           renderFooter={(props) =>
             customRenderGroupFooter(props, isLast, index)
           }

@@ -9,6 +9,7 @@ export function TimeInput({
   id,
   field,
   jobInputSchema,
+  controlProps,
 }: JobInputComponentProps<InputType.TIME, InputTimeSchemaType>) {
   const { data } = jobInputSchema;
 
@@ -18,6 +19,7 @@ export function TimeInput({
       type="time"
       placeholder={data?.placeholder ?? undefined}
       {...field}
+      {...controlProps}
       value={typeof field.value === "string" ? field.value : ""}
     />
   );
