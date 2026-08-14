@@ -2,7 +2,7 @@ import type { InputRangeSchemaType } from "@sokosumi/masumi/schemas";
 import type { InputType } from "@sokosumi/masumi/types";
 import { useMemo } from "react";
 
-import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
+import { transformJobInputSchemaValidations } from "@/components/job-input/util";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 

@@ -3,7 +3,7 @@ import { InputType } from "@sokosumi/masumi/types";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { JobInputsFormBuilder } from "@/components/create-job-modal/job-input/job-inputs-form-builder";
+import { JobInputsFormBuilder } from "@/components/job-input/job-inputs-form-builder";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,

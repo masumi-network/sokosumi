@@ -47,18 +47,6 @@ export const fireGTMEvent = {
     });
   },
 
-  /**
-   * @param agentName - The name of the agent.
-   * @param credits - The number of credits to run a job on agent.
-   */
-  agentHired(agentName: string, credits: number) {
-    fireEvent({
-      event: "agent_hired",
-      agent_name: agentName,
-      agent_price: credits.toString(),
-    });
-  },
-
   viewCredits() {
     fireEvent({
       event: "view_credits",

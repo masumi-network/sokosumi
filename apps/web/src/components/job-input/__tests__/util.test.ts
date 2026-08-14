@@ -2,7 +2,7 @@ import { InputOptionSchemaType } from "@sokosumi/masumi/schemas";
 import { InputType, InputValidation } from "@sokosumi/masumi/types";
 import { describe, expect, it } from "vitest";
 
-import { isSingleOption } from "@/components/create-job-modal/job-input/util";
+import { isSingleOption } from "@/components/job-input/util";
 
 describe("isSingleOption", () => {
   function makeOptionField(

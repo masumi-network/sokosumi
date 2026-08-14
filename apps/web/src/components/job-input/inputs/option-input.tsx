@@ -1,7 +1,7 @@
 import type { InputOptionSchemaType } from "@sokosumi/masumi/schemas";
 import type { InputType } from "@sokosumi/masumi/types";
 
-import { isSingleOption } from "@/components/create-job-modal/job-input/util";
+import { isSingleOption } from "@/components/job-input/util";
 import MultipleSelect from "@/components/multiple-select";
 import {
   Select,

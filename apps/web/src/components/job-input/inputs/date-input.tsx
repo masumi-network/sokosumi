@@ -2,7 +2,7 @@ import type { InputDateSchemaType } from "@sokosumi/masumi/schemas";
 import type { InputType } from "@sokosumi/masumi/types";
 import { useMemo } from "react";
 
-import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
+import { transformJobInputSchemaValidations } from "@/components/job-input/util";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {

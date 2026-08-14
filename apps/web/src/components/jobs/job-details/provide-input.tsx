@@ -15,9 +15,9 @@ import {
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
 
-import { JobInputsFlatForm } from "@/components/create-job-modal/job-input/job-inputs-flat-form";
-import type { FormFooterProps } from "@/components/create-job-modal/job-input/job-inputs-form-builder";
-import { JobInputsGroupedForm } from "@/components/create-job-modal/job-input/job-inputs-grouped-form";
+import { JobInputsFlatForm } from "@/components/job-input/job-inputs-flat-form";
+import type { FormFooterProps } from "@/components/job-input/job-inputs-form-builder";
+import { JobInputsGroupedForm } from "@/components/job-input/job-inputs-grouped-form";
 import { Button } from "@/components/ui/button";
 import { useInputs } from "@/hooks/use-inputs";
 import { useOSDetection } from "@/hooks/use-os-detection";

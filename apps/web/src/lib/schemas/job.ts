@@ -7,18 +7,6 @@ import {
 } from "@sokosumi/masumi/schemas";
 import * as z from "zod";
 
-export const startJobInputSchema = z.object({
-  userId: z.string(),
-  organizationId: z.string().nullish(),
-  agentId: z.string(),
-  maxAcceptedCents: z.bigint(),
-  inputSchema: inputSchemaResponseSchema,
-  inputData: inputSchema,
-  projectId: z.string().nullish(),
-});
-
-export type StartJobInputSchemaType = z.infer<typeof startJobInputSchema>;
-
 /** Must match Core `createJobRequestSchema` / `patchJobRequestSchema`. */
 export const jobDetailsNameFormSchema = (
   t?: IntlTranslation<"Components.Jobs.JobDetails.Header.JobName.Schema">,
@@ -33,56 +21,6 @@ export const jobDetailsNameFormSchema = (
 export type JobDetailsNameFormSchemaType = z.infer<
   ReturnType<typeof jobDetailsNameFormSchema>
 >;
-
-// Preprocess helper for backwards compatibility: normalize job_id to id
-// Id is required in the Masumi Docs, but some agents return job_id instead.
-function preprocessJobId(val: unknown): unknown {
-  if (typeof val === "object" && val !== null) {
-    const obj = val as Record<string, unknown>;
-    return {
-      ...obj,
-      id: obj.id ?? obj.job_id,
-    };
-  }
-  return val;
-}
-
-// Base schema for FREE jobs with preprocessing
-export const startFreeJobResponseSchema = z.preprocess(
-  preprocessJobId,
-  z.object({
-    id: z.string().min(1),
-  }),
-);
-
-export type StartFreeJobResponseSchemaType = z.infer<
-  typeof startFreeJobResponseSchema
->;
-
-// Schema for PAID jobs with preprocessing (cannot extend preprocessed schema)
-export const startPaidJobResponseSchema = z.preprocess(
-  preprocessJobId,
-  z.object({
-    id: z.string().min(1),
-    input_hash: z.string().min(1),
-    identifierFromPurchaser: z.string().min(1),
-    blockchainIdentifier: z.string().min(1),
-    payByTime: z.coerce.number().int(),
-    submitResultTime: z.coerce.number().int(),
-    unlockTime: z.coerce.number().int(),
-    externalDisputeUnlockTime: z.coerce.number().int(),
-    agentIdentifier: z.string().min(1),
-    sellerVKey: z.string().min(1),
-  }),
-);
-
-export type StartPaidJobResponseSchemaType = z.infer<
-  typeof startPaidJobResponseSchema
->;
-
-// Keep original for backwards compatibility (uses paid schema)
-export const startJobResponseSchema = startPaidJobResponseSchema;
-export type StartJobResponseSchemaType = StartPaidJobResponseSchemaType;
 
 // Helper function to create a conditional required field validation
 function requireFieldWhenStatus<T extends Record<string, unknown>>(

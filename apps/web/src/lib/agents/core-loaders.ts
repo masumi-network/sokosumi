@@ -7,16 +7,14 @@ import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   Agent as CoreAgent,
   AgentDetail as CoreAgentDetail,
-  Category as CoreCategory,
 } from "@/lib/clients/generated/core";
 
 const AGENTS_PAGE_SIZE = 100;
 
-// Global agent + category catalogs carry no per-user fields. Fill via the
-// cookie-free catalog client inside `'use cache'` so Cache Components can share
-// payloads across requests. Invalidate with `updateTag(...)` from Server Actions.
+// Global agent catalog carries no per-user fields. Fill via the cookie-free
+// catalog client inside `'use cache'` so Cache Components can share payloads
+// across requests. Invalidate with `updateTag(...)` from Server Actions.
 export const AGENTS_CACHE_TAG = "core-agents-catalog";
-export const CATEGORIES_CACHE_TAG = "core-categories-catalog";
 
 export const getCoreAgentById = cache(
   async (agentId: string): Promise<CoreAgentDetail | null> => {
@@ -54,13 +52,4 @@ export async function getAllCoreAgents(): Promise<CoreAgent[]> {
   } while (cursor);
 
   return agents;
-}
-
-export async function getCoreCategories(): Promise<CoreCategory[]> {
-  "use cache";
-  cacheTag(CATEGORIES_CACHE_TAG);
-  cacheLife("minutes");
-
-  const response = await coreCatalogClient.getCategories();
-  return response.data;
 }

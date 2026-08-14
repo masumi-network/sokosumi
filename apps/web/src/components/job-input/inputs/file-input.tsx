@@ -4,7 +4,7 @@ import { CloudUpload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 
-import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
+import { transformJobInputSchemaValidations } from "@/components/job-input/util";
 import { Button } from "@/components/ui/button";
 import {
   FileUpload,
