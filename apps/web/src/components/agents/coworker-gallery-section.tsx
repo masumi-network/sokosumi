@@ -11,6 +11,9 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 
+import { StartChatButton } from "@/app/chat/components/landing/start-chat-button.client";
+import { OpenCoworkerRoomProvider } from "@/app/chat/components/landing/use-open-coworker-room";
+import { coworkerCanChat } from "@/app/chat/utils/coworker-utils";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
 import {
@@ -330,15 +333,26 @@ function VendorDashboard({
                 ) : null}
               </div>
             </div>
-            <Button
-              type="button"
-              size="lg"
-              className="w-full shrink-0 sm:w-auto"
-              onClick={() => onStartTask(active.id)}
-            >
-              {labels.startForCoworker(active.name)}
-              <ArrowRight aria-hidden className="size-4" />
-            </Button>
+            <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+              {coworkerCanChat(active) ? (
+                <StartChatButton
+                  coworkerId={active.id}
+                  coworkerName={active.name}
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                />
+              ) : null}
+              <Button
+                type="button"
+                variant="primary"
+                size="lg"
+                className="w-full sm:w-auto"
+                onClick={() => onStartTask(active.id)}
+              >
+                {labels.startForCoworker(active.name)}
+                <ArrowRight aria-hidden className="size-4" />
+              </Button>
+            </div>
           </div>
 
           {active.description ? (
@@ -409,6 +423,16 @@ function VendorDashboard({
 }
 
 function CoworkerGallerySection({ coworkers }: CoworkerGallerySectionProps) {
+  return (
+    <OpenCoworkerRoomProvider>
+      <CoworkerGallerySectionInner coworkers={coworkers} />
+    </OpenCoworkerRoomProvider>
+  );
+}
+
+function CoworkerGallerySectionInner({
+  coworkers,
+}: CoworkerGallerySectionProps) {
   const t = useTranslations("App.Agents.CoworkerGallerySection");
   const getTypeLabel = (type: OutputKind) => t(`outputTypes.${type}`);
   // Gallery search query (URL-backed) filters coworker offers below.
