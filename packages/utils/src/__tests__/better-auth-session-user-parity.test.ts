@@ -30,7 +30,6 @@ function buildSessionUserWithSchemaFields(
     logo: null,
     metadata: null,
     stripeCustomerId: null,
-    onboardingCompleted: false,
     ...overrides,
   };
 }
@@ -47,6 +46,15 @@ describe("SessionUser vs betterAuthUserAdditionalFields", () => {
     for (const key of schemaKeys) {
       expect(user).toHaveProperty(key);
     }
+  });
+
+  it("does not expose onboardingCompleted as an additional field", () => {
+    expect(Object.keys(betterAuthUserAdditionalFields)).not.toContain(
+      "onboardingCompleted",
+    );
+    expect(buildSessionUserWithSchemaFields()).not.toHaveProperty(
+      "onboardingCompleted",
+    );
   });
 
   it("allows admin role on SessionUser without a schema entry", () => {

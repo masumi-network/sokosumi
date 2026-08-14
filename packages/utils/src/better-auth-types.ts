@@ -26,7 +26,6 @@ export interface SessionUser {
   logo?: string | null;
   metadata?: string | null;
   stripeCustomerId?: string | null;
-  onboardingCompleted: boolean;
   role?: string | null;
 }
 
