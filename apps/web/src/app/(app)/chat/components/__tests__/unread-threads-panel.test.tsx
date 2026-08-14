@@ -65,6 +65,7 @@ function unreadThreadItem(
     lastReplyAt: new Date("2026-08-01T01:00:00.000Z"),
     unreadReplyCount: 2,
     lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
+    hasLooked: true,
     ...overrides,
   };
 }
