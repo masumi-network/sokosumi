@@ -13,46 +13,69 @@ import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { userService } from "@/lib/services";
 import { isWorkspaceReady } from "@/lib/workspace-gate";
 
+import { WorkspaceGateRetry } from "./components/workspace-gate-retry.client";
 import { WorkspaceGateSignOut } from "./components/workspace-gate-sign-out.client";
+
+type GateSurface = "pending-invites" | "identity-onboarding" | "unavailable";
 
 export default async function WorkspaceGatePage() {
   await getSessionOrRedirect();
 
   let gate: string | null = null;
+  let inventoryLoadFailed = false;
+
   try {
     const inventory = await userService.getWorkspaceInventory();
-    gate = inventory?.gate ?? null;
+    if (!inventory) {
+      // Session exists but inventory missing — treat as temporary failure,
+      // not identity onboarding (user must understand why they cannot enter).
+      inventoryLoadFailed = true;
+    } else {
+      gate = inventory.gate;
+    }
   } catch (error) {
     console.error("Failed to load workspace inventory for gate page", error);
+    inventoryLoadFailed = true;
   }
 
   // Ready users never land on the gate.
-  if (isWorkspaceReady(gate)) {
+  if (!inventoryLoadFailed && isWorkspaceReady(gate)) {
     redirect("/");
   }
 
+  const surface: GateSurface = inventoryLoadFailed
+    ? "unavailable"
+    : gate === "pending-invites"
+      ? "pending-invites"
+      : "identity-onboarding";
+
   const t = await getTranslations("WorkspaceGate");
+
   const titleKey =
-    gate === "pending-invites" ? "pendingInvitesTitle" : "identityTitle";
+    surface === "unavailable"
+      ? "unavailableTitle"
+      : surface === "pending-invites"
+        ? "pendingInvitesTitle"
+        : "identityTitle";
   const descriptionKey =
-    gate === "pending-invites"
-      ? "pendingInvitesDescription"
-      : "identityDescription";
+    surface === "unavailable"
+      ? "unavailableDescription"
+      : surface === "pending-invites"
+        ? "pendingInvitesDescription"
+        : "identityDescription";
+  const bodyKey = surface === "unavailable" ? "unavailableBody" : "body";
 
   return (
-    <Card
-      className="w-full"
-      data-workspace-gate-page
-      data-gate={gate ?? "unknown"}
-    >
+    <Card className="w-full" data-workspace-gate-page data-gate={surface}>
       <CardHeader>
         <CardTitle>{t(titleKey)}</CardTitle>
         <CardDescription>{t(descriptionKey)}</CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-muted-foreground text-sm">{t("body")}</p>
+        <p className="text-muted-foreground text-sm">{t(bodyKey)}</p>
       </CardContent>
-      <CardFooter className="justify-end">
+      <CardFooter className="flex flex-wrap justify-end gap-2">
+        {surface === "unavailable" ? <WorkspaceGateRetry /> : null}
         <WorkspaceGateSignOut />
       </CardFooter>
     </Card>

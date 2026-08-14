@@ -5486,6 +5486,10 @@
     "pendingInvitesTitle": "You have pending invitations",
     "pendingInvitesDescription": "Accept or decline organization invitations to continue.",
     "body": "You cannot use the product until you have a first workspace. Sign out is the only way to leave this screen for now.",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "unavailableTitle": "We could not check your workspace access",
+    "unavailableDescription": "Sokosumi could not load your workspace status right now. This is temporary — you are not locked out for missing a workspace.",
+    "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
+    "retry": "Try again"
   }
 }

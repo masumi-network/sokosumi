@@ -5486,6 +5486,10 @@
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
     "pendingInvitesDescription": "Nimm Organisations-Einladungen an oder lehne sie ab, um fortzufahren.",
     "body": "Du kannst das Produkt erst nutzen, wenn du einen ersten Workspace hast. Abmelden ist vorerst der einzige Weg, diesen Bildschirm zu verlassen.",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "unavailableTitle": "Workspace-Zugriff konnte nicht geprüft werden",
+    "unavailableDescription": "Sokosumi konnte deinen Workspace-Status gerade nicht laden. Das ist vorübergehend — du bist nicht wegen eines fehlenden Workspace ausgesperrt.",
+    "unavailableBody": "Versuche es gleich noch einmal. Wenn das Problem bleibt, melde dich ab und wieder an, oder kontaktiere den Support. Abmelden ist hier immer möglich.",
+    "retry": "Erneut versuchen"
   }
 }

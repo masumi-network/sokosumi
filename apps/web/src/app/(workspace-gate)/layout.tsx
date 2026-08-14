@@ -1,12 +1,11 @@
-import Link from "next/link";
-
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 
 /**
  * Workspace gate shell: authenticated, no app chrome (no sidebar/header).
- * Sign out is the only exit until the user becomes `ready`.
+ * Sign out is the only product exit until the user becomes `ready`.
+ * Logo is not a link — linking to `/` would bounce not-ready users back here.
  */
 export default function WorkspaceGateLayout({
   children,
@@ -17,9 +16,9 @@ export default function WorkspaceGateLayout({
     <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
       <div className="flex h-svh gap-6 p-6" data-workspace-gate-shell>
         <div className="flex h-full flex-1 flex-col gap-6">
-          <Link href={"/"}>
+          <div data-workspace-gate-brand>
             <ThemedLogo LogoComponent={SokosumiLogo} priority />
-          </Link>
+          </div>
           <div className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center">
             {children}
           </div>

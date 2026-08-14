@@ -5486,6 +5486,10 @@
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
     "pendingInvitesDescription": "Acepta o rechaza las invitaciones de organización para continuar.",
     "body": "No puedes usar el producto hasta tener un primer espacio de trabajo. Cerrar sesión es la única forma de salir de esta pantalla por ahora.",
-    "signOut": "Cerrar sesión"
+    "signOut": "Cerrar sesión",
+    "unavailableTitle": "No pudimos comprobar el acceso a tu espacio de trabajo",
+    "unavailableDescription": "Sokosumi no pudo cargar el estado de tu espacio de trabajo ahora. Es temporal: no estás bloqueado por no tener un espacio de trabajo.",
+    "unavailableBody": "Inténtalo de nuevo en un momento. Si sigue fallando, cierra sesión y vuelve a entrar, o contacta con soporte. Cerrar sesión siempre está disponible aquí.",
+    "retry": "Reintentar"
   }
 }

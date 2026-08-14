@@ -41,7 +41,8 @@ export default async function AuthenticatedAppFrame({
   const session = await getSessionOrRedirect();
 
   // Workspace gate is the only access decision for product chrome — not
-  // `onboardingCompleted`. Fail closed: missing inventory → gate.
+  // `onboardingCompleted`. Fail closed: not-ready or inventory failure → gate
+  // (gate page distinguishes identity vs temporary load failure for the user).
   let inventoryGate: string | null = null;
   try {
     const inventory = await userService.getWorkspaceInventory();
