@@ -13,6 +13,11 @@ interface StartChatButtonProps {
   className?: string;
   coworkerId: string;
   coworkerName: string;
+  /**
+   * Landing uses filled primary; gallery uses outline next to Start New Task.
+   * Primary keeps the larger landing face (`h-12`); outline matches adjacent CTAs.
+   */
+  variant?: "primary" | "outline";
 }
 
 /**
@@ -25,6 +30,7 @@ export function StartChatButton({
   className,
   coworkerId,
   coworkerName,
+  variant = "primary",
 }: StartChatButtonProps) {
   const t = useTranslations("App.Chat.Landing");
   const { isPending, openCoworkerRoom, openingId } = useOpenCoworkerRoom();
@@ -33,9 +39,9 @@ export function StartChatButton({
   return (
     <Button
       type="button"
-      variant="primary"
+      variant={variant}
       size="lg"
-      className={cn("h-12 px-8 text-base", className)}
+      className={cn(variant === "primary" && "h-12 px-8 text-base", className)}
       disabled={isBusy}
       onClick={() => openCoworkerRoom(coworkerId)}
     >
