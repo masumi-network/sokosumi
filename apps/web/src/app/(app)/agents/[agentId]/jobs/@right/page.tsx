@@ -5,8 +5,6 @@ import { getCachedMyJobs } from "@/app/agents/[agentId]/jobs/_lib/get-cached-my-
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 
-import JobDetailRedirect from "./components/job-detail-redirect";
-
 interface RightSectionPageParams {
   agentId: string;
 }
@@ -28,8 +26,16 @@ export default async function RightSectionPage({
     notFound();
   }
 
+  // List is the stable surface. Job detail lives at /jobs/{jobId}; do not
+  // auto-navigate away from /agents/{id}/jobs when jobs exist.
   if (agentJobsPage.jobs.length > 0) {
-    return <JobDetailRedirect jobId={agentJobsPage.jobs[0].id} />;
+    return (
+      <div className="grid w-full place-items-center px-4 py-10 lg:min-h-[calc(100svh-4rem)]">
+        <div className="bg-muted/30 w-full max-w-4xl rounded-xl border p-8 text-center">
+          <p className="text-muted-foreground text-sm">{t("selectJob")}</p>
+        </div>
+      </div>
+    );
   }
 
   return (

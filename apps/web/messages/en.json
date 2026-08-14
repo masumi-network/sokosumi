@@ -4528,7 +4528,8 @@
           "customerSupport": "Customer Support"
         },
         "RightSection": {
-          "noExecutedJobs": "No executed jobs"
+          "noExecutedJobs": "No executed jobs",
+          "selectJob": "Select a job from the list"
         },
         "CreateJob": {
           "title": "New {name}",

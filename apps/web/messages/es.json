@@ -4497,7 +4497,8 @@
           "customerSupport": "Soporte al cliente"
         },
         "RightSection": {
-          "noExecutedJobs": "No hay jobs ejecutados"
+          "noExecutedJobs": "No hay jobs ejecutados",
+          "selectJob": "Selecciona un job de la lista"
         },
         "CreateJob": {
           "title": "Nuevo {name}",
