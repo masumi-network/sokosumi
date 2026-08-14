@@ -39,6 +39,7 @@ import {
 } from "@/lib/actions/subscription";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { markSubscriptionOnboardingGateSeenSafely } from "@/lib/onboarding/mark-subscription-onboarding-gate-seen.client";
+import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 const INTRO_STEP_COUNT = 5;
 const DEFAULT_SELECTED_PLAN: PaidSubscriptionPlanName = "standard";
@@ -508,7 +509,8 @@ export function OnboardingDialog({
         // activation signal — counting it would inflate the funnel step that
         // is supposed to measure people who actually went through it.
         if (!skipped) fireGTMEvent.onboardingComplete();
-        const redirectUrl = result.value.redirectUrl ?? "/agents";
+        const redirectUrl =
+          result.value.redirectUrl ?? DEFAULT_AUTHENTICATED_LANDING_PATH;
         setOpen(false);
         router.push(redirectUrl);
       } else {
@@ -598,12 +600,12 @@ export function OnboardingDialog({
         ? await upgradeOrganizationSubscription({
             organizationId,
             plan: selectedPlan,
-            returnPath: "/tasks?onboarding_subscription=1",
+            returnPath: "/?onboarding_subscription=1",
             seats: targetSeats,
           })
         : await upgradePersonalSubscription({
             plan: selectedPlan,
-            returnPath: "/tasks?onboarding_subscription=1",
+            returnPath: "/?onboarding_subscription=1",
           });
 
       if (!result.ok) {
