@@ -113,6 +113,10 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
        ON CONFLICT ("userId") DO NOTHING`,
       [randomUUID(), userId, now],
     );
+  } else {
+    // Keep zero-workspace fixtures durable across re-seed after accidental
+    // lazy-create (workspace middleware upsert on other Core routes).
+    await client.query(`DELETE FROM workspace WHERE "userId" = $1`, [userId]);
   }
 
   return userId;
