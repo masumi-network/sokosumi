@@ -52,9 +52,9 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const inventory = await prisma.$transaction(async (tx) => {
-      return loadWorkspaceInventory(resolvedUserId, tx);
-    });
+    // Read-only GET: default client + concurrent queries (not interactive tx —
+    // Promise.all on interactive transaction clients is unsupported; #2559).
+    const inventory = await loadWorkspaceInventory(resolvedUserId, prisma);
 
     return ok(c, workspaceInventorySchema.parse(inventory));
   });

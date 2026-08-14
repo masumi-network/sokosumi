@@ -28,7 +28,6 @@ vi.mock("@/helpers/workspace-inventory", async (importOriginal) => {
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     user: { findUnique: userFindUniqueMock },
-    $transaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
   },
 }));
 
@@ -88,7 +87,9 @@ describe("GET /users/{id}/workspace-inventory", () => {
     expect(response.status).toBe(200);
     expect(loadWorkspaceInventoryMock).toHaveBeenCalledWith(
       "user_123",
-      expect.anything(),
+      expect.objectContaining({
+        user: expect.objectContaining({ findUnique: expect.any(Function) }),
+      }),
     );
     expect(body.data).toEqual({
       gate: "identity-onboarding",

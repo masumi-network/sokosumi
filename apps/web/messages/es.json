@@ -5228,6 +5228,9 @@
           "back": "Volver al chat"
         }
       }
+    },
+    "WorkspaceAccess": {
+      "checking": "Comprobando el acceso al espacio de trabajo"
     }
   },
   "Share": {

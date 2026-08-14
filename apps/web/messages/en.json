@@ -5228,6 +5228,9 @@
           }
         }
       }
+    },
+    "WorkspaceAccess": {
+      "checking": "Checking workspace access"
     }
   },
   "Share": {

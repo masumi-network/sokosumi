@@ -5228,6 +5228,9 @@
           "back": "Zurück zum Chat"
         }
       }
+    },
+    "WorkspaceAccess": {
+      "checking": "Workspace-Zugriff wird geprüft"
     }
   },
   "Share": {
