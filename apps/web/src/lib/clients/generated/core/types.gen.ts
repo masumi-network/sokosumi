@@ -2619,6 +2619,13 @@ export type PreferredOrganization = {
     organizationId: string | null;
 };
 
+export type PersonalWorkspaceCreated = {
+    /**
+     * Id of the newly created personal workspace
+     */
+    workspaceId: string;
+};
+
 export type WorkspaceInventory = {
     gate: WorkspaceGateStatus;
     /**
@@ -2626,7 +2633,7 @@ export type WorkspaceInventory = {
      */
     hasPersonalWorkspace: boolean;
     /**
-     * Whether the user is a member of at least one organization (with its workspace)
+     * Whether the user is a member of at least one organization
      */
     hasOrganizationMembership: boolean;
     /**
@@ -12268,7 +12275,7 @@ export type GetChatsRoomsByIdThreadsData = {
          */
         limit?: number;
         /**
-         * When `true`, only unread threads (prior look + newer non-self replies). When omitted or `false`, unread threads first then a recency page of the rest.
+         * When `true`, only unread threads (prior look + newer non-self replies). `cursor` and `limit` are ignored. When omitted or `false`, unread threads first then a recency page of the rest.
          */
         unread?: 'true' | 'false';
     };
@@ -12308,6 +12315,20 @@ export type GetChatsRoomsByIdThreadsErrors = {
      * Room not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;
@@ -18841,6 +18862,109 @@ export type PutUsersByIdPreferredOrganizationResponses = {
 };
 
 export type PutUsersByIdPreferredOrganizationResponse = PutUsersByIdPreferredOrganizationResponses[keyof PutUsersByIdPreferredOrganizationResponses];
+
+export type PostUsersByIdPersonalWorkspaceData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/personal-workspace';
+};
+
+export type PostUsersByIdPersonalWorkspaceErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - Personal workspace already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdPersonalWorkspaceError = PostUsersByIdPersonalWorkspaceErrors[keyof PostUsersByIdPersonalWorkspaceErrors];
+
+export type PostUsersByIdPersonalWorkspaceResponses = {
+    /**
+     * Personal workspace created
+     */
+    201: {
+        data: PersonalWorkspaceCreated;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdPersonalWorkspaceResponse = PostUsersByIdPersonalWorkspaceResponses[keyof PostUsersByIdPersonalWorkspaceResponses];
 
 export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
