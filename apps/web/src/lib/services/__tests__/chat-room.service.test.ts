@@ -403,6 +403,15 @@ describe("chatRoomService thread attention", () => {
     });
   });
 
+  it("listThreads propagates Core client rejection", async () => {
+    getChatRoomThreadsMock.mockRejectedValue(new Error("network"));
+
+    const { chatRoomService } = await import("../chat-room.service");
+    await expect(chatRoomService.listThreads("room-1")).rejects.toThrow(
+      "network",
+    );
+  });
+
   it("listUnreadThreads returns Core unread thread items", async () => {
     const items = [
       {

@@ -71,6 +71,13 @@ export function ThreadListPanel({
       }
       setItems(result.value.threads);
       setNextCursor(result.value.nextCursor);
+    } catch {
+      if (requestId !== listRequestIdRef.current) {
+        return;
+      }
+      setItems([]);
+      setNextCursor(null);
+      setError(labels.error);
     } finally {
       if (requestId === listRequestIdRef.current) {
         setIsLoading(false);
@@ -110,6 +117,10 @@ export function ThreadListPanel({
         ];
       });
       setNextCursor(result.value.nextCursor);
+    } catch {
+      if (requestId === listRequestIdRef.current) {
+        setError(labels.error);
+      }
     } finally {
       setIsLoadingOlder(false);
     }
@@ -129,6 +140,8 @@ export function ThreadListPanel({
       }
       onAllThreadsLooked?.();
       await loadFirstPage();
+    } catch {
+      setError(labels.markAllReadError);
     } finally {
       setIsMarkingAllRead(false);
     }

@@ -119,8 +119,9 @@ function resolveUserPresence(
  * - Top-level messages (`parentMessageId IS NULL`): after room `lastReadAt`
  * - Thread replies: after per-thread look baseline
  *   (`ChatRoomThreadReadState.lastReadAt`, else room read-state `createdAt`,
- *   else -infinity) — same as `getChatRoomThreadAggregates`. Room mark-read
- *   must not clear thread look contribution; looking a thread must.
+ *   else -infinity). This sidebar fallback is intentionally not the ADR-0005
+ *   rule used by `getChatRoomThreadAggregates`. Room mark-read must not
+ *   clear thread look contribution; looking a thread must.
  *
  * Soft-deleted messages and the viewer's own user messages are excluded.
  */
@@ -261,11 +262,17 @@ export async function getChatRoomThreadAggregates(
       AND (
         $3::uuid IS NULL
         OR ("lastReplyAt", "parentMessageId") < (
-          SELECT MAX(r."createdAt"), $3::uuid
-          FROM "chat_room_message" r
-          WHERE r."parentMessageId" = $3::uuid
-            AND r."deletedAt" IS NULL
-            AND r."roomId" = $1::uuid
+          SELECT COALESCE(
+            MAX(r."createdAt") FILTER (WHERE r."deletedAt" IS NULL),
+            p."createdAt"
+          ),
+          p.id
+          FROM "chat_room_message" p
+          LEFT JOIN "chat_room_message" r
+            ON r."parentMessageId" = p.id
+            AND r."roomId" = p."roomId"
+          WHERE p.id = $3::uuid
+            AND p."roomId" = $1::uuid
         )
       )
     ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC

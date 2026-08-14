@@ -84,7 +84,7 @@ export function UnreadThreadsPanel({
       variant="ghost"
       size="icon"
       aria-label={triggerLabel}
-      aria-pressed={isOpen}
+      aria-expanded={isOpen}
       data-testid="unread-threads-trigger"
       className="relative"
       onClick={onToggle}

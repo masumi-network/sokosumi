@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ThreadListPanel } from "@/app/chat/components/thread-list-panel";
 import type {
   ChatRoomMessage,
   ChatRoomThread,
 } from "@/lib/clients/generated/core";
+import { ThreadListPanel } from "../thread-list-panel";
 
 const listThreadsActionMock = vi.fn();
 const markAllUnreadThreadsReadActionMock = vi.fn();

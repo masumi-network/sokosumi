@@ -875,7 +875,11 @@ describe("getChatRoomThreadAggregates", () => {
     const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
     expect(sql).toContain('"unreadReplyCount" = 0');
     expect(sql).toContain("LIMIT $");
-    expect(sql).toMatch(/lastReplyAt.*parentMessageId/);
+    expect(sql).toContain(
+      'ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC',
+    );
+    expect(sql).toContain("COALESCE(");
+    expect(sql).toContain('p."createdAt"');
     expect(queryRawUnsafe.mock.calls[0]?.[3]).toBe(
       "550e8400-e29b-41d4-a716-446655440099",
     );

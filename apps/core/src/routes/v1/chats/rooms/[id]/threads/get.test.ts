@@ -308,6 +308,15 @@ describe("GET /chats/rooms/{id}/threads", () => {
     expect(body.meta.pagination.nextCursor).toBeNull();
   });
 
+  it("rejects a non-uuid recency cursor with 422", async () => {
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/threads?cursor=not-a-uuid`,
+    );
+
+    expect(response.status).toBe(422);
+    expect(queryRawUnsafeMock).not.toHaveBeenCalled();
+  });
+
   it("rejects coworker auth with 403", async () => {
     const response = await createApp(coworkerAuthContext).request(
       `/${ROOM_ID}/threads?unread=true`,
