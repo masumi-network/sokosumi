@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { completeOnboarding } from "@/lib/actions/onboarding";
 import { fireGTMEvent } from "@/lib/gtm-events";
+import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 export function OnboardingSubscriptionReturnHandler() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export function OnboardingSubscriptionReturnHandler() {
 
     if (status === "cancel") {
       hasHandledRef.current = true;
-      router.replace("/tasks");
+      router.replace(DEFAULT_AUTHENTICATED_LANDING_PATH);
       return;
     }
 
@@ -47,7 +48,9 @@ export function OnboardingSubscriptionReturnHandler() {
         }
 
         fireGTMEvent.onboardingComplete();
-        router.replace(result.value.redirectUrl ?? "/tasks");
+        router.replace(
+          result.value.redirectUrl ?? DEFAULT_AUTHENTICATED_LANDING_PATH,
+        );
       } catch {
         hasHandledRef.current = false;
         toast.error(tErrors("unexpectedError"));

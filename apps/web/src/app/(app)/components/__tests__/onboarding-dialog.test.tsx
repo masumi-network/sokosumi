@@ -119,7 +119,7 @@ describe("OnboardingDialog organization subscription", () => {
     markSubscriptionOnboardingGateSessionSeenMock.mockResolvedValue(undefined);
     window.localStorage.clear();
     completeOnboardingMock.mockResolvedValue({
-      value: { redirectUrl: "/tasks" },
+      value: { redirectUrl: "/" },
       ok: true,
     });
     upgradeOrganizationSubscriptionMock.mockResolvedValue({
@@ -180,7 +180,7 @@ describe("OnboardingDialog organization subscription", () => {
       expect(upgradeOrganizationSubscriptionMock).toHaveBeenCalledWith({
         organizationId: "org-1",
         plan: "standard",
-        returnPath: "/tasks?onboarding_subscription=1",
+        returnPath: "/?onboarding_subscription=1",
         seats: 6,
       });
     });
@@ -326,7 +326,7 @@ describe("OnboardingDialog full intro Skip", () => {
     markSubscriptionOnboardingGateSessionSeenMock.mockResolvedValue(undefined);
     window.localStorage.clear();
     completeOnboardingMock.mockResolvedValue({
-      value: { redirectUrl: "/tasks" },
+      value: { redirectUrl: "/" },
       ok: true,
     });
   });
@@ -345,7 +345,7 @@ describe("OnboardingDialog full intro Skip", () => {
       expect(completeOnboardingMock).toHaveBeenCalled();
     });
     expect(trackMock).toHaveBeenCalledWith("Onboarding skipped");
-    expect(pushMock).toHaveBeenCalledWith("/tasks");
+    expect(pushMock).toHaveBeenCalledWith("/");
     expect(
       markSubscriptionOnboardingGateSessionSeenMock,
     ).not.toHaveBeenCalled();
