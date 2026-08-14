@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import type { Coworker } from "@/app/chat/utils/types";
 import { HistorySearchDialogProvider } from "@/app/components/history-search-dialog-provider";
@@ -10,7 +11,9 @@ import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { hasAdminRole } from "@/lib/auth/has-admin-role";
 import type { Notice } from "@/lib/clients/generated/core";
+import { userService } from "@/lib/services";
 import { cn } from "@/lib/utils";
+import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 
 import { AppMobileChrome } from "./app-mobile-chrome.client";
 import AppShellOverlays from "./app-shell-overlays";
@@ -36,6 +39,21 @@ export default async function AuthenticatedAppFrame({
   children,
 }: AuthenticatedAppFrameProps) {
   const session = await getSessionOrRedirect();
+
+  // Workspace gate is the only access decision for product chrome — not
+  // `onboardingCompleted`. Fail closed: not-ready or inventory failure → gate
+  // (gate page distinguishes identity vs temporary load failure for the user).
+  let inventoryGate: string | null = null;
+  try {
+    const inventory = await userService.getWorkspaceInventory();
+    inventoryGate = inventory?.gate ?? null;
+  } catch (error) {
+    console.error("Failed to load workspace inventory for app gate", error);
+  }
+  if (!isWorkspaceReady(inventoryGate)) {
+    redirect(WORKSPACE_GATE_PATH);
+  }
+
   const adminMenuEnabled = hasAdminRole(
     (session.user as typeof session.user & { role?: string | null }).role,
   );
