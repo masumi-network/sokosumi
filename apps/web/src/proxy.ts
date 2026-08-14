@@ -55,15 +55,19 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Unauthenticated `/` → sign-in. Authenticated `/` is Welcome — fall through
-  // to Next (do not redirect; landing path is `/` and would loop forever).
+  // Unauthenticated `/` → sign-in with returnUrl (same as other protected
+  // routes) so `/?dm=new` / `/?create=channel` survive login. Authenticated
+  // `/` is Welcome — fall through to Next (do not redirect; landing path is
+  // `/` and would loop forever).
   if (pathname === "/") {
     const sessionCookie = getSessionCookie(request, {
       cookiePrefix: betterAuthCookiePrefix,
     });
     if (!sessionCookie) {
+      const currentUrl = pathname + searchParams;
+      const returnUrl = encodeURIComponent(currentUrl);
       const redirectResponse = NextResponse.redirect(
-        new URL("/signin", request.url),
+        new URL(`/signin?returnUrl=${returnUrl}`, request.url),
       );
       applyDocumentSecurityHeaders(redirectResponse);
       return redirectResponse;
