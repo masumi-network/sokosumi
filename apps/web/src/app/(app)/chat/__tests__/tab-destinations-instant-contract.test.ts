@@ -22,13 +22,13 @@ function stripComments(source: string): string {
 describe("mobile tab destinations Instant Nav contract", () => {
   const pages = [
     "(welcome)/page.tsx",
-    "chat/chats/page.tsx",
+    "chat/page.tsx",
     "history/page.tsx",
   ] as const;
 
   const loadingShells = [
     "(welcome)/loading.tsx",
-    "chat/chats/loading.tsx",
+    "chat/loading.tsx",
     "history/loading.tsx",
     "chat/components/chat-home-loading-view.tsx",
     "chat/components/chat-chats-loading-view.tsx",
@@ -56,8 +56,8 @@ describe("mobile tab destinations Instant Nav contract", () => {
     );
   });
 
-  it("chat/chats/loading.tsx default export returns ChatChatsPageSkeleton", () => {
-    const code = stripComments(readApp("chat/chats/loading.tsx"));
+  it("chat/loading.tsx default export returns ChatChatsPageSkeleton", () => {
+    const code = stripComments(readApp("chat/loading.tsx"));
     expect(code).toMatch(
       /export\s+default\s+function[\s\S]*?return\s+<\s*ChatChatsPageSkeleton\s*\/>/,
     );

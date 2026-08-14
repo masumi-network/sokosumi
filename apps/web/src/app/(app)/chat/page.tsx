@@ -1,29 +1,151 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
+import { Suspense } from "react";
+import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chats/chat-chats-list-shell";
+import { ChatDesktopHomeRedirect } from "@/app/chat/components/chat-desktop-home-redirect.client";
+import {
+  CHAT_WELCOME_PATH,
+  hasChatDraftOrNoticeFromRecord,
+  type NextSearchParamsRecord,
+  pathWithSearch,
+  toURLSearchParamsFromRecord,
+} from "@/app/chat/utils/chat-route-base";
+import {
+  getPrivateCachedChatListArchivedAndMembers,
+  getPrivateCachedMembershipVisibleRooms,
+  type PrivateChatListCacheArgs,
+} from "@/app/components/private-sidebar-cache";
+import PersonalAssistantNav from "@/app/components/sidebar/components/personal-assistant-nav.client";
+import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
+import { Sheet } from "@/components/ui/sheet";
+import { SidebarSeparator } from "@/components/ui/sidebar";
+import { getSession } from "@/lib/auth/auth.server";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
+import { isHermesBetaAccessEmail } from "@/lib/hermes/beta-access";
+import type { ChatRoomsPage } from "@/lib/services";
 
 interface ChatPageProps {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<NextSearchParamsRecord>;
+}
+
+interface ChatChatsOrganizationListProps {
+  cacheArgs: PrivateChatListCacheArgs;
+  chatRoomsPage: ChatRoomsPage;
+  currentUserId: string;
+  activeOrganizationId: string | null;
 }
 
 /**
- * Bare `/chat` redirects to Welcome at `/`, preserving searchParams
- * (`?dm=new`, `?create=channel`, `?notice=…`). Nested `/chat/chats` and
- * `/chat/rooms/...` are unchanged.
+ * Streams archived + admin-delete after membership rooms already painted.
+ * Suspense fallback on the page mounts OrganizationChatList with real row
+ * labels so LCP is not a late skeleton→text swap.
+ */
+async function ChatChatsListWithArchived({
+  cacheArgs,
+  chatRoomsPage,
+  currentUserId,
+  activeOrganizationId,
+}: ChatChatsOrganizationListProps) {
+  const { archivedChatRoomsPage, members } =
+    await getPrivateCachedChatListArchivedAndMembers(cacheArgs);
+
+  const canDeleteArchivedRooms = Boolean(
+    activeOrganizationId &&
+      members.some(
+        (membership) =>
+          membership.organizationId === activeOrganizationId &&
+          isOrganizationOwnerOrAdmin(membership.role),
+      ),
+  );
+
+  return (
+    <OrganizationChatList
+      key={activeOrganizationId ?? "personal"}
+      rooms={chatRoomsPage.rooms}
+      roomsNextCursor={chatRoomsPage.nextCursor}
+      archivedRooms={archivedChatRoomsPage.rooms}
+      archivedRoomsNextCursor={archivedChatRoomsPage.nextCursor}
+      currentUserId={currentUserId}
+      organizationId={activeOrganizationId}
+      canDeleteArchivedRooms={canDeleteArchivedRooms}
+      dismissSheetOnNavigate={false}
+    />
+  );
+}
+
+/**
+ * Mobile Chats tab at bare `/chat`: Personal Assistant (beta-gated) above
+ * Channels + DMs (`md:hidden`). Desktop has no list page — client redirect
+ * to Welcome. Draft/notice query → Welcome `/?…` (server).
+ *
+ * Instant Nav uses `chat/loading.tsx` while this page streams after
+ * `connection()`.
+ *
+ * Membership-visible rooms come from the same private-cache slice as the app
+ * sidebar (`getPrivateCachedMembershipVisibleRooms`) so cold load does not
+ * double-hit Core (SOK-779). Cache key must match sidebar: session user id +
+ * active org. Archived + members stream after so channel-row text can win LCP
+ * without waiting on that chrome.
  */
 export default async function ChatPage({ searchParams }: ChatPageProps) {
   const params = await searchParams;
-  const qs = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined) {
-      continue;
-    }
-    if (Array.isArray(value)) {
-      for (const entry of value) {
-        qs.append(key, entry);
-      }
-    } else {
-      qs.set(key, value);
-    }
+  const qs = toURLSearchParamsFromRecord(params);
+
+  if (hasChatDraftOrNoticeFromRecord(params)) {
+    redirect(pathWithSearch(CHAT_WELCOME_PATH, qs));
   }
-  const search = qs.toString();
-  redirect(search.length > 0 ? `/?${search}` : "/");
+
+  await connection();
+
+  const session = await getSession();
+  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
+  const currentUserId = session?.user.id ?? "";
+  const cacheArgs: PrivateChatListCacheArgs = {
+    userId: currentUserId,
+    activeOrganizationId,
+  };
+
+  const chatRoomsPage = await getPrivateCachedMembershipVisibleRooms(cacheArgs);
+
+  const hermesMenuEnabled = isHermesBetaAccessEmail(session?.user.email);
+  const listKey = activeOrganizationId ?? "personal";
+
+  return (
+    <>
+      <ChatDesktopHomeRedirect />
+      <Sheet open>
+        {/*
+          Shell class: top/side main-pad cancel only — see chat-chats-list-shell.ts.
+          Grow with content so AppMobileChrome's in-flow tab-bar spacer sits after
+          the last row in main's scroll (no nested overflow height-lock).
+        */}
+        <div className={CHAT_CHATS_MOBILE_LIST_SHELL_CLASS}>
+          <PersonalAssistantNav enabled={hermesMenuEnabled} />
+          {hermesMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+          <Suspense
+            fallback={
+              <OrganizationChatList
+                key={listKey}
+                rooms={chatRoomsPage.rooms}
+                roomsNextCursor={chatRoomsPage.nextCursor}
+                archivedRooms={[]}
+                archivedRoomsNextCursor={null}
+                currentUserId={currentUserId}
+                organizationId={activeOrganizationId}
+                canDeleteArchivedRooms={false}
+                dismissSheetOnNavigate={false}
+              />
+            }
+          >
+            <ChatChatsListWithArchived
+              cacheArgs={cacheArgs}
+              chatRoomsPage={chatRoomsPage}
+              currentUserId={currentUserId}
+              activeOrganizationId={activeOrganizationId}
+            />
+          </Suspense>
+        </div>
+      </Sheet>
+    </>
+  );
 }

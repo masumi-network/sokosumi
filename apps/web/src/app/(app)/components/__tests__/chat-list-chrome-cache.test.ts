@@ -129,10 +129,7 @@ describe("chat list chrome single-source composition contract", () => {
       join(dir, "../private-cached-app-sidebar.tsx"),
       "utf8",
     );
-    const chatsPage = readFileSync(
-      join(dir, "../../chat/chats/page.tsx"),
-      "utf8",
-    );
+    const chatsPage = readFileSync(join(dir, "../../chat/page.tsx"), "utf8");
     const cacheSource = readFileSync(
       join(dir, "../private-sidebar-cache.ts"),
       "utf8",

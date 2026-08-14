@@ -61,7 +61,7 @@ describe("HeaderLeadingControl", () => {
   });
 
   it("shows brand link to home on chats list", () => {
-    mockPathname = "/chat/chats";
+    mockPathname = "/chat";
     render(<HeaderLeadingControl />);
     expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
     expect(screen.getByRole("link", { name: "goHome" })).toHaveAttribute(
@@ -74,21 +74,21 @@ describe("HeaderLeadingControl", () => {
     mockPathname = "/chat/rooms/r1";
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat/chats");
+    expect(back).toHaveAttribute("href", "/chat");
   });
 
   it("shows back to chats on draft DM compose", () => {
     mockSearchParams = new URLSearchParams("dm=new");
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat/chats");
+    expect(back).toHaveAttribute("href", "/chat");
   });
 
   it("shows back to chats on account (not sidebar trigger)", () => {
     mockPathname = "/account";
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat/chats");
+    expect(back).toHaveAttribute("href", "/chat");
     expect(
       screen.queryByRole("button", { name: "sidebar-trigger" }),
     ).toBeNull();
@@ -98,14 +98,14 @@ describe("HeaderLeadingControl", () => {
     mockPathname = "/billing";
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat/chats");
+    expect(back).toHaveAttribute("href", "/chat");
   });
 
   it("shows back to chats on developer", () => {
     mockPathname = "/developer";
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat/chats");
+    expect(back).toHaveAttribute("href", "/chat");
   });
 
   it("shows brand link to home on tasks list root", () => {
@@ -135,7 +135,7 @@ describe("HeaderLeadingControl", () => {
     mockPathname = "/personal-assistant";
     render(<HeaderLeadingControl />);
     const back = screen.getByRole("link", { name: "backToChats" });
-    expect(back).toHaveAttribute("href", "/chat/chats");
+    expect(back).toHaveAttribute("href", "/chat");
   });
 
   it("shows back to list root on nested tasks", () => {

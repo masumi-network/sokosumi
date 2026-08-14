@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 /**
- * Sync Instant Nav shell for `/chat/chats` (no cookies/`connection()`/i18n).
+ * Sync Instant Nav shell for `/chat` (no cookies/`connection()`/i18n).
  * Matches the non-beta mobile Chats page: OrganizationChatList only.
  * Personal Assistant is beta-gated and omitted here so non-beta users do not
  * flash PA chrome that never mounts.

@@ -28,7 +28,7 @@ interface ChatLandingMobileProps {
  *
  * No section/column `px-*`: horizontal padding on pitch + stats + selected
  * block only so the coworker strip can span full content width. `/chat` page
- * shell also uses `-m-4` to cancel app-main `p-4` (same as `/chat/chats`);
+ * shell also uses `-m-4` to cancel app-main `p-4` (same as `/chat`);
  * without that the strip stays inset 16px under main padding.
  */
 export async function ChatLandingMobile({

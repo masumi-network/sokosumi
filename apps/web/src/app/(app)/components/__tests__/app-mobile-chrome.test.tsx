@@ -88,8 +88,8 @@ describe("AppMobileChrome", () => {
     expect(spacer?.className).not.toContain(CHAT_MOBILE_TAB_BAR_CLEARANCE);
   });
 
-  it("keeps the bottom nav on /chat/chats and renders no FAB", () => {
-    mockPathname = "/chat/chats";
+  it("keeps the bottom nav on /chat and renders no FAB", () => {
+    mockPathname = "/chat";
 
     const { container } = render(
       <AppMobileChrome>

@@ -7,6 +7,12 @@ const getSessionMock = vi.fn();
 const getPrivateCachedMembershipVisibleRoomsMock = vi.fn();
 const getPrivateCachedChatListArchivedAndMembersMock = vi.fn();
 
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn((url: string) => {
+    throw new Error(`REDIRECT:${url}`);
+  }),
+}));
+
 vi.mock("next/server", () => ({
   connection: vi.fn().mockResolvedValue(undefined),
 }));
@@ -56,7 +62,11 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarSeparator: () => <hr />,
 }));
 
-import ChatChatsPage from "@/app/chat/chats/page";
+vi.mock("@/app/chat/components/chat-desktop-home-redirect.client", () => ({
+  ChatDesktopHomeRedirect: () => null,
+}));
+
+import ChatPage from "@/app/chat/page";
 
 const USER_ID = "user_1";
 const ORG_ID = "org_1";
@@ -112,7 +122,7 @@ function listProps(element: ReactElement): OrganizationChatListProps {
   return element.props as OrganizationChatListProps;
 }
 
-describe("ChatChatsPage progressive rooms (mobile LCP)", () => {
+describe("ChatPage progressive rooms (mobile LCP)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSessionMock.mockResolvedValue({
@@ -130,7 +140,7 @@ describe("ChatChatsPage progressive rooms (mobile LCP)", () => {
       new Promise(() => {}),
     );
 
-    const tree = await ChatChatsPage();
+    const tree = await ChatPage({ searchParams: Promise.resolve({}) });
 
     // Parent finishes after membership rooms; Suspense fallback already has
     // real row text. Deferred chrome is a sibling child, not awaited here.
@@ -169,7 +179,7 @@ describe("ChatChatsPage progressive rooms (mobile LCP)", () => {
       members: [],
     });
 
-    const tree = await ChatChatsPage();
+    const tree = await ChatPage({ searchParams: Promise.resolve({}) });
     const shell = findElement(tree, (el) => {
       const props = el.props as ClassNameProps;
       return (

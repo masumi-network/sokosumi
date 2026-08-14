@@ -36,15 +36,15 @@ describe("mobile-app-chrome", () => {
 
     it("sends non-tab hub roots back to Chats", () => {
       expect(resolveMobileAppBackTarget("/personal-assistant")).toEqual({
-        href: "/chat/chats",
+        href: "/chat",
         labelKey: "backToChats",
       });
       expect(resolveMobileAppBackTarget("/admin")).toEqual({
-        href: "/chat/chats",
+        href: "/chat",
         labelKey: "backToChats",
       });
       expect(resolveMobileAppBackTarget("/notifications")).toEqual({
-        href: "/chat/chats",
+        href: "/chat",
         labelKey: "backToChats",
       });
     });
@@ -94,6 +94,7 @@ describe("mobile-app-chrome", () => {
     it("shows on Welcome home and chats list except rooms and drafts", () => {
       expect(shouldShowMobileBottomNav("/")).toBe(true);
       expect(shouldShowMobileBottomNav("/chat")).toBe(true);
+      // Legacy path redirects; chrome treats it as other-chat (nav via shell).
       expect(shouldShowMobileBottomNav("/chat/chats")).toBe(true);
       // `welcome=1` used to open the questionnaire, which hid the nav. The
       // param is retired, so a stale link must now behave like bare home.
@@ -132,7 +133,7 @@ describe("mobile-app-chrome", () => {
     it("shows brand on Welcome, chats, and every bottom-nav tab root", () => {
       expect(shouldShowMobileBrandLeading("/")).toBe(true);
       expect(shouldShowMobileBrandLeading("/chat")).toBe(true);
-      expect(shouldShowMobileBrandLeading("/chat/chats")).toBe(true);
+      expect(shouldShowMobileBrandLeading("/chat/chats")).toBe(false);
       // Retired param: falls through to home, so the brand stays.
       expect(
         shouldShowMobileBrandLeading("/", new URLSearchParams("welcome=1")),

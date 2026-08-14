@@ -46,10 +46,10 @@ describe("chatMobileHeightShellClass", () => {
   });
 
   it("keeps tab-bar shell on home and chats", () => {
-    expect(chatMobileHeightShellClass("/chat")).toBe(
+    expect(chatMobileHeightShellClass("/")).toBe(
       CHAT_MOBILE_HEIGHT_SHELL_CLASS,
     );
-    expect(chatMobileHeightShellClass("/chat/chats")).toBe(
+    expect(chatMobileHeightShellClass("/chat")).toBe(
       CHAT_MOBILE_HEIGHT_SHELL_CLASS,
     );
   });
