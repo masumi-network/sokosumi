@@ -4,31 +4,26 @@ import { chatRouteErrorBoundaryKey } from "../chat-route-error-boundary.client";
 
 describe("chatRouteErrorBoundaryKey", () => {
   it("uses pathname alone when there is no search", () => {
-    expect(chatRouteErrorBoundaryKey("/chat")).toBe("/chat");
-    expect(chatRouteErrorBoundaryKey("/chat", new URLSearchParams())).toBe(
-      "/chat",
-    );
+    expect(chatRouteErrorBoundaryKey("/")).toBe("/");
+    expect(chatRouteErrorBoundaryKey("/", new URLSearchParams())).toBe("/");
   });
 
-  it("includes search so draft /chat views remount separately", () => {
+  it("includes search so draft Welcome views remount separately", () => {
     expect(
-      chatRouteErrorBoundaryKey("/chat", new URLSearchParams("create=channel")),
-    ).toBe("/chat?create=channel");
-    expect(
-      chatRouteErrorBoundaryKey("/chat", new URLSearchParams("dm=new")),
-    ).toBe("/chat?dm=new");
+      chatRouteErrorBoundaryKey("/", new URLSearchParams("create=channel")),
+    ).toBe("/?create=channel");
+    expect(chatRouteErrorBoundaryKey("/", new URLSearchParams("dm=new"))).toBe(
+      "/?dm=new",
+    );
   });
 
   it("changes when soft-navigating between shared-pathname views", () => {
-    const home = chatRouteErrorBoundaryKey("/chat", new URLSearchParams());
+    const home = chatRouteErrorBoundaryKey("/", new URLSearchParams());
     const create = chatRouteErrorBoundaryKey(
-      "/chat",
+      "/",
       new URLSearchParams("create=channel"),
     );
-    const dm = chatRouteErrorBoundaryKey(
-      "/chat",
-      new URLSearchParams("dm=new"),
-    );
+    const dm = chatRouteErrorBoundaryKey("/", new URLSearchParams("dm=new"));
 
     expect(home).not.toBe(create);
     expect(create).not.toBe(dm);

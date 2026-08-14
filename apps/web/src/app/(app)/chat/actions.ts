@@ -139,6 +139,7 @@ export async function createChannelAction(
       coworkerIds: cleanIds(input.coworkerIds),
     });
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk(room);
   } catch (error) {
@@ -181,6 +182,7 @@ export async function createDirectRoomAction(
       coworkerIds,
     });
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk(room);
   } catch (error) {
@@ -245,6 +247,7 @@ export async function sendNewDirectMessageAction(
       mentionedUserIds: cleanIds(input.mentionedUserIds),
     });
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk({ room, message });
   } catch (error) {
@@ -273,6 +276,7 @@ export async function updateRoomAction(
   try {
     const room = await chatRoomService.updateRoom(roomId, body);
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk(room);
   } catch (error) {
@@ -288,6 +292,7 @@ export async function archiveRoomAction(
     // The room disappears from every member's list, so the server-rendered
     // room list has to be rebuilt rather than patched client side.
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk({ id: archived.id });
   } catch (error) {
@@ -301,6 +306,7 @@ export async function restoreRoomAction(
   try {
     const restored = await chatRoomService.restoreRoom(roomId);
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk(restored);
   } catch (error) {
@@ -314,6 +320,7 @@ export async function deleteRoomAction(
   try {
     await chatRoomService.deleteRoom(roomId);
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk({ id: roomId });
   } catch (error) {
@@ -327,6 +334,7 @@ export async function leaveRoomAction(
   try {
     const left = await chatRoomService.leaveRoom(roomId);
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk({ id: left.id });
   } catch (error) {
@@ -345,6 +353,7 @@ export async function joinRoomAction(
   try {
     const room = await chatRoomService.joinRoom(cleanRoomId);
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk(room);
   } catch (error) {
@@ -393,6 +402,7 @@ export async function acceptChatRoomInvitationAction(
   try {
     const invitation = await chatRoomService.acceptInvitation(cleanId);
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk(invitation);
   } catch (error) {
@@ -411,6 +421,7 @@ export async function declineChatRoomInvitationAction(
   try {
     const invitation = await chatRoomService.declineInvitation(cleanId);
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk(invitation);
   } catch (error) {
@@ -559,6 +570,7 @@ export async function acceptRoomGuestInviteLinkAction(
   try {
     const result = await chatRoomService.acceptRoomGuestInviteLink(cleanToken);
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk(result);
   } catch (error) {
@@ -583,6 +595,7 @@ export async function removeRoomGuestAction(
   try {
     await chatRoomService.removeMember(cleanRoomId, cleanUserId);
     await invalidateSidebarChatList();
+    revalidatePath("/");
     revalidatePath("/chat");
     return roomOk(null);
   } catch (error) {

@@ -1117,11 +1117,11 @@ export function RoomsClient({
 
   const breadcrumbOverride = useMemo(
     () => ({
-      pathname: selectedRoom ? `/chat/rooms/${selectedRoom.id}` : "/chat",
+      pathname: selectedRoom ? `/chat/rooms/${selectedRoom.id}` : "/",
       segments: [
         {
           label: tBreadcrumb("chat"),
-          href: "/chat",
+          href: "/",
         },
         ...(selectedRoom
           ? [
@@ -1134,14 +1134,14 @@ export function RoomsClient({
             ? [
                 {
                   label: t("CreateWizard.title"),
-                  href: "/chat?create=channel",
+                  href: "/?create=channel",
                 },
               ]
             : isNewDirectMessage
               ? [
                   {
                     label: t("Draft.breadcrumb"),
-                    href: "/chat?dm=new",
+                    href: "/?dm=new",
                   },
                 ]
               : []),
@@ -2584,7 +2584,7 @@ export function RoomsClient({
                   <Button
                     type="button"
                     variant="primary"
-                    onClick={() => router.push("/chat?create=channel")}
+                    onClick={() => router.push("/?create=channel")}
                   >
                     {t("createChannel")}
                   </Button>

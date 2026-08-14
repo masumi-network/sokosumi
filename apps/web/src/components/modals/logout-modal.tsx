@@ -42,7 +42,7 @@ export default function LogoutModal({
         },
         onSuccess: () => {
           const returnUrl =
-            window.location.pathname + window.location.search || "/chat";
+            window.location.pathname + window.location.search || "/";
           router.push(`/signin?returnUrl=${encodeURIComponent(returnUrl)}`);
         },
       },

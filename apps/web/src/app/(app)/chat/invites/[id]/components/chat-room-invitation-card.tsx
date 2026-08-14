@@ -65,7 +65,7 @@ export default function ChatRoomInvitationCard({
     }
     toast.success(t("Actions.Success.decline"));
     notifyOrganizationChatRoomsChanged();
-    router.push("/chat");
+    router.push("/");
     router.refresh();
   };
 
@@ -136,7 +136,7 @@ export default function ChatRoomInvitationCard({
         </CardContent>
         <CardFooter>
           <Button variant="outline" asChild className="w-full">
-            <Link href="/chat">{t("goToChat")}</Link>
+            <Link href="/">{t("goToChat")}</Link>
           </Button>
         </CardFooter>
       </Card>
@@ -213,7 +213,7 @@ export function ChatRoomInvitationErrorCard({
       </CardContent>
       <CardFooter>
         <Button variant="outline" asChild className="w-full">
-          <Link href="/chat">{t("footer")}</Link>
+          <Link href="/">{t("footer")}</Link>
         </Button>
       </CardFooter>
     </Card>

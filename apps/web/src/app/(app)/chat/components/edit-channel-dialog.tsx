@@ -184,7 +184,7 @@ export function EditChannelDialog({
     notifyOrganizationChatRoomsChanged();
     // The room is gone for this user either way, so land them back on the
     // room list rather than a view they can no longer read.
-    router.replace("/chat");
+    router.replace("/");
     router.refresh();
   }
 

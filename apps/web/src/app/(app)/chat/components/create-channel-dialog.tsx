@@ -76,7 +76,7 @@ export function CreateChannelDialog({
   }
 
   function clearCreateQuery() {
-    router.replace("/chat");
+    router.replace("/");
   }
 
   function handleOpenChange(nextOpen: boolean) {

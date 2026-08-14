@@ -61,7 +61,7 @@ describe("proxy", () => {
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
 
-  it("edge-redirects anonymous / to /signin without running the app shell", async () => {
+  it("edge-redirects anonymous / to /signin with returnUrl without running the app shell", async () => {
     const { NextRequest } = await import("next/server");
     const { proxy } = await import("../proxy");
     getSessionCookieMock.mockReturnValue(null);
@@ -73,7 +73,7 @@ describe("proxy", () => {
 
     expect(response?.status).toBe(307);
     expect(response?.headers.get("location")).toBe(
-      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/signin",
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/signin?returnUrl=%2F",
     );
     expect(response?.headers.get("Cross-Origin-Opener-Policy")).toBe(
       CROSS_ORIGIN_OPENER_POLICY,
@@ -81,8 +81,28 @@ describe("proxy", () => {
     expect(getSessionCookieMock).toHaveBeenCalledTimes(1);
   });
 
-  it("edge-redirects authenticated / to /chat without running the app shell", async () => {
+  it("edge-redirects anonymous /?dm=new to /signin preserving compose returnUrl", async () => {
     const { NextRequest } = await import("next/server");
+    const { proxy } = await import("../proxy");
+    getSessionCookieMock.mockReturnValue(null);
+    const request = new NextRequest(
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/?dm=new",
+    );
+
+    const response = await proxy(request);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe(
+      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/signin?returnUrl=%2F%3Fdm%3Dnew",
+    );
+    expect(response?.headers.get("Cross-Origin-Opener-Policy")).toBe(
+      CROSS_ORIGIN_OPENER_POLICY,
+    );
+    expect(getSessionCookieMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("edge-redirects authenticated / through to Welcome (no redirect loop)", async () => {
+    const { NextRequest, NextResponse } = await import("next/server");
     const { proxy } = await import("../proxy");
     const request = new NextRequest(
       "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/",
@@ -90,10 +110,10 @@ describe("proxy", () => {
 
     const response = await proxy(request);
 
-    expect(response?.status).toBe(307);
-    expect(response?.headers.get("location")).toBe(
-      "https://sokosumi-app-preprod-git-codex-evaluate-cookie-prefix-usage.preview.sokosumi.com/chat",
-    );
+    expect(response).toBeInstanceOf(NextResponse);
+    expect(response?.status).toBe(200);
+    expect(response?.headers.get("location")).toBeNull();
+    expect(response?.headers.get("x-pathname")).toBe("/");
     expect(response?.headers.get("Cross-Origin-Opener-Policy")).toBe(
       CROSS_ORIGIN_OPENER_POLICY,
     );

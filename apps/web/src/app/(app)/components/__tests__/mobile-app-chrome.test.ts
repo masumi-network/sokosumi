@@ -91,23 +91,21 @@ describe("mobile-app-chrome", () => {
   });
 
   describe("shouldShowMobileBottomNav", () => {
-    it("shows on chat shell except rooms and drafts", () => {
+    it("shows on Welcome home and chats list except rooms and drafts", () => {
+      expect(shouldShowMobileBottomNav("/")).toBe(true);
       expect(shouldShowMobileBottomNav("/chat")).toBe(true);
       expect(shouldShowMobileBottomNav("/chat/chats")).toBe(true);
       // `welcome=1` used to open the questionnaire, which hid the nav. The
       // param is retired, so a stale link must now behave like bare home.
       expect(
-        shouldShowMobileBottomNav("/chat", new URLSearchParams("welcome=1")),
+        shouldShowMobileBottomNav("/", new URLSearchParams("welcome=1")),
       ).toBe(true);
       expect(shouldShowMobileBottomNav("/chat/rooms/r1")).toBe(false);
       expect(
-        shouldShowMobileBottomNav("/chat", new URLSearchParams("dm=new")),
+        shouldShowMobileBottomNav("/", new URLSearchParams("dm=new")),
       ).toBe(false);
       expect(
-        shouldShowMobileBottomNav(
-          "/chat",
-          new URLSearchParams("create=channel"),
-        ),
+        shouldShowMobileBottomNav("/", new URLSearchParams("create=channel")),
       ).toBe(false);
     });
 
@@ -131,12 +129,13 @@ describe("mobile-app-chrome", () => {
   });
 
   describe("shouldShowMobileBrandLeading", () => {
-    it("shows brand on chats and every bottom-nav tab root", () => {
+    it("shows brand on Welcome, chats, and every bottom-nav tab root", () => {
+      expect(shouldShowMobileBrandLeading("/")).toBe(true);
       expect(shouldShowMobileBrandLeading("/chat")).toBe(true);
       expect(shouldShowMobileBrandLeading("/chat/chats")).toBe(true);
       // Retired param: falls through to home, so the brand stays.
       expect(
-        shouldShowMobileBrandLeading("/chat", new URLSearchParams("welcome=1")),
+        shouldShowMobileBrandLeading("/", new URLSearchParams("welcome=1")),
       ).toBe(true);
       expect(shouldShowMobileBrandLeading("/tasks")).toBe(true);
       expect(shouldShowMobileBrandLeading("/agents")).toBe(true);
@@ -148,12 +147,12 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBrandLeading("/chat/rooms/r1")).toBe(false);
       expect(
         shouldShowMobileBrandLeading(
-          "/chat",
+          "/",
           new URLSearchParams("create=channel"),
         ),
       ).toBe(false);
       expect(
-        shouldShowMobileBrandLeading("/chat", new URLSearchParams("dm=new")),
+        shouldShowMobileBrandLeading("/", new URLSearchParams("dm=new")),
       ).toBe(false);
       expect(shouldShowMobileBrandLeading("/tasks/t1")).toBe(false);
       expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);

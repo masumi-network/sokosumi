@@ -84,7 +84,7 @@ export function ChatJoinInvalidCard({
         <CardContent className="space-y-4">
           <p className="text-muted-foreground text-sm">{t(messageKey)}</p>
           <Button variant="outline" asChild className="w-full">
-            <Link href="/chat">{t("Invalid.back")}</Link>
+            <Link href="/">{t("Invalid.back")}</Link>
           </Button>
         </CardContent>
       </Card>

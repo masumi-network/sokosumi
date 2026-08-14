@@ -34,15 +34,14 @@ export function buildFaviconCandidates(rawUrl: string): string[] {
 
 /**
  * Returns the current location (pathname + search) suitable for use as returnUrl
- * in sign-in redirects. Normalizes "/" to "/chat" so credential and social sign-in
- * behave consistently.
+ * in sign-in redirects. Keeps `/` as Welcome (authenticated landing).
  */
 export function getReturnUrlFromCurrentLocation(): string {
   const path =
     typeof window !== "undefined"
       ? window.location.pathname + window.location.search
-      : "/chat";
-  return path === "/" || path === "" ? "/chat" : path;
+      : "/";
+  return path === "" ? "/" : path;
 }
 
 export function buildJobTransactionUrl(

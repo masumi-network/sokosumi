@@ -20,7 +20,7 @@ export function applyChatMembershipRevokedUi(
   notifyRemoved(roomId);
 
   if (activeRoomId === roomId) {
-    replace("/chat");
+    replace("/");
     refresh();
   }
 }

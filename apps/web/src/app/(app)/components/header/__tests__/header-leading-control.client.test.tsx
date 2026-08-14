@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TASKS_RETURN_PATH_SESSION_KEY } from "@/app/tasks/components/task-navigation";
 
-let mockPathname = "/chat";
+let mockPathname = "/";
 let mockSearchParams = new URLSearchParams();
 const routerPushMock = vi.fn();
 
@@ -45,21 +45,29 @@ import { HeaderLeadingControl } from "../header-leading-control.client";
 
 describe("HeaderLeadingControl", () => {
   beforeEach(() => {
-    mockPathname = "/chat";
+    mockPathname = "/";
     mockSearchParams = new URLSearchParams();
     window.sessionStorage.clear();
     routerPushMock.mockClear();
   });
 
-  it("shows brand on home", () => {
+  it("shows brand link to home on Welcome", () => {
     render(<HeaderLeadingControl />);
     expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "goHome" })).toHaveAttribute(
+      "href",
+      "/",
+    );
   });
 
-  it("shows brand on chats list", () => {
+  it("shows brand link to home on chats list", () => {
     mockPathname = "/chat/chats";
     render(<HeaderLeadingControl />);
     expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "goHome" })).toHaveAttribute(
+      "href",
+      "/",
+    );
   });
 
   it("shows back to chats on room", () => {
@@ -100,18 +108,24 @@ describe("HeaderLeadingControl", () => {
     expect(back).toHaveAttribute("href", "/chat/chats");
   });
 
-  it("shows brand on tasks list root", () => {
+  it("shows brand link to home on tasks list root", () => {
     mockPathname = "/tasks";
     render(<HeaderLeadingControl />);
-    expect(screen.queryByRole("link")).toBeNull();
+    expect(screen.getByRole("link", { name: "goHome" })).toHaveAttribute(
+      "href",
+      "/",
+    );
     expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
   });
 
-  it("shows brand on agents, projects, and search tab roots", () => {
+  it("shows brand link to home on agents, projects, and search tab roots", () => {
     for (const path of ["/agents", "/projects", "/history"]) {
       mockPathname = path;
       const { unmount } = render(<HeaderLeadingControl />);
-      expect(screen.queryByRole("link")).toBeNull();
+      expect(screen.getByRole("link", { name: "goHome" })).toHaveAttribute(
+        "href",
+        "/",
+      );
       expect(screen.getByTestId("sokosumi-icon")).toBeTruthy();
       unmount();
     }

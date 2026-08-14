@@ -4815,7 +4815,8 @@
         "search": "Buscar",
         "ariaLabel": "Navegación principal",
         "backToChats": "Volver a chats",
-        "back": "Volver"
+        "back": "Volver",
+        "goHome": "Ir al inicio"
       },
       "Actions": {
         "more": "Acciones del mensaje",

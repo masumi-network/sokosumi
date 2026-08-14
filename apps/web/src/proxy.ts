@@ -4,7 +4,6 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import { applyDocumentSecurityHeaders } from "@/config/document-security-headers";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
 
 const EXCLUDED_PATHS = [
   "/auth/",
@@ -56,20 +55,23 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // `/` is only an entry hop: resolve destination at the edge so we never run
-  // root + (app) RSC (metadata, messages, layout) before the first redirect.
+  // Unauthenticated `/` → sign-in with returnUrl (same as other protected
+  // routes) so `/?dm=new` / `/?create=channel` survive login. Authenticated
+  // `/` is Welcome — fall through to Next (do not redirect; landing path is
+  // `/` and would loop forever).
   if (pathname === "/") {
     const sessionCookie = getSessionCookie(request, {
       cookiePrefix: betterAuthCookiePrefix,
     });
-    const destination = sessionCookie
-      ? DEFAULT_AUTHENTICATED_LANDING_PATH
-      : "/signin";
-    const redirectResponse = NextResponse.redirect(
-      new URL(destination, request.url),
-    );
-    applyDocumentSecurityHeaders(redirectResponse);
-    return redirectResponse;
+    if (!sessionCookie) {
+      const currentUrl = pathname + searchParams;
+      const returnUrl = encodeURIComponent(currentUrl);
+      const redirectResponse = NextResponse.redirect(
+        new URL(`/signin?returnUrl=${returnUrl}`, request.url),
+      );
+      applyDocumentSecurityHeaders(redirectResponse);
+      return redirectResponse;
+    }
   }
 
   // Create response early so we can always set pathname + document headers

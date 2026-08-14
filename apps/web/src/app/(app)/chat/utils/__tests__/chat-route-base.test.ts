@@ -19,6 +19,7 @@ describe("chat-route-base", () => {
     expect(isChatShellPathname("/chat")).toBe(true);
     expect(isChatShellPathname("/chat/rooms/r1")).toBe(true);
     expect(isChatShellPathname("/chat/chats")).toBe(true);
+    expect(isChatShellPathname("/")).toBe(false);
     expect(isChatShellPathname("/new-chat")).toBe(false);
     expect(isChatShellPathname("/new-chat/foo")).toBe(false);
     expect(isChatShellPathname(null)).toBe(false);
@@ -51,14 +52,29 @@ describe("chat-route-base", () => {
       expect(classifyChatChromeSurface("/chat/chats")).toBe("chats");
     });
 
-    it("returns home for bare /chat", () => {
+    it("returns home for Welcome at / (and legacy bare /chat)", () => {
+      expect(classifyChatChromeSurface("/")).toBe("home");
+      expect(classifyChatChromeSurface("/", new URLSearchParams())).toBe(
+        "home",
+      );
       expect(classifyChatChromeSurface("/chat")).toBe("home");
       expect(classifyChatChromeSurface("/chat", new URLSearchParams())).toBe(
         "home",
       );
     });
 
-    it("returns draft for compose query on /chat", () => {
+    it("returns draft for compose query on Welcome", () => {
+      expect(
+        classifyChatChromeSurface("/", new URLSearchParams("create=channel")),
+      ).toBe("draft");
+      expect(
+        classifyChatChromeSurface("/", new URLSearchParams("dm=new")),
+      ).toBe("draft");
+      expect(
+        classifyChatChromeSurface("/", {
+          get: (k) => (k === "dm" ? "new" : null),
+        }),
+      ).toBe("draft");
       expect(
         classifyChatChromeSurface(
           "/chat",
@@ -75,12 +91,12 @@ describe("chat-route-base", () => {
       ).toBe("draft");
     });
 
-    it("returns draft for welcome compose on /chat", () => {
+    it("returns draft for welcome compose on /", () => {
       expect(
-        classifyChatChromeSurface("/chat", new URLSearchParams("dm=new")),
+        classifyChatChromeSurface("/", new URLSearchParams("dm=new")),
       ).toBe("draft");
       expect(
-        classifyChatChromeSurface("/chat", {
+        classifyChatChromeSurface("/", {
           get: (k) => (k === "dm" ? "new" : null),
         }),
       ).toBe("draft");

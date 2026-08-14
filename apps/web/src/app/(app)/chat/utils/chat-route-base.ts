@@ -77,9 +77,15 @@ function readSearchParam(
   return null;
 }
 
+function isWelcomeHomePathname(pathname: string | null | undefined): boolean {
+  return pathname === "/" || pathname === CHAT_APP_ROUTE_PREFIX;
+}
+
 /**
  * Classifies chat mobile chrome by pathname (+ optional search).
- * Callers outside chat still get `"other-chat"` (safe default for hamburger).
+ * Welcome home is `/` (and legacy bare `/chat` before redirect). Callers
+ * outside chat still get `"other-chat"` (safe default for hamburger).
+ * Do not treat `/` as a chat shell path — use `isChatShellPathname` for that.
  */
 export function classifyChatChromeSurface(
   pathname: string | null | undefined,
@@ -93,10 +99,10 @@ export function classifyChatChromeSurface(
     return "chats";
   }
 
-  if (pathname === CHAT_APP_ROUTE_PREFIX) {
+  if (isWelcomeHomePathname(pathname)) {
     const create = readSearchParam(searchParams, "create");
     const dm = readSearchParam(searchParams, "dm");
-    // Compose flows share `/chat` but use room-style chrome (no tab bar, back).
+    // Compose flows share Welcome but use room-style chrome (no tab bar, back).
     if (create === "channel" || dm === "new") {
       return "draft";
     }
