@@ -1,14 +1,30 @@
 import { HydrationBoundary } from "@tanstack/react-query";
+import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { loadJobDetails } from "@/app/agents/[agentId]/jobs/_lib/load-job-details";
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { JobDetails } from "@/components/jobs";
+import { getAgentName } from "@/lib/helpers/agent";
+import { loadJobDetails } from "@/lib/job/load-job-details";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
 
 interface JobDetailsPageParams {
   jobId: string;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<JobDetailsPageParams>;
+}): Promise<Metadata> {
+  const { jobId } = await params;
+  // Deduped with the page render via React cache() inside loadJobDetails.
+  const { job } = await loadJobDetails({ jobId });
+  const jobName = job.name?.trim();
+  return {
+    title: jobName || getAgentName(job.agent) || jobId,
+  };
 }
 
 export default async function JobDetailsPage({

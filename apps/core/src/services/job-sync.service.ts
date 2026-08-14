@@ -229,7 +229,7 @@ function jobStatusToAgentJobStatus(jobStatus: JobStatusValue): AgentJobStatus {
 }
 
 function buildJobLink(job: JobWithSokosumiStatus): string {
-  return `${getWebAppBaseUrl()}/jobs/${job.id}`;
+  return `${getWebAppBaseUrl()}/jobs/${encodeURIComponent(job.id)}`;
 }
 
 function buildFailureNotificationData(

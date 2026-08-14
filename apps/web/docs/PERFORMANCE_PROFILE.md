@@ -243,7 +243,7 @@ Example (single): `BASE_URL=https://app.example.com AUDIT_PATH=/tasks pnpm run p
 Example (multiple pages — agents, agent detail, tasks, jobs, job detail): set `AUDIT_PATHS` and `AGENT_ID` / `JOB_ID`; sign in once and press Enter to get one report per path (e.g. `sokosumi-perf.report-agents.html`, `sokosumi-perf.report-tasks.html`).
 
 ```bash
-AUDIT_PATHS="/agents,/agents/{{agentId}},/tasks,/agents/{{agentId}}/jobs,/agents/{{agentId}}/jobs/{{jobId}}" \
+AUDIT_PATHS="/agents,/agents/{{agentId}},/tasks,/agents/{{agentId}}/jobs,/jobs/{{jobId}}" \
   AGENT_ID=cmiyuwmmf000304l18efjfg5o JOB_ID=cmig62ajh000h7hmleefbax5a \
   pnpm run perf:report:auth
 ```

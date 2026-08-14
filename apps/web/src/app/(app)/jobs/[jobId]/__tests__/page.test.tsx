@@ -17,7 +17,7 @@ vi.mock("next-intl/server", () => ({
   getTranslations: (...args: unknown[]) => getTranslationsMock(...args),
 }));
 
-vi.mock("@/app/agents/[agentId]/jobs/_lib/load-job-details", () => ({
+vi.mock("@/lib/job/load-job-details", () => ({
   loadJobDetails: (...args: unknown[]) => loadJobDetailsMock(...args),
 }));
 
@@ -134,5 +134,48 @@ describe("JobDetailsPage (/jobs/{jobId})", () => {
       targetOrganizationId: null,
       successMessage: 'switchedWorkspace:{"account":"Personal Account"}',
     });
+  });
+
+  it("generateMetadata prefers the job name, then agent name", async () => {
+    loadJobDetailsMock.mockResolvedValue({
+      activeOrganizationId: null,
+      dehydratedState: "dehydrated",
+      job: {
+        id: "job-1",
+        name: "  Named Job  ",
+        agent: { id: "agent-1", name: "Research Agent" },
+        workspace: { organizationId: null },
+      },
+      personalWorkspaceLabel: null,
+      projectName: null,
+      readOnly: false,
+    });
+
+    const { generateMetadata } = await import("../page");
+    await expect(
+      generateMetadata({
+        params: Promise.resolve({ jobId: "job-1" }),
+      }),
+    ).resolves.toEqual({ title: "Named Job" });
+
+    loadJobDetailsMock.mockResolvedValue({
+      activeOrganizationId: null,
+      dehydratedState: "dehydrated",
+      job: {
+        id: "job-1",
+        name: null,
+        agent: { id: "agent-1", name: "Research Agent" },
+        workspace: { organizationId: null },
+      },
+      personalWorkspaceLabel: null,
+      projectName: null,
+      readOnly: false,
+    });
+
+    await expect(
+      generateMetadata({
+        params: Promise.resolve({ jobId: "job-1" }),
+      }),
+    ).resolves.toEqual({ title: "Research Agent" });
   });
 });

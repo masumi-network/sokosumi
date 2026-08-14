@@ -29,6 +29,18 @@ const browserCoreApiBaseUrl = normalizeCoreApiBaseUrl(
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  async redirects() {
+    // Canonical Job URL (SOK-806). Edge permanent redirect so legacy nested
+    // bookmarks skip the agent-jobs layout cost. App-router page redirects
+    // remain as belt-and-suspenders for client navigations.
+    return [
+      {
+        source: "/agents/:agentId/jobs/:jobId",
+        destination: "/jobs/:jobId",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

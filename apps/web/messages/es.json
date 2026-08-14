@@ -4487,9 +4487,6 @@
           "newJob": "Nuevo job",
           "price": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"
         },
-        "Modal": {
-          "back": "Atrás"
-        },
         "Footer": {
           "termsAndConditions": "Términos y condiciones",
           "privacyPolicy": "Política de privacidad",

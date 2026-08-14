@@ -10,7 +10,7 @@ import { getJobQueryKey, getQueryClient } from "@/queries";
 
 interface LoadJobDetailsParams {
   jobId: string;
-  /** When set, requires the job to belong to this agent (nested-route guards). */
+  /** Optional agent ownership check (legacy nested paths / call sites). */
   agentId?: string;
 }
 
