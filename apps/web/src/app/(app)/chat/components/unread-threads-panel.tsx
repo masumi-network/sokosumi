@@ -14,7 +14,7 @@ interface UnreadThreadsPanelProps {
   labels: UnreadThreadsPanelLabels;
   /**
    * Monotonic epoch from the parent. Values > 0 trigger a debounced
-   * unread-count refetch.
+   * attention-count refetch (same dual-baseline set as overview Mark all).
    */
   attentionRefreshToken: number;
   isOpen: boolean;

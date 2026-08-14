@@ -500,9 +500,9 @@ export const restoredChatRoomSchema = chatRoomSchema;
 
 /**
  * A top-level room message that has ≥1 non-deleted reply, with per-user look
- * metadata. `unreadReplyCount` requires a prior look row (ADR-0005 / Threads
- * badge). `attentionReplyCount` uses the sidebar dual-baseline so never-looked
- * replies still surface in the thread overview and Mark all (SOK-811).
+ * metadata. `unreadReplyCount` requires a prior look row (ADR-0005).
+ * `attentionReplyCount` uses the sidebar dual-baseline; Threads badge /
+ * `unread=true` / overview Mark all use that count (SOK-811).
  */
 export const chatRoomThreadSchema = z
   .object({
@@ -532,7 +532,7 @@ export const chatRoomThreadSchema = z
     }),
     attentionReplyCount: z.number().int().min(0).openapi({
       description:
-        "Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by the thread overview and Mark all; includes never-looked replies that still contribute to sidebar unread.",
+        "Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`unread=true`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.",
       example: 3,
     }),
   })

@@ -213,11 +213,10 @@ export interface ChatRoomThreadAggregate {
  * Parents (top-level messages) in a room that have ≥1 non-deleted reply,
  * with per-user unread counts.
  *
- * A thread is unread (ADR-0005 / Threads badge) only after a prior look row
- * (`ChatRoomThreadReadState.lastReadAt`). Never-looked threads have
- * unreadReplyCount 0. `attentionReplyCount` uses the sidebar dual-baseline so
- * the thread overview can style never-looked replies and Mark all can clear
- * them (SOK-811).
+ * `unreadReplyCount` follows ADR-0005 (prior look required; never-looked → 0).
+ * `attentionReplyCount` uses the sidebar dual-baseline. `unreadOnly` and the
+ * Threads badge filter on `attentionReplyCount >= 1` so never-looked attention
+ * matches overview Mark all (SOK-811).
  */
 export async function getChatRoomThreadAggregates(
   roomId: string,
@@ -305,7 +304,7 @@ export async function getChatRoomThreadAggregates(
   const recencySql = recency
     ? `
     SELECT * FROM (${innerSelect}) threads
-    WHERE "unreadReplyCount" = 0
+    WHERE "attentionReplyCount" = 0
     ${recencyCursorFilter}
     ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC
     LIMIT $${recency.cursor ? 4 : 3}
@@ -313,8 +312,8 @@ export async function getChatRoomThreadAggregates(
     : unreadOnly
       ? `
     SELECT * FROM (${innerSelect}) threads
-    WHERE "unreadReplyCount" >= 1
-    ORDER BY "lastUnreadReplyAt" DESC, "parentMessageId" DESC
+    WHERE "attentionReplyCount" >= 1
+    ORDER BY "lastReplyAt" DESC, "parentMessageId" DESC
     `
       : `
     ${innerSelect}
@@ -393,8 +392,8 @@ async function mapThreadAggregates(
 }
 
 /**
- * List threads in a room. When `unreadOnly`, only parents with ≥1 unread
- * non-self reply after a prior look (ADR-0005).
+ * List threads in a room. When `unreadOnly`, only parents with
+ * `attentionReplyCount >= 1` (dual-baseline; includes qualifying never-looked).
  */
 export async function listChatRoomThreads(
   roomId: string,
@@ -415,8 +414,8 @@ export interface ChatRoomThreadListPage {
 }
 
 /**
- * Full room thread list: all unread threads, then a recency page of the rest
- * (looked + never-looked) by last reply. Cursor pages are recency-only.
+ * Full room thread list: all attention threads, then a recency page of the
+ * rest (attentionReplyCount = 0) by last reply. Cursor pages are recency-only.
  */
 export async function listChatRoomThreadListPage(
   roomId: string,
@@ -537,8 +536,8 @@ export async function markChatRoomThreadRead(
  * sidebar dual-baseline unread: looked threads with newer non-self replies,
  * and never-looked threads with non-self replies after room read-state
  * createdAt / -infinity. Does not change room ChatRoomReadState or CHAT
- * notifications. Broader than ADR-0005 unreadOnly (badge) so Mark all in the
- * thread overview can clear never-looked looks (SOK-811).
+ * notifications. Same dual-baseline set as `unreadOnly` / Threads badge /
+ * overview attention (SOK-811).
  */
 export async function markAllChatRoomThreadsRead(
   roomId: string,

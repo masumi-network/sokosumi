@@ -132,6 +132,30 @@ describe("UnreadThreadsPanel", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows badge for never-looked attention threads (ADR-0005 unreadReplyCount 0)", async () => {
+    listUnreadThreadsActionMock.mockResolvedValue({
+      ok: true,
+      value: [
+        unreadThreadItem({
+          unreadReplyCount: 0,
+          lastUnreadReplyAt: null,
+          hasLooked: false,
+          attentionReplyCount: 37,
+          replyCount: 37,
+        }),
+      ],
+    });
+
+    renderTrigger();
+
+    expect(
+      await screen.findByTestId("unread-threads-badge"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `${labels.open} (1)` }),
+    ).toBeInTheDocument();
+  });
+
   it("coalesces rapid attentionRefreshToken bumps into one fetch after 300ms", async () => {
     vi.useFakeTimers();
     const { rerender } = render(

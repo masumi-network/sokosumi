@@ -1531,7 +1531,7 @@ export type ChatRoomThread = {
      */
     hasLooked: boolean;
     /**
-     * Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by the thread overview and Mark all; includes never-looked replies that still contribute to sidebar unread.
+     * Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`unread=true`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.
      */
     attentionReplyCount: number;
 };
@@ -12276,7 +12276,7 @@ export type GetChatsRoomsByIdThreadsData = {
          */
         limit?: number;
         /**
-         * When `true`, only unread threads (prior look + newer non-self replies). `cursor` and `limit` are ignored. When omitted or `false`, unread threads first then a recency page of the rest.
+         * When `true`, only attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). `cursor` and `limit` are ignored. When omitted or `false`, attention threads first then a recency page of the rest.
          */
         unread?: 'true' | 'false';
     };
