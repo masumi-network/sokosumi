@@ -3,7 +3,11 @@ import { OrganizationOwnerRetentionError } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 
 import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
-import { demoteExternalChatRoomMembershipsToGuest } from "@/helpers/chat-room-guest-upgrade";
+import {
+  applyOrganizationExitChatRevocation,
+  type OrganizationExitChatRevocationResult,
+  publishOrganizationExitChatRevocation,
+} from "@/helpers/chat-room-organization-exit";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import prisma from "@/lib/db/prisma";
@@ -49,16 +53,23 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Member not found");
     }
 
+    let chatRevocation: OrganizationExitChatRevocationResult = {
+      revokedRoomIds: [],
+      statusMessages: [],
+    };
     try {
-      await prisma.$transaction(async (tx) => {
-        await memberRepository.removeMember(memberId, organization.id, tx);
-        // Better Auth leave/remove uses afterRemoveMember; admin path is
-        // direct Prisma — demote external host-member rows back to guest.
-        await demoteExternalChatRoomMembershipsToGuest(
+      // Hard-leave rooms before deleting the Member row (same order as BA
+      // beforeRemoveMember). Member DELETE also fires the DB hard-leave
+      // trigger (covers BA leaveOrganization, which has no hooks) — no-op
+      // when app already cleaned.
+      chatRevocation = await prisma.$transaction(async (tx) => {
+        const revocation = await applyOrganizationExitChatRevocation(
+          tx,
           member.userId,
           organization.id,
-          tx,
         );
+        await memberRepository.removeMember(memberId, organization.id, tx);
+        return revocation;
       });
     } catch (error) {
       if (error instanceof OrganizationOwnerRetentionError) {
@@ -67,6 +78,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw error;
     }
 
+    await publishOrganizationExitChatRevocation(member.userId, chatRevocation);
     await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
 
     return c.body(null, 204);

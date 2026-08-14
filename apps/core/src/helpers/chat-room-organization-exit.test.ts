@@ -1,0 +1,325 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  applyOrganizationExitChatRevocation,
+  publishOrganizationExitChatRevocation,
+  revokeChatRoomMembershipsOnOrganizationExit,
+} from "./chat-room-organization-exit";
+
+const findManyMock = vi.fn();
+const userFindUniqueMock = vi.fn();
+const deleteManyMemberMock = vi.fn();
+const deleteManyReadStateMock = vi.fn();
+const groupByMock = vi.fn();
+const chatRoomDeleteMock = vi.fn();
+const chatRoomUpdateManyMock = vi.fn();
+const recordChannelMembershipStatusMock = vi.fn();
+const publishChatRoomMessageRealtimeMock = vi.fn();
+const publishChatMembershipRevokedMock = vi.fn();
+const transactionMock = vi.fn();
+
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    $transaction: (callback: (tx: unknown) => unknown) =>
+      transactionMock(callback),
+  },
+}));
+
+vi.mock("@/routes/v1/chats/rooms/membership-status", () => ({
+  recordChannelMembershipStatus: (...args: unknown[]) =>
+    recordChannelMembershipStatusMock(...args),
+}));
+
+vi.mock("@/helpers/chat-room-message-realtime", () => ({
+  publishChatRoomMessageRealtime: (...args: unknown[]) =>
+    publishChatRoomMessageRealtimeMock(...args),
+}));
+
+vi.mock("@/lib/ably/publish", () => ({
+  publishChatMembershipRevoked: (...args: unknown[]) =>
+    publishChatMembershipRevokedMock(...args),
+}));
+
+function createTx() {
+  return {
+    chatRoomUserMember: {
+      findMany: findManyMock,
+      deleteMany: deleteManyMemberMock,
+      groupBy: groupByMock,
+    },
+    chatRoomReadState: {
+      deleteMany: deleteManyReadStateMock,
+    },
+    user: {
+      findUnique: userFindUniqueMock,
+    },
+    chatRoom: {
+      delete: chatRoomDeleteMock,
+      updateMany: chatRoomUpdateManyMock,
+    },
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  findManyMock.mockResolvedValue([]);
+  userFindUniqueMock.mockResolvedValue({ name: "Ada" });
+  deleteManyMemberMock.mockResolvedValue({ count: 0 });
+  deleteManyReadStateMock.mockResolvedValue({ count: 0 });
+  groupByMock.mockResolvedValue([]);
+  chatRoomDeleteMock.mockResolvedValue({});
+  chatRoomUpdateManyMock.mockResolvedValue({ count: 1 });
+  recordChannelMembershipStatusMock.mockResolvedValue([{ id: "status-msg-1" }]);
+  publishChatRoomMessageRealtimeMock.mockResolvedValue(undefined);
+  publishChatMembershipRevokedMock.mockResolvedValue(undefined);
+  transactionMock.mockImplementation(async (callback) => callback(createTx()));
+});
+
+describe("applyOrganizationExitChatRevocation", () => {
+  it("no-ops when the user has no org room memberships", async () => {
+    const result = await applyOrganizationExitChatRevocation(
+      createTx() as never,
+      "user_1",
+      "org_1",
+    );
+
+    expect(result).toEqual({ revokedRoomIds: [], statusMessages: [] });
+    expect(deleteManyMemberMock).not.toHaveBeenCalled();
+    expect(recordChannelMembershipStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("hard-leaves every org room: status, membership, read state, Ably inputs", async () => {
+    findManyMock.mockResolvedValue([
+      {
+        roomId: "room-public",
+        room: { id: "room-public", kind: "channel", archivedAt: null },
+      },
+      {
+        roomId: "room-external",
+        room: { id: "room-external", kind: "channel", archivedAt: null },
+      },
+      {
+        roomId: "room-dm",
+        room: { id: "room-dm", kind: "direct", archivedAt: null },
+      },
+    ]);
+    // Other humans remain in public + external; DM becomes empty.
+    groupByMock.mockResolvedValue([
+      { roomId: "room-public", _count: { _all: 2 } },
+      { roomId: "room-external", _count: { _all: 1 } },
+    ]);
+
+    const result = await applyOrganizationExitChatRevocation(
+      createTx() as never,
+      "user_1",
+      "org_1",
+    );
+
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_1",
+        room: { organizationId: "org_1" },
+      },
+      select: {
+        roomId: true,
+        room: {
+          select: {
+            id: true,
+            kind: true,
+            archivedAt: true,
+          },
+        },
+      },
+    });
+
+    expect(recordChannelMembershipStatusMock).toHaveBeenCalledTimes(2);
+    expect(recordChannelMembershipStatusMock).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        roomId: "room-public",
+        roomKind: "channel",
+        changes: [
+          {
+            action: "left",
+            subject: { type: "user", id: "user_1", name: "Ada" },
+          },
+        ],
+      },
+    );
+    expect(recordChannelMembershipStatusMock).toHaveBeenCalledWith(
+      expect.anything(),
+      {
+        roomId: "room-external",
+        roomKind: "channel",
+        changes: [
+          {
+            action: "left",
+            subject: { type: "user", id: "user_1", name: "Ada" },
+          },
+        ],
+      },
+    );
+
+    expect(deleteManyMemberMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_1",
+        roomId: {
+          in: ["room-public", "room-external", "room-dm"],
+        },
+      },
+    });
+    expect(deleteManyReadStateMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_1",
+        roomId: {
+          in: ["room-public", "room-external", "room-dm"],
+        },
+      },
+    });
+
+    // Empty direct is hard-deleted, not archived.
+    expect(chatRoomDeleteMock).toHaveBeenCalledWith({
+      where: { id: "room-dm" },
+    });
+    expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
+
+    expect(result.revokedRoomIds).toEqual([
+      "room-public",
+      "room-external",
+      "room-dm",
+    ]);
+    expect(result.statusMessages).toHaveLength(2);
+  });
+
+  it("soft-archives channels left with zero human members", async () => {
+    findManyMock.mockResolvedValue([
+      {
+        roomId: "room-solo",
+        room: { id: "room-solo", kind: "channel", archivedAt: null },
+      },
+    ]);
+    groupByMock.mockResolvedValue([]);
+
+    await applyOrganizationExitChatRevocation(
+      createTx() as never,
+      "user_1",
+      "org_1",
+    );
+
+    expect(chatRoomUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: "room-solo", archivedAt: null },
+      data: { archivedAt: expect.any(Date) },
+    });
+    expect(chatRoomDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it("does not re-archive already archived empty channels", async () => {
+    findManyMock.mockResolvedValue([
+      {
+        roomId: "room-archived",
+        room: {
+          id: "room-archived",
+          kind: "channel",
+          archivedAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      },
+    ]);
+    groupByMock.mockResolvedValue([]);
+
+    await applyOrganizationExitChatRevocation(
+      createTx() as never,
+      "user_1",
+      "org_1",
+    );
+
+    expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to Someone when the user has no display name", async () => {
+    findManyMock.mockResolvedValue([
+      {
+        roomId: "room-1",
+        room: { id: "room-1", kind: "channel", archivedAt: null },
+      },
+    ]);
+    userFindUniqueMock.mockResolvedValue({ name: "   " });
+    groupByMock.mockResolvedValue([{ roomId: "room-1", _count: { _all: 1 } }]);
+
+    await applyOrganizationExitChatRevocation(
+      createTx() as never,
+      "user_1",
+      "org_1",
+    );
+
+    expect(recordChannelMembershipStatusMock).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        changes: [
+          expect.objectContaining({
+            subject: expect.objectContaining({ name: "Someone" }),
+          }),
+        ],
+      }),
+    );
+  });
+});
+
+describe("publishOrganizationExitChatRevocation", () => {
+  it("publishes left status messages and membership revokes", async () => {
+    await publishOrganizationExitChatRevocation("user_1", {
+      revokedRoomIds: ["room-a", "room-b"],
+      statusMessages: [{ id: "m1" } as never, { id: "m2" } as never],
+    });
+
+    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalledTimes(2);
+    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      roomId: "room-a",
+      reason: "left",
+    });
+    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      roomId: "room-b",
+      reason: "left",
+    });
+  });
+
+  it("swallows individual publish failures", async () => {
+    publishChatMembershipRevokedMock
+      .mockRejectedValueOnce(new Error("ably down"))
+      .mockResolvedValueOnce(undefined);
+
+    await expect(
+      publishOrganizationExitChatRevocation("user_1", {
+        revokedRoomIds: ["room-a", "room-b"],
+        statusMessages: [],
+      }),
+    ).resolves.toBeUndefined();
+  });
+});
+
+describe("revokeChatRoomMembershipsOnOrganizationExit", () => {
+  it("runs apply in a transaction then publishes", async () => {
+    findManyMock.mockResolvedValue([
+      {
+        roomId: "room-1",
+        room: { id: "room-1", kind: "channel", archivedAt: null },
+      },
+    ]);
+    groupByMock.mockResolvedValue([{ roomId: "room-1", _count: { _all: 3 } }]);
+
+    const result = await revokeChatRoomMembershipsOnOrganizationExit(
+      "user_1",
+      "org_1",
+    );
+
+    expect(transactionMock).toHaveBeenCalledOnce();
+    expect(result.revokedRoomIds).toEqual(["room-1"]);
+    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
+      userId: "user_1",
+      roomId: "room-1",
+      reason: "left",
+    });
+    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalled();
+  });
+});

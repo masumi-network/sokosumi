@@ -58,10 +58,8 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
-import {
-  demoteExternalChatRoomMembershipsToGuest,
-  upgradeGuestChatRoomMembershipsToMember,
-} from "@/helpers/chat-room-guest-upgrade";
+import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
+import { revokeChatRoomMembershipsOnOrganizationExit } from "@/helpers/chat-room-organization-exit";
 import {
   applyDesignMdMetadataGuardToOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate,
@@ -693,11 +691,16 @@ export const auth = betterAuth({
           );
           await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
-        afterRemoveMember: async ({ organization, user }) => {
-          await demoteExternalChatRoomMembershipsToGuest(
+        // BA leaveOrganization does not fire remove-member hooks — durable
+        // hard-leave for leave is the member-delete DB trigger. Hooks cover
+        // remove-member (Ably + status realtime) before the row is gone.
+        beforeRemoveMember: async ({ organization, user }) => {
+          await revokeChatRoomMembershipsOnOrganizationExit(
             user.id,
             organization.id,
           );
+        },
+        afterRemoveMember: async ({ organization }) => {
           await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
         beforeDeleteOrganization: async ({ organization, user }) => {

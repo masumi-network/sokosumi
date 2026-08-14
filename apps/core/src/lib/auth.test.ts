@@ -55,7 +55,7 @@ const {
   ensureCanAcceptOrganizationInvitationMock,
   syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
   upgradeGuestChatRoomMembershipsToMemberMock,
-  demoteExternalChatRoomMembershipsToGuestMock,
+  revokeChatRoomMembershipsOnOrganizationExitMock,
   prepareStripeEmailSyncForUserUpdateMock,
   handleUserUpdateStripeEmailSyncMock,
   syncUserEmailWithStripeMock,
@@ -119,7 +119,7 @@ const {
     ensureCanAcceptOrganizationInvitationMock: vi.fn(),
     syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
     upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
-    demoteExternalChatRoomMembershipsToGuestMock: vi.fn(),
+    revokeChatRoomMembershipsOnOrganizationExitMock: vi.fn(),
     prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
     handleUserUpdateStripeEmailSyncMock: vi.fn(),
     syncUserEmailWithStripeMock: vi.fn(),
@@ -317,8 +317,11 @@ vi.mock("@/services/organization-subscription-auth.service", () => ({
 vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
   upgradeGuestChatRoomMembershipsToMember: (...args: unknown[]) =>
     upgradeGuestChatRoomMembershipsToMemberMock(...args),
-  demoteExternalChatRoomMembershipsToGuest: (...args: unknown[]) =>
-    demoteExternalChatRoomMembershipsToGuestMock(...args),
+}));
+
+vi.mock("@/helpers/chat-room-organization-exit", () => ({
+  revokeChatRoomMembershipsOnOrganizationExit: (...args: unknown[]) =>
+    revokeChatRoomMembershipsOnOrganizationExitMock(...args),
 }));
 
 vi.mock("@/services/stripe-user-email.service", () => ({
@@ -2135,31 +2138,36 @@ describe("core auth config", () => {
     ).toHaveBeenCalledWith("org-1");
   });
 
-  it("demotes external channel memberships after removing a member", async () => {
+  it("revokes org chat room memberships before removing a member", async () => {
     await import("./auth");
 
     const [[config]] = organizationPluginMock.mock.calls as Array<
       [
         {
           organizationHooks: {
-            afterRemoveMember: (input: {
+            beforeRemoveMember: (input: {
               organization: { id: string };
               user: { id: string };
+            }) => Promise<void>;
+            afterRemoveMember: (input: {
+              organization: { id: string };
             }) => Promise<void>;
           };
         },
       ]
     >;
 
-    await config.organizationHooks.afterRemoveMember({
+    await config.organizationHooks.beforeRemoveMember({
       organization: { id: "org-1" },
       user: { id: "user-1" },
     });
+    await config.organizationHooks.afterRemoveMember({
+      organization: { id: "org-1" },
+    });
 
-    expect(demoteExternalChatRoomMembershipsToGuestMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-    );
+    expect(
+      revokeChatRoomMembershipsOnOrganizationExitMock,
+    ).toHaveBeenCalledWith("user-1", "org-1");
     expect(
       syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
     ).toHaveBeenCalledWith("org-1");
