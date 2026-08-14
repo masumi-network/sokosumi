@@ -18,6 +18,7 @@ import {
   canPermanentlyDeleteChatRoom,
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
+  countChatRoomAttentionThreads,
   getChatRoomThreadAggregates,
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
@@ -929,6 +930,39 @@ describe("getChatRoomThreadAggregates", () => {
       "550e8400-e29b-41d4-a716-446655440000",
       "user_123",
       51,
+    ]);
+  });
+});
+
+describe("countChatRoomAttentionThreads", () => {
+  it("counts dual-baseline attention parents without hydrating rows", async () => {
+    const queryRawUnsafe = vi.fn().mockResolvedValue([{ count: 4 }]);
+    const tx = { $queryRawUnsafe: queryRawUnsafe } as never;
+
+    const count = await countChatRoomAttentionThreads(
+      "550e8400-e29b-41d4-a716-446655440000",
+      "user_123",
+      tx,
+    );
+
+    expect(count).toBe(4);
+    expect(queryRawUnsafe).toHaveBeenCalledOnce();
+    const sql = String(queryRawUnsafe.mock.calls[0]?.[0]);
+    expect(sql).toContain("COUNT(DISTINCT parent.id)");
+    expect(sql).toContain('room_read."createdAt"');
+    expect(sql).toContain("'-infinity'::timestamp");
+    expect(sql).toContain('thread_read."lastReadAt"');
+    expect(sql).toContain('reply."deletedAt" IS NULL');
+    expect(sql).toContain('parent."deletedAt" IS NULL');
+    expect(sql).toMatch(
+      /reply\."senderUserId" IS NULL OR reply\."senderUserId" <>/,
+    );
+    expect(sql).not.toContain('"unreadReplyCount"');
+    expect(sql).not.toContain("ORDER BY");
+    expect(sql).not.toContain("LIMIT");
+    expect(queryRawUnsafe.mock.calls[0]?.slice(1)).toEqual([
+      "550e8400-e29b-41d4-a716-446655440000",
+      "user_123",
     ]);
   });
 });

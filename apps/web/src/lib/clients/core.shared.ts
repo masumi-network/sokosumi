@@ -139,6 +139,7 @@ import {
   getChatsRoomsByIdInviteLinks as coreGetChatsRoomsByIdInviteLinks,
   getChatsRoomsByIdMessages as coreGetChatsRoomsByIdMessages,
   getChatsRoomsByIdThreads as coreGetChatsRoomsByIdThreads,
+  getChatsRoomsByIdThreadsAttentionCount as coreGetChatsRoomsByIdThreadsAttentionCount,
   getChatsRoomsByIdThreadsByParentMessageId as coreGetChatsRoomsByIdThreadsByParentMessageId,
   getChatsRoomsByIdThreadsByParentMessageIdMessages as coreGetChatsRoomsByIdThreadsByParentMessageIdMessages,
   getChatsRoomsDiscoverable as coreGetChatsRoomsDiscoverable,
@@ -841,6 +842,19 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to fetch threads",
+    );
+  }
+
+  async function getChatRoomThreadsAttentionCount(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatsRoomsByIdThreadsAttentionCount({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch thread attention count",
     );
   }
 
@@ -4107,6 +4121,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomThread,
     getChatRoomThreadMessages,
     getChatRoomThreads,
+    getChatRoomThreadsAttentionCount,
     getChatRooms,
     getDiscoverableChatRooms,
     markChatRoomRead,

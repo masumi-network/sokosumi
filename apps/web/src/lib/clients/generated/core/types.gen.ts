@@ -1531,7 +1531,7 @@ export type ChatRoomThread = {
      */
     hasLooked: boolean;
     /**
-     * Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`unread=true`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.
+     * Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`GET …/threads/attention-count`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.
      */
     attentionReplyCount: number;
 };
@@ -1635,6 +1635,13 @@ export type ChatRoomMessageUnfurl = {
     description: string | null;
     imageUrl: string | null;
     siteName: string | null;
+};
+
+export type ChatRoomThreadsAttentionCount = {
+    /**
+     * Number of attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). Does not hydrate thread items.
+     */
+    count: number;
 };
 
 export type ChatRoomThreadsMarkAll = {
@@ -12373,6 +12380,98 @@ export type GetChatsRoomsByIdThreadsResponses = {
 };
 
 export type GetChatsRoomsByIdThreadsResponse = GetChatsRoomsByIdThreadsResponses[keyof GetChatsRoomsByIdThreadsResponses];
+
+export type GetChatsRoomsByIdThreadsAttentionCountData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/threads/attention-count';
+};
+
+export type GetChatsRoomsByIdThreadsAttentionCountErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdThreadsAttentionCountError = GetChatsRoomsByIdThreadsAttentionCountErrors[keyof GetChatsRoomsByIdThreadsAttentionCountErrors];
+
+export type GetChatsRoomsByIdThreadsAttentionCountResponses = {
+    /**
+     * Attention thread count
+     */
+    200: {
+        data: ChatRoomThreadsAttentionCount;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatsRoomsByIdThreadsAttentionCountResponse = GetChatsRoomsByIdThreadsAttentionCountResponses[keyof GetChatsRoomsByIdThreadsAttentionCountResponses];
 
 export type PostChatsRoomsByIdThreadsReadData = {
     body?: never;
