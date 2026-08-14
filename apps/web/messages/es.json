@@ -5441,7 +5441,7 @@
   "WorkspaceGate": {
     "title": "Configura tu espacio de trabajo",
     "identityTitle": "Crea tu primer espacio de trabajo",
-    "identityDescription": "Necesitas un espacio de trabajo antes de usar Sokosumi.",
+    "identityDescription": "Confirma tu nombre y elige cómo quieres empezar.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
     "pendingInvitesDescription": "Hay invitaciones de organización pendientes. Aún no se pueden gestionar en esta pantalla.",
     "body": "No puedes usar el producto hasta tener un primer espacio de trabajo. Cerrar sesión es la única forma de salir de esta pantalla por ahora.",
@@ -5449,6 +5449,23 @@
     "unavailableTitle": "No pudimos comprobar el acceso a tu espacio de trabajo",
     "unavailableDescription": "Sokosumi no pudo cargar el estado de tu espacio de trabajo ahora. Es temporal: no estás bloqueado por no tener un espacio de trabajo.",
     "unavailableBody": "Inténtalo de nuevo en un momento. Si sigue fallando, cierra sesión y vuelve a entrar, o contacta con soporte. Cerrar sesión siempre está disponible aquí.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "Identity": {
+      "displayNameLabel": "Nombre para mostrar",
+      "displayNamePlaceholder": "Tu nombre",
+      "choiceLabel": "¿Cómo quieres empezar?",
+      "personalTitle": "Espacio personal",
+      "personalDescription": "Trabaja por tu cuenta. Más adelante puedes unirte o crear una organización.",
+      "organizationTitle": "Organización",
+      "organizationDescription": "Configura un espacio compartido para tu equipo.",
+      "createPersonal": "Crear espacio personal",
+      "continue": "Continuar",
+      "back": "Atrás",
+      "organizationPlaceholderTitle": "La configuración de organización viene después",
+      "organizationPlaceholderBody": "Aún no se pueden crear organizaciones en esta pantalla. Vuelve atrás para elegir un espacio personal, o cierra sesión y vuelve más tarde.",
+      "nameUpdateError": "No pudimos actualizar tu nombre para mostrar.",
+      "personalCreateError": "No pudimos crear tu espacio de trabajo personal.",
+      "personalAlreadyExists": "Ya tienes un espacio de trabajo personal. Actualiza la página o cierra sesión y vuelve a entrar."
+    }
   }
 }

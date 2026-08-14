@@ -298,6 +298,7 @@ import {
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
   postUsersByIdFiles as corePostUsersByIdFiles,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
+  postUsersByIdPersonalWorkspace as corePostUsersByIdPersonalWorkspace,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
   postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
@@ -2232,6 +2233,23 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to create user Stripe customer",
+    );
+  }
+
+  /**
+   * Create-once personal workspace for the current user. Core returns 409 when
+   * a personal workspace already exists.
+   */
+  async function createMyPersonalWorkspace() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostUsersByIdPersonalWorkspace({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to create personal workspace",
     );
   }
 
@@ -4209,6 +4227,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyOrganizationCredits,
     getMyOrganizations,
     createMyStripeCustomer,
+    createMyPersonalWorkspace,
     createOrganizationStripeCustomer,
     getMyBillingDetails,
     getUserBillingDetails,

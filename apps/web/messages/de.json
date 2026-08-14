@@ -5441,7 +5441,7 @@
   "WorkspaceGate": {
     "title": "Workspace einrichten",
     "identityTitle": "Erstelle deinen ersten Workspace",
-    "identityDescription": "Du brauchst einen Workspace, bevor du Sokosumi nutzen kannst.",
+    "identityDescription": "Bestätige deinen Namen und wähle, wie du starten möchtest.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
     "pendingInvitesDescription": "Es warten Organisations-Einladungen auf dich. Sie können auf diesem Bildschirm noch nicht bearbeitet werden.",
     "body": "Du kannst das Produkt erst nutzen, wenn du einen ersten Workspace hast. Abmelden ist vorerst der einzige Weg, diesen Bildschirm zu verlassen.",
@@ -5449,6 +5449,23 @@
     "unavailableTitle": "Workspace-Zugriff konnte nicht geprüft werden",
     "unavailableDescription": "Sokosumi konnte deinen Workspace-Status gerade nicht laden. Das ist vorübergehend — du bist nicht wegen eines fehlenden Workspace ausgesperrt.",
     "unavailableBody": "Versuche es gleich noch einmal. Wenn das Problem bleibt, melde dich ab und wieder an, oder kontaktiere den Support. Abmelden ist hier immer möglich.",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "Identity": {
+      "displayNameLabel": "Anzeigename",
+      "displayNamePlaceholder": "Dein Name",
+      "choiceLabel": "Wie möchtest du starten?",
+      "personalTitle": "Persönlicher Workspace",
+      "personalDescription": "Arbeite für dich allein. Du kannst später einer Organisation beitreten oder eine erstellen.",
+      "organizationTitle": "Organisation",
+      "organizationDescription": "Richte einen gemeinsamen Workspace für dein Team ein.",
+      "createPersonal": "Persönlichen Workspace erstellen",
+      "continue": "Weiter",
+      "back": "Zurück",
+      "organizationPlaceholderTitle": "Organisationseinrichtung folgt",
+      "organizationPlaceholderBody": "Organisationen können auf diesem Bildschirm noch nicht erstellt werden. Gehe zurück, um einen persönlichen Workspace zu wählen, oder melde dich ab und kehre später zurück.",
+      "nameUpdateError": "Dein Anzeigename konnte nicht aktualisiert werden.",
+      "personalCreateError": "Dein persönlicher Workspace konnte nicht erstellt werden.",
+      "personalAlreadyExists": "Du hast bereits einen persönlichen Workspace. Aktualisiere die Seite oder melde dich ab und wieder an."
+    }
   }
 }
