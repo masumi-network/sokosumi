@@ -1629,6 +1629,7 @@ export function ChatMessageRow({
   showQuoteButton = true,
   isContinuation = false,
   isFirstOfDay = false,
+  reserveHoverActionGutter = true,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -1661,6 +1662,11 @@ export function ChatMessageRow({
   isContinuation?: boolean;
   /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
   isFirstOfDay?: boolean;
+  /**
+   * Reserve right padding for the hover action pill. Off in the narrow
+   * thread panel so the body can use the full column.
+   */
+  reserveHoverActionGutter?: boolean;
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
@@ -1761,7 +1767,8 @@ export function ChatMessageRow({
       data-message-id={message.id}
       aria-label={isContinuation ? sender.name : undefined}
       className={cn(
-        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45 [@media(hover:hover)]:pr-48",
+        "group relative -mx-2 flex min-w-0 max-w-full gap-3.5 overflow-x-clip rounded-md pl-2 transition-colors hover:bg-muted/45",
+        reserveHoverActionGutter && "[@media(hover:hover)]:pr-48",
         showActions && TOUCH_MESSAGE_SELECT_NONE_CLASS,
         isContinuation
           ? "min-h-0 py-0.5"

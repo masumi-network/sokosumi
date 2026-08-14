@@ -233,6 +233,7 @@ export function ThreadPanel({
                 onToggleReaction={onToggleReaction}
                 onQuote={onQuote ? handleQuote : undefined}
                 showThreadButton={false}
+                reserveHoverActionGutter={false}
                 {...editPropsFor(parentMessage.id)}
               />
             )}
@@ -290,6 +291,7 @@ export function ThreadPanel({
                             reply.id,
                           )}
                           showThreadButton={false}
+                          reserveHoverActionGutter={false}
                           isContinuation={isMessageContinuation(
                             replies[index - 1],
                             reply,
