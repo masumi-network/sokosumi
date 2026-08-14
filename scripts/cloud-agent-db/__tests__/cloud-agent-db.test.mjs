@@ -156,10 +156,23 @@ describe("auth fixtures", () => {
     assert.equal(admins[0]?.email, "admin@sokosumi.test");
   });
 
-  it("gives each fixture user at least one organization", () => {
+  it("includes a zero-workspace fixture without org or personal workspace", () => {
+    const zero = AUTH_FIXTURES.find(
+      (fixture) => fixture.email === "zero@sokosumi.test",
+    );
+    assert.ok(zero, "missing zero@sokosumi.test fixture");
+    assert.equal(zero.name, "Zero Workspace");
+    assert.equal(zero.role, "user");
+    assert.equal(zero.organization ?? null, null);
+    assert.equal(zero.createPersonalWorkspace, false);
+  });
+
+  it("gives org-enabled fixtures unique organization slugs", () => {
     const slugs = new Set();
     for (const fixture of AUTH_FIXTURES) {
-      assert.ok(fixture.organization, `${fixture.email} missing organization`);
+      if (fixture.organization == null) {
+        continue;
+      }
       assert.match(fixture.organization.slug, /^[a-z0-9-]+$/);
       assert.ok(fixture.organization.name.length >= 1);
       assert.equal(
@@ -169,5 +182,6 @@ describe("auth fixtures", () => {
       );
       slugs.add(fixture.organization.slug);
     }
+    assert.ok(slugs.size >= 1, "expected at least one org-enabled fixture");
   });
 });

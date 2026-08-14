@@ -16,7 +16,12 @@ import {
   assertAgentFixtureSafety,
   checkAgentFixtureSafety,
 } from "./assert-agent-database.mjs";
-import { AUTH_FIXTURES, FIXTURE_PASSWORD } from "./fixtures.mjs";
+import {
+  AUTH_FIXTURES,
+  FIXTURE_PASSWORD,
+  fixtureWantsOrganization,
+  fixtureWantsPersonalWorkspace,
+} from "./fixtures.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
@@ -101,12 +106,14 @@ async function upsertFixtureUser(client, fixture, passwordHash) {
     );
   }
 
-  await client.query(
-    `INSERT INTO workspace (id, "userId", "createdAt", "updatedAt")
-     VALUES ($1, $2, $3, $3)
-     ON CONFLICT ("userId") DO NOTHING`,
-    [randomUUID(), userId, now],
-  );
+  if (fixtureWantsPersonalWorkspace(fixture)) {
+    await client.query(
+      `INSERT INTO workspace (id, "userId", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $3)
+       ON CONFLICT ("userId") DO NOTHING`,
+      [randomUUID(), userId, now],
+    );
+  }
 
   return userId;
 }
@@ -206,14 +213,21 @@ export async function seedAuthFixtures(options = {}) {
     await client.query("BEGIN");
     for (const fixture of AUTH_FIXTURES) {
       const userId = await upsertFixtureUser(client, fixture, passwordHash);
-      const organizationId = await upsertFixtureOrganization(
-        client,
-        userId,
-        fixture.organization,
-      );
-      log(
-        `Auth fixture ready: ${fixture.email} (org ${fixture.organization.slug}=${organizationId})`,
-      );
+      const organization = fixture.organization;
+      if (fixtureWantsOrganization(fixture) && organization) {
+        const organizationId = await upsertFixtureOrganization(
+          client,
+          userId,
+          organization,
+        );
+        log(
+          `Auth fixture ready: ${fixture.email} (org ${organization.slug}=${organizationId})`,
+        );
+      } else {
+        log(
+          `Auth fixture ready: ${fixture.email} (no personal workspace, no organization)`,
+        );
+      }
     }
     await client.query("COMMIT");
     return { seeded: AUTH_FIXTURES.length, skipped: false };
