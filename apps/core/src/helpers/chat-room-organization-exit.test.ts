@@ -2,10 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   applyOrganizationExitChatRevocation,
-  captureOrganizationExitChatRoomsForAbly,
-  publishCapturedOrganizationExitChatRevocation,
+  listOrganizationExitChatRoomIdsForAbly,
   publishOrganizationExitChatRevocation,
-  revokeChatRoomMembershipsOnOrganizationExit,
 } from "./chat-room-organization-exit";
 
 const findManyMock = vi.fn();
@@ -194,12 +192,14 @@ describe("applyOrganizationExitChatRevocation", () => {
       },
     });
 
-    // Empty direct is hard-deleted, not archived. Invite cleanup only for
-    // rooms left with zero humans (public/external still have members).
+    // Channel leave bumps room.updatedAt; empty direct is hard-deleted.
+    expect(chatRoomUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["room-public", "room-external"] } },
+      data: { updatedAt: expect.any(Date) },
+    });
     expect(chatRoomDeleteMock).toHaveBeenCalledWith({
       where: { id: "room-dm" },
     });
-    expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
     expect(guestInvitationUpdateManyMock).toHaveBeenCalledWith({
       where: {
         roomId: { in: ["room-dm"] },
@@ -253,8 +253,12 @@ describe("applyOrganizationExitChatRevocation", () => {
       data: { revokedAt: expect.any(Date) },
     });
     expect(chatRoomUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["room-solo"] } },
+      data: { updatedAt: expect.any(Date) },
+    });
+    expect(chatRoomUpdateManyMock).toHaveBeenCalledWith({
       where: { id: "room-solo", archivedAt: null },
-      data: { archivedAt: expect.any(Date) },
+      data: { archivedAt: expect.any(Date), updatedAt: expect.any(Date) },
     });
     expect(chatRoomDeleteMock).not.toHaveBeenCalled();
   });
@@ -278,7 +282,10 @@ describe("applyOrganizationExitChatRevocation", () => {
 
     expect(guestInvitationUpdateManyMock).not.toHaveBeenCalled();
     expect(guestInviteLinkUpdateManyMock).not.toHaveBeenCalled();
-    expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
+    expect(chatRoomUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["room-shared"] } },
+      data: { updatedAt: expect.any(Date) },
+    });
   });
   it("does not re-archive already archived empty channels", async () => {
     findManyMock.mockResolvedValue([
@@ -299,7 +306,16 @@ describe("applyOrganizationExitChatRevocation", () => {
       "org_1",
     );
 
-    expect(chatRoomUpdateManyMock).not.toHaveBeenCalled();
+    // Activity bump for left status only — no second archive write.
+    expect(chatRoomUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["room-archived"] } },
+      data: { updatedAt: expect.any(Date) },
+    });
+    expect(chatRoomUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ archivedAt: expect.any(Date) }),
+      }),
+    );
   });
 
   it("falls back to Someone when the user has no display name", async () => {
@@ -365,41 +381,15 @@ describe("publishOrganizationExitChatRevocation", () => {
   });
 });
 
-describe("revokeChatRoomMembershipsOnOrganizationExit", () => {
-  it("runs apply in a transaction then publishes", async () => {
-    findManyMock.mockResolvedValue([
-      {
-        roomId: "room-1",
-        room: { id: "room-1", kind: "channel", archivedAt: null },
-      },
-    ]);
-    groupByMock.mockResolvedValue([{ roomId: "room-1", _count: { _all: 3 } }]);
-
-    const result = await revokeChatRoomMembershipsOnOrganizationExit(
-      "user_1",
-      "org_1",
-    );
-
-    expect(transactionMock).toHaveBeenCalledOnce();
-    expect(result.revokedRoomIds).toEqual(["room-1"]);
-    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      roomId: "room-1",
-      reason: "left",
-    });
-    expect(publishChatRoomMessageRealtimeMock).toHaveBeenCalled();
-  });
-});
-
-describe("captureOrganizationExitChatRoomsForAbly + publishCaptured", () => {
-  it("snapshots room ids without mutating chat, then Ably-revokes after", async () => {
+describe("listOrganizationExitChatRoomIdsForAbly", () => {
+  it("lists room ids without mutating chat", async () => {
     prismaFindManyMock.mockResolvedValue([
       { roomId: "room-a" },
       { roomId: "room-b" },
     ]);
 
     await expect(
-      captureOrganizationExitChatRoomsForAbly("user_1", "org_1"),
+      listOrganizationExitChatRoomIdsForAbly("user_1", "org_1"),
     ).resolves.toEqual(["room-a", "room-b"]);
 
     expect(prismaFindManyMock).toHaveBeenCalledWith({
@@ -410,25 +400,5 @@ describe("captureOrganizationExitChatRoomsForAbly + publishCaptured", () => {
       select: { roomId: true },
     });
     expect(deleteManyMemberMock).not.toHaveBeenCalled();
-    expect(publishChatMembershipRevokedMock).not.toHaveBeenCalled();
-
-    await publishCapturedOrganizationExitChatRevocation("user_1", "org_1");
-
-    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      roomId: "room-a",
-      reason: "left",
-    });
-    expect(publishChatMembershipRevokedMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      roomId: "room-b",
-      reason: "left",
-    });
-    expect(publishChatRoomMessageRealtimeMock).not.toHaveBeenCalled();
-  });
-
-  it("no-ops Ably when nothing was captured", async () => {
-    await publishCapturedOrganizationExitChatRevocation("user_x", "org_x");
-    expect(publishChatMembershipRevokedMock).not.toHaveBeenCalled();
   });
 });

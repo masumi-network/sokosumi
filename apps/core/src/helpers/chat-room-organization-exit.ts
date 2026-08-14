@@ -70,12 +70,14 @@ export async function applyOrganizationExitChatRevocation(
   const roomById = new Map(
     memberships.map((membership) => [membership.room.id, membership.room]),
   );
+  const channelRoomIds: string[] = [];
 
   for (const membership of memberships) {
     const room = membership.room;
     revokedRoomIds.push(room.id);
 
     if (room.kind === "channel") {
+      channelRoomIds.push(room.id);
       const created = await recordChannelMembershipStatus(tx, {
         roomId: room.id,
         roomKind: room.kind,
@@ -106,6 +108,15 @@ export async function applyOrganizationExitChatRevocation(
       roomId: { in: revokedRoomIds },
     },
   });
+
+  // Raw SQL status insert does not touch room.updatedAt; bump so room lists
+  // ordered by activity see the leave. Archive path also sets updatedAt below.
+  if (channelRoomIds.length > 0) {
+    await tx.chatRoom.updateMany({
+      where: { id: { in: channelRoomIds } },
+      data: { updatedAt: new Date() },
+    });
+  }
 
   const remainingRows = await tx.chatRoomUserMember.groupBy({
     by: ["roomId"],
@@ -152,7 +163,7 @@ export async function applyOrganizationExitChatRevocation(
     if (room.kind === "channel" && room.archivedAt === null) {
       await tx.chatRoom.updateMany({
         where: { id: roomId, archivedAt: null },
-        data: { archivedAt: new Date() },
+        data: { archivedAt: new Date(), updatedAt: new Date() },
       });
     }
   }
@@ -170,11 +181,10 @@ export async function publishOrganizationExitChatRevocation(
     return;
   }
 
+  // Each publish is a separate settled entry so one failure does not hide others.
   const outcomes = await Promise.allSettled([
-    Promise.all(
-      statusMessages.map((message) =>
-        publishChatRoomMessageRealtime(message, "create"),
-      ),
+    ...statusMessages.map((message) =>
+      publishChatRoomMessageRealtime(message, "create"),
     ),
     ...revokedRoomIds.map((roomId) =>
       publishChatMembershipRevoked({
@@ -195,22 +205,16 @@ export async function publishOrganizationExitChatRevocation(
   }
 }
 
-function organizationExitPendingKey(
-  userId: string,
-  organizationId: string,
-): string {
-  return `${userId}:${organizationId}`;
-}
-
-/** Room IDs to Ably-revoke after BA member delete (trigger does durable work). */
-const pendingAblyRoomIdsByOrganizationExit = new Map<string, string[]>();
-
 /**
  * Snapshot org room memberships for post-commit Ably without mutating chat.
- * Pair with {@link publishCapturedOrganizationExitChatRevocation} after the
- * Member row is deleted (DB trigger performs durable hard-leave).
+ * Pass the returned IDs to {@link publishOrganizationExitChatRevocation} after
+ * the Member row is deleted (DB trigger performs durable hard-leave).
+ *
+ * Better Auth before/after hooks cannot share return values; callers should
+ * hand the array through the same `member` object reference BA passes to both
+ * hooks (see auth organizationHooks).
  */
-export async function captureOrganizationExitChatRoomsForAbly(
+export async function listOrganizationExitChatRoomIdsForAbly(
   userId: string,
   organizationId: string,
 ): Promise<string[]> {
@@ -221,46 +225,5 @@ export async function captureOrganizationExitChatRoomsForAbly(
     },
     select: { roomId: true },
   });
-  const roomIds = rows.map((row) => row.roomId);
-  pendingAblyRoomIdsByOrganizationExit.set(
-    organizationExitPendingKey(userId, organizationId),
-    roomIds,
-  );
-  return roomIds;
-}
-
-/**
- * Publish Ably membership revokes for rooms captured before Member delete.
- * No-op when nothing was captured. Clears the pending entry.
- */
-export async function publishCapturedOrganizationExitChatRevocation(
-  userId: string,
-  organizationId: string,
-): Promise<void> {
-  const key = organizationExitPendingKey(userId, organizationId);
-  const roomIds = pendingAblyRoomIdsByOrganizationExit.get(key) ?? [];
-  pendingAblyRoomIdsByOrganizationExit.delete(key);
-  await publishOrganizationExitChatRevocation(userId, {
-    revokedRoomIds: roomIds,
-    statusMessages: [],
-  });
-}
-
-/**
- * Full organization-exit chat cleanup in its own transaction, then realtime.
- * Prefer transactional `apply` + Member delete when both can share a txn
- * (admin path). BA remove-member uses capture/publish + DB trigger instead
- * so chat is not committed if Member delete fails.
- * Voluntary leave has no BA hook — durable hard-leave is the member-delete
- * DB trigger (`chat_room_hard_leave_on_organization_member_delete`).
- */
-export async function revokeChatRoomMembershipsOnOrganizationExit(
-  userId: string,
-  organizationId: string,
-): Promise<OrganizationExitChatRevocationResult> {
-  const result = await prisma.$transaction((tx) =>
-    applyOrganizationExitChatRevocation(tx, userId, organizationId),
-  );
-  await publishOrganizationExitChatRevocation(userId, result);
-  return result;
+  return rows.map((row) => row.roomId);
 }

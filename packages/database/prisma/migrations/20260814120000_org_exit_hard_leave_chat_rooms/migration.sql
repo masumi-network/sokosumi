@@ -74,6 +74,13 @@ BEGIN
   WHERE r."id" = ANY (left_room_ids)
     AND r."kind" = 'channel';
 
+  -- Status insert is raw SQL (no Prisma @updatedAt). Bump room activity so
+  -- lists ordered by updatedAt surface the leave.
+  UPDATE "chat_room" r
+  SET "updatedAt" = CURRENT_TIMESTAMP
+  WHERE r."id" = ANY (left_room_ids)
+    AND r."kind" = 'channel';
+
   DELETE FROM "chat_room_read_state" rs
   WHERE rs."userId" = OLD."userId"
     AND rs."roomId" = ANY (left_room_ids);
@@ -109,7 +116,9 @@ BEGIN
 
   -- Soft-archive channels left with zero humans (restorable).
   UPDATE "chat_room" r
-  SET "archivedAt" = CURRENT_TIMESTAMP
+  SET
+    "archivedAt" = CURRENT_TIMESTAMP,
+    "updatedAt" = CURRENT_TIMESTAMP
   WHERE r."id" = ANY (left_room_ids)
     AND r."kind" = 'channel'
     AND r."archivedAt" IS NULL

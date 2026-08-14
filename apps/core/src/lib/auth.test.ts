@@ -55,8 +55,8 @@ const {
   ensureCanAcceptOrganizationInvitationMock,
   syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
   upgradeGuestChatRoomMembershipsToMemberMock,
-  captureOrganizationExitChatRoomsForAblyMock,
-  publishCapturedOrganizationExitChatRevocationMock,
+  listOrganizationExitChatRoomIdsForAblyMock,
+  publishOrganizationExitChatRevocationMock,
   prepareStripeEmailSyncForUserUpdateMock,
   handleUserUpdateStripeEmailSyncMock,
   syncUserEmailWithStripeMock,
@@ -120,8 +120,8 @@ const {
     ensureCanAcceptOrganizationInvitationMock: vi.fn(),
     syncLocalFreeSeatsAndCreditsForCurrentMembersMock: vi.fn(),
     upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
-    captureOrganizationExitChatRoomsForAblyMock: vi.fn(),
-    publishCapturedOrganizationExitChatRevocationMock: vi.fn(),
+    listOrganizationExitChatRoomIdsForAblyMock: vi.fn(),
+    publishOrganizationExitChatRevocationMock: vi.fn(),
     prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
     handleUserUpdateStripeEmailSyncMock: vi.fn(),
     syncUserEmailWithStripeMock: vi.fn(),
@@ -322,10 +322,10 @@ vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
 }));
 
 vi.mock("@/helpers/chat-room-organization-exit", () => ({
-  captureOrganizationExitChatRoomsForAbly: (...args: unknown[]) =>
-    captureOrganizationExitChatRoomsForAblyMock(...args),
-  publishCapturedOrganizationExitChatRevocation: (...args: unknown[]) =>
-    publishCapturedOrganizationExitChatRevocationMock(...args),
+  listOrganizationExitChatRoomIdsForAbly: (...args: unknown[]) =>
+    listOrganizationExitChatRoomIdsForAblyMock(...args),
+  publishOrganizationExitChatRevocation: (...args: unknown[]) =>
+    publishOrganizationExitChatRevocationMock(...args),
 }));
 
 vi.mock("@/services/stripe-user-email.service", () => ({
@@ -2142,7 +2142,11 @@ describe("core auth config", () => {
     ).toHaveBeenCalledWith("org-1");
   });
 
-  it("captures then Ably-publishes org chat room revokes around member remove", async () => {
+  it("hands Ably room ids through the member object around remove", async () => {
+    listOrganizationExitChatRoomIdsForAblyMock.mockResolvedValue([
+      "room-a",
+      "room-b",
+    ]);
     await import("./auth");
 
     const [[config]] = organizationPluginMock.mock.calls as Array<
@@ -2152,32 +2156,39 @@ describe("core auth config", () => {
             beforeRemoveMember: (input: {
               organization: { id: string };
               user: { id: string };
+              member: { organizationExitChatRoomIds?: string[] };
             }) => Promise<void>;
             afterRemoveMember: (input: {
               organization: { id: string };
               user: { id: string };
+              member: { organizationExitChatRoomIds?: string[] };
             }) => Promise<void>;
           };
         },
       ]
     >;
 
+    const member: { organizationExitChatRoomIds?: string[] } = {};
     await config.organizationHooks.beforeRemoveMember({
       organization: { id: "org-1" },
       user: { id: "user-1" },
+      member,
     });
+    expect(member.organizationExitChatRoomIds).toEqual(["room-a", "room-b"]);
     await config.organizationHooks.afterRemoveMember({
       organization: { id: "org-1" },
       user: { id: "user-1" },
+      member,
     });
 
-    expect(captureOrganizationExitChatRoomsForAblyMock).toHaveBeenCalledWith(
+    expect(listOrganizationExitChatRoomIdsForAblyMock).toHaveBeenCalledWith(
       "user-1",
       "org-1",
     );
-    expect(
-      publishCapturedOrganizationExitChatRevocationMock,
-    ).toHaveBeenCalledWith("user-1", "org-1");
+    expect(publishOrganizationExitChatRevocationMock).toHaveBeenCalledWith(
+      "user-1",
+      { revokedRoomIds: ["room-a", "room-b"], statusMessages: [] },
+    );
     expect(
       syncLocalFreeSeatsAndCreditsForCurrentMembersMock,
     ).toHaveBeenCalledWith("org-1");
