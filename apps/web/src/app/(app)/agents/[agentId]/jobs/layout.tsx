@@ -2,14 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import {
-  CreateJobModal,
-  CreateJobModalContextProvider,
-} from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
-import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services";
 import {
   createUnavailableCoreAgent,
@@ -17,7 +12,6 @@ import {
 } from "@/lib/types/core-dto";
 
 import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
-import JobBottomNavigation from "./components/job-bottom-navigation";
 import { JobsHeaderProvider } from "./components/jobs-header-context";
 import { JobsList } from "./components/jobs-list";
 
@@ -73,65 +67,49 @@ async function JobLayoutInner({
   const ratingStats = coreAgent
     ? getAgentRatingStats(coreAgent)
     : { total: 0, average: null };
-  const averageExecutionDuration =
-    coreAgent?.metrics.executions.averageTime ?? null;
   const disabled = !coreAgent;
 
-  const [agentJobsPage, canRate, existingRating, projectOptions] =
-    await Promise.all([
-      getCachedMyJobs(agentId),
-      coreAgent
-        ? agentService.canUserRateAgent(agentId)
-        : Promise.resolve(false),
-      coreAgent
-        ? agentService.getUserRatingForAgent(agentId)
-        : Promise.resolve(null),
-      getProjectFilterOptions(),
-    ]);
+  const [agentJobsPage, canRate, existingRating] = await Promise.all([
+    getCachedMyJobs(agentId),
+    coreAgent ? agentService.canUserRateAgent(agentId) : Promise.resolve(false),
+    coreAgent
+      ? agentService.getUserRatingForAgent(agentId)
+      : Promise.resolve(null),
+  ]);
 
   return (
-    <CreateJobModalContextProvider
-      agentsWithPrice={[agent]}
-      averageExecutionDuration={averageExecutionDuration}
-      projectOptions={projectOptions}
+    <JobsHeaderProvider
+      value={{
+        agent,
+        ratingStats,
+        canRate,
+        existingRating,
+        disabled,
+      }}
     >
-      <JobsHeaderProvider
-        value={{
-          agent,
-          ratingStats,
-          canRate,
-          existingRating,
-          disabled,
-        }}
-      >
-        <div className="flex w-full flex-col">
-          <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start">
-            <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-4rem)] lg:w-72 lg:flex-none">
-              <JobsList
-                key={agentId}
-                jobs={agentJobsPage.jobs}
-                jobsNextCursor={agentJobsPage.nextCursor}
-                userId={session.user.id}
-                agentId={agentId}
-              />
-            </div>
-
-            <div className="h-full min-h-0 min-w-0 flex-1 lg:hidden">
-              <div className="mx-auto h-full min-h-0 w-full px-4">
-                {children}
-              </div>
-            </div>
-
-            <div className="hidden h-full min-h-0 min-w-0 flex-1 lg:block">
-              <div className="mx-auto h-full min-h-0 w-full px-4">{right}</div>
-            </div>
+      <div className="flex w-full flex-col">
+        <div className="flex w-full flex-col gap-4 lg:flex-row lg:items-start">
+          <div className="w-full px-4 lg:sticky lg:top-16 lg:h-[calc(100svh-4rem)] lg:w-72 lg:flex-none">
+            <JobsList
+              key={agentId}
+              jobs={agentJobsPage.jobs}
+              jobsNextCursor={agentJobsPage.nextCursor}
+              userId={session.user.id}
+              agentId={agentId}
+            />
           </div>
-          {modal}
-          <JobBottomNavigation agent={agent} disabled={disabled} />
-          {!disabled && <CreateJobModal />}
+
+          <div className="h-full min-h-0 min-w-0 flex-1 lg:hidden">
+            <div className="mx-auto h-full min-h-0 w-full px-4">{children}</div>
+          </div>
+
+          <div className="hidden h-full min-h-0 min-w-0 flex-1 lg:block">
+            <div className="mx-auto h-full min-h-0 w-full px-4">{right}</div>
+          </div>
         </div>
-      </JobsHeaderProvider>
-    </CreateJobModalContextProvider>
+        {modal}
+      </div>
+    </JobsHeaderProvider>
   );
 }
 

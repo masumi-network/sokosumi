@@ -1,14 +1,14 @@
 import * as z from "zod";
 import type { PostAgentsByIdJobsData } from "@/lib/clients/generated/core";
-import type { StartJobInputSchemaType } from "@/lib/schemas";
+import type { ProvideJobInputSchemaType } from "@/lib/schemas";
 
 export type CoreJobInputData = NonNullable<
   PostAgentsByIdJobsData["body"]
 >["inputData"];
 
 /**
- * Same value union as Core `createJobRequestSchema` `inputData` — validate here so
- * Masumi payload (files, etc.) is narrowed to what POST `/agents/{id}/jobs` accepts.
+ * Same value union as Core create-job / provide-input `inputData` — validate
+ * here so Masumi payload (files, etc.) is narrowed to what Core accepts.
  */
 const coreJobInputDataSchema = z.record(
   z.string(),
@@ -22,7 +22,7 @@ const coreJobInputDataSchema = z.record(
 ) satisfies z.ZodType<CoreJobInputData>;
 
 export function toCoreJobInputData(
-  inputData: StartJobInputSchemaType["inputData"],
+  inputData: ProvideJobInputSchemaType["inputData"],
 ): CoreJobInputData | null {
   const parsed = coreJobInputDataSchema.safeParse(inputData);
   return parsed.success ? parsed.data : null;

@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
 import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
-import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
@@ -14,8 +13,6 @@ import { getAgentCredits } from "@/lib/types/core-dto";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 export function HeaderSkeleton() {
-  const t = useTranslations("App.Agents.Jobs.Header");
-
   return (
     <div className="flex flex-col gap-4 pt-14 md:pt-0 lg:gap-6 xl:gap-8">
       <div className="bg-background/95 fixed top-[64px] left-0 z-50 flex w-full items-center justify-between p-4 md:hidden md:gap-4">
@@ -35,10 +32,6 @@ export function HeaderSkeleton() {
         </div>
         <div className="flex items-center gap-1.5">
           <Skeleton className="h-5 w-20" />
-          <Button className="h-7 gap-2 px-2.5 text-xs" disabled>
-            <Plus />
-            {t("newJob")}
-          </Button>
         </div>
       </div>
     </div>
@@ -103,11 +96,6 @@ export default function Header({
               />
             )}
             {detailActions}
-            <CreateJobModalTrigger
-              agentId={agent.id}
-              disabled={disabled}
-              className="h-7 gap-1.5 px-2.5 text-xs"
-            />
           </div>
         </div>
       </div>

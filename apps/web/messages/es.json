@@ -86,13 +86,6 @@
           "page": "Página {page} de {totalPages}"
         }
       },
-      "agentsNotAvailable": "No hay Agents disponibles",
-      "agentsNotFound": "No se encontraron Agents",
-      "hire": "Contratar Agent",
-      "AgentCard": {
-        "view": "Ver detalles",
-        "pricing": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"
-      },
       "AgentDetail": {
         "Header": {
           "pricing": "{credits, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"
@@ -1084,7 +1077,7 @@
         "default": "Sokosumi - Iniciar sesión / Registrarse",
         "template": "Sokosumi - %s"
       },
-      "description": "Contrata un Agent para tus tareas más complejas"
+      "description": "Usa coworkers de IA para tus tareas más complejas"
     },
     "SocialButtons": {
       "continueWith": "Continuar con {provider}",
@@ -1117,7 +1110,7 @@
       "SignIn": {
         "Metadata": {
           "title": "Iniciar sesión",
-          "description": "Contrata un Agent para tus tareas más complejas"
+          "description": "Usa coworkers de IA para tus tareas más complejas"
         },
         "Header": {
           "title": "Iniciar sesión",
@@ -1152,7 +1145,7 @@
       "SignUp": {
         "Metadata": {
           "title": "Registrarse",
-          "description": "Contrata un Agent para tus tareas más complejas"
+          "description": "Usa coworkers de IA para tus tareas más complejas"
         },
         "Google": {
           "title": "Autenticarse con Google",
@@ -2793,7 +2786,7 @@
         "default": "Sokosumi - Marketplace de agentes de IA",
         "template": "Sokosumi - %s"
       },
-      "description": "Contrata un Agent para tus tareas más complejas"
+      "description": "Usa coworkers de IA para tus tareas más complejas"
     },
     "Sidebar": {
       "Account": {
@@ -4443,7 +4436,6 @@
         "heroHeadline": "What do you want to get done?",
         "heroSubtitle": "Hand real work to your AI coworkers, or start from a ready-to-run offer.",
         "searchPlaceholder": "Search agents, coworkers, and offers…",
-        "socialProof": "{count} agents on Sokosumi",
         "socialProofFallback": "AI coworkers ready to work",
         "companyWebsite": "Visit website",
         "companyLegal": "Legal",
@@ -4466,25 +4458,10 @@
         "noResults": "Nothing matches your search.",
         "coworkerNoOffers": "No ready-to-run offers yet."
       },
-      "FilterSection": {
-        "searchPlaceholder": "Buscar Agents",
-        "reset": "Restablecer",
-        "tags": "Tags",
-        "selectTags": "Seleccionar Tags",
-        "applyTags": "Aplicar",
-        "categories": "Categorías",
-        "selectCategories": "Seleccionar categorías",
-        "applyCategories": "Aplicar",
-        "featuredAgents": "Featured Agents",
-        "newAgents": "Nuevos Agents",
-        "others": "Otros"
-      },
       "Jobs": {
-        "newJob": "Nuevo job",
         "switchedWorkspace": "Cambiado a la cuenta de {account}",
         "Header": {
           "back": "Volver a Agents",
-          "newJob": "Nuevo job",
           "price": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}}"
         },
         "Modal": {
@@ -4498,28 +4475,12 @@
         },
         "RightSection": {
           "noExecutedJobs": "No hay jobs ejecutados"
-        },
-        "CreateJob": {
-          "title": "Nuevo {name}",
-          "cancel": "Cancelar",
-          "Information": {
-            "title": "Información"
-          },
-          "Input": {
-            "title": "Input",
-            "projectLabel": "Proyecto",
-            "projectNone": "Sin proyecto",
-            "projectSearchPlaceholder": "Buscar proyectos...",
-            "projectEmptyResults": "No se encontraron proyectos."
-          }
         }
       },
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI Coworker",
         "defaultDescription": "Un AI Coworker listo para ayudarte."
-      },
-      "allAgentsTitle": "Explorar todos los agentes",
-      "allAgentsSubtitle": "Todos los agentes en Sokosumi, agrupados según lo que hacen."
+      }
     },
     "EmailVerificationNotice": {
       "title": "Verifica tu dirección de correo",
@@ -5242,19 +5203,19 @@
         "default": "Sokosumi - Marketplace de agentes de IA",
         "template": "Sokosumi - %s"
       },
-      "description": "Contrata un Agent para tus tareas más complejas"
+      "description": "Usa coworkers de IA para tus tareas más complejas"
     },
     "Jobs": {
       "Metadata": {
         "title": "{name}",
         "defaultName": "Sin nombre",
-        "description": "Contrata un Agent para tus tareas más complejas"
+        "description": "Usa coworkers de IA para tus tareas más complejas"
       }
     },
     "Tasks": {
       "Metadata": {
         "title": "{name}",
-        "description": "Contrata un Agent para tus tareas más complejas"
+        "description": "Usa coworkers de IA para tus tareas más complejas"
       },
       "Page": {
         "eyebrow": "Tarea pública",
@@ -5364,24 +5325,12 @@
       },
       "Form": {
         "clear": "Restablecer",
-        "price": "{price, plural, =0 {Gratis} =1 {1 Credit} other {# Credits}} por ejecución",
-        "submit": "Contratar",
         "back": "Atrás",
         "next": "Siguiente",
         "ctrl": "Ctrl",
-        "acceptByClickingSubmit": "Al hacer clic en \"Contratar\" aceptas ",
-        "termsOfService": "Términos de uso",
-        "privacyPolicy": "Política de privacidad",
-        "dpa": "Acuerdo de procesamiento de datos (DPA)",
-        "legal": "otros requisitos legales",
-        "byCreator": " del creador del Agent",
         "Error": {
-          "insufficientBalance": "Tu saldo de Credits no es suficiente para iniciar este job.",
-          "insufficientBalanceAction": "Añadir Credits",
           "badInput": "Tus datos de entrada no son válidos.",
-          "unauthenticated": "Debes iniciar sesión para iniciar un job.",
-          "unauthenticatedAction": "Iniciar sesión",
-          "default": "No se pudo iniciar el job."
+          "unauthenticated": "Debes iniciar sesión para continuar."
         },
         "String": {
           "required": "{name} es obligatorio",
@@ -5417,6 +5366,10 @@
           "min": "{name} debe ser al menos {value}",
           "max": "{name} no puede superar {value}",
           "format": "{name} debe ser un/una {value}"
+        },
+        "Password": {
+          "show": "Mostrar contraseña",
+          "hide": "Ocultar contraseña"
         }
       },
       "Error": {

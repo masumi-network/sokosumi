@@ -86,13 +86,6 @@
           "page": "Page {page} of {totalPages}"
         }
       },
-      "agentsNotAvailable": "No agents available",
-      "agentsNotFound": "No Agents found",
-      "hire": "Hire Agent",
-      "AgentCard": {
-        "view": "Show Details",
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
-      },
       "AgentDetail": {
         "Header": {
           "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
@@ -1084,7 +1077,7 @@
         "default": "Sokosumi - Login / Register",
         "template": "Sokosumi - %s"
       },
-      "description": "Hire yourself an agent to finish the most time consuming tasks"
+      "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
     "SocialButtons": {
       "continueWith": "Continue with {provider}",
@@ -1117,7 +1110,7 @@
       "SignIn": {
         "Metadata": {
           "title": "Login",
-          "description": "Hire yourself an agent to finish the most time consuming tasks"
+          "description": "Use AI coworkers to finish your most time-consuming tasks"
         },
         "Header": {
           "title": "Login",
@@ -1152,7 +1145,7 @@
       "SignUp": {
         "Metadata": {
           "title": "Register",
-          "description": "Hire yourself an agent to finish the most time consuming tasks"
+          "description": "Use AI coworkers to finish your most time-consuming tasks"
         },
         "Google": {
           "title": "Authenticate with Google",
@@ -2793,7 +2786,7 @@
         "default": "Sokosumi - Marketplace for human-to-agent interactions",
         "template": "Sokosumi - %s"
       },
-      "description": "Hire yourself an agent to finish the most time consuming tasks"
+      "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
     "Sidebar": {
       "Account": {
@@ -4474,7 +4467,6 @@
         "heroHeadline": "What do you want to get done?",
         "heroSubtitle": "Hand real work to your AI coworkers, or start from a ready-to-run offer.",
         "searchPlaceholder": "Search agents, coworkers, and offers…",
-        "socialProof": "{count} agents on Sokosumi",
         "socialProofFallback": "AI coworkers ready to work",
         "companyWebsite": "Visit website",
         "companyLegal": "Legal",
@@ -4497,25 +4489,10 @@
         "noResults": "Nothing matches your search.",
         "coworkerNoOffers": "No ready-to-run offers yet."
       },
-      "FilterSection": {
-        "searchPlaceholder": "Search agents",
-        "reset": "Reset",
-        "tags": "Tags",
-        "selectTags": "Select Tags",
-        "applyTags": "Apply",
-        "categories": "Categories",
-        "selectCategories": "Select Categories",
-        "applyCategories": "Apply",
-        "featuredAgents": "Featured Agents",
-        "newAgents": "New Agents",
-        "others": "Others"
-      },
       "Jobs": {
-        "newJob": "New Job",
         "switchedWorkspace": "Switched to {account} account",
         "Header": {
           "back": "Back to agents",
-          "newJob": "New Job",
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
         },
         "Modal": {
@@ -4529,28 +4506,12 @@
         },
         "RightSection": {
           "noExecutedJobs": "No executed jobs"
-        },
-        "CreateJob": {
-          "title": "New {name}",
-          "cancel": "Cancel",
-          "Information": {
-            "title": "Information"
-          },
-          "Input": {
-            "title": "Input",
-            "projectLabel": "Project",
-            "projectNone": "No project",
-            "projectSearchPlaceholder": "Search projects...",
-            "projectEmptyResults": "No projects found."
-          }
         }
       },
       "CoworkerGalleryCard": {
         "defaultSubtitle": "AI Coworker",
         "defaultDescription": "An AI-powered coworker ready to assist you."
-      },
-      "allAgentsTitle": "Browse all agents",
-      "allAgentsSubtitle": "Every agent on Sokosumi, grouped by what they do."
+      }
     },
     "DesignMd": {
       "adHocDialogTitle": "Use a different brand",
@@ -5242,19 +5203,19 @@
         "default": "Sokosumi - Marketplace for human-to-agent interactions",
         "template": "Sokosumi - %s"
       },
-      "description": "Hire yourself an agent to finish the most time consuming tasks"
+      "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
     "Jobs": {
       "Metadata": {
         "title": "{name}",
         "defaultName": "Untitled",
-        "description": "Hire yourself an agent to finish the most time consuming tasks"
+        "description": "Use AI coworkers to finish your most time-consuming tasks"
       }
     },
     "Tasks": {
       "Metadata": {
         "title": "{name}",
-        "description": "Hire yourself an agent to finish the most time consuming tasks"
+        "description": "Use AI coworkers to finish your most time-consuming tasks"
       },
       "Page": {
         "eyebrow": "Public task",
@@ -5364,24 +5325,12 @@
       },
       "Form": {
         "clear": "Clear",
-        "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
-        "submit": "Hire",
         "back": "Back",
         "next": "Next",
         "ctrl": "Ctrl",
-        "acceptByClickingSubmit": "By clicking on \"Hire\" you're accepting the ",
-        "termsOfService": "Terms of Service",
-        "privacyPolicy": "Privacy Policy",
-        "dpa": "Data Processing Agreement (DPA)",
-        "legal": "other Legal Requirements",
-        "byCreator": " by the creator of the Agent",
         "Error": {
-          "insufficientBalance": "Your credit balance is insufficient to start this job.",
-          "insufficientBalanceAction": "Add credits",
           "badInput": "Your input data is invalid.",
-          "unauthenticated": "You must be logged in to start a job.",
-          "unauthenticatedAction": "Login",
-          "default": "Failed to start the job."
+          "unauthenticated": "You must be logged in to continue."
         },
         "String": {
           "required": "{name} is required",
@@ -5417,6 +5366,10 @@
           "min": "{name} must be at least {value}",
           "max": "{name} must be at most {value}",
           "format": "{name} must be a {value}"
+        },
+        "Password": {
+          "show": "Show password",
+          "hide": "Hide password"
         }
       },
       "Error": {

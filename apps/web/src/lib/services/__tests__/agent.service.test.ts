@@ -76,31 +76,6 @@ describe("agent.service", () => {
     expect(result).toEqual(coreAgent);
   });
 
-  it("reads the random agent's average execution time from core metrics", async () => {
-    const coreAgent = {
-      id: "agent-1",
-      metrics: { executions: { averageTime: 42 } },
-    };
-    getAllCoreAgentsMock.mockResolvedValue([coreAgent]);
-
-    const { agentService } = await import("../agent.service");
-    const result = await agentService.getRandomAvailableAgentData();
-
-    expect(result).toEqual({
-      agent: coreAgent,
-      averageExecutionDuration: 42,
-    });
-  });
-
-  it("returns null random agent data when core has no agents", async () => {
-    getAllCoreAgentsMock.mockResolvedValue([]);
-
-    const { agentService } = await import("../agent.service");
-    const result = await agentService.getRandomAvailableAgentData();
-
-    expect(result).toBeNull();
-  });
-
   it("reports rating eligibility from core", async () => {
     getAgentRatingEligibilityMock.mockResolvedValue({
       data: { eligible: true },

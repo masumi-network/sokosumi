@@ -162,10 +162,6 @@ export function getAgentAuthorResolvedImage(
   return image ? resolveIpfsOrHttpUrl(image) : null;
 }
 
-export function getAgentSummary(agent: CoreAgentDto): string | null {
-  return agent.summary;
-}
-
 export function getAgentAuthorEmail(agent: CoreAgentDto): string | null {
   return agent.author.email ?? null;
 }
