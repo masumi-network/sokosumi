@@ -58,10 +58,11 @@ import {
   getEnv,
   getWebAppBaseUrl,
 } from "@/config/env";
+import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import {
-  demoteExternalChatRoomMembershipsToGuest,
-  upgradeGuestChatRoomMembershipsToMember,
-} from "@/helpers/chat-room-guest-upgrade";
+  listOrganizationExitChatRoomIdsForAbly,
+  publishOrganizationExitChatRevocation,
+} from "@/helpers/chat-room-organization-exit";
 import {
   applyDesignMdMetadataGuardToOrganizationCreate,
   applyDesignMdMetadataGuardToOrganizationUpdate,
@@ -693,11 +694,28 @@ export const auth = betterAuth({
           );
           await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
-        afterRemoveMember: async ({ organization, user }) => {
-          await demoteExternalChatRoomMembershipsToGuest(
+        // BA leaveOrganization has no remove-member hooks — durable hard-leave
+        // for leave (and for remove) is the member-delete DB trigger. For
+        // remove-member only: snapshot room IDs on the member object BA passes
+        // to both hooks (no module Map), then Ably-revoke after Member is gone.
+        beforeRemoveMember: async ({ organization, user, member }) => {
+          const roomIds = await listOrganizationExitChatRoomIdsForAbly(
             user.id,
             organization.id,
           );
+          // BA reuses the same member object for afterRemoveMember.
+          (
+            member as { organizationExitChatRoomIds?: string[] }
+          ).organizationExitChatRoomIds = roomIds;
+        },
+        afterRemoveMember: async ({ organization, user, member }) => {
+          const roomIds =
+            (member as { organizationExitChatRoomIds?: string[] })
+              .organizationExitChatRoomIds ?? [];
+          await publishOrganizationExitChatRevocation(user.id, {
+            revokedRoomIds: roomIds,
+            statusMessages: [],
+          });
           await syncLocalFreeSeatsAndCreditsForCurrentMembers(organization.id);
         },
         beforeDeleteOrganization: async ({ organization, user }) => {

@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  demoteExternalChatRoomMembershipsToGuest,
-  upgradeGuestChatRoomMembershipsToMember,
-} from "./chat-room-guest-upgrade";
+import { upgradeGuestChatRoomMembershipsToMember } from "./chat-room-guest-upgrade";
 
 const updateManyMock = vi.fn();
 
@@ -53,28 +50,5 @@ describe("upgradeGuestChatRoomMembershipsToMember", () => {
 
     expect(txUpdateMany).toHaveBeenCalled();
     expect(updateManyMock).not.toHaveBeenCalled();
-  });
-});
-
-describe("demoteExternalChatRoomMembershipsToGuest", () => {
-  it("demotes host-member rows on external channels only", async () => {
-    updateManyMock.mockResolvedValue({ count: 1 });
-
-    await expect(
-      demoteExternalChatRoomMembershipsToGuest("user_1", "org_1"),
-    ).resolves.toBe(1);
-
-    expect(updateManyMock).toHaveBeenCalledWith({
-      where: {
-        userId: "user_1",
-        access: "member",
-        room: {
-          organizationId: "org_1",
-          kind: "channel",
-          discoverability: "external",
-        },
-      },
-      data: { access: "guest" },
-    });
   });
 });
