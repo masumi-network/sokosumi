@@ -13,9 +13,6 @@ export const CHAT_API_PATH = "/api/chat" as const;
 /** Mobile Chats list route (mounted at bare `/chat`). */
 export const CHAT_CHATS_LIST_PATH = CHAT_APP_ROUTE_PREFIX;
 
-/** Legacy list path — always redirects to {@link CHAT_CHATS_LIST_PATH}. */
-export const CHAT_CHATS_LEGACY_PATH = `${CHAT_APP_ROUTE_PREFIX}/chats` as const;
-
 /** Welcome home (drafts/notices land here). */
 export const CHAT_WELCOME_PATH = "/" as const;
 

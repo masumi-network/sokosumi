@@ -2,8 +2,9 @@ import type { MetadataRoute } from "next";
 
 /**
  * `scope: "/"` is required: default scope is the directory of `start_url`, so
- * install from `/chat/chats` would scope to `/chat/` and tab links (`/tasks`,
- * …) open outside the PWA. Keep `start_url` origin-relative for preview hosts.
+ * a nested start URL under `/chat/` would scope the PWA to `/chat/` and tab
+ * links (`/tasks`, …) open outside the PWA. Keep `start_url` origin-relative
+ * for preview hosts.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {

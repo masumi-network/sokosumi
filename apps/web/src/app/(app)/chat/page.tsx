@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chats/chat-chats-list-shell";
+import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chat-chats-list-shell";
 import { ChatDesktopHomeRedirect } from "@/app/chat/components/chat-desktop-home-redirect.client";
 import {
   CHAT_WELCOME_PATH,

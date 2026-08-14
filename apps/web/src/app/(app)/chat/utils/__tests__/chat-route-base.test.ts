@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   CHAT_API_PATH,
   CHAT_APP_ROUTE_PREFIX,
-  CHAT_CHATS_LEGACY_PATH,
   CHAT_CHATS_LIST_PATH,
   CHAT_WELCOME_PATH,
   classifyChatChromeSurface,
@@ -21,14 +20,12 @@ describe("chat-route-base", () => {
     expect(CHAT_APP_ROUTE_PREFIX).toBe("/chat");
     expect(CHAT_API_PATH).toBe("/api/chat");
     expect(CHAT_CHATS_LIST_PATH).toBe("/chat");
-    expect(CHAT_CHATS_LEGACY_PATH).toBe("/chat/chats");
     expect(CHAT_WELCOME_PATH).toBe("/");
   });
 
   it("isChatShellPathname recognizes only /chat tree", () => {
     expect(isChatShellPathname("/chat")).toBe(true);
     expect(isChatShellPathname("/chat/rooms/r1")).toBe(true);
-    expect(isChatShellPathname("/chat/chats")).toBe(true);
     expect(isChatShellPathname("/")).toBe(false);
     expect(isChatShellPathname("/new-chat")).toBe(false);
     expect(isChatShellPathname("/new-chat/foo")).toBe(false);
@@ -41,13 +38,11 @@ describe("chat-route-base", () => {
     expect(isChatRoomPathname("/chat/rooms/")).toBe(false);
     expect(isChatRoomPathname("/chat")).toBe(false);
     expect(isChatRoomPathname("/chat/rooms")).toBe(false);
-    expect(isChatRoomPathname("/chat/chats")).toBe(false);
     expect(isChatRoomPathname(null)).toBe(false);
   });
 
   it("isChatChatsPathname matches bare /chat exactly", () => {
     expect(isChatChatsPathname("/chat")).toBe(true);
-    expect(isChatChatsPathname("/chat/chats")).toBe(false);
     expect(isChatChatsPathname("/chat/extra")).toBe(false);
     expect(isChatChatsPathname("/")).toBe(false);
     expect(isChatChatsPathname(null)).toBe(false);
@@ -147,7 +142,6 @@ describe("chat-route-base", () => {
 
     it("returns other-chat for nested non-room chat and non-chat", () => {
       expect(classifyChatChromeSurface("/chat/something")).toBe("other-chat");
-      expect(classifyChatChromeSurface("/chat/chats")).toBe("other-chat");
       expect(classifyChatChromeSurface("/tasks")).toBe("other-chat");
       expect(classifyChatChromeSurface(null)).toBe("other-chat");
     });

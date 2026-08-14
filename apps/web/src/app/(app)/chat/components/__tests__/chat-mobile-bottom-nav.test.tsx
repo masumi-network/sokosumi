@@ -52,7 +52,7 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/history")).toBe("search");
   });
 
-  it("returns null on drafts, rooms, legacy chats path, and nested routes", () => {
+  it("returns null on drafts, rooms, and nested routes", () => {
     expect(
       resolveChatMobileActiveTabId(
         "/chat",
@@ -67,8 +67,6 @@ describe("resolveChatMobileActiveTabId", () => {
       resolveChatMobileActiveTabId("/chat", new URLSearchParams("welcome=1")),
     ).toBe("chats");
     expect(resolveChatMobileActiveTabId("/chat/rooms/abc")).toBeNull();
-    expect(resolveChatMobileActiveTabId("/chat/chats")).toBeNull();
-    expect(resolveChatMobileActiveTabId("/chat/chats/extra")).toBeNull();
     expect(resolveChatMobileActiveTabId("/tasks/t1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/agents/a1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/projects/p1")).toBeNull();

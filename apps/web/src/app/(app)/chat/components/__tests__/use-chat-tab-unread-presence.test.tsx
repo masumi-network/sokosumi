@@ -51,7 +51,7 @@ describe("getActiveRoomIdFromPathname", () => {
 
   it("returns null outside room routes", () => {
     expect(getActiveRoomIdFromPathname("/chat")).toBeNull();
-    expect(getActiveRoomIdFromPathname("/chat/chats")).toBeNull();
+    expect(getActiveRoomIdFromPathname("/chat/something")).toBeNull();
     expect(getActiveRoomIdFromPathname(null)).toBeNull();
   });
 });

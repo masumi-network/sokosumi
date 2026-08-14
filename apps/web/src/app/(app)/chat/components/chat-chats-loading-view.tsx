@@ -1,4 +1,4 @@
-import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chats/chat-chats-list-shell";
+import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "@/app/chat/chat-chats-list-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 

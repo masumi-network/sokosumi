@@ -54,29 +54,11 @@ vi.mock("@/app/chat/components/chat-desktop-home-redirect.client", () => ({
   ChatDesktopHomeRedirect: () => null,
 }));
 
-import ChatChatsLegacyPage from "@/app/chat/chats/page";
 import ChatPage from "@/app/chat/page";
 
 describe("SOK-795 chat redirect matrix", () => {
   beforeEach(() => {
     redirectMock.mockClear();
-  });
-
-  it("legacy /chat/chats always redirects to /chat preserving query", async () => {
-    await expect(
-      ChatChatsLegacyPage({
-        searchParams: Promise.resolve({ foo: "1", bar: "2" }),
-      }),
-    ).rejects.toThrow("REDIRECT:/chat?foo=1&bar=2");
-    expect(redirectMock).toHaveBeenCalledWith("/chat?foo=1&bar=2");
-  });
-
-  it("legacy /chat/chats with dm=new redirects to /chat?dm=new (not Welcome yet)", async () => {
-    await expect(
-      ChatChatsLegacyPage({
-        searchParams: Promise.resolve({ dm: "new" }),
-      }),
-    ).rejects.toThrow("REDIRECT:/chat?dm=new");
   });
 
   it("bare /chat with dm=new redirects to Welcome", async () => {
