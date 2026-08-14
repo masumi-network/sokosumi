@@ -122,7 +122,9 @@ beforeEach(() => {
     name: "Acme Corp",
   });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
-  queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
+  queryRawUnsafeMock.mockResolvedValue([
+    { roomId: ROOM_ID, unreadCount: 2, unreadThreadReplyCount: 1 },
+  ]);
   notificationGroupByMock.mockResolvedValue([
     { referenceId: ROOM_ID, _count: { _all: 1 } },
   ]);
@@ -151,6 +153,7 @@ describe("GET /chats/rooms/{id}", () => {
       name: "Launch Room",
       organizationName: "Acme Corp",
       unreadCount: 2,
+      unreadThreadReplyCount: 1,
       unreadMentionCount: 1,
       pinnedAt: null,
       markedUnread: false,

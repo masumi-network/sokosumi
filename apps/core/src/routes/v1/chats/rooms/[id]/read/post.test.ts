@@ -168,6 +168,7 @@ describe("POST /chats/rooms/{id}/read", () => {
     expect(body.data).toMatchObject({
       id: ROOM_ID,
       unreadCount: 0,
+      unreadThreadReplyCount: 0,
       unreadMentionCount: 0,
       markedUnread: false,
       pinnedAt: null,
@@ -180,8 +181,10 @@ describe("POST /chats/rooms/{id}/read", () => {
     expect(threadReadDeleteManyMock).not.toHaveBeenCalled();
   });
 
-  it("returns remaining thread unreadCount after room mark-read", async () => {
-    queryRawUnsafeMock.mockResolvedValue([{ roomId: ROOM_ID, unreadCount: 2 }]);
+  it("returns remaining unreadThreadReplyCount after room mark-read", async () => {
+    queryRawUnsafeMock.mockResolvedValue([
+      { roomId: ROOM_ID, unreadCount: 0, unreadThreadReplyCount: 2 },
+    ]);
 
     const response = await createApp(userAuthContext).request(
       `/${ROOM_ID}/read`,
@@ -192,7 +195,8 @@ describe("POST /chats/rooms/{id}/read", () => {
     const body = await response.json();
     expect(body.data).toMatchObject({
       id: ROOM_ID,
-      unreadCount: 2,
+      unreadCount: 0,
+      unreadThreadReplyCount: 2,
       unreadMentionCount: 0,
       markedUnread: false,
     });

@@ -32,7 +32,7 @@ const route = withGlobalHeaderParameters(
     method: "post",
     path: "/{id}/read",
     description:
-      "Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadCount.",
+      "Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadThreadReplyCount.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -121,7 +121,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       chatRoomSchema.parse(
         mapChatRoom(room, userContext.userId, {
-          unreadCount: unreadCounts.get(room.id) ?? 0,
+          unreadCount: unreadCounts.get(room.id)?.unreadCount ?? 0,
+          unreadThreadReplyCount:
+            unreadCounts.get(room.id)?.unreadThreadReplyCount ?? 0,
           unreadMentionCount: 0,
           pinnedAt,
           mutedAt,

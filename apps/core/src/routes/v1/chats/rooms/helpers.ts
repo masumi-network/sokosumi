@@ -112,12 +112,18 @@ function resolveUserPresence(
   return "offline";
 }
 
+export interface ChatRoomUnreadCounts {
+  unreadCount: number;
+  unreadThreadReplyCount: number;
+}
+
 /**
  * Per-room unread message counts for sidebar attention.
  *
- * Dual baseline (matches the two read-state tables):
- * - Top-level messages (`parentMessageId IS NULL`): after room `lastReadAt`
- * - Thread replies: after per-thread look baseline
+ * Dual baseline (matches the two read-state tables), aggregated separately:
+ * - `unreadCount`: top-level messages (`parentMessageId IS NULL`) after room
+ *   `lastReadAt`
+ * - `unreadThreadReplyCount`: thread replies after per-thread look baseline
  *   (`ChatRoomThreadReadState.lastReadAt`, else room read-state `createdAt`,
  *   else -infinity). This sidebar fallback is intentionally not the ADR-0005
  *   rule used by `getChatRoomThreadAggregates`. Room mark-read must not
@@ -129,7 +135,7 @@ export async function getChatRoomUnreadCounts(
   roomIds: readonly string[],
   userId: string,
   tx: Prisma.TransactionClient,
-): Promise<Map<string, number>> {
+): Promise<Map<string, ChatRoomUnreadCounts>> {
   const uniqueRoomIds = normalizeUniqueStrings(roomIds);
   if (uniqueRoomIds.length === 0) {
     return new Map();
@@ -141,14 +147,19 @@ export async function getChatRoomUnreadCounts(
   const userIdPlaceholder = `$${uniqueRoomIds.length + 1}`;
 
   const rows = await tx.$queryRawUnsafe<
-    Array<{ roomId: string; unreadCount: number | bigint }>
+    Array<{
+      roomId: string;
+      unreadCount: number | bigint;
+      unreadThreadReplyCount: number | bigint;
+    }>
   >(
     `
     SELECT
-      combined."roomId" AS "roomId",
-      COUNT(*)::int AS "unreadCount"
+      room_counts."roomId" AS "roomId",
+      SUM(room_counts."topLevel")::int AS "unreadCount",
+      SUM(room_counts."threadReply")::int AS "unreadThreadReplyCount"
     FROM (
-      SELECT message.id, message."roomId"
+      SELECT message."roomId" AS "roomId", 1 AS "topLevel", 0 AS "threadReply"
       FROM "chat_room_message" message
       LEFT JOIN "chat_room_read_state" read_state
         ON read_state."roomId" = message."roomId"
@@ -161,7 +172,7 @@ export async function getChatRoomUnreadCounts(
 
       UNION ALL
 
-      SELECT reply.id, reply."roomId"
+      SELECT reply."roomId" AS "roomId", 0 AS "topLevel", 1 AS "threadReply"
       FROM "chat_room_message" reply
       INNER JOIN "chat_room_message" parent
         ON parent.id = reply."parentMessageId"
@@ -183,14 +194,22 @@ export async function getChatRoomUnreadCounts(
           '-infinity'::timestamp
         )
         AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> ${userIdPlaceholder})
-    ) combined
-    GROUP BY combined."roomId"
+    ) room_counts
+    GROUP BY room_counts."roomId"
   `,
     ...uniqueRoomIds,
     userId,
   );
 
-  return new Map(rows.map((row) => [row.roomId, Number(row.unreadCount)]));
+  return new Map(
+    rows.map((row) => [
+      row.roomId,
+      {
+        unreadCount: Number(row.unreadCount),
+        unreadThreadReplyCount: Number(row.unreadThreadReplyCount),
+      },
+    ]),
+  );
 }
 
 export interface ChatRoomThreadAggregate {
@@ -599,6 +618,7 @@ export async function getChatRoomLastMessageAts(
 
 export interface MapChatRoomAttentionOptions {
   unreadCount?: number;
+  unreadThreadReplyCount?: number;
   unreadMentionCount?: number;
   /** Prefer latest message time when room.updatedAt lagged (legacy stream writes). */
   lastActivityAt?: Date | null;
@@ -635,6 +655,7 @@ export function mapChatRoom(
 ) {
   const {
     unreadCount = 0,
+    unreadThreadReplyCount = 0,
     unreadMentionCount = 0,
     lastActivityAt,
     pinnedAt = null,
@@ -661,6 +682,7 @@ export function mapChatRoom(
     createdAt: room.createdAt,
     updatedAt: lastActivityAt ?? room.updatedAt,
     unreadCount,
+    unreadThreadReplyCount,
     unreadMentionCount,
     pinnedAt,
     mutedAt,
@@ -775,6 +797,7 @@ export async function mapChatRoomWithSidebarFlags(
   tx: Prisma.TransactionClient,
   attention: {
     unreadCount?: number;
+    unreadThreadReplyCount?: number;
     unreadMentionCount?: number;
     lastActivityAt?: Date | null;
   } = {},
@@ -785,6 +808,7 @@ export async function mapChatRoomWithSidebarFlags(
 
   return mapChatRoom(room, userId, {
     unreadCount: attention.unreadCount ?? 0,
+    unreadThreadReplyCount: attention.unreadThreadReplyCount ?? 0,
     unreadMentionCount: attention.unreadMentionCount ?? 0,
     lastActivityAt: attention.lastActivityAt,
     pinnedAt: flags?.pinnedAt ?? null,
