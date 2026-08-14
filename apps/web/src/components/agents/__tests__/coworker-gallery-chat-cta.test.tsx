@@ -66,7 +66,7 @@ vi.mock("@/app/chat/components/landing/use-open-coworker-room", () => ({
 import { CoworkerGallerySection } from "../coworker-gallery-section";
 
 function makeCoworker(overrides: Partial<Coworker> = {}): Coworker {
-  return {
+  const base = {
     id: "cow-elena",
     slug: "elena",
     name: "Elena",
@@ -77,18 +77,21 @@ function makeCoworker(overrides: Partial<Coworker> = {}): Coworker {
     archivedAt: null,
     isWhitelisted: true,
     baseURL: "https://responses.example.com/v1",
-    capabilities: ["tasks", "chat"],
+    capabilities: ["tasks", "chat"] as Array<"tasks" | "chat">,
     metadata: null,
     vendor: {
       id: "vendor-sp",
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2025-01-01T00:00:00.000Z"),
       name: "Serviceplan",
       slug: "serviceplan",
       logos: { light: null, dark: null },
     },
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
-    ...overrides,
-  } as Coworker;
+  } satisfies Coworker;
+
+  return { ...base, ...overrides };
 }
 
 describe("CoworkerGallerySection chat CTA", () => {
