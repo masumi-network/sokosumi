@@ -1465,7 +1465,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(renderJobFinalStatusEmailMock).toHaveBeenCalledWith({
       recipientName: "Ada",
       agentName: "Display Name",
-      jobLink: "https://app.sokosumi.test/agents/agent_1/jobs/job_1",
+      jobLink: "https://app.sokosumi.test/jobs/job_1",
       jobName: undefined,
       jobStatus: SokosumiJobStatus.COMPLETED,
       locale: "en",
@@ -2271,7 +2271,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(renderJobInputRequiredEmailMock).toHaveBeenCalledWith({
       recipientName: "Ada",
       agentName: "Display Name",
-      jobLink: "https://app.sokosumi.test/agents/agent_1/jobs/job_1",
+      jobLink: "https://app.sokosumi.test/jobs/job_1",
       jobName: undefined,
       locale: "en",
     });

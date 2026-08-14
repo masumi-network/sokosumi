@@ -22,6 +22,7 @@ import { addProjectJob, removeProjectJob } from "@/lib/actions/project/action";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
+import { buildJobHref } from "@/lib/utils/job-href";
 
 interface ProjectJobsSectionLabels {
   title: string;
@@ -133,7 +134,7 @@ export function ProjectJobsSection({
                 className="bg-muted/40 border-border/50 flex items-center gap-2 rounded-lg border p-3"
               >
                 <Link
-                  href={`/agents/${job.agentId}/jobs/${job.id}`}
+                  href={buildJobHref(job.id)}
                   className="hover:text-primary grid min-w-0 flex-1 gap-2 transition-colors sm:grid-cols-[minmax(0,1fr)_140px_96px] sm:items-center"
                 >
                   <p className="truncate text-sm">{name}</p>

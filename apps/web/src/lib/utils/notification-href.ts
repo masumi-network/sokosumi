@@ -3,6 +3,7 @@ import {
   buildCoworkerAccessReviewHref,
   resolveCoworkerAccessNotificationTarget,
 } from "@/lib/utils/coworker-access-notification";
+import { buildJobHref } from "@/lib/utils/job-href";
 import { buildVendorGrantReviewHref } from "@/lib/utils/vendor-grant-approval";
 import { resolveVendorGrantNotificationTarget } from "@/lib/utils/vendor-grant-notification";
 
@@ -24,13 +25,8 @@ export function getNotificationHref(
     case "TASK":
       return `/tasks/${encodeURIComponent(notification.referenceId)}`;
 
-    case "JOB": {
-      const agentId = notification.metadata?.agentId;
-      if (!agentId || typeof agentId !== "string") {
-        return "/tasks";
-      }
-      return `/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(notification.referenceId)}`;
-    }
+    case "JOB":
+      return buildJobHref(notification.referenceId);
 
     case "CHAT":
       return `/chat/rooms/${encodeURIComponent(notification.referenceId)}`;

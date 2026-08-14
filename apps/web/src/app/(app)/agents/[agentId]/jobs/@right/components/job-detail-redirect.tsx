@@ -4,16 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 import DefaultLoading from "@/components/default-loading";
+import { buildJobHref } from "@/lib/utils/job-href";
 
 interface JobDetailRedirectProps {
-  agentId: string;
   jobId: string;
 }
 
-export default function JobDetailRedirect({
-  agentId,
-  jobId,
-}: JobDetailRedirectProps) {
+export default function JobDetailRedirect({ jobId }: JobDetailRedirectProps) {
   const router = useRouter();
   const hasRedirectedRef = useRef(false);
 
@@ -26,7 +23,7 @@ export default function JobDetailRedirect({
       }
 
       hasRedirectedRef.current = true;
-      router.push(`/agents/${agentId}/jobs/${jobId}`);
+      router.push(buildJobHref(jobId));
     }
 
     function handleViewportChange(event: MediaQueryListEvent) {
@@ -48,7 +45,7 @@ export default function JobDetailRedirect({
     return () => {
       mediaQuery.removeListener(handleViewportChange);
     };
-  }, [agentId, jobId, router]);
+  }, [jobId, router]);
 
   return <DefaultLoading className="h-full w-full flex-1 p-8" />;
 }

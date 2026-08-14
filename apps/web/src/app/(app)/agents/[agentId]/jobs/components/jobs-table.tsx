@@ -8,6 +8,7 @@ import { DataTable } from "@/components/data-table";
 import type { JobSummary } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
+import { buildJobHref } from "@/lib/utils/job-href";
 
 import { getJobTableColumns } from "./job-columns";
 import { JobsSearch } from "./jobs-search";
@@ -33,7 +34,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const handleRowClick = async (row: JobSummary) => {
     setRouterLoading(true);
     const qs = new URLSearchParams(window.location.search).toString();
-    const base = `/agents/${row.agentId}/jobs/${row.id}`;
+    const base = buildJobHref(row.id);
     const href = qs ? `${base}?${qs}` : base;
     router.push(href);
     setRouterLoading(false);

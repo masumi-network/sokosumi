@@ -66,7 +66,7 @@ describe("JobDetailRedirect", () => {
   it("does not redirect on viewport widths below lg", async () => {
     mockMatchMedia(false);
 
-    render(<JobDetailRedirect agentId="agent-1" jobId="job-1" />);
+    render(<JobDetailRedirect jobId="job-1" />);
 
     await waitFor(() => {
       expect(pushMock).not.toHaveBeenCalled();
@@ -76,17 +76,17 @@ describe("JobDetailRedirect", () => {
   it("redirects when viewport width is lg or above", async () => {
     mockMatchMedia(true);
 
-    render(<JobDetailRedirect agentId="agent-1" jobId="job-1" />);
+    render(<JobDetailRedirect jobId="job-1" />);
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/agents/agent-1/jobs/job-1");
+      expect(pushMock).toHaveBeenCalledWith("/jobs/job-1");
     });
   });
 
   it("redirects when viewport changes from below lg to lg", async () => {
     const { setMatches } = mockMatchMedia(false);
 
-    render(<JobDetailRedirect agentId="agent-1" jobId="job-1" />);
+    render(<JobDetailRedirect jobId="job-1" />);
 
     await waitFor(() => {
       expect(pushMock).not.toHaveBeenCalled();
@@ -97,7 +97,7 @@ describe("JobDetailRedirect", () => {
     });
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/agents/agent-1/jobs/job-1");
+      expect(pushMock).toHaveBeenCalledWith("/jobs/job-1");
     });
   });
 });

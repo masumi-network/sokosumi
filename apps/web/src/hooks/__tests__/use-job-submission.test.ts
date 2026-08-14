@@ -126,7 +126,7 @@ describe("useJobSubmission", () => {
     expect(setLoadingMock).toHaveBeenNthCalledWith(1, true);
     expect(setLoadingMock).toHaveBeenLastCalledWith(false);
     expect(onSuccessMock).toHaveBeenCalled();
-    expect(pushMock).toHaveBeenCalledWith("/agents/agent_1/jobs/job_123");
+    expect(pushMock).toHaveBeenCalledWith("/jobs/job_123");
   });
 
   it("shows the generic error when the action throws after upload succeeds", async () => {

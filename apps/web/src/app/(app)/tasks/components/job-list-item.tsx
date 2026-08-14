@@ -13,6 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { buildJobHref } from "@/lib/utils/job-href";
 
 interface JobListItemLabels {
   untitled: string;
@@ -38,7 +39,7 @@ export function JobListItem({ job, agentPreview, labels }: JobListItemProps) {
   };
   const coworkerName = job.coworker?.name?.trim() || null;
   const coworkerImage = job.coworker?.image ?? null;
-  const href = `/agents/${job.agentId}/jobs/${job.id}`;
+  const href = buildJobHref(job.id);
   const statusBadge = (
     <JobStatusBadge status={job.status} className="shrink-0" />
   );

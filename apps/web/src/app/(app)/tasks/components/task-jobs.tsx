@@ -7,6 +7,7 @@ import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import type { JobSummary } from "@/lib/clients/generated/core/types.gen";
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
+import { buildJobHref } from "@/lib/utils/job-href";
 
 import { TaskJobStatusBadge } from "./task-job-status-badge.client";
 import {
@@ -53,7 +54,7 @@ export function TaskJobs({
           name: agentName,
           icon: agent ? getAgentResolvedIcon(agent) : null,
         };
-        const href = `/agents/${job.agentId}/jobs/${job.id}`;
+        const href = buildJobHref(job.id);
         const channelName = userId
           ? makeAgentJobsChannelName(job.agentId, userId)
           : null;

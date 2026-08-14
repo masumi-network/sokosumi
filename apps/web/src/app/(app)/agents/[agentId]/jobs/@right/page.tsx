@@ -29,9 +29,7 @@ export default async function RightSectionPage({
   }
 
   if (agentJobsPage.jobs.length > 0) {
-    return (
-      <JobDetailRedirect agentId={agentId} jobId={agentJobsPage.jobs[0].id} />
-    );
+    return <JobDetailRedirect jobId={agentJobsPage.jobs[0].id} />;
   }
 
   return (
