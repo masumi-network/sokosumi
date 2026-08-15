@@ -709,7 +709,7 @@ export async function countAttentionThreadsAction(
     const count = await chatRoomService.countAttentionThreads(roomId);
     return roomOk(count);
   } catch (error) {
-    return roomCatch(error, "Could not load unread threads.");
+    return roomCatch(error, "Could not load attention thread count.");
   }
 }
 
