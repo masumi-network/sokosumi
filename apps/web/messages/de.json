@@ -1513,7 +1513,7 @@
       "Landing": {
         "greeting": "Willkommen!",
         "greetingWithName": "Willkommen, {name}!",
-        "intro": "Arbeite mit KI-Coworkern. Du sagst, was zu tun ist; sie planen es und erledigen es.",
+        "intro": "Sag, was zu tun ist, und sie erledigen es.",
         "cta": {
           "avatarAlt": "{name}",
           "button": "Mit {name} chatten",
