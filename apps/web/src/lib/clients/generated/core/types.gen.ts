@@ -12440,6 +12440,20 @@ export type GetChatsRoomsByIdThreadsAttentionCountErrors = {
         };
     };
     /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {

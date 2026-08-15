@@ -428,6 +428,18 @@ describe("chatRoomService thread attention", () => {
     expect(result).toBe(4);
   });
 
+  it("countAttentionThreads propagates Core client rejection", async () => {
+    getChatRoomThreadsAttentionCountMock.mockRejectedValue(
+      new Error("network"),
+    );
+
+    const { chatRoomService } = await import("../chat-room.service");
+    await expect(
+      chatRoomService.countAttentionThreads("room-1"),
+    ).rejects.toThrow("network");
+    expect(getChatRoomThreadsMock).not.toHaveBeenCalled();
+  });
+
   it("markThreadRead posts look state for parent message", async () => {
     const state = {
       parentMessageId: "msg-1",

@@ -43,6 +43,7 @@ const route = withGlobalHeaderParameters(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Room not found"),
+      422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
     },
   }),
@@ -64,6 +65,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       prisma,
     );
 
+    c.header("Cache-Control", "no-store");
     return ok(c, chatRoomThreadsAttentionCountSchema.parse({ count }));
   });
 }

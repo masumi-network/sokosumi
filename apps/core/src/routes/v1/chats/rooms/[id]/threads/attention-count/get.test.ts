@@ -123,6 +123,7 @@ describe("GET /chats/rooms/{id}/threads/attention-count", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     const body = await response.json();
     expect(body.data).toEqual({ count: 4 });
     expect(queryRawUnsafeMock).toHaveBeenCalledOnce();
@@ -131,6 +132,19 @@ describe("GET /chats/rooms/{id}/threads/attention-count", () => {
     expect(sql).toContain("COUNT(DISTINCT parent.id)");
     expect(sql).toContain('room_read."createdAt"');
     expect(sql).not.toContain('"unreadReplyCount"');
+  });
+
+  it("rejects a malformed room id with 422", async () => {
+    const response = await createApp(userAuthContext).request(
+      "/not-a-uuid/threads/attention-count",
+    );
+
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error).toBeDefined();
+    expect(body.message).toBeDefined();
+    expect(roomFindFirstMock).not.toHaveBeenCalled();
+    expect(queryRawUnsafeMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker auth with 403", async () => {
