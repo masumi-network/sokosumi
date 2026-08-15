@@ -59,6 +59,7 @@ describe("mapDbCoworkerToChatCoworker", () => {
       id: "cow_123",
       slug: "elena",
       name: "Elena",
+      priority: 0,
       description: "Ops helper",
       useCase: "",
       archivedAt: null,

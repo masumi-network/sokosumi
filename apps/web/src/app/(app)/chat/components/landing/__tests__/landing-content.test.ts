@@ -6,11 +6,13 @@ import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 import {
   buildActivityStats,
   clampLandingDescription,
+  compareCoworkerRank,
   LANDING_DESCRIPTION_MAX_CHARS,
   orderStripCoworkers,
   resolveFeaturedCoworker,
   resolveLandingGreetingName,
   selectedCoworkerDescription,
+  shortLandingSentence,
   toStripCoworker,
 } from "../landing-content";
 
@@ -59,25 +61,69 @@ function fakeTranslator(key: string, values?: Record<string, number | string>) {
   return values ? `${key}:${JSON.stringify(values)}` : key;
 }
 
+describe("compareCoworkerRank", () => {
+  it("ranks higher priority first", () => {
+    expect(
+      compareCoworkerRank(
+        { priority: 1, slug: "a" },
+        { priority: 10, slug: "b" },
+      ),
+    ).toBeGreaterThan(0);
+  });
+
+  it("breaks priority ties by slug", () => {
+    expect(
+      compareCoworkerRank(
+        { priority: 0, slug: "alex" },
+        { priority: 0, slug: "elena" },
+      ),
+    ).toBeLessThan(0);
+  });
+
+  it("treats a missing priority as zero", () => {
+    expect(
+      compareCoworkerRank({ slug: "alex" }, { priority: 3, slug: "elena" }),
+    ).toBeGreaterThan(0);
+  });
+});
+
 describe("resolveFeaturedCoworker", () => {
-  it("prefers Elena regardless of list order or slug casing", () => {
+  it("prefers the highest-priority coworker regardless of list order", () => {
     const coworkers = [
-      buildCoworker({ id: "hannah" }),
-      buildCoworker({ id: "elena-id", slug: "Elena" }),
-      buildCoworker({ id: "alex" }),
+      buildCoworker({ id: "hannah", slug: "hannah", priority: 2 }),
+      buildCoworker({ id: "elena-id", slug: "elena", priority: 1 }),
+      buildCoworker({ id: "alex", slug: "alex", priority: 8 }),
+    ];
+
+    expect(resolveFeaturedCoworker(coworkers)?.id).toBe("alex");
+  });
+
+  it("still features a non-positive rank over Elena when ranks are not all zero", () => {
+    const coworkers = [
+      buildCoworker({ id: "elena-id", slug: "elena", priority: -1 }),
+      buildCoworker({ id: "alex", slug: "alex", priority: 0 }),
+    ];
+
+    expect(resolveFeaturedCoworker(coworkers)?.id).toBe("alex");
+  });
+
+  it("falls back to Elena when every coworker is still the default rank", () => {
+    const coworkers = [
+      buildCoworker({ id: "hannah", slug: "hannah" }),
+      buildCoworker({ id: "elena-id", slug: "elena" }),
+      buildCoworker({ id: "alex", slug: "alex" }),
     ];
 
     expect(resolveFeaturedCoworker(coworkers)?.id).toBe("elena-id");
   });
 
-  it("falls back to the default coworker when Elena is not available", () => {
-    // `scope=available` is whitelist ∪ granted access, so Elena can be absent.
+  it("falls back to the first coworker when Elena is absent and ranks are zero", () => {
     const coworkers = [
-      buildCoworker({ id: "hannah" }),
-      buildCoworker({ id: "alex" }),
+      buildCoworker({ id: "hannah", slug: "hannah" }),
+      buildCoworker({ id: "alex", slug: "alex" }),
     ];
 
-    expect(resolveFeaturedCoworker(coworkers)).not.toBeNull();
+    expect(resolveFeaturedCoworker(coworkers)?.id).toBe("hannah");
   });
 
   it("returns null when there are no coworkers at all", () => {
@@ -86,12 +132,12 @@ describe("resolveFeaturedCoworker", () => {
 });
 
 describe("selectedCoworkerDescription", () => {
-  it("returns a trimmed description", () => {
+  it("returns the first sentence of a trimmed description", () => {
     const elena = buildCoworker({
       id: "elena",
       slug: "elena",
       caption: "Strategy",
-      description: "  Turns goals into work.  ",
+      description: "  Turns goals into work. Then she assigns the rest.  ",
     });
     expect(selectedCoworkerDescription(elena)).toBe("Turns goals into work.");
   });
@@ -104,6 +150,55 @@ describe("selectedCoworkerDescription", () => {
       description: "   ",
     });
     expect(selectedCoworkerDescription(hannah)).toBeNull();
+  });
+});
+
+describe("shortLandingSentence", () => {
+  it("keeps a short first sentence", () => {
+    expect(shortLandingSentence("Turns goals into work.")).toBe(
+      "Turns goals into work.",
+    );
+  });
+
+  it("drops everything after the first sentence", () => {
+    expect(
+      shortLandingSentence(
+        "Turns goals into work. Then she writes the brief and follows up.",
+      ),
+    ).toBe("Turns goals into work.");
+  });
+
+  it("does not split on an abbreviation like Dr.", () => {
+    expect(shortLandingSentence("Dr. Elena helps teams ship.")).toBe(
+      "Dr. Elena helps teams ship.",
+    );
+  });
+
+  it("does not split on Prof.", () => {
+    expect(
+      shortLandingSentence("Prof. Elena helps teams ship faster than before."),
+    ).toBe("Prof. Elena helps teams ship faster than before.");
+  });
+
+  it("keeps only the first sentence when the clause ends in a short word", () => {
+    expect(
+      shortLandingSentence(
+        "Finds leads for you. Then drafts the outreach and follows up weekly.",
+      ),
+    ).toBe("Finds leads for you.");
+  });
+
+  it("returns an empty string for blank copy", () => {
+    expect(shortLandingSentence("   ")).toBe("");
+  });
+
+  it("clamps a single long sentence near the character budget", () => {
+    const long = "word ".repeat(50).trim();
+    const result = shortLandingSentence(long);
+    expect(result.endsWith("…")).toBe(true);
+    expect(result.length).toBeLessThanOrEqual(
+      LANDING_DESCRIPTION_MAX_CHARS + 1,
+    );
   });
 });
 
@@ -246,6 +341,19 @@ describe("orderStripCoworkers", () => {
     expect(orderStripCoworkers([featured], featured).map((c) => c.id)).toEqual([
       "elena",
     ]);
+  });
+
+  it("orders the flanks by popularity, not original list order", () => {
+    const popular = buildCoworker({
+      id: "alex",
+      slug: "alex",
+      priority: 20,
+    });
+    const mid = buildCoworker({ id: "hannah", slug: "hannah", priority: 5 });
+    const low = buildCoworker({ id: "blake", slug: "blake", priority: 1 });
+
+    const ordered = orderStripCoworkers([low, popular, mid], popular);
+    expect(ordered.map((c) => c.id)).toEqual(["hannah", "alex", "blake"]);
   });
 });
 

@@ -54,12 +54,12 @@ export async function ChatLanding({
         width={48}
       />
 
-      <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-4xl flex-1 flex-col items-stretch justify-start overflow-y-auto py-6 text-center">
+      <div className="mx-auto flex min-h-0 w-full min-w-0 max-w-6xl flex-1 flex-col items-stretch justify-start overflow-y-auto py-8 text-center lg:py-12">
         <h1 className="text-foreground shrink-0 px-4 text-2xl font-light text-balance md:text-4xl">
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
         </h1>
 
-        <p className="text-muted-foreground mx-auto mt-4 max-w-[62ch] shrink-0 px-4 text-base leading-[1.65] text-balance md:text-lg">
+        <p className="text-muted-foreground mx-auto mt-4 max-w-[48ch] shrink-0 px-4 text-base leading-[1.65] text-balance md:mt-6 md:text-lg">
           {t("intro")}
         </p>
 

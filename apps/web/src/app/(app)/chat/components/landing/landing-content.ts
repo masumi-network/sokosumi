@@ -17,42 +17,66 @@ export function resolveLandingGreetingName(
   return getFirstName(userName) ?? null;
 }
 
-/**
- * Elena fronts the product: she is the coworker who takes a goal and turns it
- * into work, which is the idea the welcome exists to land.
- */
-const FEATURED_COWORKER_SLUG = "elena";
+function coworkerRank(coworker: Pick<Coworker, "priority">): number {
+  return coworker.priority ?? 0;
+}
 
-function isElenaCoworker(coworker: Pick<Coworker, "slug">): boolean {
-  return coworker.slug?.toLowerCase() === FEATURED_COWORKER_SLUG;
+/**
+ * Highest Core `priority` first (same key as GET /v1/coworkers). That field
+ * is an editorial list rank, not a usage counter. Slug is the stable
+ * tie-break so the featured face cannot flicker across renders.
+ */
+export function compareCoworkerRank(
+  left: Pick<Coworker, "priority" | "slug">,
+  right: Pick<Coworker, "priority" | "slug">,
+): number {
+  const byPriority = coworkerRank(right) - coworkerRank(left);
+  if (byPriority !== 0) {
+    return byPriority;
+  }
+  return (left.slug ?? "").localeCompare(right.slug ?? "");
 }
 
 /**
  * Shared between the desktop landing and the mobile welcome so the two cannot
  * disagree about who is featured, which faces appear, or which stats show.
+ *
+ * Featured = highest Core `priority` among available chat coworkers. When
+ * every row is still the default `0` (fresh / local DBs), keep Elena via
+ * `findDefaultCoworker` so the welcome does not flip to the first slug.
  */
 export function resolveFeaturedCoworker(
   coworkers: Coworker[],
 ): Coworker | null {
-  const featured = coworkers.find((coworker) => isElenaCoworker(coworker));
+  if (coworkers.length === 0) {
+    return null;
+  }
 
-  // Elena is not guaranteed: `scope=available` is whitelist ∪ granted access,
-  // and chat additionally needs a runnable endpoint. Lead with whoever is there.
-  return featured ?? findDefaultCoworker(coworkers);
+  const allDefaultRank = coworkers.every(
+    (coworker) => coworkerRank(coworker) === 0,
+  );
+  if (allDefaultRank) {
+    return findDefaultCoworker(coworkers);
+  }
+
+  return coworkers.reduce((best, current) =>
+    compareCoworkerRank(current, best) < 0 ? current : best,
+  );
 }
 
 /**
- * Body copy above Start chat. DB `description` only — never caption/useCase.
- * Name + role stay under the strip avatar; the selected block does not repeat them.
+ * Body copy above Start chat. First sentence of DB `description` only —
+ * never caption/useCase. Name + role stay under the strip avatar.
  */
 export function selectedCoworkerDescription(
   coworker: Pick<Coworker, "description">,
 ): string | null {
-  return nonEmptySpecialty(coworker.description);
+  const specialty = nonEmptySpecialty(coworker.description);
+  return specialty ? shortLandingSentence(specialty) : null;
 }
 
-/** Collapsed landing description budget (~3 lines of body copy). */
-export const LANDING_DESCRIPTION_MAX_CHARS = 180;
+/** One short sentence on the landing — fits two lines in the `max-w-xs` slot. */
+export const LANDING_DESCRIPTION_MAX_CHARS = 72;
 
 /**
  * Truncate a landing description for the collapsed state.
@@ -73,6 +97,68 @@ export function clampLandingDescription(
     lastSpace > Math.floor(maxChars * 0.6) ? slice.slice(0, lastSpace) : slice;
 
   return { isTruncated: true, preview: `${cut.trimEnd()}…` };
+}
+
+const LEADING_ABBREVIATION =
+  /^(?:Dr|Mr|Mrs|Ms|Prof|Sr|Jr|St|vs|etc|Inc|Ltd)\.$/i;
+
+function getSentenceSegmenter(): Intl.Segmenter | null {
+  if (typeof Intl === "undefined" || typeof Intl.Segmenter !== "function") {
+    return null;
+  }
+  return new Intl.Segmenter("en", { granularity: "sentence" });
+}
+
+function firstSentenceFallback(text: string): string {
+  const match = text.match(/^[\s\S]+?(?:[.!?](?=\s+[A-Z])|[.!?]$)/);
+  return (match?.[0] ?? text).trim();
+}
+
+function firstSentence(text: string): string {
+  const segmenter = getSentenceSegmenter();
+  if (!segmenter) {
+    return firstSentenceFallback(text);
+  }
+
+  const parts = Array.from(segmenter.segment(text), (part) => part.segment);
+  if (parts.length === 0) {
+    return text;
+  }
+
+  let index = 0;
+  let sentence = parts[0] ?? "";
+  while (
+    LEADING_ABBREVIATION.test(sentence.trim()) &&
+    index + 1 < parts.length
+  ) {
+    index += 1;
+    sentence += parts[index];
+  }
+
+  return sentence.trim();
+}
+
+/**
+ * First sentence of a coworker blurb, still capped at the landing budget.
+ * Uses `Intl.Segmenter` and stitches title abbreviations (`Dr.`, `Prof.`)
+ * back onto the following sentence.
+ */
+export function shortLandingSentence(
+  description: string,
+  maxChars: number = LANDING_DESCRIPTION_MAX_CHARS,
+): string {
+  const trimmed = description.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const sentence = firstSentence(trimmed);
+
+  if (sentence.length <= maxChars) {
+    return sentence;
+  }
+
+  return clampLandingDescription(sentence, maxChars).preview;
 }
 
 function nonEmptySpecialty(value: null | string | undefined): null | string {
@@ -99,9 +185,9 @@ export function toStripCoworker(coworker: Coworker): StripCoworker {
 }
 
 /**
- * Full catalog ordered with the featured coworker (Elena / fallback) in the
- * optical middle. Odd counts → exact centre; even → left of the two centre
- * slots (`floor(others/2)` flanks left). Never drops anyone.
+ * Full catalog ordered by popularity, with the featured coworker (highest
+ * `priority`) in the optical middle. Odd counts → exact centre; even → left
+ * of the two centre slots (`floor(others/2)` flanks left). Never drops anyone.
  *
  * Empty when nothing is featured — the strip only renders with a lead face.
  */
@@ -113,7 +199,10 @@ export function orderStripCoworkers(
     return [];
   }
 
-  const others = coworkers.filter((coworker) => coworker.id !== featured.id);
+  const others = coworkers
+    .filter((coworker) => coworker.id !== featured.id)
+    .slice()
+    .sort(compareCoworkerRank);
   const leftCount = Math.floor(others.length / 2);
   const left = others.slice(0, leftCount);
   const right = others.slice(leftCount);

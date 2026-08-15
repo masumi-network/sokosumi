@@ -1531,9 +1531,7 @@
         "team": {
           "avatarAlt": "{name}",
           "stripLabel": "Compañeros disponibles",
-          "select": "Seleccionar a {name}",
-          "showMore": "Más",
-          "showLess": "Menos"
+          "select": "Seleccionar a {name}"
         }
       }
     },

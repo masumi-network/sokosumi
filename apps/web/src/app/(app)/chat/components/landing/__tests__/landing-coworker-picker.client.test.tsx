@@ -121,18 +121,19 @@ describe("LandingCoworkerPicker", () => {
     expect(selected.contains(strip)).toBe(false);
   });
 
-  it("renders Elena in the middle of the full strip order", () => {
+  it("renders the featured coworker in the middle of a popularity-ordered strip", () => {
     const catalog = [
-      buildCoworker({ id: "a", name: "A", slug: "a" }),
-      buildCoworker({ id: "b", name: "B", slug: "b" }),
+      buildCoworker({ id: "a", name: "A", slug: "a", priority: 4 }),
+      buildCoworker({ id: "b", name: "B", slug: "b", priority: 3 }),
       buildCoworker({
         id: "elena",
         name: "Elena",
         slug: "elena",
         caption: "Strategy",
+        priority: 10,
       }),
-      buildCoworker({ id: "c", name: "C", slug: "c" }),
-      buildCoworker({ id: "d", name: "D", slug: "d" }),
+      buildCoworker({ id: "c", name: "C", slug: "c", priority: 2 }),
+      buildCoworker({ id: "d", name: "D", slug: "d", priority: 1 }),
     ];
 
     render(
@@ -222,7 +223,7 @@ describe("LandingCoworkerPicker", () => {
     ).not.toHaveTextContent("Research");
   });
 
-  it("reserves collapsed description height above Start chat including empty", async () => {
+  it("reserves a two-line description slot above Start chat including empty", async () => {
     const user = userEvent.setup();
 
     render(
@@ -231,11 +232,9 @@ describe("LandingCoworkerPicker", () => {
 
     const description = screen.getByTestId("landing-selected-description");
     const text = screen.getByTestId("landing-selected-description-text");
-    const toggleSlot = screen.getByTestId("landing-description-toggle-slot");
 
-    expect(text.className).toMatch(/line-clamp-3/);
-    expect(text.className).toMatch(/min-h-\[3lh\]/);
-    expect(toggleSlot.className).toMatch(/min-h-\[1\.25rem\]/);
+    expect(text.className).toMatch(/line-clamp-2/);
+    expect(text.className).toMatch(/min-h-\[2lh\]/);
     expect(
       description.compareDocumentPosition(
         screen.getByTestId("landing-start-chat"),
@@ -257,10 +256,7 @@ describe("LandingCoworkerPicker", () => {
     ).toBe("\u00a0");
     expect(
       screen.getByTestId("landing-selected-description-text").className,
-    ).toMatch(/min-h-\[3lh\]/);
-    expect(
-      screen.getByTestId("landing-description-toggle-slot").className,
-    ).toMatch(/min-h-\[1\.25rem\]/);
+    ).toMatch(/min-h-\[2lh\]/);
     expect(
       screen.queryByTestId("landing-description-toggle"),
     ).not.toBeInTheDocument();
@@ -272,13 +268,12 @@ describe("LandingCoworkerPicker", () => {
       }),
     );
 
-    // Long collapsed copy keeps the same reserve classes above the CTA.
     expect(
       screen.getByTestId("landing-selected-description-text").className,
-    ).toMatch(/min-h-\[3lh\]/);
+    ).toMatch(/min-h-\[2lh\]/);
     expect(
-      screen.getByTestId("landing-description-toggle"),
-    ).toBeInTheDocument();
+      screen.queryByTestId("landing-description-toggle"),
+    ).not.toBeInTheDocument();
     expect(
       screen
         .getByTestId("landing-selected-description")
@@ -335,16 +330,13 @@ describe("LandingCoworkerPicker", () => {
     ).toBe(before);
     expect(before & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(
-      screen.getByTestId("landing-description-toggle"),
-    ).toBeInTheDocument();
+      screen.queryByTestId("landing-description-toggle"),
+    ).not.toBeInTheDocument();
   });
 
-  it("clamps long description behind a more/less control above Start chat", async () => {
-    const user = userEvent.setup();
+  it("shows only the first sentence of a long description", () => {
     const long =
-      "Hannah researches deeply across many sources and produces concise briefs for the team. ".repeat(
-        4,
-      );
+      "Hannah researches sources and writes briefs. She also writes follow-up notes.";
 
     render(
       <LandingCoworkerPicker
@@ -361,31 +353,18 @@ describe("LandingCoworkerPicker", () => {
       />,
     );
 
-    const toggle = screen.getByTestId("landing-description-toggle");
-    expect(toggle).toHaveTextContent("team.showMore");
-    const collapsed = screen.getByTestId(
-      "landing-selected-description",
-    ).textContent;
-    expect(collapsed?.includes("…")).toBe(true);
+    expect(
+      screen.getByTestId("landing-selected-description"),
+    ).toHaveTextContent("Hannah researches sources and writes briefs.");
+    expect(
+      screen.getByTestId("landing-selected-description"),
+    ).not.toHaveTextContent("follow-up notes");
+    expect(
+      screen.queryByTestId("landing-description-toggle"),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByTestId("landing-selected-description-text").className,
-    ).toMatch(/min-h-\[3lh\]/);
-
-    await user.click(toggle);
-    expect(toggle).toHaveTextContent("team.showLess");
-    expect(
-      screen.getByTestId("landing-selected-description").textContent,
-    ).toContain(long.trim());
-    // Expanded copy drops the collapsed reserve so More can grow downward.
-    expect(
-      screen.getByTestId("landing-selected-description-text").className,
-    ).not.toMatch(/min-h-\[3lh\]/);
-
-    await user.click(toggle);
-    expect(toggle).toHaveTextContent("team.showMore");
-    expect(
-      screen.getByTestId("landing-selected-description-text").className,
-    ).toMatch(/min-h-\[3lh\]/);
+    ).toMatch(/min-h-\[2lh\]/);
   });
 
   it("still mounts the description slot when description is empty", () => {

@@ -63,6 +63,7 @@ describe("CoworkerStrip", () => {
 
     const track = screen.getByTestId("coworker-strip-track");
     expect(track.className).toMatch(/w-max/);
+    expect(track.className).toMatch(/justify-evenly/);
   });
 
   it("shows every coworker name and specialty in the DOM", () => {
