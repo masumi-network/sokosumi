@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
-import { WORKSPACE_GATE_STATUSES } from "@/helpers/workspace-gate";
+import { WORKSPACE_GATE_STATUSES } from "@/helpers/workspace-access";
 
 export const workspaceGateStatusSchema = z
   .enum(WORKSPACE_GATE_STATUSES)
@@ -10,7 +10,7 @@ export const workspaceGateStatusSchema = z
     example: "ready",
   });
 
-export const workspaceGateSchema = z
+export const workspaceAccessSchema = z
   .object({
     gate: workspaceGateStatusSchema,
     hasPersonalWorkspace: z.boolean().openapi({
@@ -27,6 +27,6 @@ export const workspaceGateSchema = z
       example: false,
     }),
   })
-  .openapi("WorkspaceGate");
+  .openapi("WorkspaceAccess");
 
-export type WorkspaceGateResponse = z.infer<typeof workspaceGateSchema>;
+export type WorkspaceAccessResponse = z.infer<typeof workspaceAccessSchema>;

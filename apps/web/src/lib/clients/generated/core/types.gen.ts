@@ -2634,7 +2634,7 @@ export type PreferredOrganization = {
     organizationId: string | null;
 };
 
-export type WorkspaceGate = {
+export type WorkspaceAccess = {
     gate: WorkspaceGateStatus;
     /**
      * Whether the user owns a personal workspace row
@@ -19279,7 +19279,7 @@ export type PostUsersByIdOnboardingResponses = {
 
 export type PostUsersByIdOnboardingResponse = PostUsersByIdOnboardingResponses[keyof PostUsersByIdOnboardingResponses];
 
-export type GetUsersByIdWorkspaceGateData = {
+export type GetUsersByIdWorkspaceAccessData = {
     body?: never;
     path: {
         /**
@@ -19288,10 +19288,10 @@ export type GetUsersByIdWorkspaceGateData = {
         id: string;
     };
     query?: never;
-    url: '/users/{id}/workspace-gate';
+    url: '/users/{id}/workspace-access';
 };
 
-export type GetUsersByIdWorkspaceGateErrors = {
+export type GetUsersByIdWorkspaceAccessErrors = {
     /**
      * Unauthorized
      */
@@ -19350,14 +19350,14 @@ export type GetUsersByIdWorkspaceGateErrors = {
     };
 };
 
-export type GetUsersByIdWorkspaceGateError = GetUsersByIdWorkspaceGateErrors[keyof GetUsersByIdWorkspaceGateErrors];
+export type GetUsersByIdWorkspaceAccessError = GetUsersByIdWorkspaceAccessErrors[keyof GetUsersByIdWorkspaceAccessErrors];
 
-export type GetUsersByIdWorkspaceGateResponses = {
+export type GetUsersByIdWorkspaceAccessResponses = {
     /**
-     * Retrieve the user's workspace gate
+     * Retrieve the user's workspace access
      */
     200: {
-        data: WorkspaceGate;
+        data: WorkspaceAccess;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19366,7 +19366,7 @@ export type GetUsersByIdWorkspaceGateResponses = {
     };
 };
 
-export type GetUsersByIdWorkspaceGateResponse = GetUsersByIdWorkspaceGateResponses[keyof GetUsersByIdWorkspaceGateResponses];
+export type GetUsersByIdWorkspaceAccessResponse = GetUsersByIdWorkspaceAccessResponses[keyof GetUsersByIdWorkspaceAccessResponses];
 
 export type GetUsersByIdNoticesPendingData = {
     body?: never;

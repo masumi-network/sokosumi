@@ -10,7 +10,7 @@ import type {
   MemberRecord,
   MemberWithOrganization,
   Organization,
-  WorkspaceGate,
+  WorkspaceAccess,
 } from "@/lib/clients/generated/core";
 
 /**
@@ -113,18 +113,20 @@ export const userService = (() => {
   );
 
   /**
-   * Current-user workspace gate from Core.
+   * Current-user workspace access from Core.
    * Sole access decision for the workspace gate (not `onboardingCompleted`).
    * Deduplicated per request via React cache().
    */
-  const getWorkspaceGate = cache(async (): Promise<WorkspaceGate | null> => {
-    const session = await getSession();
-    if (!session) {
-      return null;
-    }
-    const response = await coreClient.getMyWorkspaceGate();
-    return response.data;
-  });
+  const getWorkspaceAccess = cache(
+    async (): Promise<WorkspaceAccess | null> => {
+      const session = await getSession();
+      if (!session) {
+        return null;
+      }
+      const response = await coreClient.getMyWorkspaceAccess();
+      return response.data;
+    },
+  );
 
   /**
    * Determines whether the onboarding flow should be shown for the current user.
@@ -192,7 +194,7 @@ export const userService = (() => {
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
     getOrganizationMembers,
-    getWorkspaceGate,
+    getWorkspaceAccess,
     showOnboarding,
     markOnboardingCompleteForMe,
   };

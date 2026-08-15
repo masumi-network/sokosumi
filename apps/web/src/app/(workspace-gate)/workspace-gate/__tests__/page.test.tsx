@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionOrRedirectMock = vi.fn();
-const getWorkspaceGateMock = vi.fn();
+const getWorkspaceAccessMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
 });
@@ -22,7 +22,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 
 vi.mock("@/lib/services", () => ({
   userService: {
-    getWorkspaceGate: (...args: unknown[]) => getWorkspaceGateMock(...args),
+    getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
 }));
 
@@ -45,7 +45,7 @@ describe("WorkspaceGatePage", () => {
   });
 
   it("redirects ready users away from the gate", async () => {
-    getWorkspaceGateMock.mockResolvedValue({
+    getWorkspaceAccessMock.mockResolvedValue({
       gate: "ready",
       hasPersonalWorkspace: true,
       hasOrganizationMembership: false,
@@ -59,7 +59,7 @@ describe("WorkspaceGatePage", () => {
   });
 
   it("renders the identity gate when inventory is not ready", async () => {
-    getWorkspaceGateMock.mockResolvedValue({
+    getWorkspaceAccessMock.mockResolvedValue({
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
@@ -76,7 +76,7 @@ describe("WorkspaceGatePage", () => {
   });
 
   it("renders pending-invites copy when inventory reports pending invites", async () => {
-    getWorkspaceGateMock.mockResolvedValue({
+    getWorkspaceAccessMock.mockResolvedValue({
       gate: "pending-invites",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
@@ -91,7 +91,7 @@ describe("WorkspaceGatePage", () => {
   });
 
   it("renders unavailable surface when inventory throws (not identity onboarding)", async () => {
-    getWorkspaceGateMock.mockRejectedValue(new Error("Core down"));
+    getWorkspaceAccessMock.mockRejectedValue(new Error("Core down"));
 
     const { default: WorkspaceGatePage } = await import("../page");
     const ui = await WorkspaceGatePage();
@@ -105,7 +105,7 @@ describe("WorkspaceGatePage", () => {
   });
 
   it("renders unavailable surface when inventory is null for a signed-in user", async () => {
-    getWorkspaceGateMock.mockResolvedValue(null);
+    getWorkspaceAccessMock.mockResolvedValue(null);
 
     const { default: WorkspaceGatePage } = await import("../page");
     const ui = await WorkspaceGatePage();

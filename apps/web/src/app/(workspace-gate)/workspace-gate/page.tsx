@@ -25,7 +25,7 @@ export default async function WorkspaceGatePage() {
   let inventoryLoadFailed = false;
 
   try {
-    const inventory = await userService.getWorkspaceGate();
+    const inventory = await userService.getWorkspaceAccess();
     if (!inventory) {
       // Session exists but gate payload missing — treat as temporary failure,
       // not identity onboarding (user must understand why they cannot enter).

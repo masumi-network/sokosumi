@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionOrRedirectMock = vi.fn();
-const getWorkspaceGateMock = vi.fn();
+const getWorkspaceAccessMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
 });
@@ -17,7 +17,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 
 vi.mock("@/lib/services", () => ({
   userService: {
-    getWorkspaceGate: (...args: unknown[]) => getWorkspaceGateMock(...args),
+    getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
 }));
 
@@ -31,7 +31,7 @@ describe("WorkspaceAccessGate", () => {
   });
 
   it("redirects not-ready users before chrome mounts", async () => {
-    getWorkspaceGateMock.mockResolvedValue({
+    getWorkspaceAccessMock.mockResolvedValue({
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
@@ -49,7 +49,7 @@ describe("WorkspaceAccessGate", () => {
   });
 
   it("redirects when inventory throws (fail closed, no chrome)", async () => {
-    getWorkspaceGateMock.mockRejectedValue(new Error("Core down"));
+    getWorkspaceAccessMock.mockRejectedValue(new Error("Core down"));
 
     const { default: WorkspaceAccessGate } = await import(
       "../workspace-access-gate"
@@ -61,7 +61,7 @@ describe("WorkspaceAccessGate", () => {
   });
 
   it("renders children when ready", async () => {
-    getWorkspaceGateMock.mockResolvedValue({
+    getWorkspaceAccessMock.mockResolvedValue({
       gate: "ready",
       hasPersonalWorkspace: true,
       hasOrganizationMembership: false,

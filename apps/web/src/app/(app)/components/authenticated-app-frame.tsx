@@ -45,7 +45,7 @@ export default async function AuthenticatedAppFrame({
   // (gate page distinguishes identity vs temporary load failure for the user).
   let inventoryGate: string | null = null;
   try {
-    const inventory = await userService.getWorkspaceGate();
+    const inventory = await userService.getWorkspaceAccess();
     inventoryGate = inventory?.gate ?? null;
   } catch (error) {
     console.error("Failed to load workspace gate for app frame", error);

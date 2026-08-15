@@ -8,7 +8,7 @@ vi.mock("server-only", () => ({}));
 const getSessionMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
 const getMyMemberInOrganizationMock = vi.fn();
-const getMyWorkspaceGateMock = vi.fn();
+const getMyWorkspaceAccessMock = vi.fn();
 const getOrganizationByIdMock = vi.fn();
 const updateCurrentUserViaCoreMock = vi.fn();
 
@@ -35,8 +35,8 @@ vi.mock("@/lib/clients/core.client", () => {
         getMyMembersWithOrganizationsMock(...args),
       getMyMemberInOrganization: (...args: unknown[]) =>
         getMyMemberInOrganizationMock(...args),
-      getMyWorkspaceGate: (...args: unknown[]) =>
-        getMyWorkspaceGateMock(...args),
+      getMyWorkspaceAccess: (...args: unknown[]) =>
+        getMyWorkspaceAccessMock(...args),
       getOrganizationById: (...args: unknown[]) =>
         getOrganizationByIdMock(...args),
     },
@@ -205,14 +205,14 @@ describe("user.service", () => {
     });
   });
 
-  describe("getWorkspaceGate", () => {
+  describe("getWorkspaceAccess", () => {
     it("returns null when there is no session", async () => {
       getSessionMock.mockResolvedValue(null);
 
       const { userService } = await import("../user.service");
-      const result = await userService.getWorkspaceGate();
+      const result = await userService.getWorkspaceAccess();
 
-      expect(getMyWorkspaceGateMock).not.toHaveBeenCalled();
+      expect(getMyWorkspaceAccessMock).not.toHaveBeenCalled();
       expect(result).toBeNull();
     });
 
@@ -221,19 +221,19 @@ describe("user.service", () => {
         session: { id: "session-1" },
         user: { id: "user-1" },
       });
-      const workspaceGate = {
+      const workspaceAccess = {
         gate: "ready",
         hasPersonalWorkspace: true,
         hasOrganizationMembership: false,
         hasPendingOrganizationInvites: false,
       };
-      getMyWorkspaceGateMock.mockResolvedValue({ data: workspaceGate });
+      getMyWorkspaceAccessMock.mockResolvedValue({ data: workspaceAccess });
 
       const { userService } = await import("../user.service");
-      const result = await userService.getWorkspaceGate();
+      const result = await userService.getWorkspaceAccess();
 
-      expect(getMyWorkspaceGateMock).toHaveBeenCalled();
-      expect(result).toEqual(workspaceGate);
+      expect(getMyWorkspaceAccessMock).toHaveBeenCalled();
+      expect(result).toEqual(workspaceAccess);
     });
   });
 

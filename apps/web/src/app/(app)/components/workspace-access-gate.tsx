@@ -20,7 +20,7 @@ export default async function WorkspaceAccessGate({
 
   let inventoryGate: string | null = null;
   try {
-    const inventory = await userService.getWorkspaceGate();
+    const inventory = await userService.getWorkspaceAccess();
     inventoryGate = inventory?.gate ?? null;
   } catch (error) {
     console.error("Failed to load workspace gate for access gate", error);
