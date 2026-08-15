@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { loadWorkspaceInventory } from "@/helpers/workspace-inventory";
+import { loadWorkspaceGate } from "@/helpers/workspace-gate";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
@@ -10,7 +10,7 @@ import {
   requireUserRouteContext,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
-import { workspaceInventorySchema } from "@/schemas/workspace-inventory.schema";
+import { workspaceGateSchema } from "@/schemas/workspace-gate.schema";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,
@@ -18,15 +18,15 @@ const params = z.object({
 
 const route = createRoute({
   method: "get",
-  path: "/workspace-inventory",
+  path: "/workspace-gate",
   description:
-    "Current-user workspace inventory and derived gate: path `me` for the session user, or a user id when the caller may access that user's data. `ready` if personal workspace and/or any organization membership exists; `pending-invites` if neither and they have non-expired pending organization invitations; `identity-onboarding` if neither and no pending org entry.",
+    "Current-user workspace gate facts: path `me` for the session user, or a user id when the caller may access that user's data. `ready` if personal workspace and/or any organization membership exists; `pending-invites` if neither and they have non-expired pending organization invitations; `identity-onboarding` if neither and no pending org entry.",
   tags: ["Users"],
   request: { params },
   responses: {
     200: jsonSuccessResponse(
-      workspaceInventorySchema,
-      "Retrieve the user's workspace inventory and gate",
+      workspaceGateSchema,
+      "Retrieve the user's workspace gate",
       {
         data: {
           gate: "ready",
@@ -54,8 +54,8 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
 
     // Read-only GET: default client + concurrent queries (not interactive tx —
     // Promise.all on interactive transaction clients is unsupported; #2559).
-    const inventory = await loadWorkspaceInventory(resolvedUserId, prisma);
+    const gate = await loadWorkspaceGate(resolvedUserId, prisma);
 
-    return ok(c, workspaceInventorySchema.parse(inventory));
+    return ok(c, workspaceGateSchema.parse(gate));
   });
 }

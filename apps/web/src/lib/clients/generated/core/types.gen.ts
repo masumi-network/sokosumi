@@ -2634,7 +2634,7 @@ export type PreferredOrganization = {
     organizationId: string | null;
 };
 
-export type WorkspaceInventory = {
+export type WorkspaceGate = {
     gate: WorkspaceGateStatus;
     /**
      * Whether the user owns a personal workspace row
@@ -19279,7 +19279,7 @@ export type PostUsersByIdOnboardingResponses = {
 
 export type PostUsersByIdOnboardingResponse = PostUsersByIdOnboardingResponses[keyof PostUsersByIdOnboardingResponses];
 
-export type GetUsersByIdWorkspaceInventoryData = {
+export type GetUsersByIdWorkspaceGateData = {
     body?: never;
     path: {
         /**
@@ -19288,10 +19288,10 @@ export type GetUsersByIdWorkspaceInventoryData = {
         id: string;
     };
     query?: never;
-    url: '/users/{id}/workspace-inventory';
+    url: '/users/{id}/workspace-gate';
 };
 
-export type GetUsersByIdWorkspaceInventoryErrors = {
+export type GetUsersByIdWorkspaceGateErrors = {
     /**
      * Unauthorized
      */
@@ -19350,14 +19350,14 @@ export type GetUsersByIdWorkspaceInventoryErrors = {
     };
 };
 
-export type GetUsersByIdWorkspaceInventoryError = GetUsersByIdWorkspaceInventoryErrors[keyof GetUsersByIdWorkspaceInventoryErrors];
+export type GetUsersByIdWorkspaceGateError = GetUsersByIdWorkspaceGateErrors[keyof GetUsersByIdWorkspaceGateErrors];
 
-export type GetUsersByIdWorkspaceInventoryResponses = {
+export type GetUsersByIdWorkspaceGateResponses = {
     /**
-     * Retrieve the user's workspace inventory and gate
+     * Retrieve the user's workspace gate
      */
     200: {
-        data: WorkspaceInventory;
+        data: WorkspaceGate;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -19366,7 +19366,7 @@ export type GetUsersByIdWorkspaceInventoryResponses = {
     };
 };
 
-export type GetUsersByIdWorkspaceInventoryResponse = GetUsersByIdWorkspaceInventoryResponses[keyof GetUsersByIdWorkspaceInventoryResponses];
+export type GetUsersByIdWorkspaceGateResponse = GetUsersByIdWorkspaceGateResponses[keyof GetUsersByIdWorkspaceGateResponses];
 
 export type GetUsersByIdNoticesPendingData = {
     body?: never;

@@ -9038,7 +9038,7 @@ export const PreferredOrganizationSchema = {
     ]
 } as const;
 
-export const WorkspaceInventorySchema = {
+export const WorkspaceGateSchema = {
     type: 'object',
     properties: {
         gate: {

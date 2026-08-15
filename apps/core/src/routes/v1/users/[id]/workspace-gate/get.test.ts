@@ -8,20 +8,19 @@ import {
   usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 
-import mountGetUserWorkspaceInventory from "./get";
+import mountGetUserWorkspaceGate from "./get";
 
-const { loadWorkspaceInventoryMock, userFindUniqueMock } = vi.hoisted(() => ({
-  loadWorkspaceInventoryMock: vi.fn(),
+const { loadWorkspaceGateMock, userFindUniqueMock } = vi.hoisted(() => ({
+  loadWorkspaceGateMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/workspace-inventory", async (importOriginal) => {
+vi.mock("@/helpers/workspace-gate", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/helpers/workspace-inventory")>();
+    await importOriginal<typeof import("@/helpers/workspace-gate")>();
   return {
     ...actual,
-    loadWorkspaceInventory: (...args: unknown[]) =>
-      loadWorkspaceInventoryMock(...args),
+    loadWorkspaceGate: (...args: unknown[]) => loadWorkspaceGateMock(...args),
   };
 });
 
@@ -50,29 +49,29 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
     Variables: AuthVariables & UserRouteVariables;
   }>();
   userByIdApp.use("*", usersPathUserContextMiddleware);
-  mountGetUserWorkspaceInventory(
+  mountGetUserWorkspaceGate(
     userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
   );
   app.route("/:id", userByIdApp);
   return app;
 }
 
-describe("GET /users/{id}/workspace-inventory", () => {
+describe("GET /users/{id}/workspace-gate", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
   it("returns 403 when the caller may not access the target user", async () => {
     const response = await createApp().request(
-      "http://localhost/other_user/workspace-inventory",
+      "http://localhost/other_user/workspace-gate",
     );
     expect(response.status).toBe(403);
-    expect(loadWorkspaceInventoryMock).not.toHaveBeenCalled();
+    expect(loadWorkspaceGateMock).not.toHaveBeenCalled();
   });
 
-  it("returns the inventory for `me`", async () => {
+  it("returns the gate for `me`", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    loadWorkspaceInventoryMock.mockResolvedValueOnce({
+    loadWorkspaceGateMock.mockResolvedValueOnce({
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
@@ -80,12 +79,12 @@ describe("GET /users/{id}/workspace-inventory", () => {
     });
 
     const response = await createApp().request(
-      "http://localhost/me/workspace-inventory",
+      "http://localhost/me/workspace-gate",
     );
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(loadWorkspaceInventoryMock).toHaveBeenCalledWith(
+    expect(loadWorkspaceGateMock).toHaveBeenCalledWith(
       "user_123",
       expect.objectContaining({
         user: expect.objectContaining({ findUnique: expect.any(Function) }),
@@ -99,9 +98,9 @@ describe("GET /users/{id}/workspace-inventory", () => {
     });
   });
 
-  it("returns ready inventory when personal workspace exists", async () => {
+  it("returns ready gate when personal workspace exists", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    loadWorkspaceInventoryMock.mockResolvedValueOnce({
+    loadWorkspaceGateMock.mockResolvedValueOnce({
       gate: "ready",
       hasPersonalWorkspace: true,
       hasOrganizationMembership: false,
@@ -109,7 +108,7 @@ describe("GET /users/{id}/workspace-inventory", () => {
     });
 
     const response = await createApp().request(
-      "http://localhost/me/workspace-inventory",
+      "http://localhost/me/workspace-gate",
     );
     const body = await response.json();
 
