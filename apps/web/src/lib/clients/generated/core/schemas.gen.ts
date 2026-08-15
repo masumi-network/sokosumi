@@ -5440,7 +5440,7 @@ export const ChatRoomThreadSchema = {
         attentionReplyCount: {
             type: 'integer',
             minimum: 0,
-            description: 'Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`unread=true`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.',
+            description: 'Non-deleted replies from others after the dual-baseline look (thread lastReadAt, else room read-state createdAt, else -infinity). Used by Threads badge (`GET …/threads/attention-count`), thread overview, and Mark all; includes never-looked replies that still contribute to sidebar unread.',
             example: 3
         }
     },
@@ -5896,6 +5896,21 @@ export const ChatRoomMessageUnfurlSchema = {
         'description',
         'imageUrl',
         'siteName'
+    ]
+} as const;
+
+export const ChatRoomThreadsAttentionCountSchema = {
+    type: 'object',
+    properties: {
+        count: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Number of attention threads (`attentionReplyCount >= 1`, dual-baseline including qualifying never-looked). Does not hydrate thread items.',
+            example: 4
+        }
+    },
+    required: [
+        'count'
     ]
 } as const;
 

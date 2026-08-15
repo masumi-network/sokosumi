@@ -215,8 +215,8 @@ export interface ChatRoomThreadAggregate {
  *
  * `unreadReplyCount` follows ADR-0005 (prior look required; never-looked → 0).
  * `attentionReplyCount` uses the sidebar dual-baseline. `unreadOnly` and the
- * Threads badge filter on `attentionReplyCount >= 1` so never-looked attention
- * matches overview Mark all (SOK-811).
+ * Threads badge count filter on `attentionReplyCount >= 1` so never-looked
+ * attention matches overview Mark all (SOK-811).
  */
 export async function getChatRoomThreadAggregates(
   roomId: string,
@@ -529,6 +529,47 @@ export async function markChatRoomThreadRead(
     parentMessageId: state.parentMessageId,
     lastReadAt: state.lastReadAt,
   };
+}
+
+/**
+ * Count parents with `attentionReplyCount >= 1` (dual-baseline, including
+ * qualifying never-looked). Cheap badge path: no parent hydrate, no row list.
+ * Same eligibility as `unreadOnly` / Mark all / overview attention (SOK-811).
+ */
+export async function countChatRoomAttentionThreads(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient,
+): Promise<number> {
+  const rows = await tx.$queryRawUnsafe<Array<{ count: number | bigint }>>(
+    `
+    SELECT COUNT(DISTINCT parent.id)::int AS count
+    FROM "chat_room_message" reply
+    INNER JOIN "chat_room_message" parent
+      ON parent.id = reply."parentMessageId"
+      AND parent."roomId" = reply."roomId"
+    LEFT JOIN "chat_room_thread_read_state" thread_read
+      ON thread_read."parentMessageId" = parent.id
+      AND thread_read."userId" = $2
+    LEFT JOIN "chat_room_read_state" room_read
+      ON room_read."roomId" = reply."roomId"
+      AND room_read."userId" = $2
+    WHERE reply."roomId" = $1::uuid
+      AND reply."parentMessageId" IS NOT NULL
+      AND reply."deletedAt" IS NULL
+      AND parent."deletedAt" IS NULL
+      AND parent."parentMessageId" IS NULL
+      AND (reply."senderUserId" IS NULL OR reply."senderUserId" <> $2)
+      AND reply."createdAt" > COALESCE(
+        thread_read."lastReadAt",
+        room_read."createdAt",
+        '-infinity'::timestamp
+      )
+    `,
+    roomId,
+    userId,
+  );
+  return Number(rows[0]?.count ?? 0);
 }
 
 /**

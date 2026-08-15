@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 const getChatRoomsMock = vi.fn();
 const getDiscoverableChatRoomsMock = vi.fn();
 const getChatRoomThreadsMock = vi.fn();
+const getChatRoomThreadsAttentionCountMock = vi.fn();
 const markChatRoomThreadReadMock = vi.fn();
 const markChatRoomThreadsReadMock = vi.fn();
 const archiveChatRoomMock = vi.fn();
@@ -26,6 +27,8 @@ vi.mock("@/lib/clients/core.client", () => ({
     getDiscoverableChatRooms: (...args: unknown[]) =>
       getDiscoverableChatRoomsMock(...args),
     getChatRoomThreads: (...args: unknown[]) => getChatRoomThreadsMock(...args),
+    getChatRoomThreadsAttentionCount: (...args: unknown[]) =>
+      getChatRoomThreadsAttentionCountMock(...args),
     markChatRoomThreadRead: (...args: unknown[]) =>
       markChatRoomThreadReadMock(...args),
     markChatRoomThreadsRead: (...args: unknown[]) =>
@@ -412,23 +415,29 @@ describe("chatRoomService thread attention", () => {
     );
   });
 
-  it("listUnreadThreads returns Core unread thread items", async () => {
-    const items = [
-      {
-        parentMessage: { id: "msg-1" },
-        unreadReplyCount: 3,
-        lastUnreadReplyAt: new Date("2026-08-01T01:00:00.000Z"),
-      },
-    ];
-    getChatRoomThreadsMock.mockResolvedValue({ data: items });
+  it("countAttentionThreads returns Core attention count without listing threads", async () => {
+    getChatRoomThreadsAttentionCountMock.mockResolvedValue({
+      data: { count: 4 },
+    });
 
     const { chatRoomService } = await import("../chat-room.service");
-    const result = await chatRoomService.listUnreadThreads("room-1");
+    const result = await chatRoomService.countAttentionThreads("room-1");
 
-    expect(getChatRoomThreadsMock).toHaveBeenCalledWith("room-1", {
-      unread: "true",
-    });
-    expect(result).toEqual(items);
+    expect(getChatRoomThreadsAttentionCountMock).toHaveBeenCalledWith("room-1");
+    expect(getChatRoomThreadsMock).not.toHaveBeenCalled();
+    expect(result).toBe(4);
+  });
+
+  it("countAttentionThreads propagates Core client rejection", async () => {
+    getChatRoomThreadsAttentionCountMock.mockRejectedValue(
+      new Error("network"),
+    );
+
+    const { chatRoomService } = await import("../chat-room.service");
+    await expect(
+      chatRoomService.countAttentionThreads("room-1"),
+    ).rejects.toThrow("network");
+    expect(getChatRoomThreadsMock).not.toHaveBeenCalled();
   });
 
   it("markThreadRead posts look state for parent message", async () => {
