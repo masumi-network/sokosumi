@@ -317,13 +317,13 @@ describe("orderStripCoworkers", () => {
     expect(ordered.map((c) => c.id)).not.toContain("c");
   });
 
-  it("keeps an odd catalog intact and centres the featured coworker", () => {
+  it("drops the last rank from an even catalog so the featured face is centred", () => {
+    // featured + 7 others = 8 → drop g → diamond of 7
     const ordered = orderStripCoworkers([featured, ...others], featured);
-    expect(ordered).toHaveLength(1 + others.length);
+    expect(ordered).toHaveLength(7);
     expect(ordered.length % 2).toBe(1);
     expect(ordered[Math.floor(ordered.length / 2)]?.id).toBe("elena");
     expect(ordered.map((c) => c.id)).toEqual([
-      "g",
       "e",
       "c",
       "a",
@@ -332,6 +332,7 @@ describe("orderStripCoworkers", () => {
       "d",
       "f",
     ]);
+    expect(ordered.map((c) => c.id)).not.toContain("g");
   });
 
   it("returns an empty list when nothing is featured", () => {
