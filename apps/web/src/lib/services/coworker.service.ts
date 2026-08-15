@@ -14,7 +14,7 @@ export const coworkerService = (() => {
   ): Promise<Coworker[]> {
     const response = await coreClient.getCoworkers({
       // Product pickers default: whitelist ∪ GRANTED for active workspace.
-      // Landing catalog uses scope=all so the slider is the full chat roster.
+      // Welcome slider uses scope=all so every chat-capable coworker appears.
       scope: options?.scope ?? "available",
       ...(capability && {
         capability: [capability],
@@ -29,16 +29,7 @@ export const coworkerService = (() => {
     return coworkers;
   }
 
-  async function listLandingCoworkers(): Promise<Coworker[]> {
-    const response = await coreClient.getCoworkers({
-      // Full active catalog — not workspace-available, not chat-only.
-      scope: "all",
-    });
-    return response.data ?? [];
-  }
-
   return {
     listCoworkers,
-    listLandingCoworkers,
   };
 })();
