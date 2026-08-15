@@ -268,6 +268,7 @@ pnpm approve-builds @sentry/profiling-node
 Core’s [`vercel.json`](./vercel.json) sets:
 
 - `installCommand` to `pnpm install --filter @sokosumi/core...` so only Core and its workspace deps (including `@sokosumi/database`) are installed — not the web app or unrelated packages
+- Core and Web `prebuild` scripts run the shared Production-branch guard. On Vercel Production, a missing `VERCEL_GIT_COMMIT_REF` or any ref other than `main` fails before the application build or migration, preventing feature-branch CLI `--prod` deployments from activating.
 - `buildCommand` to `pnpm vercel-build`, which:
 
 1. Runs `pnpm run build` (workspace deps + `tsup`)

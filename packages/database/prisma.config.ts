@@ -1,11 +1,17 @@
 import "dotenv/config";
 
 import type { PrismaConfig } from "prisma/config";
+import { assertVercelProductionBranch } from "../../scripts/vercel-production-branch-guard.mjs";
 
 import {
   checkMigrateDeployEnv,
   isDbMutatingPrismaCommand,
 } from "./src/helpers/migrate-deploy-preflight.js";
+
+// Fail before generate/migrate can touch Production setup when source did not
+// come from main. Shared with Core/Web prebuild so CLI `--prod` cannot bypass
+// the policy by entering through Prisma directly.
+assertVercelProductionBranch(process.env);
 
 // Preflight only DB-mutating CLI commands (`migrate …`, `db …`): Preview
 // without DATABASE_URL_UNPOOLED fails closed so a raw `prisma migrate deploy`
