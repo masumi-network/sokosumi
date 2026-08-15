@@ -308,22 +308,20 @@ describe("orderStripCoworkers", () => {
     expect(ordered).toHaveLength(5);
   });
 
-  it("walks the diamond left then right for an even count", () => {
-    // ranks a,b,c → [c, a, featured, b]
+  it("drops the least-completed coworker when the catalog would be even", () => {
+    // featured + a,b,c = 4 → drop c (last by slug) → [a, elena, b]
     const three = others.slice(0, 3);
     const ordered = orderStripCoworkers([featured, ...three], featured);
-    expect(ordered.map((c) => c.id)).toEqual(["c", "a", "elena", "b"]);
-    expect(ordered).toHaveLength(4);
+    expect(ordered.map((c) => c.id)).toEqual(["a", "elena", "b"]);
+    expect(ordered).toHaveLength(3);
+    expect(ordered.map((c) => c.id)).not.toContain("c");
   });
 
-  it("keeps every coworker — never drops for even flanks", () => {
+  it("keeps an odd catalog intact and centres the featured coworker", () => {
     const ordered = orderStripCoworkers([featured, ...others], featured);
     expect(ordered).toHaveLength(1 + others.length);
-    expect(ordered.map((c) => c.id).sort()).toEqual(
-      ["elena", ...others.map((c) => c.id)].sort(),
-    );
-    // 8 items, 4 on the left of featured
-    expect(ordered[4]?.id).toBe("elena");
+    expect(ordered.length % 2).toBe(1);
+    expect(ordered[Math.floor(ordered.length / 2)]?.id).toBe("elena");
     expect(ordered.map((c) => c.id)).toEqual([
       "g",
       "e",
@@ -365,6 +363,7 @@ describe("orderStripCoworkers", () => {
 
     const ordered = orderStripCoworkers([low, popular, mid], popular);
     expect(ordered.map((c) => c.id)).toEqual(["hannah", "alex", "blake"]);
+    expect(ordered.length % 2).toBe(1);
   });
 });
 

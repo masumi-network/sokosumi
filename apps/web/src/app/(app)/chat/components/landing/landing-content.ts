@@ -177,7 +177,9 @@ export function toStripCoworker(coworker: Coworker): StripCoworker {
 
 /**
  * Diamond around the featured coworker (most completed tasks): next ranks
- * alternate left, then right, walking outward. Never drops anyone.
+ * alternate left, then right, walking outward. Always an odd length so the
+ * lead face is the exact centre — if the catalog is even, the least-completed
+ * coworker is dropped.
  *
  * Empty when nothing is featured — the strip only renders with a lead face.
  */
@@ -193,6 +195,11 @@ export function orderStripCoworkers(
     .filter((coworker) => coworker.id !== featured.id)
     .slice()
     .sort(compareCoworkerRank);
+
+  // featured + odd others = even total; drop the least popular so centre is exact.
+  if (others.length % 2 === 1) {
+    others.pop();
+  }
 
   const left: Coworker[] = [];
   const right: Coworker[] = [];
