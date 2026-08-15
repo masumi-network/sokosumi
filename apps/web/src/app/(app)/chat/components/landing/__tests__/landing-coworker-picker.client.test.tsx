@@ -157,7 +157,7 @@ describe("LandingCoworkerPicker", () => {
     const optionIds = screen
       .getAllByRole("option")
       .map((node) => node.getAttribute("data-coworker-id"));
-    expect(optionIds).toEqual(["a", "b", "elena", "c", "d"]);
+    expect(optionIds).toEqual(["c", "a", "elena", "b", "d"]);
   });
 
   it("renders Start chat only in the detail block — no description or identity", () => {

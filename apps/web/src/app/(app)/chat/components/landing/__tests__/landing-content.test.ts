@@ -301,18 +301,18 @@ describe("orderStripCoworkers", () => {
   );
 
   it("places the featured coworker at the exact middle for an odd count", () => {
-    // 1 featured + 4 others = 5 → index 2
+    // ranks a,b,c,d by slug → diamond [c, a, featured, b, d]
     const four = others.slice(0, 4);
     const ordered = orderStripCoworkers([featured, ...four], featured);
-    expect(ordered.map((c) => c.id)).toEqual(["a", "b", "elena", "c", "d"]);
+    expect(ordered.map((c) => c.id)).toEqual(["c", "a", "elena", "b", "d"]);
     expect(ordered).toHaveLength(5);
   });
 
-  it("places the featured coworker left-of-centre for an even count", () => {
-    // 1 featured + 3 others = 4 → index 1 (left of the two centre slots)
+  it("walks the diamond left then right for an even count", () => {
+    // ranks a,b,c → [c, a, featured, b]
     const three = others.slice(0, 3);
     const ordered = orderStripCoworkers([featured, ...three], featured);
-    expect(ordered.map((c) => c.id)).toEqual(["a", "elena", "b", "c"]);
+    expect(ordered.map((c) => c.id)).toEqual(["c", "a", "elena", "b"]);
     expect(ordered).toHaveLength(4);
   });
 
@@ -322,8 +322,18 @@ describe("orderStripCoworkers", () => {
     expect(ordered.map((c) => c.id).sort()).toEqual(
       ["elena", ...others.map((c) => c.id)].sort(),
     );
-    // 8 items → index floor(7/2)=3
-    expect(ordered[3]?.id).toBe("elena");
+    // 8 items, 4 on the left of featured
+    expect(ordered[4]?.id).toBe("elena");
+    expect(ordered.map((c) => c.id)).toEqual([
+      "g",
+      "e",
+      "c",
+      "a",
+      "elena",
+      "b",
+      "d",
+      "f",
+    ]);
   });
 
   it("returns an empty list when nothing is featured", () => {
