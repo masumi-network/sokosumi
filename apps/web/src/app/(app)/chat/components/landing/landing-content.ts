@@ -1,9 +1,6 @@
 import { getFirstName } from "@sokosumi/utils";
 
-import {
-  findDefaultCoworker,
-  getCoworkerImageUrl,
-} from "@/app/chat/utils/coworker-utils";
+import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { canUseNextImageSrc } from "@/config/next-image";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
@@ -43,21 +40,14 @@ export function compareCoworkerRank(
  * Shared between the desktop landing and the mobile welcome so the two cannot
  * disagree about who is featured, which faces appear, or which stats show.
  *
- * Featured = coworker with the most completed assigned tasks. When every
- * count is still 0, keep Elena via `findDefaultCoworker`.
+ * Featured = coworker with the most completed assigned tasks. Ties break
+ * on slug. Always the optical-middle face on the strip.
  */
 export function resolveFeaturedCoworker(
   coworkers: Coworker[],
 ): Coworker | null {
   if (coworkers.length === 0) {
     return null;
-  }
-
-  const allUnranked = coworkers.every(
-    (coworker) => coworkerCompletedTaskCount(coworker) === 0,
-  );
-  if (allUnranked) {
-    return findDefaultCoworker(coworkers);
   }
 
   return coworkers.reduce((best, current) =>

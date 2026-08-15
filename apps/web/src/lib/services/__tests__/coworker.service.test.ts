@@ -100,6 +100,27 @@ describe("coworker.service", () => {
     });
   });
 
+  it("lists the landing catalog as every active coworker", async () => {
+    const hannah = { id: "cow-1", slug: "hannah", name: "Hannah" };
+    const deckster = {
+      id: "cow-2",
+      slug: "deckster",
+      name: "Deckster",
+      capabilities: ["tasks"],
+    };
+    coreClientMock.getCoworkers.mockResolvedValue({
+      data: [hannah, deckster],
+    });
+
+    const { coworkerService } = await import("../coworker.service");
+    const result = await coworkerService.listLandingCoworkers();
+
+    expect(coreClientMock.getCoworkers).toHaveBeenCalledWith({
+      scope: "all",
+    });
+    expect(result).toEqual([hannah, deckster]);
+  });
+
   it("forwards an explicit catalog scope", async () => {
     coreClientMock.getCoworkers.mockResolvedValue({
       data: [],

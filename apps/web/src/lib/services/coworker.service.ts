@@ -29,7 +29,16 @@ export const coworkerService = (() => {
     return coworkers;
   }
 
+  async function listLandingCoworkers(): Promise<Coworker[]> {
+    const response = await coreClient.getCoworkers({
+      // Full active catalog — not workspace-available, not chat-only.
+      scope: "all",
+    });
+    return response.data ?? [];
+  }
+
   return {
     listCoworkers,
+    listLandingCoworkers,
   };
 })();

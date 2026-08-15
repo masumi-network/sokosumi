@@ -109,23 +109,14 @@ describe("resolveFeaturedCoworker", () => {
     expect(resolveFeaturedCoworker(coworkers)?.id).toBe("alex");
   });
 
-  it("falls back to Elena when every coworker is still the default rank", () => {
+  it("does not prefer Elena when every completed-task count is zero", () => {
     const coworkers = [
       buildCoworker({ id: "hannah", slug: "hannah" }),
       buildCoworker({ id: "elena-id", slug: "elena" }),
       buildCoworker({ id: "alex", slug: "alex" }),
     ];
 
-    expect(resolveFeaturedCoworker(coworkers)?.id).toBe("elena-id");
-  });
-
-  it("falls back to the first coworker when Elena is absent and ranks are zero", () => {
-    const coworkers = [
-      buildCoworker({ id: "hannah", slug: "hannah" }),
-      buildCoworker({ id: "alex", slug: "alex" }),
-    ];
-
-    expect(resolveFeaturedCoworker(coworkers)?.id).toBe("hannah");
+    expect(resolveFeaturedCoworker(coworkers)?.id).toBe("alex");
   });
 
   it("returns null when there are no coworkers at all", () => {
