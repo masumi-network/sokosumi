@@ -47,6 +47,7 @@ const coworker = {
   capabilities: [],
   image: "https://example.com/image.png",
   priority: 0,
+  completedTaskCount: 0,
   isWhitelisted: false,
   metadata: null,
   vendor: {

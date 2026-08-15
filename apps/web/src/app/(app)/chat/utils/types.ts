@@ -25,6 +25,8 @@ export interface Coworker {
   slug: string;
   /** Core list rank. Higher = more popular / earlier in pickers. */
   priority?: number;
+  /** Assigned tasks with status COMPLETED, overall. */
+  completedTaskCount?: number;
   capabilities?: Array<"chat" | "tasks">;
   archivedAt?: Date | string | null;
   isWhitelisted?: boolean;

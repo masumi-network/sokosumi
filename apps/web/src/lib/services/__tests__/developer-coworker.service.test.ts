@@ -28,6 +28,7 @@ const activeCoworker = {
   capabilities: [],
   image: null,
   priority: 0,
+  completedTaskCount: 0,
   isWhitelisted: false,
   metadata: null,
   vendor: {

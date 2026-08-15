@@ -10,11 +10,12 @@ import type { Coworker } from "@/lib/clients/generated/core";
 export const coworkerService = (() => {
   async function listCoworkers(
     capability?: CoworkerCapability,
+    options?: { scope?: "all" | "available" },
   ): Promise<Coworker[]> {
     const response = await coreClient.getCoworkers({
-      // Product pickers: whitelist ∪ GRANTED for active workspace.
-      // Admin/developer owned|all scopes use other services.
-      scope: "available",
+      // Product pickers default: whitelist ∪ GRANTED for active workspace.
+      // Landing catalog uses scope=all so the slider is the full chat roster.
+      scope: options?.scope ?? "available",
       ...(capability && {
         capability: [capability],
       }),

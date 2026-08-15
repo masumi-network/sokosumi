@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { CoworkerWorkspaceAccessStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
+import { coworkerInclude } from "@/helpers/coworker";
 import { formatZodErrorMessage, unprocessableEntity } from "@/helpers/error";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
@@ -39,8 +39,6 @@ const coworkerAuth: AuthenticationContext = {
   coworkerId: "cow_456",
   vendorId: "01960001-0001-7001-8001-000000000001",
 };
-
-const coworkerInclude = { vendor: true } as const;
 
 const sampleVendor = {
   id: "01960001-0001-7001-8001-000000000001",
@@ -142,9 +140,36 @@ describe("GET /coworkers", () => {
     expect(response.status).toBe(200);
     expect(body.data[0].isWhitelisted).toBe(true);
     expect(body.data[0].priority).toBe(10);
+    expect(body.data[0].completedTaskCount).toBe(0);
     expect(body.data[0].capabilities).toEqual(["chat", "tasks"]);
     expect(body.data[0].baseURL).toBeNull();
     expect(body.data[0].metadata).toBeNull();
+  });
+
+  it("returns completedTaskCount from assigned completed tasks", async () => {
+    coworkerFindManyMock.mockResolvedValue([
+      {
+        id: "cow_123",
+        createdAt: new Date("2026-02-25T10:00:00.000Z"),
+        updatedAt: new Date("2026-02-25T10:00:00.000Z"),
+        archivedAt: null,
+        isWhitelisted: true,
+        priority: 10,
+        capabilities: ["chat"],
+        slug: "ops-agent",
+        name: "Ops Agent",
+        baseURL: null,
+        vendor: sampleVendor,
+        _count: { assignedTasks: 7 },
+      },
+    ]);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0].completedTaskCount).toBe(7);
   });
 
   it("can return all non-archived coworkers via scope=all", async () => {

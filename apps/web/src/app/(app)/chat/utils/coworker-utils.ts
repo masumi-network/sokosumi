@@ -124,6 +124,7 @@ export function mapDbCoworkerToChatCoworker(db: CoreCoworker): Coworker {
     slug: db.slug,
     name: db.name,
     priority: db.priority,
+    completedTaskCount: db.completedTaskCount,
     description: db.description ?? "",
     useCase: "", // DB has no useCase; avoid duplicating description in UI
     capabilities: [...db.capabilities],

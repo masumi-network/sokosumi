@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { coworkerInclude } from "@/helpers/coworker";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import { testVendor } from "@/test-fixtures/vendor";
@@ -61,7 +62,7 @@ describe("GET /coworkers/{id}", () => {
       where: {
         id: "cow_123",
       },
-      include: { vendor: true },
+      include: coworkerInclude,
     });
   });
 
@@ -137,7 +138,7 @@ describe("GET /coworkers/{id}", () => {
     expect(response.status).toBe(200);
     expect(coworkerFindFirstMock).toHaveBeenCalledWith({
       where: { id: "cow_123" },
-      include: { vendor: true },
+      include: coworkerInclude,
     });
   });
 });

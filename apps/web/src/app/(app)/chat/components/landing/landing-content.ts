@@ -17,22 +17,24 @@ export function resolveLandingGreetingName(
   return getFirstName(userName) ?? null;
 }
 
-function coworkerRank(coworker: Pick<Coworker, "priority">): number {
-  return coworker.priority ?? 0;
+function coworkerCompletedTaskCount(
+  coworker: Pick<Coworker, "completedTaskCount">,
+): number {
+  return coworker.completedTaskCount ?? 0;
 }
 
 /**
- * Highest Core `priority` first (same key as GET /v1/coworkers). That field
- * is an editorial list rank, not a usage counter. Slug is the stable
- * tie-break so the featured face cannot flicker across renders.
+ * Most completed assigned tasks first. Slug is the stable tie-break so the
+ * featured face cannot flicker across renders.
  */
 export function compareCoworkerRank(
-  left: Pick<Coworker, "priority" | "slug">,
-  right: Pick<Coworker, "priority" | "slug">,
+  left: Pick<Coworker, "completedTaskCount" | "slug">,
+  right: Pick<Coworker, "completedTaskCount" | "slug">,
 ): number {
-  const byPriority = coworkerRank(right) - coworkerRank(left);
-  if (byPriority !== 0) {
-    return byPriority;
+  const byCompleted =
+    coworkerCompletedTaskCount(right) - coworkerCompletedTaskCount(left);
+  if (byCompleted !== 0) {
+    return byCompleted;
   }
   return (left.slug ?? "").localeCompare(right.slug ?? "");
 }
@@ -41,9 +43,8 @@ export function compareCoworkerRank(
  * Shared between the desktop landing and the mobile welcome so the two cannot
  * disagree about who is featured, which faces appear, or which stats show.
  *
- * Featured = highest Core `priority` among available chat coworkers. When
- * every row is still the default `0` (fresh / local DBs), keep Elena via
- * `findDefaultCoworker` so the welcome does not flip to the first slug.
+ * Featured = coworker with the most completed assigned tasks. When every
+ * count is still 0, keep Elena via `findDefaultCoworker`.
  */
 export function resolveFeaturedCoworker(
   coworkers: Coworker[],
@@ -52,10 +53,10 @@ export function resolveFeaturedCoworker(
     return null;
   }
 
-  const allDefaultRank = coworkers.every(
-    (coworker) => coworkerRank(coworker) === 0,
+  const allUnranked = coworkers.every(
+    (coworker) => coworkerCompletedTaskCount(coworker) === 0,
   );
-  if (allDefaultRank) {
+  if (allUnranked) {
     return findDefaultCoworker(coworkers);
   }
 
@@ -185,8 +186,8 @@ export function toStripCoworker(coworker: Coworker): StripCoworker {
 }
 
 /**
- * Full catalog ordered by popularity, with the featured coworker (highest
- * `priority`) in the optical middle. Odd counts → exact centre; even → left
+ * Full catalog ordered by completed-task count, with the featured coworker
+ * (most completed tasks) in the optical middle. Odd counts → exact centre; even → left
  * of the two centre slots (`floor(others/2)` flanks left). Never drops anyone.
  *
  * Empty when nothing is featured — the strip only renders with a lead face.

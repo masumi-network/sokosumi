@@ -706,6 +706,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
       archivedAt: null,
       isWhitelisted: true,
       priority: 0,
+      completedTaskCount: 0,
       slug: "agent",
       name: "Agent",
       vendor: {

@@ -35,6 +35,7 @@ describe("mapDbCoworkerToChatCoworker", () => {
         archivedAt: null,
         isWhitelisted: false,
         priority: 0,
+        completedTaskCount: 0,
         image: null,
         caption: null,
         vendor: {
@@ -60,6 +61,7 @@ describe("mapDbCoworkerToChatCoworker", () => {
       slug: "elena",
       name: "Elena",
       priority: 0,
+      completedTaskCount: 0,
       description: "Ops helper",
       useCase: "",
       archivedAt: null,

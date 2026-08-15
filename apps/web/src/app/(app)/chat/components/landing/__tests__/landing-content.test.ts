@@ -62,46 +62,48 @@ function fakeTranslator(key: string, values?: Record<string, number | string>) {
 }
 
 describe("compareCoworkerRank", () => {
-  it("ranks higher priority first", () => {
+  it("ranks more completed tasks first", () => {
     expect(
       compareCoworkerRank(
-        { priority: 1, slug: "a" },
-        { priority: 10, slug: "b" },
+        { completedTaskCount: 1, slug: "a" },
+        { completedTaskCount: 10, slug: "b" },
       ),
     ).toBeGreaterThan(0);
   });
 
-  it("breaks priority ties by slug", () => {
+  it("breaks completed-task ties by slug", () => {
     expect(
       compareCoworkerRank(
-        { priority: 0, slug: "alex" },
-        { priority: 0, slug: "elena" },
+        { completedTaskCount: 0, slug: "alex" },
+        { completedTaskCount: 0, slug: "elena" },
       ),
     ).toBeLessThan(0);
   });
 
-  it("treats a missing priority as zero", () => {
+  it("treats a missing completed-task count as zero", () => {
     expect(
-      compareCoworkerRank({ slug: "alex" }, { priority: 3, slug: "elena" }),
+      compareCoworkerRank(
+        { slug: "alex" },
+        { completedTaskCount: 3, slug: "elena" },
+      ),
     ).toBeGreaterThan(0);
   });
 });
 
 describe("resolveFeaturedCoworker", () => {
-  it("prefers the highest-priority coworker regardless of list order", () => {
+  it("prefers the coworker with the most completed tasks regardless of list order", () => {
     const coworkers = [
-      buildCoworker({ id: "hannah", slug: "hannah", priority: 2 }),
-      buildCoworker({ id: "elena-id", slug: "elena", priority: 1 }),
-      buildCoworker({ id: "alex", slug: "alex", priority: 8 }),
-    ];
-
-    expect(resolveFeaturedCoworker(coworkers)?.id).toBe("alex");
-  });
-
-  it("still features a non-positive rank over Elena when ranks are not all zero", () => {
-    const coworkers = [
-      buildCoworker({ id: "elena-id", slug: "elena", priority: -1 }),
-      buildCoworker({ id: "alex", slug: "alex", priority: 0 }),
+      buildCoworker({
+        id: "hannah",
+        slug: "hannah",
+        completedTaskCount: 2,
+      }),
+      buildCoworker({
+        id: "elena-id",
+        slug: "elena",
+        completedTaskCount: 1,
+      }),
+      buildCoworker({ id: "alex", slug: "alex", completedTaskCount: 8 }),
     ];
 
     expect(resolveFeaturedCoworker(coworkers)?.id).toBe("alex");
@@ -343,14 +345,22 @@ describe("orderStripCoworkers", () => {
     ]);
   });
 
-  it("orders the flanks by popularity, not original list order", () => {
+  it("orders the flanks by completed tasks, not original list order", () => {
     const popular = buildCoworker({
       id: "alex",
       slug: "alex",
-      priority: 20,
+      completedTaskCount: 20,
     });
-    const mid = buildCoworker({ id: "hannah", slug: "hannah", priority: 5 });
-    const low = buildCoworker({ id: "blake", slug: "blake", priority: 1 });
+    const mid = buildCoworker({
+      id: "hannah",
+      slug: "hannah",
+      completedTaskCount: 5,
+    });
+    const low = buildCoworker({
+      id: "blake",
+      slug: "blake",
+      completedTaskCount: 1,
+    });
 
     const ordered = orderStripCoworkers([low, popular, mid], popular);
     expect(ordered.map((c) => c.id)).toEqual(["hannah", "alex", "blake"]);

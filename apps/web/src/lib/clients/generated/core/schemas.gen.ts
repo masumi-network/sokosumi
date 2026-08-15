@@ -12262,6 +12262,12 @@ export const CoworkerSchema = {
             example: 10,
             description: 'Sort priority for coworker lists. Higher numbers appear first.'
         },
+        completedTaskCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 12,
+            description: 'How many assigned tasks this coworker has completed, overall.'
+        },
         slug: {
             type: 'string',
             example: 'ops-agent'
@@ -12335,6 +12341,7 @@ export const CoworkerSchema = {
         'archivedAt',
         'isWhitelisted',
         'priority',
+        'completedTaskCount',
         'slug',
         'name',
         'vendor',

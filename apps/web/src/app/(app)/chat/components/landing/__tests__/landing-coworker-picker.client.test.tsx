@@ -117,17 +117,37 @@ describe("LandingCoworkerPicker", () => {
 
   it("renders the featured coworker in the middle of a popularity-ordered strip", () => {
     const catalog = [
-      buildCoworker({ id: "a", name: "A", slug: "a", priority: 4 }),
-      buildCoworker({ id: "b", name: "B", slug: "b", priority: 3 }),
+      buildCoworker({
+        id: "a",
+        name: "A",
+        slug: "a",
+        completedTaskCount: 4,
+      }),
+      buildCoworker({
+        id: "b",
+        name: "B",
+        slug: "b",
+        completedTaskCount: 3,
+      }),
       buildCoworker({
         id: "elena",
         name: "Elena",
         slug: "elena",
         caption: "Strategy",
-        priority: 10,
+        completedTaskCount: 10,
       }),
-      buildCoworker({ id: "c", name: "C", slug: "c", priority: 2 }),
-      buildCoworker({ id: "d", name: "D", slug: "d", priority: 1 }),
+      buildCoworker({
+        id: "c",
+        name: "C",
+        slug: "c",
+        completedTaskCount: 2,
+      }),
+      buildCoworker({
+        id: "d",
+        name: "D",
+        slug: "d",
+        completedTaskCount: 1,
+      }),
     ];
 
     render(

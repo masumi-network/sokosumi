@@ -100,6 +100,20 @@ describe("coworker.service", () => {
     });
   });
 
+  it("forwards an explicit catalog scope", async () => {
+    coreClientMock.getCoworkers.mockResolvedValue({
+      data: [],
+    });
+
+    const { coworkerService } = await import("../coworker.service");
+    await coworkerService.listCoworkers("chat", { scope: "all" });
+
+    expect(coreClientMock.getCoworkers).toHaveBeenCalledWith({
+      scope: "all",
+      capability: ["chat"],
+    });
+  });
+
   it("filters chat coworkers to active runnable entries", async () => {
     const runnableChatCoworker = {
       id: "cow-1",

@@ -74,6 +74,7 @@ function makeCoworker(overrides: Partial<Coworker> = {}): Coworker {
     description: "Strategy partner",
     image: null,
     priority: 10,
+    completedTaskCount: 0,
     archivedAt: null,
     isWhitelisted: true,
     baseURL: "https://responses.example.com/v1",
